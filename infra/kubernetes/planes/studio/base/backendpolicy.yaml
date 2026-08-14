@@ -20,6 +20,38 @@
 # it back to reduce service count would silently put IAP in front of `/embed/*`, which breaks
 # the docs widget in every browser that partitions storage and produces no error anywhere in
 # the application logs.
+#
+# ---------------------------------------------------------------------------------------
+# Google-managed OAuth, because a custom client is no longer possible
+# ---------------------------------------------------------------------------------------
+# These policies carry NO `clientID` and NO `oauth2ClientSecret`. That is not an omission and
+# not a shortcut — it is now the only available path.
+#
+# The design this implements carried an open item: whether the GCPBackendPolicy CRD still
+# REQUIRES those two fields when `iap.enabled: true`, on the grounds that the v1 type says
+# required while the console path for Ingress does not. It resolves, and not in the direction
+# either side of that question assumed.
+#
+# Google deprecated the IAP OAuth Admin APIs on 22 Jan 2025 and PERMANENTLY SHUT THEM DOWN on
+# 19 March 2026. Custom OAuth clients for IAP can no longer be created — not by Terraform, not
+# by the console, not by anyone. The `google_iap_brand` and `google_iap_client` resources still
+# exist in the provider and emit a deprecation warning saying exactly this; a Terraform module
+# built on them was written for this estate and then deleted, because it could only ever have
+# failed at apply.
+#
+# So IAP uses the Google-managed client, and there is no Terraform unit provisioning one.
+#
+# What is LOST by this, and it is worth being honest about it: the custom client is what would
+# have pinned the consent screen to an INTERNAL audience, so that only members of the
+# organization could complete sign-in. Without it the pre-auth surface is wider than the design
+# intended — an outside Google account can reach the consent screen, though it still fails IAP's
+# authorization check and reaches no application code.
+#
+# The compensating control is the IAP access policy itself: grant `roles/iap.httpsResourceAccessor`
+# to the organization's group and to nothing else. That grant is what actually decides who gets
+# in; the audience setting was defence in depth. Verify it is scoped to a group rather than to
+# `allAuthenticatedUsers`, because with a Google-managed client that binding is the ONLY thing
+# standing between the internet and a sign-in that succeeds.
 
 # ---------------------------------------------------------------------------------------
 # SPA shell — IAP on
@@ -38,17 +70,9 @@ spec:
     name: studio-web
   default:
     iap:
+      # GOOGLE-MANAGED OAuth. No clientID, no oauth2ClientSecret — see the note at the top of
+      # this file about why a custom client is no longer an option.
       enabled: true
-      # In the v1 CRD both fields are REQUIRED when enabled: true. The Google-managed-OAuth
-      # -client shortcut available in the console and on the Ingress path is not the same
-      # thing and does not apply here.
-      #
-      # The client is provisioned by Terraform with an INTERNAL audience, so only members of
-      # the organization can complete sign-in. Provisioned there rather than here because it
-      # must exist before the cluster does.
-      clientID: ${IAP_OAUTH_CLIENT_ID}
-      oauth2ClientSecret:
-        name: iap-oauth-client
 
 ---
 # ---------------------------------------------------------------------------------------
@@ -67,9 +91,6 @@ spec:
   default:
     iap:
       enabled: true
-      clientID: ${IAP_OAUTH_CLIENT_ID}
-      oauth2ClientSecret:
-        name: iap-oauth-client
 
 ---
 # ---------------------------------------------------------------------------------------
@@ -103,9 +124,6 @@ spec:
     timeoutSec: 900
     iap:
       enabled: true
-      clientID: ${IAP_OAUTH_CLIENT_ID}
-      oauth2ClientSecret:
-        name: iap-oauth-client
 
 # ---------------------------------------------------------------------------------------
 # studio-embed has NO GCPBackendPolicy, deliberately

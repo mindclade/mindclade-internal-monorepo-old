@@ -5,31 +5,7 @@ kind: Kustomization
 resources:
   - ../../base
 
-# The IAP OAuth client id, patched onto all three IAP-enabled Services.
-#
-# Not a secret — it is a public client identifier, and the SECRET half lives in a Kubernetes
-# Secret named `iap-oauth-client`, projected from Secret Manager. It is patched rather than
-# left in the base because the client is provisioned per environment by Terraform
-# (5-workloads/<env>/iap-oauth) with an INTERNAL audience, so only members of the organization
-# can complete sign-in.
-#
-# Replace the placeholder with the real id from that unit's output before the first apply. A
-# wrong id does not fail at admission: IAP rejects the sign-in with an OAuth error page, and
-# nothing in the application logs mentions the client at all.
-#
-# studio-embed is deliberately absent from this list. See the note at the foot of
-# planes/studio/base/backendpolicy.yaml before adding it.
 patches:
-  - target:
-      group: networking.gke.io
-      version: v1
-      kind: GCPBackendPolicy
-      name: studio-(web|bff|bff-stream)
-    patch: |-
-      - op: replace
-        path: /spec/default/iap/clientID
-        value: REPLACE_ME.apps.googleusercontent.com
-
   # The proxy-only subnet for staging, which must match
   # cidrsubnet(cfg.cidr, 8, 32) in infrastructure-live/_envcommon/vpc.hcl.
   #
