@@ -39,3 +39,41 @@ resource "google_kms_crypto_key" "this" {
     }
   }
 }
+
+# Asymmetric signing keys. The private half never leaves Cloud KMS.
+#
+# Note what is ABSENT compared with the symmetric keys above: no `rotation_period`. Cloud KMS
+# rejects one on an ASYMMETRIC_SIGN key, and the rejection is correct rather than an
+# limitation — automatic rotation would mint a new version that every verifier holding the old
+# public key would reject until it re-fetched. Rotation here is a deliberate sequence: add a
+# version, publish the new public key, wait for verifiers, disable the old version.
+resource "google_kms_crypto_key" "signing" {
+  #checkov:skip=CKV_GCP_43:rotation_period is invalid on ASYMMETRIC_SIGN keys; rotation is a deliberate multi-step sequence documented in variables.tf.
+  for_each = var.signing_keys
+
+  name                          = each.key
+  key_ring                      = google_kms_key_ring.this.id
+  purpose                       = "ASYMMETRIC_SIGN"
+  destroy_scheduled_duration    = "${each.value.destroy_scheduled_duration_seconds}s"
+  skip_initial_version_creation = false
+  deletion_policy               = "PREVENT"
+  labels = merge(
+    var.labels,
+    each.value.labels,
+    { managed-by = "terraform" },
+  )
+
+  version_template {
+    algorithm        = each.value.algorithm
+    protection_level = each.value.protection_level
+  }
+
+  lifecycle {
+    prevent_destroy = true
+
+    precondition {
+      condition     = length(merge(var.labels, each.value.labels, { managed-by = "terraform" })) <= 64
+      error_message = "Merged global, key-specific, and managed-by labels must not exceed the Cloud KMS limit of 64."
+    }
+  }
+}

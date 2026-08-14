@@ -17,3 +17,13 @@ output "crypto_key_names" {
   description = "CryptoKey names keyed by the stable input name"
   value       = { for name, key in google_kms_crypto_key.this : name => key.name }
 }
+
+output "signing_key_ids" {
+  description = "Asymmetric signing CryptoKey ids by name. The BFF signs by calling KMS with one of these; the private half never leaves."
+  value       = { for name, key in google_kms_crypto_key.signing : name => key.id }
+}
+
+output "signing_key_names" {
+  description = "Asymmetric signing CryptoKey short names."
+  value       = { for name, key in google_kms_crypto_key.signing : name => key.name }
+}
