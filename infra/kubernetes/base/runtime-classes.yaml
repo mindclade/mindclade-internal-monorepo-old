@@ -1,0 +1,3 @@
+# Intentionally empty. A RuntimeClass is cluster-provider configuration, not a portable
+# placeholder. Activation requires an observed GKE runtime handler, supported cluster
+# version, workload compatibility evidence, ownership, and a tested rollback path.

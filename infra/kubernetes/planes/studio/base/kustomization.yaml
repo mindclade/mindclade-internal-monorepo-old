@@ -5,6 +5,7 @@ kind: Kustomization
 resources:
   - httproute.yaml
   - backendpolicy.yaml
+  - networkpolicy.yaml
 
 labels:
   - includeSelectors: false

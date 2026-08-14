@@ -1,0 +1,54 @@
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: mindclade-system
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/owner: security-and-operations
+  annotations:
+    mindclade.dev/capacity-status: proposed-unqualified-ceiling
+    mindclade.dev/workload-activation: blocked
+spec:
+  hard:
+    configmaps: "100"
+    limits.cpu: "16"
+    limits.ephemeral-storage: 200Gi
+    limits.memory: 64Gi
+    persistentvolumeclaims: "0"
+    pods: "0"
+    requests.cpu: "8"
+    requests.ephemeral-storage: 100Gi
+    requests.memory: 32Gi
+    secrets: "50"
+    services: "20"
+    services.loadbalancers: "0"
+    services.nodeports: "0"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: mindclade-system-containers
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/owner: security-and-operations
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 500m
+        ephemeral-storage: 1Gi
+        memory: 512Mi
+      defaultRequest:
+        cpu: 100m
+        ephemeral-storage: 128Mi
+        memory: 128Mi
+      max:
+        cpu: "8"
+        ephemeral-storage: 20Gi
+        memory: 32Gi
+      min:
+        cpu: 10m
+        memory: 32Mi

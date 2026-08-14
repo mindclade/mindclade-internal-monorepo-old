@@ -1,0 +1,18 @@
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: mindclade-system
+  namespace: mindclade-system
+spec:
+  hard:
+    configmaps: "150"
+    limits.cpu: "32"
+    limits.ephemeral-storage: 400Gi
+    limits.memory: 128Gi
+    pods: "0"
+    requests.cpu: "16"
+    requests.ephemeral-storage: 200Gi
+    requests.memory: 64Gi
+    secrets: "75"
+    services: "30"

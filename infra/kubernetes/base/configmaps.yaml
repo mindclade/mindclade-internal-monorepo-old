@@ -1,0 +1,3 @@
+# No shared application ConfigMap is declared here. Environment overlays generate only
+# the non-secret environment identity. Workload configuration remains activation-gated
+# until the owning package publishes a versioned deployment contract.

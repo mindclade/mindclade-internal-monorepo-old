@@ -1,2 +1,18 @@
 ---
-# Scaffold configuration; promotion requires schema validation.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mindclade-system
+  labels:
+    app.kubernetes.io/part-of: mindclade-platform
+    kubernetes.io/metadata.name: mindclade-system
+    mindclade.dev/owner: security-and-operations
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
+  annotations:
+    mindclade.dev/deployment-status: platform-contract-only
+    mindclade.dev/workload-activation: blocked-pending-release-evidence

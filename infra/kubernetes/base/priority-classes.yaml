@@ -1,0 +1,26 @@
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: mindclade-platform-critical
+  labels:
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/owner: security-and-operations
+value: 1000000
+globalDefault: false
+preemptionPolicy: PreemptLowerPriority
+description: >-
+  Tier-1 Mindclade control-plane processes after their deployment gates pass.
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: mindclade-batch
+  labels:
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/owner: security-and-operations
+value: 10000
+globalDefault: false
+preemptionPolicy: Never
+description: >-
+  Interruptible Mindclade batch work; it must not preempt serving or platform work.

@@ -2,9 +2,8 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - namespace.yaml
-  - priority-classes.yaml
-  - service-accounts.yaml
+  - network-policies.yaml
+  - resource-quotas.yaml
 
 labels:
   - includeSelectors: false

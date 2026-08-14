@@ -1,0 +1,67 @@
+---
+# Default-deny ingress for the browser plane.
+#
+# ---------------------------------------------------------------------------------------
+# This is what makes IAP and the edge filters real rather than advisory
+# ---------------------------------------------------------------------------------------
+# IAP runs at the load balancer. The response-header filters run at the load balancer. Anything
+# that reaches a pod DIRECTLY — another workload in the cluster, a compromised sidecar, a
+# debug port-forward — bypasses both, and arrives at the BFF with whatever
+# `x-goog-iap-jwt-assertion` header it cares to invent.
+#
+# Two controls close that, and both are required because each covers what the other cannot:
+#
+#   1. This policy, which drops the packet before the pod sees it.
+#   2. The BFF verifying the assertion's SIGNATURE, issuer, and audience rather than trusting
+#      the header on sight — because a policy is one `kubectl apply` from being edited, and
+#      because a legitimate path into the namespace should still not be able to forge identity.
+#
+# Neither substitutes for the other. The acceptance check for the second one is explicit: a
+# request carrying `x-goog-iap-jwt-assertion: not.a.jwt`, sent from inside the cluster straight
+# to studio-bff:8080, must return 401 and never 200.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: studio
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+
+---
+# The one permitted ingress path: the load balancer's proxies.
+#
+# ---------------------------------------------------------------------------------------
+# ipBlock, not a namespaceSelector — and this is the part that surprises people
+# ---------------------------------------------------------------------------------------
+# The proxies are not pods. A regional internal Application Load Balancer materialises its
+# Envoy fleet inside the REGIONAL_MANAGED_PROXY subnet (`internal-lb`, created in
+# infrastructure-live/3-networks/shared-vpc-host), so there is no namespace or pod label to
+# select on. The source is a CIDR, and it must be written as one.
+#
+# THE CIDR BELOW IS PER-ENVIRONMENT and is patched by each overlay. It has to match
+# `cidrsubnet(cfg.cidr, 8, 32)` for that environment — the same expression the Terraform unit
+# uses. Get it wrong and the failure is total but quiet: every backend reports UNHEALTHY, the
+# load balancer serves 502s, and nothing in the workload's own logs mentions a health check at
+# all, because the probes never arrive.
+#
+# Health checks come from the same range, which is why this single rule covers both real
+# traffic and probes.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-proxy-only-subnet
+  namespace: studio
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - ipBlock:
+            # development. Patched per environment — see the overlays.
+            cidr: 10.16.32.0/24
+      ports:
+        - protocol: TCP
+          port: 8080

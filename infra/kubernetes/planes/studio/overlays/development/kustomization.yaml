@@ -29,3 +29,19 @@ patches:
       - op: replace
         path: /spec/default/iap/clientID
         value: REPLACE_ME.apps.googleusercontent.com
+
+  # The proxy-only subnet for development, which must match
+  # cidrsubnet(cfg.cidr, 8, 32) in infrastructure-live/_envcommon/vpc.hcl.
+  #
+  # If these two drift, every backend in this namespace reports UNHEALTHY and the load
+  # balancer serves 502s — with nothing in any workload log mentioning a health check,
+  # because the probes never arrive.
+  - target:
+      group: networking.k8s.io
+      version: v1
+      kind: NetworkPolicy
+      name: allow-proxy-only-subnet
+    patch: |-
+      - op: replace
+        path: /spec/ingress/0/from/0/ipBlock/cidr
+        value: 10.16.32.0/24
