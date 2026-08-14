@@ -1,0 +1,18 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//visibility:public"])
+
+py_library(
+    name = "model_worker",
+    srcs = [
+        "__init__.py",
+        "config.py",
+        "health.py",
+        "model_loader.py",
+        "model_runner.py",
+        "protocol.py",
+        "shutdown.py",
+    ],
+    imports = ["../.."],
+    deps = ["//serving/model_worker/batching:batching"],
+)

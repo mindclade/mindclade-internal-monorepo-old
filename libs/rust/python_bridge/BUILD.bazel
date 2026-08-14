@@ -1,0 +1,69 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+package(default_visibility = ["//libs/rust:repo_consumers"])
+
+rust_library(
+    name = "mindclade_python_bridge",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "mindclade_python_bridge",
+    edition = "2024",
+    deps = [
+        "//libs/rust/artifact_cas:mindclade_artifact_cas",
+        "//libs/rust/bio_formats:mindclade_bio_formats",
+        "//libs/rust/bounded_parse:mindclade_bounded_parse",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/data_stream:mindclade_data_stream",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/ipc:mindclade_ipc",
+        "//libs/rust/manifests:mindclade_manifests",
+        "//libs/rust/tokenizer_runtime:mindclade_tokenizer_runtime",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+    ],
+)
+
+rust_test(
+    name = "integration",
+    srcs = ["tests/integration.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/artifact_cas:mindclade_artifact_cas",
+        "//libs/rust/bio_formats:mindclade_bio_formats",
+        "//libs/rust/bounded_parse:mindclade_bounded_parse",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/data_stream:mindclade_data_stream",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/ipc:mindclade_ipc",
+        "//libs/rust/manifests:mindclade_manifests",
+        "//libs/rust/tokenizer_runtime:mindclade_tokenizer_runtime",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        ":mindclade_python_bridge",
+    ],
+)
+
+rust_test(
+    name = "python_api",
+    srcs = ["tests/python_api.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/artifact_cas:mindclade_artifact_cas",
+        "//libs/rust/bio_formats:mindclade_bio_formats",
+        "//libs/rust/bounded_parse:mindclade_bounded_parse",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/data_stream:mindclade_data_stream",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/ipc:mindclade_ipc",
+        "//libs/rust/manifests:mindclade_manifests",
+        "//libs/rust/tokenizer_runtime:mindclade_tokenizer_runtime",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        ":mindclade_python_bridge",
+    ],
+)
+
+filegroup(
+    name = "package_sources",
+    srcs = glob(["**"], exclude = ["target/**"]),
+    visibility = ["//libs/rust:repo_consumers"],
+)

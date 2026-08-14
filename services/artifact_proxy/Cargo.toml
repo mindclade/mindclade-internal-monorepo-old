@@ -1,0 +1,37 @@
+[package]
+name = "mindclade-artifact-proxy"
+version.workspace = true
+edition.workspace = true
+publish = false
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[lib]
+name = "mindclade_artifact_proxy"
+path = "src/lib.rs"
+
+[[bin]]
+name = "mindclade-artifact-proxy"
+path = "src/main.rs"
+
+[dependencies]
+bytes.workspace = true
+mindclade_artifact_cas = { path = "../../libs/rust/artifact_cas" }
+mindclade_bytes_io = { path = "../../libs/rust/bytes_io" }
+mindclade_content_digest = { path = "../../libs/rust/content_digest" }
+mindclade_faults = { path = "../../libs/rust/faults" }
+mindclade_manifests = { path = "../../libs/rust/manifests" }
+mindclade_object_store = { path = "../../libs/rust/object_store" }
+mindclade_runtime_core = { path = "../../libs/rust/runtime_core" }
+mindclade_servicekit = { path = "../../libs/rust/servicekit" }
+mindclade_telemetry = { path = "../../libs/rust/telemetry" }
+mindclade_worker_protocol = { path = "../../libs/rust/worker_protocol" }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+mindclade_identifiers = { path = "../../libs/rust/identifiers" }
+tokio.workspace = true

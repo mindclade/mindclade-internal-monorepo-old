@@ -1,0 +1,11 @@
+[package]
+name="mindclade_worker_runtime"
+version.workspace=true
+edition.workspace=true
+publish=false
+[dependencies]
+mindclade_faults={path="../faults"}
+mindclade_runtime_core={path="../runtime_core"}
+mindclade_worker_protocol={path="../worker_protocol"}
+[lints]
+workspace=true

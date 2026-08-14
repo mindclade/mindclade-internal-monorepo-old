@@ -1,0 +1,15 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+package(default_visibility = ["//visibility:private"])
+
+sh_binary(
+    name = "validate",
+    srcs = ["validate.sh"],
+    visibility = ["//visibility:public"],
+)
+
+exports_files(
+    ["README.md"],
+    visibility = ["//visibility:public"],
+)

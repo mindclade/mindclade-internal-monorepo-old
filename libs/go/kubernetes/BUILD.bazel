@@ -1,0 +1,38 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential and proprietary.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "kubernetes",
+    srcs = [
+        "doc.go",
+        "errors.go",
+        "reference.go",
+    ],
+    importpath = "mindclade.internal/libs/go/kubernetes",
+    deps = [
+        "//libs/go/faults",
+        "@io_k8s_apimachinery//pkg/api/errors",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1",
+        "@io_k8s_apimachinery//pkg/runtime/schema",
+    ],
+)
+
+go_test(
+    name = "kubernetes_test",
+    srcs = [
+        "errors_test.go",
+        "reference_test.go",
+    ],
+    embed = [":kubernetes"],
+    deps = [
+        "//libs/go/faults",
+        "@io_k8s_apimachinery//pkg/api/errors",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1",
+        "@io_k8s_apimachinery//pkg/runtime/schema",
+        "@io_k8s_apimachinery//pkg/types",
+    ],
+)

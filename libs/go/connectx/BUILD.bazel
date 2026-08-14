@@ -1,0 +1,48 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "connectx",
+    srcs = [
+        "codes.go",
+        "config.go",
+        "details.go",
+        "doc.go",
+        "errors.go",
+        "faults.go",
+        "headers.go",
+        "metadata.go",
+        "mount.go",
+        "procedure.go",
+    ],
+    importpath = "mindclade.internal/libs/go/connectx",
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/httpx",
+        "//libs/go/internal/rpcfaults",
+        "//libs/go/requestmeta",
+        "@com_connectrpc_connect//:connect",
+        "@org_golang_google_genproto_googleapis_rpc//errdetails",
+        "@org_golang_google_protobuf//proto",
+        "@org_golang_google_protobuf//types/known/durationpb",
+    ],
+)
+
+go_test(
+    name = "connectx_test",
+    srcs = [
+        "codes_test.go",
+        "config_test.go",
+        "faults_test.go",
+        "mount_test.go",
+    ],
+    embed = [":connectx"],
+    deps = [
+        "//libs/go/faults",
+        "@com_connectrpc_connect//:connect",
+    ],
+)

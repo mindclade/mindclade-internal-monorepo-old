@@ -1,0 +1,19 @@
+[package]
+name = "mindclade_content_digest"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Pure-Rust SHA-256 digests and streaming verification."
+publish = false
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+mindclade_faults = { path = "../faults" }
+
+[lints]
+workspace = true

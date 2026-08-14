@@ -1,0 +1,36 @@
+syntax = "proto3";
+package mindclade.runtime.v1;
+import "mindclade/runtime/v1/artifact_grant.proto";
+message DeploymentRoute {
+  string deployment_id = 1;
+  string model_bundle_digest = 2;
+  string engine_bundle_digest = 3;
+  string endpoint = 4;
+  string region = 5;
+  uint32 weight = 6;
+  repeated string capabilities = 7;
+  uint64 lease_expires_unix_millis = 8;
+  string safety_policy_digest = 9;
+}
+message RouteSnapshotClaims {
+  string snapshot_id = 1;
+  string snapshot_digest = 2;
+  uint64 version = 3;
+  uint64 policy_epoch = 4;
+  uint64 revocation_epoch = 5;
+  uint64 created_unix_millis = 6;
+  uint64 expires_unix_millis = 7;
+  repeated DeploymentRoute routes = 8;
+  string minimum_runtime_version = 9;
+}
+message RouteSnapshot { RouteSnapshotClaims claims = 1; DetachedSignature signature = 2; }
+message RevocationSnapshotClaims {
+  uint64 epoch = 1;
+  uint64 created_unix_millis = 2;
+  uint64 expires_unix_millis = 3;
+  repeated string revoked_grant_ids = 4;
+  repeated string revoked_ticket_ids = 5;
+  repeated string revoked_deployment_ids = 6;
+  repeated string revoked_bundle_digests = 7;
+}
+message RevocationSnapshot { RevocationSnapshotClaims claims = 1; DetachedSignature signature = 2; }

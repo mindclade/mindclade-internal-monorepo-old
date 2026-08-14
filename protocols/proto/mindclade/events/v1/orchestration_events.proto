@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package mindclade.events.v1;
+
+message OrchestrationEventsScaffold {
+  string reserved = 1;
+}

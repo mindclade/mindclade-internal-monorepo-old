@@ -1,0 +1,11 @@
+schema_version = 1
+allow_git_dependencies = false
+allow_wildcard_versions = false
+require_exact_workspace_external_versions = true
+require_lockfile = true
+
+[unsafe]
+allowed_first_party_crates = ["mindclade_ipc_os"]
+
+[licenses]
+allowed = ["Apache-2.0", "MIT", "BSD-2-Clause", "BSD-3-Clause", "ISC", "Unicode-3.0", "Zlib"]

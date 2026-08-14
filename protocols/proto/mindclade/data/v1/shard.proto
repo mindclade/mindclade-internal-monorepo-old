@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package mindclade.data.v1;
+
+message ShardScaffold {
+  string reserved = 1;
+}

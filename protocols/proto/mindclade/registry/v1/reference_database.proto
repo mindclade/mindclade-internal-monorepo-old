@@ -1,0 +1,29 @@
+syntax = "proto3";
+package mindclade.registry.v1;
+import "mindclade/common/v1/artifact_ref.proto";
+
+enum ReferenceDatabaseKind {
+  REFERENCE_DATABASE_KIND_UNSPECIFIED = 0;
+  REFERENCE_DATABASE_KIND_SEQUENCE = 1;
+  REFERENCE_DATABASE_KIND_TEMPLATE = 2;
+  REFERENCE_DATABASE_KIND_CHEMISTRY = 3;
+  REFERENCE_DATABASE_KIND_NUCLEIC_ACID = 4;
+  REFERENCE_DATABASE_KIND_COMPOSITE = 5;
+}
+message ReferenceDatabaseRelease {
+  string release_id = 1;
+  string name = 2;
+  string version = 3;
+  ReferenceDatabaseKind kind = 4;
+  string snapshot_digest = 5;
+  uint64 source_cutoff_unix_millis = 6;
+  repeated mindclade.common.v1.ArtifactRef shards = 7;
+  string index_format = 8;
+  string index_tool = 9;
+  string index_tool_version = 10;
+  string source_provenance_digest = 11;
+  string license_policy_digest = 12;
+  repeated string compatible_search_tools = 13;
+  string status = 14;
+  uint64 created_unix_millis = 15;
+}

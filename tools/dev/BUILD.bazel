@@ -1,0 +1,19 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+load("@rules_python//python:defs.bzl", "py_binary")
+
+package(default_visibility = ["//visibility:private"])
+
+py_binary(
+    name = "validate_repository",
+    srcs = ["validate_repository.py"],
+    main = "validate_repository.py",
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "dev_sources",
+    srcs = glob(["**"], exclude = ["BUILD.bazel", "**/__pycache__/**"]),
+    visibility = ["//visibility:public"],
+)

@@ -1,0 +1,32 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential and proprietary.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "obstest",
+    srcs = [
+        "doc.go",
+        "errors.go",
+        "logging.go",
+        "metrics.go",
+        "tracing.go",
+    ],
+    importpath = "mindclade.internal/libs/go/observability/obstest",
+    deps = [
+        "//libs/go/observability",
+        "//libs/go/requestmeta",
+    ],
+)
+
+go_test(
+    name = "obstest_test",
+    srcs = ["obstest_test.go"],
+    embed = [":obstest"],
+    deps = [
+        "//libs/go/observability",
+        "//libs/go/requestmeta",
+    ],
+)

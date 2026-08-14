@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package mindclade.training.v1;
+
+message TopologyScaffold {
+  string reserved = 1;
+}

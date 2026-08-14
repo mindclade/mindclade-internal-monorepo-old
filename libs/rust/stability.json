@@ -1,0 +1,39 @@
+{
+  "schema_version": 2,
+  "stable": [
+    "atomic_fs",
+    "bio_formats",
+    "bounded_parse",
+    "bytes_io",
+    "content_digest",
+    "faults",
+    "identifiers",
+    "manifests",
+    "object_store",
+    "record_io",
+    "runtime_core",
+    "telemetry",
+    "tokenizer_runtime"
+  ],
+  "evolving": [
+    "artifact_cas",
+    "checkpoint_io",
+    "data_stream",
+    "gpu_host",
+    "ipc",
+    "python_bridge",
+    "servicekit",
+    "telemetry_spool",
+    "worker_protocol",
+    "worker_runtime"
+  ],
+  "compatibility": [
+    "clock",
+    "retry",
+    "resource_version",
+    "byte_spec",
+    "artifact_manifest",
+    "observability",
+    "python_bindings"
+  ]
+}

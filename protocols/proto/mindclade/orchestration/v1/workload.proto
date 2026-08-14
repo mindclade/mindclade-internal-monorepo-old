@@ -1,0 +1,25 @@
+syntax = "proto3";
+package mindclade.orchestration.v1;
+
+import "mindclade/common/v1/artifact_ref.proto";
+import "mindclade/runtime/v1/execution_ticket.proto";
+import "mindclade/orchestration/v1/stage.proto";
+
+message WorkloadEnvelope {
+  string workload_id = 1;
+  string run_id = 2;
+  string job_id = 3;
+  string stage_id = 4;
+  uint32 attempt = 5;
+  string tenant_id = 6;
+  string workspace_id = 7;
+  mindclade.runtime.v1.ExecutionTicket execution_ticket = 8;
+  repeated mindclade.common.v1.ArtifactRef inputs = 9;
+  repeated mindclade.common.v1.ArtifactRef expected_outputs = 10;
+  string resolved_config_digest = 11;
+  string resource_class = 12;
+  uint64 created_unix_millis = 13;
+  uint64 deadline_unix_millis = 14;
+  StageKind stage_kind = 15;
+  string operation = 16;
+}

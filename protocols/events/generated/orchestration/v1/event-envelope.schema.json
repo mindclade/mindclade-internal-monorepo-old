@@ -1,0 +1,83 @@
+{
+  "$id": "https://schemas.mindclade.dev/events/v1/envelope.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "aggregate_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "type": "string"
+    },
+    "aggregate_kind": {
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+    },
+    "aggregate_version": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "causation_id": {
+      "maxLength": 256,
+      "type": "string"
+    },
+    "correlation_id": {
+      "maxLength": 256,
+      "type": "string"
+    },
+    "event_id": {
+      "pattern": "^evt_[0-9a-f]{32}$",
+      "type": "string"
+    },
+    "occurred_at_unix_millis": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "ordering_key": {
+      "maxLength": 256,
+      "minLength": 1,
+      "type": "string"
+    },
+    "payload": {
+      "contentEncoding": "base64",
+      "maxLength": 1398104,
+      "type": "string"
+    },
+    "payload_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "payload_type": {
+      "maxLength": 256,
+      "minLength": 1,
+      "type": "string"
+    },
+    "schema": {
+      "maxLength": 256,
+      "minLength": 1,
+      "type": "string"
+    },
+    "tenant_id": {
+      "pattern": "^tenant_[0-9a-f]{32}$",
+      "type": "string"
+    },
+    "workspace_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "event_id",
+    "schema",
+    "tenant_id",
+    "aggregate_kind",
+    "aggregate_id",
+    "aggregate_version",
+    "ordering_key",
+    "occurred_at_unix_millis",
+    "payload_type",
+    "payload",
+    "payload_digest"
+  ],
+  "title": "Mindclade durable event envelope",
+  "type": "object"
+}

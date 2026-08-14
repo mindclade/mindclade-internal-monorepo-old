@@ -1,0 +1,21 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential and proprietary.
+
+load("@rules_go//go:def.bzl", "go_library")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "blobtest",
+    srcs = [
+        "doc.go",
+        "suite.go",
+    ],
+    importpath = "mindclade.internal/libs/go/storage/blob/blobtest",
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+        "//libs/go/storage/blob",
+    ],
+    testonly = True,
+)

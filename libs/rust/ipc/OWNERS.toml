@@ -1,0 +1,7 @@
+[[owners]]
+team = "runtime-foundations"
+paths = ["libs/rust/ipc/**"]
+
+[review]
+minimum_approvals = 2
+security_review = true

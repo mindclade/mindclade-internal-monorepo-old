@@ -1,0 +1,50 @@
+syntax = "proto3";
+package mindclade.registry.v1;
+import "mindclade/common/v1/artifact_ref.proto";
+
+enum EvidenceKind {
+  EVIDENCE_KIND_UNSPECIFIED = 0;
+  EVIDENCE_KIND_SOURCE_COMMIT = 1;
+  EVIDENCE_KIND_RESOLVED_CONFIG = 2;
+  EVIDENCE_KIND_DATASET = 3;
+  EVIDENCE_KIND_REFERENCE_DATABASE = 4;
+  EVIDENCE_KIND_TRAINING_RUN = 5;
+  EVIDENCE_KIND_CHECKPOINT = 6;
+  EVIDENCE_KIND_MODEL_BUNDLE = 7;
+  EVIDENCE_KIND_RUNTIME_BUNDLE = 8;
+  EVIDENCE_KIND_KERNEL_QUALIFICATION = 9;
+  EVIDENCE_KIND_NUMERICAL_QUALIFICATION = 10;
+  EVIDENCE_KIND_EVALUATION = 11;
+  EVIDENCE_KIND_SAFETY = 12;
+  EVIDENCE_KIND_SCALE = 13;
+  EVIDENCE_KIND_SBOM = 14;
+  EVIDENCE_KIND_PROVENANCE = 15;
+  EVIDENCE_KIND_SIGNATURE = 16;
+  EVIDENCE_KIND_TOOLCHAIN = 17;
+}
+message EvidenceNode {
+  string node_id = 1;
+  EvidenceKind kind = 2;
+  mindclade.common.v1.ArtifactRef artifact = 3;
+  string subject_digest = 4;
+  string policy_digest = 5;
+  bool passed = 6;
+  uint64 created_unix_millis = 7;
+}
+message EvidenceEdge { string from_node_id = 1; string to_node_id = 2; string relation = 3; }
+message ReleaseEvidenceGraph {
+  string release_id = 1;
+  string subject_digest = 2;
+  repeated EvidenceNode nodes = 3;
+  repeated EvidenceEdge edges = 4;
+  string policy_digest = 5;
+  uint64 policy_epoch = 6;
+}
+message Release {
+  string release_id = 1;
+  string model_bundle_digest = 2;
+  string evidence_graph_digest = 3;
+  string channel = 4;
+  string status = 5;
+  uint64 resource_version = 6;
+}

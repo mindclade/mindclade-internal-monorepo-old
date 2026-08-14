@@ -1,0 +1,26 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+package(default_visibility = ["//visibility:private"])
+
+exports_files([
+    "CONTRIBUTING.md",
+    "OWNERS.toml",
+    "README.md",
+    "REPOSITORY_STATUS.md",
+    "SECURITY.md",
+    "VALIDATION.md",
+])
+
+filegroup(
+    name = "repository_metadata",
+    srcs = [
+        "CONTRIBUTING.md",
+        "OWNERS.toml",
+        "README.md",
+        "REPOSITORY_STATUS.md",
+        "SECURITY.md",
+        "VALIDATION.md",
+    ],
+    visibility = ["//visibility:public"],
+)

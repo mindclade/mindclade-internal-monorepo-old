@@ -1,0 +1,55 @@
+schema_version = 1
+
+[[budget]]
+path = "libs/go/faults"
+language = "go"
+max_internal_direct = 0
+forbidden_prefixes = ["mindclade.internal/control/", "mindclade.internal/services/"]
+
+[[budget]]
+path = "libs/go/servicekit"
+language = "go"
+max_internal_direct = 3
+allowed_prefixes = ["mindclade.internal/libs/go/clock", "mindclade.internal/libs/go/faults", "mindclade.internal/libs/go/servicekit"]
+
+[[budget]]
+path = "control/runtime_authority"
+language = "go"
+max_internal_direct = 5
+allowed_prefixes = ["mindclade.internal/libs/go/"]
+forbidden_prefixes = ["mindclade.internal/services/"]
+
+[[budget]]
+path = "control"
+language = "go"
+max_internal_direct = 20
+forbidden_prefixes = ["mindclade.internal/services/", "mindclade.internal/apps/"]
+
+[[budget]]
+path = "services"
+language = "go"
+max_internal_direct = 40
+
+[[budget]]
+path = "libs/rust/runtime_core"
+language = "rust"
+max_internal_direct = 2
+allowed_prefixes = ["mindclade_faults", "mindclade_content_digest"]
+
+[[budget]]
+path = "libs/rust/worker_runtime"
+language = "rust"
+max_internal_direct = 5
+allowed_prefixes = ["mindclade_faults", "mindclade_runtime_core", "mindclade_worker_protocol"]
+
+[[budget]]
+path = "services/runtime_gateway"
+language = "rust"
+max_internal_direct = 8
+allowed_prefixes = ["mindclade_content_digest", "mindclade_faults", "mindclade_identifiers", "mindclade_protocols", "mindclade_runtime_core", "mindclade_serving_runtime", "mindclade_telemetry", "mindclade_worker_protocol"]
+
+[[budget]]
+path = "services/runtime_host"
+language = "rust"
+max_internal_direct = 11
+allowed_prefixes = ["mindclade_bytes_io", "mindclade_faults", "mindclade_gpu_host", "mindclade_ipc", "mindclade_ipc_os", "mindclade_protocols", "mindclade_runtime_core", "mindclade_serving_runtime", "mindclade_telemetry", "mindclade_worker_protocol", "mindclade_worker_runtime"]

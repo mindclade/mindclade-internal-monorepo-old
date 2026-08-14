@@ -1,0 +1,49 @@
+syntax = "proto3";
+package mindclade.runtime.v1;
+import "mindclade/runtime/v1/artifact_grant.proto";
+import "mindclade/runtime/v1/execution_budget.proto";
+message ExecutionTicketClaims {
+  string ticket_id = 1;
+  string issuer = 2;
+  string tenant_id = 3;
+  string workspace_id = 4;
+  string run_id = 5;
+  string job_id = 6;
+  string stage_id = 7;
+  string request_id = 8;
+  uint32 attempt = 9;
+  uint64 fencing_token = 10;
+  string model_bundle_digest = 11;
+  string engine_bundle_digest = 12;
+  string resolved_config_digest = 13;
+  string reference_snapshot_digest = 14;
+  ArtifactGrant artifacts = 15;
+  ExecutionBudget budget = 16;
+  string execution_class = 17;
+  string accelerator_capability = 18;
+  uint64 not_before_unix_millis = 19;
+  uint64 deadline_unix_millis = 20;
+  uint64 expires_unix_millis = 21;
+  uint64 policy_epoch = 22;
+  uint64 route_snapshot_version = 23;
+  uint64 revocation_epoch = 24;
+  string idempotency_key = 25;
+}
+message ExecutionTicket { ExecutionTicketClaims claims = 1; DetachedSignature signature = 2; }
+message AdmissionGrantClaims {
+  string grant_id = 1;
+  string tenant_id = 2;
+  string principal_id = 3;
+  repeated string allowed_deployments = 4;
+  repeated string allowed_capabilities = 5;
+  string region = 6;
+  uint32 maximum_concurrency = 7;
+  uint64 maximum_requests = 8;
+  uint64 maximum_input_units = 9;
+  uint64 maximum_output_units = 10;
+  uint64 not_before_unix_millis = 11;
+  uint64 expires_unix_millis = 12;
+  uint64 policy_epoch = 13;
+  uint64 revocation_epoch = 14;
+}
+message AdmissionGrant { AdmissionGrantClaims claims = 1; DetachedSignature signature = 2; }

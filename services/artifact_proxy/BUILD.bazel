@@ -1,0 +1,138 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+package(default_visibility = ["//libs/rust:repo_consumers"])
+
+rust_library(
+    name = "mindclade_artifact_proxy",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "mindclade_artifact_proxy",
+    edition = "2024",
+    deps = [
+        "//libs/rust/artifact_cas:mindclade_artifact_cas",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/manifests:mindclade_manifests",
+        "//libs/rust/object_store:mindclade_object_store",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/servicekit:mindclade_servicekit",
+        "//libs/rust/telemetry:mindclade_telemetry",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        "@crates//:bytes",
+    ],
+)
+
+rust_binary(
+    name = "mindclade_artifact_proxy_bin",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "mindclade_artifact_proxy_bin",
+    edition = "2024",
+    deps = [
+        "//libs/rust/artifact_cas:mindclade_artifact_cas",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/manifests:mindclade_manifests",
+        "//libs/rust/object_store:mindclade_object_store",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/servicekit:mindclade_servicekit",
+        "//libs/rust/telemetry:mindclade_telemetry",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        ":mindclade_artifact_proxy",
+        "@crates//:bytes",
+    ],
+)
+
+rust_test(
+    name = "failure_injection",
+    srcs = ["tests/failure_injection.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/artifact_cas:mindclade_artifact_cas",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/manifests:mindclade_manifests",
+        "//libs/rust/object_store:mindclade_object_store",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/servicekit:mindclade_servicekit",
+        "//libs/rust/telemetry:mindclade_telemetry",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        ":mindclade_artifact_proxy",
+        "@crates//:bytes",
+        "@crates//:tokio",
+    ],
+)
+
+rust_test(
+    name = "integration",
+    srcs = ["tests/integration.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/artifact_cas:mindclade_artifact_cas",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/manifests:mindclade_manifests",
+        "//libs/rust/object_store:mindclade_object_store",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/servicekit:mindclade_servicekit",
+        "//libs/rust/telemetry:mindclade_telemetry",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        ":mindclade_artifact_proxy",
+        "@crates//:bytes",
+        "@crates//:tokio",
+    ],
+)
+
+rust_test(
+    name = "provider",
+    srcs = ["tests/provider.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/artifact_cas:mindclade_artifact_cas",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/manifests:mindclade_manifests",
+        "//libs/rust/object_store:mindclade_object_store",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/servicekit:mindclade_servicekit",
+        "//libs/rust/telemetry:mindclade_telemetry",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        ":mindclade_artifact_proxy",
+        "@crates//:bytes",
+        "@crates//:tokio",
+    ],
+)
+
+rust_test(
+    name = "shutdown",
+    srcs = ["tests/shutdown.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/artifact_cas:mindclade_artifact_cas",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/manifests:mindclade_manifests",
+        "//libs/rust/object_store:mindclade_object_store",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/servicekit:mindclade_servicekit",
+        "//libs/rust/telemetry:mindclade_telemetry",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        ":mindclade_artifact_proxy",
+        "@crates//:bytes",
+        "@crates//:tokio",
+    ],
+)
+
+filegroup(
+    name = "package_sources",
+    srcs = glob(["**"], exclude = ["target/**"]),
+    visibility = ["//libs/rust:repo_consumers"],
+)

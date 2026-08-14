@@ -1,0 +1,65 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+package(default_visibility = ["//libs/rust:repo_consumers"])
+
+rust_library(
+    name = "mindclade_ipc_os",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "mindclade_ipc_os",
+    edition = "2024",
+    deps = [
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        "@crates//:libc",
+    ],
+)
+
+rust_test(
+    name = "broker",
+    srcs = ["tests/broker.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        ":mindclade_ipc_os",
+        "@crates//:libc",
+    ],
+)
+
+rust_test(
+    name = "file_fallback",
+    srcs = ["tests/file_fallback.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        ":mindclade_ipc_os",
+        "@crates//:libc",
+    ],
+)
+
+rust_test(
+    name = "linux_memfd",
+    srcs = ["tests/linux_memfd.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        ":mindclade_ipc_os",
+        "@crates//:libc",
+    ],
+)
+
+filegroup(
+    name = "package_sources",
+    srcs = glob(["**"], exclude = ["target/**"]),
+    visibility = ["//libs/rust:repo_consumers"],
+)

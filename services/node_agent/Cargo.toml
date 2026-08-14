@@ -1,0 +1,41 @@
+[package]
+name = "mindclade-node-agent"
+version.workspace = true
+edition.workspace = true
+publish = false
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[lib]
+name = "mindclade_node_agent"
+path = "src/lib.rs"
+
+[[bin]]
+name = "mindclade-node-agent"
+path = "src/main.rs"
+
+[dependencies]
+bytes.workspace = true
+mindclade_artifact_cas = { path = "../../libs/rust/artifact_cas" }
+mindclade_bytes_io = { path = "../../libs/rust/bytes_io" }
+mindclade_checkpoint_io = { path = "../../libs/rust/checkpoint_io" }
+mindclade_content_digest = { path = "../../libs/rust/content_digest" }
+mindclade_data_stream = { path = "../../libs/rust/data_stream" }
+mindclade_faults = { path = "../../libs/rust/faults" }
+mindclade_identifiers = { path = "../../libs/rust/identifiers" }
+mindclade_ipc_os = { path = "../../libs/rust/ipc_os" }
+mindclade_manifests = { path = "../../libs/rust/manifests" }
+mindclade_object_store = { path = "../../libs/rust/object_store" }
+mindclade_runtime_core = { path = "../../libs/rust/runtime_core" }
+mindclade_servicekit = { path = "../../libs/rust/servicekit" }
+mindclade_telemetry = { path = "../../libs/rust/telemetry" }
+mindclade_worker_protocol = { path = "../../libs/rust/worker_protocol" }
+mindclade_worker_runtime = { path = "../../libs/rust/worker_runtime" }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+tokio.workspace = true

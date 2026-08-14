@@ -1,0 +1,28 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential and proprietary.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "lease",
+    srcs = [
+        "doc.go",
+        "errors.go",
+        "key.go",
+        "lease.go",
+        "store.go",
+    ],
+    importpath = "mindclade.internal/libs/go/storage/lease",
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+    ],
+)
+
+go_test(
+    name = "lease_test",
+    srcs = ["contracts_test.go"],
+    embed = [":lease"],
+)

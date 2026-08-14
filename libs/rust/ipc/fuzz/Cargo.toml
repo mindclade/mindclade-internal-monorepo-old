@@ -1,0 +1,30 @@
+[package]
+name = "mindclade-ipc-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+mindclade_ipc = { path = ".." }
+mindclade_bytes_io = { path = "../../bytes_io" }
+
+[[bin]]
+name = "message"
+path = "fuzz_targets/message.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "hello"
+path = "fuzz_targets/hello.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]
+members = ["."]

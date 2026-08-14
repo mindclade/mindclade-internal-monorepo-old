@@ -1,0 +1,611 @@
+{
+  "schema_version": 2,
+  "rust_version": "1.97.1",
+  "edition": "2024",
+  "package_count": 30,
+  "production_package_count": 23,
+  "packages": [
+    {
+      "directory": "artifact_cas",
+      "crate": "mindclade_artifact_cas",
+      "layer": 3,
+      "stability": "evolving",
+      "production": true,
+      "dependencies": [
+        "artifact_manifest",
+        "object_store",
+        "content_digest",
+        "identifiers",
+        "faults",
+        "clock",
+        "byte_spec"
+      ],
+      "production_sources": [
+        "src/lib.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "artifact_manifest",
+      "crate": "mindclade_artifact_manifest",
+      "layer": 5,
+      "stability": "compatibility",
+      "production": false,
+      "dependencies": [
+        "faults",
+        "content_digest",
+        "identifiers",
+        "record_io"
+      ],
+      "production_sources": [
+        "src/lib.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "atomic_fs",
+      "crate": "mindclade_atomic_fs",
+      "layer": 1,
+      "stability": "stable",
+      "production": true,
+      "dependencies": [
+        "faults",
+        "content_digest",
+        "identifiers",
+        "clock"
+      ],
+      "production_sources": [
+        "src/lib.rs",
+        "src/path.rs",
+        "src/store.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "bio_formats",
+      "crate": "mindclade_bio_formats",
+      "layer": 2,
+      "stability": "stable",
+      "production": true,
+      "dependencies": [
+        "bounded_parse",
+        "faults"
+      ],
+      "production_sources": [
+        "src/lib.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "bounded_parse",
+      "crate": "mindclade_bounded_parse",
+      "layer": 1,
+      "stability": "stable",
+      "production": true,
+      "dependencies": [
+        "bytes_io",
+        "faults"
+      ],
+      "production_sources": [
+        "src/lib.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "byte_spec",
+      "crate": "mindclade_byte_spec",
+      "layer": 5,
+      "stability": "compatibility",
+      "production": false,
+      "dependencies": [
+        "faults"
+      ],
+      "production_sources": [
+        "src/lib.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "bytes_io",
+      "crate": "mindclade_bytes_io",
+      "layer": 0,
+      "stability": "stable",
+      "production": true,
+      "dependencies": [
+        "faults"
+      ],
+      "production_sources": [
+        "src/copy.rs",
+        "src/lib.rs",
+        "src/pool.rs",
+        "src/spec.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "checkpoint_io",
+      "crate": "mindclade_checkpoint_io",
+      "layer": 3,
+      "stability": "evolving",
+      "production": true,
+      "dependencies": [
+        "artifact_cas",
+        "artifact_manifest",
+        "object_store",
+        "content_digest",
+        "identifiers",
+        "resource_version",
+        "clock",
+        "faults",
+        "record_io",
+        "byte_spec"
+      ],
+      "production_sources": [
+        "src/lib.rs",
+        "src/manifest.rs",
+        "src/reader.rs",
+        "src/writer.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "clock",
+      "crate": "mindclade_clock",
+      "layer": 5,
+      "stability": "compatibility",
+      "production": false,
+      "dependencies": [],
+      "production_sources": [
+        "src/lib.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "content_digest",
+      "crate": "mindclade_content_digest",
+      "layer": 0,
+      "stability": "stable",
+      "production": true,
+      "dependencies": [
+        "faults"
+      ],
+      "production_sources": [
+        "src/digest.rs",
+        "src/lib.rs",
+        "src/sha256.rs",
+        "src/stream.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "data_stream",
+      "crate": "mindclade_data_stream",
+      "layer": 3,
+      "stability": "evolving",
+      "production": true,
+      "dependencies": [
+        "object_store",
+        "record_io",
+        "content_digest",
+        "identifiers",
+        "byte_spec",
+        "faults",
+        "retry",
+        "clock"
+      ],
+      "production_sources": [
+        "src/lib.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "faults",
+      "crate": "mindclade_faults",
+      "layer": 0,
+      "stability": "stable",
+      "production": true,
+      "dependencies": [],
+      "production_sources": [
+        "src/code.rs",
+        "src/context.rs",
+        "src/fault.rs",
+        "src/lib.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "gpu_host",
+      "crate": "mindclade_gpu_host",
+      "layer": 3,
+      "stability": "evolving",
+      "production": true,
+      "dependencies": [
+        "faults",
+        "runtime_core"
+      ],
+      "production_sources": [
+        "src/lib.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "identifiers",
+      "crate": "mindclade_identifiers",
+      "layer": 1,
+      "stability": "stable",
+      "production": true,
+      "dependencies": [
+        "faults",
+        "clock"
+      ],
+      "production_sources": [
+        "src/lib.rs",
+        "src/name.rs",
+        "src/resource_id.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "ipc",
+      "crate": "mindclade_ipc",
+      "layer": 3,
+      "stability": "evolving",
+      "production": true,
+      "dependencies": [
+        "record_io",
+        "content_digest",
+        "faults",
+        "identifiers",
+        "byte_spec"
+      ],
+      "production_sources": [
+        "src/lib.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "manifests",
+      "crate": "mindclade_manifests",
+      "layer": 2,
+      "stability": "stable",
+      "production": true,
+      "dependencies": [
+        "content_digest",
+        "faults",
+        "identifiers",
+        "record_io"
+      ],
+      "production_sources": [
+        "src/artifact.rs",
+        "src/lib.rs",
+        "src/reference.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "object_store",
+      "crate": "mindclade_object_store",
+      "layer": 2,
+      "stability": "stable",
+      "production": true,
+      "dependencies": [
+        "faults",
+        "content_digest",
+        "byte_spec",
+        "atomic_fs",
+        "clock",
+        "resource_version"
+      ],
+      "production_sources": [
+        "src/lib.rs",
+        "src/local.rs",
+        "src/memory.rs",
+        "src/path.rs",
+        "src/store.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "observability",
+      "crate": "mindclade_observability",
+      "layer": 5,
+      "stability": "compatibility",
+      "production": false,
+      "dependencies": [
+        "clock",
+        "identifiers",
+        "faults"
+      ],
+      "production_sources": [
+        "src/attributes.rs",
+        "src/event.rs",
+        "src/lib.rs",
+        "src/sink.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "python_bindings",
+      "crate": "mindclade_python_bindings",
+      "layer": 5,
+      "stability": "compatibility",
+      "production": false,
+      "dependencies": [
+        "content_digest",
+        "tokenizer_runtime",
+        "artifact_cas",
+        "artifact_manifest",
+        "data_stream",
+        "faults",
+        "ipc",
+        "byte_spec"
+      ],
+      "production_sources": [
+        "src/lib.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "python_bridge",
+      "crate": "mindclade_python_bridge",
+      "layer": 4,
+      "stability": "evolving",
+      "production": true,
+      "dependencies": [
+        "artifact_cas",
+        "manifests",
+        "bytes_io",
+        "content_digest",
+        "data_stream",
+        "faults",
+        "ipc",
+        "tokenizer_runtime"
+      ],
+      "production_sources": [
+        "src/lib.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "record_io",
+      "crate": "mindclade_record_io",
+      "layer": 2,
+      "stability": "stable",
+      "production": true,
+      "dependencies": [
+        "faults",
+        "content_digest",
+        "byte_spec"
+      ],
+      "production_sources": [
+        "src/codec.rs",
+        "src/frame.rs",
+        "src/lib.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "resource_version",
+      "crate": "mindclade_resource_version",
+      "layer": 5,
+      "stability": "compatibility",
+      "production": false,
+      "dependencies": [
+        "faults",
+        "content_digest"
+      ],
+      "production_sources": [
+        "src/lib.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "retry",
+      "crate": "mindclade_retry",
+      "layer": 5,
+      "stability": "compatibility",
+      "production": false,
+      "dependencies": [
+        "faults",
+        "clock"
+      ],
+      "production_sources": [
+        "src/lib.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "runtime_core",
+      "crate": "mindclade_runtime_core",
+      "layer": 0,
+      "stability": "stable",
+      "production": true,
+      "dependencies": [
+        "faults",
+        "content_digest"
+      ],
+      "production_sources": [
+        "src/budget.rs",
+        "src/cancellation.rs",
+        "src/clock.rs",
+        "src/fencing.rs",
+        "src/lib.rs",
+        "src/resource_version.rs",
+        "src/retry.rs",
+        "src/task_group.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "servicekit",
+      "crate": "mindclade_servicekit",
+      "layer": 3,
+      "stability": "evolving",
+      "production": true,
+      "dependencies": [
+        "runtime_core",
+        "faults",
+        "identifiers",
+        "telemetry"
+      ],
+      "production_sources": [
+        "src/component.rs",
+        "src/health.rs",
+        "src/lib.rs",
+        "src/lifecycle.rs",
+        "src/service.rs",
+        "src/shutdown.rs",
+        "src/supervisor.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "telemetry",
+      "crate": "mindclade_telemetry",
+      "layer": 1,
+      "stability": "stable",
+      "production": true,
+      "dependencies": [
+        "runtime_core",
+        "identifiers",
+        "faults"
+      ],
+      "production_sources": [
+        "src/attributes.rs",
+        "src/event.rs",
+        "src/lib.rs",
+        "src/sink.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "telemetry_spool",
+      "crate": "mindclade_telemetry_spool",
+      "layer": 3,
+      "stability": "evolving",
+      "production": true,
+      "dependencies": [
+        "record_io",
+        "atomic_fs",
+        "identifiers",
+        "clock",
+        "retry",
+        "faults",
+        "byte_spec"
+      ],
+      "production_sources": [
+        "src/lib.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "tokenizer_runtime",
+      "crate": "mindclade_tokenizer_runtime",
+      "layer": 2,
+      "stability": "stable",
+      "production": true,
+      "dependencies": [
+        "faults",
+        "identifiers",
+        "content_digest"
+      ],
+      "production_sources": [
+        "src/lib.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "worker_protocol",
+      "crate": "mindclade_worker_protocol",
+      "layer": 3,
+      "stability": "evolving",
+      "production": true,
+      "dependencies": [
+        "bytes_io",
+        "content_digest",
+        "faults",
+        "runtime_core"
+      ],
+      "production_sources": [
+        "src/lib.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "worker_runtime",
+      "crate": "mindclade_worker_runtime",
+      "layer": 4,
+      "stability": "evolving",
+      "production": true,
+      "dependencies": [
+        "faults",
+        "runtime_core",
+        "worker_protocol"
+      ],
+      "production_sources": [
+        "src/lib.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    }
+  ]
+}

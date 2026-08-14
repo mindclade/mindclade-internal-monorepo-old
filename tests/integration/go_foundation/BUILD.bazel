@@ -1,0 +1,15 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+load("@rules_python//python:defs.bzl", "py_test")
+
+package(default_visibility = ["//visibility:private"])
+
+py_test(
+    name = "consumption_test",
+    srcs = ["consumption_test.py"],
+    data = [
+        "//libs/go:docs",
+        "//services/control_plane:go_foundation_sources",
+    ],
+)

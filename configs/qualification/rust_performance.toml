@@ -1,0 +1,17 @@
+schema_version = 1
+[budget.runtime_gateway_request_overhead_us]
+maximum = 500
+[budget.runtime_gateway_cancellation_ms]
+maximum = 50
+[budget.runtime_host_invocation_overhead_us]
+maximum = 750
+[budget.artifact_verify_mib_per_s]
+minimum = 500
+[budget.checkpoint_staging_mib_per_s]
+minimum = 1000
+[budget.data_stream_copy_bytes_per_byte]
+maximum = 2.0
+[budget.parser_allocated_bytes_per_input_byte]
+maximum = 4.0
+[budget.node_stage_start_ms]
+maximum = 100

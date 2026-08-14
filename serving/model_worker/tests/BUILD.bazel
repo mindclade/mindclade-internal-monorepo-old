@@ -1,0 +1,17 @@
+load("@rules_python//python:defs.bzl", "py_test")
+
+package(default_visibility = ["//visibility:private"])
+
+[
+    py_test(
+        name = name,
+        srcs = [name + ".py"],
+        deps = ["//serving/model_worker:model_worker"],
+    )
+    for name in [
+        "test_batching",
+        "test_model_loader",
+        "test_training_parity",
+        "test_worker",
+    ]
+]

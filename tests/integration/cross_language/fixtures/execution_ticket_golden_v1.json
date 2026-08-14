@@ -1,0 +1,10 @@
+{
+  "canonical_encoding": "MCCE1",
+  "claims_sha256": "sha256:aaa4f9a6fd1e37f9f11b22039092816949e98b5f3b14ad8de9accbc5eedb421e",
+  "hmac_key_hex": "3031323334353637383961626364656630313233343536373839616263646566",
+  "not_before_unix_millis": 1800000000000,
+  "schema": "mindclade-cross-language-golden/v1",
+  "signature_algorithm": "hmac-sha256",
+  "signature_hex": "e0e34aeacf0c286923562b78bb59329726124c97d14bed8bf9e4ee6e8a964fe5",
+  "signature_key_id": "golden-hmac-v1"
+}

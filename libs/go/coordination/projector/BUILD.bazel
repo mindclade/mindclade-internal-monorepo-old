@@ -1,0 +1,38 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["README.md"])
+
+go_library(
+    name = "projector",
+    srcs = ["doc.go", "errors.go", "projector.go"],
+    importpath = "mindclade.internal/libs/go/coordination/projector",
+    deps = [
+        "//libs/go/clock",
+        "//libs/go/coordination/cursor",
+        "//libs/go/coordination/inbox",
+        "//libs/go/faults",
+        "//libs/go/idempotency",
+        "//libs/go/identifiers",
+        "//libs/go/requestmeta",
+        "//libs/go/servicekit",
+    ],
+)
+
+go_test(
+    name = "projector_test",
+    srcs = ["projector_test.go"],
+    embed = [":projector"],
+    deps = [
+        "//libs/go/coordination/cursor",
+        "//libs/go/coordination/cursor/memory",
+        "//libs/go/coordination/inbox",
+        "//libs/go/idempotency",
+        "//libs/go/idempotency/idempotencytest",
+        "//libs/go/identifiers",
+    ],
+)

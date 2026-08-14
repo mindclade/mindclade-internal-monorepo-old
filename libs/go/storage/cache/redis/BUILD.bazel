@@ -1,0 +1,36 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential and proprietary.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "redis",
+    srcs = [
+        "doc.go",
+        "options.go",
+        "scripts.go",
+        "store.go",
+    ],
+    importpath = "mindclade.internal/libs/go/storage/cache/redis",
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/storage/cache",
+        "@com_github_redis_go_redis_v9//:redis",
+    ],
+)
+
+go_test(
+    name = "redis_test",
+    srcs = [
+        "options_test.go",
+        "store_test.go",
+    ],
+    embed = [":redis"],
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/storage/cache",
+        "@com_github_redis_go_redis_v9//:redis",
+    ],
+)

@@ -1,0 +1,18 @@
+syntax = "proto3";
+package mindclade.common.v1;
+
+// ArtifactRef is immutable logical identity. URI/provider placement is not identity.
+message ArtifactRef {
+  string digest = 1;          // canonical sha256:<hex>
+  uint64 size_bytes = 2;
+  string media_type = 3;
+  string logical_kind = 4;
+  uint32 schema_version = 5;
+}
+message ArtifactLocation {
+  ArtifactRef artifact = 1;
+  string provider = 2;
+  string uri = 3;
+  string generation = 4;
+  string region = 5;
+}

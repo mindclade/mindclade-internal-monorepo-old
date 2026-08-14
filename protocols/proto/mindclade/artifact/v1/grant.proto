@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package mindclade.artifact.v1;
+
+message GrantScaffold {
+  string reserved = 1;
+}

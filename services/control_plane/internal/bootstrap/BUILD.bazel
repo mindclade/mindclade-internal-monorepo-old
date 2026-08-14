@@ -1,0 +1,40 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//services/control_plane:__subpackages__"])
+
+exports_files(["README.md"])
+
+go_library(
+    name = "bootstrap",
+    srcs = [
+        "bootstrap.go",
+        "build.go",
+        "components.go",
+        "consumption.go",
+        "foundation.go",
+        "profile.go",
+    ],
+    importpath = "mindclade.internal/services/control_plane/internal/bootstrap",
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/servicekit",
+        "//libs/go/servicekit/production",
+        "//services/control_plane/internal/foundation",
+    ],
+)
+
+go_test(
+    name = "bootstrap_test",
+    srcs = [
+        "command_test.go",
+        "profile_test.go",
+    ],
+    embed = [":bootstrap"],
+    deps = [
+        "//libs/go/servicekit",
+        "//libs/go/servicekit/production",
+    ],
+)

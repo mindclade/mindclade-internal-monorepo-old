@@ -1,0 +1,25 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential and proprietary.
+
+package(default_visibility = ["//visibility:private"])
+
+exports_files(
+    [
+        "CONSUMPTION.md",
+        "LAYERS.md",
+        "README.md",
+        "USAGE.md",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "docs",
+    srcs = [
+        "CONSUMPTION.md",
+        "LAYERS.md",
+        "README.md",
+        "USAGE.md",
+    ],
+    visibility = ["//visibility:public"],
+)

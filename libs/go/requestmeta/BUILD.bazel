@@ -1,0 +1,41 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential and proprietary.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "requestmeta",
+    srcs = [
+        "context.go",
+        "doc.go",
+        "errors.go",
+        "metadata.go",
+        "operation.go",
+        "propagation.go",
+        "request_id.go",
+        "token.go",
+    ],
+    importpath = "mindclade.internal/libs/go/requestmeta",
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+    ],
+)
+
+go_test(
+    name = "requestmeta_test",
+    srcs = [
+        "context_test.go",
+        "contracts_test.go",
+        "metadata_test.go",
+        "propagation_test.go",
+        "request_id_test.go",
+    ],
+    embed = [":requestmeta"],
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+    ],
+)

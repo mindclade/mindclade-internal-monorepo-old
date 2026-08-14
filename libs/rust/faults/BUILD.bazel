@@ -1,0 +1,36 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+package(default_visibility = ["//libs/rust:repo_consumers"])
+
+rust_library(
+    name = "mindclade_faults",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "mindclade_faults",
+    edition = "2024",
+    deps = [
+    ],
+)
+
+rust_test(
+    name = "conformance",
+    srcs = ["tests/conformance.rs"],
+    edition = "2024",
+    deps = [
+        ":mindclade_faults",
+    ],
+)
+
+rust_test(
+    name = "integration",
+    srcs = ["tests/integration.rs"],
+    edition = "2024",
+    deps = [
+        ":mindclade_faults",
+    ],
+)
+
+filegroup(
+    name = "package_sources",
+    srcs = glob(["**"], exclude = ["target/**"]),
+    visibility = ["//libs/rust:repo_consumers"],
+)

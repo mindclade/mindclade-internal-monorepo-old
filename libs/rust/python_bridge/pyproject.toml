@@ -1,0 +1,4 @@
+[tool.mindclade.scaffold]
+path = 'libs/rust/python_bridge/pyproject.toml'
+status = "scaffolded"
+authority = "docs/architecture/system-design-reference.md"

@@ -1,0 +1,69 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+package(default_visibility = ["//libs/rust:repo_consumers"])
+
+rust_library(
+    name = "mindclade_serving_runtime",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "mindclade_serving_runtime",
+    edition = "2024",
+    deps = [
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/telemetry:mindclade_telemetry",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+    ],
+)
+
+rust_test(
+    name = "gateway",
+    srcs = ["tests/gateway.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/telemetry:mindclade_telemetry",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        ":mindclade_serving_runtime",
+    ],
+)
+
+rust_test(
+    name = "host",
+    srcs = ["tests/host.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/telemetry:mindclade_telemetry",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        ":mindclade_serving_runtime",
+    ],
+)
+
+rust_test(
+    name = "outage",
+    srcs = ["tests/outage.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/telemetry:mindclade_telemetry",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        ":mindclade_serving_runtime",
+    ],
+)
+
+filegroup(
+    name = "package_sources",
+    srcs = glob(["**"], exclude = ["target/**"]),
+    visibility = ["//libs/rust:repo_consumers"],
+)

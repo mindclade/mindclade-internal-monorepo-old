@@ -1,0 +1,27 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "grpctest",
+    srcs = [
+        "doc.go",
+        "harness.go",
+    ],
+    importpath = "mindclade.internal/libs/go/grpcx/grpctest",
+    deps = [
+        "@org_golang_google_grpc//:grpc",
+        "@org_golang_google_grpc//credentials/insecure",
+        "@org_golang_google_grpc//test/bufconn",
+    ],
+)
+
+go_test(
+    name = "grpctest_test",
+    srcs = ["harness_test.go"],
+    embed = [":grpctest"],
+    deps = ["@org_golang_google_grpc//:grpc"],
+)

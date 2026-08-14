@@ -1,0 +1,26 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "reflection",
+    srcs = ["doc.go", "register.go"],
+    importpath = "mindclade.internal/libs/go/grpcx/reflection",
+    deps = [
+        "//libs/go/faults",
+        "@org_golang_google_grpc//reflection",
+    ],
+)
+
+go_test(
+    name = "reflection_test",
+    srcs = ["register_test.go"],
+    embed = [":reflection"],
+    deps = [
+        "//libs/go/faults",
+        "@org_golang_google_grpc//:grpc",
+    ],
+)

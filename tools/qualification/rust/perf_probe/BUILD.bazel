@@ -1,0 +1,19 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary")
+
+package(default_visibility = ["//visibility:private"])
+
+rust_binary(
+    name = "mindclade-rust-perf-probe",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "mindclade_rust_perf_probe",
+    edition = "2024",
+    deps = [
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+    ],
+)
+
+filegroup(
+    name = "package_sources",
+    srcs = glob(["**"], exclude = ["target/**"]),
+)

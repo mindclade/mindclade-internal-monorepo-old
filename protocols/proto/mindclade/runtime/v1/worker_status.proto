@@ -1,0 +1,5 @@
+syntax = "proto3";
+package mindclade.runtime.v1;
+import "mindclade/runtime/v1/buffer_descriptor.proto";
+enum WorkerState { WORKER_STATE_UNSPECIFIED=0; WORKER_STATE_CREATED=1; WORKER_STATE_STARTING=2; WORKER_STATE_READY=3; WORKER_STATE_LEASED=4; WORKER_STATE_RUNNING=5; WORKER_STATE_DRAINING=6; WORKER_STATE_COMMITTING=7; WORKER_STATE_COMPLETED=8; WORKER_STATE_RECOVERING=9; WORKER_STATE_CANCELLING=10; WORKER_STATE_CANCELLED=11; WORKER_STATE_FAILED=12; }
+message WorkerStatus { uint64 sequence=1; string ticket_id=2; uint64 fencing_token=3; WorkerState state=4; uint64 observed_unix_millis=5; string message=6; repeated BufferDescriptor outputs=7; string diagnostic_artifact_digest=8; }

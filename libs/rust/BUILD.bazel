@@ -1,0 +1,55 @@
+package(default_visibility = ["//visibility:private"])
+
+package_group(name="repo_consumers", packages=["//..."])
+
+exports_files([
+    "API_STABILITY.md",
+    "DEPENDENCY_POLICY.md",
+    "LAYERS.md",
+    "MIGRATION.md",
+    "MIGRATION_2026_08.md",
+    "OWNERS.toml",
+    "PACKAGE_CATALOG.md",
+    "PACKAGE_MANIFEST.json",
+    "README.md",
+    "RUNTIME_STACK.md",
+    "RUST_DEPENDENCIES.md",
+    "SECURITY.md",
+    "UNSAFE_POLICY.md",
+    "layers.json",
+    "public_api_baseline.json",
+    "stability.json",
+    "third_party_crates.json",
+], visibility=[":repo_consumers"])
+
+filegroup(
+    name="production_sources",
+    srcs=[
+        "//libs/rust/runtime_core:package_sources",
+        "//libs/rust/bytes_io:package_sources",
+        "//libs/rust/content_digest:package_sources",
+        "//libs/rust/faults:package_sources",
+        "//libs/rust/identifiers:package_sources",
+        "//libs/rust/atomic_fs:package_sources",
+        "//libs/rust/record_io:package_sources",
+        "//libs/rust/manifests:package_sources",
+        "//libs/rust/object_store:package_sources",
+        "//libs/rust/tokenizer_runtime:package_sources",
+        "//libs/rust/artifact_cas:package_sources",
+        "//libs/rust/checkpoint_io:package_sources",
+        "//libs/rust/data_stream:package_sources",
+        "//libs/rust/ipc:package_sources",
+        "//libs/rust/servicekit:package_sources",
+        "//libs/rust/telemetry:package_sources",
+        "//libs/rust/telemetry_spool:package_sources",
+        "//libs/rust/bounded_parse:package_sources",
+        "//libs/rust/bio_formats:package_sources",
+        "//libs/rust/worker_protocol:package_sources",
+        "//libs/rust/worker_runtime:package_sources",
+        "//libs/rust/gpu_host:package_sources",
+        "//libs/rust/python_bridge:package_sources",
+    ],
+    visibility=[":repo_consumers"],
+)
+
+filegroup(name="all_sources", srcs=[":production_sources"] + glob(["*.md","*.json","*.toml"]), visibility=[":repo_consumers"])

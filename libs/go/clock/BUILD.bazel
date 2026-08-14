@@ -1,0 +1,27 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential and proprietary.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "clock",
+    srcs = [
+        "clock.go",
+        "doc.go",
+        "errors.go",
+        "fake.go",
+        "real.go",
+    ],
+    importpath = "mindclade.internal/libs/go/clock",
+)
+
+go_test(
+    name = "clock_test",
+    srcs = [
+        "clock_test.go",
+        "fake_test.go",
+    ],
+    embed = [":clock"],
+)

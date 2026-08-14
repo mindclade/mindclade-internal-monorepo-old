@@ -1,0 +1,19 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "httpx",
+    srcs = ["client.go", "codes.go", "doc.go", "errors.go", "headers.go", "json.go", "problem.go", "propagation.go", "server.go"],
+    importpath = "mindclade.internal/libs/go/httpx",
+    deps = ["//libs/go/faults", "//libs/go/internal/rpcfaults", "//libs/go/requestmeta", "//libs/go/servicekit"],
+)
+
+go_test(
+    name = "httpx_test",
+    srcs = ["client_test.go", "codes_test.go", "json_test.go", "problem_test.go", "propagation_test.go", "server_test.go"],
+    embed = [":httpx"],
+    deps = ["//libs/go/faults"],
+)

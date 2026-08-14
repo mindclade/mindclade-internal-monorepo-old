@@ -1,0 +1,9 @@
+syntax = "proto3";
+package mindclade.runtime.v1;
+import "mindclade/runtime/v1/buffer_descriptor.proto";
+import "mindclade/runtime/v1/execution_ticket.proto";
+message WorkerCommand { uint64 sequence=1; oneof command { StartCommand start=2; CancelCommand cancel=3; DrainCommand drain=4; HeartbeatCommand heartbeat=5; } }
+message StartCommand { ExecutionTicket ticket=1; repeated BufferDescriptor inputs=2; string operation=3; }
+message CancelCommand { string reason=1; uint64 deadline_unix_millis=2; }
+message DrainCommand { string reason=1; uint64 deadline_unix_millis=2; }
+message HeartbeatCommand { uint64 requested_at_unix_millis=1; }

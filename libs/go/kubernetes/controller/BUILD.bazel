@@ -1,0 +1,48 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential and proprietary.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "controller",
+    srcs = [
+        "doc.go",
+        "fields.go",
+        "manager.go",
+        "observer.go",
+        "options.go",
+        "qualification.go",
+        "reconciler.go",
+        "recovery.go",
+        "requestmeta.go",
+    ],
+    importpath = "mindclade.internal/libs/go/kubernetes/controller",
+    deps = [
+        "//libs/go/clock",
+        "//libs/go/faults",
+        "//libs/go/kubernetes",
+        "//libs/go/requestmeta",
+        "//libs/go/servicekit",
+        "@io_k8s_sigs_controller_runtime//pkg/controller",
+        "@io_k8s_sigs_controller_runtime//pkg/reconcile",
+    ],
+)
+
+go_test(
+    name = "controller_test",
+    srcs = [
+        "controller_test.go",
+        "manager_test.go",
+    ],
+    embed = [":controller"],
+    deps = [
+        "//libs/go/clock",
+        "//libs/go/faults",
+        "//libs/go/requestmeta",
+        "//libs/go/servicekit",
+        "@io_k8s_sigs_controller_runtime//pkg/controller",
+        "@io_k8s_sigs_controller_runtime//pkg/reconcile",
+    ],
+)

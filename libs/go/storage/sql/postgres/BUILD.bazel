@@ -1,0 +1,38 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential and proprietary.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "postgres",
+    srcs = [
+        "config.go",
+        "doc.go",
+        "errors.go",
+        "identifier.go",
+        "pool.go",
+    ],
+    importpath = "mindclade.internal/libs/go/storage/sql/postgres",
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/servicekit",
+    ],
+)
+
+go_test(
+    name = "postgres_test",
+    srcs = [
+        "config_test.go",
+        "errors_test.go",
+        "identifier_test.go",
+        "pool_test.go",
+    ],
+    embed = [":postgres"],
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/servicekit",
+        "//libs/go/storage/sql/sqltest",
+    ],
+)

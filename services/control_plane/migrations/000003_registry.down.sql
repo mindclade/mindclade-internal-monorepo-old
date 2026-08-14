@@ -1,0 +1,1 @@
+-- Scaffold migration. Replace with an idempotent, reviewed migration before use.

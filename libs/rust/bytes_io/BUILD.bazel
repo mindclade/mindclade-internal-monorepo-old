@@ -1,0 +1,49 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+package(default_visibility = ["//libs/rust:repo_consumers"])
+
+rust_library(
+    name = "mindclade_bytes_io",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "mindclade_bytes_io",
+    edition = "2024",
+    deps = [
+        "//libs/rust/faults:mindclade_faults",
+    ],
+)
+
+rust_test(
+    name = "integration",
+    srcs = ["tests/integration.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/faults:mindclade_faults",
+        ":mindclade_bytes_io",
+    ],
+)
+
+rust_test(
+    name = "pool",
+    srcs = ["tests/pool.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/faults:mindclade_faults",
+        ":mindclade_bytes_io",
+    ],
+)
+
+rust_test(
+    name = "range",
+    srcs = ["tests/range.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/faults:mindclade_faults",
+        ":mindclade_bytes_io",
+    ],
+)
+
+filegroup(
+    name = "package_sources",
+    srcs = glob(["**"], exclude = ["target/**"]),
+    visibility = ["//libs/rust:repo_consumers"],
+)

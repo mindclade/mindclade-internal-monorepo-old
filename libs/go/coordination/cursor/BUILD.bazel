@@ -1,0 +1,21 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+load("@rules_go//go:def.bzl", "go_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["README.md"])
+
+go_library(
+    name = "cursor",
+    srcs = [
+        "cursor.go",
+        "doc.go",
+        "errors.go",
+        "key.go",
+        "store.go",
+    ],
+    importpath = "mindclade.internal/libs/go/coordination/cursor",
+    deps = ["//libs/go/faults"],
+)

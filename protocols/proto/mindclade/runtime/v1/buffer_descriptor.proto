@@ -1,0 +1,18 @@
+syntax = "proto3";
+package mindclade.runtime.v1;
+message BufferDescriptor {
+  string segment_id = 1;
+  uint64 generation = 2;
+  uint64 offset_bytes = 3;
+  uint64 length_bytes = 4;
+  string element_type = 5;
+  repeated uint64 shape = 6;
+  string content_digest = 7;
+  string owner_process = 8;
+  uint64 lease_expires_unix_millis = 9;
+  AccessMode access_mode = 10;
+  Transport transport = 11;
+  string locator = 12;
+  enum AccessMode { ACCESS_MODE_UNSPECIFIED=0; ACCESS_MODE_READ_ONLY=1; ACCESS_MODE_READ_WRITE=2; }
+  enum Transport { TRANSPORT_UNSPECIFIED=0; TRANSPORT_SHARED_MEMORY=1; TRANSPORT_FILE_DESCRIPTOR=2; TRANSPORT_LOCAL_FILE=3; TRANSPORT_ARTIFACT_REF=4; }
+}

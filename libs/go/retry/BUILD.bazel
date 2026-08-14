@@ -1,0 +1,43 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential and proprietary.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "retry",
+    srcs = [
+        "attempt.go",
+        "backoff.go",
+        "doc.go",
+        "errors.go",
+        "executor.go",
+        "jitter.go",
+        "observer.go",
+        "options.go",
+        "policy.go",
+        "result.go",
+    ],
+    importpath = "mindclade.internal/libs/go/retry",
+    deps = [
+        "//libs/go/clock",
+        "//libs/go/faults",
+    ],
+)
+
+go_test(
+    name = "retry_test",
+    srcs = [
+        "backoff_test.go",
+        "contracts_test.go",
+        "executor_test.go",
+        "observer_test.go",
+        "policy_test.go",
+    ],
+    embed = [":retry"],
+    deps = [
+        "//libs/go/clock",
+        "//libs/go/faults",
+    ],
+)

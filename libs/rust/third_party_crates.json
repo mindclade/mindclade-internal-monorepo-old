@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "crates": [],
+  "policy": "standard-library and internal path dependencies only"
+}

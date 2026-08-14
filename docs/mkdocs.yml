@@ -1,0 +1,96 @@
+site_name: Mindclade Engineering Architecture
+site_description: Production monorepo, control-plane, data, training, and runtime architecture
+strict: true
+docs_dir: .
+site_dir: ../.generated/docs-site
+exclude_docs: |
+  BUILD.bazel
+  blueprint/production-monorepo-blueprint.md
+nav:
+  - Home: index.md
+  - Architecture:
+      - Canonical system design: architecture/system-design-reference.md
+      - Design traceability: architecture/system-design-traceability.md
+      - System overview: architecture/system-overview.md
+      - Language boundaries: architecture/language-boundaries.md
+      - Dependency rules: architecture/dependency-rules.md
+      - Service boundaries: architecture/service-boundaries.md
+      - Build and toolchains: architecture/build-and-toolchains.md
+      - Go foundation: architecture/go-foundation.md
+      - Control plane: architecture/control-plane.md
+      - Runtime authority and stages: architecture/runtime-authority-and-stage-execution.md
+      - Runtime data plane: architecture/runtime-data-plane.md
+      - Data ingestion: architecture/data-ingestion.md
+      - Dataset publication: architecture/dataset-publication.md
+      - Preprocessing: architecture/preprocessing.md
+      - MSA and template search: architecture/msa-and-template-search.md
+      - Reference data and release evidence: architecture/reference-data-and-release-evidence.md
+      - Serving: architecture/serving.md
+      - Training: architecture/training.md
+      - Distributed training: architecture/distributed-training.md
+      - Checkpointing: architecture/checkpointing.md
+      - Evaluation: architecture/evaluation.md
+      - Artifact lifecycle: architecture/artifact-lifecycle.md
+      - Release evidence: architecture/release-evidence.md
+      - Eighteen optimizations: architecture/optimization-18-implementation.md
+  - Guides:
+      - Go foundation adoption: guides/go-foundation-adoption.md
+      - Go module reference: guides/libs-go-module-reference.md
+      - Go module cookbook: guides/go-module-cookbook.md
+      - Go production recipes: guides/libs-go-recipes.md
+      - Go service golden path: guides/go-service-golden-path.md
+      - Runnable Go integrations: guides/go-integration-examples.md
+      - Rust runtime foundation: guides/rust-runtime-foundation.md
+      - Resolved configuration: guides/config-resolution.md
+      - Maturity and dependency budgets: guides/component-maturity-and-dependency-budgets.md
+  - Decisions:
+      - Decision register: design/decision-register.md
+      - ADR-0001 Bazel/Bzlmod: design/adr-0001-bazel-bzlmod.md
+      - ADR-0002 Nix toolchains: design/adr-0002-nix-owned-toolchains.md
+      - ADR-0003 Polyglot boundaries: design/adr-0003-polyglot-boundaries.md
+      - ADR-0004 Content-addressed artifacts: design/adr-0004-content-addressed-artifacts.md
+      - ADR-0005 Execution tickets: design/adr-0005-execution-tickets.md
+      - ADR-0006 Rust runtime data plane: design/adr-0006-rust-runtime-data-plane.md
+      - ADR-0007 Python numerical authority: design/adr-0007-python-numerical-authority.md
+      - ADR-0008 Qualified TileLang kernels: design/adr-0008-qualified-tilelang-kernels.md
+      - ADR-0009 Go library layers: design/adr-0009-go-library-layers.md
+      - ADR-0010 Services composition roots: design/adr-0010-services-are-composition-roots.md
+      - ADR-0011 Durable Go coordination: design/adr-0011-durable-go-coordination.md
+      - ADR-0012 Servicekit production lifecycle: design/adr-0012-servicekit-production.md
+      - ADR-0013 Durable preprocessing: design/adr-0013-durable-preprocessing.md
+      - ADR-0014 Protocol authority: design/adr-0014-protocol-authority.md
+      - ADR-0015 Modular control plane: design/adr-0015-modular-control-plane.md
+      - ADR-0016 Rust/Python batching boundary: design/adr-0016-rust-python-batching-boundary.md
+      - ADR-0017 Checkpoint authority: design/adr-0017-checkpoint-authority.md
+      - ADR-0018 Scaffold materialization: design/adr-0018-scaffold-materialization-policy.md
+      - ADR-0019 Rust runtime consolidation: design/adr-0019-rust-runtime-consolidation.md
+      - ADR-0020 Unified stage-worker protocol: design/adr-0020-unified-stage-worker-protocol.md
+      - ADR-0021 Component maturity: design/adr-0021-component-maturity-policy.md
+      - ADR-0022 Artifact/reference/evidence identity: design/adr-0022-artifact-reference-database-evidence.md
+      - ADR-0023 Resolved config/dependency budgets: design/adr-0023-resolved-config-and-dependency-budgets.md
+  - Runbooks:
+      - Control-plane outage: runbooks/control-plane-outage.md
+      - Artifact corruption: runbooks/artifact-corruption.md
+      - Checkpoint failure: runbooks/checkpoint-failure.md
+      - Data ingestion stalled: runbooks/data-ingestion-stalled.md
+      - Preprocessing stalled: runbooks/preprocessing-stalled.md
+      - Reference cache corruption: runbooks/reference-cache-corruption.md
+      - Runtime gateway degraded: runbooks/runtime-gateway-degraded.md
+      - Serving latency: runbooks/serving-latency.md
+      - GPU health: runbooks/gpu-health.md
+      - Node preemption: runbooks/node-preemption.md
+      - Training stalled: runbooks/training-stalled.md
+      - Ticket key rotation: runbooks/ticket-key-rotation.md
+      - Release rollback: runbooks/release-rollback.md
+  - Security:
+      - Threat model: security/threat-model.md
+      - Tenant isolation: security/tenant-isolation.md
+      - Execution-ticket security: security/execution-ticket-security.md
+      - Model-weight access: security/model-weight-access.md
+      - Supply chain: security/supply-chain.md
+  - Qualification:
+      - Overview: qualification/README.md
+  - Roadmap:
+      - Overview: roadmap/README.md
+      - Decomposition triggers: roadmap/decomposition-triggers.md
+      - Scale milestones: roadmap/scale-milestones.md

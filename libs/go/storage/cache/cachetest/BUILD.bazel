@@ -1,0 +1,20 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential and proprietary.
+
+load("@rules_go//go:def.bzl", "go_library")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "cachetest",
+    srcs = [
+        "conformance.go",
+        "doc.go",
+    ],
+    importpath = "mindclade.internal/libs/go/storage/cache/cachetest",
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/storage/cache",
+    ],
+    testonly = True,
+)

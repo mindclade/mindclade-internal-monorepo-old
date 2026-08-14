@@ -1,0 +1,27 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential and proprietary.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "conditions",
+    srcs = [
+        "conditions.go",
+        "doc.go",
+    ],
+    importpath = "mindclade.internal/libs/go/kubernetes/conditions",
+    deps = [
+        "//libs/go/faults",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1",
+        "@io_k8s_apimachinery//pkg/util/validation",
+    ],
+)
+
+go_test(
+    name = "conditions_test",
+    srcs = ["conditions_test.go"],
+    embed = [":conditions"],
+    deps = ["@io_k8s_apimachinery//pkg/apis/meta/v1"],
+)

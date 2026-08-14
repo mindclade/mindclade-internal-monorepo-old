@@ -1,0 +1,69 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+package(default_visibility = ["//libs/rust:repo_consumers"])
+
+rust_library(
+    name = "mindclade_telemetry_spool",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "mindclade_telemetry_spool",
+    edition = "2024",
+    deps = [
+        "//libs/rust/atomic_fs:mindclade_atomic_fs",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/record_io:mindclade_record_io",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+    ],
+)
+
+rust_test(
+    name = "integration",
+    srcs = ["tests/integration.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/atomic_fs:mindclade_atomic_fs",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/record_io:mindclade_record_io",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        ":mindclade_telemetry_spool",
+    ],
+)
+
+rust_test(
+    name = "limits",
+    srcs = ["tests/limits.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/atomic_fs:mindclade_atomic_fs",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/record_io:mindclade_record_io",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        ":mindclade_telemetry_spool",
+    ],
+)
+
+rust_test(
+    name = "recovery",
+    srcs = ["tests/recovery.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/atomic_fs:mindclade_atomic_fs",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/record_io:mindclade_record_io",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        ":mindclade_telemetry_spool",
+    ],
+)
+
+filegroup(
+    name = "package_sources",
+    srcs = glob(["**"], exclude = ["target/**"]),
+    visibility = ["//libs/rust:repo_consumers"],
+)

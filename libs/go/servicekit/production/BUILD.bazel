@@ -1,0 +1,36 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["README.md"])
+
+go_library(
+    name = "production",
+    srcs = [
+        "builder.go",
+        "capability.go",
+        "doc.go",
+        "manifest.go",
+        "plan.go",
+        "profile.go",
+        "role.go",
+        "runtime.go",
+    ],
+    importpath = "mindclade.internal/libs/go/servicekit/production",
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/servicekit",
+    ],
+)
+
+go_test(
+    name = "production_test",
+    srcs = [
+        "builder_test.go",
+        "manifest_test.go",
+    ],
+    embed = [":production"],
+)

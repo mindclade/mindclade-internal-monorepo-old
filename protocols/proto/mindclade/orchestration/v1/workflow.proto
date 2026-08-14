@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package mindclade.orchestration.v1;
+
+message WorkflowScaffold {
+  string reserved = 1;
+}

@@ -1,0 +1,43 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//services/control_plane:__subpackages__"])
+
+exports_files(["README.md"])
+
+go_library(
+    name = "transport",
+    srcs = [
+        "bundle.go",
+        "connect.go",
+        "grpc.go",
+        "http.go",
+    ],
+    importpath = "mindclade.internal/services/control_plane/internal/transport",
+    deps = [
+        "//libs/go/connectx",
+        "//libs/go/faults",
+        "//libs/go/grpcx",
+        "//libs/go/httpx",
+        "//libs/go/servicekit/production",
+        "//services/control_plane/internal/bootstrap",
+        "@org_golang_google_grpc//:grpc",
+    ],
+)
+
+go_test(
+    name = "transport_test",
+    srcs = [
+        "bundle_test.go",
+        "connect_test.go",
+        "http_test.go",
+    ],
+    embed = [":transport"],
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/httpx",
+        "//libs/go/servicekit/production",
+    ],
+)

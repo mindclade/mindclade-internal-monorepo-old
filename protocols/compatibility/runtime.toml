@@ -1,0 +1,53 @@
+schema_version = 2
+release_line = "pre-1"
+current_protocol = 1
+
+[[edge]]
+name = "control_to_gateway"
+producer = "control.runtime_authority"
+consumer = "runtime.gateway"
+contract = "execution_ticket"
+writer_schema = 1
+reader_minimum = 1
+reader_maximum = 1
+n_minus_one_required = false
+
+[[edge]]
+name = "gateway_to_host"
+producer = "runtime.gateway"
+consumer = "runtime.host"
+contract = "worker_command"
+writer_schema = 1
+reader_minimum = 1
+reader_maximum = 1
+n_minus_one_required = false
+
+[[edge]]
+name = "host_to_model_worker"
+producer = "runtime.host"
+consumer = "runtime.model_worker"
+contract = "worker_protocol"
+writer_schema = 1
+reader_minimum = 1
+reader_maximum = 1
+n_minus_one_required = false
+
+[[edge]]
+name = "artifact_control_to_proxy"
+producer = "control.artifacts"
+consumer = "runtime.artifact_proxy"
+contract = "artifact_manifest"
+writer_schema = 1
+reader_minimum = 1
+reader_maximum = 1
+n_minus_one_required = false
+
+[[edge]]
+name = "training_to_node_checkpoint"
+producer = "training"
+consumer = "runtime.node_agent"
+contract = "checkpoint_manifest"
+writer_schema = 1
+reader_minimum = 1
+reader_maximum = 1
+n_minus_one_required = false

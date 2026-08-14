@@ -1,0 +1,21 @@
+syntax = "proto3";
+package mindclade.events.v1;
+
+// Durable at-least-once event envelope. Payload bytes are bounded by broker
+// policy; large scientific data is referenced through artifacts instead.
+message EventEnvelope {
+  string event_id = 1;
+  string schema = 2;
+  string tenant_id = 3;
+  string workspace_id = 4;
+  string aggregate_kind = 5;
+  string aggregate_id = 6;
+  uint64 aggregate_version = 7;
+  string ordering_key = 8;
+  string correlation_id = 9;
+  string causation_id = 10;
+  uint64 occurred_at_unix_millis = 11;
+  string payload_type = 12;
+  bytes payload = 13;
+  string payload_digest = 14;
+}

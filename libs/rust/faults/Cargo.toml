@@ -1,0 +1,18 @@
+[package]
+name = "mindclade_faults"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Typed, redaction-aware error contracts for Mindclade Rust services."
+publish = false
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+
+[lints]
+workspace = true

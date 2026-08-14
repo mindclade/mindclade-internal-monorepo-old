@@ -1,0 +1,11 @@
+syntax = "proto3";
+package mindclade.runtime.v1;
+message ArtifactGrant {
+  repeated string readable_digests = 1;
+  repeated string writable_namespaces = 2;
+  uint64 maximum_read_bytes = 3;
+  uint64 maximum_write_bytes = 4;
+  bool allow_range_reads = 5;
+  bool allow_multipart_writes = 6;
+}
+message DetachedSignature { string algorithm = 1; string key_id = 2; bytes value = 3; }

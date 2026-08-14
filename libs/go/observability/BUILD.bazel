@@ -1,0 +1,58 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential and proprietary.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "observability",
+    srcs = [
+        "attributes.go",
+        "doc.go",
+        "errors.go",
+        "handler.go",
+        "internal.go",
+        "lifecycle.go",
+        "logging.go",
+        "metrics.go",
+        "propagation.go",
+        "resource.go",
+        "runtime.go",
+        "servicekit.go",
+        "tracing.go",
+    ],
+    importpath = "mindclade.internal/libs/go/observability",
+    deps = [
+        "//libs/go/auth",
+        "//libs/go/clock",
+        "//libs/go/faults",
+        "//libs/go/requestmeta",
+        "//libs/go/servicekit",
+    ],
+)
+
+go_test(
+    name = "observability_test",
+    srcs = [
+        "attributes_test.go",
+        "contracts_test.go",
+        "lifecycle_test.go",
+        "logging_test.go",
+        "metrics_test.go",
+        "propagation_test.go",
+        "resource_test.go",
+        "runtime_test.go",
+        "servicekit_test.go",
+        "tracing_test.go",
+    ],
+    embed = [":observability"],
+    deps = [
+        "//libs/go/auth",
+        "//libs/go/clock",
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+        "//libs/go/requestmeta",
+        "//libs/go/servicekit",
+    ],
+)

@@ -1,0 +1,47 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential and proprietary.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "audit",
+    srcs = [
+        "action.go",
+        "actor.go",
+        "change.go",
+        "doc.go",
+        "errors.go",
+        "event.go",
+        "factory.go",
+        "fields.go",
+        "recorder.go",
+        "target.go",
+        "validation.go",
+    ],
+    importpath = "mindclade.internal/libs/go/audit",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//libs/go/auth",
+        "//libs/go/clock",
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+        "//libs/go/requestmeta",
+    ],
+)
+
+go_test(
+    name = "audit_test",
+    srcs = [
+        "contracts_test.go",
+        "event_test.go",
+        "recorder_test.go",
+    ],
+    embed = [":audit"],
+    deps = [
+        "//libs/go/auth",
+        "//libs/go/clock",
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+        "//libs/go/requestmeta",
+    ],
+)

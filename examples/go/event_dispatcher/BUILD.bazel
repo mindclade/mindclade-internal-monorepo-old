@@ -1,0 +1,35 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["README.md"])
+
+go_library(
+    name = "event_dispatcher_lib",
+    srcs = ["main.go"],
+    importpath = "mindclade.internal/examples/go/event_dispatcher",
+    deps = [
+        "//libs/go/coordination/outbox",
+        "//libs/go/coordination/outbox/memory",
+        "//libs/go/identifiers",
+        "//libs/go/messaging",
+        "//libs/go/messaging/memory",
+        "//libs/go/requestmeta",
+        "//libs/go/servicekit",
+        "//libs/go/servicekit/production",
+    ],
+)
+
+go_binary(
+    name = "event_dispatcher",
+    embed = [":event_dispatcher_lib"],
+)
+
+go_test(
+    name = "event_dispatcher_test",
+    srcs = ["main_test.go"],
+    embed = [":event_dispatcher_lib"],
+)

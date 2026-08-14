@@ -1,0 +1,42 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+package(default_visibility = ["//libs/rust:repo_consumers"])
+
+rust_library(
+    name = "mindclade_bio_formats",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "mindclade_bio_formats",
+    edition = "2024",
+    deps = [
+        "//libs/rust/bounded_parse:mindclade_bounded_parse",
+        "//libs/rust/faults:mindclade_faults",
+    ],
+)
+
+rust_test(
+    name = "integration",
+    srcs = ["tests/integration.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/bounded_parse:mindclade_bounded_parse",
+        "//libs/rust/faults:mindclade_faults",
+        ":mindclade_bio_formats",
+    ],
+)
+
+rust_test(
+    name = "roundtrip",
+    srcs = ["tests/roundtrip.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/bounded_parse:mindclade_bounded_parse",
+        "//libs/rust/faults:mindclade_faults",
+        ":mindclade_bio_formats",
+    ],
+)
+
+filegroup(
+    name = "package_sources",
+    srcs = glob(["**"], exclude = ["target/**"]),
+    visibility = ["//libs/rust:repo_consumers"],
+)

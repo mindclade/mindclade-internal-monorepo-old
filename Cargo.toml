@@ -1,0 +1,73 @@
+[workspace]
+resolver = "3"
+members = [
+    "libs/rust/artifact_cas",
+    "libs/rust/atomic_fs",
+    "libs/rust/bio_formats",
+    "libs/rust/bounded_parse",
+    "libs/rust/bytes_io",
+    "libs/rust/checkpoint_io",
+    "libs/rust/content_digest",
+    "libs/rust/data_stream",
+    "libs/rust/faults",
+    "libs/rust/gpu_host",
+    "libs/rust/identifiers",
+    "libs/rust/ipc",
+    "libs/rust/ipc_os",
+    "libs/rust/manifests",
+    "libs/rust/object_store",
+    "libs/rust/python_bridge",
+    "libs/rust/record_io",
+    "libs/rust/runtime_core",
+    "libs/rust/servicekit",
+    "libs/rust/telemetry",
+    "libs/rust/telemetry_spool",
+    "libs/rust/tokenizer_runtime",
+    "libs/rust/worker_protocol",
+    "libs/rust/worker_runtime",
+    "serving/runtime",
+    "services/artifact_proxy",
+    "services/node_agent",
+    "services/runtime_gateway",
+    "services/runtime_host",
+    "services/workers/ingestion",
+    "protocols/rust",
+    "tools/qualification/rust/perf_probe",
+]
+
+
+[workspace.dependencies]
+axum = { version = "=0.8.9", default-features = false, features = ["http1", "http2", "tokio"] }
+bytes = "=1.12.1"
+ed25519-dalek = { version = "=3.0.0", default-features = false, features = ["std", "pkcs8"] }
+libc = "=0.2.183"
+object_store = { version = "=0.14.1", default-features = false, features = ["aws", "gcp", "http"] }
+prost = "=0.14.4"
+tokio = { version = "=1.53.1", features = ["fs", "io-util", "macros", "net", "process", "rt-multi-thread", "signal", "sync", "time"] }
+tokio-stream = "=0.1.17"
+tonic = { version = "=0.14.6", features = ["transport"] }
+tonic-prost = "=0.14.6"
+tonic-prost-build = "=0.14.6"
+tower = { version = "=0.5.3", features = ["limit", "load-shed", "timeout", "util"] }
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.97.1"
+publish = false
+license = "LicenseRef-Mindclade-Proprietary"
+repository = "https://github.com/Mindclade/mindclade-internal-monorepo"
+authors = ["Mindclade Engineering"]
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+missing_debug_implementations = "warn"
+
+[workspace.lints.clippy]
+all = "warn"
+pedantic = "warn"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"

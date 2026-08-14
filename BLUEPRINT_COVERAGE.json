@@ -1,0 +1,11 @@
+{
+  "blueprint_path_count": 4475,
+  "coverage_percent": 100.0,
+  "duplicate_paths": [],
+  "manifest_sha256": "41b875719388173fb9f02c2322cb80062b9794de61f78a02fb3e53a95eadacf4",
+  "materialized_path_count": 4475,
+  "missing_paths": [],
+  "schema_version": 1,
+  "unexpected_empty_paths": [],
+  "unsafe_paths": []
+}

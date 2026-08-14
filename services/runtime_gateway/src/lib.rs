@@ -1,0 +1,29 @@
+//! Mindclade online inference runtime gateway core.
+//!
+//! This crate intentionally implements the latency-sensitive *local* request
+//! path without embedding global policy or a network framework. The Go control
+//! plane publishes signed bounded authority; this core verifies and consumes
+//! that authority locally. A Tokio/Tonic/Tower edge adapter is a leaf concern.
+#![forbid(unsafe_code)]
+
+pub mod admission;
+pub mod bootstrap;
+pub mod authority;
+pub mod auth;
+pub mod config;
+pub mod health;
+pub mod protocol;
+pub mod network;
+pub mod routing;
+pub mod server;
+pub mod streaming;
+pub mod telemetry;
+pub mod tickets;
+pub use admission::{AdmissionLedger, AdmissionPermit, AdmissionRequest};
+pub use authority::GatewayAuthority;
+pub use config::GatewayConfig;
+pub use health::{GatewayHealth, GatewayHealthSnapshot};
+pub use routing::{RouteRequest, select_route};
+pub use server::{AdmittedRequest, GatewayCore, InferenceEnvelope};
+pub use streaming::{ResponseChunk, StreamReceiver, StreamSender, bounded_stream};
+pub use tickets::{PolicyCache, PolicySnapshot};

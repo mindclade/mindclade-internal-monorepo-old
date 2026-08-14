@@ -1,0 +1,7 @@
+[[owners]]
+team = "runtime-foundations"
+paths = ["libs/rust/data_stream/**"]
+
+[review]
+minimum_approvals = 2
+security_review = false

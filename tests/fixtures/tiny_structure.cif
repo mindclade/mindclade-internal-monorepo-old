@@ -1,0 +1,1 @@
+# Scaffold file: tests/fixtures/tiny_structure.cif

@@ -1,0 +1,32 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential and proprietary.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "finalizers",
+    srcs = [
+        "doc.go",
+        "finalizers.go",
+    ],
+    importpath = "mindclade.internal/libs/go/kubernetes/finalizers",
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/kubernetes",
+        "@io_k8s_apimachinery//pkg/util/validation",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
+        "@io_k8s_sigs_controller_runtime//pkg/controller/controllerutil",
+    ],
+)
+
+go_test(
+    name = "finalizers_test",
+    srcs = ["finalizers_test.go"],
+    embed = [":finalizers"],
+    deps = [
+        "@io_k8s_apimachinery//pkg/apis/meta/v1",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
+    ],
+)

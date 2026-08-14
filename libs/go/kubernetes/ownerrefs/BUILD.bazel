@@ -1,0 +1,32 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential and proprietary.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "ownerrefs",
+    srcs = [
+        "doc.go",
+        "ownerrefs.go",
+    ],
+    importpath = "mindclade.internal/libs/go/kubernetes/ownerrefs",
+    deps = [
+        "//libs/go/faults",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1",
+        "@io_k8s_apimachinery//pkg/runtime",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
+        "@io_k8s_sigs_controller_runtime//pkg/controller/controllerutil",
+    ],
+)
+
+go_test(
+    name = "ownerrefs_test",
+    srcs = ["ownerrefs_test.go"],
+    embed = [":ownerrefs"],
+    deps = [
+        "@io_k8s_apimachinery//pkg/apis/meta/v1",
+        "@io_k8s_apimachinery//pkg/runtime",
+    ],
+)

@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package mindclade.security.v1;
+
+message WeightAccessScaffold {
+  string reserved = 1;
+}

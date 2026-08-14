@@ -1,0 +1,21 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+package(default_visibility = ["//visibility:private"])
+
+py_binary(
+    name = "qualify",
+    srcs = ["qualify.py", "common.py"],
+    main = "qualify.py",
+    visibility = ["//visibility:public"],
+)
+
+exports_files([
+    "README.md",
+    "fuzz.py",
+    "miri.py",
+    "qualify_parsers.py",
+    "qualify_runtime.py",
+    "qualify_storage.py",
+    "sanitizers.py",
+])

@@ -1,0 +1,24 @@
+[package]
+name = "mindclade_telemetry_spool"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Durable segmented telemetry spool with replay, acknowledgement, and compaction."
+publish = false
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+mindclade_record_io = { path = "../record_io" }
+mindclade_atomic_fs = { path = "../atomic_fs" }
+mindclade_identifiers = { path = "../identifiers" }
+mindclade_runtime_core = { path = "../runtime_core" }
+mindclade_faults = { path = "../faults" }
+mindclade_bytes_io = { path = "../bytes_io" }
+
+[lints]
+workspace = true

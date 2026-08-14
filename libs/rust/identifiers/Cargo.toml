@@ -1,0 +1,20 @@
+[package]
+name = "mindclade_identifiers"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Validated names and locally unique identifiers for Mindclade resources."
+publish = false
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+mindclade_faults = { path = "../faults" }
+mindclade_runtime_core = { path = "../runtime_core" }
+
+[lints]
+workspace = true

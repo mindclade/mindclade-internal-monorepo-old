@@ -1,0 +1,100 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+package(default_visibility = ["//libs/rust:repo_consumers"])
+
+rust_library(
+    name = "mindclade_runtime_host",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "mindclade_runtime_host",
+    edition = "2024",
+    deps = [
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/gpu_host:mindclade_gpu_host",
+        "//libs/rust/ipc:mindclade_ipc",
+        "//libs/rust/ipc_os:mindclade_ipc_os",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/telemetry:mindclade_telemetry",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        "//libs/rust/worker_runtime:mindclade_worker_runtime",
+        "//protocols/rust:mindclade_protocols",
+        "//serving/runtime:mindclade_serving_runtime",
+        "@crates//:bytes",
+        "@crates//:tokio",
+    ],
+)
+
+rust_binary(
+    name = "mindclade_runtime_host_bin",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "mindclade_runtime_host_bin",
+    edition = "2024",
+    deps = [
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/gpu_host:mindclade_gpu_host",
+        "//libs/rust/ipc:mindclade_ipc",
+        "//libs/rust/ipc_os:mindclade_ipc_os",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/telemetry:mindclade_telemetry",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        "//libs/rust/worker_runtime:mindclade_worker_runtime",
+        "//protocols/rust:mindclade_protocols",
+        "//serving/runtime:mindclade_serving_runtime",
+        ":mindclade_runtime_host",
+        "@crates//:bytes",
+        "@crates//:tokio",
+    ],
+)
+
+rust_test(
+    name = "integration",
+    srcs = ["tests/integration.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/gpu_host:mindclade_gpu_host",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/ipc:mindclade_ipc",
+        "//libs/rust/ipc_os:mindclade_ipc_os",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/telemetry:mindclade_telemetry",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        "//libs/rust/worker_runtime:mindclade_worker_runtime",
+        "//protocols/rust:mindclade_protocols",
+        "//serving/runtime:mindclade_serving_runtime",
+        ":mindclade_runtime_host",
+        "@crates//:bytes",
+        "@crates//:tokio",
+    ],
+)
+
+rust_test(
+    name = "shutdown",
+    srcs = ["tests/shutdown.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/gpu_host:mindclade_gpu_host",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/ipc:mindclade_ipc",
+        "//libs/rust/ipc_os:mindclade_ipc_os",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/telemetry:mindclade_telemetry",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        "//libs/rust/worker_runtime:mindclade_worker_runtime",
+        "//protocols/rust:mindclade_protocols",
+        "//serving/runtime:mindclade_serving_runtime",
+        ":mindclade_runtime_host",
+        "@crates//:bytes",
+        "@crates//:tokio",
+    ],
+)
+
+filegroup(
+    name = "package_sources",
+    srcs = glob(["**"], exclude = ["target/**"]),
+    visibility = ["//libs/rust:repo_consumers"],
+)

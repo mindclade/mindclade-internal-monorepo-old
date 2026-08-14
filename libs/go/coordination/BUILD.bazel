@@ -1,0 +1,31 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "coordination",
+    srcs = [
+        "claim.go",
+        "doc.go",
+        "errors.go",
+        "failure.go",
+    ],
+    importpath = "mindclade.internal/libs/go/coordination",
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+    ],
+)
+
+go_test(
+    name = "coordination_test",
+    srcs = ["claim_test.go"],
+    embed = [":coordination"],
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+    ],
+)

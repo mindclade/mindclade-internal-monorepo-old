@@ -1,0 +1,25 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential and proprietary.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "transaction",
+    srcs = [
+        "context.go",
+        "doc.go",
+        "errors.go",
+        "run.go",
+    ],
+    importpath = "mindclade.internal/libs/go/storage/sql/transaction",
+    deps = ["//libs/go/faults"],
+)
+
+go_test(
+    name = "transaction_test",
+    srcs = ["run_test.go"],
+    embed = [":transaction"],
+    deps = ["//libs/go/faults"],
+)

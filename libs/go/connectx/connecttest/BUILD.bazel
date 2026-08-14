@@ -1,0 +1,16 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "connecttest",
+    srcs = ["doc.go", "recorder.go", "server.go"],
+    importpath = "mindclade.internal/libs/go/connectx/connecttest",
+    deps = ["@com_connectrpc_connect//:connect"],
+)
+
+go_test(name = "connecttest_test", srcs = [
+        "recorder_test.go",
+        "server_test.go",
+    ], embed = [":connecttest"], deps = ["@com_connectrpc_connect//:connect"])

@@ -1,0 +1,44 @@
+syntax = "proto3";
+package mindclade.artifact.v1;
+
+message ArtifactRef {
+  string digest = 1;
+  uint64 size_bytes = 2;
+  string media_type = 3;
+  string logical_kind = 4;
+  uint32 schema_version = 5;
+}
+message ArtifactLocation {
+  ArtifactRef artifact = 1;
+  string provider = 2;
+  string uri = 3;
+  string object_path = 4;
+  string generation = 5;
+  string region = 6;
+}
+message GarbageCollectionCandidate {
+  ArtifactRef artifact = 1;
+  string object_path = 2;
+  string expected_object_version = 3;
+}
+message GarbageCollectionPlan {
+  string plan_digest = 1;
+  uint64 created_unix_millis = 2;
+  repeated GarbageCollectionCandidate candidates = 3;
+}
+enum GarbageCollectionOutcome {
+  GARBAGE_COLLECTION_OUTCOME_UNSPECIFIED = 0;
+  GARBAGE_COLLECTION_OUTCOME_DELETED = 1;
+  GARBAGE_COLLECTION_OUTCOME_ALREADY_ABSENT = 2;
+  GARBAGE_COLLECTION_OUTCOME_STALE = 3;
+}
+message GarbageCollectionResult {
+  string digest = 1;
+  string object_path = 2;
+  GarbageCollectionOutcome outcome = 3;
+}
+message GarbageCollectionReceipt {
+  string plan_digest = 1;
+  uint64 completed_unix_millis = 2;
+  repeated GarbageCollectionResult results = 3;
+}

@@ -1,0 +1,47 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential and proprietary.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "gcs",
+    srcs = [
+        "doc.go",
+        "errors.go",
+        "options.go",
+        "spool.go",
+        "store.go",
+    ],
+    importpath = "mindclade.internal/libs/go/storage/blob/gcs",
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+        "//libs/go/storage/blob",
+        "@cloud_google_com_go_storage//:storage",
+        "@com_github_googleapis_gax_go_v2//apierror",
+        "@org_golang_google_api//googleapi",
+        "@org_golang_google_api//iterator",
+        "@org_golang_google_grpc//codes",
+    ],
+)
+
+go_test(
+    name = "gcs_test",
+    srcs = [
+        "attributes_test.go",
+        "errors_test.go",
+        "options_test.go",
+        "spool_test.go",
+        "store_test.go",
+    ],
+    embed = [":gcs"],
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+        "//libs/go/storage/blob",
+        "@cloud_google_com_go_storage//:storage",
+        "@org_golang_google_api//googleapi",
+    ],
+)

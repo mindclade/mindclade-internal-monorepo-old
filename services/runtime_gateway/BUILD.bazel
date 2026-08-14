@@ -1,0 +1,98 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+package(default_visibility = ["//libs/rust:repo_consumers"])
+
+rust_library(
+    name = "mindclade_runtime_gateway",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "mindclade_runtime_gateway",
+    edition = "2024",
+    deps = [
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/telemetry:mindclade_telemetry",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        "//protocols/rust:mindclade_protocols",
+        "//serving/runtime:mindclade_serving_runtime",
+        "@crates//:axum",
+        "@crates//:bytes",
+        "@crates//:prost",
+        "@crates//:tokio",
+        "@crates//:tower",
+    ],
+)
+
+rust_binary(
+    name = "mindclade_runtime_gateway_bin",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "mindclade_runtime_gateway_bin",
+    edition = "2024",
+    deps = [
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/telemetry:mindclade_telemetry",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        "//protocols/rust:mindclade_protocols",
+        "//serving/runtime:mindclade_serving_runtime",
+        ":mindclade_runtime_gateway",
+        "@crates//:axum",
+        "@crates//:bytes",
+        "@crates//:prost",
+        "@crates//:tokio",
+        "@crates//:tower",
+    ],
+)
+
+rust_test(
+    name = "integration",
+    srcs = ["tests/integration.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/telemetry:mindclade_telemetry",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        "//protocols/rust:mindclade_protocols",
+        "//serving/runtime:mindclade_serving_runtime",
+        ":mindclade_runtime_gateway",
+        "@crates//:axum",
+        "@crates//:bytes",
+        "@crates//:prost",
+        "@crates//:tokio",
+        "@crates//:tower",
+    ],
+)
+
+rust_test(
+    name = "shutdown",
+    srcs = ["tests/shutdown.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/telemetry:mindclade_telemetry",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        "//protocols/rust:mindclade_protocols",
+        "//serving/runtime:mindclade_serving_runtime",
+        ":mindclade_runtime_gateway",
+        "@crates//:axum",
+        "@crates//:bytes",
+        "@crates//:prost",
+        "@crates//:tokio",
+        "@crates//:tower",
+    ],
+)
+
+filegroup(
+    name = "package_sources",
+    srcs = glob(["**"], exclude = ["target/**"]),
+    visibility = ["//libs/rust:repo_consumers"],
+)

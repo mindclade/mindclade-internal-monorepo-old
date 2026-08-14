@@ -1,0 +1,145 @@
+{
+  "role": "api",
+  "service": "control-plane-api",
+  "production_role": "api",
+  "requirements": [
+    {
+      "name": "service_lifecycle",
+      "any_of": [
+        "service_lifecycle"
+      ]
+    },
+    {
+      "name": "clock",
+      "any_of": [
+        "clock"
+      ]
+    },
+    {
+      "name": "configuration",
+      "any_of": [
+        "configuration"
+      ]
+    },
+    {
+      "name": "identifiers",
+      "any_of": [
+        "identifiers"
+      ]
+    },
+    {
+      "name": "request_metadata",
+      "any_of": [
+        "request_metadata"
+      ]
+    },
+    {
+      "name": "observability",
+      "any_of": [
+        "observability"
+      ]
+    },
+    {
+      "name": "retry",
+      "any_of": [
+        "retry"
+      ]
+    },
+    {
+      "name": "database",
+      "any_of": [
+        "database"
+      ]
+    },
+    {
+      "name": "transactions",
+      "any_of": [
+        "transactions"
+      ]
+    },
+    {
+      "name": "authentication",
+      "any_of": [
+        "authentication"
+      ]
+    },
+    {
+      "name": "authorization",
+      "any_of": [
+        "authorization"
+      ]
+    },
+    {
+      "name": "audit",
+      "any_of": [
+        "audit"
+      ]
+    },
+    {
+      "name": "idempotency",
+      "any_of": [
+        "idempotency"
+      ]
+    },
+    {
+      "name": "pagination",
+      "any_of": [
+        "pagination"
+      ]
+    },
+    {
+      "name": "resource_version",
+      "any_of": [
+        "resource_version"
+      ]
+    },
+    {
+      "name": "signing",
+      "any_of": [
+        "signing"
+      ]
+    },
+    {
+      "name": "outbox_store",
+      "any_of": [
+        "outbox_store"
+      ]
+    },
+    {
+      "name": "network_transport",
+      "any_of": [
+        "http",
+        "grpc"
+      ]
+    }
+  ],
+  "foundation_packages": [
+    "libs/go/audit",
+    "libs/go/audit/postgres",
+    "libs/go/auth",
+    "libs/go/clock",
+    "libs/go/config",
+    "libs/go/connectx",
+    "libs/go/coordination/outbox",
+    "libs/go/coordination/outbox/postgres",
+    "libs/go/faults",
+    "libs/go/grpcx",
+    "libs/go/httpx",
+    "libs/go/idempotency",
+    "libs/go/idempotency/postgres",
+    "libs/go/identifiers",
+    "libs/go/observability",
+    "libs/go/pagination",
+    "libs/go/requestmeta",
+    "libs/go/resourceversion",
+    "libs/go/retry",
+    "libs/go/servicekit",
+    "libs/go/servicekit/production",
+    "libs/go/signing",
+    "libs/go/storage/blob",
+    "libs/go/storage/cache",
+    "libs/go/storage/sql",
+    "libs/go/storage/sql/postgres",
+    "libs/go/storage/sql/transaction"
+  ]
+}

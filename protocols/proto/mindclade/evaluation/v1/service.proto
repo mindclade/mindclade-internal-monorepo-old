@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package mindclade.evaluation.v1;
+
+message ServiceScaffold {
+  string reserved = 1;
+}

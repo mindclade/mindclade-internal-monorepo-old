@@ -1,0 +1,152 @@
+schema_version = 1
+
+[component."libs.go"]
+owner = "platform-control"
+criticality = "tier-1"
+language = "go"
+slo = "docs/slo/libs-go.md"
+runbook = "docs/runbooks/libs-go.md"
+security_review = true
+
+[component."libs.rust"]
+owner = "runtime-platform"
+criticality = "tier-1"
+language = "rust"
+slo = "docs/slo/libs-rust.md"
+runbook = "docs/runbooks/libs-rust.md"
+security_review = true
+
+[component."control.runtime_authority"]
+owner = "platform-control"
+criticality = "tier-1"
+language = "go"
+slo = "docs/slo/control-runtime-authority.md"
+runbook = "docs/runbooks/control-runtime-authority.md"
+security_review = true
+
+[component."control.routing"]
+owner = "platform-control"
+criticality = "tier-1"
+language = "go"
+slo = "docs/slo/control-routing.md"
+runbook = "docs/runbooks/control-routing.md"
+security_review = true
+
+[component."control.artifacts"]
+owner = "platform-control"
+criticality = "tier-1"
+language = "go"
+slo = "docs/slo/artifact-control.md"
+runbook = "docs/runbooks/artifact-corruption.md"
+security_review = true
+
+[component."control.reference_databases"]
+owner = "data-platform"
+criticality = "tier-1"
+language = "go"
+slo = "docs/slo/control-reference-databases.md"
+runbook = "docs/runbooks/control-reference-databases.md"
+security_review = true
+
+[component."control.release_evidence"]
+owner = "release-engineering"
+criticality = "tier-1"
+language = "go"
+slo = "docs/slo/control-release-evidence.md"
+runbook = "docs/runbooks/control-release-evidence.md"
+security_review = true
+
+
+[component."control.ingestion"]
+owner = "data-platform"
+criticality = "tier-1"
+language = "go"
+slo = "docs/slo/control-ingestion.md"
+runbook = "docs/runbooks/control-ingestion.md"
+security_review = true
+
+[component."preprocessing.core"]
+owner = "biology-ml"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
+[component."runtime.gateway"]
+owner = "runtime-platform"
+criticality = "tier-0"
+language = "rust"
+slo = "docs/slo/runtime-gateway.md"
+runbook = "docs/runbooks/runtime-gateway-degraded.md"
+security_review = true
+
+[component."runtime.host"]
+owner = "runtime-platform"
+criticality = "tier-0"
+language = "rust"
+slo = "docs/slo/runtime-host.md"
+runbook = "docs/runbooks/runtime-host-degraded.md"
+security_review = true
+
+[component."runtime.serving_core"]
+owner = "runtime-platform"
+criticality = "tier-1"
+language = "rust"
+slo = "docs/slo/runtime-serving-core.md"
+runbook = "docs/runbooks/runtime-serving-core.md"
+security_review = true
+
+[component."runtime.artifact_proxy"]
+owner = "runtime-platform"
+criticality = "tier-1"
+language = "rust"
+slo = "docs/slo/artifact-proxy.md"
+runbook = "docs/runbooks/artifact-corruption.md"
+security_review = true
+
+[component."runtime.node_agent"]
+owner = "runtime-platform"
+criticality = "tier-1"
+language = "rust"
+slo = "docs/slo/node-agent.md"
+runbook = "docs/runbooks/node-preemption.md"
+security_review = true
+
+[component."runtime.ingestion_worker"]
+owner = "data-platform"
+criticality = "tier-1"
+language = "polyglot"
+slo = "docs/slo/runtime-ingestion-worker.md"
+runbook = "docs/runbooks/runtime-ingestion-worker.md"
+security_review = true
+
+[component."models"]
+owner = "modeling"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
+[component."training"]
+owner = "training-platform"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
+[component."data.curation"]
+owner = "data-platform"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
+[component."serving.contracts"]
+owner = "runtime-platform"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
+[component."runtime.model_worker"]
+owner = "runtime-platform"
+criticality = "tier-0"
+language = "python"
+slo = "docs/slo/runtime-model-worker.md"
+runbook = "docs/runbooks/runtime-model-worker.md"
+security_review = true

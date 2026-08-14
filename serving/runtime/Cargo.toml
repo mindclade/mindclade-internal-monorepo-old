@@ -1,0 +1,24 @@
+[package]
+name = "mindclade-serving-runtime"
+version.workspace = true
+edition.workspace = true
+publish = false
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[lib]
+name = "mindclade_serving_runtime"
+path = "src/lib.rs"
+
+[dependencies]
+mindclade_content_digest = { path = "../../libs/rust/content_digest" }
+mindclade_faults = { path = "../../libs/rust/faults" }
+mindclade_identifiers = { path = "../../libs/rust/identifiers" }
+mindclade_runtime_core = { path = "../../libs/rust/runtime_core" }
+mindclade_telemetry = { path = "../../libs/rust/telemetry" }
+mindclade_worker_protocol = { path = "../../libs/rust/worker_protocol" }
+
+[lints]
+workspace = true

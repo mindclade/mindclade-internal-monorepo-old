@@ -1,0 +1,51 @@
+
+==> checking Go formatting
+
+==> checking foundation shape
+
+==> checking Go dependency layers and paved roads
+Go architecture check passed
+promoted-foundation completeness check passed
+
+==> running race-enabled foundation and integration tests
+?   	mindclade.internal/libs/go/messaging/messagingtest	[no test files]
+ok  	mindclade.internal/libs/go/config	1.171s
+ok  	mindclade.internal/libs/go/messaging	1.150s
+ok  	mindclade.internal/libs/go/messaging/memory	1.139s
+ok  	mindclade.internal/libs/go/messaging/pubsub	1.098s
+ok  	mindclade.internal/libs/go/pagination	1.082s
+ok  	mindclade.internal/libs/go/resourceversion	1.110s
+ok  	mindclade.internal/libs/go/signing	1.212s
+ok  	mindclade.internal/libs/go/httpx/outbound	1.136s
+ok  	mindclade.internal/libs/go/storage/sql/migrate	1.104s
+?   	mindclade.internal/libs/go/coordination/cursor	[no test files]
+?   	mindclade.internal/libs/go/coordination/cursor/cursortest	[no test files]
+ok  	mindclade.internal/libs/go/servicekit	1.159s
+ok  	mindclade.internal/libs/go/servicekit/production	1.075s
+ok  	mindclade.internal/libs/go/coordination	1.118s
+ok  	mindclade.internal/libs/go/coordination/cursor/memory	1.080s
+ok  	mindclade.internal/libs/go/coordination/cursor/postgres	1.110s
+ok  	mindclade.internal/libs/go/coordination/inbox	1.106s
+?   	mindclade.internal/libs/go/coordination/outbox/outboxtest	[no test files]
+ok  	mindclade.internal/libs/go/coordination/leadership	1.081s
+ok  	mindclade.internal/libs/go/coordination/outbox	1.125s
+ok  	mindclade.internal/libs/go/coordination/outbox/memory	1.090s
+ok  	mindclade.internal/libs/go/coordination/outbox/postgres	1.091s
+?   	mindclade.internal/libs/go/coordination/workqueue/workqueuetest	[no test files]
+ok  	mindclade.internal/libs/go/coordination/projector	1.121s
+ok  	mindclade.internal/libs/go/coordination/workqueue	1.132s
+ok  	mindclade.internal/libs/go/coordination/workqueue/memory	1.081s
+ok  	mindclade.internal/libs/go/coordination/workqueue/postgres	1.104s
+ok  	mindclade.internal/services/control_plane/internal/bootstrap	1.127s
+ok  	mindclade.internal/services/control_plane/internal/foundation	1.125s
+ok  	mindclade.internal/examples/go/event_dispatcher	1.112s
+ok  	mindclade.internal/examples/go/ingestion_coordinator	1.119s
+
+==> running reference vertical slices
+delivered topic=runs.created payload={"run_id":"run-demo","state":"created"}
+outbox state=published attempts=1
+published data.snapshot.discovered for work item work_019ffd09883b78a4bbe72e95aded5771
+
+==> validating representative production role manifests
+
+==> Go foundation qualification passed (offline mode)

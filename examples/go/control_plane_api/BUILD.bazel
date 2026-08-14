@@ -1,0 +1,32 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["README.md"])
+
+go_library(
+    name = "control_plane_api",
+    srcs = ["app.go"],
+    importpath = "mindclade.internal/examples/go/control_plane_api",
+    deps = [
+        "//libs/go/audit",
+        "//libs/go/coordination/outbox",
+        "//libs/go/coordination/outbox/memory",
+        "//libs/go/faults",
+        "//libs/go/httpx",
+        "//libs/go/identifiers",
+        "//libs/go/messaging",
+        "//libs/go/messaging/memory",
+        "//libs/go/requestmeta",
+        "//libs/go/servicekit",
+    ],
+)
+
+go_test(
+    name = "control_plane_api_test",
+    srcs = ["app_test.go"],
+    deps = [":control_plane_api"],
+)

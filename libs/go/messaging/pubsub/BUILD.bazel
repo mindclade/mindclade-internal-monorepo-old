@@ -1,0 +1,36 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//services:__subpackages__", "//control:__subpackages__"])
+
+go_library(
+    name = "pubsub",
+    srcs = [
+        "attributes.go",
+        "config.go",
+        "doc.go",
+        "provider.go",
+        "publisher.go",
+        "subscription.go",
+    ],
+    importpath = "mindclade.internal/libs/go/messaging/pubsub",
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+        "//libs/go/messaging",
+        "//libs/go/requestmeta",
+    ],
+)
+
+go_test(
+    name = "pubsub_test",
+    srcs = ["pubsub_test.go"],
+    embed = [":pubsub"],
+    deps = [
+        "//libs/go/identifiers",
+        "//libs/go/messaging",
+        "//libs/go/requestmeta",
+    ],
+)

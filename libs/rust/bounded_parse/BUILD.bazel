@@ -1,0 +1,64 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+package(default_visibility = ["//libs/rust:repo_consumers"])
+
+rust_library(
+    name = "mindclade_bounded_parse",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "mindclade_bounded_parse",
+    edition = "2024",
+    deps = [
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/faults:mindclade_faults",
+    ],
+)
+
+rust_test(
+    name = "allocation_limits",
+    srcs = ["tests/allocation_limits.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/faults:mindclade_faults",
+        ":mindclade_bounded_parse",
+    ],
+)
+
+rust_test(
+    name = "integration",
+    srcs = ["tests/integration.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/faults:mindclade_faults",
+        ":mindclade_bounded_parse",
+    ],
+)
+
+rust_test(
+    name = "nesting_limits",
+    srcs = ["tests/nesting_limits.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/faults:mindclade_faults",
+        ":mindclade_bounded_parse",
+    ],
+)
+
+rust_test(
+    name = "truncation",
+    srcs = ["tests/truncation.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/faults:mindclade_faults",
+        ":mindclade_bounded_parse",
+    ],
+)
+
+filegroup(
+    name = "package_sources",
+    srcs = glob(["**"], exclude = ["target/**"]),
+    visibility = ["//libs/rust:repo_consumers"],
+)

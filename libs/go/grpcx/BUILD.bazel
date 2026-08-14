@@ -1,0 +1,61 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "grpcx",
+    srcs = [
+        "client.go",
+        "codes.go",
+        "config.go",
+        "details.go",
+        "doc.go",
+        "errors.go",
+        "internal.go",
+        "metadata.go",
+        "method.go",
+        "server.go",
+    ],
+    importpath = "mindclade.internal/libs/go/grpcx",
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/internal/rpcfaults",
+        "//libs/go/requestmeta",
+        "//libs/go/servicekit",
+        "@org_golang_google_genproto_googleapis_rpc//errdetails",
+        "@org_golang_google_grpc//:grpc",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//credentials",
+        "@org_golang_google_grpc//credentials/insecure",
+        "@org_golang_google_grpc//keepalive",
+        "@org_golang_google_grpc//metadata",
+        "@org_golang_google_grpc//stats",
+        "@org_golang_google_grpc//status",
+        "@org_golang_google_protobuf//types/known/durationpb",
+    ],
+)
+
+go_test(
+    name = "grpcx_test",
+    srcs = [
+        "codes_test.go",
+        "config_test.go",
+        "details_test.go",
+        "metadata_test.go",
+        "server_test.go",
+        "method_test.go",
+    ],
+    embed = [":grpcx"],
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/requestmeta",
+        "@org_golang_google_genproto_googleapis_rpc//errdetails",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//keepalive",
+        "@org_golang_google_grpc//metadata",
+        "@org_golang_google_grpc//status",
+    ],
+)

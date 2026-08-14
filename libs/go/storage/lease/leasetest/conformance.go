@@ -1,0 +1,49 @@
+// Copyright 2026 Mindclade. All rights reserved.
+// Confidential and proprietary.
+
+package leasetest
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"mindclade.internal/libs/go/faults"
+	"mindclade.internal/libs/go/storage/lease"
+)
+
+type Factory func(testing.TB) lease.Store
+
+func Run(t *testing.T, factory Factory) {
+	t.Helper()
+	store := factory(t)
+	ctx := context.Background()
+	request := lease.AcquireRequest{Key: lease.MustParseKey("conformance/lease"), Owner: "owner-a", TTL: time.Minute}
+	first, err := store.Acquire(ctx, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Acquire(ctx, request); !faults.IsCode(err, faults.CodeConflict) {
+		t.Fatalf("second acquire = %v", err)
+	}
+	current, err := store.Lookup(ctx, request.Key)
+	if err != nil || !current.Token.Equal(first.Token) {
+		t.Fatalf("Lookup = %#v, %v", current, err)
+	}
+	renewed, err := store.Renew(ctx, first, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if renewed.Version <= first.Version {
+		t.Fatal("version did not advance")
+	}
+	if err := store.Release(ctx, first); !faults.IsCode(err, faults.CodeConflict) {
+		t.Fatalf("stale release = %v", err)
+	}
+	if err := store.Release(ctx, renewed); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Lookup(ctx, request.Key); !faults.IsCode(err, faults.CodeNotFound) {
+		t.Fatalf("lookup after release = %v", err)
+	}
+}

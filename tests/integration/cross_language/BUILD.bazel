@@ -1,0 +1,4 @@
+load("@rules_go//go:def.bzl", "go_test")
+package(default_visibility=["//visibility:public"])
+filegroup(name="execution_ticket_claims_v1",srcs=["fixtures/execution_ticket_claims_v1.bin"])
+go_test(name="go_golden_test",srcs=["golden_test.go"],deps=["//control/artifacts","//control/runtime_authority","//libs/go/identifiers","//libs/go/resourceversion"])

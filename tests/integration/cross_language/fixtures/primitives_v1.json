@@ -1,0 +1,14 @@
+{
+  "schema": "mindclade-cross-language-primitives/v1",
+  "resource_id": "run_019c00000000700080000000000000aa",
+  "resource_id_kind": "run",
+  "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "resource_version": "rv1:42:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "artifact_ref": {
+    "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "size_bytes": 1234,
+    "media_type": "application/vnd.mindclade.dataset-shard+bin",
+    "logical_kind": "dataset-shard",
+    "schema_version": 1
+  }
+}

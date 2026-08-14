@@ -1,0 +1,32 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["README.md"])
+
+go_library(
+    name = "outboxtest",
+    srcs = ["conformance.go", "memory.go"],
+    importpath = "mindclade.internal/libs/go/storage/outbox/outboxtest",
+    testonly = True,
+    deps = [
+        "//libs/go/clock",
+        "//libs/go/coordination/outbox/memory",
+        "//libs/go/coordination/outbox/outboxtest",
+        "//libs/go/storage/lease",
+        "//libs/go/storage/outbox",
+    ],
+)
+
+go_test(
+    name = "memory_test",
+    srcs = ["memory_test.go"],
+    embed = [":outboxtest"],
+    deps = [
+        "//libs/go/clock",
+        "//libs/go/storage/outbox",
+    ],
+)

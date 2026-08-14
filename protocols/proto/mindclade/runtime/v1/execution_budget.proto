@@ -1,0 +1,18 @@
+syntax = "proto3";
+package mindclade.runtime.v1;
+message ExecutionBudget {
+  uint32 cpu_millis = 1;
+  uint64 resident_memory_bytes = 2;
+  uint64 pinned_memory_bytes = 3;
+  uint64 shared_memory_bytes = 4;
+  uint64 local_disk_bytes = 5;
+  uint32 open_file_descriptors = 6;
+  uint32 object_store_requests = 7;
+  uint32 queued_operations = 8;
+  uint32 child_processes = 9;
+  uint32 cpu_worker_threads = 10;
+  uint64 gpu_memory_estimate_bytes = 11;
+  uint64 checkpoint_staging_bytes = 12;
+  uint64 telemetry_spool_bytes = 13;
+  uint64 maximum_output_bytes = 14;
+}

@@ -1,0 +1,22 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "otel",
+    srcs = ["doc.go", "otel.go"],
+    importpath = "mindclade.internal/libs/go/grpcx/otel",
+    deps = [
+        "@io_opentelemetry_go_contrib_instrumentation_google_golang_org_grpc_otelgrpc//:otelgrpc",
+        "@org_golang_google_grpc//stats",
+    ],
+)
+
+go_test(
+    name = "otel_test",
+    srcs = ["otel_test.go"],
+    embed = [":otel"],
+)

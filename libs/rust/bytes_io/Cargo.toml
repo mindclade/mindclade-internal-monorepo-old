@@ -1,0 +1,9 @@
+[package]
+name="mindclade_bytes_io"
+version.workspace=true
+edition.workspace=true
+publish=false
+[dependencies]
+mindclade_faults={path="../faults"}
+[lints]
+workspace=true

@@ -1,0 +1,71 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+load("@rules_python//python:defs.bzl", "py_binary", "py_test")
+
+package(default_visibility = ["//visibility:private"])
+
+py_binary(
+    name = "check_go_layers",
+    srcs = ["check_go_layers.py"],
+    main = "check_go_layers.py",
+    visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "check_placeholder_packages",
+    srcs = ["check_placeholder_packages.py"],
+    main = "check_placeholder_packages.py",
+    visibility = ["//visibility:public"],
+)
+
+py_test(
+    name = "go_architecture_checks_test",
+    srcs = ["tests/test_go_checks.py"],
+    data = [
+        "check_go_layers.py",
+        "check_placeholder_packages.py",
+    ],
+)
+
+py_binary(
+    name = "check_rust_workspace",
+    srcs = ["check_rust_workspace.py"],
+    main = "check_rust_workspace.py",
+    visibility = ["//visibility:public"],
+)
+
+
+py_binary(
+    name = "check_code_docs_alignment",
+    srcs = ["check_code_docs_alignment.py"],
+    main = "check_code_docs_alignment.py",
+        "check_enforced_decisions.py",
+        "check_component_ownership.py",
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "analysis_sources",
+    srcs = glob(["*.py"], exclude = ["**/__pycache__/**"]),
+    visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "architecture_policy",
+    srcs = [
+        "run_architecture_checks.py",
+        "check_build_toolchain_contract.py",
+        "check_component_maturity.py",
+        "check_code_docs_alignment.py",
+        "check_enforced_decisions.py",
+        "check_component_ownership.py",
+        "check_dependency_budgets.py",
+        "check_dependency_layers.py",
+        "check_go_modules.py",
+        "check_libs_go_admission.py",
+        "check_rust_workspace.py",
+    ],
+    main = "run_architecture_checks.py",
+    visibility = ["//visibility:public"],
+)

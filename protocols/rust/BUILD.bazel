@@ -1,0 +1,31 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+package(default_visibility = ["//libs/rust:repo_consumers"])
+
+rust_library(
+    name = "mindclade_protocols",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "mindclade_protocols",
+    edition = "2024",
+    deps = [
+        "@crates//:prost",
+        "@crates//:tonic",
+    ],
+)
+
+rust_test(
+    name = "runtime_roundtrip",
+    srcs = ["tests/runtime_roundtrip.rs"],
+    edition = "2024",
+    deps = [
+        ":mindclade_protocols",
+        "@crates//:prost",
+        "@crates//:tonic",
+    ],
+)
+
+filegroup(
+    name = "package_sources",
+    srcs = glob(["**"], exclude = ["target/**"]),
+    visibility = ["//libs/rust:repo_consumers"],
+)

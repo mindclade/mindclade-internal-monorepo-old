@@ -1,0 +1,142 @@
+schema_version = 1
+
+[[component]]
+name = "libs.go"
+path = "libs/go"
+status = "qualified"
+owner = "platform-control"
+tests = ["libs/go"]
+qualification = "QUALIFICATION.md"
+
+[[component]]
+name = "libs.rust"
+path = "libs/rust"
+status = "implemented"
+owner = "runtime-platform"
+tests = ["libs/rust"]
+qualification = "libs/rust/README.md"
+
+[[component]]
+name = "control.runtime_authority"
+path = "control/runtime_authority"
+status = "implemented"
+owner = "platform-control"
+tests = ["control/runtime_authority/ticket_test.go"]
+
+[[component]]
+name = "control.routing"
+path = "control/routing"
+status = "implemented"
+owner = "platform-control"
+tests = ["control/routing/policy_test.go"]
+
+[[component]]
+name = "control.artifacts"
+path = "control/artifacts"
+status = "implemented"
+owner = "platform-control"
+tests = ["control/artifacts/artifacts_test.go"]
+
+[[component]]
+name = "control.reference_databases"
+path = "control/registry/reference_databases"
+status = "implemented"
+owner = "data-platform"
+tests = ["control/registry/reference_databases/service_test.go"]
+
+[[component]]
+name = "control.release_evidence"
+path = "control/registry/releases"
+status = "implemented"
+owner = "release-engineering"
+tests = ["control/registry/releases/service_test.go"]
+
+
+[[component]]
+name = "control.ingestion"
+path = "control/ingestion"
+status = "implemented"
+owner = "data-platform"
+tests = ["control/ingestion/pipeline_test.go", "control/ingestion/state_test.go"]
+
+[[component]]
+name = "preprocessing.core"
+path = "preprocessing"
+status = "implemented"
+owner = "biology-ml"
+tests = ["preprocessing/tests/test_core_contracts.py"]
+
+[[component]]
+name = "runtime.gateway"
+path = "services/runtime_gateway"
+status = "implemented"
+owner = "runtime-platform"
+tests = ["services/runtime_gateway/tests/integration.rs", "services/runtime_gateway/tests/shutdown.rs"]
+
+[[component]]
+name = "runtime.host"
+path = "services/runtime_host"
+status = "implemented"
+owner = "runtime-platform"
+tests = ["services/runtime_host/tests/integration.rs", "services/runtime_host/tests/shutdown.rs"]
+
+[[component]]
+name = "runtime.serving_core"
+path = "serving/runtime"
+status = "implemented"
+owner = "runtime-platform"
+tests = ["serving/runtime/tests/gateway.rs", "serving/runtime/tests/host.rs", "serving/runtime/tests/outage.rs"]
+
+[[component]]
+name = "runtime.artifact_proxy"
+path = "services/artifact_proxy"
+status = "implemented"
+owner = "runtime-platform"
+tests = ["services/artifact_proxy/tests/integration.rs", "services/artifact_proxy/tests/shutdown.rs"]
+
+[[component]]
+name = "runtime.node_agent"
+path = "services/node_agent"
+status = "implemented"
+owner = "runtime-platform"
+tests = ["services/node_agent/tests/integration.rs", "services/node_agent/tests/shutdown.rs"]
+
+[[component]]
+name = "runtime.ingestion_worker"
+path = "services/workers/ingestion"
+status = "implemented"
+owner = "data-platform"
+tests = ["services/workers/ingestion/tests/integration.rs"]
+
+[[component]]
+name = "models"
+path = "models"
+status = "scaffolded"
+owner = "modeling"
+
+[[component]]
+name = "training"
+path = "training"
+status = "scaffolded"
+owner = "training-platform"
+[[component]]
+name = "data.curation"
+path = "data/curation"
+status = "implemented"
+owner = "data-platform"
+tests = ["data/curation/tests/test_pipeline.py"]
+
+[[component]]
+name = "serving.contracts"
+path = "serving/contracts"
+status = "implemented"
+owner = "runtime-platform"
+tests = ["serving/contracts/tests/test_contracts.py"]
+
+[[component]]
+name = "runtime.model_worker"
+path = "services/workers/model_worker"
+status = "implemented"
+owner = "runtime-platform"
+tests = ["services/workers/model_worker/tests/test_smoke.py"]
+

@@ -1,0 +1,22 @@
+[package]
+name = "mindclade_servicekit"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Graceful shutdown, health, readiness, and supervised process tasks."
+publish = false
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+mindclade_runtime_core = { path = "../runtime_core" }
+mindclade_faults = { path = "../faults" }
+mindclade_identifiers = { path = "../identifiers" }
+mindclade_telemetry = { path = "../telemetry" }
+
+[lints]
+workspace = true

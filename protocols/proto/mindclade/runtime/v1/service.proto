@@ -1,0 +1,29 @@
+syntax = "proto3";
+package mindclade.runtime.v1;
+import "mindclade/runtime/v1/route_snapshot.proto";
+import "mindclade/runtime/v1/execution_ticket.proto";
+import "mindclade/runtime/v1/worker_command.proto";
+import "mindclade/runtime/v1/worker_status.proto";
+service WorkerControl { rpc Execute(stream WorkerCommand) returns (stream WorkerStatus); }
+service RuntimePolicyFeed { rpc GetRouteSnapshot(GetRouteSnapshotRequest) returns (RouteSnapshot); rpc GetRevocations(GetRevocationsRequest) returns (RevocationSnapshot); }
+message GetRouteSnapshotRequest { string region=1; uint64 minimum_version=2; }
+message GetRevocationsRequest { uint64 after_epoch=1; }
+
+
+// Model-neutral online admission request. Large/tensor payloads are referenced
+// by descriptor; they are never embedded in this control message.
+message RuntimeDispatchRequest {
+  string request_id = 1;
+  AdmissionGrant grant = 2;
+  bytes request_key = 3;
+  string deployment_hint = 4;
+  repeated string required_capabilities = 5;
+  uint64 input_units = 6;
+  uint64 output_units = 7;
+  string payload_descriptor = 8;
+}
+message RuntimeDispatchResponse {
+  string request_id = 1;
+  string deployment_id = 2;
+  string endpoint = 3;
+}

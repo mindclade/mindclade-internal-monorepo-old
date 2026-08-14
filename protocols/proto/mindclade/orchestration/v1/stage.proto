@@ -1,0 +1,41 @@
+syntax = "proto3";
+package mindclade.orchestration.v1;
+
+import "mindclade/common/v1/artifact_ref.proto";
+import "mindclade/runtime/v1/execution_budget.proto";
+
+enum StageKind {
+  STAGE_KIND_UNSPECIFIED = 0;
+  STAGE_KIND_INGESTION = 1;
+  STAGE_KIND_CURATE = 2;
+  STAGE_KIND_PREPROCESS = 3;
+  STAGE_KIND_REFERENCE_BUILD = 4;
+  STAGE_KIND_BATCH_INFERENCE = 5;
+  STAGE_KIND_EVALUATION = 6;
+  STAGE_KIND_TRAINING = 7;
+  STAGE_KIND_CHECKPOINT_TRANSFER = 8;
+  STAGE_KIND_ARTIFACT_TRANSFER = 9;
+  STAGE_KIND_ROLLOUT = 10;
+  STAGE_KIND_SIMULATION = 11;
+}
+message StageSpec {
+  string stage_id = 1;
+  StageKind kind = 2;
+  string operation = 3;
+  repeated mindclade.common.v1.ArtifactRef inputs = 4;
+  string output_namespace = 5;
+  string resolved_config_digest = 6;
+  string reference_snapshot_digest = 7;
+  mindclade.runtime.v1.ExecutionBudget budget = 8;
+  uint64 timeout_millis = 9;
+  uint32 maximum_attempts = 10;
+  repeated string dependency_stage_ids = 11;
+}
+message StageAttempt {
+  string run_id = 1;
+  string job_id = 2;
+  StageSpec spec = 3;
+  uint32 attempt = 4;
+  uint64 fencing_token = 5;
+  string execution_ticket_id = 6;
+}

@@ -1,0 +1,42 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+package(default_visibility = ["//libs/rust:repo_consumers"])
+
+rust_library(
+    name = "mindclade_identifiers",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "mindclade_identifiers",
+    edition = "2024",
+    deps = [
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+    ],
+)
+
+rust_test(
+    name = "goldens",
+    srcs = ["tests/goldens.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        ":mindclade_identifiers",
+    ],
+)
+
+rust_test(
+    name = "integration",
+    srcs = ["tests/integration.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        ":mindclade_identifiers",
+    ],
+)
+
+filegroup(
+    name = "package_sources",
+    srcs = glob(["**"], exclude = ["target/**"]),
+    visibility = ["//libs/rust:repo_consumers"],
+)

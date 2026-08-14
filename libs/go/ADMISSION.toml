@@ -1,0 +1,4 @@
+schema_version = 1
+policy = "domain-neutral + >=2 production consumers + conformance test + layer ownership"
+forbidden_names = ["common", "shared", "helpers", "utils", "platform", "workflow", "repository", "state_machine", "queue", "tenant", "quota", "runs", "jobs"]
+allowed_top_level = ["audit","auth","clock","config","connectx","coordination","faults","grpcx","httpx","idempotency","identifiers","internal","kubernetes","messaging","observability","pagination","requestmeta","resourceversion","retry","servicekit","signing","storage"]

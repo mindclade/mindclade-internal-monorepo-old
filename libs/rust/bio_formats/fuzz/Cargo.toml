@@ -1,0 +1,37 @@
+[package]
+name = "mindclade-bio-formats-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+mindclade_bio_formats = { path = ".." }
+mindclade_bounded_parse = { path = "../../bounded_parse" }
+
+[[bin]]
+name = "fasta"
+path = "fuzz_targets/fasta.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "mmcif"
+path = "fuzz_targets/mmcif.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "sdf"
+path = "fuzz_targets/sdf.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]
+members = ["."]

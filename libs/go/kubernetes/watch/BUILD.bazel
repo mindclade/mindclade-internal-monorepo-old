@@ -1,0 +1,31 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential and proprietary.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "watch",
+    srcs = [
+        "doc.go",
+        "watch.go",
+    ],
+    importpath = "mindclade.internal/libs/go/kubernetes/watch",
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/kubernetes",
+        "@io_k8s_apimachinery//pkg/api/errors",
+        "@io_k8s_apimachinery//pkg/watch",
+    ],
+)
+
+go_test(
+    name = "watch_test",
+    srcs = ["watch_test.go"],
+    embed = [":watch"],
+    deps = [
+        "//libs/go/faults",
+        "@io_k8s_apimachinery//pkg/watch",
+    ],
+)

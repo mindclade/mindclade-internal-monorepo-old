@@ -1,0 +1,52 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:private"])
+
+exports_files(["README.md"])
+
+go_library(
+    name = "ingestion_coordinator_lib",
+    srcs = ["app.go"],
+    importpath = "mindclade.internal/examples/go/ingestion_coordinator",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//libs/go/config",
+        "//libs/go/coordination/cursor/memory",
+        "//libs/go/coordination/leadership",
+        "//libs/go/coordination/outbox",
+        "//libs/go/coordination/outbox/memory",
+        "//libs/go/coordination/workqueue",
+        "//libs/go/coordination/workqueue/memory",
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+        "//libs/go/messaging",
+        "//libs/go/messaging/memory",
+        "//libs/go/observability",
+        "//libs/go/requestmeta",
+        "//libs/go/servicekit",
+        "//libs/go/servicekit/production",
+        "//libs/go/storage/blob/memory",
+        "//libs/go/storage/cache/memory",
+        "//libs/go/storage/lease",
+        "//libs/go/storage/lease/memory",
+    ],
+)
+
+go_binary(
+    name = "ingestion_coordinator",
+    srcs = ["main.go"],
+    embed = [":ingestion_coordinator_lib"],
+)
+
+go_test(
+    name = "ingestion_coordinator_test",
+    srcs = ["app_test.go"],
+    embed = [":ingestion_coordinator_lib"],
+    deps = [
+        "//libs/go/coordination/outbox",
+        "//libs/go/coordination/workqueue",
+    ],
+)

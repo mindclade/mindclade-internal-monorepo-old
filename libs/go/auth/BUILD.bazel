@@ -1,0 +1,49 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential and proprietary.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "auth",
+    srcs = [
+        "attributes.go",
+        "authenticator.go",
+        "authorizer.go",
+        "claims.go",
+        "context.go",
+        "credential.go",
+        "decision.go",
+        "doc.go",
+        "errors.go",
+        "internal.go",
+        "permission.go",
+        "principal.go",
+        "resource.go",
+    ],
+    importpath = "mindclade.internal/libs/go/auth",
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+    ],
+)
+
+go_test(
+    name = "auth_test",
+    srcs = [
+        "authenticator_test.go",
+        "authorizer_test.go",
+        "claims_test.go",
+        "context_test.go",
+        "contracts_test.go",
+        "credential_test.go",
+        "permission_test.go",
+        "principal_test.go",
+    ],
+    embed = [":auth"],
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+    ],
+)

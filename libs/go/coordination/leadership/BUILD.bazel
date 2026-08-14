@@ -1,0 +1,28 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "leadership",
+    srcs = ["doc.go", "elector.go", "errors.go"],
+    importpath = "mindclade.internal/libs/go/coordination/leadership",
+    deps = [
+        "//libs/go/clock",
+        "//libs/go/faults",
+        "//libs/go/retry",
+        "//libs/go/servicekit",
+        "//libs/go/storage/lease",
+    ],
+)
+
+go_test(
+    name = "leadership_test",
+    srcs = ["elector_test.go"],
+    embed = [":leadership"],
+    deps = [
+        "//libs/go/storage/lease",
+        "//libs/go/storage/lease/memory",
+    ],
+)

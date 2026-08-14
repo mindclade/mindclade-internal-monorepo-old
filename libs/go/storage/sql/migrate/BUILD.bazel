@@ -1,0 +1,15 @@
+# Copyright 2026 Mindclade. All rights reserved.
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+package(default_visibility = ["//visibility:public"])
+exports_files(["README.md"])
+go_library(
+    name = "migrate",
+    srcs = ["doc.go", "errors.go", "manifest.go", "migration.go", "runner.go", "status.go"],
+    importpath = "mindclade.internal/libs/go/storage/sql/migrate",
+    deps = ["//libs/go/faults", "//libs/go/servicekit", "//libs/go/storage/sql/postgres"],
+)
+go_test(
+    name = "migrate_test",
+    srcs = ["migration_test.go"],
+    deps = [":migrate", "//libs/go/storage/sql/sqltest"],
+)

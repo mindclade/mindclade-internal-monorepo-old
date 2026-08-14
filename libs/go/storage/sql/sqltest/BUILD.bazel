@@ -1,0 +1,22 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential and proprietary.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "sqltest",
+    srcs = [
+        "doc.go",
+        "driver.go",
+    ],
+    importpath = "mindclade.internal/libs/go/storage/sql/sqltest",
+    testonly = True,
+)
+
+go_test(
+    name = "sqltest_test",
+    srcs = ["driver_test.go"],
+    embed = [":sqltest"],
+)

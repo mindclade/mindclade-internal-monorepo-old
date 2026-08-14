@@ -1,0 +1,21 @@
+[package]
+name = "mindclade_telemetry"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Bounded structured logs, traces, metrics, and redaction contracts."
+publish = false
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+mindclade_runtime_core = { path = "../runtime_core" }
+mindclade_identifiers = { path = "../identifiers" }
+mindclade_faults = { path = "../faults" }
+
+[lints]
+workspace = true

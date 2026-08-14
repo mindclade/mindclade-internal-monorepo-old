@@ -1,0 +1,738 @@
+{
+  "mindclade.runtime.v1.AdmissionGrant": {
+    "1": {
+      "label": "singular",
+      "name": "claims",
+      "type": "AdmissionGrantClaims"
+    },
+    "2": {
+      "label": "singular",
+      "name": "signature",
+      "type": "DetachedSignature"
+    }
+  },
+  "mindclade.runtime.v1.AdmissionGrantClaims": {
+    "1": {
+      "label": "singular",
+      "name": "grant_id",
+      "type": "string"
+    },
+    "10": {
+      "label": "singular",
+      "name": "maximum_output_units",
+      "type": "uint64"
+    },
+    "11": {
+      "label": "singular",
+      "name": "not_before_unix_millis",
+      "type": "uint64"
+    },
+    "12": {
+      "label": "singular",
+      "name": "expires_unix_millis",
+      "type": "uint64"
+    },
+    "13": {
+      "label": "singular",
+      "name": "policy_epoch",
+      "type": "uint64"
+    },
+    "14": {
+      "label": "singular",
+      "name": "revocation_epoch",
+      "type": "uint64"
+    },
+    "2": {
+      "label": "singular",
+      "name": "tenant_id",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "principal_id",
+      "type": "string"
+    },
+    "4": {
+      "label": "repeated",
+      "name": "allowed_deployments",
+      "type": "string"
+    },
+    "5": {
+      "label": "repeated",
+      "name": "allowed_capabilities",
+      "type": "string"
+    },
+    "6": {
+      "label": "singular",
+      "name": "region",
+      "type": "string"
+    },
+    "7": {
+      "label": "singular",
+      "name": "maximum_concurrency",
+      "type": "uint32"
+    },
+    "8": {
+      "label": "singular",
+      "name": "maximum_requests",
+      "type": "uint64"
+    },
+    "9": {
+      "label": "singular",
+      "name": "maximum_input_units",
+      "type": "uint64"
+    }
+  },
+  "mindclade.runtime.v1.ArtifactGrant": {
+    "1": {
+      "label": "repeated",
+      "name": "readable_digests",
+      "type": "string"
+    },
+    "2": {
+      "label": "repeated",
+      "name": "writable_namespaces",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "maximum_read_bytes",
+      "type": "uint64"
+    },
+    "4": {
+      "label": "singular",
+      "name": "maximum_write_bytes",
+      "type": "uint64"
+    },
+    "5": {
+      "label": "singular",
+      "name": "allow_range_reads",
+      "type": "bool"
+    },
+    "6": {
+      "label": "singular",
+      "name": "allow_multipart_writes",
+      "type": "bool"
+    }
+  },
+  "mindclade.runtime.v1.BufferDescriptor": {
+    "1": {
+      "label": "singular",
+      "name": "segment_id",
+      "type": "string"
+    },
+    "10": {
+      "label": "singular",
+      "name": "access_mode",
+      "type": "AccessMode"
+    },
+    "11": {
+      "label": "singular",
+      "name": "transport",
+      "type": "Transport"
+    },
+    "12": {
+      "label": "singular",
+      "name": "locator",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "generation",
+      "type": "uint64"
+    },
+    "3": {
+      "label": "singular",
+      "name": "offset_bytes",
+      "type": "uint64"
+    },
+    "4": {
+      "label": "singular",
+      "name": "length_bytes",
+      "type": "uint64"
+    },
+    "5": {
+      "label": "singular",
+      "name": "element_type",
+      "type": "string"
+    },
+    "6": {
+      "label": "repeated",
+      "name": "shape",
+      "type": "uint64"
+    },
+    "7": {
+      "label": "singular",
+      "name": "content_digest",
+      "type": "string"
+    },
+    "8": {
+      "label": "singular",
+      "name": "owner_process",
+      "type": "string"
+    },
+    "9": {
+      "label": "singular",
+      "name": "lease_expires_unix_millis",
+      "type": "uint64"
+    }
+  },
+  "mindclade.runtime.v1.CancelCommand": {
+    "1": {
+      "label": "singular",
+      "name": "reason",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "deadline_unix_millis",
+      "type": "uint64"
+    }
+  },
+  "mindclade.runtime.v1.DeploymentRoute": {
+    "1": {
+      "label": "singular",
+      "name": "deployment_id",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "model_bundle_digest",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "engine_bundle_digest",
+      "type": "string"
+    },
+    "4": {
+      "label": "singular",
+      "name": "endpoint",
+      "type": "string"
+    },
+    "5": {
+      "label": "singular",
+      "name": "region",
+      "type": "string"
+    },
+    "6": {
+      "label": "singular",
+      "name": "weight",
+      "type": "uint32"
+    },
+    "7": {
+      "label": "repeated",
+      "name": "capabilities",
+      "type": "string"
+    },
+    "8": {
+      "label": "singular",
+      "name": "lease_expires_unix_millis",
+      "type": "uint64"
+    },
+    "9": {
+      "label": "singular",
+      "name": "safety_policy_digest",
+      "type": "string"
+    }
+  },
+  "mindclade.runtime.v1.DetachedSignature": {
+    "1": {
+      "label": "singular",
+      "name": "algorithm",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "key_id",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "value",
+      "type": "bytes"
+    }
+  },
+  "mindclade.runtime.v1.DrainCommand": {
+    "1": {
+      "label": "singular",
+      "name": "reason",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "deadline_unix_millis",
+      "type": "uint64"
+    }
+  },
+  "mindclade.runtime.v1.ExecutionBudget": {
+    "1": {
+      "label": "singular",
+      "name": "cpu_millis",
+      "type": "uint32"
+    },
+    "10": {
+      "label": "singular",
+      "name": "cpu_worker_threads",
+      "type": "uint32"
+    },
+    "11": {
+      "label": "singular",
+      "name": "gpu_memory_estimate_bytes",
+      "type": "uint64"
+    },
+    "12": {
+      "label": "singular",
+      "name": "checkpoint_staging_bytes",
+      "type": "uint64"
+    },
+    "13": {
+      "label": "singular",
+      "name": "telemetry_spool_bytes",
+      "type": "uint64"
+    },
+    "14": {
+      "label": "singular",
+      "name": "maximum_output_bytes",
+      "type": "uint64"
+    },
+    "2": {
+      "label": "singular",
+      "name": "resident_memory_bytes",
+      "type": "uint64"
+    },
+    "3": {
+      "label": "singular",
+      "name": "pinned_memory_bytes",
+      "type": "uint64"
+    },
+    "4": {
+      "label": "singular",
+      "name": "shared_memory_bytes",
+      "type": "uint64"
+    },
+    "5": {
+      "label": "singular",
+      "name": "local_disk_bytes",
+      "type": "uint64"
+    },
+    "6": {
+      "label": "singular",
+      "name": "open_file_descriptors",
+      "type": "uint32"
+    },
+    "7": {
+      "label": "singular",
+      "name": "object_store_requests",
+      "type": "uint32"
+    },
+    "8": {
+      "label": "singular",
+      "name": "queued_operations",
+      "type": "uint32"
+    },
+    "9": {
+      "label": "singular",
+      "name": "child_processes",
+      "type": "uint32"
+    }
+  },
+  "mindclade.runtime.v1.ExecutionTicket": {
+    "1": {
+      "label": "singular",
+      "name": "claims",
+      "type": "ExecutionTicketClaims"
+    },
+    "2": {
+      "label": "singular",
+      "name": "signature",
+      "type": "DetachedSignature"
+    }
+  },
+  "mindclade.runtime.v1.ExecutionTicketClaims": {
+    "1": {
+      "label": "singular",
+      "name": "ticket_id",
+      "type": "string"
+    },
+    "10": {
+      "label": "singular",
+      "name": "fencing_token",
+      "type": "uint64"
+    },
+    "11": {
+      "label": "singular",
+      "name": "model_bundle_digest",
+      "type": "string"
+    },
+    "12": {
+      "label": "singular",
+      "name": "engine_bundle_digest",
+      "type": "string"
+    },
+    "13": {
+      "label": "singular",
+      "name": "resolved_config_digest",
+      "type": "string"
+    },
+    "14": {
+      "label": "singular",
+      "name": "reference_snapshot_digest",
+      "type": "string"
+    },
+    "15": {
+      "label": "singular",
+      "name": "artifacts",
+      "type": "ArtifactGrant"
+    },
+    "16": {
+      "label": "singular",
+      "name": "budget",
+      "type": "ExecutionBudget"
+    },
+    "17": {
+      "label": "singular",
+      "name": "execution_class",
+      "type": "string"
+    },
+    "18": {
+      "label": "singular",
+      "name": "accelerator_capability",
+      "type": "string"
+    },
+    "19": {
+      "label": "singular",
+      "name": "not_before_unix_millis",
+      "type": "uint64"
+    },
+    "2": {
+      "label": "singular",
+      "name": "issuer",
+      "type": "string"
+    },
+    "20": {
+      "label": "singular",
+      "name": "deadline_unix_millis",
+      "type": "uint64"
+    },
+    "21": {
+      "label": "singular",
+      "name": "expires_unix_millis",
+      "type": "uint64"
+    },
+    "22": {
+      "label": "singular",
+      "name": "policy_epoch",
+      "type": "uint64"
+    },
+    "23": {
+      "label": "singular",
+      "name": "route_snapshot_version",
+      "type": "uint64"
+    },
+    "24": {
+      "label": "singular",
+      "name": "revocation_epoch",
+      "type": "uint64"
+    },
+    "25": {
+      "label": "singular",
+      "name": "idempotency_key",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "tenant_id",
+      "type": "string"
+    },
+    "4": {
+      "label": "singular",
+      "name": "workspace_id",
+      "type": "string"
+    },
+    "5": {
+      "label": "singular",
+      "name": "run_id",
+      "type": "string"
+    },
+    "6": {
+      "label": "singular",
+      "name": "job_id",
+      "type": "string"
+    },
+    "7": {
+      "label": "singular",
+      "name": "stage_id",
+      "type": "string"
+    },
+    "8": {
+      "label": "singular",
+      "name": "request_id",
+      "type": "string"
+    },
+    "9": {
+      "label": "singular",
+      "name": "attempt",
+      "type": "uint32"
+    }
+  },
+  "mindclade.runtime.v1.GetRevocationsRequest": {
+    "1": {
+      "label": "singular",
+      "name": "after_epoch",
+      "type": "uint64"
+    }
+  },
+  "mindclade.runtime.v1.GetRouteSnapshotRequest": {
+    "1": {
+      "label": "singular",
+      "name": "region",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "minimum_version",
+      "type": "uint64"
+    }
+  },
+  "mindclade.runtime.v1.HeartbeatCommand": {
+    "1": {
+      "label": "singular",
+      "name": "requested_at_unix_millis",
+      "type": "uint64"
+    }
+  },
+  "mindclade.runtime.v1.RevocationSnapshot": {
+    "1": {
+      "label": "singular",
+      "name": "claims",
+      "type": "RevocationSnapshotClaims"
+    },
+    "2": {
+      "label": "singular",
+      "name": "signature",
+      "type": "DetachedSignature"
+    }
+  },
+  "mindclade.runtime.v1.RevocationSnapshotClaims": {
+    "1": {
+      "label": "singular",
+      "name": "epoch",
+      "type": "uint64"
+    },
+    "2": {
+      "label": "singular",
+      "name": "created_unix_millis",
+      "type": "uint64"
+    },
+    "3": {
+      "label": "singular",
+      "name": "expires_unix_millis",
+      "type": "uint64"
+    },
+    "4": {
+      "label": "repeated",
+      "name": "revoked_grant_ids",
+      "type": "string"
+    },
+    "5": {
+      "label": "repeated",
+      "name": "revoked_ticket_ids",
+      "type": "string"
+    },
+    "6": {
+      "label": "repeated",
+      "name": "revoked_deployment_ids",
+      "type": "string"
+    },
+    "7": {
+      "label": "repeated",
+      "name": "revoked_bundle_digests",
+      "type": "string"
+    }
+  },
+  "mindclade.runtime.v1.RouteSnapshot": {
+    "1": {
+      "label": "singular",
+      "name": "claims",
+      "type": "RouteSnapshotClaims"
+    },
+    "2": {
+      "label": "singular",
+      "name": "signature",
+      "type": "DetachedSignature"
+    }
+  },
+  "mindclade.runtime.v1.RouteSnapshotClaims": {
+    "1": {
+      "label": "singular",
+      "name": "snapshot_id",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "snapshot_digest",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "version",
+      "type": "uint64"
+    },
+    "4": {
+      "label": "singular",
+      "name": "policy_epoch",
+      "type": "uint64"
+    },
+    "5": {
+      "label": "singular",
+      "name": "revocation_epoch",
+      "type": "uint64"
+    },
+    "6": {
+      "label": "singular",
+      "name": "created_unix_millis",
+      "type": "uint64"
+    },
+    "7": {
+      "label": "singular",
+      "name": "expires_unix_millis",
+      "type": "uint64"
+    },
+    "8": {
+      "label": "repeated",
+      "name": "routes",
+      "type": "DeploymentRoute"
+    },
+    "9": {
+      "label": "singular",
+      "name": "minimum_runtime_version",
+      "type": "string"
+    }
+  },
+  "mindclade.runtime.v1.RuntimeDispatchRequest": {
+    "1": {
+      "label": "singular",
+      "name": "request_id",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "grant",
+      "type": "AdmissionGrant"
+    },
+    "3": {
+      "label": "singular",
+      "name": "request_key",
+      "type": "bytes"
+    },
+    "4": {
+      "label": "singular",
+      "name": "deployment_hint",
+      "type": "string"
+    },
+    "5": {
+      "label": "repeated",
+      "name": "required_capabilities",
+      "type": "string"
+    },
+    "6": {
+      "label": "singular",
+      "name": "input_units",
+      "type": "uint64"
+    },
+    "7": {
+      "label": "singular",
+      "name": "output_units",
+      "type": "uint64"
+    },
+    "8": {
+      "label": "singular",
+      "name": "payload_descriptor",
+      "type": "string"
+    }
+  },
+  "mindclade.runtime.v1.RuntimeDispatchResponse": {
+    "1": {
+      "label": "singular",
+      "name": "request_id",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "deployment_id",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "endpoint",
+      "type": "string"
+    }
+  },
+  "mindclade.runtime.v1.StartCommand": {
+    "1": {
+      "label": "singular",
+      "name": "ticket",
+      "type": "ExecutionTicket"
+    },
+    "2": {
+      "label": "repeated",
+      "name": "inputs",
+      "type": "BufferDescriptor"
+    },
+    "3": {
+      "label": "singular",
+      "name": "operation",
+      "type": "string"
+    }
+  },
+  "mindclade.runtime.v1.WorkerCommand": {
+    "1": {
+      "label": "singular",
+      "name": "sequence",
+      "type": "uint64"
+    }
+  },
+  "mindclade.runtime.v1.WorkerStatus": {
+    "1": {
+      "label": "singular",
+      "name": "sequence",
+      "type": "uint64"
+    },
+    "2": {
+      "label": "singular",
+      "name": "ticket_id",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "fencing_token",
+      "type": "uint64"
+    },
+    "4": {
+      "label": "singular",
+      "name": "state",
+      "type": "WorkerState"
+    },
+    "5": {
+      "label": "singular",
+      "name": "observed_unix_millis",
+      "type": "uint64"
+    },
+    "6": {
+      "label": "singular",
+      "name": "message",
+      "type": "string"
+    },
+    "7": {
+      "label": "repeated",
+      "name": "outputs",
+      "type": "BufferDescriptor"
+    },
+    "8": {
+      "label": "singular",
+      "name": "diagnostic_artifact_digest",
+      "type": "string"
+    }
+  }
+}

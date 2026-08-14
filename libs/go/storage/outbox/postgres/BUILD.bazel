@@ -1,0 +1,30 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["README.md"])
+
+go_library(
+    name = "postgres",
+    srcs = [
+        "repository.go",
+        "scanner.go",
+        "transaction.go",
+    ],
+    importpath = "mindclade.internal/libs/go/storage/outbox/postgres",
+    deps = [
+        "//libs/go/coordination/outbox/postgres",
+        "//libs/go/storage/lease",
+        "//libs/go/storage/outbox",
+        "//libs/go/storage/sql/transaction",
+    ],
+)
+
+go_test(
+    name = "postgres_test",
+    srcs = ["repository_test.go"],
+    embed = [":postgres"],
+)

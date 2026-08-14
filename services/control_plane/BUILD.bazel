@@ -1,0 +1,25 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+package(default_visibility = ["//visibility:private"])
+
+filegroup(
+    name = "go_foundation_sources",
+    srcs = glob([
+        "cmd/*/BUILD.bazel",
+        "cmd/*/main.go",
+        "internal/bootstrap/*.go",
+        "internal/foundation/*.go",
+    ]),
+    visibility = ["//tests/integration/go_foundation:__pkg__"],
+)
+
+filegroup(
+    name = "docs",
+    srcs = [
+        "GO_FOUNDATION_CONSUMPTION.md",
+        "PRODUCTION_READINESS.md",
+        "README.md",
+    ],
+    visibility = ["//visibility:public"],
+)

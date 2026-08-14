@@ -1,0 +1,20 @@
+schema_version = 1
+statuses = ["planned", "scaffolded", "experimental", "implemented", "qualified", "production", "deprecated"]
+
+[rules.planned]
+production_dependency = false
+[rules.scaffolded]
+production_dependency = false
+[rules.experimental]
+production_dependency = false
+[rules.implemented]
+requires_tests = true
+[rules.qualified]
+requires_tests = true
+requires_qualification = true
+[rules.production]
+requires_tests = true
+requires_qualification = true
+requires_slo = true
+requires_runbook = true
+requires_release_target = true

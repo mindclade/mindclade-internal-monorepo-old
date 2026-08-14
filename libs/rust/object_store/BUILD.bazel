@@ -1,0 +1,127 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+package(default_visibility = ["//libs/rust:repo_consumers"])
+
+rust_library(
+    name = "mindclade_object_store",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "mindclade_object_store",
+    edition = "2024",
+    deps = [
+        "//libs/rust/atomic_fs:mindclade_atomic_fs",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "@crates//:bytes",
+        "@crates//:object_store",
+    ],
+)
+
+rust_test(
+    name = "conditional",
+    srcs = ["tests/conditional.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/atomic_fs:mindclade_atomic_fs",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        ":mindclade_object_store",
+        "@crates//:bytes",
+        "@crates//:object_store",
+        "@crates//:tokio",
+    ],
+)
+
+rust_test(
+    name = "conformance",
+    srcs = ["tests/conformance.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/atomic_fs:mindclade_atomic_fs",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        ":mindclade_object_store",
+        "@crates//:bytes",
+        "@crates//:object_store",
+        "@crates//:tokio",
+    ],
+)
+
+rust_test(
+    name = "failure_injection",
+    srcs = ["tests/failure_injection.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/atomic_fs:mindclade_atomic_fs",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        ":mindclade_object_store",
+        "@crates//:bytes",
+        "@crates//:object_store",
+        "@crates//:tokio",
+    ],
+)
+
+rust_test(
+    name = "integration",
+    srcs = ["tests/integration.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/atomic_fs:mindclade_atomic_fs",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        ":mindclade_object_store",
+        "@crates//:bytes",
+        "@crates//:object_store",
+        "@crates//:tokio",
+    ],
+)
+
+rust_test(
+    name = "provider",
+    srcs = ["tests/provider.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/atomic_fs:mindclade_atomic_fs",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        ":mindclade_object_store",
+        "@crates//:bytes",
+        "@crates//:object_store",
+        "@crates//:tokio",
+    ],
+)
+
+rust_test(
+    name = "range",
+    srcs = ["tests/range.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/atomic_fs:mindclade_atomic_fs",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        ":mindclade_object_store",
+        "@crates//:bytes",
+        "@crates//:object_store",
+        "@crates//:tokio",
+    ],
+)
+
+filegroup(
+    name = "package_sources",
+    srcs = glob(["**"], exclude = ["target/**"]),
+    visibility = ["//libs/rust:repo_consumers"],
+)

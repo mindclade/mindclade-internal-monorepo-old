@@ -1,0 +1,59 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "servicekit",
+    srcs = [
+        "assembly.go",
+        "build.go",
+        "component.go",
+        "doc.go",
+        "errors.go",
+        "event.go",
+        "faults.go",
+        "internal.go",
+        "options.go",
+        "probe.go",
+        "service.go",
+        "shutdown.go",
+        "signal.go",
+        "signal_unix.go",
+        "signal_windows.go",
+        "state.go",
+        "task.go",
+        "taskgroup.go",
+        "timeout.go",
+    ],
+    importpath = "mindclade.internal/libs/go/servicekit",
+    deps = [
+        "//libs/go/clock",
+        "//libs/go/faults",
+    ],
+)
+
+go_test(
+    name = "servicekit_test",
+    srcs = [
+        "assembly_test.go",
+        "build_test.go",
+        "clock_test.go",
+        "component_test.go",
+        "errors_test.go",
+        "event_test.go",
+        "options_test.go",
+        "probe_test.go",
+        "service_test.go",
+        "signal_test.go",
+        "state_test.go",
+        "taskgroup_test.go",
+    ],
+    embed = [":servicekit"],
+    deps = [
+        "//libs/go/clock",
+        "//libs/go/faults",
+    ],
+)

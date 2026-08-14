@@ -1,0 +1,10 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+package(default_visibility = ["//visibility:private"])
+
+filegroup(
+    name = "scaffold_files",
+    srcs = glob(["**"], exclude = ["BUILD.bazel"]),
+    visibility = ["//visibility:public"],
+)

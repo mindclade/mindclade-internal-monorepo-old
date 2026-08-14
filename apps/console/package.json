@@ -1,0 +1,10 @@
+{
+  "name": "@mindclade/apps-console",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "echo scaffold",
+    "test": "echo scaffold"
+  }
+}

@@ -1,0 +1,114 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+package(default_visibility = ["//libs/rust:repo_consumers"])
+
+rust_library(
+    name = "mindclade_worker_protocol",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "mindclade_worker_protocol",
+    edition = "2024",
+    deps = [
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "@crates//:ed25519-dalek",
+    ],
+)
+
+rust_test(
+    name = "cross_language",
+    srcs = ["tests/cross_language.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        ":mindclade_worker_protocol",
+        "@crates//:ed25519-dalek",
+    ],
+)
+
+rust_test(
+    name = "ed25519",
+    srcs = ["tests/ed25519.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        ":mindclade_worker_protocol",
+        "@crates//:ed25519-dalek",
+    ],
+)
+
+rust_test(
+    name = "ed25519_cross_language",
+    srcs = ["tests/ed25519_cross_language.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        ":mindclade_worker_protocol",
+        "@crates//:ed25519-dalek",
+    ],
+)
+
+rust_test(
+    name = "goldens",
+    srcs = ["tests/goldens.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        ":mindclade_worker_protocol",
+        "@crates//:ed25519-dalek",
+    ],
+)
+
+rust_test(
+    name = "integration",
+    srcs = ["tests/integration.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        ":mindclade_worker_protocol",
+        "@crates//:ed25519-dalek",
+    ],
+)
+
+rust_test(
+    name = "workload",
+    srcs = ["tests/workload.rs"],
+    edition = "2024",
+    deps = [
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        ":mindclade_worker_protocol",
+        "@crates//:ed25519-dalek",
+    ],
+)
+
+filegroup(
+    name = "package_sources",
+    srcs = glob(["**"], exclude = ["target/**"]),
+    visibility = ["//libs/rust:repo_consumers"],
+)

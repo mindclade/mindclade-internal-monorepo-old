@@ -1,0 +1,166 @@
+{
+  "role": "ingestion-controller",
+  "service": "control-plane-ingestion-controller",
+  "production_role": "ingestion_coordinator",
+  "requirements": [
+    {
+      "name": "service_lifecycle",
+      "any_of": [
+        "service_lifecycle"
+      ]
+    },
+    {
+      "name": "clock",
+      "any_of": [
+        "clock"
+      ]
+    },
+    {
+      "name": "configuration",
+      "any_of": [
+        "configuration"
+      ]
+    },
+    {
+      "name": "identifiers",
+      "any_of": [
+        "identifiers"
+      ]
+    },
+    {
+      "name": "request_metadata",
+      "any_of": [
+        "request_metadata"
+      ]
+    },
+    {
+      "name": "observability",
+      "any_of": [
+        "observability"
+      ]
+    },
+    {
+      "name": "retry",
+      "any_of": [
+        "retry"
+      ]
+    },
+    {
+      "name": "database",
+      "any_of": [
+        "database"
+      ]
+    },
+    {
+      "name": "transactions",
+      "any_of": [
+        "transactions"
+      ]
+    },
+    {
+      "name": "audit",
+      "any_of": [
+        "audit"
+      ]
+    },
+    {
+      "name": "idempotency",
+      "any_of": [
+        "idempotency"
+      ]
+    },
+    {
+      "name": "blob_store",
+      "any_of": [
+        "blob_store"
+      ]
+    },
+    {
+      "name": "cache",
+      "any_of": [
+        "cache"
+      ]
+    },
+    {
+      "name": "lease_store",
+      "any_of": [
+        "lease_store"
+      ]
+    },
+    {
+      "name": "kubernetes",
+      "any_of": [
+        "kubernetes"
+      ]
+    },
+    {
+      "name": "work_queue_store",
+      "any_of": [
+        "work_queue_store"
+      ]
+    },
+    {
+      "name": "cursor_store",
+      "any_of": [
+        "cursor_store"
+      ]
+    },
+    {
+      "name": "leadership",
+      "any_of": [
+        "leadership"
+      ]
+    },
+    {
+      "name": "messaging",
+      "any_of": [
+        "messaging"
+      ]
+    },
+    {
+      "name": "resource_version",
+      "any_of": [
+        "resource_version"
+      ]
+    },
+    {
+      "name": "outbox_store",
+      "any_of": [
+        "outbox_store"
+      ]
+    }
+  ],
+  "foundation_packages": [
+    "libs/go/audit",
+    "libs/go/audit/postgres",
+    "libs/go/clock",
+    "libs/go/config",
+    "libs/go/coordination/cursor",
+    "libs/go/coordination/cursor/postgres",
+    "libs/go/coordination/leadership",
+    "libs/go/coordination/outbox",
+    "libs/go/coordination/outbox/postgres",
+    "libs/go/coordination/workqueue",
+    "libs/go/coordination/workqueue/postgres",
+    "libs/go/faults",
+    "libs/go/idempotency",
+    "libs/go/idempotency/postgres",
+    "libs/go/identifiers",
+    "libs/go/kubernetes",
+    "libs/go/messaging",
+    "libs/go/messaging/pubsub",
+    "libs/go/observability",
+    "libs/go/requestmeta",
+    "libs/go/resourceversion",
+    "libs/go/retry",
+    "libs/go/servicekit",
+    "libs/go/servicekit/production",
+    "libs/go/storage/blob",
+    "libs/go/storage/cache",
+    "libs/go/storage/lease",
+    "libs/go/storage/lease/postgres",
+    "libs/go/storage/sql",
+    "libs/go/storage/sql/postgres",
+    "libs/go/storage/sql/transaction"
+  ]
+}

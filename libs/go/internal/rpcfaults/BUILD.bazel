@@ -1,0 +1,33 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = [
+    "//libs/go/connectx:__subpackages__",
+    "//libs/go/grpcx:__subpackages__",
+    "//libs/go/httpx:__subpackages__",
+])
+
+go_library(
+    name = "rpcfaults",
+    srcs = [
+        "details.go",
+        "doc.go",
+    ],
+    importpath = "mindclade.internal/libs/go/internal/rpcfaults",
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/requestmeta",
+    ],
+)
+
+go_test(
+    name = "rpcfaults_test",
+    srcs = ["details_test.go"],
+    embed = [":rpcfaults"],
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/requestmeta",
+    ],
+)

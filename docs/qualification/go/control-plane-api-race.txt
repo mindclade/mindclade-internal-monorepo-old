@@ -1,0 +1,2 @@
+?   	mindclade.internal/examples/go/control_plane_api/cmd/control-plane-api	[no test files]
+ok  	mindclade.internal/examples/go/control_plane_api	1.105s

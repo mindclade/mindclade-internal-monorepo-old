@@ -1,0 +1,31 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["README.md"])
+
+go_library(
+    name = "memory",
+    srcs = ["doc.go", "store.go"],
+    importpath = "mindclade.internal/libs/go/coordination/workqueue/memory",
+    deps = [
+        "//libs/go/coordination",
+        "//libs/go/coordination/workqueue",
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+    ],
+)
+
+go_test(
+    name = "memory_test",
+    srcs = ["store_test.go"],
+    embed = [":memory"],
+    deps = [
+        "//libs/go/coordination/workqueue/workqueuetest",
+        "//libs/go/identifiers",
+        "//libs/go/requestmeta",
+    ],
+)

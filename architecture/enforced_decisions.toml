@@ -1,0 +1,51 @@
+schema_version = 2
+
+[[decision]]
+id = "one-root-go-module"
+document = "docs/architecture/system-design-reference.md"
+checker = "tools/analysis/check_go_modules.py"
+
+[[decision]]
+id = "bounded-rust-runtime"
+document = "docs/architecture/system-design-reference.md"
+checker = "tools/analysis/check_rust_implementation.py"
+
+[[decision]]
+id = "go-not-on-online-hot-path"
+document = "docs/architecture/system-design-reference.md"
+checker = "tools/analysis/check_dependency_layers.py"
+
+[[decision]]
+id = "scaffold-maturity-gating"
+document = "docs/architecture/system-design-reference.md"
+checker = "tools/analysis/check_component_maturity.py"
+
+[[decision]]
+id = "cargo-bazel-alignment"
+document = "docs/architecture/system-design-reference.md"
+checker = "tools/analysis/check_cargo_bazel_alignment.py"
+
+[[decision]]
+id = "component-ownership"
+document = "docs/architecture/system-design-reference.md"
+checker = "tools/analysis/check_component_ownership.py"
+
+[[decision]]
+id = "affected-presubmit"
+document = "docs/architecture/foundation-hardening.md"
+checker = "tools/analysis/check_affected_presubmit.py"
+
+[[decision]]
+id = "two-phase-artifact-gc"
+document = "docs/architecture/foundation-hardening.md"
+checker = "tools/analysis/check_artifact_gc_contract.py"
+
+[[decision]]
+id = "rust-lock-supply-chain-compatibility-failure-performance"
+document = "docs/architecture/foundation-hardening.md"
+checker = "tools/analysis/check_foundation_hardening.py"
+
+[[decision]]
+id = "canonical-workload-and-golden-verticals"
+document = "docs/architecture/workload-envelope.md"
+checker = "tools/analysis/check_foundation_hardening.py"

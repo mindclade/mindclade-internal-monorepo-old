@@ -1,0 +1,32 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["README.md"])
+
+go_library(
+    name = "inbox",
+    srcs = ["doc.go", "errors.go", "processor.go", "runner.go"],
+    importpath = "mindclade.internal/libs/go/coordination/inbox",
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/idempotency",
+        "//libs/go/identifiers",
+        "//libs/go/requestmeta",
+        "//libs/go/storage/sql/transaction",
+    ],
+)
+
+go_test(
+    name = "inbox_test",
+    srcs = ["processor_test.go"],
+    embed = [":inbox"],
+    deps = [
+        "//libs/go/idempotency",
+        "//libs/go/idempotency/idempotencytest",
+        "//libs/go/identifiers",
+    ],
+)

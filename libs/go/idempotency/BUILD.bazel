@@ -1,0 +1,47 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential and proprietary.
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "idempotency",
+    srcs = [
+        "doc.go",
+        "errors.go",
+        "executor.go",
+        "internal.go",
+        "key.go",
+        "record.go",
+        "result.go",
+        "store.go",
+    ],
+    importpath = "mindclade.internal/libs/go/idempotency",
+    deps = [
+        "//libs/go/clock",
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+        "//libs/go/requestmeta",
+    ],
+)
+
+go_test(
+    name = "idempotency_test",
+    srcs = [
+        "contracts_test.go",
+        "executor_contracts_test.go",
+        "executor_test.go",
+        "key_test.go",
+        "record_test.go",
+        "result_test.go",
+    ],
+    embed = [":idempotency"],
+    deps = [
+        "//libs/go/clock",
+        "//libs/go/faults",
+        "//libs/go/idempotency/idempotencytest",
+        "//libs/go/identifiers",
+        "//libs/go/requestmeta",
+    ],
+)

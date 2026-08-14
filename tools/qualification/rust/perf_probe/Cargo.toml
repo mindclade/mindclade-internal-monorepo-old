@@ -1,0 +1,20 @@
+[package]
+name = "mindclade-rust-perf-probe"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[[bin]]
+name = "mindclade-rust-perf-probe"
+path = "src/main.rs"
+
+[dependencies]
+mindclade_content_digest = { path = "../../../../libs/rust/content_digest" }
+mindclade_runtime_core = { path = "../../../../libs/rust/runtime_core" }
+
+[lints]
+workspace = true

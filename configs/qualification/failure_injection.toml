@@ -1,0 +1,37 @@
+schema_version = 2
+
+[[scenario]]
+name = "worker_killed_before_artifact_commit"
+invariant = "no_partial_artifact"
+owner = "runtime-platform"
+command = ["cargo", "test", "-p", "mindclade_worker_runtime", "--test", "failure_injection", "kill_before_commit", "--locked", "--", "--exact"]
+
+[[scenario]]
+name = "worker_killed_after_upload_before_ack"
+invariant = "idempotent_recovery"
+owner = "runtime-platform"
+command = ["cargo", "test", "-p", "mindclade_worker_runtime", "--test", "failure_injection", "kill_after_commit_before_ack", "--locked", "--", "--exact"]
+
+[[scenario]]
+name = "lease_expires_during_preprocessing"
+invariant = "no_stale_fenced_commit"
+owner = "data-platform"
+command = ["cargo", "test", "-p", "mindclade-node-agent", "--test", "failure_injection", "lease_expiry_rejects_stale_commit", "--locked", "--", "--exact"]
+
+[[scenario]]
+name = "checkpoint_upload_interrupted"
+invariant = "atomic_checkpoint_commit"
+owner = "training-platform"
+command = ["cargo", "test", "-p", "mindclade-node-agent", "--test", "failure_injection", "checkpoint_interruption_preserves_atomicity", "--locked", "--", "--exact"]
+
+[[scenario]]
+name = "object_store_unavailable"
+invariant = "bounded_retry"
+owner = "runtime-platform"
+command = ["cargo", "test", "-p", "mindclade-artifact-proxy", "--test", "failure_injection", "object_store_outage_is_bounded", "--locked", "--", "--exact"]
+
+[[scenario]]
+name = "control_plane_unavailable_after_admission"
+invariant = "admitted_work_continues"
+owner = "runtime-platform"
+command = ["cargo", "test", "-p", "mindclade-serving-runtime", "--test", "outage", "admitted_work_survives_control_plane_outage", "--locked", "--", "--exact"]

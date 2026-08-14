@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package mindclade.common.v1;
+
+message IdentifiersScaffold {
+  string reserved = 1;
+}

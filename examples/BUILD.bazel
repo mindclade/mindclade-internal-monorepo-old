@@ -1,0 +1,5 @@
+# Copyright 2026 Mindclade. All rights reserved.
+# Confidential, proprietary, and trade-secret information.
+
+package(default_visibility = ["//visibility:public"])
+exports_files(["README.md"])

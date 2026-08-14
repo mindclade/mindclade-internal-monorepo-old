@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package mindclade.training.v1;
+
+message ConfigScaffold {
+  string reserved = 1;
+}
