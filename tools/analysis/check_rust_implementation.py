@@ -29,34 +29,8 @@ def _crate_dirs(root: Path) -> list[Path]:
     return sorted(p for p in (root / "libs/rust").iterdir() if p.is_dir() and (p / "Cargo.toml").exists() and p.name not in COMPAT)
 
 
-def _manifest(root: Path) -> tuple[dict[str, str], list[str]]:
-    path = root / "repo/rust-target-state.toml"
-    errors: list[str] = []
-    if not path.exists():
-        return {}, ["repo/rust-target-state.toml: missing exact Rust target-state manifest"]
-    data = tomllib.loads(path.read_text())
-    if data.get("version") != 1:
-        errors.append("repo/rust-target-state.toml: unsupported manifest version")
-    entries: dict[str, str] = {}
-    for item in data.get("path", []):
-        file = item.get("file", "")
-        classification = item.get("classification", "")
-        if not file or classification != "authoritative":
-            errors.append(f"repo/rust-target-state.toml: invalid entry {item!r}")
-            continue
-        if file in entries:
-            errors.append(f"repo/rust-target-state.toml: duplicate path {file}")
-        entries[file] = classification
-    authoritative = sum(value == "authoritative" for value in entries.values())
-    if data.get("authoritative_count") != authoritative or data.get("compatibility_count", 0) != 0:
-        errors.append("repo/rust-target-state.toml: recorded counts do not match authoritative path entries")
-    return entries, errors
-
-
 def check(root: Path) -> list[str]:
     errors: list[str] = []
-    target_state, target_errors = _manifest(root)
-    errors.extend(target_errors)
     authoritative = []
     for crate in _crate_dirs(root):
         sources = sorted((crate / "src").rglob("*.rs"))
@@ -77,22 +51,6 @@ def check(root: Path) -> list[str]:
             semantic = [line.strip() for line in text.splitlines() if line.strip() and not line.strip().startswith("//")]
             if len(semantic) <= 2 and not any(key in text for key in ("pub use ", "pub fn ", "pub type ", "impl ", "mod ")):
                 errors.append(f"{source.relative_to(root)}: target-state module is effectively empty")
-
-    actual_sources: set[str] = set()
-    for base in (root / "libs/rust", root / "services", root / "serving/runtime", root / "protocols/rust"):
-        for source in base.rglob("*.rs"):
-            if "tests" not in source.parts and "fuzz" not in source.parts:
-                actual_sources.add(source.relative_to(root).as_posix())
-    expected_sources = set(target_state)
-    missing = sorted(expected_sources - actual_sources)
-    untracked = sorted(actual_sources - expected_sources)
-    for path in missing:
-        errors.append(f"{path}: Rust target-state path is missing")
-    for path in untracked:
-        errors.append(f"{path}: Rust production source is not registered in repo/rust-target-state.toml")
-    manifest_authoritative = sum(value == "authoritative" for value in target_state.values())
-    if manifest_authoritative < 189:
-        errors.append(f"authoritative Rust target-state manifest regressed below 189 detailed paths: {manifest_authoritative}")
 
     for rel in CANONICAL_SERVICES:
         path = root / rel

@@ -1,35 +1,49 @@
-# Infra / Terraform / Modules / Network
+# GCP network baseline
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Terraform, Kubernetes, GitOps, and policy configuration
+This module creates one custom-mode IPv4 VPC, protected private subnets, an
+explicit default-internet-gateway route, and optional subnet-scoped Public Cloud
+NAT gateways. Private Google Access is mandatory and VPC Flow Logs are enabled by default.
+Cloud NAT always logs and can use Google-managed or caller-provided addresses.
+Manual addresses must be canonical regional Compute Address self-links in this
+project, and router/NAT identities are unique within a region.
 
-## Purpose
+```hcl
+module "network" {
+  source = "../../modules/network"
 
-Deployment and cloud foundations. Infrastructure declares environments, workload identity, storage, databases, queues, clusters, security policy, observability, and GitOps composition. This path specializes that domain for **network**.
+  project_id   = "mindclade-network-prod"
+  network_name = "mindclade-prod"
+  subnets = {
+    prod-central = {
+      region        = "us-central1"
+      ip_cidr_range = "10.20.0.0/20"
+      secondary_ip_ranges = {
+        prod-pods     = "10.24.0.0/14"
+        prod-services = "10.28.0.0/20"
+      }
+    }
+  }
+  nat_gateways = {
+    central = {
+      region      = "us-central1"
+      router_name = "mindclade-prod-central-router"
+      nat_name    = "mindclade-prod-central-nat"
+      subnet_keys = ["prod-central"]
+    }
+  }
+}
+```
 
-## Boundary
+The module deletes the provider-created default route and recreates it as a
+Terraform-owned, deletion-protected resource. Set
+`create_default_internet_route = false` only for a PSC-only or otherwise
+explicitly routed network; Public Cloud NAT is then rejected. The route alone
+does not grant an external IP or NAT access.
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
-
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
-
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Firewall policies/rules, Shared VPC host and service-project attachment, PSC,
+hybrid connectivity, IPv6, DNS policy, and IPAM allocation authority remain
+separate lifecycle boundaries. Callers must validate CIDR overlap, egress policy,
+quota, NAT capacity, and connectivity at representative scale. Destruction
+requires an explicit code change removing both provider and Terraform guards.
+This repository module is a baseline, not evidence of a deployed or qualified
+production network.

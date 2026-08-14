@@ -3668,7 +3668,6 @@ qualification/go/offline-safe-race-consumers.log
 qualification/go/offline-safe-race-foundation.log
 qualification/go/offline-safe-test.log
 qualification/go/offline-safe-vet.log
-repo/rust-target-state.toml
 research/BUILD.bazel
 research/README.md
 research/benchmarks/build/BUILD.bazel

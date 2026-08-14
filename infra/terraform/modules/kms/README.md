@@ -1,35 +1,34 @@
-# Infra / Terraform / Modules / Kms
+# GCP Cloud KMS baseline
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Terraform, Kubernetes, GitOps, and policy configuration
+This module creates one immutable-location key ring and one or more symmetric
+encryption keys. Keys rotate every 90 days by default, keep versions scheduled
+for destruction for 30 days, create an initial key version, and use software
+protection unless a caller explicitly selects Cloud HSM.
 
-## Purpose
+```hcl
+module "kms" {
+  source = "../../modules/kms"
 
-Deployment and cloud foundations. Infrastructure declares environments, workload identity, storage, databases, queues, clusters, security policy, observability, and GitOps composition. This path specializes that domain for **kms**.
+  project_id    = "mindclade-security-prod"
+  location      = "us-central1"
+  key_ring_name = "application-data"
+  keys = {
+    primary = {
+      protection_level = "HSM"
+    }
+  }
+}
+```
 
-## Boundary
+Cloud KMS key rings cannot be deleted through the API. CryptoKeys and key rings
+also use Terraform lifecycle protection, and CryptoKeys use provider-side
+deletion prevention. A CryptoKey's location, protection level, and destruction
+delay are consequential immutable choices; changes can require replacement and
+will be blocked until safeguards are deliberately reviewed. Verify Cloud HSM
+availability, quotas, latency, data residency, organization policies, and
+dependent-service recovery before rollout.
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
-
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
-
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+IAM bindings, API enablement, service-agent permissions, key-version disable/
+destroy procedures, and application re-encryption are separate operational
+boundaries. This module is a repository baseline, not evidence that keys are
+deployed or production-qualified.
