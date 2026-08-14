@@ -1,0 +1,99 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: go-vanity
+  namespace: dev
+spec:
+  selector:
+    app.kubernetes.io/name: go-vanity
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      appProtocol: HTTP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-vanity
+  namespace: dev
+spec:
+  # Two replicas for a service that renders a template. Not for load — for the
+  # rolling deploy: every build in the organization resolves through this, and a
+  # single replica means a restart is a window where `go get` fails.
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: go-vanity
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: go-vanity
+        app.kubernetes.io/part-of: mindclade
+    spec:
+      serviceAccountName: go-vanity
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: go-vanity
+          image: go-vanity:latest  # replaced by the image tag at release
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            # The module path and the repository it resolves to. Held as
+            # configuration rather than compiled in so that the import-path
+            # cutover is a manifest change, not a rebuild — and so that a
+            # pre-cutover environment can serve the old path unchanged.
+            - name: MODULE_PATH
+              value: go.mindclade.dev
+            - name: MODULE_REPO_URL
+              value: https://github.com/mindclade-org/mindclade
+            - name: DOCS_URL
+              value: https://docs.mindclade.dev
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: go-vanity
+  namespace: dev
+
+---
+# NO GCPBackendPolicy for this Service, and that absence is deliberate.
+#
+# There is no manifest below attaching IAP to go-vanity, for the same structural
+# reason studio-embed has none: IAP attaches per (Service, port), so keeping this
+# host unauthenticated requires it to be its own Service.
+#
+# The go command sends no credentials unless ~/.netrc has an entry for the host.
+# Behind an auth redirect it receives an HTML login page and fails with a
+# meta-tag parse error naming neither auth nor the redirect. What is disclosed is
+# one repository URL, to a caller already inside the perimeter — against
+# provisioning .netrc on every developer machine and CI runner, forever.
+#
+# Do not "fix" this by adding a policy.

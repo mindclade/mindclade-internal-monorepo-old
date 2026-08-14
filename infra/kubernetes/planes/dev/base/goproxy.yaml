@@ -1,0 +1,159 @@
+---
+# Athens: the module proxy, and the ONLY client of the vanity endpoint.
+#
+# Developers and CI never resolve go.mindclade.dev directly. That buys three things:
+# insulation from upstream deletion or force-push of third-party dependencies, one chokepoint
+# for vulnerability and license scanning, and — the operational one — exactly ONE system that
+# needs git credentials for the private repository, rather than every laptop and every CI
+# runner holding a copy.
+apiVersion: v1
+kind: Service
+metadata:
+  name: goproxy
+  namespace: dev
+spec:
+  selector:
+    app.kubernetes.io/name: goproxy
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+      appProtocol: HTTP
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: goproxy-config
+  namespace: dev
+data:
+  config.toml: |
+    GoBinaryEnvVars = [
+      # ---------------------------------------------------------------------------------
+      # THIS BLOCK IS WHY config.toml EXISTS RATHER THAN A CONTAINER env:
+      # ---------------------------------------------------------------------------------
+      # Athens shells out to a `go` binary with a CURATED environment. It does NOT pass the
+      # pod's environment through. Setting GOPRIVATE as a container env var looks correct,
+      # deploys cleanly, and does nothing — private modules then attempt to route through
+      # the public proxy and fail with a 410 from proxy.golang.org, naming the module and
+      # not the configuration.
+      #
+      # Confirm with an actual private-module fetch after any change here, not by reading
+      # the pod spec.
+
+      # GOPRIVATE matches MODULE PATHS, not VCS hosts. `github.com/mindclade-org/*` would do
+      # nothing here: that string never appears in a require line — the require lines say
+      # `go.mindclade.dev`. The pattern also covers every subpath, so one entry covers the
+      # whole namespace.
+      "GOPRIVATE=go.mindclade.dev",
+
+      # GOPRIVATE seeds BOTH GONOPROXY and GONOSUMDB. Setting GONOPROXY=none explicitly
+      # overrides only the proxy half — so checksum-database verification stays disabled for
+      # go.mindclade.dev/* while everything still routes through Athens. This exact pair is
+      # what makes proxy-mandatory and private-module work together.
+      "GONOPROXY=none",
+
+      # GONOSUMDB is the name. GONOSUMCHECK is pre-1.13 vgo naming and is a SILENT NO-OP —
+      # anything in a Dockerfile or CI config referencing it has been doing nothing since
+      # 2019. Grep for it before assuming it works somewhere.
+      "GONOSUMDB=go.mindclade.dev",
+
+      # Public dependencies still come from the public proxy; only our own namespace bypasses
+      # it. `direct` last so a module absent from the public proxy is still resolvable.
+      "GOPROXY=https://proxy.golang.org,direct",
+      "GOFLAGS=-mod=mod",
+    ]
+
+    # Disk-backed storage. The cache IS the insulation from upstream deletion — an in-memory
+    # cache gives none, and the failure only appears the day an upstream is force-pushed.
+    StorageType = "disk"
+    DiskCacheRoot = "/var/lib/athens"
+
+    # Filter nothing by default. The chokepoint's value is that everything passes through it
+    # and is recorded, not that it blocks by default.
+    DownloadMode = "sync"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: goproxy
+  namespace: dev
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: goproxy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: goproxy
+        app.kubernetes.io/part-of: mindclade
+    spec:
+      serviceAccountName: goproxy
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: athens
+          image: gomods/athens:v0.16.0
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: ATHENS_CONFIG_FILE
+              value: /config/config.toml
+            - name: ATHENS_STORAGE_TYPE
+              value: disk
+            - name: ATHENS_DISK_STORAGE_ROOT
+              value: /var/lib/athens
+            # The git credential for the private repository. ONE system holds this, which is
+            # the operational argument for the proxy sitting in front at all.
+            - name: ATHENS_NETRC_PATH
+              value: /secrets/netrc
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: netrc
+              mountPath: /secrets
+              readOnly: true
+            - name: cache
+              mountPath: /var/lib/athens
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+      volumes:
+        - name: config
+          configMap:
+            name: goproxy-config
+        - name: netrc
+          secret:
+            secretName: goproxy-netrc
+        - name: cache
+          emptyDir:
+            sizeLimit: 20Gi
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: goproxy
+  namespace: dev
