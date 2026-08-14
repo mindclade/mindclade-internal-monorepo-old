@@ -1,0 +1,127 @@
+---
+# The :80 route. One rule, no backend.
+#
+# `RequestRedirect` with no `backendRefs` is the entire point: there is no plaintext data path
+# in this estate, only a 301. A backend here — even a "temporary" one — would be an
+# unauthenticated HTTP surface on the one hostname humans type.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: studio-https-redirect
+  namespace: studio
+spec:
+  parentRefs:
+    - name: mindclade-internal
+      namespace: mindclade-gateway
+      sectionName: studio-http-redirect
+  hostnames:
+    - "mindclade.studio"
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+
+---
+# The :443 path split.
+#
+# ---------------------------------------------------------------------------------------
+# Rule order here is COSMETIC
+# ---------------------------------------------------------------------------------------
+# Gateway API precedence is exact match first, then LONGEST prefix — not document order. So
+# `/api/stream` beats `/api` beats `/` however they are listed. They are ordered
+# longest-first anyway, because a reader who does not know that rule will assume order matters
+# and reorder something.
+#
+# ---------------------------------------------------------------------------------------
+# Two things that must never change without reading this
+# ---------------------------------------------------------------------------------------
+# 1. NEVER add an explicit rule for `/_gcp_iap/*`. IAP's sign-in callback lands on that path
+#    and must resolve to an IAP-ENABLED backend. Today it does, via the `/` catch-all onto
+#    studio-web, which is why no rule for it appears below. A future "let's route /_gcp_iap
+#    explicitly" edit that points it at studio-embed — the one IAP-free Service on this host —
+#    breaks sign-in for EVERYONE, and presents as an unexplained redirect loop with no error
+#    in any application log.
+#
+# 2. The prefixes are an API contract, not a routing detail. Gateway API path matching supports
+#    Exact and PathPrefix only — there is no wildcard-in-the-middle form, so
+#    `/api/canvas/*/events` is not expressible. Backend settings (timeouts, IAP) attach
+#    per-Service, so anything needing its own timeout must be reachable by a FIXED prefix.
+#    That is why streaming lives at `/api/stream/<resource>/<id>` rather than nested under the
+#    resource it streams. Changing a prefix is a routing change, not a refactor.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: studio
+  namespace: studio
+spec:
+  parentRefs:
+    - name: mindclade-internal
+      namespace: mindclade-gateway
+      sectionName: studio-https
+  hostnames:
+    - "mindclade.studio"
+  rules:
+    # Server-sent events. A SEPARATE Service from studio-bff solely so it can carry its own
+    # GCPBackendPolicy timeout — the internal ALB's 30s default would cut every model run.
+    # Backend policy attaches per (Service, port), so two paths cannot differ in timeout
+    # unless they route to different Services.
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/stream
+      backendRefs:
+        - name: studio-bff-stream
+          port: 8080
+
+    # JSON API. Mints audience-scoped internal JWTs for downstream calls over ClusterIP; the
+    # browser never holds a bearer token.
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api
+      backendRefs:
+        - name: studio-bff
+          port: 8080
+
+    # Handoff redemption. Terminates in a 303 to /c/<docId>.
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /o
+      backendRefs:
+        - name: studio-bff
+          port: 8080
+
+    # The cookieless read-only surface, and the one place on this host without IAP.
+    #
+    # The Cookie header is stripped AT THE ROUTE, not merely ignored by the backend. This is
+    # not belt-and-braces: `__Host-` forces `Path=/`, so the session cookie IS sent to
+    # `/embed/*` on any same-site navigation — SameSite=Lax only covers the cross-site iframe
+    # case. Without this strip, studio-embed is one careless commit away from being an
+    # authenticated surface with no IAP in front of it.
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /embed
+      filters:
+        - type: RequestHeaderModifier
+          requestHeaderModifier:
+            remove:
+              - Cookie
+      backendRefs:
+        - name: studio-embed
+          port: 8080
+
+    # SPA shell, catch-all. Client routes include /c/:docId.
+    #
+    # ALSO the rule that catches IAP's /_gcp_iap/* callback. See the note above before adding
+    # anything more specific near it.
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: studio-web
+          port: 8080

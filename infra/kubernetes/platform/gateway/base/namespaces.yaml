@@ -1,0 +1,75 @@
+---
+# The three planes, split by AUTH MECHANISM rather than by product.
+#
+# `plane` is not a description. It is the enforcement: each listener on the Gateway selects
+# namespaces by this label, so an HTTPRoute in the `ai` namespace CANNOT bind
+# `mindclade.studio` — the binding is rejected at admission, not caught in review.
+#
+# Removing or editing one of these labels does not fail loudly. It silently detaches every
+# route in that namespace from its listener, and the symptom is a 404 from the default backend
+# on a hostname that worked yesterday.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mindclade-gateway
+  labels:
+    app.kubernetes.io/part-of: mindclade
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+  annotations:
+    mindclade.dev/description: >-
+      The shared Gateway and the three TLS certificates. Deliberately carries NO `plane` label:
+      it is the thing the planes are selected BY, and labelling it would let routes here bind
+      a listener. One owner across all three planes — split ownership of a shared Gateway is
+      how a listener change on one plane takes down another.
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: studio
+  labels:
+    plane: studio
+    app.kubernetes.io/part-of: mindclade
+    # Pod Security Admission. The browser plane runs first-party services only.
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+  annotations:
+    mindclade.dev/description: >-
+      Browser plane. The ONLY origin a browser ever contacts: the SPA, the canvas, and every
+      fetch the SPA makes are same-origin paths under mindclade.studio.
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ai
+  labels:
+    plane: ai
+    app.kubernetes.io/part-of: mindclade
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+  annotations:
+    mindclade.dev/description: >-
+      Machine plane. Bearer tokens in, JSON out. Never a cookie, never a CORS header — both
+      are stripped at the route, so a service routed here inherits the invariant by being
+      routed at all rather than by its author having read the design document.
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dev
+  labels:
+    plane: dev
+    app.kubernetes.io/part-of: mindclade
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+  annotations:
+    mindclade.dev/description: >-
+      Developer plane. Docs, SDK portal, the Go vanity-import handler, and the Athens module
+      proxy. The vanity handler is deliberately outside IAP — see its own manifests.

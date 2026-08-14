@@ -1,0 +1,122 @@
+---
+# GCPBackendPolicy, NOT BackendConfig.
+#
+# `BackendConfig` is the Ingress-era CRD. On GKE Gateway the equivalent is `GCPBackendPolicy`
+# (networking.gke.io/v1), which carries timeoutSec, iap, logging, sessionAffinity,
+# connectionDraining, and maxRatePerEndpoint. Google's IAP-for-GKE documentation is explicit
+# that Gateway users configure IAP this way and should NOT also configure BackendConfig. Do not
+# mix the two on the same Service.
+#
+# ---------------------------------------------------------------------------------------
+# IAP is a property of a (Service, port). NEVER of a path.
+# ---------------------------------------------------------------------------------------
+# This is the structural fact the whole browser plane is arranged around, so it is worth being
+# blunt: a single (Service, port) pair consumes one backend service, and every route referencing
+# it shares that backend's IAP, Cloud Armor, and CDN settings. Two paths cannot differ in IAP
+# unless they route to DIFFERENT Services.
+#
+# That is why `studio-embed` exists as its own Service rather than as a path on `studio-web`.
+# The split is not decomposition for tidiness — it IS the enforcement mechanism. Consolidating
+# it back to reduce service count would silently put IAP in front of `/embed/*`, which breaks
+# the docs widget in every browser that partitions storage and produces no error anywhere in
+# the application logs.
+
+# ---------------------------------------------------------------------------------------
+# SPA shell — IAP on
+# ---------------------------------------------------------------------------------------
+# Also the backend that serves IAP's own /_gcp_iap/* callback, via the catch-all route. If IAP
+# were ever removed from THIS Service specifically, sign-in breaks estate-wide.
+apiVersion: networking.gke.io/v1
+kind: GCPBackendPolicy
+metadata:
+  name: studio-web
+  namespace: studio
+spec:
+  targetRef:
+    group: ""
+    kind: Service
+    name: studio-web
+  default:
+    iap:
+      enabled: true
+      # In the v1 CRD both fields are REQUIRED when enabled: true. The Google-managed-OAuth
+      # -client shortcut available in the console and on the Ingress path is not the same
+      # thing and does not apply here.
+      #
+      # The client is provisioned by Terraform with an INTERNAL audience, so only members of
+      # the organization can complete sign-in. Provisioned there rather than here because it
+      # must exist before the cluster does.
+      clientID: ${IAP_OAUTH_CLIENT_ID}
+      oauth2ClientSecret:
+        name: iap-oauth-client
+
+---
+# ---------------------------------------------------------------------------------------
+# JSON API and handoff redemption — IAP on
+# ---------------------------------------------------------------------------------------
+apiVersion: networking.gke.io/v1
+kind: GCPBackendPolicy
+metadata:
+  name: studio-bff
+  namespace: studio
+spec:
+  targetRef:
+    group: ""
+    kind: Service
+    name: studio-bff
+  default:
+    iap:
+      enabled: true
+      clientID: ${IAP_OAUTH_CLIENT_ID}
+      oauth2ClientSecret:
+        name: iap-oauth-client
+
+---
+# ---------------------------------------------------------------------------------------
+# Streaming — IAP on, and the timeout that makes long runs possible
+# ---------------------------------------------------------------------------------------
+# 900 seconds, NOT 3600, and the reason matters more than the number.
+#
+# Because every stream is a resumable cursor over a durable run log, this timeout is a HYGIENE
+# bound rather than a correctness one. It caps how long a wedged backend can hold a proxy slot,
+# and it sits comfortably under the point where operational reality — a rolling deploy, a node
+# drain, an IAP session expiry — would sever the connection anyway.
+#
+# A long timeout is only load-bearing in a design where a severed stream LOSES WORK. Here
+# severance is routine and cheap: the client sees a clean EOF, reconnects with Last-Event-ID,
+# and any replica resumes the range scan from that cursor. Every streaming replica is
+# stateless and interchangeable because the log is the state.
+#
+# If this policy fails to attach, the symptom is precise and diagnostic: streams cut at ~30s,
+# the internal ALB's default. Check that targetRef names studio-bff-stream.
+apiVersion: networking.gke.io/v1
+kind: GCPBackendPolicy
+metadata:
+  name: studio-bff-stream
+  namespace: studio
+spec:
+  targetRef:
+    group: ""
+    kind: Service
+    name: studio-bff-stream
+  default:
+    timeoutSec: 900
+    iap:
+      enabled: true
+      clientID: ${IAP_OAUTH_CLIENT_ID}
+      oauth2ClientSecret:
+        name: iap-oauth-client
+
+# ---------------------------------------------------------------------------------------
+# studio-embed has NO GCPBackendPolicy, deliberately
+# ---------------------------------------------------------------------------------------
+# There is no manifest for it below, and that absence is the mechanism behind the one
+# sanctioned cross-site case.
+#
+# IAP's sign-in redirect cannot complete inside an iframe, and an existing IAP cookie is
+# third-party from docs.mindclade.dev's perspective. So the embed Service gets no IAP policy;
+# its protection is network reachability alone — which in turn CAPS what may ever be served
+# there. It may only render content already readable by anyone with network access. If a widget
+# ever needs authorization, it cannot be an iframe: make it a link to /c/<docId> instead.
+#
+# Do not "fix" this file by adding a policy for studio-embed.

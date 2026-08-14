@@ -1,0 +1,136 @@
+---
+# Machine plane routes: api, train, models.
+#
+# ---------------------------------------------------------------------------------------
+# The ResponseHeaderModifier filter IS the control
+# ---------------------------------------------------------------------------------------
+# "Never a cookie, never CORS" is enforced HERE, at the route — not left to every service to
+# remember. That distinction is the whole point: a new service in this namespace inherits the
+# invariant by being routed at all, rather than by its author having read a design document.
+#
+# Two failure modes are closed by it, and they are the two that matter:
+#   - a session cookie leaking onto the machine plane, where it would be a bearer credential
+#     with none of the IAP binding that makes the browser plane's cookie safe;
+#   - a browser being able to talk to this plane at all. With no CORS headers, a cross-origin
+#     call gets a preflight or opaque failure, which is the INTENDED outcome rather than a bug.
+#
+# It does not stop a service from behaving like a browser API in other ways. It closes those
+# two, not the general category.
+#
+# ---------------------------------------------------------------------------------------
+# One caveat, carried deliberately
+# ---------------------------------------------------------------------------------------
+# `ResponseHeaderModifier` is an EXTENDED Gateway API feature, not Core. GKE documents custom
+# response headers on Gateway and excludes only `gke-l7-gxlb` — which is not this class — but
+# that must be CONFIRMED on gke-l7-rilb with the canary check before this is treated as the
+# control rather than as defence in depth.
+#
+# The canary is the check that distinguishes "the filter works" from "no service happens to set
+# these headers today". Without it, the CI assertions pass in a world where the filter was
+# never applied at all:
+#
+#   curl -sD- -o /dev/null https://api.mindclade.ai/v1/_canary/headers \
+#     | grep -iE '^(set-cookie|access-control-)' && echo FAIL
+#
+# If it comes back negative, the fallback is a shared response middleware in every ai-plane
+# service plus the CI tests — weaker, because it depends on every service adopting it.
+#
+# ---------------------------------------------------------------------------------------
+# NO IAP on this plane, and that is not an omission
+# ---------------------------------------------------------------------------------------
+# IAP's flow is a browser redirect. Putting it in front of a token API breaks every non-browser
+# client and would imply browsers belong here, which is exactly what the plane split denies.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: serving-api
+  namespace: ai
+spec:
+  parentRefs:
+    - name: mindclade-internal
+      namespace: mindclade-gateway
+      sectionName: ai-https
+  hostnames:
+    - "api.mindclade.ai"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            remove:
+              - Set-Cookie
+              - Access-Control-Allow-Origin
+              - Access-Control-Allow-Credentials
+              - Access-Control-Allow-Methods
+              - Access-Control-Allow-Headers
+              - Access-Control-Expose-Headers
+      backendRefs:
+        - name: serving-api
+          port: 8080
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: training-api
+  namespace: ai
+spec:
+  parentRefs:
+    - name: mindclade-internal
+      namespace: mindclade-gateway
+      sectionName: ai-https
+  hostnames:
+    - "train.mindclade.ai"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            remove:
+              - Set-Cookie
+              - Access-Control-Allow-Origin
+              - Access-Control-Allow-Credentials
+              - Access-Control-Allow-Methods
+              - Access-Control-Allow-Headers
+              - Access-Control-Expose-Headers
+      backendRefs:
+        - name: training-api
+          port: 8080
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: model-registry
+  namespace: ai
+spec:
+  parentRefs:
+    - name: mindclade-internal
+      namespace: mindclade-gateway
+      sectionName: ai-https
+  hostnames:
+    - "models.mindclade.ai"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        - type: ResponseHeaderModifier
+          responseHeaderModifier:
+            remove:
+              - Set-Cookie
+              - Access-Control-Allow-Origin
+              - Access-Control-Allow-Credentials
+              - Access-Control-Allow-Methods
+              - Access-Control-Allow-Headers
+              - Access-Control-Expose-Headers
+      backendRefs:
+        - name: model-registry
+          port: 8080

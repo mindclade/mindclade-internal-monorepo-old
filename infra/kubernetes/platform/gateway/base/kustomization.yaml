@@ -1,0 +1,23 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# The shared Gateway, its namespace, and the three plane namespaces whose labels the
+# listeners select on.
+#
+# Namespaces ship WITH the Gateway rather than in platform-core, because the `plane` labels are
+# not metadata about those namespaces — they are the mechanism the listeners use to decide
+# which routes may bind. Separating them would let one be applied without the other, and the
+# resulting failure is silent: routes detach from their listener and the hostname 404s.
+resources:
+  - namespaces.yaml
+  - gateway.yaml
+
+# `labels`, not the deprecated `commonLabels`. The difference is `includeSelectors`, which
+# commonLabels forces to true — harmless on these kinds today, and a corrupted Deployment
+# selector the moment a workload is added here, because a selector is immutable after creation.
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/part-of: mindclade
+      app.kubernetes.io/component: gateway

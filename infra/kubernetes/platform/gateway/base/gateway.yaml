@@ -1,0 +1,143 @@
+---
+# The one internal Gateway. Every application hostname in the estate terminates here.
+#
+# ---------------------------------------------------------------------------------------
+# Why gke-l7-rilb, and what it costs
+# ---------------------------------------------------------------------------------------
+# `gke-l7-rilb` is the regional internal Application Load Balancer. It does NOT support
+# Certificate Manager certificate maps — those are global-only — and Certificate Manager's
+# load-balancer authorization supports neither wildcards nor regional certificates. The only
+# Google-managed path to a publicly-trusted wildcard on an internal ALB is the CROSS-REGION
+# internal ALB, which drags in Fleet, ServiceExport, and a multi-cluster GatewayClass.
+#
+# For a single-cluster internal platform that overhead is not worth paying, so certificates
+# come from cert-manager into Kubernetes Secrets instead (see ../cert-manager).
+#
+# The consequence to state plainly rather than discover: this Gateway is REGIONAL and this is
+# a single-cluster design. A region loss is an outage. That buys an availability posture of
+# roughly 99.5%, and raising it to 99.95% is not a tuning exercise — it is the cross-region
+# GatewayClass, and it is the largest latent change in this design.
+#
+# ---------------------------------------------------------------------------------------
+# The address is an interface
+# ---------------------------------------------------------------------------------------
+# `mc-<env>-mindclade-internal-vip` is reserved by Terraform in
+# infrastructure-live/3-networks/gateway-vip. Nothing here generates it. Renaming it on one
+# side alone leaves a Gateway that never receives an address, and the only symptom is a status
+# that never becomes programmed — no event, no error, nothing in any workload's logs.
+#
+# The overlay patches this per environment; the base names development's.
+#
+# ---------------------------------------------------------------------------------------
+# Why the Gateway is in its own namespace and not in `studio`
+# ---------------------------------------------------------------------------------------
+# A `certificateRefs` entry with no namespace resolves in the GATEWAY's namespace. Putting the
+# Gateway in `studio` would therefore require `cert-mindclade-ai` and `cert-mindclade-dev` —
+# the machine and developer planes' certificates — to live in the browser plane's namespace,
+# which inverts the ownership the plane split exists to establish.
+#
+# It also matches how this is owned: each plane has an owner, but the Gateway, its certificates,
+# and DNS have ONE owner across all three. Split ownership of a shared Gateway is how a listener
+# change on one plane takes down another.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: mindclade-internal
+  namespace: mindclade-gateway
+  annotations:
+    mindclade.dev/vip-owner: >-
+      infrastructure-live/3-networks/gateway-vip — Terraform reserves the address, this
+      Gateway names it. Renaming either without the other breaks binding silently.
+spec:
+  gatewayClassName: gke-l7-rilb
+
+  addresses:
+    - type: NamedAddress
+      value: mc-development-mindclade-internal-vip
+
+  listeners:
+    # ------------------------------------------------------------------------------------
+    # Studio — the apex, and the only listener a browser ever reaches
+    # ------------------------------------------------------------------------------------
+    # An EXACT hostname, not a wildcard. `*.mindclade.studio` would not cover
+    # `mindclade.studio` — a wildcard covers exactly one label and never the apex — and there
+    # is deliberately nothing below the apex on this domain for one to cover. Issuing a
+    # wildcard here anyway would widen the certificate's blast radius across every name that
+    # could ever be created, and publish that fact to a Certificate Transparency log.
+    - name: studio-https
+      protocol: HTTPS
+      port: 443
+      hostname: "mindclade.studio"
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: cert-mindclade-studio
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              plane: studio
+
+    # ------------------------------------------------------------------------------------
+    # Studio — redirect-only :80
+    # ------------------------------------------------------------------------------------
+    # `.studio` is not on the HSTS preload list the way `.dev` is, and Studio is the one
+    # hostname a human actually types — so a browser will attempt plaintext on first visit.
+    # This listener exists for exactly that first hop.
+    #
+    # Its route carries a RequestRedirect filter and NO backendRefs, so there is no plaintext
+    # data path anywhere in the estate: the only thing reachable on :80 is a 301.
+    #
+    # `.ai` and `.dev` get no :80 listener at all. `.dev` is TLD-preloaded so browsers never
+    # emit http:// there, and a connection-refused for an `.ai` client is the correct signal.
+    - name: studio-http-redirect
+      protocol: HTTP
+      port: 80
+      hostname: "mindclade.studio"
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              plane: studio
+
+    # ------------------------------------------------------------------------------------
+    # Machine plane
+    # ------------------------------------------------------------------------------------
+    # A wildcard covers exactly one label: `*.mindclade.ai` covers `api.mindclade.ai` and does
+    # NOT cover `v1.api.mindclade.ai`. That is the constraint behind keeping every hostname
+    # flat — two-label names would need per-host certificates, which then enumerate internal
+    # topology in a public CT log.
+    - name: ai-https
+      protocol: HTTPS
+      port: 443
+      hostname: "*.mindclade.ai"
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: cert-mindclade-ai
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              plane: ai
+
+    # ------------------------------------------------------------------------------------
+    # Developer plane
+    # ------------------------------------------------------------------------------------
+    - name: dev-https
+      protocol: HTTPS
+      port: 443
+      hostname: "*.mindclade.dev"
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: cert-mindclade-dev
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              plane: dev

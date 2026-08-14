@@ -1,0 +1,114 @@
+---
+# Developer plane: docs, SDK portal, Go vanity, Athens.
+#
+# Four hostnames, one per Service, no path splitting. `go.` and `goproxy.` are separate hosts
+# rather than paths under one because the vanity handler must sit OUTSIDE IAP and Athens must
+# not — and IAP attaches per (Service, port), never per path.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: docs
+  namespace: dev
+spec:
+  parentRefs:
+    - name: mindclade-internal
+      namespace: mindclade-gateway
+      sectionName: dev-https
+  hostnames:
+    - "docs.mindclade.dev"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: docs
+          port: 8080
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: sdk
+  namespace: dev
+spec:
+  parentRefs:
+    - name: mindclade-internal
+      namespace: mindclade-gateway
+      sectionName: dev-https
+  hostnames:
+    - "sdk.mindclade.dev"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: sdk
+          port: 8080
+
+---
+# The Go vanity-import handler.
+#
+# ---------------------------------------------------------------------------------------
+# This host is deliberately unauthenticated, and that is a considered trade
+# ---------------------------------------------------------------------------------------
+# No GCPBackendPolicy with IAP is attached to `go-vanity` — same mechanism as `/embed/*` on
+# the browser plane, and for a related reason: the go command sends NO credentials unless
+# ~/.netrc has an entry for the host. Behind an auth redirect it receives an HTML login page
+# and fails with a meta-tag parse error that names neither auth nor the redirect.
+#
+# What is disclosed is one repository URL, to a caller who is already inside the perimeter.
+# The alternative is provisioning .netrc on every developer machine and every CI runner,
+# forever. That is the worse trade.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: go-vanity
+  namespace: dev
+spec:
+  parentRefs:
+    - name: mindclade-internal
+      namespace: mindclade-gateway
+      sectionName: dev-https
+  hostnames:
+    - "go.mindclade.dev"
+  rules:
+    # Everything, including the BARE ROOT. `GET /?go-get=1` is the module-root request under a
+    # bare-hostname module path, and a handler ported from a `/mono`-prefixed layout will 404
+    # it — the one case such a handler is guaranteed to get wrong.
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: go-vanity
+          port: 8080
+
+---
+# Athens: the ONLY client of the vanity endpoint.
+#
+# Developers and CI never resolve go.mindclade.dev directly. That gives one chokepoint for
+# vulnerability and license scanning, insulation from upstream deletion or force-push of
+# third-party dependencies, and — the operational one — exactly ONE system that needs git
+# credentials for the private repo, instead of every laptop and every CI runner.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: goproxy
+  namespace: dev
+spec:
+  parentRefs:
+    - name: mindclade-internal
+      namespace: mindclade-gateway
+      sectionName: dev-https
+  hostnames:
+    - "goproxy.mindclade.dev"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: goproxy
+          port: 3000
