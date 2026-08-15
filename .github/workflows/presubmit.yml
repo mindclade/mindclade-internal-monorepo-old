@@ -34,6 +34,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The repository's own architecture invariants — dependency budgets and layering, Go module
+  # and admission rules, Rust workspace shape, Cargo/Bazel dep parity, component maturity.
+  #
+  # tools/analysis/check_affected_presubmit.py asserts this job exists and that the checkout is
+  # unshallow, because ci/presubmit/pipeline.py derives the affected target set from git history.
+  #
+  # `--static-only` stops after the architecture checks. The full path additionally runs Rust
+  # qualification and `bazelw test` over the affected targets, which needs a Bazel toolchain this
+  # workflow does not provision yet. Named here rather than left implicit: the affected-target
+  # lane is the missing half, not something this file pretends to cover.
+  architecture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # Full history. affected.git_changed() diffs against a base ref; a shallow clone makes
+          # that diff either empty or an error, and an empty diff silently selects no targets.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
+        with:
+          python-version: "3.12.12"
+
+      # Stdlib only by design, so there is nothing to install first.
+      - run: python3 ci/presubmit/pipeline.py --static-only
+
   # Go — the fleet control plane and durable policy. ~59k LOC, the largest lane.
   #
   # Do not rename this job. See the note above.
