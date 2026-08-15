@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 output "node_pool_id" {
   description = "Fully qualified GKE node-pool identifier"
   value       = google_container_node_pool.this.id

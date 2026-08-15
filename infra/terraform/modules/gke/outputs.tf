@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 output "cluster_id" {
   description = "Fully qualified GKE cluster identifier"
   value       = google_container_cluster.this.id

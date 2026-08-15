@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 output "service_name" {
   description = "Fully qualified Cloud Monitoring custom-service resource name"
   value       = google_monitoring_custom_service.this.name

@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 output "secret_ids" {
   description = "Secret id by map key."
   value       = { for k, s in google_secret_manager_secret.this : k => s.secret_id }

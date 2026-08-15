@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 locals {
   # network_key/subnet_key → the pair, flattened so one resource block covers every subnet in
   # every network. The composite key has to be stable across plans, so it is built from the

@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 # Every output is keyed by NETWORK KEY — the environment, in this estate. A consumer in
 # 5-workloads indexes it with its own environment:
 #

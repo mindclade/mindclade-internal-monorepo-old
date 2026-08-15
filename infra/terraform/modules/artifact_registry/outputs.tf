@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 output "repository_name" {
   description = "Fully qualified Artifact Registry repository resource name"
   value       = google_artifact_registry_repository.this.name

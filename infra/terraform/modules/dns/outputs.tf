@@ -1,6 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
 
 output "zone_names" {
   description = "Cloud DNS zone name by map key."

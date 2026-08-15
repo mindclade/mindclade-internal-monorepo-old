@@ -1,6 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
 
 # Matches the sibling modules and infrastructure-live's generated versions_override.tf, which
 # is what actually binds under Terragrunt. `deletion_policy` on the DNS resources is 7.x-only,
