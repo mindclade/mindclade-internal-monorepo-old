@@ -18,7 +18,9 @@ import (
 	"mindclade.internal/libs/go/kubernetes"
 )
 
-var ErrClosed = errors.New("Kubernetes watch closed")
+// Reworded off the leading proper noun rather than capitalised: Go error strings are read
+// with their package qualifier (`watch.ErrClosed`), so "Kubernetes" was already implied.
+var ErrClosed = errors.New("watch closed")
 
 type Options struct {
 	// IncludeBookmarks delivers BOOKMARK events to the handler. By default they

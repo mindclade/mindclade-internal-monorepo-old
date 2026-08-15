@@ -143,13 +143,14 @@ func (server *Server) Shutdown(ctx context.Context) error {
 		code := faults.CodeOf(err)
 		reason := "http_shutdown_failed"
 		message := "HTTP server shutdown failed"
-		if code == faults.CodeDeadlineExceeded {
+		switch code {
+		case faults.CodeDeadlineExceeded:
 			reason = "http_shutdown_timeout"
 			message = "HTTP server graceful shutdown timed out"
-		} else if code == faults.CodeCanceled {
+		case faults.CodeCanceled:
 			reason = "http_shutdown_canceled"
 			message = "HTTP server graceful shutdown was canceled"
-		} else if code == faults.CodeUnknown {
+		case faults.CodeUnknown:
 			code = faults.CodeInternal
 		}
 		return faults.Wrap(err, code, message, faults.WithReason(reason), faults.WithOperation("httpx.Server.Shutdown"))

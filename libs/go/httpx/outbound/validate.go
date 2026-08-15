@@ -43,7 +43,8 @@ func (policy Policy) validateURL(value *url.URL) error {
 		return reject(ErrURLRejected, "malformed_outbound_url", "httpx.outbound.Policy.ValidateURL", nil)
 	}
 	scheme := strings.ToLower(value.Scheme)
-	if scheme != "https" && !(scheme == "http" && policy.AllowHTTPForTests) {
+	plaintextPermitted := scheme == "http" && policy.AllowHTTPForTests
+	if scheme != "https" && !plaintextPermitted {
 		return reject(ErrURLRejected, "outbound_scheme_rejected", "httpx.outbound.Policy.ValidateURL", faults.Fields{"scheme": scheme})
 	}
 	if policy.HTTPSOnly && scheme != "https" {

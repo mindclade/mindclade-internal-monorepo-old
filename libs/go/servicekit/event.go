@@ -99,7 +99,11 @@ func CombineObservers(observers ...Observer) Observer {
 	}
 	return ObserverFunc(func(event Event) {
 		for _, observer := range captured {
-			safeObserve(observer, event)
+			// Discarded on purpose. safeObserve returns the panic it recovered so a direct
+			// caller can decide what to do with it; a composed observer has no such option —
+			// its whole job is that one misbehaving observer must not stop the others, and
+			// ObserverFunc has nowhere to return an error to.
+			_ = safeObserve(observer, event)
 		}
 	})
 }

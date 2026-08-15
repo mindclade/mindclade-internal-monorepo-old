@@ -73,6 +73,7 @@ func TestRequestMetadataAndObserver(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	const requeueDelay = 5 * time.Second
 	fakeClock := clock.NewFake(time.Unix(100, 0))
 	var observed Event
 	observerMiddleware, err := Observe(fakeClock, ObserverFunc(func(_ context.Context, event Event) { observed = event }))
@@ -86,14 +87,18 @@ func TestRequestMetadataAndObserver(t *testing.T) {
 		if got, ok := requestmeta.OperationFromContext(ctx); !ok || got != operation {
 			return reconcile.Result{}, errors.New("operation missing")
 		}
-		return reconcile.Result{Requeue: true}, nil
+		// RequeueAfter, not the deprecated Requeue bool. What this test actually asserts is that
+		// a non-zero Result survives the middleware chain intact, so a distinctive duration is
+		// a stricter check than a bool: a chain that dropped the Result and returned the zero
+		// value would still satisfy `Requeue == false`, but cannot fake 5s.
+		return reconcile.Result{RequeueAfter: requeueDelay}, nil
 	})
 	wrapped, err := Chain(base, observerMiddleware, metadataMiddleware)
 	if err != nil {
 		t.Fatal(err)
 	}
 	result, err := wrapped.Reconcile(context.Background(), reconcile.Request{})
-	if err != nil || !result.Requeue || !observed.Result.Requeue {
+	if err != nil || result.RequeueAfter != requeueDelay || observed.Result.RequeueAfter != requeueDelay {
 		t.Fatalf("result=%#v observed=%#v err=%v", result, observed, err)
 	}
 }

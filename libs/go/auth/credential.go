@@ -49,7 +49,9 @@ func (scheme CredentialScheme) Valid() bool {
 	}
 	for index := 0; index < len(value); index++ {
 		character := value[index]
-		if !(character >= 'a' && character <= 'z') && !(character >= '0' && character <= '9') && character != '_' && character != '-' {
+		lower := character >= 'a' && character <= 'z'
+		digit := character >= '0' && character <= '9'
+		if !lower && !digit && character != '_' && character != '-' {
 			return false
 		}
 	}

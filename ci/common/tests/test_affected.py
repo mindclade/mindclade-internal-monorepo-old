@@ -9,8 +9,12 @@ from pathlib import Path
 
 MODULE = Path(__file__).resolve().parents[1] / "affected.py"
 spec = importlib.util.spec_from_file_location("affected", MODULE)
+# Guard before the first dereference, and raise rather than assert — see the matching comment in
+# ci/presubmit/pipeline.py. At module scope the stakes are slightly higher: this runs during
+# collection, so the message here is the only thing pytest will show if the path is wrong.
+if spec is None or spec.loader is None:
+    raise RuntimeError(f"unable to load {MODULE}")
 affected = importlib.util.module_from_spec(spec)
-assert spec.loader
 sys.modules[spec.name] = affected
 spec.loader.exec_module(affected)
 

@@ -71,10 +71,7 @@ var (
 	ErrEmptyTaskGroup = errors.New("servicekit: task group is empty")
 )
 
-var (
-	errShutdownRequested  = errors.New("servicekit: shutdown requested")
-	errComponentCompleted = errors.New("servicekit: component completed")
-)
+var errShutdownRequested = errors.New("servicekit: shutdown requested")
 
 // Phase identifies a component lifecycle phase.
 type Phase string

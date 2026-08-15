@@ -57,6 +57,17 @@ ignore = ["E501"]
 "tools/analysis/run_architecture_checks.py" = ["E402"]
 
 [tool.mypy]
+# Without these, mypy stops before checking anything: the tree has several same-named modules
+# (ci/gpu/pipeline.py and ci/nightly/pipeline.py among them) and the default resolver maps both
+# to the module "pipeline", which is a hard error rather than a warning. Deriving module names
+# from their path relative to the repo root makes them ci.gpu.pipeline and ci.nightly.pipeline.
+#
+# Same root cause as the pytest --import-mode=importlib setting above; both tools default to
+# basename-derived module names, and this tree is too wide for that to hold.
+explicit_package_bases = true
+namespace_packages = true
+mypy_path = "."
+
 python_version = "3.12"
 strict = true
 warn_unreachable = true

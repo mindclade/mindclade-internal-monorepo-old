@@ -11,7 +11,6 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
-	"io"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -41,13 +40,6 @@ func (conn *testConn) BeginTx(context.Context, driver.TxOptions) (driver.Tx, err
 }
 func (tx *testTx) Commit() error   { tx.state.commits.Add(1); return tx.state.commitErr }
 func (tx *testTx) Rollback() error { tx.state.rollbacks.Add(1); return tx.state.rollbackErr }
-
-type testStmt struct{}
-
-func (testStmt) Close() error                               { return nil }
-func (testStmt) NumInput() int                              { return 0 }
-func (testStmt) Exec([]driver.Value) (driver.Result, error) { return nil, io.EOF }
-func (testStmt) Query([]driver.Value) (driver.Rows, error)  { return nil, io.EOF }
 
 var driverSequence atomic.Uint64
 

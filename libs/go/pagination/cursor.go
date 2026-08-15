@@ -59,10 +59,6 @@ func (binding Binding) Validate() error {
 	}
 	return nil
 }
-func (binding Binding) clone() Binding {
-	binding.Order = append([]Order(nil), binding.Order...)
-	return binding
-}
 
 type Cursor struct {
 	Version      int       `json:"version"`

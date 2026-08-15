@@ -36,17 +36,24 @@ func ValidQualifiedIdentifier(value string) bool {
 }
 
 func validIdentifierPart(value string) bool {
-	if value == "" || len(value) > MaximumIdentifierPartBytes || !((value[0] >= 'a' && value[0] <= 'z') || value[0] == '_') {
+	if value == "" || len(value) > MaximumIdentifierPartBytes {
+		return false
+	}
+	if !isLowerAlpha(value[0]) && value[0] != '_' {
 		return false
 	}
 	for index := 1; index < len(value); index++ {
 		character := value[index]
-		if !((character >= 'a' && character <= 'z') || (character >= '0' && character <= '9') || character == '_') {
+		if !isLowerAlpha(character) && !isDigit(character) && character != '_' {
 			return false
 		}
 	}
 	return true
 }
+
+func isLowerAlpha(character byte) bool { return character >= 'a' && character <= 'z' }
+
+func isDigit(character byte) bool { return character >= '0' && character <= '9' }
 
 // QualifiedIdentifier validates value and returns its normalized form.
 func QualifiedIdentifier(value string) (string, error) {

@@ -1,0 +1,339 @@
+---
+# The four browser-plane workloads.
+#
+# ONE IMAGE, FOUR DEPLOYMENTS, FOUR SERVICES. The split is at the Service level
+# because IAP and backend timeouts attach per (Service, port) — two paths cannot
+# differ in either unless they route to different Services. Nothing about that
+# requires four images, and four would mean four places to fix the next session bug.
+#
+# So `STUDIO_ROLE` is how one image knows which mux to serve, and the Service
+# boundary is the enforcement mechanism.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: studio-bff
+  namespace: studio
+  annotations:
+    # Workload Identity. The pod holds no credential: it authenticates to Cloud
+    # SQL, Secret Manager, and KMS as this principal, and the chain terminates at
+    # a token GKE mints per pod that expires in an hour.
+    iam.gke.io/gcp-service-account: studio-bff@PROJECT_ID.iam.gserviceaccount.com
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: studio-bff-stream
+  namespace: studio
+  annotations:
+    iam.gke.io/gcp-service-account: studio-bff-stream@PROJECT_ID.iam.gserviceaccount.com
+
+---
+# The embed role gets its own service account with NO bindings, deliberately.
+# It reads no secret and touches no database, and handing it credentials it does
+# not need is the first step toward it quietly acquiring a session.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: studio-embed
+  namespace: studio
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: studio-web
+  namespace: studio
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: studio-web
+  namespace: studio
+spec:
+  selector:
+    app.kubernetes.io/name: studio
+    studio.mindclade.dev/role: web
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      appProtocol: HTTP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: studio-bff
+  namespace: studio
+spec:
+  selector:
+    app.kubernetes.io/name: studio
+    studio.mindclade.dev/role: bff
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      appProtocol: HTTP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: studio-bff-stream
+  namespace: studio
+spec:
+  selector:
+    app.kubernetes.io/name: studio
+    studio.mindclade.dev/role: bff-stream
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      appProtocol: HTTP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: studio-embed
+  namespace: studio
+spec:
+  selector:
+    app.kubernetes.io/name: studio
+    studio.mindclade.dev/role: embed
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      appProtocol: HTTP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: studio-web
+  namespace: studio
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: studio
+      studio.mindclade.dev/role: web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: studio
+        studio.mindclade.dev/role: web
+    spec:
+      serviceAccountName: studio-web
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: studio
+          image: studio:latest
+          ports: [{ name: http, containerPort: 8080 }]
+          env:
+            - { name: STUDIO_ROLE, value: web }
+            - { name: IAP_AUDIENCE, valueFrom: { configMapKeyRef: { name: studio-config, key: iap_audience } } }
+            - { name: CSP_REPORT_URI, valueFrom: { configMapKeyRef: { name: studio-config, key: csp_report_uri } } }
+            - { name: SESSION_KEY_CURRENT_ID, valueFrom: { secretKeyRef: { name: studio-session-keys, key: current_id } } }
+            - { name: SESSION_KEY_CURRENT, valueFrom: { secretKeyRef: { name: studio-session-keys, key: current } } }
+            - { name: SESSION_KEY_PREVIOUS_ID, valueFrom: { secretKeyRef: { name: studio-session-keys, key: previous_id } } }
+            - { name: SESSION_KEY_PREVIOUS, valueFrom: { secretKeyRef: { name: studio-session-keys, key: previous } } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { memory: 256Mi }
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: studio-bff
+  namespace: studio
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: studio
+      studio.mindclade.dev/role: bff
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: studio
+        studio.mindclade.dev/role: bff
+    spec:
+      serviceAccountName: studio-bff
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: studio
+          image: studio:latest
+          ports: [{ name: http, containerPort: 8080 }]
+          env:
+            - { name: STUDIO_ROLE, value: bff }
+            - { name: IAP_AUDIENCE, valueFrom: { configMapKeyRef: { name: studio-config, key: iap_audience } } }
+            - { name: CSP_REPORT_URI, valueFrom: { configMapKeyRef: { name: studio-config, key: csp_report_uri } } }
+            - { name: DATABASE_URL, valueFrom: { secretKeyRef: { name: studio-database, key: url } } }
+            - { name: SESSION_KEY_CURRENT_ID, valueFrom: { secretKeyRef: { name: studio-session-keys, key: current_id } } }
+            - { name: SESSION_KEY_CURRENT, valueFrom: { secretKeyRef: { name: studio-session-keys, key: current } } }
+            - { name: SESSION_KEY_PREVIOUS_ID, valueFrom: { secretKeyRef: { name: studio-session-keys, key: previous_id } } }
+            - { name: SESSION_KEY_PREVIOUS, valueFrom: { secretKeyRef: { name: studio-session-keys, key: previous } } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { memory: 512Mi }
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: studio-bff-stream
+  namespace: studio
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: studio
+      studio.mindclade.dev/role: bff-stream
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: studio
+        studio.mindclade.dev/role: bff-stream
+    spec:
+      serviceAccountName: studio-bff-stream
+
+      # SHORT, deliberately, and only because streams are resumable.
+      #
+      # In a design where a severed stream loses work, this would have to exceed
+      # the longest possible run. Because the run log is the state, a severed
+      # stream is a clean EOF the client resumes from — so holding the pod open
+      # buys nothing and slows every deploy.
+      terminationGracePeriodSeconds: 30
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: studio
+          image: studio:latest
+          ports: [{ name: http, containerPort: 8080 }]
+          env:
+            - { name: STUDIO_ROLE, value: bff-stream }
+            - { name: IAP_AUDIENCE, valueFrom: { configMapKeyRef: { name: studio-config, key: iap_audience } } }
+            - { name: CSP_REPORT_URI, valueFrom: { configMapKeyRef: { name: studio-config, key: csp_report_uri } } }
+            - { name: DATABASE_URL, valueFrom: { secretKeyRef: { name: studio-database, key: url } } }
+            - { name: SESSION_KEY_CURRENT_ID, valueFrom: { secretKeyRef: { name: studio-session-keys, key: current_id } } }
+            - { name: SESSION_KEY_CURRENT, valueFrom: { secretKeyRef: { name: studio-session-keys, key: current } } }
+            - { name: SESSION_KEY_PREVIOUS_ID, valueFrom: { secretKeyRef: { name: studio-session-keys, key: previous_id } } }
+            - { name: SESSION_KEY_PREVIOUS, valueFrom: { secretKeyRef: { name: studio-session-keys, key: previous } } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { memory: 512Mi }
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: studio-embed
+  namespace: studio
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: studio
+      studio.mindclade.dev/role: embed
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: studio
+        studio.mindclade.dev/role: embed
+    spec:
+      serviceAccountName: studio-embed
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: studio
+          image: studio:latest
+          ports: [{ name: http, containerPort: 8080 }]
+          # NO session keys, NO database, NO IAP audience. This role is
+          # cookieless and sessionless by design, and the absence is the point —
+          # it cannot acquire a session it has no key to seal.
+          env:
+            - { name: STUDIO_ROLE, value: embed }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { memory: 128Mi }
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+
+---
+# The streaming tier scales on CONNECTIONS, not CPU.
+#
+# Its connections are long-lived and mostly idle: each costs a goroutine and,
+# while tailing, a database cursor — but almost no CPU. A CPU-based HPA therefore
+# UNDER-SCALES IT UNDER EXACTLY THE LOAD THAT MATTERS, and the failure presents as
+# connection-pool exhaustion showing up as latency on unrelated requests.
+#
+# The compensating property is what makes scaling on connection count safe: because
+# the run log is the state, every replica is stateless and interchangeable. Any
+# replica can serve any cursor for any run — no session affinity, no sticky
+# routing, and no reason a resume must land on the same pod.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: studio-bff-stream
+  namespace: studio
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: studio-bff-stream
+  minReplicas: 2
+  maxReplicas: 20
+  metrics:
+    - type: Pods
+      pods:
+        metric:
+          name: studio_stream_active_connections
+        target:
+          type: AverageValue
+          averageValue: "50"

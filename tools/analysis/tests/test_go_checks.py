@@ -15,8 +15,12 @@ ROOT = Path(__file__).resolve().parents[3]
 
 def load(name: str, path: Path):
     spec = importlib.util.spec_from_file_location(name, path)
+    # Guard before the first dereference, and raise rather than assert — see the matching
+    # comment in ci/presubmit/pipeline.py. This runs at import time, so a bad path here fails
+    # collection for the whole module and the message is all anyone gets.
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"unable to load {path}")
     module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
     sys.modules[name] = module
     spec.loader.exec_module(module)
     return module

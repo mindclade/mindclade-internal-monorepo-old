@@ -137,7 +137,7 @@ func (store *Store) Set(ctx context.Context, key cache.Key, value []byte, option
 	case "corrupt":
 		return cache.Entry{}, corrupt(ctx, errors.New("corrupt Redis cache record"), operation, key)
 	case "invalid_ttl":
-		return cache.Entry{}, corrupt(ctx, errors.New("Redis rejected cache TTL"), operation, key)
+		return cache.Entry{}, corrupt(ctx, errors.New("cache TTL rejected by Redis"), operation, key)
 	case "ok":
 		if len(values) != 3 {
 			return cache.Entry{}, corrupt(ctx, errors.New("invalid Redis set result shape"), operation, key)

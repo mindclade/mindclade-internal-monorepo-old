@@ -84,7 +84,9 @@ func validQualifiedIdentifier(value string) bool {
 			return false
 		}
 		for _, character := range part {
-			if !((character >= 'a' && character <= 'z') || (character >= '0' && character <= '9') || character == '_') {
+			lower := character >= 'a' && character <= 'z'
+			digit := character >= '0' && character <= '9'
+			if !lower && !digit && character != '_' {
 				return false
 			}
 		}

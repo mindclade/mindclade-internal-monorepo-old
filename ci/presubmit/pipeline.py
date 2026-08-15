@@ -19,8 +19,13 @@ REPO = Path(__file__).resolve().parents[2]
 def load_affected():
     path = REPO / "ci/common/affected.py"
     spec = importlib.util.spec_from_file_location("mindclade_affected", path)
+    # Guard before the first dereference, and raise rather than assert. The previous shape did
+    # both the other way round: module_from_spec(spec) ran first, so a missing file surfaced as
+    # an AttributeError on None naming neither the path nor the reason, and the `assert` that
+    # was supposed to catch it disappears under `python -O`.
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"unable to load {path}")
     module = importlib.util.module_from_spec(spec)
-    assert spec.loader
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module

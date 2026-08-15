@@ -92,13 +92,14 @@ func (server *Server) Shutdown(ctx context.Context) error {
 		code := faults.CodeOf(ctx.Err())
 		reason := "grpc_shutdown_interrupted"
 		message := "gRPC server graceful shutdown was interrupted"
-		if code == faults.CodeDeadlineExceeded {
+		switch code {
+		case faults.CodeDeadlineExceeded:
 			reason = "grpc_shutdown_timeout"
 			message = "gRPC server graceful shutdown timed out"
-		} else if code == faults.CodeCanceled {
+		case faults.CodeCanceled:
 			reason = "grpc_shutdown_canceled"
 			message = "gRPC server graceful shutdown was canceled"
-		} else if code == faults.CodeUnknown {
+		case faults.CodeUnknown:
 			code = faults.CodeInternal
 		}
 		return faults.Wrap(ctx.Err(), code, message, faults.WithReason(reason), faults.WithOperation("grpcx.Server.Shutdown"))

@@ -119,7 +119,7 @@ func (enc *canonicalEncoder) bytes() ([]byte, error) {
 	if enc.err != nil {
 		return nil, enc.err
 	}
-	return append([]byte(nil), enc.Buffer.Bytes()...), nil
+	return append([]byte(nil), enc.Bytes()...), nil
 }
 
 func unixMillis(value time.Time, field string) (uint64, error) {
@@ -132,8 +132,6 @@ func unixMillis(value time.Time, field string) (uint64, error) {
 	}
 	return uint64(millis), nil
 }
-
-func cloneStrings(values []string) []string { return append([]string(nil), values...) }
 
 func requireSortedUnique(values []string, field string) error {
 	for i, value := range values {

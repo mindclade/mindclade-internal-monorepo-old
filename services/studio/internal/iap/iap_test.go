@@ -261,7 +261,6 @@ func TestKeyRotationIsPickedUp(t *testing.T) {
 	current := []*signer{oldSigner}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		fetches++
-		type jwk struct{ Kid, Crv, X, Y string }
 		keys := make([]map[string]string, 0, len(current))
 		for _, s := range current {
 			x := make([]byte, 32)

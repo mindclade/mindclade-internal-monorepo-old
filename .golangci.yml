@@ -1,0 +1,102 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# Go lint policy.
+#
+# reusable-go-ci runs golangci-lint with whatever this file says. With no file at all it ran on
+# defaults and reported 84 issues — and that number was itself capped; uncapping the limits below
+# showed 111. Two populations accounted for nearly all of them, and neither was a defect:
+#
+#   - the `const scaffold_<name>` marker this repo puts in every unmaterialized file, which
+#     `unused` correctly identifies as unread;
+#   - a literal nil Context passed to fault constructors that explicitly guard on it, plus tests
+#     that pass nil precisely to prove the callee copes.
+#
+# Those two are excluded below, each scoped as narrowly as the finding allows. The remaining 19
+# were real and were fixed in the code rather than configured away: dead functions deleted, two
+# capitalised error strings reworded, De Morgan and tagged-switch rewrites applied, a deprecated
+# controller-runtime field migrated, and one deliberately-discarded error made explicit.
+#
+# The rule to keep: this file exists to describe conventions the linter cannot know about. It is
+# not the place to retire a finding that is simply inconvenient.
+#
+# Schema is v2 (golangci-lint 2.x). The version line is required; without it 2.x refuses to
+# read the file rather than falling back to v1 semantics.
+version: "2"
+
+issues:
+  # Report everything. The defaults cap output at 50 per linter and 3 per distinct message,
+  # which is fine for a human skimming and wrong for a gate: fixing the three that were shown
+  # simply reveals the next three, and the run never converges. A gate that under-reports is a
+  # gate nobody can clear deliberately.
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+linters:
+  # errcheck, govet, ineffassign, staticcheck, unused. Deliberately not "all": the enabled set
+  # should be the one CI can keep green, and widening it is a decision with a diff attached.
+  default: standard
+
+  exclusions:
+    # Generated files still get vetted for correctness, just not for style they cannot control.
+    generated: lax
+
+    presets:
+      # The `defer resource.Close()` and `fmt.Fprintf(os.Stdout, ...)` exclusions. Twenty of the
+      # original findings were exactly this: a deferred Close whose error has nowhere to go,
+      # because the surrounding function has already decided what it is returning. Checking it
+      # would mean either discarding the real error or inventing a policy for which one wins.
+      - std-error-handling
+
+    rules:
+      # The scaffold convention, not dead code.
+      #
+      # Every unmaterialized file in this repo carries `const scaffold_<name> = "<path>"` as its
+      # marker — 1,459 files at last count, ~28% of the tree. `unused` is correct that nothing
+      # reads them and wrong that it matters: they are placeholders whose presence records
+      # architecture and ownership, exactly as REPOSITORY_STATUS.md describes.
+      #
+      # Matched on the finding text rather than a path glob on purpose. A path list would have to
+      # be maintained, and would keep excluding a file after its scaffold is replaced by real
+      # code. This rule stops applying to a file the moment the marker goes away, which is the
+      # moment the file starts deserving the lint.
+      - linters: [unused]
+        text: '^const scaffold_[a-z0-9_]+ is unused$'
+
+      # Fault constructors where a nil Context is the documented "there is no request context"
+      # case, not an oversight.
+      #
+      # These helpers all guard on it — `if ctx != nil { options = append(options,
+      # faults.WithContextMetadata(ctx)) }`. Substituting context.TODO(), which is what SA1012
+      # asks for, would make that guard true and attach empty context metadata to every fault
+      # raised outside a request. The nil is load-bearing.
+      #
+      # Scoped to the call itself rather than to whole files, so an unrelated nil Context in the
+      # same package is still reported.
+      - linters: [staticcheck]
+        text: '^SA1012:'
+        source: '(newFault|structuredFault|invalidArgument|invalid|claimLost)\(\s*nil\s*,'
+
+      # The same constructors again, called across multiple lines, where the reported line is a
+      # bare `nil,` argument and the callee name is out of reach of a single-line regex.
+      #
+      # Path-scoped to the packages that define those guarded constructors, so this cannot
+      # silence a genuine nil Context elsewhere in the tree.
+      #
+      # The better long-term fix is to delete the ambiguity rather than exclude it: give the
+      # fault helpers a no-context sibling — `detachedFault(cause, code, ...)` — and let
+      # `structuredFault` always take a real Context. That removes ~49 literal nils and makes
+      # the intent readable without a lint rule explaining it. It is a wider refactor than a
+      # lint config should smuggle in, so it is written down here instead.
+      - linters: [staticcheck]
+        text: '^SA1012:'
+        path: 'libs/go/(servicekit|observability)/'
+        source: '^\s*nil,\s*$'
+
+      # Tests that pass a nil Context on purpose, to assert the callee rejects or tolerates it.
+      # Telling a test not to construct the input it is testing is not useful advice.
+      - linters: [staticcheck]
+        text: '^SA1012:'
+        path: '_test\.go$'

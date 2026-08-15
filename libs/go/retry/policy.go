@@ -49,13 +49,11 @@ func DefaultPolicy() Policy {
 
 // NewPolicy constructs and validates an immutable policy.
 func NewPolicy(options ...PolicyOption) (Policy, error) {
-	defaults := DefaultPolicy()
-	configuration := policyConfiguration{
-		maxAttempts:    defaults.maxAttempts,
-		maxElapsed:     defaults.maxElapsed,
-		backoff:        defaults.backoff,
-		jitterFraction: defaults.jitterFraction,
-	}
+	// Policy and policyConfiguration are the same shape by construction — the second exists so
+	// PolicyOption has something mutable to write into. A conversion keeps them that way: add a
+	// field to one without the other and this stops compiling, where a field-by-field literal
+	// would silently leave the new field at its zero value.
+	configuration := policyConfiguration(DefaultPolicy())
 	for _, option := range options {
 		if option == nil {
 			continue
@@ -64,12 +62,7 @@ func NewPolicy(options ...PolicyOption) (Policy, error) {
 			return Policy{}, err
 		}
 	}
-	policy := Policy{
-		maxAttempts:    configuration.maxAttempts,
-		maxElapsed:     configuration.maxElapsed,
-		backoff:        configuration.backoff,
-		jitterFraction: configuration.jitterFraction,
-	}
+	policy := Policy(configuration)
 	if err := policy.Validate(); err != nil {
 		return Policy{}, err
 	}
