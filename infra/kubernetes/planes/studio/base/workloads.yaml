@@ -1,4 +1,9 @@
 ---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 # The four browser-plane workloads.
 #
 # ONE IMAGE, FOUR DEPLOYMENTS, FOUR SERVICES. The split is at the Service level

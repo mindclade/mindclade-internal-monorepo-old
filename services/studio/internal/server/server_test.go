@@ -241,7 +241,12 @@ func TestDigestDistinguishesBodies(t *testing.T) {
 	if digest([]byte(`{"a":1}`)) == digest([]byte(`{"a":2}`)) {
 		t.Fatal("different bodies produced the same digest; a replayed key would not be detected")
 	}
-	if digest([]byte(`{"a":1}`)) != digest([]byte(`{"a":1}`)) {
+	// Bound to variables rather than compared inline. The assertion is determinism — two calls
+	// on equal input agree — which staticcheck reads as SA4000, identical expressions either
+	// side of `!=`. It cannot know the call is the thing under test.
+	first := digest([]byte(`{"a":1}`))
+	second := digest([]byte(`{"a":1}`))
+	if first != second {
 		t.Fatal("identical bodies produced different digests; a legitimate retry would 409")
 	}
 }
