@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Built-in ticketed stage adapters owned by the node agent.
 //!
 //! These adapters deliberately cover only node/data-plane mechanics.  They do
@@ -7,15 +12,13 @@ use crate::checkpoint_transfer::CheckpointTransfer;
 use crate::data_stream::StreamWorker;
 use crate::{ProviderSource, StageContext, StageExecutor, StageFuture, StageResult};
 use mindclade_bytes_io::ByteRange;
-use mindclade_content_digest::{hash_bytes, Digest};
+use mindclade_content_digest::{Digest, hash_bytes};
 use mindclade_data_stream::Shard;
 use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_identifiers::Name;
 use mindclade_ipc_os::BulkBufferBroker;
 use mindclade_object_store::ObjectPath;
-use mindclade_worker_protocol::{
-    BufferAccess, BufferDescriptor, BufferTransport, ExecutionTicket,
-};
+use mindclade_worker_protocol::{BufferAccess, BufferDescriptor, BufferTransport, ExecutionTicket};
 use std::sync::Arc;
 
 pub const CHECKPOINT_COPY_OPERATION: &str = "checkpoint.copy";
@@ -85,10 +88,7 @@ impl StageExecutor for CheckpointCopyExecutor {
                     .stage_component(&self.source, ticket, input.digest, now)
                     .await?;
                 let length = u64::try_from(staged.bytes().len()).map_err(|_| {
-                    Fault::new(
-                        Code::OutOfRange,
-                        "checkpoint component length exceeds u64",
-                    )
+                    Fault::new(Code::OutOfRange, "checkpoint component length exceeds u64")
                 })?;
                 if input.range.start() != 0 || input.range.length() != length {
                     return Err(Fault::data_loss(
@@ -232,10 +232,12 @@ fn require_artifact_input(input: &BufferDescriptor) -> FaultResult<()> {
 }
 
 fn shard_from_descriptor(index: usize, input: &BufferDescriptor) -> FaultResult<Shard> {
-    let name = Name::new(format!("shard-{index}"))
-        .map_err(|error| Fault::invalid_argument("generated shard name is invalid").with_source(error))?;
-    let path = ObjectPath::new(format!("artifact/{index}"))
-        .map_err(|error| Fault::invalid_argument("generated shard path is invalid").with_source(error))?;
+    let name = Name::new(format!("shard-{index}")).map_err(|error| {
+        Fault::invalid_argument("generated shard name is invalid").with_source(error)
+    })?;
+    let path = ObjectPath::new(format!("artifact/{index}")).map_err(|error| {
+        Fault::invalid_argument("generated shard path is invalid").with_source(error)
+    })?;
     Ok(Shard {
         name,
         path,
@@ -272,12 +274,8 @@ fn artifact_descriptor(
 fn segment_name(ticket: &ExecutionTicket, index: usize, digest: Digest) -> String {
     let ticket_hash = hash_bytes(ticket.claims.ticket_id.to_string().as_bytes()).to_string();
     let digest_text = digest.to_string();
-    let ticket_suffix = ticket_hash
-        .strip_prefix("sha256:")
-        .unwrap_or(&ticket_hash);
-    let digest_suffix = digest_text
-        .strip_prefix("sha256:")
-        .unwrap_or(&digest_text);
+    let ticket_suffix = ticket_hash.strip_prefix("sha256:").unwrap_or(&ticket_hash);
+    let digest_suffix = digest_text.strip_prefix("sha256:").unwrap_or(&digest_text);
     format!(
         "stream-{}-{index}-{}",
         &ticket_suffix[..12],
@@ -286,11 +284,7 @@ fn segment_name(ticket: &ExecutionTicket, index: usize, digest: Digest) -> Strin
 }
 
 fn validate_namespace(value: &str) -> FaultResult<()> {
-    if value.is_empty()
-        || value.len() > 1_024
-        || value.starts_with('/')
-        || value.contains("..")
-    {
+    if value.is_empty() || value.len() > 1_024 || value.starts_with('/') || value.contains("..") {
         return Err(Fault::invalid_argument(
             "checkpoint output namespace is invalid",
         ));

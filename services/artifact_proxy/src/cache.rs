@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Bounded verified local byte cache with deterministic least-recently-used eviction.
 
 use mindclade_content_digest::{hash_bytes, Digest};

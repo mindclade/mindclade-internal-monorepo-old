@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Bounded structured attributes.
 
 use std::collections::BTreeMap;
@@ -28,11 +33,31 @@ impl fmt::Display for AttributeValue {
     }
 }
 
-impl From<&str> for AttributeValue { fn from(value: &str) -> Self { Self::String(value.to_owned()) } }
-impl From<String> for AttributeValue { fn from(value: String) -> Self { Self::String(value) } }
-impl From<i64> for AttributeValue { fn from(value: i64) -> Self { Self::Signed(value) } }
-impl From<u64> for AttributeValue { fn from(value: u64) -> Self { Self::Unsigned(value) } }
-impl From<bool> for AttributeValue { fn from(value: bool) -> Self { Self::Boolean(value) } }
+impl From<&str> for AttributeValue {
+    fn from(value: &str) -> Self {
+        Self::String(value.to_owned())
+    }
+}
+impl From<String> for AttributeValue {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
+}
+impl From<i64> for AttributeValue {
+    fn from(value: i64) -> Self {
+        Self::Signed(value)
+    }
+}
+impl From<u64> for AttributeValue {
+    fn from(value: u64) -> Self {
+        Self::Unsigned(value)
+    }
+}
+impl From<bool> for AttributeValue {
+    fn from(value: bool) -> Self {
+        Self::Boolean(value)
+    }
+}
 
 /// Deterministically ordered attributes with fixed cardinality and value bounds.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -43,12 +68,18 @@ impl Attributes {
     pub const MAX_KEY_LEN: usize = 64;
     pub const MAX_STRING_LEN: usize = 2_048;
     #[must_use]
-    pub const fn new() -> Self { Self(BTreeMap::new()) }
+    pub const fn new() -> Self {
+        Self(BTreeMap::new())
+    }
     pub fn insert(&mut self, key: impl Into<String>, value: impl Into<AttributeValue>) -> bool {
-        if self.0.len() >= Self::MAX_ATTRIBUTES { return false; }
+        if self.0.len() >= Self::MAX_ATTRIBUTES {
+            return false;
+        }
         let key = key.into();
         let value = value.into();
-        if key.is_empty() || key.len() > Self::MAX_KEY_LEN { return false; }
+        if key.is_empty() || key.len() > Self::MAX_KEY_LEN {
+            return false;
+        }
         if matches!(&value, AttributeValue::String(text) if text.len() > Self::MAX_STRING_LEN) {
             return false;
         }

@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Tenant-scoped, content-addressed artifact data-plane core.
 //!
 //! The proxy owns byte-path authorization, range validation, digest verification,

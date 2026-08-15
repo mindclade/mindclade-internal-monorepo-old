@@ -1,5 +1,7 @@
-// Copyright 2026 Mindclade. All rights reserved.
-// Confidential, proprietary, and trade-secret information.
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
 
 // Package resourceversion defines transport-neutral optimistic-concurrency
 // versions and write preconditions for durable control-plane resources.

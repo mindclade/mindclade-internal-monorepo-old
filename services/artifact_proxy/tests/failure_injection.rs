@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 #[test]
 fn object_store_outage_is_bounded() {
     // The proxy exposes no unbounded retry loop; provider unavailability is

@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 use mindclade_atomic_fs::{AtomicFileStore, RelativePath};
 use mindclade_content_digest::hash_bytes;
 use std::fs;
@@ -8,7 +13,10 @@ fn temporary_root() -> std::path::PathBuf {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos();
-    std::env::temp_dir().join(format!("mindclade-atomic-fs-{}-{nanos}", std::process::id()))
+    std::env::temp_dir().join(format!(
+        "mindclade-atomic-fs-{}-{nanos}",
+        std::process::id()
+    ))
 }
 
 #[test]
@@ -21,7 +29,12 @@ fn publishes_and_verifies_content() {
         assert!(path.is_ok());
         if let Ok(path) = path {
             assert!(store.publish(path.clone(), b"payload", false).is_ok());
-            assert_eq!(store.read_verified(&path, hash_bytes(b"payload"), 1024).ok(), Some(b"payload".to_vec()));
+            assert_eq!(
+                store
+                    .read_verified(&path, hash_bytes(b"payload"), 1024)
+                    .ok(),
+                Some(b"payload".to_vec())
+            );
         }
     }
     let _ = fs::remove_dir_all(root);

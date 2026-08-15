@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 load("@rules_go//go:def.bzl","go_library","go_test")
 package(default_visibility=["//visibility:private"])
 go_library(name="routing",srcs=glob(["*.go"],exclude=["*_test.go"]),importpath="mindclade.internal/control/routing",visibility=["//control:__subpackages__","//services:__subpackages__"],deps=["//control/runtime_authority","//libs/go/faults","//libs/go/identifiers"])

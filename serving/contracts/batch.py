@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 """Tensor-aware batch planning contract owned by Python."""
 
 from __future__ import annotations

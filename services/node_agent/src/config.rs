@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Node-agent limits and resource envelope.
 use mindclade_faults::{Fault, FaultResult};
 use mindclade_runtime_core::{ResourceKind, ResourceVector};
@@ -22,7 +27,9 @@ impl NodeAgentConfig {
             || self.maximum_children == 0
             || self.tool_poll_interval.is_zero()
         {
-            return Err(Fault::invalid_argument("node agent configuration is invalid"));
+            return Err(Fault::invalid_argument(
+                "node agent configuration is invalid",
+            ));
         }
         Ok(())
     }

@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Shared policy-floor validation for runtime consumers.
 
 use crate::{RevocationSnapshot, SignatureVerifier};
@@ -16,7 +21,9 @@ impl PolicyFloor {
             || self.minimum_route_version == 0
             || self.minimum_revocation_epoch == 0
         {
-            return Err(Fault::invalid_argument("policy floor values must be non-zero"));
+            return Err(Fault::invalid_argument(
+                "policy floor values must be non-zero",
+            ));
         }
         Ok(self)
     }

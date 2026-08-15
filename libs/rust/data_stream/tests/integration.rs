@@ -1,8 +1,11 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 use mindclade_bytes_io::ByteSize;
 use mindclade_content_digest::hash_bytes;
-use mindclade_data_stream::{
-    Cursor, Shard, StreamPlan
-};
+use mindclade_data_stream::{Cursor, Shard, StreamPlan};
 use mindclade_identifiers::Name;
 use mindclade_object_store::ObjectPath;
 
@@ -14,11 +17,18 @@ fn plans_and_cursors_are_reproducible() {
     assert!(dataset.is_ok() && name.is_ok() && path.is_ok());
     if let (Ok(dataset), Ok(name), Ok(path)) = (dataset, name, path) {
         let shard = Shard {
-            name, path, digest: hash_bytes(b"records"), size: 7, records: 1
+            name,
+            path,
+            digest: hash_bytes(b"records"),
+            size: 7,
+            records: 1,
         };
         let first = StreamPlan::new(dataset.clone(), 0, 42, 1, 0, vec![shard.clone()]);
         let second = StreamPlan::new(dataset, 0, 42, 1, 0, vec![shard]);
-        assert_eq!(first.as_ref().ok().map(|plan| plan.plan_digest), second.as_ref().ok().map(|plan| plan.plan_digest));
+        assert_eq!(
+            first.as_ref().ok().map(|plan| plan.plan_digest),
+            second.as_ref().ok().map(|plan| plan.plan_digest)
+        );
         if let Ok(plan) = first {
             let cursor = Cursor::start(plan.plan_digest);
             let bytes = cursor.encode();

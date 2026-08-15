@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 """Stable Python contracts for model-worker inference semantics."""
 
 from .batch import BatchPlan, BatchPlanner, CompatibilityKey

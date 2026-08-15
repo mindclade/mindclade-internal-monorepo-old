@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 module(name = "mindclade_internal", version = "0.0.0")
 
 bazel_dep(name = "rules_go", version = "0.51.0")

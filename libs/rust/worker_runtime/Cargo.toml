@@ -1,11 +1,17 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 [package]
 name="mindclade_worker_runtime"
 version.workspace=true
 edition.workspace=true
 publish=false
 [dependencies]
+mindclade_identifiers={path="../identifiers"}
+mindclade_worker_protocol={path="../worker_protocol"}
 mindclade_faults={path="../faults"}
 mindclade_runtime_core={path="../runtime_core"}
-mindclade_worker_protocol={path="../worker_protocol"}
 [lints]
 workspace=true

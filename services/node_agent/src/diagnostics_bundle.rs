@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Bounded, redacted node diagnostics suitable for incident artifacts.
 
 use mindclade_faults::{Code, Fault, FaultResult};
@@ -43,15 +48,21 @@ impl NodeDiagnosticsBundle {
                 "diagnostic bundle exceeds bounds",
             ));
         }
-        if self.active_ticket_ids.iter().any(|value| value.is_empty() || value.len() > 256) {
-            return Err(Fault::invalid_argument("diagnostic ticket identifier is invalid"));
+        if self
+            .active_ticket_ids
+            .iter()
+            .any(|value| value.is_empty() || value.len() > 256)
+        {
+            return Err(Fault::invalid_argument(
+                "diagnostic ticket identifier is invalid",
+            ));
         }
         if self.process_exits.iter().any(|exit| {
-            exit.component.is_empty()
-                || exit.component.len() > 256
-                || exit.when_unix_millis == 0
+            exit.component.is_empty() || exit.component.len() > 256 || exit.when_unix_millis == 0
         }) {
-            return Err(Fault::invalid_argument("diagnostic process exit is invalid"));
+            return Err(Fault::invalid_argument(
+                "diagnostic process exit is invalid",
+            ));
         }
         if self.attributes.iter().any(|(key, value)| {
             key.is_empty() || key.len() > 128 || value.len() > 1_024 || is_sensitive(key)
@@ -68,7 +79,9 @@ impl NodeDiagnosticsBundle {
     pub fn encode(&self, maximum_bytes: usize) -> FaultResult<Vec<u8>> {
         self.validate()?;
         if maximum_bytes == 0 || maximum_bytes > DEFAULT_MAXIMUM_DIAGNOSTIC_BYTES {
-            return Err(Fault::invalid_argument("diagnostic maximum byte bound is invalid"));
+            return Err(Fault::invalid_argument(
+                "diagnostic maximum byte bound is invalid",
+            ));
         }
         let mut output = Vec::with_capacity(4096.min(maximum_bytes));
         output.extend_from_slice(DIAGNOSTIC_MAGIC);

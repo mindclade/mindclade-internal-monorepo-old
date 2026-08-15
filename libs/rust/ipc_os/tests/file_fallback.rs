@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 use mindclade_ipc_os::file::FileSegment;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -5,7 +10,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 fn file_fallback_round_trips_and_cleans_up() {
     let root = std::env::temp_dir().join(format!(
         "mindclade-ipc-file-{}",
-        SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
     ));
     let segment = FileSegment::create(&root, "worker", 1, b"payload", u64::MAX).unwrap();
     assert_eq!(segment.read_verified(1).unwrap(), b"payload");

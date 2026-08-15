@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Deterministic, version-conditional artifact garbage collection.
 //!
 //! Eligibility belongs to the Go control plane. The Rust byte plane executes
@@ -5,7 +10,7 @@
 //! reports an outcome for every candidate. Changed objects are never deleted by
 //! a stale plan.
 
-use mindclade_content_digest::{hash_bytes, Digest};
+use mindclade_content_digest::{Digest, hash_bytes};
 use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_object_store::{ObjectPath, ObjectStore};
 use mindclade_runtime_core::ResourceVersion;

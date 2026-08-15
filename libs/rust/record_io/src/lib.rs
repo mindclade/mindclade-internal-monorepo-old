@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Bounded deterministic records, indexes, codecs and recovery-safe framing.
 #![forbid(unsafe_code)]
 mod codec;
@@ -6,12 +11,6 @@ mod frame;
 pub mod index;
 pub mod reader;
 pub mod writer;
-pub use codec::{
-    Decoder, Encoder
-};
-pub use frame::{
-    Record, RecordReader, RecordWriter, FRAME_HEADER_BYTES, FRAME_MAGIC
-};
-pub use index::{
-    RecordIndex, RecordIndexEntry
-};
+pub use codec::{Decoder, Encoder};
+pub use frame::{FRAME_HEADER_BYTES, FRAME_MAGIC, Record, RecordReader, RecordWriter};
+pub use index::{RecordIndex, RecordIndexEntry};

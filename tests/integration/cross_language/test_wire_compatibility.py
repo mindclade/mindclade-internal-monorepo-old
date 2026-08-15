@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 """Release-blocking source/wire field compatibility for runtime v1.
 
 The baseline freezes message names, field tags, field names, labels, and declared

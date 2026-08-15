@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Offline signed-authority state for the runtime host.
 //!
 //! The host independently validates every execution ticket. Policy floors and
@@ -100,7 +105,9 @@ impl HostAuthority {
         revocation_epoch: u64,
     ) -> FaultResult<()> {
         if policy_epoch == 0 || route_version == 0 || revocation_epoch == 0 {
-            return Err(Fault::invalid_argument("runtime host policy floors must be non-zero"));
+            return Err(Fault::invalid_argument(
+                "runtime host policy floors must be non-zero",
+            ));
         }
         let mut state = self
             .state

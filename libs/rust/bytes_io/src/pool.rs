@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 use mindclade_faults::{Code, Fault, FaultResult};
 use std::sync::{Arc, Mutex};
 
@@ -15,18 +20,36 @@ struct State {
 impl BufferPool {
     #[must_use]
     pub fn new(max_cached_bytes: usize) -> Self {
-        Self { inner: Arc::new(Mutex::new(State::default())), max_cached_bytes }
+        Self {
+            inner: Arc::new(Mutex::new(State::default())),
+            max_cached_bytes,
+        }
     }
     pub fn take(&self, minimum_capacity: usize) -> FaultResult<Vec<u8>> {
-        let absolute_limit = self.max_cached_bytes.max(1).checked_mul(16)
+        let absolute_limit = self
+            .max_cached_bytes
+            .max(1)
+            .checked_mul(16)
             .ok_or_else(|| Fault::new(Code::OutOfRange, "buffer-pool request policy overflow"))?;
         if minimum_capacity > absolute_limit {
-            return Err(Fault::new(Code::ResourceExhausted, "requested buffer is outside pool policy"));
+            return Err(Fault::new(
+                Code::ResourceExhausted,
+                "requested buffer is outside pool policy",
+            ));
         }
-        let mut state = self.inner.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-        if let Some(index) = state.buffers.iter().position(|buffer| buffer.capacity() >= minimum_capacity) {
+        let mut state = self
+            .inner
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some(index) = state
+            .buffers
+            .iter()
+            .position(|buffer| buffer.capacity() >= minimum_capacity)
+        {
             let mut buffer = state.buffers.swap_remove(index);
-            state.cached_bytes = state.cached_bytes.checked_sub(buffer.capacity())
+            state.cached_bytes = state
+                .cached_bytes
+                .checked_sub(buffer.capacity())
                 .ok_or_else(|| Fault::data_loss("buffer-pool cached-byte accounting underflow"))?;
             buffer.clear();
             return Ok(buffer);
@@ -36,8 +59,13 @@ impl BufferPool {
     pub fn put(&self, mut buffer: Vec<u8>) -> bool {
         buffer.clear();
         let capacity = buffer.capacity();
-        let mut state = self.inner.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-        let Some(next) = state.cached_bytes.checked_add(capacity) else { return false; };
+        let mut state = self
+            .inner
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let Some(next) = state.cached_bytes.checked_add(capacity) else {
+            return false;
+        };
         if next > self.max_cached_bytes {
             return false;
         }
@@ -47,6 +75,9 @@ impl BufferPool {
     }
     #[must_use]
     pub fn cached_bytes(&self) -> usize {
-        self.inner.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).cached_bytes
+        self.inner
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .cached_bytes
     }
 }

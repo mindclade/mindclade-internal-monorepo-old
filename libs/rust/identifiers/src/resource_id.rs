@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Cross-language Mindclade resource IDs: `<kind>_<32 lowercase UUIDv7 hex>`.
 
 use core::fmt;
@@ -14,7 +19,9 @@ const UUID_V7_MAX_MILLIS: u64 = (1_u64 << 48) - 1;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ResourceIdError(&'static str);
 impl fmt::Display for ResourceIdError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { f.write_str(self.0) }
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.0)
+    }
 }
 impl std::error::Error for ResourceIdError {}
 
@@ -28,14 +35,21 @@ pub struct ResourceId {
 impl ResourceId {
     pub fn generate(kind: &str, clock: &dyn Clock) -> Result<Self, ResourceIdError> {
         validate_kind(kind)?;
-        let duration = clock.system_now().duration_since(UNIX_EPOCH)
+        let duration = clock
+            .system_now()
+            .duration_since(UNIX_EPOCH)
             .map_err(|_| ResourceIdError("resource ID clock is before Unix epoch"))?;
         let millis = u64::try_from(duration.as_millis())
             .map_err(|_| ResourceIdError("resource ID timestamp exceeds u64"))?;
         if millis > UUID_V7_MAX_MILLIS {
-            return Err(ResourceIdError("resource ID timestamp exceeds UUIDv7 48-bit domain"));
+            return Err(ResourceIdError(
+                "resource ID timestamp exceeds UUIDv7 48-bit domain",
+            ));
         }
-        let counter = COUNTER.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |current| current.checked_add(1))
+        let counter = COUNTER
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |current| {
+                current.checked_add(1)
+            })
             .map_err(|_| ResourceIdError("resource ID process counter exhausted"))?;
         let pid = u128::from(process::id());
         let seed = duration.as_nanos() ^ u128::from(counter).rotate_left(37) ^ pid.rotate_left(83);
@@ -44,46 +58,82 @@ impl ResourceId {
         uuid[0..6].copy_from_slice(&millis_bytes[2..8]);
         uuid[6] = (uuid[6] & 0x0f) | 0x70;
         uuid[8] = (uuid[8] & 0x3f) | 0x80;
-        Ok(Self { kind: kind.to_owned(), body: encode_hex(uuid) })
+        Ok(Self {
+            kind: kind.to_owned(),
+            body: encode_hex(uuid),
+        })
     }
     pub fn parse(value: &str) -> Result<Self, ResourceIdError> {
         let Some((kind, body)) = value.split_once('_') else {
             return Err(ResourceIdError("resource ID is missing its separator"));
         };
-        if body.contains('_') { return Err(ResourceIdError("resource ID contains more than one separator")); }
+        if body.contains('_') {
+            return Err(ResourceIdError(
+                "resource ID contains more than one separator",
+            ));
+        }
         validate_kind(kind)?;
-        if body.len() != 32 || body.bytes().any(|byte| !matches!(byte, b'0'..=b'9' | b'a'..=b'f')) {
-            return Err(ResourceIdError("resource ID body must be 32 lowercase hexadecimal characters"));
+        if body.len() != 32
+            || body
+                .bytes()
+                .any(|byte| !matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+        {
+            return Err(ResourceIdError(
+                "resource ID body must be 32 lowercase hexadecimal characters",
+            ));
         }
         let bytes = decode_hex(body)?;
         if bytes[6] >> 4 != 7 || bytes[8] & 0xc0 != 0x80 {
-            return Err(ResourceIdError("resource ID body must be an RFC variant UUIDv7"));
+            return Err(ResourceIdError(
+                "resource ID body must be an RFC variant UUIDv7",
+            ));
         }
-        Ok(Self { kind: kind.to_owned(), body: body.to_owned() })
+        Ok(Self {
+            kind: kind.to_owned(),
+            body: body.to_owned(),
+        })
     }
-    #[must_use] pub fn kind(&self) -> &str { &self.kind }
-    #[must_use] pub fn body(&self) -> &str { &self.body }
+    #[must_use]
+    pub fn kind(&self) -> &str {
+        &self.kind
+    }
+    #[must_use]
+    pub fn body(&self) -> &str {
+        &self.body
+    }
 }
 
 impl fmt::Display for ResourceId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}_{}", self.kind, self.body) }
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}_{}", self.kind, self.body)
+    }
 }
 impl fmt::Debug for ResourceId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { f.debug_tuple("ResourceId").field(&self.to_string()).finish() }
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("ResourceId")
+            .field(&self.to_string())
+            .finish()
+    }
 }
 impl FromStr for ResourceId {
     type Err = ResourceIdError;
-    fn from_str(value: &str) -> Result<Self, Self::Err> { Self::parse(value) }
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Self::parse(value)
+    }
 }
 
 fn validate_kind(value: &str) -> Result<(), ResourceIdError> {
     let mut bytes = value.bytes();
-    let Some(first) = bytes.next() else { return Err(ResourceIdError("resource ID kind must not be empty")); };
+    let Some(first) = bytes.next() else {
+        return Err(ResourceIdError("resource ID kind must not be empty"));
+    };
     if !(2..=24).contains(&value.len())
         || !first.is_ascii_lowercase()
         || !bytes.all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
     {
-        return Err(ResourceIdError("resource ID kind must be 2-24 lowercase alphanumeric characters starting with a letter"));
+        return Err(ResourceIdError(
+            "resource ID kind must be 2-24 lowercase alphanumeric characters starting with a letter",
+        ));
     }
     Ok(())
 }

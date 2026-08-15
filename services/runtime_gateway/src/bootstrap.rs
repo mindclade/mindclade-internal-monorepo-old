@@ -1,11 +1,17 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Fail-closed runtime-gateway process bootstrap.
 //!
 //! The binary accepts only immutable signed policy artifacts and bounded local
 //! configuration. Global policy remains owned by the Go control plane.
 
 use crate::{
+    GatewayAuthority, GatewayConfig, GatewayCore, GatewayHealth,
     network::{self, GatewayNetworkState},
-    protocol, GatewayAuthority, GatewayConfig, GatewayCore, GatewayHealth,
+    protocol,
 };
 use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_protocols::runtime::v1 as wire;
@@ -32,7 +38,9 @@ impl BootstrapConfig {
     pub fn from_env() -> FaultResult<Self> {
         let listen_address = required("MINDCLADE_RUNTIME_GATEWAY_ADDR")?
             .parse::<SocketAddr>()
-            .map_err(|error| Fault::invalid_argument("runtime gateway address is invalid").with_source(error))?;
+            .map_err(|error| {
+                Fault::invalid_argument("runtime gateway address is invalid").with_source(error)
+            })?;
         let key_id = required("MINDCLADE_RUNTIME_KEY_ID")?;
         if key_id.len() > 256 {
             return Err(Fault::invalid_argument("runtime key id exceeds bound"));
@@ -41,7 +49,9 @@ impl BootstrapConfig {
         let key_not_before_unix_millis = parse_u64("MINDCLADE_RUNTIME_KEY_NOT_BEFORE_MS")?;
         let key_not_after_unix_millis = parse_u64("MINDCLADE_RUNTIME_KEY_NOT_AFTER_MS")?;
         if key_not_before_unix_millis >= key_not_after_unix_millis {
-            return Err(Fault::invalid_argument("runtime verification-key validity window is invalid"));
+            return Err(Fault::invalid_argument(
+                "runtime verification-key validity window is invalid",
+            ));
         }
         let route_snapshot_path = absolute_path("MINDCLADE_RUNTIME_ROUTE_SNAPSHOT_FILE")?;
         let revocation_snapshot_path = absolute_path("MINDCLADE_RUNTIME_REVOCATION_SNAPSHOT_FILE")?;
@@ -82,7 +92,11 @@ pub async fn run(config: BootstrapConfig) -> FaultResult<()> {
     authority.install_route(route, now)?;
 
     let health = Arc::new(GatewayHealth::new());
-    let core = Arc::new(GatewayCore::new(config.gateway, authority.policy(), health.clone())?);
+    let core = Arc::new(GatewayCore::new(
+        config.gateway,
+        authority.policy(),
+        health.clone(),
+    )?);
     health.set_policy_fresh(true);
     health.set_accepting(true);
 
@@ -98,7 +112,9 @@ pub async fn run(config: BootstrapConfig) -> FaultResult<()> {
         shutdown_rx,
     )
     .await
-    .map_err(|error| Fault::new(Code::Unavailable, "runtime gateway network server failed").with_source(error));
+    .map_err(|error| {
+        Fault::new(Code::Unavailable, "runtime gateway network server failed").with_source(error)
+    });
     core.begin_drain();
     signal.abort();
     result
@@ -124,12 +140,17 @@ fn read_message<M: Message + Default>(path: &PathBuf) -> FaultResult<M> {
 
 fn required(name: &'static str) -> FaultResult<String> {
     let value = env::var(name).map_err(|_| {
-        Fault::new(Code::FailedPrecondition, "required runtime environment variable is missing")
-            .with_context("variable", name)
+        Fault::new(
+            Code::FailedPrecondition,
+            "required runtime environment variable is missing",
+        )
+        .with_context("variable", name)
     })?;
     if value.is_empty() || value != value.trim() || value.len() > 4096 {
-        return Err(Fault::invalid_argument("runtime environment value is invalid")
-            .with_context("variable", name));
+        return Err(
+            Fault::invalid_argument("runtime environment value is invalid")
+                .with_context("variable", name),
+        );
     }
     Ok(value)
 }
@@ -145,21 +166,26 @@ fn parse_u64(name: &'static str) -> FaultResult<u64> {
 fn absolute_path(name: &'static str) -> FaultResult<PathBuf> {
     let path = PathBuf::from(required(name)?);
     if !path.is_absolute() {
-        return Err(Fault::invalid_argument("runtime policy path must be absolute")
-            .with_context("variable", name));
+        return Err(
+            Fault::invalid_argument("runtime policy path must be absolute")
+                .with_context("variable", name),
+        );
     }
     Ok(path)
 }
 
 fn decode_32_byte_hex(value: &str) -> FaultResult<[u8; 32]> {
     if value.len() != 64 || !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-        return Err(Fault::invalid_argument("runtime Ed25519 public key must be 64 hexadecimal characters"));
+        return Err(Fault::invalid_argument(
+            "runtime Ed25519 public key must be 64 hexadecimal characters",
+        ));
     }
     let mut output = [0_u8; 32];
     for (index, slot) in output.iter_mut().enumerate() {
         let offset = index * 2;
-        *slot = u8::from_str_radix(&value[offset..offset + 2], 16)
-            .map_err(|error| Fault::invalid_argument("runtime Ed25519 public key is invalid").with_source(error))?;
+        *slot = u8::from_str_radix(&value[offset..offset + 2], 16).map_err(|error| {
+            Fault::invalid_argument("runtime Ed25519 public key is invalid").with_source(error)
+        })?;
     }
     Ok(output)
 }
@@ -167,9 +193,18 @@ fn decode_32_byte_hex(value: &str) -> FaultResult<[u8; 32]> {
 fn unix_millis() -> FaultResult<u64> {
     let elapsed = std::time::SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map_err(|_| Fault::new(Code::FailedPrecondition, "runtime gateway clock is before Unix epoch"))?;
-    u64::try_from(elapsed.as_millis())
-        .map_err(|_| Fault::new(Code::OutOfRange, "runtime gateway clock exceeds u64 milliseconds"))
+        .map_err(|_| {
+            Fault::new(
+                Code::FailedPrecondition,
+                "runtime gateway clock is before Unix epoch",
+            )
+        })?;
+    u64::try_from(elapsed.as_millis()).map_err(|_| {
+        Fault::new(
+            Code::OutOfRange,
+            "runtime gateway clock exceeds u64 milliseconds",
+        )
+    })
 }
 
 #[cfg(test)]

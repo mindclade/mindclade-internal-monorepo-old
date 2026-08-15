@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 """Make this directory importable by its own test modules.
 
 Several tests here import a sibling helper by bare name — `test_execution_tickets.py` pulls

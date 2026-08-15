@@ -1,1 +1,6 @@
-pub use crate::{Hello,Message,MessageKind,ProtocolVersion,MAX_CONTROL_PAYLOAD};
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
+pub use crate::{Hello, MAX_CONTROL_PAYLOAD, Message, MessageKind, ProtocolVersion};

@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 site_name: Mindclade Engineering Architecture
 site_description: Production monorepo, control-plane, data, training, and runtime architecture
 strict: true

@@ -1,15 +1,20 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Framework-independent runtime-host execution core.
 
+use crate::ipc::validate_bulk_descriptors;
+use crate::supervision::WorkerSession;
 use crate::{
     HostConfig, HostHealth, ModelRegistry, NodeResources, ProcessLauncher, ProcessSupervisor,
 };
-use crate::ipc::validate_bulk_descriptors;
-use crate::supervision::WorkerSession;
 use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_gpu_host::{DeviceCapability, GpuHost};
-use mindclade_serving_runtime::{host::HostInvocation, BatchEnvelope};
+use mindclade_serving_runtime::{BatchEnvelope, host::HostInvocation};
 use mindclade_worker_protocol::{
-    BufferDescriptor, ExecutionTicket, RevocationSnapshot, SignatureVerifier, WorkerState
+    BufferDescriptor, ExecutionTicket, RevocationSnapshot, SignatureVerifier, WorkerState,
 };
 use std::sync::Arc;
 
@@ -53,16 +58,20 @@ pub struct HostCore {
 
 impl HostCore {
     pub fn new(
-    config: HostConfig,
-    capability: DeviceCapability,
-    launcher: Arc<dyn ProcessLauncher>,
-    health: Arc<HostHealth>,
+        config: HostConfig,
+        capability: DeviceCapability,
+        launcher: Arc<dyn ProcessLauncher>,
+        health: Arc<HostHealth>,
     ) -> FaultResult<Self> {
         config.validate()?;
         let resources = NodeResources::new(config.node_resources.clone())?;
         let gpu = Arc::new(GpuHost::new(capability, resources.root())?);
         let processes = Arc::new(ProcessSupervisor::new(launcher, config.maximum_processes)?);
-        let models = Arc::new(ModelRegistry::new(gpu, processes.clone(), config.maximum_model_slots)?);
+        let models = Arc::new(ModelRegistry::new(
+            gpu,
+            processes.clone(),
+            config.maximum_model_slots,
+        )?);
         health.set_process_supervisor_ready(true);
         health.set_gpu_ready(true);
         Ok(Self {
@@ -93,16 +102,25 @@ impl HostCore {
         verifier: &V,
     ) -> FaultResult<ExecutionSession> {
         if !self.health.snapshot().accepting {
-            return Err(Fault::new(Code::Unavailable, "runtime host is draining or not accepting"));
+            return Err(Fault::new(
+                Code::Unavailable,
+                "runtime host is draining or not accepting",
+            ));
         }
         validate_bulk_descriptors(&inputs, self.config.maximum_input_buffers, now_unix_millis)?;
         revocations.validate(now_unix_millis, minimum_revocation_epoch, verifier)?;
         if let Some(model) = ticket.claims.model_bundle {
             if !self.models.contains(&model) {
-                return Err(Fault::new(Code::FailedPrecondition, "required model bundle is not loaded on this runtime host"));
+                return Err(Fault::new(
+                    Code::FailedPrecondition,
+                    "required model bundle is not loaded on this runtime host",
+                ));
             }
         }
-        let budget = self.resources.child(ticket.claims.ticket_id.to_string(), ticket.claims.budget.to_resources());
+        let budget = self.resources.child(
+            ticket.claims.ticket_id.to_string(),
+            ticket.claims.budget.to_resources(),
+        );
         let worker = WorkerSession::start(
             budget,
             ticket,

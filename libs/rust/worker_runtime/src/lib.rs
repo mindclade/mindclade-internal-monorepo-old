@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Reusable ticketed worker state machine for ingestion, preprocessing,
 //! evaluation, batch inference, checkpoint transfer, and node-local stages.
 #![forbid(unsafe_code)]
@@ -191,7 +196,9 @@ impl WorkerRuntime {
     pub fn cancel(&self, reason: impl Into<String>) -> FaultResult<()> {
         let reason = reason.into();
         if reason.is_empty() || reason.len() > 1024 || reason.trim() != reason {
-            return Err(Fault::invalid_argument("worker cancellation reason is invalid"));
+            return Err(Fault::invalid_argument(
+                "worker cancellation reason is invalid",
+            ));
         }
         let phase = self.state();
         if state::is_terminal(phase) {
@@ -236,9 +243,9 @@ impl WorkerRuntime {
             .state
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        let current = state.fencing.ok_or_else(|| {
-            Fault::new(Code::FailedPrecondition, "worker has no fencing token")
-        })?;
+        let current = state
+            .fencing
+            .ok_or_else(|| Fault::new(Code::FailedPrecondition, "worker has no fencing token"))?;
         commit::require_current(token, current)
     }
     fn transition(&self, to: WorkerState) -> FaultResult<()> {
@@ -247,12 +254,11 @@ impl WorkerRuntime {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         if !machine::allowed(state.phase, to) {
-            return Err(Fault::new(
-                Code::FailedPrecondition,
-                "invalid worker state transition",
-            )
-            .with_context("from", format!("{:?}", state.phase))
-            .with_context("to", format!("{to:?}")));
+            return Err(
+                Fault::new(Code::FailedPrecondition, "invalid worker state transition")
+                    .with_context("from", format!("{:?}", state.phase))
+                    .with_context("to", format!("{to:?}")),
+            );
         }
         state.phase = to;
         Ok(())

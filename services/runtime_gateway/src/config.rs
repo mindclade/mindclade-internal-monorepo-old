@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Bounded runtime-gateway configuration.
 
 use mindclade_faults::{Fault, FaultResult};
@@ -26,7 +31,9 @@ impl GatewayConfig {
             || self.maximum_request_key_bytes == 0
             || self.maximum_request_key_bytes > 16 * 1024
         {
-            return Err(Fault::invalid_argument("runtime gateway limits are invalid"));
+            return Err(Fault::invalid_argument(
+                "runtime gateway limits are invalid",
+            ));
         }
         Ok(())
     }

@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 """Make this directory importable by its own test modules.
 
 `test_reference_training.py` imports `ReferenceTrainingEngine` from the sibling

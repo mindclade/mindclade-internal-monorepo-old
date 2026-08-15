@@ -1,8 +1,13 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Worker lifecycle supervisor used by ticketed stage executors.
 
+use crate::WorkerRuntime;
 use crate::preemption::PreemptionNotice;
 use crate::state;
-use crate::WorkerRuntime;
 use mindclade_faults::FaultResult;
 use mindclade_worker_protocol::WorkerState;
 use std::sync::Arc;

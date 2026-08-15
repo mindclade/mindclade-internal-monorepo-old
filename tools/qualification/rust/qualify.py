@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 """Production Rust qualification orchestrator.
 
 Qualification is deliberately read-only with respect to dependency locks.  The

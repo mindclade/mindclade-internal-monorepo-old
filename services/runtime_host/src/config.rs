@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Runtime-host configuration with explicit hard limits.
 
 use mindclade_faults::{Fault, FaultResult};
@@ -27,7 +32,9 @@ impl HostConfig {
             || self.node_resources.get(ResourceKind::Processes) == 0
             || self.node_resources.get(ResourceKind::CpuThreads) == 0
         {
-            return Err(Fault::invalid_argument("runtime host configuration is invalid"));
+            return Err(Fault::invalid_argument(
+                "runtime host configuration is invalid",
+            ));
         }
         Ok(())
     }

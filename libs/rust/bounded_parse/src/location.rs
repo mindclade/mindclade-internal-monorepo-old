@@ -1,20 +1,31 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Stable source position used in parse diagnostics.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct Location {
     pub offset: usize,
     pub line: usize,
-    pub column: usize
+    pub column: usize,
 }
 
 impl Location {
-    #[must_use] pub const fn start() -> Self {
+    #[must_use]
+    pub const fn start() -> Self {
         Self {
-            offset: 0, line: 1, column: 1
+            offset: 0,
+            line: 1,
+            column: 1,
         }
     }
-    #[must_use] pub const fn at(offset: usize, line: usize, column: usize) -> Self {
+    #[must_use]
+    pub const fn at(offset: usize, line: usize, column: usize) -> Self {
         Self {
-            offset, line, column
+            offset,
+            line,
+            column,
         }
     }
 }

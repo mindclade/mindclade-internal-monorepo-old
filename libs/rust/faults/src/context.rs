@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Structured context with explicit sensitive-value handling.
 
 use std::collections::BTreeMap;
@@ -67,7 +72,9 @@ impl Context {
     /// Creates an empty context.
     #[must_use]
     pub const fn new() -> Self {
-        Self { values: BTreeMap::new() }
+        Self {
+            values: BTreeMap::new(),
+        }
     }
     /// Inserts a non-secret context value.
     pub fn insert(&mut self, key: impl Into<String>, value: impl Into<ContextValue>) {

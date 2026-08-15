@@ -1,9 +1,12 @@
-// Copyright 2026 Mindclade. All rights reserved.
-// Confidential, proprietary, and trade-secret information.
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
 
 package session
 
 import (
+	"encoding/base64"
 	"errors"
 	"strings"
 	"testing"
@@ -154,14 +157,53 @@ func TestKeyIDIsAuthenticated(t *testing.T) {
 	}
 }
 
+// Tampering must be rejected by the AEAD tag rather than by chance.
+//
+// Flipping a character of the base64 directly is not a reliable way to test
+// this: it often produces a string that is not valid base64 at all, so the
+// rejection comes from parsing and the authentication tag is never exercised.
+// Decoding, flipping a byte of the ciphertext, and re-encoding guarantees a
+// well-formed cookie whose only defect is that it was altered.
 func TestTamperedCiphertextIsRejected(t *testing.T) {
 	c := testCodec(t)
-	value, _ := c.Seal("user-a", "sess-1")
+	value, err := c.Seal("user-a", "sess-1")
+	if err != nil {
+		t.Fatalf("Seal: %v", err)
+	}
 
-	b := []byte(value)
-	b[len(b)-1] ^= 0x01
-	if _, err := c.Open(string(b), "user-a"); !errors.Is(err, ErrUndecryptable) {
+	parts := strings.SplitN(value, ".", 3)
+	if len(parts) != 3 {
+		t.Fatalf("unexpected cookie shape: %q", value)
+	}
+
+	ct, err := base64.RawURLEncoding.DecodeString(parts[2])
+	if err != nil {
+		t.Fatalf("decode ciphertext: %v", err)
+	}
+	ct[len(ct)-1] ^= 0x01
+
+	tampered := parts[0] + "." + parts[1] + "." + base64.RawURLEncoding.EncodeToString(ct)
+	if _, err := c.Open(tampered, "user-a"); !errors.Is(err, ErrUndecryptable) {
 		t.Fatalf("err = %v, want ErrUndecryptable", err)
+	}
+}
+
+// A flipped byte anywhere in the cookie must be rejected, whether the rejection
+// comes from base64 parsing or from the authentication tag. Both are correct;
+// what matters is that none of them open.
+func TestAnyMutationIsRejected(t *testing.T) {
+	c := testCodec(t)
+	value, err := c.Seal("user-a", "sess-1")
+	if err != nil {
+		t.Fatalf("Seal: %v", err)
+	}
+
+	for i := 0; i < len(value); i++ {
+		b := []byte(value)
+		b[i] ^= 0x01
+		if _, err := c.Open(string(b), "user-a"); err == nil {
+			t.Fatalf("mutation at byte %d opened successfully", i)
+		}
 	}
 }
 

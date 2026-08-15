@@ -1,6 +1,11 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 use mindclade_runtime_core::ManualClock;
-use mindclade_telemetry::MemorySink;
 use mindclade_servicekit::{HealthRegistry, HealthStatus, ShutdownToken, Supervisor};
+use mindclade_telemetry::MemorySink;
 use std::sync::Arc;
 use std::time::{Instant, SystemTime};
 
@@ -8,10 +13,26 @@ use std::time::{Instant, SystemTime};
 fn readiness_and_shutdown_are_explicit() {
     let clock = Arc::new(ManualClock::new(SystemTime::UNIX_EPOCH, Instant::now()));
     let health = HealthRegistry::new(clock.clone());
-    assert!(!health.is_ready()); assert!(health.set("artifact-store", HealthStatus::Healthy, "ready").is_ok()); assert!(health.is_ready());
-    let token = ShutdownToken::new(); let mut supervisor = Supervisor::new(token.clone(), clock, Arc::new(MemorySink::default()));
-    assert!(supervisor.spawn("worker", |shutdown| { shutdown.wait_timeout(std::time::Duration::from_millis(1)); Ok(()) }).is_ok());
-    supervisor.shutdown(); assert!(supervisor.join().is_empty()); assert!(token.is_cancelled());
+    assert!(!health.is_ready());
+    assert!(
+        health
+            .set("artifact-store", HealthStatus::Healthy, "ready")
+            .is_ok()
+    );
+    assert!(health.is_ready());
+    let token = ShutdownToken::new();
+    let mut supervisor = Supervisor::new(token.clone(), clock, Arc::new(MemorySink::default()));
+    assert!(
+        supervisor
+            .spawn("worker", |shutdown| {
+                shutdown.wait_timeout(std::time::Duration::from_millis(1));
+                Ok(())
+            })
+            .is_ok()
+    );
+    supervisor.shutdown();
+    assert!(supervisor.join().is_empty());
+    assert!(token.is_cancelled());
 }
 
 use mindclade_faults::{Fault, FaultResult};

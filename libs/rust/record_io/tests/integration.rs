@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 use mindclade_bytes_io::ByteSize;
 use mindclade_record_io::{Decoder, Encoder, RecordReader, RecordWriter};
 use std::io::Cursor;
@@ -15,7 +20,13 @@ fn frames_and_codec_round_trip() {
     let record = reader.read_next();
     assert!(record.is_ok());
     if let Ok(Some(record)) = record {
-        let mut decoder = match Decoder::new(&record.payload, 1024) { Ok(value) => value, Err(_) => { assert!(false); return; } };
+        let mut decoder = match Decoder::new(&record.payload, 1024) {
+            Ok(value) => value,
+            Err(_) => {
+                assert!(false);
+                return;
+            }
+        };
         assert_eq!(decoder.string().ok(), Some("checkpoint"));
         assert_eq!(decoder.u64().ok(), Some(42));
         assert!(decoder.finish().is_ok());

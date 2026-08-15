@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! `servicekit` adapter for the artifact-proxy core.
 use crate::ArtifactProxyCore;
 use mindclade_faults::FaultResult;

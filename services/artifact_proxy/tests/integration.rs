@@ -1,12 +1,19 @@
-use mindclade_artifact_proxy::{
-    LocalCache, ProxyConfig, ProxyHealth
-};
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
+use mindclade_artifact_proxy::{LocalCache, ProxyConfig, ProxyHealth};
 
 #[test]
 fn config_and_cache_are_bounded() {
     let config = ProxyConfig {
-        maximum_read_bytes: 1024, maximum_write_bytes: 1024, maximum_range_bytes: 512, maximum_cache_bytes: 1024,
-        maximum_cache_entries: 2, maximum_concurrent_transfers: 4
+        maximum_read_bytes: 1024,
+        maximum_write_bytes: 1024,
+        maximum_range_bytes: 512,
+        maximum_cache_bytes: 1024,
+        maximum_cache_entries: 2,
+        maximum_concurrent_transfers: 4,
     };
     assert!(config.validate().is_ok());
     let cache = LocalCache::new(1024, 2).expect("cache");

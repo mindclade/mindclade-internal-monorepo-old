@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 use mindclade_bytes_io::ByteSize;
 use mindclade_faults::{Code, Fault, FaultResult};
 
@@ -42,7 +47,12 @@ impl Limits {
             .maximum_allocation_bytes
             .get()
             .checked_mul(4)
-            .ok_or_else(|| Fault::new(Code::OutOfRange, "parse allocation/input ratio overflows u64"))?;
+            .ok_or_else(|| {
+                Fault::new(
+                    Code::OutOfRange,
+                    "parse allocation/input ratio overflows u64",
+                )
+            })?;
         if self.maximum_input_bytes.get() > maximum_reasonable_input {
             return Err(Fault::new(
                 Code::FailedPrecondition,

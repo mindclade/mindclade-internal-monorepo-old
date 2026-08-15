@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Readiness, drain state, and active-stage accounting for node execution.
 
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};

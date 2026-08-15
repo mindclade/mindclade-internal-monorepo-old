@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 syntax = "proto3";
 package mindclade.runtime.v1;
 import "mindclade/runtime/v1/buffer_descriptor.proto";

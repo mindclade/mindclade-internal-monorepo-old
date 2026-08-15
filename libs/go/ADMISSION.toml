@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 schema_version = 1
 policy = "domain-neutral + >=2 production consumers + conformance test + layer ownership"
 forbidden_names = ["common", "shared", "helpers", "utils", "platform", "workflow", "repository", "state_machine", "queue", "tenant", "quota", "runs", "jobs"]

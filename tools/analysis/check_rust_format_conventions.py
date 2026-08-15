@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 """Fail on obviously unformatted Rust while rustfmt remains the authoritative gate."""
 
 from __future__ import annotations

@@ -1061,6 +1061,7 @@ dependencies = [
  "bytes",
  "mindclade-serving-runtime",
  "mindclade_bytes_io",
+ "mindclade_content_digest",
  "mindclade_faults",
  "mindclade_gpu_host",
  "mindclade_identifiers",
@@ -1071,6 +1072,7 @@ dependencies = [
  "mindclade_telemetry",
  "mindclade_worker_protocol",
  "mindclade_worker_runtime",
+ "prost",
  "tokio",
 ]
 
@@ -1122,6 +1124,7 @@ name = "mindclade_bio_formats"
 version = "0.0.0"
 dependencies = [
  "mindclade_bounded_parse",
+ "mindclade_bytes_io",
  "mindclade_faults",
 ]
 
@@ -1192,6 +1195,7 @@ dependencies = [
 name = "mindclade_identifiers"
 version = "0.0.0"
 dependencies = [
+ "mindclade_content_digest",
  "mindclade_faults",
  "mindclade_runtime_core",
 ]
@@ -1205,6 +1209,8 @@ dependencies = [
  "mindclade_faults",
  "mindclade_identifiers",
  "mindclade_record_io",
+ "mindclade_runtime_core",
+ "mindclade_worker_protocol",
 ]
 
 [[package]]
@@ -1341,6 +1347,7 @@ name = "mindclade_worker_runtime"
 version = "0.0.0"
 dependencies = [
  "mindclade_faults",
+ "mindclade_identifiers",
  "mindclade_runtime_core",
  "mindclade_worker_protocol",
 ]

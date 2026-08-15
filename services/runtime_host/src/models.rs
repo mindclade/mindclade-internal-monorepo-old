@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Model-slot and process registry. It does not interpret tensors or model code.
 
 use crate::{ProcessHandle, ProcessSpec, ProcessSupervisor};
@@ -16,7 +21,9 @@ pub struct ModelSpec {
 impl ModelSpec {
     pub fn validate(&self) -> FaultResult<()> {
         if self.model_digest == Digest::ZERO || self.minimum_gpu_memory_bytes == 0 {
-            return Err(Fault::invalid_argument("model slot specification is invalid"));
+            return Err(Fault::invalid_argument(
+                "model slot specification is invalid",
+            ));
         }
         self.process.validate()
     }
@@ -59,7 +66,9 @@ impl ModelRegistry {
         maximum_slots: u32,
     ) -> FaultResult<Self> {
         if maximum_slots == 0 {
-            return Err(Fault::invalid_argument("maximum model slots must be positive"));
+            return Err(Fault::invalid_argument(
+                "maximum model slots must be positive",
+            ));
         }
         Ok(Self {
             gpu,
@@ -70,14 +79,20 @@ impl ModelRegistry {
     }
     pub fn load(&self, spec: ModelSpec) -> FaultResult<()> {
         spec.validate()?;
-        let mut models = self.models.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut models = self
+            .models
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         if models.contains_key(&spec.model_digest) {
             return Ok(());
         }
         let maximum_slots = usize::try_from(self.maximum_slots)
             .map_err(|_| Fault::new(Code::OutOfRange, "model slot limit exceeds platform usize"))?;
         if models.len() >= maximum_slots {
-            return Err(Fault::new(Code::ResourceExhausted, "model slot limit reached"));
+            return Err(Fault::new(
+                Code::ResourceExhausted,
+                "model slot limit reached",
+            ));
         }
         let slot = self.gpu.reserve_model(ModelSlotRequest {
             model_digest: spec.model_digest,
@@ -85,7 +100,14 @@ impl ModelRegistry {
             pinned_memory_bytes: spec.pinned_memory_bytes,
         })?;
         let process = self.processes.launch(&spec.process)?;
-        models.insert(spec.model_digest, LoadedModel { spec, process, _slot: slot });
+        models.insert(
+            spec.model_digest,
+            LoadedModel {
+                spec,
+                process,
+                _slot: slot,
+            },
+        );
         Ok(())
     }
     pub fn unload(&self, digest: &Digest) -> FaultResult<()> {
@@ -118,6 +140,9 @@ impl ModelRegistry {
     }
     #[must_use]
     pub fn len(&self) -> usize {
-        self.models.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).len()
+        self.models
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .len()
     }
 }

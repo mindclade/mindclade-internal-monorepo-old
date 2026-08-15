@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! GPU-host admission primitives without a CUDA/ROCm API dependency.
 #![forbid(unsafe_code)]
 
@@ -19,7 +24,9 @@ fn valid_token(value: &str, maximum_bytes: usize) -> bool {
     !value.is_empty()
         && value.len() <= maximum_bytes
         && value == value.trim()
-        && value.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -86,7 +93,10 @@ impl GpuHost {
             ));
         }
         let resources = ResourceVector::new()
-            .set(ResourceKind::GpuMemoryEstimateBytes, request.minimum_memory_bytes)
+            .set(
+                ResourceKind::GpuMemoryEstimateBytes,
+                request.minimum_memory_bytes,
+            )
             .set(ResourceKind::PinnedMemoryBytes, request.pinned_memory_bytes);
         Ok(ModelSlot {
             _reservation: self.budget.reserve(resources)?,

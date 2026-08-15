@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Validated GPU memory snapshots.
 #![forbid(unsafe_code)]
 
@@ -15,7 +20,9 @@ impl MemorySnapshot {
             return Err(Fault::invalid_argument("GPU memory total must be positive"));
         }
         if reserved > total {
-            return Err(Fault::invalid_argument("GPU reserved memory exceeds total memory"));
+            return Err(Fault::invalid_argument(
+                "GPU reserved memory exceeds total memory",
+            ));
         }
         Ok(Self { total, reserved })
     }

@@ -1,6 +1,9 @@
-use mindclade_artifact_cas::gc::{
-    sweep, GarbageCollectionCandidate, GarbageCollectionPlan,
-};
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
+use mindclade_artifact_cas::gc::{GarbageCollectionCandidate, GarbageCollectionPlan, sweep};
 use mindclade_content_digest::hash_bytes;
 use mindclade_object_store::{MemoryStore, ObjectPath, ObjectStore, PutCondition};
 

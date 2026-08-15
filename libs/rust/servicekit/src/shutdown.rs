@@ -1,16 +1,19 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Cooperative shutdown token.
 
-use std::sync::atomic::{
-    AtomicBool, Ordering
-};
-use std::sync::{
-    Arc, Condvar, Mutex
-};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 
 #[derive(Debug)]
 struct State {
-    cancelled: AtomicBool, mutex: Mutex<()>, changed: Condvar
+    cancelled: AtomicBool,
+    mutex: Mutex<()>,
+    changed: Condvar,
 }
 
 #[derive(Clone, Debug)]
@@ -23,9 +26,12 @@ impl Default for ShutdownToken {
 }
 
 impl ShutdownToken {
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self(Arc::new(State {
-            cancelled: AtomicBool::new(false), mutex: Mutex::new(()), changed: Condvar::new()
+            cancelled: AtomicBool::new(false),
+            mutex: Mutex::new(()),
+            changed: Condvar::new(),
         }))
     }
     pub fn cancel(&self) -> bool {
@@ -35,15 +41,23 @@ impl ShutdownToken {
         }
         changed
     }
-    #[must_use] pub fn is_cancelled(&self) -> bool {
+    #[must_use]
+    pub fn is_cancelled(&self) -> bool {
         self.0.cancelled.load(Ordering::Acquire)
     }
     pub fn wait_timeout(&self, timeout: Duration) -> bool {
         if self.is_cancelled() {
             return true;
         }
-        let guard = self.0.mutex.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-        let _result = self.0.changed.wait_timeout_while(guard, timeout, |_| !self.is_cancelled());
+        let guard = self
+            .0
+            .mutex
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let _result = self
+            .0
+            .changed
+            .wait_timeout_while(guard, timeout, |_| !self.is_cancelled());
         self.is_cancelled()
     }
 }

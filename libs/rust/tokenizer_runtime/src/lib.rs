@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Deterministic, bounded tokenizer runtime contracts.
 #![forbid(unsafe_code)]
 
@@ -18,7 +23,9 @@ pub struct Encoding {
 impl Encoding {
     pub fn validate(&self) -> FaultResult<()> {
         if self.ids.len() != self.offsets.len() {
-            return Err(Fault::data_loss("token IDs and offsets have different lengths"));
+            return Err(Fault::data_loss(
+                "token IDs and offsets have different lengths",
+            ));
         }
         let mut previous = 0_u32;
         for (start, end) in &self.offsets {
@@ -42,12 +49,19 @@ pub trait Tokenizer: Send + Sync {
 pub struct ByteTokenizer;
 
 impl Tokenizer for ByteTokenizer {
-    fn name(&self) -> &str { "byte-v1" }
-    fn vocabulary_size(&self) -> usize { 256 }
+    fn name(&self) -> &str {
+        "byte-v1"
+    }
+    fn vocabulary_size(&self) -> usize {
+        256
+    }
     fn encode(&self, input: &[u8], maximum_tokens: usize) -> FaultResult<Encoding> {
         require_offset_domain(input.len())?;
         if input.len() > maximum_tokens {
-            return Err(Fault::new(Code::ResourceExhausted, "token output exceeds limit"));
+            return Err(Fault::new(
+                Code::ResourceExhausted,
+                "token output exceeds limit",
+            ));
         }
         let ids = input.iter().map(|value| u32::from(*value)).collect();
         let mut offsets = Vec::with_capacity(input.len());
@@ -60,10 +74,16 @@ impl Tokenizer for ByteTokenizer {
     }
     fn decode(&self, ids: &[TokenId], maximum_bytes: usize) -> FaultResult<Vec<u8>> {
         if ids.len() > maximum_bytes {
-            return Err(Fault::new(Code::ResourceExhausted, "decoded output exceeds limit"));
+            return Err(Fault::new(
+                Code::ResourceExhausted,
+                "decoded output exceeds limit",
+            ));
         }
         ids.iter()
-            .map(|value| u8::try_from(*value).map_err(|_| Fault::invalid_argument("byte token is out of range")))
+            .map(|value| {
+                u8::try_from(*value)
+                    .map_err(|_| Fault::invalid_argument("byte token is out of range"))
+            })
             .collect()
     }
 }
@@ -88,14 +108,25 @@ impl AlphabetTokenizer {
             let token_id = u32::try_from(index)
                 .map_err(|_| Fault::new(Code::OutOfRange, "alphabet token ID exceeds u32"))?;
             if by_byte.insert(byte, token_id).is_some() {
-                return Err(Fault::invalid_argument("alphabet contains duplicate symbols"));
+                return Err(Fault::invalid_argument(
+                    "alphabet contains duplicate symbols",
+                ));
             }
         }
         let unknown = match unknown {
-            Some(byte) => Some(*by_byte.get(&byte).ok_or_else(|| Fault::invalid_argument("unknown symbol is not in alphabet"))?),
+            Some(byte) => Some(
+                *by_byte
+                    .get(&byte)
+                    .ok_or_else(|| Fault::invalid_argument("unknown symbol is not in alphabet"))?,
+            ),
             None => None,
         };
-        Ok(Self { name, alphabet: alphabet.to_vec(), by_byte, unknown })
+        Ok(Self {
+            name,
+            alphabet: alphabet.to_vec(),
+            by_byte,
+            unknown,
+        })
     }
     pub fn protein() -> FaultResult<Self> {
         Self::new("protein-v1", b"ACDEFGHIKLMNPQRSTVWYXBZUO-", Some(b'X'))
@@ -106,19 +137,34 @@ impl AlphabetTokenizer {
 }
 
 impl Tokenizer for AlphabetTokenizer {
-    fn name(&self) -> &str { &self.name }
-    fn vocabulary_size(&self) -> usize { self.alphabet.len() }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn vocabulary_size(&self) -> usize {
+        self.alphabet.len()
+    }
     fn encode(&self, input: &[u8], maximum_tokens: usize) -> FaultResult<Encoding> {
         require_offset_domain(input.len())?;
         if input.len() > maximum_tokens {
-            return Err(Fault::new(Code::ResourceExhausted, "token output exceeds limit"));
+            return Err(Fault::new(
+                Code::ResourceExhausted,
+                "token output exceeds limit",
+            ));
         }
         let mut ids = Vec::with_capacity(input.len());
         let mut offsets = Vec::with_capacity(input.len());
         for (index, byte) in input.iter().copied().enumerate() {
             let normalized = byte.to_ascii_uppercase();
-            let id = self.by_byte.get(&normalized).copied().or(self.unknown)
-                .ok_or_else(|| Fault::invalid_argument("input contains a symbol outside the tokenizer alphabet"))?;
+            let id = self
+                .by_byte
+                .get(&normalized)
+                .copied()
+                .or(self.unknown)
+                .ok_or_else(|| {
+                    Fault::invalid_argument(
+                        "input contains a symbol outside the tokenizer alphabet",
+                    )
+                })?;
             ids.push(id);
             offsets.push(unit_offset(index)?);
         }
@@ -128,14 +174,21 @@ impl Tokenizer for AlphabetTokenizer {
     }
     fn decode(&self, ids: &[TokenId], maximum_bytes: usize) -> FaultResult<Vec<u8>> {
         if ids.len() > maximum_bytes {
-            return Err(Fault::new(Code::ResourceExhausted, "decoded output exceeds limit"));
+            return Err(Fault::new(
+                Code::ResourceExhausted,
+                "decoded output exceeds limit",
+            ));
         }
-        ids.iter().map(|id| {
-            let index = usize::try_from(*id)
-                .map_err(|_| Fault::invalid_argument("token ID exceeds platform limits"))?;
-            self.alphabet.get(index).copied()
-                .ok_or_else(|| Fault::invalid_argument("token ID is outside the alphabet"))
-        }).collect()
+        ids.iter()
+            .map(|id| {
+                let index = usize::try_from(*id)
+                    .map_err(|_| Fault::invalid_argument("token ID exceeds platform limits"))?;
+                self.alphabet
+                    .get(index)
+                    .copied()
+                    .ok_or_else(|| Fault::invalid_argument("token ID is outside the alphabet"))
+            })
+            .collect()
     }
 }
 
@@ -148,7 +201,11 @@ pub struct VocabularyTokenizer {
 }
 
 impl VocabularyTokenizer {
-    pub fn new(name: impl Into<String>, tokens: Vec<Vec<u8>>, unknown: Option<TokenId>) -> FaultResult<Self> {
+    pub fn new(
+        name: impl Into<String>,
+        tokens: Vec<Vec<u8>>,
+        unknown: Option<TokenId>,
+    ) -> FaultResult<Self> {
         let name = name.into();
         validate_name(&name)?;
         if tokens.is_empty() || tokens.len() > MAX_VOCABULARY_SIZE {
@@ -157,24 +214,39 @@ impl VocabularyTokenizer {
         let mut by_token = BTreeMap::new();
         for (index, token) in tokens.iter().enumerate() {
             if token.is_empty() || token.len() > MAX_TOKEN_BYTES {
-                return Err(Fault::invalid_argument("vocabulary token length is invalid"));
+                return Err(Fault::invalid_argument(
+                    "vocabulary token length is invalid",
+                ));
             }
             let token_id = u32::try_from(index)
                 .map_err(|_| Fault::new(Code::OutOfRange, "vocabulary token ID exceeds u32"))?;
             if by_token.insert(token.clone(), token_id).is_some() {
-                return Err(Fault::invalid_argument("vocabulary contains duplicate tokens"));
+                return Err(Fault::invalid_argument(
+                    "vocabulary contains duplicate tokens",
+                ));
             }
         }
-        if unknown.is_some_and(|value| usize::try_from(value).map_or(true, |index| index >= tokens.len())) {
+        if unknown
+            .is_some_and(|value| usize::try_from(value).map_or(true, |index| index >= tokens.len()))
+        {
             return Err(Fault::invalid_argument("unknown token ID is invalid"));
         }
-        Ok(Self { name, tokens, by_token, unknown })
+        Ok(Self {
+            name,
+            tokens,
+            by_token,
+            unknown,
+        })
     }
 }
 
 impl Tokenizer for VocabularyTokenizer {
-    fn name(&self) -> &str { &self.name }
-    fn vocabulary_size(&self) -> usize { self.tokens.len() }
+    fn name(&self) -> &str {
+        &self.name
+    }
+    fn vocabulary_size(&self) -> usize {
+        self.tokens.len()
+    }
     fn encode(&self, input: &[u8], maximum_tokens: usize) -> FaultResult<Encoding> {
         require_offset_domain(input.len())?;
         let mut ids = Vec::new();
@@ -184,18 +256,29 @@ impl Tokenizer for VocabularyTokenizer {
             while cursor < input.len() && input[cursor].is_ascii_whitespace() {
                 cursor += 1;
             }
-            if cursor == input.len() { break; }
+            if cursor == input.len() {
+                break;
+            }
             let start = cursor;
             while cursor < input.len() && !input[cursor].is_ascii_whitespace() {
                 cursor += 1;
             }
             let end = cursor;
             if ids.len() >= maximum_tokens {
-                return Err(Fault::new(Code::ResourceExhausted, "token output exceeds limit"));
+                return Err(Fault::new(
+                    Code::ResourceExhausted,
+                    "token output exceeds limit",
+                ));
             }
             let token = &input[start..end];
-            let id = self.by_token.get(token).copied().or(self.unknown)
-                .ok_or_else(|| Fault::invalid_argument("input contains an unknown vocabulary token"))?;
+            let id = self
+                .by_token
+                .get(token)
+                .copied()
+                .or(self.unknown)
+                .ok_or_else(|| {
+                    Fault::invalid_argument("input contains an unknown vocabulary token")
+                })?;
             ids.push(id);
             offsets.push((offset_u32(start)?, offset_u32(end)?));
         }
@@ -208,15 +291,25 @@ impl Tokenizer for VocabularyTokenizer {
         for (index, id) in ids.iter().enumerate() {
             let token_index = usize::try_from(*id)
                 .map_err(|_| Fault::invalid_argument("token ID exceeds platform limits"))?;
-            let token = self.tokens.get(token_index)
+            let token = self
+                .tokens
+                .get(token_index)
                 .ok_or_else(|| Fault::invalid_argument("token ID is outside the vocabulary"))?;
             let separator = usize::from(index > 0);
-            let next = output.len().checked_add(separator).and_then(|size| size.checked_add(token.len()))
+            let next = output
+                .len()
+                .checked_add(separator)
+                .and_then(|size| size.checked_add(token.len()))
                 .ok_or_else(|| Fault::new(Code::OutOfRange, "decoded output length overflow"))?;
             if next > maximum_bytes {
-                return Err(Fault::new(Code::ResourceExhausted, "decoded output exceeds limit"));
+                return Err(Fault::new(
+                    Code::ResourceExhausted,
+                    "decoded output exceeds limit",
+                ));
             }
-            if index > 0 { output.push(b' '); }
+            if index > 0 {
+                output.push(b' ');
+            }
             output.extend_from_slice(token);
         }
         Ok(output)
@@ -234,18 +327,23 @@ fn require_offset_domain(length: usize) -> FaultResult<()> {
     let length = u64::try_from(length)
         .map_err(|_| Fault::new(Code::OutOfRange, "tokenizer input length exceeds u64"))?;
     if length > u64::from(u32::MAX) {
-        return Err(Fault::new(Code::ResourceExhausted, "tokenizer input exceeds u32 offset domain"));
+        return Err(Fault::new(
+            Code::ResourceExhausted,
+            "tokenizer input exceeds u32 offset domain",
+        ));
     }
     Ok(())
 }
 
 fn offset_u32(value: usize) -> FaultResult<u32> {
-    u32::try_from(value).map_err(|_| Fault::new(Code::ResourceExhausted, "token offset exceeds u32 domain"))
+    u32::try_from(value)
+        .map_err(|_| Fault::new(Code::ResourceExhausted, "token offset exceeds u32 domain"))
 }
 
 fn unit_offset(index: usize) -> FaultResult<(u32, u32)> {
     let start = offset_u32(index)?;
-    let end = start.checked_add(1)
+    let end = start
+        .checked_add(1)
         .ok_or_else(|| Fault::new(Code::ResourceExhausted, "token offset exceeds u32 domain"))?;
     Ok((start, end))
 }

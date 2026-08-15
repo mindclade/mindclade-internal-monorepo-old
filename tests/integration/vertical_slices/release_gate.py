@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 """Execute the four architecture-defining golden vertical release slices.
 
 The slices qualify platform boundaries.  Where a frontier model/trainer is not

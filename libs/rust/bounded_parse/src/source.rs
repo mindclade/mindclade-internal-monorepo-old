@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 use crate::Limits;
 use mindclade_faults::{Code, Fault, FaultResult};
 
@@ -13,12 +18,19 @@ impl<'a> Source<'a> {
         let input_bytes = u64::try_from(bytes.len())
             .map_err(|_| Fault::new(Code::OutOfRange, "parse input length exceeds u64"))?;
         if input_bytes > limits.maximum_input_bytes.get() {
-            return Err(Fault::new(Code::ResourceExhausted, "parse input exceeds limit"));
+            return Err(Fault::new(
+                Code::ResourceExhausted,
+                "parse input exceeds limit",
+            ));
         }
         Ok(Self { bytes, limits })
     }
     #[must_use]
-    pub fn bytes(self) -> &'a [u8] { self.bytes }
+    pub fn bytes(self) -> &'a [u8] {
+        self.bytes
+    }
     #[must_use]
-    pub const fn limits(self) -> Limits { self.limits }
+    pub const fn limits(self) -> Limits {
+        self.limits
+    }
 }

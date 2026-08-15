@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 use mindclade_bytes_io::ByteRange;
 use mindclade_content_digest::Digest;
 use mindclade_faults::{Fault, FaultResult};
@@ -20,7 +25,9 @@ impl SharedMemoryDescriptor {
         now_unix_millis: u64,
     ) -> FaultResult<Self> {
         if locator.contains('\0') {
-            return Err(Fault::invalid_argument("shared memory locator contains NUL"));
+            return Err(Fault::invalid_argument(
+                "shared memory locator contains NUL",
+            ));
         }
         let descriptor = BufferDescriptor {
             segment_id,
@@ -40,7 +47,9 @@ impl SharedMemoryDescriptor {
     }
     pub fn validate(&self, now_unix_millis: u64) -> FaultResult<()> {
         if self.descriptor.transport != BufferTransport::SharedMemory {
-            return Err(Fault::invalid_argument("descriptor is not shared-memory transport"));
+            return Err(Fault::invalid_argument(
+                "descriptor is not shared-memory transport",
+            ));
         }
         self.descriptor.validate(now_unix_millis)
     }

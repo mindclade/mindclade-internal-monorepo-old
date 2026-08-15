@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 use crate::Shard;
 use mindclade_content_digest::Digest;
 use mindclade_faults::{Code, Fault, FaultResult};
@@ -20,7 +25,10 @@ struct State {
 impl ShardCache {
     #[must_use]
     pub fn new(maximum_bytes: u64) -> Self {
-        Self { inner: Arc::new(Mutex::new(State::default())), maximum_bytes }
+        Self {
+            inner: Arc::new(Mutex::new(State::default())),
+            maximum_bytes,
+        }
     }
     pub fn get(&self, digest: Digest) -> Option<Arc<Vec<u8>>> {
         self.inner
@@ -38,9 +46,15 @@ impl ShardCache {
             return Err(Fault::data_loss("cached shard size mismatch"));
         }
         if shard.size > self.maximum_bytes {
-            return Err(Fault::new(Code::ResourceExhausted, "shard exceeds cache capacity"));
+            return Err(Fault::new(
+                Code::ResourceExhausted,
+                "shard exceeds cache capacity",
+            ));
         }
-        let mut state = self.inner.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut state = self
+            .inner
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         if let Some(existing) = state.entries.get(&shard.digest) {
             return Ok(existing.clone());
         }
@@ -51,7 +65,9 @@ impl ShardCache {
             > self.maximum_bytes
         {
             let Some(old_digest) = state.order.pop_front() else {
-                return Err(Fault::data_loss("shard-cache accounting has no eviction candidate"));
+                return Err(Fault::data_loss(
+                    "shard-cache accounting has no eviction candidate",
+                ));
             };
             if let Some(old) = state.entries.remove(&old_digest) {
                 let old_len = u64::try_from(old.len())
@@ -73,6 +89,9 @@ impl ShardCache {
     }
     #[must_use]
     pub fn used_bytes(&self) -> u64 {
-        self.inner.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).bytes
+        self.inner
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .bytes
     }
 }

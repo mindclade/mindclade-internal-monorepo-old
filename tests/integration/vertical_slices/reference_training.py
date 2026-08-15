@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 """Deterministic reference training plumbing used by platform qualification.
 
 This module deliberately does *not* qualify model numerics.  It produces a

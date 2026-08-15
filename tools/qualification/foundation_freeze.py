@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 """Foundation-freeze qualification for the final production architecture.
 
 Offline mode proves repository/design invariants and executable Go/Python seams.

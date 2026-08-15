@@ -1,10 +1,17 @@
-use std::sync::atomic::{
-    AtomicU64, Ordering
-};
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
+use std::sync::atomic::{AtomicU64, Ordering};
 
 #[derive(Debug, Default)]
 pub struct StreamMetrics {
-    shards: AtomicU64, bytes: AtomicU64, records: AtomicU64, cache_hits: AtomicU64, retries: AtomicU64
+    shards: AtomicU64,
+    bytes: AtomicU64,
+    records: AtomicU64,
+    cache_hits: AtomicU64,
+    retries: AtomicU64,
 }
 
 impl StreamMetrics {
@@ -19,8 +26,14 @@ impl StreamMetrics {
     pub fn record_retry(&self) {
         self.retries.fetch_add(1, Ordering::Relaxed);
     }
-    #[must_use]pub fn snapshot(&self) -> (u64, u64, u64, u64, u64) {
-        (self.shards.load(Ordering::Relaxed), self.bytes.load(Ordering::Relaxed), self.records.load(Ordering::Relaxed),
-        self.cache_hits.load(Ordering::Relaxed), self.retries.load(Ordering::Relaxed))
+    #[must_use]
+    pub fn snapshot(&self) -> (u64, u64, u64, u64, u64) {
+        (
+            self.shards.load(Ordering::Relaxed),
+            self.bytes.load(Ordering::Relaxed),
+            self.records.load(Ordering::Relaxed),
+            self.cache_hits.load(Ordering::Relaxed),
+            self.retries.load(Ordering::Relaxed),
+        )
     }
 }

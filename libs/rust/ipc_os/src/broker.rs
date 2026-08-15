@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Bounded registry for local bulk-data segments.
 //!
 //! The broker centralizes the OS transport policy used by runtime-host and
@@ -5,9 +10,9 @@
 //! underlying segment, keeps each segment alive for the lifetime of its
 //! descriptor lease, and verifies content on every read.
 
-use crate::{file::FileSegment, BulkSegment};
 #[cfg(target_os = "linux")]
 use crate::MemfdSegment;
+use crate::{BulkSegment, file::FileSegment};
 use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_worker_protocol::BufferDescriptor;
 use std::collections::BTreeMap;
@@ -151,9 +156,7 @@ impl BulkBufferBroker {
         now_unix_millis: u64,
     ) -> FaultResult<Vec<u8>> {
         if maximum_bytes == 0 || maximum_bytes > self.maximum_bytes_per_segment {
-            return Err(Fault::invalid_argument(
-                "bulk-buffer read limit is invalid",
-            ));
+            return Err(Fault::invalid_argument("bulk-buffer read limit is invalid"));
         }
         let segment = self
             .segments
@@ -180,9 +183,8 @@ impl BulkBufferBroker {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         let before = segments.len();
-        segments.retain(|_, segment| {
-            segment.descriptor().lease_expires_unix_millis > now_unix_millis
-        });
+        segments
+            .retain(|_, segment| segment.descriptor().lease_expires_unix_millis > now_unix_millis);
         before - segments.len()
     }
 
@@ -272,9 +274,7 @@ fn create_memfd(
 
 fn validate_directory(directory: &Path) -> FaultResult<()> {
     if directory.as_os_str().is_empty() {
-        return Err(Fault::invalid_argument(
-            "bulk-buffer directory is empty",
-        ));
+        return Err(Fault::invalid_argument("bulk-buffer directory is empty"));
     }
     if !directory.is_absolute() {
         return Err(Fault::invalid_argument(

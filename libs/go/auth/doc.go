@@ -1,5 +1,7 @@
-// Copyright 2026 Mindclade. All rights reserved.
-// Confidential and proprietary.
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
 
 // Package auth defines transport-neutral authentication and authorization
 // contracts for Mindclade services.

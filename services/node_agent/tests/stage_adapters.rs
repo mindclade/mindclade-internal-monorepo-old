@@ -1,22 +1,24 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 use mindclade_bytes_io::{ByteRange, ByteSize};
 use mindclade_checkpoint_io::StagingBudget;
 use mindclade_content_digest::hash_bytes;
 use mindclade_identifiers::ResourceId;
 use mindclade_ipc_os::{BulkBackend, BulkBufferBroker};
 use mindclade_node_agent::{
-    CheckpointCopyExecutor, CheckpointTransfer, DataStreamFetchExecutor, NodeAgentConfig,
-    NodeAgentCore, NodeHealth, ProviderSource, StreamWorker, CHECKPOINT_COPY_OPERATION,
-    DATA_STREAM_FETCH_OPERATION,
+    CHECKPOINT_COPY_OPERATION, CheckpointCopyExecutor, CheckpointTransfer,
+    DATA_STREAM_FETCH_OPERATION, DataStreamFetchExecutor, NodeAgentConfig, NodeAgentCore,
+    NodeHealth, ProviderSource, StreamWorker,
 };
 use mindclade_object_store::adapters::arrow::ArrowProvider;
 use mindclade_object_store::{ClientConfig, Namespace, ObjectPath};
-use mindclade_runtime_core::{
-    FencingToken, ManualClock, Policy, ResourceKind, ResourceVector,
-};
+use mindclade_runtime_core::{FencingToken, ManualClock, Policy, ResourceKind, ResourceVector};
 use mindclade_worker_protocol::{
     ArtifactGrant, BufferAccess, BufferDescriptor, BufferTransport, DetachedSignature,
-    ExecutionBudget, ExecutionTicket, ExecutionTicketClaims, RevocationSnapshot,
-    SignatureVerifier,
+    ExecutionBudget, ExecutionTicket, ExecutionTicketClaims, RevocationSnapshot, SignatureVerifier,
 };
 use std::collections::BTreeSet;
 use std::sync::Arc;
@@ -127,10 +129,7 @@ fn source() -> ProviderSource {
     ProviderSource::new(provider)
 }
 
-fn artifact_input(
-    digest: mindclade_content_digest::Digest,
-    length: u64,
-) -> BufferDescriptor {
+fn artifact_input(digest: mindclade_content_digest::Digest, length: u64) -> BufferDescriptor {
     BufferDescriptor {
         segment_id: format!("artifact:{digest}"),
         generation: 1,
@@ -208,14 +207,9 @@ async fn data_stream_fetch_materializes_verified_bulk_buffer() {
         .await
         .expect("seed artifact");
 
-    let root = std::env::temp_dir().join(format!(
-        "mindclade-node-stream-{}",
-        std::process::id()
-    ));
+    let root = std::env::temp_dir().join(format!("mindclade-node-stream-{}", std::process::id()));
     let backend = BulkBackend::local_file(&root).expect("backend");
-    let broker = Arc::new(
-        BulkBufferBroker::with_backend(backend, 8, 1024).expect("broker"),
-    );
+    let broker = Arc::new(BulkBufferBroker::with_backend(backend, 8, 1024).expect("broker"));
     let executor = DataStreamFetchExecutor::new(
         StreamWorker {
             maximum_shard_bytes: ByteSize::new(1024),

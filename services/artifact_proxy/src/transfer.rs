@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Verified CAS transfer mechanics.
 
 use crate::{LocalCache, ProxyMetrics, RangeRequest, ValidatedGrant};
@@ -98,11 +103,7 @@ impl TransferEngine {
         self.metrics.write(size);
         Ok(digest)
     }
-}
 
-fn byte_len(value: usize) -> FaultResult<u64> {
-    u64::try_from(value)
-        .map_err(|_| Fault::new(Code::OutOfRange, "artifact byte count exceeds u64"))
     /// Execute an immutable, control-plane-authorized GC plan through the same
     /// versioned object-store path used by normal artifact traffic.
     pub fn sweep_garbage_collection(
@@ -111,5 +112,9 @@ fn byte_len(value: usize) -> FaultResult<u64> {
     ) -> FaultResult<SweepReport> {
         self.cas.sweep_garbage_collection(plan)
     }
+}
 
+fn byte_len(value: usize) -> FaultResult<u64> {
+    u64::try_from(value)
+        .map_err(|_| Fault::new(Code::OutOfRange, "artifact byte count exceeds u64"))
 }

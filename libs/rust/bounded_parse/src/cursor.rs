@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 use crate::{Limits, Location, Source};
 use mindclade_faults::{Code, Fault, FaultResult};
 
@@ -35,8 +40,10 @@ impl<'a> Cursor<'a> {
         if line_bytes > self.limits.maximum_line_bytes {
             let offset = u64::try_from(start)
                 .map_err(|_| Fault::new(Code::OutOfRange, "parse byte offset exceeds u64"))?;
-            return Err(Fault::new(Code::ResourceExhausted, "line exceeds parse limit")
-                .with_context("offset", offset));
+            return Err(
+                Fault::new(Code::ResourceExhausted, "line exceeds parse limit")
+                    .with_context("offset", offset),
+            );
         }
         self.position = if end < self.bytes.len() {
             end.checked_add(1)

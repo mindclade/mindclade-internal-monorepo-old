@@ -1,1 +1,6 @@
-pub use crate::stream::{hash_reader,VerifyingReader};
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
+pub use crate::stream::{VerifyingReader, hash_reader};

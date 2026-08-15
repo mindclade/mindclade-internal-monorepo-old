@@ -1,10 +1,15 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Checked byte sizes, ranges, alignment, and budgets.
 #![forbid(unsafe_code)]
 
 use mindclade_faults::{Code, Fault, FaultResult};
 use std::fmt;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// A checked count of bytes.
 #[derive(Clone, Copy, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -92,7 +97,9 @@ pub struct Alignment(u64);
 impl Alignment {
     pub fn new(value: u64) -> FaultResult<Self> {
         if value == 0 || !value.is_power_of_two() {
-            return Err(Fault::invalid_argument("alignment must be a non-zero power of two"));
+            return Err(Fault::invalid_argument(
+                "alignment must be a non-zero power of two",
+            ));
         }
         Ok(Self(value))
     }
@@ -118,7 +125,10 @@ pub struct ByteBudget(Arc<BudgetState>);
 impl ByteBudget {
     #[must_use]
     pub fn new(limit: ByteSize) -> Self {
-        Self(Arc::new(BudgetState { limit: limit.get(), used: AtomicU64::new(0) }))
+        Self(Arc::new(BudgetState {
+            limit: limit.get(),
+            used: AtomicU64::new(0),
+        }))
     }
     pub fn reserve(&self, amount: ByteSize) -> FaultResult<Reservation> {
         let amount = amount.get();
@@ -139,7 +149,12 @@ impl ByteBudget {
                 Ordering::AcqRel,
                 Ordering::Acquire,
             ) {
-                Ok(_) => return Ok(Reservation { state: Arc::clone(&self.0), amount }),
+                Ok(_) => {
+                    return Ok(Reservation {
+                        state: Arc::clone(&self.0),
+                        amount,
+                    });
+                }
                 Err(observed) => current = observed,
             }
         }

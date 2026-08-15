@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Immutable worker diagnostic state safe to publish in bounded status records.
 
 use mindclade_faults::{Fault, FaultResult};
@@ -22,9 +27,11 @@ impl DiagnosticSnapshot {
                 "worker diagnostic status sequence must be non-zero",
             ));
         }
-        if self.ticket_id.as_ref().is_some_and(|id| {
-            id.is_empty() || id.len() > MAX_TICKET_ID_BYTES || id.trim() != id
-        }) {
+        if self
+            .ticket_id
+            .as_ref()
+            .is_some_and(|id| id.is_empty() || id.len() > MAX_TICKET_ID_BYTES || id.trim() != id)
+        {
             return Err(Fault::invalid_argument(
                 "worker diagnostic ticket identity is invalid",
             ));

@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 use super::{lexer, record::CifDocument};
 use mindclade_bounded_parse::Limits;
 use mindclade_faults::{Fault, FaultResult};

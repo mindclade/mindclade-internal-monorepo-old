@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Validated hierarchical names.
 
 use core::fmt;
@@ -74,9 +79,7 @@ fn validate_segment(segment: &str) -> Result<(), NameError> {
         return Err(NameError("name segment is invalid"));
     }
     if !segment.bytes().all(|byte| {
-        byte.is_ascii_lowercase()
-            || byte.is_ascii_digit()
-            || matches!(byte, b'-' | b'_' | b'.')
+        byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'-' | b'_' | b'.')
     }) {
         return Err(NameError("name segment contains unsupported characters"));
     }

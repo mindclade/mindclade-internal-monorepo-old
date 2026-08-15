@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Node-local runtime host around process-isolated Python/PyTorch workers.
 //!
 //! The host owns process/resource envelopes, ticket revalidation, model slots,
@@ -20,10 +25,12 @@ pub mod server;
 pub mod supervision;
 pub mod telemetry;
 pub use authority::HostAuthority;
+pub use bulk::{BulkBackend, BulkBufferBroker};
 pub use config::HostConfig;
 pub use health::{HostHealth, HostHealthSnapshot};
 pub use models::{LoadedModel, ModelRegistry, ModelSpec};
-pub use processes::{ProcessHandle, ProcessLauncher, ProcessSpec, ProcessSupervisor, StdProcessLauncher};
+pub use processes::{
+    ProcessHandle, ProcessLauncher, ProcessSpec, ProcessSupervisor, StdProcessLauncher,
+};
 pub use resources::NodeResources;
 pub use server::{ExecutionSession, HostCore};
-pub use bulk::{BulkBackend, BulkBufferBroker};

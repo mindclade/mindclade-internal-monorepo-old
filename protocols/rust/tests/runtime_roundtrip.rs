@@ -1,6 +1,9 @@
-use mindclade_protocols::runtime::v1::{
-    ArtifactGrant, ExecutionBudget, ExecutionTicketClaims
-};
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
+use mindclade_protocols::runtime::v1::{ArtifactGrant, ExecutionBudget, ExecutionTicketClaims};
 use prost::Message;
 
 #[test]
@@ -21,13 +24,28 @@ fn execution_ticket_claims_round_trip() {
         resolved_config_digest: "sha256:config".into(),
         reference_snapshot_digest: String::new(),
         artifacts: Some(ArtifactGrant {
-            readable_digests: vec![], writable_namespaces: vec!["runs/01".into()], maximum_read_bytes: 0, maximum_write_bytes: 1024,
-            allow_range_reads: false, allow_multipart_writes: false
+            readable_digests: vec![],
+            writable_namespaces: vec!["runs/01".into()],
+            maximum_read_bytes: 0,
+            maximum_write_bytes: 1024,
+            allow_range_reads: false,
+            allow_multipart_writes: false,
         }),
         budget: Some(ExecutionBudget {
-            cpu_millis: 1000, resident_memory_bytes: 1024, pinned_memory_bytes: 0, shared_memory_bytes: 0, local_disk_bytes: 0,
-            open_file_descriptors: 4, object_store_requests: 1, queued_operations: 1, child_processes: 1, cpu_worker_threads: 1,
-            gpu_memory_estimate_bytes: 0, checkpoint_staging_bytes: 0, telemetry_spool_bytes: 0, maximum_output_bytes: 1024
+            cpu_millis: 1000,
+            resident_memory_bytes: 1024,
+            pinned_memory_bytes: 0,
+            shared_memory_bytes: 0,
+            local_disk_bytes: 0,
+            open_file_descriptors: 4,
+            object_store_requests: 1,
+            queued_operations: 1,
+            child_processes: 1,
+            cpu_worker_threads: 1,
+            gpu_memory_estimate_bytes: 0,
+            checkpoint_staging_bytes: 0,
+            telemetry_spool_bytes: 0,
+            maximum_output_bytes: 1024,
         }),
         execution_class: "cpu".into(),
         accelerator_capability: String::new(),

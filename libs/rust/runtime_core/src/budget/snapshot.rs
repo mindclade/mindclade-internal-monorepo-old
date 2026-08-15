@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Immutable resource-accounting snapshots.
 
 use super::{Budget, ResourceKind, ResourceVector};
@@ -44,8 +49,7 @@ impl BudgetSnapshot {
         if limit == 0 {
             return None;
         }
-        let value = (u128::from(self.reserved.get(kind).min(limit)) * 10_000)
-            / u128::from(limit);
+        let value = (u128::from(self.reserved.get(kind).min(limit)) * 10_000) / u128::from(limit);
         u16::try_from(value).ok()
     }
 }

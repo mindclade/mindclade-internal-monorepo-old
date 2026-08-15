@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Tokio Unix-socket control edge for local model-worker supervision.
 
 use mindclade_faults::{Code, Fault, FaultResult};
@@ -10,7 +15,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::watch;
 use tokio::task::JoinSet;
-use tokio::time::{timeout, Instant};
+use tokio::time::{Instant, timeout};
 
 const MAX_FRAME_BYTES: usize = 1024 * 1024;
 const CONNECTION_DRAIN_TIMEOUT: Duration = Duration::from_secs(30);
@@ -44,8 +49,11 @@ pub async fn serve_unix(
 ) -> FaultResult<()> {
     prepare_socket_path(&path)?;
     let listener = UnixListener::bind(&path).map_err(|error| {
-        Fault::new(Code::Unavailable, "failed to bind runtime-host control socket")
-            .with_source(error)
+        Fault::new(
+            Code::Unavailable,
+            "failed to bind runtime-host control socket",
+        )
+        .with_source(error)
     })?;
     let mut connections = JoinSet::new();
 
@@ -105,8 +113,11 @@ pub async fn serve_unix_sessions(
 ) -> FaultResult<()> {
     prepare_socket_path(&path)?;
     let listener = UnixListener::bind(&path).map_err(|error| {
-        Fault::new(Code::Unavailable, "failed to bind runtime-host control socket")
-            .with_source(error)
+        Fault::new(
+            Code::Unavailable,
+            "failed to bind runtime-host control socket",
+        )
+        .with_source(error)
     })?;
     let mut connections = JoinSet::new();
 
@@ -166,11 +177,10 @@ async fn handle_session_connection(
                 .map_err(|_| Fault::new(Code::OutOfRange, "control frame length exceeds usize"))?,
             Err(error) if error.kind() == std::io::ErrorKind::UnexpectedEof => return Ok(()),
             Err(error) => {
-                return Err(Fault::new(
-                    Code::Unavailable,
-                    "control frame header read failed",
-                )
-                .with_source(error));
+                return Err(
+                    Fault::new(Code::Unavailable, "control frame header read failed")
+                        .with_source(error),
+                );
             }
         };
         if length == 0 || length > MAX_FRAME_BYTES {
@@ -209,7 +219,9 @@ async fn write_response(stream: &mut UnixStream, response: Vec<u8>) -> FaultResu
 async fn drain_connections(connections: &mut JoinSet<FaultResult<()>>) -> FaultResult<()> {
     let deadline = Instant::now() + CONNECTION_DRAIN_TIMEOUT;
     while !connections.is_empty() {
-        let remaining = deadline.checked_duration_since(Instant::now()).unwrap_or(Duration::ZERO);
+        let remaining = deadline
+            .checked_duration_since(Instant::now())
+            .unwrap_or(Duration::ZERO);
         if remaining.is_zero() {
             connections.abort_all();
             while connections.join_next().await.is_some() {}
@@ -223,8 +235,10 @@ async fn drain_connections(connections: &mut JoinSet<FaultResult<()>>) -> FaultR
             Ok(Some(Ok(Err(_fault)))) => {}
             Ok(Some(Err(join_error))) if join_error.is_cancelled() => {}
             Ok(Some(Err(join_error))) => {
-                return Err(Fault::new(Code::Internal, "runtime-host control task failed")
-                    .with_source(join_error));
+                return Err(
+                    Fault::new(Code::Internal, "runtime-host control task failed")
+                        .with_source(join_error),
+                );
             }
             Ok(None) => break,
             Err(_) => {
@@ -250,11 +264,10 @@ async fn handle_connection(
                 .map_err(|_| Fault::new(Code::OutOfRange, "control frame length exceeds usize"))?,
             Err(error) if error.kind() == std::io::ErrorKind::UnexpectedEof => return Ok(()),
             Err(error) => {
-                return Err(Fault::new(
-                    Code::Unavailable,
-                    "control frame header read failed",
-                )
-                .with_source(error));
+                return Err(
+                    Fault::new(Code::Unavailable, "control frame header read failed")
+                        .with_source(error),
+                );
             }
         };
         if length == 0 || length > MAX_FRAME_BYTES {

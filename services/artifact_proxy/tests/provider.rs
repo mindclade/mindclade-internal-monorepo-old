@@ -1,13 +1,14 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 use bytes::Bytes;
-use mindclade_artifact_proxy::{
-    AccessContext, ProviderArtifacts, ValidatedGrant,
-};
+use mindclade_artifact_proxy::{AccessContext, ProviderArtifacts, ValidatedGrant};
 use mindclade_content_digest::hash_bytes;
 use mindclade_faults::Code;
 use mindclade_identifiers::ResourceId;
-use mindclade_object_store::{
-    adapters::arrow::ArrowProvider, ClientConfig, Namespace, ObjectPath,
-};
+use mindclade_object_store::{ClientConfig, Namespace, ObjectPath, adapters::arrow::ArrowProvider};
 use mindclade_worker_protocol::ArtifactGrant;
 use std::collections::BTreeSet;
 

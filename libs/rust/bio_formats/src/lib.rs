@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Bounded, deterministic readers and canonical serializers for common biological exchange formats.
 #![forbid(unsafe_code)]
 pub mod a3m;

@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Protobuf transport conversion into authoritative bounded runtime types.
 
 use mindclade_content_digest::Digest;
@@ -13,9 +18,13 @@ use std::collections::BTreeSet;
 use std::str::FromStr;
 
 pub fn inference_request(message: wire::RuntimeDispatchRequest) -> FaultResult<InferenceRequest> {
-    let grant = admission_grant(message.grant.ok_or_else(|| Fault::invalid_argument("dispatch request is missing admission grant"))?)?;
-    let request_id = ResourceId::parse(&message.request_id)
-        .map_err(|error| Fault::invalid_argument("dispatch request id is invalid").with_source(error))?;
+    let grant =
+        admission_grant(message.grant.ok_or_else(|| {
+            Fault::invalid_argument("dispatch request is missing admission grant")
+        })?)?;
+    let request_id = ResourceId::parse(&message.request_id).map_err(|error| {
+        Fault::invalid_argument("dispatch request id is invalid").with_source(error)
+    })?;
     let deployment_hint = nonempty_optional(message.deployment_hint);
     let payload_descriptor = nonempty_optional(message.payload_descriptor);
     Ok(InferenceRequest {
@@ -24,7 +33,10 @@ pub fn inference_request(message: wire::RuntimeDispatchRequest) -> FaultResult<I
         admission: AdmissionRequest {
             request_key: message.request_key,
             deployment_hint,
-            required_capabilities: message.required_capabilities.into_iter().collect::<BTreeSet<_>>(),
+            required_capabilities: message
+                .required_capabilities
+                .into_iter()
+                .collect::<BTreeSet<_>>(),
             input_units: message.input_units,
             output_units: message.output_units,
         },
@@ -33,8 +45,12 @@ pub fn inference_request(message: wire::RuntimeDispatchRequest) -> FaultResult<I
 }
 
 pub fn admission_grant(message: wire::AdmissionGrant) -> FaultResult<AdmissionGrant> {
-    let claims = message.claims.ok_or_else(|| Fault::invalid_argument("admission grant claims are missing"))?;
-    let signature = message.signature.ok_or_else(|| Fault::invalid_argument("admission grant signature is missing"))?;
+    let claims = message
+        .claims
+        .ok_or_else(|| Fault::invalid_argument("admission grant claims are missing"))?;
+    let signature = message
+        .signature
+        .ok_or_else(|| Fault::invalid_argument("admission grant signature is missing"))?;
     Ok(AdmissionGrant {
         claims: AdmissionGrantClaims {
             grant_id: parse_id(&claims.grant_id, "grant")?,
@@ -52,12 +68,17 @@ pub fn admission_grant(message: wire::AdmissionGrant) -> FaultResult<AdmissionGr
             policy_epoch: claims.policy_epoch,
             revocation_epoch: claims.revocation_epoch,
         },
-        signature: DetachedSignature { algorithm: signature.algorithm, key_id: signature.key_id, value: signature.value },
+        signature: DetachedSignature {
+            algorithm: signature.algorithm,
+            key_id: signature.key_id,
+            value: signature.value,
+        },
     })
 }
 
 pub fn digest(value: &str) -> FaultResult<Digest> {
-    Digest::from_str(value).map_err(|error| Fault::invalid_argument("digest is invalid").with_source(error))
+    Digest::from_str(value)
+        .map_err(|error| Fault::invalid_argument("digest is invalid").with_source(error))
 }
 
 fn parse_id(value: &str, kind: &str) -> FaultResult<ResourceId> {
@@ -72,7 +93,6 @@ fn parse_id(value: &str, kind: &str) -> FaultResult<ResourceId> {
 fn nonempty_optional(value: String) -> Option<String> {
     if value.is_empty() { None } else { Some(value) }
 }
-
 
 pub fn route_snapshot(message: wire::RouteSnapshot) -> FaultResult<RouteSnapshot> {
     let claims = message

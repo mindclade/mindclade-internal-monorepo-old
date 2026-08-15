@@ -1,5 +1,7 @@
-// Copyright 2026 Mindclade. All rights reserved.
-// Confidential, proprietary, and trade-secret information.
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
 
 // Package outbound provides the single hardened HTTP client construction path
 // for webhooks, ingestion connectors, partner callbacks, and external

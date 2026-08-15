@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 use mindclade_runtime_core::ManualClock;
 use mindclade_telemetry::{AttributeValue, Event, MemorySink, Severity, Sink};
 use std::time::{Instant, SystemTime};
@@ -10,7 +15,12 @@ fn events_are_bounded_and_secrets_are_redacted() {
     if let Ok(mut event) = event {
         assert!(event.attributes.insert("step", 42_u64));
         assert!(event.attributes.insert_redacted("token"));
-        assert!(event.attributes.iter().any(|(key, value)| key == "token" && value == &AttributeValue::Redacted));
+        assert!(
+            event
+                .attributes
+                .iter()
+                .any(|(key, value)| key == "token" && value == &AttributeValue::Redacted)
+        );
         let sink = MemorySink::default();
         assert!(sink.emit(&event).is_ok());
         assert_eq!(sink.snapshot().len(), 1);

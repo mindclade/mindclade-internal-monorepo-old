@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Bounded process supervision for process-isolated model workers.
 
 use mindclade_faults::{Code, Fault, FaultResult};
@@ -42,9 +47,10 @@ impl ProcessSpec {
             ));
         }
         if self.arguments.len() > MAX_ARGUMENTS
-            || self.arguments.iter().any(|value| {
-                value.len() > MAX_ARGUMENT_BYTES || value.as_bytes().contains(&0)
-            })
+            || self
+                .arguments
+                .iter()
+                .any(|value| value.len() > MAX_ARGUMENT_BYTES || value.as_bytes().contains(&0))
         {
             return Err(Fault::invalid_argument(
                 "worker process arguments exceed their bounds",
@@ -121,12 +127,14 @@ impl ProcessLauncher for StdProcessLauncher {
         // `kill` is the force-stop path used after graceful worker drain. The
         // host keeps ownership of the Child until it has been reaped.
         child.kill().map_err(|error| {
-            Fault::new(Code::Unavailable, "failed to terminate model worker process")
-                .with_source(error)
+            Fault::new(
+                Code::Unavailable,
+                "failed to terminate model worker process",
+            )
+            .with_source(error)
         })?;
         child.wait().map_err(|error| {
-            Fault::new(Code::Unavailable, "failed to reap model worker process")
-                .with_source(error)
+            Fault::new(Code::Unavailable, "failed to reap model worker process").with_source(error)
         })?;
         Ok(())
     }
@@ -145,10 +153,11 @@ impl ProcessLauncher for StdProcessLauncher {
                 children.remove(&handle.pid);
                 Ok(false)
             }
-            Err(error) => Err(
-                Fault::new(Code::Unavailable, "failed to inspect model worker process")
-                    .with_source(error),
-            ),
+            Err(error) => Err(Fault::new(
+                Code::Unavailable,
+                "failed to inspect model worker process",
+            )
+            .with_source(error)),
         }
     }
 }

@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Committed Rust projections of canonical Mindclade protobuf contracts.
 //!
 //! Bazel owns canonical protobuf code generation.  This crate keeps a checked-in

@@ -1,4 +1,9 @@
 #![forbid(unsafe_code)]
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 use mindclade_content_digest::hash_bytes;
 use mindclade_runtime_core::{Budget, ResourceVector};
 use std::hint::black_box;
@@ -12,12 +17,18 @@ fn main() {
         black_box(hash_bytes(black_box(&bytes)));
     }
     let seconds = start.elapsed().as_secs_f64();
-    let verify_mib_per_s = if seconds > 0.0 { 128.0 / seconds } else { f64::INFINITY };
+    let verify_mib_per_s = if seconds > 0.0 {
+        128.0 / seconds
+    } else {
+        f64::INFINITY
+    };
 
     let budget = Budget::root("probe", ResourceVector::default());
     let start = Instant::now();
     for _ in 0..20_000 {
-        let reservation = budget.reserve(ResourceVector::default()).expect("zero reservation");
+        let reservation = budget
+            .reserve(ResourceVector::default())
+            .expect("zero reservation");
         black_box(reservation);
     }
     let reserve_us = start.elapsed().as_secs_f64() * 1_000_000.0 / 20_000.0;

@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
@@ -12,14 +17,22 @@ impl CounterRegistry {
         if name.is_empty() || name.len() > 128 {
             return false;
         }
-        let mut metrics = self.inner.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut metrics = self
+            .inner
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let entry = metrics.entry(name.to_owned()).or_default();
-        let Some(next) = entry.checked_add(value) else { return false; };
+        let Some(next) = entry.checked_add(value) else {
+            return false;
+        };
         *entry = next;
         true
     }
     #[must_use]
     pub fn snapshot(&self) -> BTreeMap<String, u64> {
-        self.inner.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).clone()
+        self.inner
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone()
     }
 }

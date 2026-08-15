@@ -1,10 +1,14 @@
-use std::sync::atomic::{
-    AtomicU64, Ordering
-};
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
+use std::sync::atomic::{AtomicU64, Ordering};
 
 #[derive(Debug, Default)]
 pub struct CopyMetrics {
-    copied: AtomicU64, operations: AtomicU64
+    copied: AtomicU64,
+    operations: AtomicU64,
 }
 
 impl CopyMetrics {
@@ -12,10 +16,12 @@ impl CopyMetrics {
         self.copied.fetch_add(bytes, Ordering::Relaxed);
         self.operations.fetch_add(1, Ordering::Relaxed);
     }
-    #[must_use]pub fn copied_bytes(&self) -> u64 {
+    #[must_use]
+    pub fn copied_bytes(&self) -> u64 {
         self.copied.load(Ordering::Relaxed)
     }
-    #[must_use]pub fn operations(&self) -> u64 {
+    #[must_use]
+    pub fn operations(&self) -> u64 {
         self.operations.load(Ordering::Relaxed)
     }
 }

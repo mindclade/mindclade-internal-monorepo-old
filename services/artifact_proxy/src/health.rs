@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Artifact proxy health, drain state, and strict transfer admission.
 
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};

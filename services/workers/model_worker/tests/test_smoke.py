@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 from services.workers.model_worker import ModelWorker, ModelWorkerConfig
 from serving.contracts import (
     BatchPlan,

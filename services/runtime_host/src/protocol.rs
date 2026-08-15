@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Protobuf transport conversion for the runtime-host control edge.
 //!
 //! Wire messages are generated from `protocols/`; this module converts them
@@ -157,19 +162,46 @@ fn buffer_descriptor_wire(message: &BufferDescriptor) -> wire::BufferDescriptor 
 fn execution_budget(message: wire::ExecutionBudget) -> ExecutionBudget {
     let resources = ResourceVector::new()
         .set(ResourceKind::CpuMillis, u64::from(message.cpu_millis))
-        .set(ResourceKind::ResidentMemoryBytes, message.resident_memory_bytes)
+        .set(
+            ResourceKind::ResidentMemoryBytes,
+            message.resident_memory_bytes,
+        )
         .set(ResourceKind::PinnedMemoryBytes, message.pinned_memory_bytes)
         .set(ResourceKind::SharedMemoryBytes, message.shared_memory_bytes)
         .set(ResourceKind::LocalDiskBytes, message.local_disk_bytes)
-        .set(ResourceKind::OpenFileDescriptors, u64::from(message.open_file_descriptors))
-        .set(ResourceKind::ObjectStoreRequests, u64::from(message.object_store_requests))
-        .set(ResourceKind::QueuedRequests, u64::from(message.queued_operations))
+        .set(
+            ResourceKind::OpenFileDescriptors,
+            u64::from(message.open_file_descriptors),
+        )
+        .set(
+            ResourceKind::ObjectStoreRequests,
+            u64::from(message.object_store_requests),
+        )
+        .set(
+            ResourceKind::QueuedRequests,
+            u64::from(message.queued_operations),
+        )
         .set(ResourceKind::Processes, u64::from(message.child_processes))
-        .set(ResourceKind::CpuThreads, u64::from(message.cpu_worker_threads))
-        .set(ResourceKind::GpuMemoryEstimateBytes, message.gpu_memory_estimate_bytes)
-        .set(ResourceKind::CheckpointStagingBytes, message.checkpoint_staging_bytes)
-        .set(ResourceKind::TelemetrySpoolBytes, message.telemetry_spool_bytes)
-        .set(ResourceKind::MaximumOutputBytes, message.maximum_output_bytes);
+        .set(
+            ResourceKind::CpuThreads,
+            u64::from(message.cpu_worker_threads),
+        )
+        .set(
+            ResourceKind::GpuMemoryEstimateBytes,
+            message.gpu_memory_estimate_bytes,
+        )
+        .set(
+            ResourceKind::CheckpointStagingBytes,
+            message.checkpoint_staging_bytes,
+        )
+        .set(
+            ResourceKind::TelemetrySpoolBytes,
+            message.telemetry_spool_bytes,
+        )
+        .set(
+            ResourceKind::MaximumOutputBytes,
+            message.maximum_output_bytes,
+        );
     ExecutionBudget {
         resources,
         maximum_output_bytes: message.maximum_output_bytes,
@@ -201,10 +233,13 @@ fn detached_signature(message: wire::DetachedSignature) -> DetachedSignature {
 }
 
 fn parse_id(value: &str, expected_kind: &str) -> FaultResult<ResourceId> {
-    let id = ResourceId::parse(value)
-        .map_err(|error| Fault::invalid_argument("runtime resource id is invalid").with_source(error))?;
+    let id = ResourceId::parse(value).map_err(|error| {
+        Fault::invalid_argument("runtime resource id is invalid").with_source(error)
+    })?;
     if id.kind() != expected_kind {
-        return Err(Fault::invalid_argument("runtime resource id has unexpected kind"));
+        return Err(Fault::invalid_argument(
+            "runtime resource id has unexpected kind",
+        ));
     }
     Ok(id)
 }

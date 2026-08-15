@@ -1,20 +1,31 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 use mindclade_artifact_cas::{ArtifactCas, CasConfig};
-use mindclade_manifests::{ArtifactManifest, BlobRef};
-use mindclade_runtime_core::ManualClock;
 use mindclade_identifiers::{Name, ResourceId};
+use mindclade_manifests::{ArtifactManifest, BlobRef};
 use mindclade_object_store::MemoryStore;
+use mindclade_runtime_core::ManualClock;
 use std::sync::Arc;
 use std::time::{Instant, SystemTime};
 
 #[test]
 fn blobs_and_manifests_publish_idempotently() {
     let clock = Arc::new(ManualClock::new(SystemTime::UNIX_EPOCH, Instant::now()));
-    let cas = ArtifactCas::new(Arc::new(MemoryStore::new()), clock.clone(), CasConfig::default());
+    let cas = ArtifactCas::new(
+        Arc::new(MemoryStore::new()),
+        clock.clone(),
+        CasConfig::default(),
+    );
     assert!(cas.is_ok());
     if let Ok(cas) = cas {
-        let digest = cas.put_blob(b"weights"); assert!(digest.is_ok());
+        let digest = cas.put_blob(b"weights");
+        assert!(digest.is_ok());
         let id = ResourceId::generate("artifact", clock.as_ref());
-        let kind = Name::new("model/checkpoint"); let path = Name::new("weights/shard-0.bin");
+        let kind = Name::new("model/checkpoint");
+        let path = Name::new("weights/shard-0.bin");
         if let (Ok(digest), Ok(id), Ok(kind), Ok(path)) = (digest, id, kind, path) {
             let blob = BlobRef::new(path, digest, 7, "application/octet-stream");
             if let Ok(blob) = blob {
@@ -48,22 +59,28 @@ fn index_conflict_does_not_replace_existing_digest() {
 
 #[test]
 fn retention_policy_rejects_unbounded_grace_or_delete_count() {
-    assert!(RetentionPolicy {
-        garbage_collection_grace: Duration::ZERO,
-        maximum_deletes_per_run: 1,
-    }
-    .validate()
-    .is_err());
-    assert!(RetentionPolicy {
-        garbage_collection_grace: Duration::from_secs(366 * 24 * 60 * 60),
-        maximum_deletes_per_run: 1,
-    }
-    .validate()
-    .is_err());
-    assert!(RetentionPolicy {
-        garbage_collection_grace: Duration::from_secs(60),
-        maximum_deletes_per_run: 10_000,
-    }
-    .validate()
-    .is_ok());
+    assert!(
+        RetentionPolicy {
+            garbage_collection_grace: Duration::ZERO,
+            maximum_deletes_per_run: 1,
+        }
+        .validate()
+        .is_err()
+    );
+    assert!(
+        RetentionPolicy {
+            garbage_collection_grace: Duration::from_secs(366 * 24 * 60 * 60),
+            maximum_deletes_per_run: 1,
+        }
+        .validate()
+        .is_err()
+    );
+    assert!(
+        RetentionPolicy {
+            garbage_collection_grace: Duration::from_secs(60),
+            maximum_deletes_per_run: 10_000,
+        }
+        .validate()
+        .is_ok()
+    );
 }

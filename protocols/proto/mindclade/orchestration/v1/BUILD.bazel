@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 package(default_visibility=["//visibility:public"])
 proto_library(name="stage_proto",srcs=["stage.proto"],deps=["//protocols/proto/mindclade/common/v1:artifact_ref_proto","//protocols/proto/mindclade/runtime/v1:execution_budget_proto"])
 filegroup(name="scaffold_files",srcs=glob(["*.proto"],exclude=["stage.proto"]),visibility=["//visibility:public"])

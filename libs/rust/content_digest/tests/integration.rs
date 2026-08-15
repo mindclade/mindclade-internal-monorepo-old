@@ -1,4 +1,9 @@
-use mindclade_content_digest::{hash_bytes, Digest, VerifyingReader};
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
+use mindclade_content_digest::{Digest, VerifyingReader, hash_bytes};
 use std::io::{Cursor, Read};
 
 #[test]

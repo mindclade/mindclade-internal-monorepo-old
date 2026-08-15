@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 [package]
 name = "mindclade-artifact-proxy"
 version.workspace = true
@@ -17,6 +22,8 @@ name = "mindclade-artifact-proxy"
 path = "src/main.rs"
 
 [dependencies]
+# src/access.rs uses ResourceId from here; the dependency was never declared.
+mindclade_identifiers = { path = "../../libs/rust/identifiers" }
 bytes.workspace = true
 mindclade_artifact_cas = { path = "../../libs/rust/artifact_cas" }
 mindclade_bytes_io = { path = "../../libs/rust/bytes_io" }

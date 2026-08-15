@@ -1,5 +1,7 @@
-// Copyright 2026 Mindclade. All rights reserved.
-// Confidential and proprietary.
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
 
 // Package outbox provides a transactional outbox contract, fenced delivery
 // claims, and a servicekit-managed dispatcher for durable event publication.

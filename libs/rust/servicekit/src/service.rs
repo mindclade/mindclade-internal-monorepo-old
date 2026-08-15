@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Ordered component assembly with transactional startup and exhaustive shutdown.
 
 use crate::{Component, Lifecycle, LifecycleState};
@@ -43,7 +48,10 @@ impl Service {
             ));
         }
         let name = component.name();
-        if name.is_empty() || name.len() > 128 || self.components.iter().any(|item| item.name() == name) {
+        if name.is_empty()
+            || name.len() > 128
+            || self.components.iter().any(|item| item.name() == name)
+        {
             return Err(Fault::invalid_argument(
                 "component name is empty, too long, or duplicated",
             ));
@@ -92,7 +100,8 @@ impl Service {
         for component in self.components[..self.started].iter_mut().rev() {
             if let Err(fault) = component.drain() {
                 if first_fault.is_none() {
-                    first_fault = Some(fault.with_context("component", component.name().to_owned()));
+                    first_fault =
+                        Some(fault.with_context("component", component.name().to_owned()));
                 }
             }
         }
@@ -132,7 +141,8 @@ impl Service {
         for component in self.components[..self.started].iter_mut().rev() {
             if let Err(fault) = component.stop() {
                 if first_fault.is_none() {
-                    first_fault = Some(fault.with_context("component", component.name().to_owned()));
+                    first_fault =
+                        Some(fault.with_context("component", component.name().to_owned()));
                 }
             }
         }
@@ -153,7 +163,8 @@ impl Service {
         for component in self.components[..self.started].iter_mut().rev() {
             if let Err(fault) = component.stop() {
                 if first_fault.is_none() {
-                    first_fault = Some(fault.with_context("component", component.name().to_owned()));
+                    first_fault =
+                        Some(fault.with_context("component", component.name().to_owned()));
                 }
             }
         }

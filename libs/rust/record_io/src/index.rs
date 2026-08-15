@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Monotonic record-frame index.
 
 use mindclade_faults::{Code, Fault, FaultResult};
@@ -17,26 +22,43 @@ pub struct RecordIndex {
 impl RecordIndex {
     pub fn push(&mut self, entry: RecordIndexEntry) -> FaultResult<()> {
         if entry.frame_bytes == 0 {
-            return Err(Fault::invalid_argument("record index frame length must be non-zero"));
+            return Err(Fault::invalid_argument(
+                "record index frame length must be non-zero",
+            ));
         }
         if let Some(last) = self.entries.last() {
-            let expected_ordinal = last.ordinal.checked_add(1)
+            let expected_ordinal = last
+                .ordinal
+                .checked_add(1)
                 .ok_or_else(|| Fault::new(Code::OutOfRange, "record ordinal domain exhausted"))?;
-            let minimum_offset = last.offset.checked_add(last.frame_bytes)
+            let minimum_offset = last
+                .offset
+                .checked_add(last.frame_bytes)
                 .ok_or_else(|| Fault::new(Code::OutOfRange, "record frame offset overflow"))?;
             if entry.ordinal != expected_ordinal || entry.offset < minimum_offset {
                 return Err(Fault::new(Code::Conflict, "record index is not monotonic"));
             }
         } else if entry.ordinal != 0 {
-            return Err(Fault::new(Code::Conflict, "record index must begin at ordinal zero"));
+            return Err(Fault::new(
+                Code::Conflict,
+                "record index must begin at ordinal zero",
+            ));
         }
         self.entries.push(entry);
         Ok(())
     }
     #[must_use]
     pub fn get(&self, ordinal: u64) -> Option<RecordIndexEntry> {
-        usize::try_from(ordinal).ok().and_then(|index| self.entries.get(index).copied())
+        usize::try_from(ordinal)
+            .ok()
+            .and_then(|index| self.entries.get(index).copied())
     }
-    #[must_use] pub fn len(&self) -> usize { self.entries.len() }
-    #[must_use] pub fn is_empty(&self) -> bool { self.entries.is_empty() }
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
 }

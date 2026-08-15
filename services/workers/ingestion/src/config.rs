@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Ingestion-stage worker limits.
 
 use mindclade_faults::{Fault, FaultResult};
@@ -10,7 +15,9 @@ pub struct IngestionWorkerConfig {
 impl IngestionWorkerConfig {
     pub fn validate(&self) -> FaultResult<()> {
         if self.maximum_outputs == 0 || self.maximum_outputs > 4_096 {
-            return Err(Fault::invalid_argument("ingestion worker output limit is invalid"));
+            return Err(Fault::invalid_argument(
+                "ingestion worker output limit is invalid",
+            ));
         }
         Ok(())
     }

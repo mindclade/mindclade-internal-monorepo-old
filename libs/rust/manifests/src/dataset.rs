@@ -1,19 +1,23 @@
-use crate::{
-    validation, ArtifactRef
-};
-use mindclade_content_digest::{
-    hash_bytes, Digest
-};
-use mindclade_faults::{
-    Code, Fault, FaultResult
-};
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
 
-#[derive(Clone, Debug, Eq, PartialEq)]pub struct DatasetShard {
-    pub artifact: ArtifactRef, pub records: u64
+use crate::{ArtifactRef, validation};
+use mindclade_content_digest::{Digest, hash_bytes};
+use mindclade_faults::{Code, Fault, FaultResult};
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DatasetShard {
+    pub artifact: ArtifactRef,
+    pub records: u64,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]pub struct DatasetManifest {
-    pub schema_version: u32, pub dataset_digest: Digest, pub shards: Vec<DatasetShard>
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DatasetManifest {
+    pub schema_version: u32,
+    pub dataset_digest: Digest,
+    pub shards: Vec<DatasetShard>,
 }
 
 impl DatasetManifest {
@@ -22,19 +26,21 @@ impl DatasetManifest {
         if self.shards.is_empty() {
             return Err(Fault::invalid_argument("dataset manifest has no shards"));
         }
-        let mut total=0u64;
+        let mut total = 0u64;
         for s in &self.shards {
             s.artifact.validate()?;
-            total=total.checked_add(s.records).ok_or_else(||Fault::new(Code::OutOfRange, "dataset record count overflow"))?;
+            total = total
+                .checked_add(s.records)
+                .ok_or_else(|| Fault::new(Code::OutOfRange, "dataset record count overflow"))?;
         }
-        let expected=self.computed_digest()?;
-        if expected!=self.dataset_digest {
+        let expected = self.computed_digest()?;
+        if expected != self.dataset_digest {
             return Err(Fault::data_loss("dataset manifest digest mismatch"));
         }
         Ok(())
     }
     pub fn computed_digest(&self) -> FaultResult<Digest> {
-        let mut b=Vec::new();
+        let mut b = Vec::new();
         b.extend_from_slice(&self.schema_version.to_be_bytes());
         for s in &self.shards {
             b.extend_from_slice(s.artifact.digest.as_bytes());

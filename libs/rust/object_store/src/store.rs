@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Store contract and conditional mutation semantics.
 
 use crate::ObjectPath;
@@ -24,7 +29,10 @@ pub enum PutCondition {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct PutResult { pub meta: ObjectMeta, pub created: bool }
+pub struct PutResult {
+    pub meta: ObjectMeta,
+    pub created: bool,
+}
 
 /// Synchronous, cancellation-at-call-boundary object-store mechanism.
 /// Network adapters should execute provider calls in their owning async runtime.
@@ -32,7 +40,12 @@ pub trait ObjectStore: Send + Sync {
     fn head(&self, path: &ObjectPath) -> FaultResult<Option<ObjectMeta>>;
     fn get(&self, path: &ObjectPath, maximum_bytes: ByteSize) -> FaultResult<Vec<u8>>;
     fn get_range(&self, path: &ObjectPath, range: ByteRange) -> FaultResult<Vec<u8>>;
-    fn put(&self, path: &ObjectPath, bytes: &[u8], condition: PutCondition) -> FaultResult<PutResult>;
+    fn put(
+        &self,
+        path: &ObjectPath,
+        bytes: &[u8],
+        condition: PutCondition,
+    ) -> FaultResult<PutResult>;
     fn delete(&self, path: &ObjectPath, expected: Option<ResourceVersion>) -> FaultResult<bool>;
     fn list(&self, prefix: Option<&ObjectPath>, limit: usize) -> FaultResult<Vec<ObjectMeta>>;
 }

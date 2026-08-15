@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Offline runtime authority construction for the gateway.
 //!
 //! Go owns issuance and policy. The Rust gateway receives bounded verification
@@ -40,11 +45,7 @@ impl GatewayAuthority {
     pub fn policy(&self) -> Arc<PolicyCache> {
         self.policy.clone()
     }
-    pub fn install_route(
-        &self,
-        snapshot: RouteSnapshot,
-        now_unix_millis: u64,
-    ) -> FaultResult<()> {
+    pub fn install_route(&self, snapshot: RouteSnapshot, now_unix_millis: u64) -> FaultResult<()> {
         self.policy.install_route(snapshot, now_unix_millis)
     }
     pub fn install_revocations(
@@ -56,7 +57,9 @@ impl GatewayAuthority {
     }
     pub fn raise_policy_floor(&self, policy_epoch: u64, route_version: u64) -> FaultResult<()> {
         if policy_epoch == 0 || route_version == 0 {
-            return Err(Fault::invalid_argument("runtime policy floors must be non-zero"));
+            return Err(Fault::invalid_argument(
+                "runtime policy floors must be non-zero",
+            ));
         }
         self.policy.raise_policy_floor(policy_epoch, route_version)
     }

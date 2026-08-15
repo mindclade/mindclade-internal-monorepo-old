@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Mindclade online inference runtime gateway core.
 //!
 //! This crate intentionally implements the latency-sensitive *local* request
@@ -7,13 +12,13 @@
 #![forbid(unsafe_code)]
 
 pub mod admission;
-pub mod bootstrap;
-pub mod authority;
 pub mod auth;
+pub mod authority;
+pub mod bootstrap;
 pub mod config;
 pub mod health;
-pub mod protocol;
 pub mod network;
+pub mod protocol;
 pub mod routing;
 pub mod server;
 pub mod streaming;

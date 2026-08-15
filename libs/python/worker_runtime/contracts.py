@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 """Process-local scientific stage contracts.
 
 The canonical wire contract lives in ``protocols/proto/mindclade/orchestration/v1``.

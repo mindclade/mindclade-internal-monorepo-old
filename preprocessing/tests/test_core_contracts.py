@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 from preprocessing.cache.keys import msa_search_key
 from preprocessing.contracts import ArtifactRef
 from preprocessing.pipeline import plan_structure_pipeline

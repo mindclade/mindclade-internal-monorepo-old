@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 """Enforce Mindclade Go dependency layers and production paved roads.
 
 The checker is intentionally syntax-light: it reads canonical Go import blocks

@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 # No shared application ConfigMap is declared here. Environment overlays generate only
 # the non-secret environment identity. Workload configuration remains activation-gated
 # until the owning package publishes a versioned deployment contract.

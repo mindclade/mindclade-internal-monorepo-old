@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 use crate::{DeviceCapability, device::DeviceId};
 use mindclade_faults::{Code, Fault, FaultResult};
 use std::collections::BTreeSet;
@@ -15,13 +20,20 @@ pub struct Inventory {
 impl Inventory {
     pub fn new(devices: Vec<AcceleratorDevice>) -> FaultResult<Self> {
         if devices.is_empty() {
-            return Err(Fault::new(Code::NotFound, "no accelerator devices discovered"));
+            return Err(Fault::new(
+                Code::NotFound,
+                "no accelerator devices discovered",
+            ));
         }
         let mut identities = BTreeSet::new();
         for device in &devices {
             device.capability.validate()?;
-            if device.id.vendor != device.capability.vendor || !identities.insert((device.id.vendor.clone(), device.id.ordinal)) {
-                return Err(Fault::data_loss("accelerator inventory contains duplicate or inconsistent device identity"));
+            if device.id.vendor != device.capability.vendor
+                || !identities.insert((device.id.vendor.clone(), device.id.ordinal))
+            {
+                return Err(Fault::data_loss(
+                    "accelerator inventory contains duplicate or inconsistent device identity",
+                ));
             }
         }
         Ok(Self { devices })

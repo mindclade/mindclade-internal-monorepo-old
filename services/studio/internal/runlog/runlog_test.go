@@ -1,5 +1,7 @@
-// Copyright 2026 Mindclade. All rights reserved.
-// Confidential, proprietary, and trade-secret information.
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
 
 // These tests run against a REAL PostgreSQL instance, because what they check
 // is not Go logic — it is whether three SQL statements hold under concurrency.

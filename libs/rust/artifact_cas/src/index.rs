@@ -1,10 +1,15 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! In-memory artifact-ID to manifest-digest index used by tests and local tooling.
 
 use mindclade_content_digest::Digest;
 use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_identifiers::ResourceId;
-use std::collections::btree_map::Entry;
 use std::collections::BTreeMap;
+use std::collections::btree_map::Entry;
 
 #[derive(Clone, Debug, Default)]
 pub struct CasIndex {

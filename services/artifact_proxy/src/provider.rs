@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Provider-backed artifact persistence leaf.
 //!
 //! Authorization is evaluated before backend access. Provider mechanics remain

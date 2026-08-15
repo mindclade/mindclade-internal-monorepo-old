@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Framework-independent artifact-proxy request core.
 use crate::{
     ProxyConfig, ProxyHealth, ProxyMetrics, RangeRequest, TransferEngine, ValidatedGrant

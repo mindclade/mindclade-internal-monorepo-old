@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Process-level lifecycle timeouts shared by Rust services.
 
 use mindclade_faults::{Fault, FaultResult};
@@ -25,9 +30,11 @@ impl ServiceConfig {
             ("shutdown_timeout", self.shutdown_timeout),
         ] {
             if timeout.is_zero() || timeout > MAX_LIFECYCLE_TIMEOUT {
-                return Err(Fault::invalid_argument("service lifecycle timeout is invalid")
-                    .with_context("field", field)
-                    .with_context("millis", timeout.as_millis().to_string()));
+                return Err(
+                    Fault::invalid_argument("service lifecycle timeout is invalid")
+                        .with_context("field", field)
+                        .with_context("millis", timeout.as_millis().to_string()),
+                );
             }
         }
         Ok(self)

@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 [package]
 name = "mindclade-runtime-host"
 version.workspace = true
@@ -17,6 +22,10 @@ name = "mindclade-runtime-host"
 path = "src/main.rs"
 
 [dependencies]
+# src/bootstrap.rs and src/protocol.rs use all three; none were declared.
+mindclade_content_digest = { path = "../../libs/rust/content_digest" }
+mindclade_identifiers = { path = "../../libs/rust/identifiers" }
+prost.workspace = true
 mindclade_protocols = { path = "../../protocols/rust" }
 mindclade_ipc_os = { path = "../../libs/rust/ipc_os" }
 bytes.workspace = true

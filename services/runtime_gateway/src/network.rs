@@ -1,16 +1,21 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Tokio/Axum online network edge for the Rust runtime gateway.
 //!
 //! This layer owns network framing and bounded graceful shutdown only. The
 //! framework-independent [`GatewayCore`] remains the sole local
 //! admission/routing authority on the node.
 
-use crate::{protocol, GatewayCore};
+use crate::{GatewayCore, protocol};
+use axum::Router;
 use axum::body::Bytes;
 use axum::extract::{DefaultBodyLimit, State};
-use axum::http::{header::CONTENT_TYPE, HeaderValue, StatusCode};
+use axum::http::{HeaderValue, StatusCode, header::CONTENT_TYPE};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
-use axum::Router;
 use mindclade_faults::{Code, Fault};
 use mindclade_protocols::runtime::v1::{RuntimeDispatchRequest, RuntimeDispatchResponse};
 use prost::Message;
@@ -148,9 +153,10 @@ async fn dispatch(State(state): State<GatewayNetworkState>, body: Bytes) -> Resp
 
 fn protobuf_response(status: StatusCode, body: Vec<u8>) -> Response {
     let mut response = (status, body).into_response();
-    response
-        .headers_mut()
-        .insert(CONTENT_TYPE, HeaderValue::from_static(PROTOBUF_CONTENT_TYPE));
+    response.headers_mut().insert(
+        CONTENT_TYPE,
+        HeaderValue::from_static(PROTOBUF_CONTENT_TYPE),
+    );
     response
 }
 
@@ -180,8 +186,12 @@ fn unix_millis() -> Result<u64, Fault> {
                 "runtime gateway clock is before Unix epoch",
             )
         })?;
-    u64::try_from(elapsed.as_millis())
-        .map_err(|_| Fault::new(Code::OutOfRange, "runtime gateway clock exceeds u64 milliseconds"))
+    u64::try_from(elapsed.as_millis()).map_err(|_| {
+        Fault::new(
+            Code::OutOfRange,
+            "runtime gateway clock exceeds u64 milliseconds",
+        )
+    })
 }
 
 #[cfg(test)]

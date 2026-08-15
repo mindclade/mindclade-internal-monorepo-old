@@ -1,26 +1,35 @@
-use crate::{
-    Diagnostic, ParseMode
-};
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
 
-#[derive(Clone, Debug)] pub struct Recovery {
-    mode: ParseMode, diagnostics: Vec<Diagnostic>
+use crate::{Diagnostic, ParseMode};
+
+#[derive(Clone, Debug)]
+pub struct Recovery {
+    mode: ParseMode,
+    diagnostics: Vec<Diagnostic>,
 }
 
 impl Recovery {
-    #[must_use]pub fn new(mode: ParseMode) -> Self {
+    #[must_use]
+    pub fn new(mode: ParseMode) -> Self {
         Self {
-            mode, diagnostics: Vec::new()
+            mode,
+            diagnostics: Vec::new(),
         }
     }
-    #[must_use]pub const fn mode(&self) -> ParseMode {
+    #[must_use]
+    pub const fn mode(&self) -> ParseMode {
         self.mode
     }
     pub fn record(&mut self, d: Diagnostic) {
-        if self.mode==ParseMode::Recovery {
+        if self.mode == ParseMode::Recovery {
             self.diagnostics.push(d);
         }
     }
-    #[must_use]pub fn diagnostics(&self) -> &[Diagnostic] {
+    #[must_use]
+    pub fn diagnostics(&self) -> &[Diagnostic] {
         &self.diagnostics
     }
     pub fn into_diagnostics(self) -> Vec<Diagnostic> {

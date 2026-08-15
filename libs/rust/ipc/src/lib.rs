@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Local IPC framing and protocol negotiation.
 #![forbid(unsafe_code)]
 
@@ -8,20 +13,12 @@ pub mod shared_memory;
 pub mod unix;
 pub mod windows;
 use mindclade_bytes_io::ByteSize;
-use mindclade_content_digest::{
-    hash_bytes, Digest
-};
-use mindclade_faults::{
-    Code, Fault, FaultResult
-};
+use mindclade_content_digest::{Digest, hash_bytes};
+use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_identifiers::ResourceId;
-use mindclade_record_io::{
-    Decoder, Encoder, RecordReader, RecordWriter
-};
+use mindclade_record_io::{Decoder, Encoder, RecordReader, RecordWriter};
 use std::collections::BTreeSet;
-use std::io::{
-    Read, Write
-};
+use std::io::{Read, Write};
 
 pub const IPC_SCHEMA: u16 = 1;
 pub const MAX_CONTROL_PAYLOAD: ByteSize = ByteSize::new(1024 * 1024);
@@ -32,11 +29,11 @@ const FRAME_OVERHEAD_BYTES: u64 = 4096;
 
 fn valid_token(value: &str, maximum_bytes: usize) -> bool {
     !value.is_empty()
-    && value.len() <= maximum_bytes
-    && value == value.trim()
-    && value.bytes().all(|byte| {
-        byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-' | b'/' | b':')
-    })
+        && value.len() <= maximum_bytes
+        && value == value.trim()
+        && value.bytes().all(|byte| {
+            byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-' | b'/' | b':')
+        })
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -48,7 +45,9 @@ pub struct ProtocolVersion {
 impl ProtocolVersion {
     pub fn validate(self) -> FaultResult<()> {
         if self.major == 0 {
-            return Err(Fault::invalid_argument("IPC protocol major version must be positive"));
+            return Err(Fault::invalid_argument(
+                "IPC protocol major version must be positive",
+            ));
         }
         Ok(())
     }
@@ -57,8 +56,8 @@ impl ProtocolVersion {
         server.validate()?;
         if client.major != server.major {
             return Err(Fault::new(
-            Code::FailedPrecondition,
-            "IPC major protocol versions are incompatible",
+                Code::FailedPrecondition,
+                "IPC major protocol versions are incompatible",
             ));
         }
         Ok(Self {
@@ -80,8 +79,8 @@ impl Hello {
         self.version.validate()?;
         if self.capabilities.len() > MAX_CAPABILITIES {
             return Err(Fault::new(
-            Code::ResourceExhausted,
-            "IPC capability count exceeds limit",
+                Code::ResourceExhausted,
+                "IPC capability count exceeds limit",
             ));
         }
         let mut previous: Option<&str> = None;
@@ -91,11 +90,13 @@ impl Hello {
                 return Err(Fault::invalid_argument("IPC capability token is invalid"));
             }
             if !unique.insert(capability.as_str()) {
-                return Err(Fault::invalid_argument("IPC capability list contains duplicates"));
+                return Err(Fault::invalid_argument(
+                    "IPC capability list contains duplicates",
+                ));
             }
             if previous.is_some_and(|value| value >= capability.as_str()) {
                 return Err(Fault::invalid_argument(
-                "IPC capabilities must be strictly sorted for deterministic negotiation",
+                    "IPC capabilities must be strictly sorted for deterministic negotiation",
                 ));
             }
             previous = Some(capability.as_str());
@@ -110,8 +111,8 @@ impl Hello {
         encoder.u16(self.version.minor);
         encoder.string(&self.process_id.to_string())?;
         encoder.u32(
-        u32::try_from(self.capabilities.len())
-        .map_err(|_| Fault::new(Code::OutOfRange, "IPC capability count exceeds u32"))?,
+            u32::try_from(self.capabilities.len())
+                .map_err(|_| Fault::new(Code::OutOfRange, "IPC capability count exceeds u32"))?,
         );
         for capability in &self.capabilities {
             encoder.string(capability)?;
@@ -122,8 +123,8 @@ impl Hello {
         let mut decoder = Decoder::new(bytes, 64 * 1024)?;
         if decoder.u16()? != IPC_SCHEMA {
             return Err(Fault::new(
-            Code::FailedPrecondition,
-            "IPC hello schema is unsupported",
+                Code::FailedPrecondition,
+                "IPC hello schema is unsupported",
             ));
         }
         let version = ProtocolVersion {
@@ -131,9 +132,9 @@ impl Hello {
             minor: decoder.u16()?,
         };
         let process_id = decoder
-        .string()?
-        .parse::<ResourceId>()
-        .map_err(|error| Fault::data_loss("IPC process ID is invalid").with_source(error))?;
+            .string()?
+            .parse::<ResourceId>()
+            .map_err(|error| Fault::data_loss("IPC process ID is invalid").with_source(error))?;
         let count = decoder.item_count()?;
         if count > MAX_CAPABILITIES {
             return Err(Fault::data_loss("IPC capability count exceeds limit"));
@@ -203,27 +204,27 @@ impl Message {
     pub fn validate(&self, maximum_payload: ByteSize) -> FaultResult<()> {
         if maximum_payload.get() == 0 || maximum_payload.get() > MAX_CONTROL_PAYLOAD.get() {
             return Err(Fault::invalid_argument(
-            "IPC control payload limit must be positive and at most 1 MiB",
+                "IPC control payload limit must be positive and at most 1 MiB",
             ));
         }
         let payload_bytes = u64::try_from(self.payload.len())
-        .map_err(|_| Fault::new(Code::OutOfRange, "IPC payload length exceeds u64"))?;
+            .map_err(|_| Fault::new(Code::OutOfRange, "IPC payload length exceeds u64"))?;
         if self.request_id.kind() != "request"
-        || self.sequence == 0
-        || !valid_token(&self.method, MAX_METHOD_BYTES)
-        || payload_bytes > maximum_payload.get()
+            || self.sequence == 0
+            || !valid_token(&self.method, MAX_METHOD_BYTES)
+            || payload_bytes > maximum_payload.get()
         {
             return Err(Fault::invalid_argument("IPC message fields exceed bounds"));
         }
         self.payload_digest.verify(&self.payload)
     }
     pub fn new(
-    request_id: ResourceId,
-    sequence: u64,
-    kind: MessageKind,
-    method: impl Into<String>,
-    payload: Vec<u8>,
-    maximum_payload: ByteSize,
+        request_id: ResourceId,
+        sequence: u64,
+        kind: MessageKind,
+        method: impl Into<String>,
+        payload: Vec<u8>,
+        maximum_payload: ByteSize,
     ) -> FaultResult<Self> {
         let message = Self {
             request_id,
@@ -250,35 +251,37 @@ impl Message {
     }
     pub fn decode(bytes: &[u8], maximum_payload: ByteSize) -> FaultResult<Self> {
         if maximum_payload.get() == 0 || maximum_payload.get() > MAX_CONTROL_PAYLOAD.get() {
-            return Err(Fault::invalid_argument("IPC payload limit is outside control-plane bounds"));
+            return Err(Fault::invalid_argument(
+                "IPC payload limit is outside control-plane bounds",
+            ));
         }
         let frame_limit = maximum_payload
-        .get()
-        .checked_add(FRAME_OVERHEAD_BYTES)
-        .ok_or_else(|| Fault::new(Code::OutOfRange, "IPC message limit overflow"))?;
+            .get()
+            .checked_add(FRAME_OVERHEAD_BYTES)
+            .ok_or_else(|| Fault::new(Code::OutOfRange, "IPC message limit overflow"))?;
         let limit = usize::try_from(frame_limit).map_err(|_| {
             Fault::new(
-            Code::ResourceExhausted,
-            "IPC message limit exceeds addressable memory",
+                Code::ResourceExhausted,
+                "IPC message limit exceeds addressable memory",
             )
         })?;
         let mut decoder = Decoder::new(bytes, limit)?;
         if decoder.u16()? != IPC_SCHEMA {
             return Err(Fault::new(
-            Code::FailedPrecondition,
-            "IPC message schema is unsupported",
+                Code::FailedPrecondition,
+                "IPC message schema is unsupported",
             ));
         }
         let request_id = decoder
-        .string()?
-        .parse::<ResourceId>()
-        .map_err(|error| Fault::data_loss("IPC request ID is invalid").with_source(error))?;
+            .string()?
+            .parse::<ResourceId>()
+            .map_err(|error| Fault::data_loss("IPC request ID is invalid").with_source(error))?;
         let sequence = decoder.u64()?;
         let kind = MessageKind::try_from(decoder.u8()?)?;
         let method = decoder.string()?.to_owned();
         let payload_digest = Digest::from_bytes(
-        <[u8; 32]>::try_from(decoder.bytes()?)
-        .map_err(|_| Fault::data_loss("IPC payload digest length is invalid"))?,
+            <[u8; 32]>::try_from(decoder.bytes()?)
+                .map_err(|_| Fault::data_loss("IPC payload digest length is invalid"))?,
         );
         let payload = decoder.bytes()?.to_vec();
         decoder.finish()?;
@@ -305,7 +308,7 @@ impl<R: Read, W: Write> Channel<R, W> {
     pub fn new(reader: R, writer: W, maximum_payload: ByteSize) -> FaultResult<Self> {
         if maximum_payload.get() == 0 || maximum_payload.get() > MAX_CONTROL_PAYLOAD.get() {
             return Err(Fault::invalid_argument(
-            "IPC control payload limit must be positive and at most 1 MiB; a bulk BufferDescriptor is required for larger data",
+                "IPC control payload limit must be positive and at most 1 MiB; a bulk BufferDescriptor is required for larger data",
             ));
         }
         let frame_limit = maximum_payload.checked_add(ByteSize::new(FRAME_OVERHEAD_BYTES))?;
@@ -323,7 +326,10 @@ impl<R: Read, W: Write> Channel<R, W> {
     }
     pub fn receive(&mut self) -> FaultResult<Option<Message>> {
         match self.reader.read_next()? {
-            Some(record) => Ok(Some(Message::decode(&record.payload, self.maximum_payload)?)),
+            Some(record) => Ok(Some(Message::decode(
+                &record.payload,
+                self.maximum_payload,
+            )?)),
             None => Ok(None),
         }
     }

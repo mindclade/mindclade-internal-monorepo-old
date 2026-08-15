@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Hierarchical node-wide resource accounting.
 //!
 //! Every substantial allocation reserves against the complete ancestor chain.
@@ -130,31 +135,30 @@ impl Budget {
             }
 
             for (kind, amount) in requested.iter() {
-                let next = state
-                    .used
-                    .get(kind)
-                    .checked_add(amount)
-                    .ok_or_else(|| Fault::new(Code::OutOfRange, "resource accounting overflow"))?;
+                let next =
+                    state.used.get(kind).checked_add(amount).ok_or_else(|| {
+                        Fault::new(Code::OutOfRange, "resource accounting overflow")
+                    })?;
                 let limit = state.limits.get(kind);
                 if limit != 0 && next > limit {
-                    state.rejections = state
-                        .rejections
-                        .checked_add(1)
-                        .ok_or_else(|| Fault::new(Code::OutOfRange, "resource rejection counter overflow"))?;
-                    return Err(Fault::new(Code::ResourceExhausted, "resource budget exceeded")
-                        .with_context("budget", self.name.to_string())
-                        .with_context("resource", format!("{kind:?}"))
-                        .with_context("requested", amount)
-                        .with_context("limit", limit));
+                    state.rejections = state.rejections.checked_add(1).ok_or_else(|| {
+                        Fault::new(Code::OutOfRange, "resource rejection counter overflow")
+                    })?;
+                    return Err(
+                        Fault::new(Code::ResourceExhausted, "resource budget exceeded")
+                            .with_context("budget", self.name.to_string())
+                            .with_context("resource", format!("{kind:?}"))
+                            .with_context("requested", amount)
+                            .with_context("limit", limit),
+                    );
                 }
             }
 
             for (kind, amount) in requested.iter() {
-                let next = state
-                    .used
-                    .get(kind)
-                    .checked_add(amount)
-                    .ok_or_else(|| Fault::new(Code::OutOfRange, "resource accounting overflow"))?;
+                let next =
+                    state.used.get(kind).checked_add(amount).ok_or_else(|| {
+                        Fault::new(Code::OutOfRange, "resource accounting overflow")
+                    })?;
                 state.used.0.insert(kind, next);
             }
         }

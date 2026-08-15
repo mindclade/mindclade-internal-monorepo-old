@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Async provider adapter backed by Apache Arrow `object_store`.
 //!
 //! Provider mechanics live here; tenant namespaces, digest verification, byte
@@ -42,10 +47,18 @@ impl ArrowProvider {
         namespace: Namespace,
         config: ClientConfig,
     ) -> FaultResult<Self> {
-        Ok(Self { inner, namespace, config: config.validate()? })
+        Ok(Self {
+            inner,
+            namespace,
+            config: config.validate()?,
+        })
     }
     pub fn memory(namespace: Namespace, config: ClientConfig) -> FaultResult<Self> {
-        Self::new(Arc::new(object_store::memory::InMemory::new()), namespace, config)
+        Self::new(
+            Arc::new(object_store::memory::InMemory::new()),
+            namespace,
+            config,
+        )
     }
 
     pub fn gcs(bucket: &str, namespace: Namespace, config: ClientConfig) -> FaultResult<Self> {
@@ -76,18 +89,29 @@ impl ArrowProvider {
     }
     pub async fn head(&self, relative: &str) -> FaultResult<ProviderMeta> {
         let path = self.path(relative)?;
-        let meta = self.inner.head(&path).await
+        let meta = self
+            .inner
+            .head(&path)
+            .await
             .map_err(provider_error("provider object head failed"))?;
         Ok(provider_meta(meta))
     }
     pub async fn get(&self, relative: &str, expected: Option<Digest>) -> FaultResult<Bytes> {
         let path = self.path(relative)?;
-        let result = self.inner.get(&path).await
+        let result = self
+            .inner
+            .get(&path)
+            .await
             .map_err(provider_error("provider object read failed"))?;
         if result.meta.size > self.config.maximum_read_bytes.get() {
-            return Err(Fault::new(Code::ResourceExhausted, "provider object exceeds read budget"));
+            return Err(Fault::new(
+                Code::ResourceExhausted,
+                "provider object exceeds read budget",
+            ));
         }
-        let bytes = result.bytes().await
+        let bytes = result
+            .bytes()
+            .await
             .map_err(provider_error("provider object body read failed"))?;
         if let Some(expected) = expected {
             expected.verify(&bytes)?;
@@ -96,11 +120,17 @@ impl ArrowProvider {
     }
     pub async fn get_range(&self, relative: &str, start: u64, length: u64) -> FaultResult<Bytes> {
         if length == 0 || length > self.config.maximum_read_bytes.get() {
-            return Err(Fault::new(Code::ResourceExhausted, "provider range exceeds read budget"));
+            return Err(Fault::new(
+                Code::ResourceExhausted,
+                "provider range exceeds read budget",
+            ));
         }
-        let end = start.checked_add(length)
+        let end = start
+            .checked_add(length)
             .ok_or_else(|| Fault::new(Code::OutOfRange, "provider range end overflow"))?;
-        self.inner.get_range(&self.path(relative)?, start..end).await
+        self.inner
+            .get_range(&self.path(relative)?, start..end)
+            .await
             .map_err(provider_error("provider range read failed"))
     }
     pub async fn put_create(&self, relative: &str, bytes: Bytes) -> FaultResult<ProviderMeta> {
@@ -113,18 +143,27 @@ impl ArrowProvider {
         let length = u64::try_from(bytes.len())
             .map_err(|_| Fault::new(Code::OutOfRange, "provider write length exceeds u64"))?;
         if length == 0 || length > self.config.maximum_write_bytes.get() {
-            return Err(Fault::new(Code::ResourceExhausted, "provider write exceeds write budget"));
+            return Err(Fault::new(
+                Code::ResourceExhausted,
+                "provider write exceeds write budget",
+            ));
         }
         let path = self.path(relative)?;
-        let options = PutOptions { mode, ..Default::default() };
-        self.inner.put_opts(&path, PutPayload::from_bytes(bytes), options).await
+        let options = PutOptions {
+            mode,
+            ..Default::default()
+        };
+        self.inner
+            .put_opts(&path, PutPayload::from_bytes(bytes), options)
+            .await
             .map_err(provider_error("provider object write failed"))?;
         self.head(relative).await
     }
     fn path(&self, relative: &str) -> FaultResult<ProviderPath> {
         let qualified = self.namespace.qualify(relative)?;
-        ProviderPath::parse(qualified.as_str())
-            .map_err(|error| Fault::invalid_argument("provider object path is invalid").with_source(error))
+        ProviderPath::parse(qualified.as_str()).map_err(|error| {
+            Fault::invalid_argument("provider object path is invalid").with_source(error)
+        })
     }
 }
 

@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 """Compile scientific pipeline plans into declarative stage descriptors. Durable tickets are minted by Go."""
 
 from preprocessing.contracts import PipelinePlan

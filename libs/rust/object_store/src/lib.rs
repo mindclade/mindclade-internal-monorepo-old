@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Conditional object-store contracts, verified namespace clients, and provider-neutral adapters.
 #![forbid(unsafe_code)]
 
@@ -6,8 +11,8 @@ pub mod client;
 pub mod conditional;
 pub mod config;
 mod local;
-pub mod metrics;
 mod memory;
+pub mod metrics;
 pub mod multipart;
 pub mod namespace;
 mod path;

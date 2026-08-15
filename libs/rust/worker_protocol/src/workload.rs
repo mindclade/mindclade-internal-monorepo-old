@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Canonical internal workload envelope shared by durable stage classes.
 
 use crate::{BufferDescriptor, ExecutionTicket};
@@ -69,11 +74,14 @@ impl WorkloadEnvelope {
                 "workload envelope is invalid or outside bounds",
             ));
         }
-        let ticket_stage = self.ticket.claims.stage_id.ok_or_else(|| {
+        // as_ref(), because `validate` takes &self and ok_or_else consumes its receiver —
+        // without it this tries to move the stage id out of a borrowed ticket. The value is
+        // only compared below, so a borrow is all this ever needed.
+        let ticket_stage = self.ticket.claims.stage_id.as_ref().ok_or_else(|| {
             Fault::invalid_argument("execution ticket does not identify workload stage")
         })?;
         if self.resolved_config_digest != self.ticket.claims.resolved_config_digest
-            || self.stage_id != ticket_stage
+            || self.stage_id != *ticket_stage
             || self.attempt != self.ticket.claims.attempt
         {
             return Err(Fault::new(

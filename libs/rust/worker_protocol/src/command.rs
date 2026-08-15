@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Validation for bounded worker control commands.
 
 pub use crate::WorkerCommand;
@@ -14,7 +19,9 @@ const MAX_CLOCK_SKEW_MILLIS: u64 = 60_000;
 /// at lease/admission time.
 pub fn validate(command: &WorkerCommand, now: u64, maximum_inputs: usize) -> FaultResult<()> {
     if command.sequence() == 0 {
-        return Err(Fault::invalid_argument("worker command sequence must be non-zero"));
+        return Err(Fault::invalid_argument(
+            "worker command sequence must be non-zero",
+        ));
     }
     let maximum_inputs = maximum_inputs.min(MAX_COMMAND_INPUTS);
     match command {
@@ -64,10 +71,15 @@ pub fn validate(command: &WorkerCommand, now: u64, maximum_inputs: usize) -> Fau
             ..
         } => {
             let maximum_future = now.checked_add(MAX_CLOCK_SKEW_MILLIS).ok_or_else(|| {
-                Fault::new(Code::OutOfRange, "heartbeat clock-skew window overflows u64")
+                Fault::new(
+                    Code::OutOfRange,
+                    "heartbeat clock-skew window overflows u64",
+                )
             })?;
             if *requested_at_unix_millis > maximum_future {
-                return Err(Fault::invalid_argument("heartbeat request is too far in the future"));
+                return Err(Fault::invalid_argument(
+                    "heartbeat request is too far in the future",
+                ));
             }
         }
     }

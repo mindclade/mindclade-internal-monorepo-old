@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Conservative but complete-enough mmCIF token framing.
 //!
 //! This lexer handles comments, unquoted tokens, quoted tokens, and semicolon
@@ -19,7 +24,10 @@ pub fn lex(bytes: &[u8], limits: Limits) -> FaultResult<Vec<CifToken>> {
     let mut text_field: Option<(usize, Vec<u8>)> = None;
     while let Some((location, line)) = cursor.next_line()? {
         if let Some((offset, value)) = text_field.as_mut() {
-            if line.first() == Some(&b'; ') {
+            // b';', not b'; ' — the latter is two codepoints and does not compile. A semicolon
+            // in the first column is what closes an mmCIF multi-line text field; the space was
+            // never part of the delimiter.
+            if line.first() == Some(&b';') {
                 push_token(&mut output, value, *offset, limits, &mut allocation)?;
                 text_field = None;
             } else {
@@ -29,7 +37,10 @@ pub fn lex(bytes: &[u8], limits: Limits) -> FaultResult<Vec<CifToken>> {
             }
             continue;
         }
-        if line.first() == Some(&b'; ') {
+        // Same two-codepoint literal as above: the opening delimiter is a bare semicolon.
+        // `&line[1..]` already assumes a one-byte delimiter, which is the other half of the
+        // evidence that the space was a typo rather than intent.
+        if line.first() == Some(&b';') {
             let initial = &line[1..];
             allocation.charge_usize(initial.len().checked_add(1).ok_or_else(|| Fault::new(Code::OutOfRange, "retained text allocation overflow"))?)?;
             let mut value = initial.to_vec();

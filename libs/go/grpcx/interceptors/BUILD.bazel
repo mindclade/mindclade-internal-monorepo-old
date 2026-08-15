@@ -1,5 +1,8 @@
-# Copyright 2026 Mindclade. All rights reserved.
-# Confidential, proprietary, and trade-secret information.
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 load("@rules_go//go:def.bzl","go_library","go_test")
 package(default_visibility=["//visibility:public"])
 go_library(name="interceptors",srcs=["authentication.go","authorization.go","config.go","doc.go","faults.go","internal.go","recovery.go","requestmeta.go","stream.go","validation.go"],importpath="mindclade.internal/libs/go/grpcx/interceptors",deps=["@org_golang_google_grpc//:grpc","@org_golang_google_grpc//metadata","//libs/go/auth","//libs/go/faults","//libs/go/grpcx","//libs/go/httpx","//libs/go/requestmeta"])

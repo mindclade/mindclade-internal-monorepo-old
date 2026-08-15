@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Authentication/authorization boundary for pre-issued admission grants.
 //!
 //! Credential/session authentication is provided by the network leaf adapter;

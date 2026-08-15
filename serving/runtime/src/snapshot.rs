@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Locally verified immutable policy snapshots.
 
 use mindclade_faults::{Code, Fault, FaultResult};
@@ -31,7 +36,8 @@ pub struct PolicyCache {
 impl core::fmt::Debug for PolicyCache {
     fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let inner = self.inner.read().unwrap_or_else(|p| p.into_inner());
-        formatter.debug_struct("PolicyCache")
+        formatter
+            .debug_struct("PolicyCache")
             .field("has_route", &inner.route.is_some())
             .field("minimum_policy_epoch", &inner.minimum_policy_epoch)
             .field("minimum_route_version", &inner.minimum_route_version)
@@ -46,7 +52,11 @@ impl PolicyCache {
         bootstrap_revocations: RevocationSnapshot,
         now_unix_millis: u64,
     ) -> FaultResult<Self> {
-        bootstrap_revocations.validate(now_unix_millis, bootstrap_revocations.claims.epoch, verifier.as_ref())?;
+        bootstrap_revocations.validate(
+            now_unix_millis,
+            bootstrap_revocations.claims.epoch,
+            verifier.as_ref(),
+        )?;
         let epoch = bootstrap_revocations.claims.epoch;
         Ok(Self {
             verifier,
@@ -59,11 +69,22 @@ impl PolicyCache {
             }),
         })
     }
-    pub fn install_revocations(&self, snapshot: RevocationSnapshot, now_unix_millis: u64) -> FaultResult<()> {
+    pub fn install_revocations(
+        &self,
+        snapshot: RevocationSnapshot,
+        now_unix_millis: u64,
+    ) -> FaultResult<()> {
         let mut inner = self.inner.write().unwrap_or_else(|p| p.into_inner());
-        snapshot.validate(now_unix_millis, inner.minimum_revocation_epoch, self.verifier.as_ref())?;
+        snapshot.validate(
+            now_unix_millis,
+            inner.minimum_revocation_epoch,
+            self.verifier.as_ref(),
+        )?;
         if snapshot.claims.epoch < inner.revocations.claims.epoch {
-            return Err(Fault::new(Code::Conflict, "revocation snapshot would move backwards"));
+            return Err(Fault::new(
+                Code::Conflict,
+                "revocation snapshot would move backwards",
+            ));
         }
         inner.minimum_revocation_epoch = snapshot.claims.epoch;
         inner.revocations = snapshot;
@@ -80,7 +101,10 @@ impl PolicyCache {
         )?;
         if let Some(current) = &inner.route {
             if snapshot.claims.version <= current.claims.version {
-                return Err(Fault::new(Code::Conflict, "route snapshot version is not monotonic"));
+                return Err(Fault::new(
+                    Code::Conflict,
+                    "route snapshot version is not monotonic",
+                ));
             }
         }
         inner.minimum_policy_epoch = inner.minimum_policy_epoch.max(snapshot.claims.policy_epoch);
@@ -108,7 +132,10 @@ impl PolicyCache {
     }
     pub fn snapshot(&self, now_unix_millis: u64) -> FaultResult<PolicySnapshot> {
         let inner = self.inner.read().unwrap_or_else(|p| p.into_inner());
-        let route = inner.route.clone().ok_or_else(|| Fault::new(Code::Unavailable, "no route snapshot is installed"))?;
+        let route = inner
+            .route
+            .clone()
+            .ok_or_else(|| Fault::new(Code::Unavailable, "no route snapshot is installed"))?;
         route.validate(
             now_unix_millis,
             inner.minimum_policy_epoch,
@@ -116,7 +143,11 @@ impl PolicyCache {
             &inner.revocations,
             self.verifier.as_ref(),
         )?;
-        inner.revocations.validate(now_unix_millis, inner.minimum_revocation_epoch, self.verifier.as_ref())?;
+        inner.revocations.validate(
+            now_unix_millis,
+            inner.minimum_revocation_epoch,
+            self.verifier.as_ref(),
+        )?;
         Ok(PolicySnapshot {
             route,
             revocations: inner.revocations.clone(),

@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Tenant/workspace access context propagated from validated authority.
 use mindclade_faults::{Fault, FaultResult};
 use mindclade_identifiers::ResourceId;

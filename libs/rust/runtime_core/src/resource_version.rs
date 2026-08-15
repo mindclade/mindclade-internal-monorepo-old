@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Content-bound optimistic concurrency versions.
 #![forbid(unsafe_code)]
 
@@ -46,18 +51,24 @@ impl FromStr for ResourceVersion {
     fn from_str(value: &str) -> FaultResult<Self> {
         let mut parts = value.splitn(3, ':');
         if parts.next() != Some("rv1") {
-            return Err(Fault::invalid_argument("resource-version schema is invalid"));
+            return Err(Fault::invalid_argument(
+                "resource-version schema is invalid",
+            ));
         }
         let generation = parts
             .next()
             .ok_or_else(|| Fault::invalid_argument("resource-version generation is missing"))?
             .parse::<u64>()
-            .map_err(|error| Fault::invalid_argument("resource-version generation is invalid").with_source(error))?;
+            .map_err(|error| {
+                Fault::invalid_argument("resource-version generation is invalid").with_source(error)
+            })?;
         let digest = parts
             .next()
             .ok_or_else(|| Fault::invalid_argument("resource-version digest is missing"))?
             .parse::<Digest>()
-            .map_err(|error| Fault::invalid_argument("resource-version digest is invalid").with_source(error))?;
+            .map_err(|error| {
+                Fault::invalid_argument("resource-version digest is invalid").with_source(error)
+            })?;
         Ok(Self::new(generation, digest))
     }
 }

@@ -1,11 +1,14 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Framework-independent ticketed stage execution core.
 
 use crate::telemetry::NodeMetrics;
 use crate::{NodeAgentConfig, NodeHealth};
 use mindclade_faults::{Code, Fault, FaultResult};
-use mindclade_runtime_core::{
-    Budget, BudgetHierarchy, CancellationToken, Clock, SystemClock,
-};
+use mindclade_runtime_core::{Budget, BudgetHierarchy, CancellationToken, Clock, SystemClock};
 use mindclade_worker_protocol::{
     BufferDescriptor, ExecutionTicket, RevocationSnapshot, SignatureVerifier, WorkloadEnvelope,
 };
@@ -23,8 +26,7 @@ pub struct StageResult {
 }
 
 /// Boxed async stage result used to keep `StageExecutor` object-safe.
-pub type StageFuture<'a> =
-    Pin<Box<dyn Future<Output = FaultResult<StageResult>> + Send + 'a>>;
+pub type StageFuture<'a> = Pin<Box<dyn Future<Output = FaultResult<StageResult>> + Send + 'a>>;
 
 /// Cooperative execution context handed to stage engines.
 ///
@@ -73,10 +75,7 @@ impl StageContext {
 
     pub fn ensure_active(&self) -> FaultResult<u64> {
         if self.cancellation.is_cancelled() {
-            return Err(Fault::new(
-                Code::Cancelled,
-                "stage execution was cancelled",
-            ));
+            return Err(Fault::new(Code::Cancelled, "stage execution was cancelled"));
         }
         let now = self.now_unix_millis()?;
         if now > self.deadline_unix_millis {
@@ -266,9 +265,7 @@ impl NodeAgentCore {
         );
         context.ensure_active()?;
 
-        let result = executor
-            .execute(operation, inputs, ticket, &context)
-            .await;
+        let result = executor.execute(operation, inputs, ticket, &context).await;
         match result {
             Ok(output) => {
                 context.ensure_active()?;
@@ -288,7 +285,6 @@ impl NodeAgentCore {
             }
         }
     }
-
 
     pub fn build_diagnostics(
         &self,

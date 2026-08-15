@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Injectable wall and monotonic clocks.
 #![forbid(unsafe_code)]
 
@@ -47,21 +52,39 @@ impl ManualClock {
     }
     /// Advances both time domains by the same duration.
     pub fn advance(&self, duration: Duration) {
-        let mut state = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-        state.system = state.system.checked_add(duration).unwrap_or(SystemTime::UNIX_EPOCH);
-        state.monotonic = state.monotonic.checked_add(duration).unwrap_or(state.monotonic);
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        state.system = state
+            .system
+            .checked_add(duration)
+            .unwrap_or(SystemTime::UNIX_EPOCH);
+        state.monotonic = state
+            .monotonic
+            .checked_add(duration)
+            .unwrap_or(state.monotonic);
     }
     /// Sets wall time while preserving monotonic time.
     pub fn set_system_time(&self, time: SystemTime) {
-        self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).system = time;
+        self.state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .system = time;
     }
 }
 
 impl Clock for ManualClock {
     fn system_now(&self) -> SystemTime {
-        self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).system
+        self.state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .system
     }
     fn monotonic_now(&self) -> Instant {
-        self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).monotonic
+        self.state
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .monotonic
     }
 }

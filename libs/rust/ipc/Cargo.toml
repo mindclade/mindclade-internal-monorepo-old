@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 [package]
 name = "mindclade_ipc"
 version.workspace = true
@@ -13,11 +18,18 @@ publish = false
 crate-type = ["rlib"]
 
 [dependencies]
+# src/descriptor.rs re-exports BufferAccess/BufferDescriptor/BufferTransport from here and
+# src/shared_memory.rs uses them directly; the dependency was never declared.
+mindclade_worker_protocol = { path = "../worker_protocol" }
 mindclade_record_io = { path = "../record_io" }
 mindclade_content_digest = { path = "../content_digest" }
 mindclade_faults = { path = "../faults" }
 mindclade_identifiers = { path = "../identifiers" }
 mindclade_bytes_io = { path = "../bytes_io" }
+
+[dev-dependencies]
+# tests/integration.rs only — a Clock for the test harness, not part of the public API.
+mindclade_runtime_core = { path = "../runtime_core" }
 
 [lints]
 workspace = true

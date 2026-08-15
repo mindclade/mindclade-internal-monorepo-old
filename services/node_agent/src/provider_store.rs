@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Provider-backed immutable artifact/reference source used by node-local staging.
 //!
 //! This adapter intentionally exposes no arbitrary relative-path read API.
@@ -5,7 +10,7 @@
 //! its immutable reference-database snapshot identity.
 
 use bytes::Bytes;
-use mindclade_content_digest::{hash_bytes, Digest};
+use mindclade_content_digest::{Digest, hash_bytes};
 use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_object_store::adapters::arrow::ArrowProvider;
 use mindclade_worker_protocol::ExecutionTicket;
@@ -84,7 +89,11 @@ impl ProviderSource {
             return Err(Fault::invalid_argument("artifact content is empty"));
         }
         let digest = hash_bytes(&bytes);
-        match self.provider.put_create(&artifact_path(digest), bytes).await {
+        match self
+            .provider
+            .put_create(&artifact_path(digest), bytes)
+            .await
+        {
             Ok(_) => Ok(digest),
             Err(error) if error.code() == Code::AlreadyExists => {
                 self.provider
@@ -140,7 +149,12 @@ fn authorize_read(ticket: &ExecutionTicket, digest: Digest) -> FaultResult<()> {
 }
 
 fn authorize_write(ticket: &ExecutionTicket, namespace: &str, length: u64) -> FaultResult<()> {
-    if !ticket.claims.artifacts.writable_namespaces.contains(namespace) {
+    if !ticket
+        .claims
+        .artifacts
+        .writable_namespaces
+        .contains(namespace)
+    {
         return Err(Fault::new(
             Code::PermissionDenied,
             "artifact namespace is outside the execution-ticket grant",

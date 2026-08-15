@@ -1,9 +1,14 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 use mindclade_artifact_cas::{ArtifactCas, CasConfig};
 use mindclade_checkpoint_io::{CheckpointReader, CheckpointWriter};
-use mindclade_runtime_core::ManualClock;
 use mindclade_content_digest::hash_bytes;
 use mindclade_identifiers::ResourceId;
 use mindclade_object_store::MemoryStore;
+use mindclade_runtime_core::ManualClock;
 use std::sync::Arc;
 use std::time::{Instant, SystemTime};
 
@@ -20,7 +25,8 @@ fn commit_marker_makes_checkpoint_visible() {
         if let Ok(mut session) = session {
             assert!(session.write_shard("model/rank-0", 0, b"weights").is_ok());
             let id = session.checkpoint_id().to_string();
-            let committed = session.commit(); assert!(committed.is_ok());
+            let committed = session.commit();
+            assert!(committed.is_ok());
             let reader = CheckpointReader::new(cas, store);
             assert!(reader.load(&id).is_ok());
             assert!(reader.verify(&id).is_ok_and(|report| report.is_valid()));

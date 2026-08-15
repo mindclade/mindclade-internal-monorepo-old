@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 use crate::common::{valid_sequence_byte, SequenceRecord};
 use mindclade_bounded_parse::{AllocationBudget, Cursor, Limits};
 use mindclade_faults::{Code, Fault, FaultResult};

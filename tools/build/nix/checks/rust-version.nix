@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 { pkgs, rustToolchain, versions, ... }:
 pkgs.runCommand "mindclade-rust-version" { nativeBuildInputs = [ rustToolchain ]; } ''
   actual="$(${rustToolchain}/bin/rustc --version | awk '{print $2}')"

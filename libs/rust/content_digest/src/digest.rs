@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Canonical digest value.
 
 use core::fmt;
@@ -74,7 +79,10 @@ impl fmt::Display for Digest {
 
 impl fmt::Debug for Digest {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.debug_tuple("Digest").field(&self.to_string()).finish()
+        formatter
+            .debug_tuple("Digest")
+            .field(&self.to_string())
+            .finish()
     }
 }
 
@@ -97,15 +105,21 @@ impl FromStr for Digest {
             return Err(ParseDigestError("digest must use the sha256 prefix"));
         };
         if encoded.len() != 64 {
-            return Err(ParseDigestError("sha256 digest must contain 64 hexadecimal characters"));
+            return Err(ParseDigestError(
+                "sha256 digest must contain 64 hexadecimal characters",
+            ));
         }
         let mut bytes = [0_u8; 32];
         for (index, pair) in encoded.as_bytes().chunks_exact(2).enumerate() {
             let Some(high) = nibble(pair[0]) else {
-                return Err(ParseDigestError("digest contains a non-hexadecimal character"));
+                return Err(ParseDigestError(
+                    "digest contains a non-hexadecimal character",
+                ));
             };
             let Some(low) = nibble(pair[1]) else {
-                return Err(ParseDigestError("digest contains a non-hexadecimal character"));
+                return Err(ParseDigestError(
+                    "digest contains a non-hexadecimal character",
+                ));
             };
             bytes[index] = (high << 4) | low;
         }

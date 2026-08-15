@@ -1,4 +1,9 @@
-use crate::{Message, MAX_CONTROL_PAYLOAD};
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
+use crate::{MAX_CONTROL_PAYLOAD, Message};
 use mindclade_faults::{Code, Fault, FaultResult};
 
 const FRAME_OVERHEAD_BYTES: u64 = 4096;
@@ -13,7 +18,9 @@ pub fn encode_control(message: &Message) -> FaultResult<Vec<u8>> {
         .checked_add(FRAME_OVERHEAD_BYTES)
         .ok_or_else(|| Fault::new(Code::OutOfRange, "IPC frame bound overflow"))?;
     if encoded > maximum {
-        return Err(Fault::invalid_argument("encoded control frame exceeds bound"));
+        return Err(Fault::invalid_argument(
+            "encoded control frame exceeds bound",
+        ));
     }
     Ok(bytes)
 }

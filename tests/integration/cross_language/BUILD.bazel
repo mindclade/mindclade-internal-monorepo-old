@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 load("@rules_go//go:def.bzl", "go_test")
 package(default_visibility=["//visibility:public"])
 filegroup(name="execution_ticket_claims_v1",srcs=["fixtures/execution_ticket_claims_v1.bin"])

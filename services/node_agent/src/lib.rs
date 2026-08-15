@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Shared node execution substrate for ticketed ingestion, preprocessing,
 //! checkpoint, artifact, evaluation, and batch stages.
 #![forbid(unsafe_code)]
@@ -23,7 +28,7 @@ pub use config::NodeAgentConfig;
 pub use data_stream::StreamWorker;
 pub use diagnostics::{DiagnosticBundle, DiagnosticEntry};
 pub use diagnostics_bundle::{
-    DiagnosticProcessExit, NodeDiagnosticsBundle, DEFAULT_MAXIMUM_DIAGNOSTIC_BYTES,
+    DEFAULT_MAXIMUM_DIAGNOSTIC_BYTES, DiagnosticProcessExit, NodeDiagnosticsBundle,
 };
 pub use health::{NodeHealth, NodeHealthSnapshot};
 pub use lifecycle::NodeAgentComponent;
@@ -33,7 +38,7 @@ pub use reference_cache::{ReferenceCache, ReferenceSnapshot};
 pub use resource_monitor::ResourceMonitor;
 pub use server::{NodeAgentCore, StageContext, StageExecutor, StageFuture, StageResult};
 pub use stage_adapters::{
-    CheckpointCopyExecutor, DataStreamFetchExecutor, CHECKPOINT_COPY_OPERATION,
-    DATA_STREAM_FETCH_OPERATION,
+    CHECKPOINT_COPY_OPERATION, CheckpointCopyExecutor, DATA_STREAM_FETCH_OPERATION,
+    DataStreamFetchExecutor,
 };
 pub use tool_runner::{ToolOutput, ToolRequest, ToolRunner};

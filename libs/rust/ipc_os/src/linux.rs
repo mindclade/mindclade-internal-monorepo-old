@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 use crate::BulkSegment;
 use mindclade_bytes_io::ByteRange;
 use mindclade_content_digest::hash_bytes;
@@ -26,16 +31,23 @@ impl MemfdSegment {
         lease_expires_unix_millis: u64,
         now_unix_millis: u64,
     ) -> FaultResult<Self> {
-        if name.is_empty() || name.len() > 128 || owner_process.is_empty() || owner_process.len() > 256 {
+        if name.is_empty()
+            || name.len() > 128
+            || owner_process.is_empty()
+            || owner_process.len() > 256
+        {
             return Err(Fault::invalid_argument("memfd name or owner is invalid"));
         }
         let length = u64::try_from(bytes.len())
             .map_err(|_| Fault::new(Code::OutOfRange, "memfd payload length exceeds u64"))?;
         if length == 0 || length > MAX_SEGMENT_BYTES {
-            return Err(Fault::new(Code::ResourceExhausted, "memfd payload is outside bulk IPC bounds"));
+            return Err(Fault::new(
+                Code::ResourceExhausted,
+                "memfd payload is outside bulk IPC bounds",
+            ));
         }
-        let c_name = CString::new(name)
-            .map_err(|_| Fault::invalid_argument("memfd name contains NUL"))?;
+        let c_name =
+            CString::new(name).map_err(|_| Fault::invalid_argument("memfd name contains NUL"))?;
         // SAFETY: `c_name` is a live NUL-terminated C string.  A non-negative
         // descriptor returned by the kernel is transferred exactly once into
         // `File::from_raw_fd` below and thereafter owned by RAII.
@@ -49,7 +61,10 @@ impl MemfdSegment {
         file.write_all(bytes)
             .and_then(|()| file.flush())
             .and_then(|()| file.seek(SeekFrom::Start(0)).map(|_| ()))
-            .map_err(|error| Fault::new(Code::Unavailable, "failed to initialize memfd segment").with_source(error))?;
+            .map_err(|error| {
+                Fault::new(Code::Unavailable, "failed to initialize memfd segment")
+                    .with_source(error)
+            })?;
         let descriptor = BufferDescriptor {
             segment_id: format!("memfd:{name}:{generation}"),
             generation,
@@ -83,15 +98,23 @@ impl MemfdSegment {
         // SAFETY: `fd` is owned by `self.file` and remains live for this call.
         let current = unsafe { libc::fcntl(fd, libc::F_GETFD) };
         if current < 0 {
-            return Err(Fault::new(Code::Unavailable, "failed to read file-descriptor flags")
-                .with_source(std::io::Error::last_os_error()));
+            return Err(
+                Fault::new(Code::Unavailable, "failed to read file-descriptor flags")
+                    .with_source(std::io::Error::last_os_error()),
+            );
         }
-        let updated = if close_on_exec { current | libc::FD_CLOEXEC } else { current & !libc::FD_CLOEXEC };
+        let updated = if close_on_exec {
+            current | libc::FD_CLOEXEC
+        } else {
+            current & !libc::FD_CLOEXEC
+        };
         // SAFETY: `fd` is valid and `updated` contains only descriptor flags.
         let result = unsafe { libc::fcntl(fd, libc::F_SETFD, updated) };
         if result < 0 {
-            return Err(Fault::new(Code::Unavailable, "failed to update file-descriptor flags")
-                .with_source(std::io::Error::last_os_error()));
+            return Err(
+                Fault::new(Code::Unavailable, "failed to update file-descriptor flags")
+                    .with_source(std::io::Error::last_os_error()),
+            );
         }
         Ok(())
     }
@@ -104,18 +127,29 @@ impl BulkSegment for MemfdSegment {
     fn read_verified(&self, maximum_bytes: u64, now_unix_millis: u64) -> FaultResult<Vec<u8>> {
         self.descriptor.validate(now_unix_millis)?;
         if self.descriptor.range.length() > maximum_bytes {
-            return Err(Fault::new(Code::ResourceExhausted, "bulk segment exceeds read budget"));
+            return Err(Fault::new(
+                Code::ResourceExhausted,
+                "bulk segment exceeds read budget",
+            ));
         }
-        let mut file = self.file.try_clone()
-            .map_err(|error| Fault::new(Code::Unavailable, "failed to clone memfd descriptor").with_source(error))?;
+        let mut file = self.file.try_clone().map_err(|error| {
+            Fault::new(Code::Unavailable, "failed to clone memfd descriptor").with_source(error)
+        })?;
         file.seek(SeekFrom::Start(self.descriptor.range.offset()))
-            .map_err(|error| Fault::new(Code::Unavailable, "failed to seek memfd segment").with_source(error))?;
-        let capacity = usize::try_from(self.descriptor.range.length())
-            .map_err(|_| Fault::new(Code::OutOfRange, "bulk segment length exceeds platform usize"))?;
+            .map_err(|error| {
+                Fault::new(Code::Unavailable, "failed to seek memfd segment").with_source(error)
+            })?;
+        let capacity = usize::try_from(self.descriptor.range.length()).map_err(|_| {
+            Fault::new(
+                Code::OutOfRange,
+                "bulk segment length exceeds platform usize",
+            )
+        })?;
         let mut bytes = Vec::with_capacity(capacity);
         let mut limited = file.take(self.descriptor.range.length());
-        limited.read_to_end(&mut bytes)
-            .map_err(|error| Fault::new(Code::Unavailable, "failed to read memfd segment").with_source(error))?;
+        limited.read_to_end(&mut bytes).map_err(|error| {
+            Fault::new(Code::Unavailable, "failed to read memfd segment").with_source(error)
+        })?;
         if bytes.len() != capacity {
             return Err(Fault::data_loss("bulk segment was truncated"));
         }

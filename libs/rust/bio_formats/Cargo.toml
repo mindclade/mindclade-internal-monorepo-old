@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 [package]
 name="mindclade_bio_formats"
 version.workspace=true
@@ -6,5 +11,9 @@ publish=false
 [dependencies]
 mindclade_bounded_parse={path="../bounded_parse"}
 mindclade_faults={path="../faults"}
+[dev-dependencies]
+# tests/integration.rs only — ByteSize for the parser limits under test.
+mindclade_bytes_io = { path = "../bytes_io" }
+
 [lints]
 workspace=true

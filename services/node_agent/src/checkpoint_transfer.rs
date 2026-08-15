@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Checkpoint staging, transfer, and repair helpers owned by the node agent.
 
 use crate::ProviderSource;
@@ -53,13 +58,11 @@ impl CheckpointTransfer {
         digest: Digest,
         now_unix_millis: u64,
     ) -> FaultResult<StagedComponent> {
-        let bytes = source.read_artifact(ticket, digest, now_unix_millis).await?;
-        let size = u64::try_from(bytes.len()).map_err(|_| {
-            Fault::new(
-                Code::OutOfRange,
-                "checkpoint component length exceeds u64",
-            )
-        })?;
+        let bytes = source
+            .read_artifact(ticket, digest, now_unix_millis)
+            .await?;
+        let size = u64::try_from(bytes.len())
+            .map_err(|_| Fault::new(Code::OutOfRange, "checkpoint component length exceeds u64"))?;
         let reservation = self.reserve(size)?;
         Ok(StagedComponent {
             digest,

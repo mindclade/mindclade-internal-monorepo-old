@@ -1,5 +1,7 @@
-// Copyright 2026 Mindclade. All rights reserved.
-// Confidential, proprietary, and trade-secret information.
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
 
 // event_dispatcher is a runnable local integration of the production Go paved
 // road. It uses in-memory providers but the same outbox, messaging, retry,

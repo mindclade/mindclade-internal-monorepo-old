@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 use mindclade_ipc_os::{BulkBackend, BulkBufferBroker};
 use std::time::{SystemTime, UNIX_EPOCH};
 

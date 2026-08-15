@@ -1,12 +1,24 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! Structured event envelope.
 
 use crate::Attributes;
-use mindclade_runtime_core::Clock;
 use mindclade_identifiers::ResourceId;
+use mindclade_runtime_core::Clock;
 use std::time::SystemTime;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub enum Severity { Trace, Debug, Info, Warn, Error, Critical }
+pub enum Severity {
+    Trace,
+    Debug,
+    Info,
+    Warn,
+    Error,
+    Critical,
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TraceContext {
@@ -26,7 +38,11 @@ pub struct Event {
 }
 
 impl Event {
-    pub fn new(name: impl Into<String>, severity: Severity, clock: &dyn Clock) -> Result<Self, mindclade_identifiers::ResourceIdError> {
+    pub fn new(
+        name: impl Into<String>,
+        severity: Severity,
+        clock: &dyn Clock,
+    ) -> Result<Self, mindclade_identifiers::ResourceIdError> {
         Ok(Self {
             event_id: ResourceId::generate("evt", clock)?,
             name: name.into(),

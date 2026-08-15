@@ -1,3 +1,8 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
 //! OS-specific bulk IPC leaf adapters.
 //!
 //! Control messages remain in `mindclade_ipc`; this crate owns only the
@@ -8,9 +13,9 @@ pub mod file;
 
 #[cfg(target_os = "linux")]
 mod linux;
+pub use broker::{BulkBackend, BulkBufferBroker};
 #[cfg(target_os = "linux")]
 pub use linux::MemfdSegment;
-pub use broker::{BulkBackend, BulkBufferBroker};
 use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_worker_protocol::BufferDescriptor;
 
@@ -35,6 +40,9 @@ impl MemfdSegment {
         _lease_expires_unix_millis: u64,
         _now_unix_millis: u64,
     ) -> FaultResult<Self> {
-        Err(Fault::new(Code::Unimplemented, "memfd bulk IPC requires Linux"))
+        Err(Fault::new(
+            Code::Unimplemented,
+            "memfd bulk IPC requires Linux",
+        ))
     }
 }
