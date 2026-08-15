@@ -8,8 +8,8 @@ package inbox
 import (
 	"context"
 	"database/sql"
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/storage/sql/transaction"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/storage/sql/transaction"
 )
 
 type Runner interface {

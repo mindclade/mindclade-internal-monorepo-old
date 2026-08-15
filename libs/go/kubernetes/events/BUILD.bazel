@@ -13,7 +13,7 @@ go_library(
         "doc.go",
         "recorder.go",
     ],
-    importpath = "mindclade.internal/libs/go/kubernetes/events",
+    importpath = "go.mindclade.dev/libs/go/kubernetes/events",
     deps = [
         "//libs/go/faults",
         "//libs/go/kubernetes",

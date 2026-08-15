@@ -13,9 +13,9 @@ import (
 	"hash/fnv"
 	"time"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/servicekit"
-	"mindclade.internal/libs/go/storage/sql/postgres"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/servicekit"
+	"go.mindclade.dev/libs/go/storage/sql/postgres"
 )
 
 const DefaultTable = "mindclade_schema_migrations"

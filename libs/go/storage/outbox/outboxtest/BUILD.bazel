@@ -12,7 +12,7 @@ exports_files(["README.md"])
 go_library(
     name = "outboxtest",
     srcs = ["conformance.go", "memory.go"],
-    importpath = "mindclade.internal/libs/go/storage/outbox/outboxtest",
+    importpath = "go.mindclade.dev/libs/go/storage/outbox/outboxtest",
     testonly = True,
     deps = [
         "//libs/go/clock",

@@ -13,10 +13,10 @@ import (
 	"sync"
 	"time"
 
-	mcclock "mindclade.internal/libs/go/clock"
-	"mindclade.internal/libs/go/coordination/outbox"
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/storage/lease"
+	mcclock "go.mindclade.dev/libs/go/clock"
+	"go.mindclade.dev/libs/go/coordination/outbox"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/storage/lease"
 )
 
 type Option func(*Store) error

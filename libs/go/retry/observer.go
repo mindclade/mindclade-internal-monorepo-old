@@ -10,7 +10,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // EventKind identifies a retry lifecycle event.

@@ -15,8 +15,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/servicekit"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/servicekit"
 )
 
 const (

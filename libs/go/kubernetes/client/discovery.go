@@ -12,8 +12,8 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
 
-	"mindclade.internal/libs/go/faults"
-	mckubernetes "mindclade.internal/libs/go/kubernetes"
+	"go.mindclade.dev/libs/go/faults"
+	mckubernetes "go.mindclade.dev/libs/go/kubernetes"
 )
 
 func NewDiscovery(ctx context.Context, config *rest.Config) (discovery.DiscoveryInterface, error) {

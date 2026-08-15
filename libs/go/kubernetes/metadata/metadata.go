@@ -14,8 +14,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	validation "k8s.io/apimachinery/pkg/util/validation"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/requestmeta"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/requestmeta"
 )
 
 const (

@@ -9,7 +9,7 @@ import (
 	"context"
 	"errors"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 func (service *Service) newShutdownContext(parent context.Context) (context.Context, context.CancelFunc) {

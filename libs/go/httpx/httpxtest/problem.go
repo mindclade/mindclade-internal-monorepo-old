@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"testing"
 
-	"mindclade.internal/libs/go/httpx"
+	"go.mindclade.dev/libs/go/httpx"
 )
 
 func DecodeProblem(testingTB testing.TB, response *http.Response) httpx.Problem {

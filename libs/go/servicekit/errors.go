@@ -9,7 +9,7 @@ import (
 	"errors"
 	"fmt"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // Sentinel errors provide stable errors.Is targets. Exported operations return

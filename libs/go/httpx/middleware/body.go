@@ -8,8 +8,8 @@ package middleware
 import (
 	"net/http"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/httpx"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/httpx"
 )
 
 // MaximumBody rejects declared bodies larger than maximumBytes and protects

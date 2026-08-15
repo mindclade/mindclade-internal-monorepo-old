@@ -11,8 +11,8 @@ import (
 
 	"google.golang.org/grpc/metadata"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/requestmeta"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/requestmeta"
 )
 
 func TestMetadataContextValidation(t *testing.T) {

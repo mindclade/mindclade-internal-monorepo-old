@@ -14,7 +14,7 @@
 // lifecycle events, panic containment at extension boundaries, and immutable
 // lifecycle snapshots.
 //
-// All exported operational failures use mindclade.internal/libs/go/faults for
+// All exported operational failures use go.mindclade.dev/libs/go/faults for
 // stable codes, reasons, operations, retry intent, and diagnostic fields while
 // retaining errors.Is compatibility with servicekit sentinel errors.
 //

@@ -20,7 +20,7 @@ go_library(
         "repository.go",
         "status.go",
     ],
-    importpath = "mindclade.internal/libs/go/storage/outbox",
+    importpath = "go.mindclade.dev/libs/go/storage/outbox",
     deps = [
         "//libs/go/clock",
         "//libs/go/coordination/outbox",

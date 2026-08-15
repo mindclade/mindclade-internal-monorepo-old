@@ -12,7 +12,7 @@ exports_files(["README.md"])
 go_library(
     name = "event_dispatcher_lib",
     srcs = ["main.go"],
-    importpath = "mindclade.internal/examples/go/event_dispatcher",
+    importpath = "go.mindclade.dev/examples/go/event_dispatcher",
     deps = [
         "//libs/go/coordination/outbox",
         "//libs/go/coordination/outbox/memory",

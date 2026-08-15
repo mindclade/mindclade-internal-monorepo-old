@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"mindclade.internal/libs/go/coordination/workqueue"
-	"mindclade.internal/libs/go/coordination/workqueue/memory"
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/requestmeta"
+	"go.mindclade.dev/libs/go/coordination/workqueue"
+	"go.mindclade.dev/libs/go/coordination/workqueue/memory"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/requestmeta"
 )
 
 func TestWorkerCompletesItem(t *testing.T) {

@@ -15,7 +15,7 @@ go_library(
         "errors.go",
         "failure.go",
     ],
-    importpath = "mindclade.internal/libs/go/coordination",
+    importpath = "go.mindclade.dev/libs/go/coordination",
     deps = [
         "//libs/go/faults",
         "//libs/go/identifiers",

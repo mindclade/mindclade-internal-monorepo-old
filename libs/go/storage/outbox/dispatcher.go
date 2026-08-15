@@ -8,11 +8,11 @@ package outbox
 import (
 	"time"
 
-	mcclock "mindclade.internal/libs/go/clock"
-	coordination "mindclade.internal/libs/go/coordination/outbox"
-	"mindclade.internal/libs/go/identifiers"
-	"mindclade.internal/libs/go/requestmeta"
-	"mindclade.internal/libs/go/retry"
+	mcclock "go.mindclade.dev/libs/go/clock"
+	coordination "go.mindclade.dev/libs/go/coordination/outbox"
+	"go.mindclade.dev/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/requestmeta"
+	"go.mindclade.dev/libs/go/retry"
 )
 
 const (

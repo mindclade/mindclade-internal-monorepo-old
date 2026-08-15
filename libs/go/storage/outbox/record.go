@@ -8,8 +8,8 @@ package outbox
 import (
 	"time"
 
-	coordination "mindclade.internal/libs/go/coordination/outbox"
-	"mindclade.internal/libs/go/storage/lease"
+	coordination "go.mindclade.dev/libs/go/coordination/outbox"
+	"go.mindclade.dev/libs/go/storage/lease"
 )
 
 type Record = coordination.Record

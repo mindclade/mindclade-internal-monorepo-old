@@ -16,7 +16,7 @@ exports_files([
 go_library(
     name = "postgres",
     srcs = ["doc.go", "errors.go", "store.go"],
-    importpath = "mindclade.internal/libs/go/audit/postgres",
+    importpath = "go.mindclade.dev/libs/go/audit/postgres",
     deps = [
         "//libs/go/audit",
         "//libs/go/faults",

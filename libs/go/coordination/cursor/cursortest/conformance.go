@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"mindclade.internal/libs/go/coordination/cursor"
+	"go.mindclade.dev/libs/go/coordination/cursor"
 )
 
 type Factory func() cursor.Store

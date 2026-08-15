@@ -7,10 +7,10 @@ package cross_language
 
 import (
 	"encoding/json"
-	"mindclade.internal/control/artifacts"
-	ra "mindclade.internal/control/runtime_authority"
-	"mindclade.internal/libs/go/identifiers"
-	"mindclade.internal/libs/go/resourceversion"
+	"go.mindclade.dev/control/artifacts"
+	ra "go.mindclade.dev/control/runtime_authority"
+	"go.mindclade.dev/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/resourceversion"
 	"os"
 	"path/filepath"
 	"runtime"

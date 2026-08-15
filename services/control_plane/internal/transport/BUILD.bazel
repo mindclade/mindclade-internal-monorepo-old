@@ -17,7 +17,7 @@ go_library(
         "grpc.go",
         "http.go",
     ],
-    importpath = "mindclade.internal/services/control_plane/internal/transport",
+    importpath = "go.mindclade.dev/services/control_plane/internal/transport",
     deps = [
         "//libs/go/connectx",
         "//libs/go/faults",

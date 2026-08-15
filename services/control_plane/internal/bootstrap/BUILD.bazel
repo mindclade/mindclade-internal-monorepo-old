@@ -19,7 +19,7 @@ go_library(
         "foundation.go",
         "profile.go",
     ],
-    importpath = "mindclade.internal/services/control_plane/internal/bootstrap",
+    importpath = "go.mindclade.dev/services/control_plane/internal/bootstrap",
     deps = [
         "//libs/go/faults",
         "//libs/go/servicekit",

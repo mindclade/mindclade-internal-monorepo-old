@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	mcclock "mindclade.internal/libs/go/clock"
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/signing"
+	mcclock "go.mindclade.dev/libs/go/clock"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/signing"
 )
 
 type Codec struct {

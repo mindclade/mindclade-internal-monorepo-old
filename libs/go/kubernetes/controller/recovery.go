@@ -12,7 +12,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // Recover contains panics from a reconciler and converts them to internal

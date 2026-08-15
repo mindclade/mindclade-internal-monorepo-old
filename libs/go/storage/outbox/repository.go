@@ -5,7 +5,7 @@
 
 package outbox
 
-import coordination "mindclade.internal/libs/go/coordination/outbox"
+import coordination "go.mindclade.dev/libs/go/coordination/outbox"
 
 // Repository atomically appends envelopes and owns fenced publication claims.
 type Repository = coordination.Store

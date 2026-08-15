@@ -17,7 +17,7 @@ func TestBuildInfoFromRuntime(t *testing.T) {
 	runtimeInfo := &debug.BuildInfo{
 		GoVersion: "go1.23.2",
 		Main: debug.Module{
-			Path:    "mindclade.internal/services/control_plane",
+			Path:    "go.mindclade.dev/services/control_plane",
 			Version: "v1.2.3",
 		},
 		Settings: []debug.BuildSetting{
@@ -32,7 +32,7 @@ func TestBuildInfoFromRuntime(t *testing.T) {
 	if info.Service != "control-plane" || info.Version != "v1.2.3" ||
 		info.Revision != "0123456789abcdef" || info.VCS != "git" ||
 		!info.Modified || info.GoVersion != "go1.23.2" ||
-		info.MainModule != "mindclade.internal/services/control_plane" {
+		info.MainModule != "go.mindclade.dev/services/control_plane" {
 		t.Fatalf("unexpected BuildInfo: %+v", info)
 	}
 	expectedTime := time.Date(2026, time.August, 12, 16, 30, 0, 0, time.UTC)

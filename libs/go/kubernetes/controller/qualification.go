@@ -11,7 +11,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"mindclade.internal/libs/go/kubernetes"
+	"go.mindclade.dev/libs/go/kubernetes"
 )
 
 // Qualify converts Kubernetes API errors returned by the reconciler into

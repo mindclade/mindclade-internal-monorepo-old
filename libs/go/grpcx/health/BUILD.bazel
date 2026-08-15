@@ -5,5 +5,5 @@
 
 load("@rules_go//go:def.bzl","go_library","go_test")
 package(default_visibility=["//visibility:public"])
-go_library(name="health",srcs=["doc.go","synchronizer.go"],importpath="mindclade.internal/libs/go/grpcx/health",deps=["@org_golang_google_grpc//:grpc","@org_golang_google_grpc//health","@org_golang_google_grpc//health/grpc_health_v1","//libs/go/clock","//libs/go/faults","//libs/go/servicekit"])
+go_library(name="health",srcs=["doc.go","synchronizer.go"],importpath="go.mindclade.dev/libs/go/grpcx/health",deps=["@org_golang_google_grpc//:grpc","@org_golang_google_grpc//health","@org_golang_google_grpc//health/grpc_health_v1","//libs/go/clock","//libs/go/faults","//libs/go/servicekit"])
 go_test(name="health_test",srcs=["synchronizer_test.go"],embed=[":health"],deps=["@org_golang_google_grpc//:grpc","@org_golang_google_grpc//health/grpc_health_v1","//libs/go/servicekit"])

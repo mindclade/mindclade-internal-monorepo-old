@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"mindclade.internal/libs/go/coordination/outbox"
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/identifiers"
-	"mindclade.internal/libs/go/requestmeta"
+	"go.mindclade.dev/libs/go/coordination/outbox"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/requestmeta"
 )
 
 type Factory func(*testing.T) outbox.Store

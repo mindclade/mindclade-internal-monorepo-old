@@ -9,8 +9,8 @@ import (
 	"slices"
 	"sort"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/identifiers"
 )
 
 const MaximumChangedFieldCount = 128

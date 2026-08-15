@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	foundationconfig "mindclade.internal/libs/go/config"
-	"mindclade.internal/libs/go/faults"
+	foundationconfig "go.mindclade.dev/libs/go/config"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // Environment identifies the operational qualification boundary for a

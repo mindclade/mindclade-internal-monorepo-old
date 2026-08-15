@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	canonical "mindclade.internal/libs/go/coordination/outbox/outboxtest"
-	storageoutbox "mindclade.internal/libs/go/storage/outbox"
+	canonical "go.mindclade.dev/libs/go/coordination/outbox/outboxtest"
+	storageoutbox "go.mindclade.dev/libs/go/storage/outbox"
 )
 
 type Factory = canonical.Factory

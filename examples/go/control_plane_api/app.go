@@ -19,16 +19,16 @@ import (
 	"sync"
 	"time"
 
-	"mindclade.internal/libs/go/audit"
-	"mindclade.internal/libs/go/coordination/outbox"
-	outboxmemory "mindclade.internal/libs/go/coordination/outbox/memory"
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/httpx"
-	"mindclade.internal/libs/go/identifiers"
-	"mindclade.internal/libs/go/messaging"
-	messagingmemory "mindclade.internal/libs/go/messaging/memory"
-	"mindclade.internal/libs/go/requestmeta"
-	"mindclade.internal/libs/go/servicekit"
+	"go.mindclade.dev/libs/go/audit"
+	"go.mindclade.dev/libs/go/coordination/outbox"
+	outboxmemory "go.mindclade.dev/libs/go/coordination/outbox/memory"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/httpx"
+	"go.mindclade.dev/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/messaging"
+	messagingmemory "go.mindclade.dev/libs/go/messaging/memory"
+	"go.mindclade.dev/libs/go/requestmeta"
+	"go.mindclade.dev/libs/go/servicekit"
 )
 
 const (

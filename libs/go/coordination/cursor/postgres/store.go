@@ -11,10 +11,10 @@ import (
 	"errors"
 	"fmt"
 
-	"mindclade.internal/libs/go/coordination/cursor"
-	"mindclade.internal/libs/go/faults"
-	sqlpostgres "mindclade.internal/libs/go/storage/sql/postgres"
-	"mindclade.internal/libs/go/storage/sql/transaction"
+	"go.mindclade.dev/libs/go/coordination/cursor"
+	"go.mindclade.dev/libs/go/faults"
+	sqlpostgres "go.mindclade.dev/libs/go/storage/sql/postgres"
+	"go.mindclade.dev/libs/go/storage/sql/transaction"
 )
 
 type Store struct {

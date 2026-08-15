@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"mindclade.internal/libs/go/storage/sql/sqltest"
+	"go.mindclade.dev/libs/go/storage/sql/sqltest"
 )
 
 func TestPoolComponentLifecycle(t *testing.T) {

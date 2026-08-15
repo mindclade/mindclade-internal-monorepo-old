@@ -9,7 +9,7 @@ import (
 	"connectrpc.com/connect"
 	"connectrpc.com/otelconnect"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // NewInterceptor constructs the official OpenTelemetry Connect interceptor.

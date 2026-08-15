@@ -9,7 +9,7 @@ package(default_visibility = ["//visibility:public"])
 go_library(
     name = "connecttest",
     srcs = ["doc.go", "recorder.go", "server.go"],
-    importpath = "mindclade.internal/libs/go/connectx/connecttest",
+    importpath = "go.mindclade.dev/libs/go/connectx/connecttest",
     deps = ["@com_connectrpc_connect//:connect"],
 )
 

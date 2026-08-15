@@ -9,7 +9,7 @@ exports_files(["README.md"])
 go_library(
     name = "messaging",
     srcs = ["doc.go", "errors.go", "message.go", "publisher.go", "subscription.go"],
-    importpath = "mindclade.internal/libs/go/messaging",
+    importpath = "go.mindclade.dev/libs/go/messaging",
     deps = ["//libs/go/faults", "//libs/go/identifiers", "//libs/go/requestmeta"],
 )
 go_test(

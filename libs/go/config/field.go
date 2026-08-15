@@ -8,7 +8,7 @@ package config
 import (
 	"strings"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 const (

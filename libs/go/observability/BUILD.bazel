@@ -24,7 +24,7 @@ go_library(
         "servicekit.go",
         "tracing.go",
     ],
-    importpath = "mindclade.internal/libs/go/observability",
+    importpath = "go.mindclade.dev/libs/go/observability",
     deps = [
         "//libs/go/auth",
         "//libs/go/clock",

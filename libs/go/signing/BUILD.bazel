@@ -9,7 +9,7 @@ exports_files(["README.md"])
 go_library(
     name = "signing",
     srcs = ["algorithm.go", "doc.go", "ed25519.go", "errors.go", "faults.go", "hmac.go", "key.go", "keyset.go", "signature.go", "signer.go"],
-    importpath = "mindclade.internal/libs/go/signing",
+    importpath = "go.mindclade.dev/libs/go/signing",
     deps = ["//libs/go/clock", "//libs/go/faults"],
 )
 go_test(name = "signing_test", srcs = ["signing_test.go"], embed = [":signing"], deps = ["//libs/go/clock"])

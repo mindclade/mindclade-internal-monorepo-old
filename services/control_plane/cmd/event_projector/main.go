@@ -8,7 +8,7 @@
 // lifecycle behavior flows through servicekit/production via bootstrap.
 package main
 
-import "mindclade.internal/services/control_plane/internal/bootstrap"
+import "go.mindclade.dev/services/control_plane/internal/bootstrap"
 
 func main() {
 	bootstrap.Main(bootstrap.RoleEventProjector, bootstrap.UnconfiguredFactory("event-projector"))

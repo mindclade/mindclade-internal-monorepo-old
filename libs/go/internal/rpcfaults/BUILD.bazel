@@ -17,7 +17,7 @@ go_library(
         "details.go",
         "doc.go",
     ],
-    importpath = "mindclade.internal/libs/go/internal/rpcfaults",
+    importpath = "go.mindclade.dev/libs/go/internal/rpcfaults",
     deps = [
         "//libs/go/faults",
         "//libs/go/requestmeta",

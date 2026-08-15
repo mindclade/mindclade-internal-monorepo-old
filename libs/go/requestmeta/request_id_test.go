@@ -10,8 +10,8 @@ import (
 	"errors"
 	"testing"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/identifiers"
 )
 
 const testRequestIDText = "request_018f3f4a5b6c7d8e8f900123456789ab"

@@ -7,7 +7,7 @@ package artifacts
 
 import (
 	"context"
-	"mindclade.internal/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/identifiers"
 	"testing"
 )
 

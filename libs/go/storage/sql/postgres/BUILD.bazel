@@ -16,7 +16,7 @@ go_library(
         "identifier.go",
         "pool.go",
     ],
-    importpath = "mindclade.internal/libs/go/storage/sql/postgres",
+    importpath = "go.mindclade.dev/libs/go/storage/sql/postgres",
     deps = [
         "//libs/go/faults",
         "//libs/go/servicekit",

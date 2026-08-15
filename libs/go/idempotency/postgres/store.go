@@ -13,13 +13,13 @@ import (
 	"fmt"
 	"time"
 
-	"mindclade.internal/libs/go/clock"
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/idempotency"
-	"mindclade.internal/libs/go/identifiers"
-	"mindclade.internal/libs/go/requestmeta"
-	sqlpostgres "mindclade.internal/libs/go/storage/sql/postgres"
-	"mindclade.internal/libs/go/storage/sql/transaction"
+	"go.mindclade.dev/libs/go/clock"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/idempotency"
+	"go.mindclade.dev/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/requestmeta"
+	sqlpostgres "go.mindclade.dev/libs/go/storage/sql/postgres"
+	"go.mindclade.dev/libs/go/storage/sql/transaction"
 )
 
 type databaseExecutor interface {

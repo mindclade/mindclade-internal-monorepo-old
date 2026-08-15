@@ -11,8 +11,8 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"mindclade.internal/libs/go/clock"
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/clock"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // Event is the immutable outcome of one reconciliation attempt.

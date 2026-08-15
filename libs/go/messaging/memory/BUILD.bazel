@@ -8,7 +8,7 @@ package(default_visibility = ["//visibility:public"])
 go_library(
     name = "memory",
     srcs = ["broker.go", "doc.go"],
-    importpath = "mindclade.internal/libs/go/messaging/memory",
+    importpath = "go.mindclade.dev/libs/go/messaging/memory",
     deps = ["//libs/go/clock", "//libs/go/faults", "//libs/go/identifiers", "//libs/go/messaging", "//libs/go/requestmeta"],
 )
 go_test(

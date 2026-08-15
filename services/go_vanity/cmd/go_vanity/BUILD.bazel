@@ -10,7 +10,7 @@ package(default_visibility = ["//visibility:private"])
 go_binary(
     name = "go_vanity",
     srcs = ["main.go"],
-    importpath = "mindclade.internal/services/go_vanity/cmd/go_vanity",
+    importpath = "go.mindclade.dev/services/go_vanity/cmd/go_vanity",
     visibility = ["//visibility:public"],
     deps = ["//services/go_vanity/internal/vanity"],
 )

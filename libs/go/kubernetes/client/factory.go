@@ -12,8 +12,8 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	"mindclade.internal/libs/go/faults"
-	mckubernetes "mindclade.internal/libs/go/kubernetes"
+	"go.mindclade.dev/libs/go/faults"
+	mckubernetes "go.mindclade.dev/libs/go/kubernetes"
 )
 
 func NewTyped(ctx context.Context, config *rest.Config) (clientset.Interface, error) {

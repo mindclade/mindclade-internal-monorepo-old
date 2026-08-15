@@ -9,8 +9,8 @@ import (
 	"context"
 	"sync"
 
-	"mindclade.internal/libs/go/observability"
-	"mindclade.internal/libs/go/requestmeta"
+	"go.mindclade.dev/libs/go/observability"
+	"go.mindclade.dev/libs/go/requestmeta"
 )
 
 type traceContextKey struct{}

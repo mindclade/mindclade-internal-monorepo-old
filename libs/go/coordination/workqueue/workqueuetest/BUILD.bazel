@@ -10,7 +10,7 @@ package(default_visibility = ["//visibility:public"])
 go_library(
     name = "workqueuetest",
     srcs = ["conformance.go", "doc.go"],
-    importpath = "mindclade.internal/libs/go/coordination/workqueue/workqueuetest",
+    importpath = "go.mindclade.dev/libs/go/coordination/workqueue/workqueuetest",
     deps = [
         "//libs/go/coordination/workqueue",
         "//libs/go/requestmeta",

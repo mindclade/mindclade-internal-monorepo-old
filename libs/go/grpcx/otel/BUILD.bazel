@@ -10,7 +10,7 @@ package(default_visibility = ["//visibility:public"])
 go_library(
     name = "otel",
     srcs = ["doc.go", "otel.go"],
-    importpath = "mindclade.internal/libs/go/grpcx/otel",
+    importpath = "go.mindclade.dev/libs/go/grpcx/otel",
     deps = [
         "@io_opentelemetry_go_contrib_instrumentation_google_golang_org_grpc_otelgrpc//:otelgrpc",
         "@org_golang_google_grpc//stats",

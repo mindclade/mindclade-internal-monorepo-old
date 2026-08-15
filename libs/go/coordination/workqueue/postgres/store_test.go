@@ -6,7 +6,7 @@
 package postgres_test
 
 import (
-	"mindclade.internal/libs/go/coordination/workqueue/postgres"
+	"go.mindclade.dev/libs/go/coordination/workqueue/postgres"
 	"strings"
 	"testing"
 )

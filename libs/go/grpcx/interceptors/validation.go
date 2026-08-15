@@ -8,7 +8,7 @@ package interceptors
 import (
 	"context"
 	"google.golang.org/grpc"
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 type validator interface{ Validate() error }

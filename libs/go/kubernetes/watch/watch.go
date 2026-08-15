@@ -14,8 +14,8 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	k8swatch "k8s.io/apimachinery/pkg/watch"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/kubernetes"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/kubernetes"
 )
 
 // Reworded off the leading proper noun rather than capitalised: Go error strings are read

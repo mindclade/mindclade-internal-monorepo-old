@@ -1,4 +1,4 @@
-module mindclade.internal
+module go.mindclade.dev
 
 go 1.26.0
 

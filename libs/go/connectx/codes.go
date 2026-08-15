@@ -8,7 +8,7 @@ package connectx
 import (
 	"connectrpc.com/connect"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // CodeFromFault maps a transport-neutral Mindclade code to Connect's canonical

@@ -10,7 +10,7 @@ import (
 
 	grpcreflection "google.golang.org/grpc/reflection"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 type Config struct{ V1Only bool }

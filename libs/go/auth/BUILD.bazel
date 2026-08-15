@@ -24,7 +24,7 @@ go_library(
         "principal.go",
         "resource.go",
     ],
-    importpath = "mindclade.internal/libs/go/auth",
+    importpath = "go.mindclade.dev/libs/go/auth",
     deps = [
         "//libs/go/faults",
         "//libs/go/identifiers",

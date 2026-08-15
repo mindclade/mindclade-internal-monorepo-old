@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/storage/lease"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/storage/lease"
 )
 
 const (

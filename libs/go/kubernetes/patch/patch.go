@@ -13,8 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	crclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/kubernetes"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/kubernetes"
 )
 
 // Object persists the difference between before and after as an optimistic

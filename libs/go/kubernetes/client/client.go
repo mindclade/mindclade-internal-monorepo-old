@@ -12,8 +12,8 @@ import (
 	"k8s.io/client-go/rest"
 	crclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/kubernetes"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/kubernetes"
 )
 
 // New constructs a controller-runtime client. The caller retains ownership of

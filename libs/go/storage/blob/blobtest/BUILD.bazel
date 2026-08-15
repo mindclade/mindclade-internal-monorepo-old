@@ -13,7 +13,7 @@ go_library(
         "doc.go",
         "suite.go",
     ],
-    importpath = "mindclade.internal/libs/go/storage/blob/blobtest",
+    importpath = "go.mindclade.dev/libs/go/storage/blob/blobtest",
     deps = [
         "//libs/go/faults",
         "//libs/go/identifiers",

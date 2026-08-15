@@ -14,7 +14,7 @@ import (
 	crclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 func SetController(owner, controlled crclient.Object, scheme *runtime.Scheme, options ...controllerutil.OwnerReferenceOption) (bool, error) {

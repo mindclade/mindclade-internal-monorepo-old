@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"mindclade.internal/libs/go/clock"
-	storageoutbox "mindclade.internal/libs/go/storage/outbox"
+	"go.mindclade.dev/libs/go/clock"
+	storageoutbox "go.mindclade.dev/libs/go/storage/outbox"
 )
 
 func TestMemoryStoreConformance(t *testing.T) {

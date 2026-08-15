@@ -15,9 +15,9 @@ import (
 	gcsapi "cloud.google.com/go/storage"
 	"google.golang.org/api/iterator"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/identifiers"
-	"mindclade.internal/libs/go/storage/blob"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/storage/blob"
 )
 
 type Store struct {

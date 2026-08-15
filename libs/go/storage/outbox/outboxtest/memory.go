@@ -6,9 +6,9 @@
 package outboxtest
 
 import (
-	mcclock "mindclade.internal/libs/go/clock"
-	canonicalmemory "mindclade.internal/libs/go/coordination/outbox/memory"
-	"mindclade.internal/libs/go/storage/lease"
+	mcclock "go.mindclade.dev/libs/go/clock"
+	canonicalmemory "go.mindclade.dev/libs/go/coordination/outbox/memory"
+	"go.mindclade.dev/libs/go/storage/lease"
 )
 
 type MemoryStore = canonicalmemory.Store

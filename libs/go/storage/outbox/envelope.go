@@ -8,9 +8,9 @@ package outbox
 import (
 	"time"
 
-	coordination "mindclade.internal/libs/go/coordination/outbox"
-	"mindclade.internal/libs/go/identifiers"
-	"mindclade.internal/libs/go/requestmeta"
+	coordination "go.mindclade.dev/libs/go/coordination/outbox"
+	"go.mindclade.dev/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/requestmeta"
 )
 
 // Envelope is an immutable event awaiting transactional publication.

@@ -9,7 +9,7 @@ exports_files(["README.md"])
 go_library(
     name = "outbound",
     srcs = ["client.go", "doc.go", "errors.go", "policy.go", "resolver.go", "validate.go"],
-    importpath = "mindclade.internal/libs/go/httpx/outbound",
+    importpath = "go.mindclade.dev/libs/go/httpx/outbound",
     deps = ["//libs/go/faults", "//libs/go/httpx"],
 )
 go_test(name = "outbound_test", srcs = ["client_test.go"], embed = [":outbound"])

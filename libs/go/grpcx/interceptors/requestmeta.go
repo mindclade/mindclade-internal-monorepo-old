@@ -9,8 +9,8 @@ import (
 	"context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	"mindclade.internal/libs/go/grpcx"
-	"mindclade.internal/libs/go/requestmeta"
+	"go.mindclade.dev/libs/go/grpcx"
+	"go.mindclade.dev/libs/go/requestmeta"
 )
 
 func UnaryRequestMetadata() grpc.UnaryServerInterceptor {

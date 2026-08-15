@@ -17,7 +17,7 @@ go_library(
         "publisher.go",
         "subscription.go",
     ],
-    importpath = "mindclade.internal/libs/go/messaging/pubsub",
+    importpath = "go.mindclade.dev/libs/go/messaging/pubsub",
     deps = [
         "//libs/go/faults",
         "//libs/go/identifiers",

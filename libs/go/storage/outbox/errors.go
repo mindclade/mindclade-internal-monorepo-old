@@ -5,7 +5,7 @@
 
 package outbox
 
-import coordination "mindclade.internal/libs/go/coordination/outbox"
+import coordination "go.mindclade.dev/libs/go/coordination/outbox"
 
 var (
 	ErrInvalidMessage    = coordination.ErrInvalidMessage

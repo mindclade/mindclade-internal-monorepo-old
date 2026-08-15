@@ -10,7 +10,7 @@ import (
 	"crypto/x509"
 	"errors"
 	grpccredentials "google.golang.org/grpc/credentials"
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 	"os"
 	"strings"
 )

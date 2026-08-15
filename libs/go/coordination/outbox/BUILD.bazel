@@ -19,7 +19,7 @@ go_library(
         "publisher.go",
         "store.go",
     ],
-    importpath = "mindclade.internal/libs/go/coordination/outbox",
+    importpath = "go.mindclade.dev/libs/go/coordination/outbox",
     deps = [
         "//libs/go/clock",
         "//libs/go/faults",

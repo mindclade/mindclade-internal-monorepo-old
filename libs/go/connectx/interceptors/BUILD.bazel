@@ -9,7 +9,7 @@ package(default_visibility = ["//visibility:public"])
 go_library(
     name = "interceptors",
     srcs = ["authentication.go", "authorization.go", "doc.go", "faults.go","internal.go", "recovery.go", "requestmeta.go", "stack.go", "types.go", "validation.go"],
-    importpath = "mindclade.internal/libs/go/connectx/interceptors",
+    importpath = "go.mindclade.dev/libs/go/connectx/interceptors",
     deps = [
         "//libs/go/auth", "//libs/go/connectx", "//libs/go/faults", "//libs/go/httpx", "//libs/go/requestmeta",
         "@com_connectrpc_connect//:connect",

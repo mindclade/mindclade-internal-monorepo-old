@@ -14,7 +14,7 @@ go_library(
         "errors.go",
         "reference.go",
     ],
-    importpath = "mindclade.internal/libs/go/kubernetes",
+    importpath = "go.mindclade.dev/libs/go/kubernetes",
     deps = [
         "//libs/go/faults",
         "@io_k8s_apimachinery//pkg/api/errors",

@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"mindclade.internal/libs/go/clock"
-	"mindclade.internal/libs/go/coordination/outbox"
-	"mindclade.internal/libs/go/coordination/outbox/outboxtest"
+	"go.mindclade.dev/libs/go/clock"
+	"go.mindclade.dev/libs/go/coordination/outbox"
+	"go.mindclade.dev/libs/go/coordination/outbox/outboxtest"
 )
 
 func TestConformance(t *testing.T) {

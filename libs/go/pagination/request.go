@@ -5,7 +5,7 @@
 
 package pagination
 
-import "mindclade.internal/libs/go/faults"
+import "go.mindclade.dev/libs/go/faults"
 
 const (
 	DefaultPageSize = 50

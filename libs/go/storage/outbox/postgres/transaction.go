@@ -9,8 +9,8 @@ import (
 	"context"
 	"database/sql"
 
-	storageoutbox "mindclade.internal/libs/go/storage/outbox"
-	"mindclade.internal/libs/go/storage/sql/transaction"
+	storageoutbox "go.mindclade.dev/libs/go/storage/outbox"
+	"go.mindclade.dev/libs/go/storage/sql/transaction"
 )
 
 // AppendInTransaction atomically invokes mutate and appends envelope using the

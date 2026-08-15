@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"mindclade.internal/libs/go/clock"
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/storage/lease"
+	"go.mindclade.dev/libs/go/clock"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/storage/lease"
 )
 
 type Option func(*Store) error

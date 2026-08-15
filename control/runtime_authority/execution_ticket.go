@@ -6,7 +6,7 @@
 package runtime_authority
 
 import (
-	"mindclade.internal/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/identifiers"
 	"time"
 )
 

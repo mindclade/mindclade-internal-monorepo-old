@@ -10,8 +10,8 @@ import (
 	"net/http"
 	"testing"
 
-	"mindclade.internal/libs/go/httpx"
-	"mindclade.internal/libs/go/servicekit/production"
+	"go.mindclade.dev/libs/go/httpx"
+	"go.mindclade.dev/libs/go/servicekit/production"
 )
 
 func TestHTTPMechanism(t *testing.T) {

@@ -11,7 +11,7 @@ import (
 	"log/slog"
 	"sort"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 type contextHandler struct {

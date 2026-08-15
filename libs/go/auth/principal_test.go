@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"mindclade.internal/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/identifiers"
 )
 
 var (

@@ -9,7 +9,7 @@ package(default_visibility = ["//visibility:public"])
 go_library(
     name = "reflection",
     srcs = ["doc.go", "handlers.go"],
-    importpath = "mindclade.internal/libs/go/connectx/reflection",
+    importpath = "go.mindclade.dev/libs/go/connectx/reflection",
     deps = ["//libs/go/connectx", "//libs/go/faults", "@com_connectrpc_connect//:connect", "@com_connectrpc_grpcreflect//:grpcreflect"],
 )
 

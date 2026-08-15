@@ -5,7 +5,7 @@
 
 package orchestration
 
-import "mindclade.internal/libs/go/faults"
+import "go.mindclade.dev/libs/go/faults"
 
 func invalid(reason, message string, cause error) error {
 	if cause == nil {

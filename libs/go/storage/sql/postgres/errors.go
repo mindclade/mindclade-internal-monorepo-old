@@ -12,7 +12,7 @@ import (
 	"errors"
 	"strings"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 type sqlStateError interface{ SQLState() string }

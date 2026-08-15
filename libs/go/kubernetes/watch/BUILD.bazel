@@ -13,7 +13,7 @@ go_library(
         "doc.go",
         "watch.go",
     ],
-    importpath = "mindclade.internal/libs/go/kubernetes/watch",
+    importpath = "go.mindclade.dev/libs/go/kubernetes/watch",
     deps = [
         "//libs/go/faults",
         "//libs/go/kubernetes",

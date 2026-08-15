@@ -9,7 +9,7 @@ package(default_visibility = ["//visibility:public"])
 go_library(
     name = "health",
     srcs = ["checker.go", "doc.go", "handler.go"],
-    importpath = "mindclade.internal/libs/go/connectx/health",
+    importpath = "go.mindclade.dev/libs/go/connectx/health",
     deps = ["//libs/go/faults", "//libs/go/servicekit", "@com_connectrpc_connect//:connect", "@com_connectrpc_grpchealth//:grpchealth"],
 )
 

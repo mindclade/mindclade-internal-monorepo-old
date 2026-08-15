@@ -6,7 +6,7 @@
 package ingestion
 
 import (
-	"mindclade.internal/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/identifiers"
 	"net/url"
 	"strings"
 )

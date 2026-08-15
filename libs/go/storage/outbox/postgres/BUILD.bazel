@@ -16,7 +16,7 @@ go_library(
         "scanner.go",
         "transaction.go",
     ],
-    importpath = "mindclade.internal/libs/go/storage/outbox/postgres",
+    importpath = "go.mindclade.dev/libs/go/storage/outbox/postgres",
     deps = [
         "//libs/go/coordination/outbox/postgres",
         "//libs/go/storage/lease",

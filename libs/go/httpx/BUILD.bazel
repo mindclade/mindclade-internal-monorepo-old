@@ -9,7 +9,7 @@ package(default_visibility = ["//visibility:public"])
 go_library(
     name = "httpx",
     srcs = ["client.go", "codes.go", "doc.go", "errors.go", "headers.go", "json.go", "problem.go", "propagation.go", "server.go"],
-    importpath = "mindclade.internal/libs/go/httpx",
+    importpath = "go.mindclade.dev/libs/go/httpx",
     deps = ["//libs/go/faults", "//libs/go/internal/rpcfaults", "//libs/go/requestmeta", "//libs/go/servicekit"],
 )
 

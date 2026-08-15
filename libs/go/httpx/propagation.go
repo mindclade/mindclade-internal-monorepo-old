@@ -8,8 +8,8 @@ package httpx
 import (
 	"net/http"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/requestmeta"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/requestmeta"
 )
 
 // PrepareRequest returns a shallow request clone with an independent header

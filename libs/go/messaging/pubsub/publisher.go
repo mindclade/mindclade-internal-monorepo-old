@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/messaging"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/messaging"
 )
 
 // Publisher maps immutable Mindclade messages onto provider messages.

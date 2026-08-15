@@ -18,9 +18,9 @@ GO_IMPORT = re.compile(r'"(mindclade\.internal/[^\"]+)"')
 def check(root: Path):
     e = []
     rules = [
-        ("libs/go", "mindclade.internal/control/"),
-        ("libs/go", "mindclade.internal/services/"),
-        ("control", "mindclade.internal/services/"),
+        ("libs/go", "go.mindclade.dev/control/"),
+        ("libs/go", "go.mindclade.dev/services/"),
+        ("control", "go.mindclade.dev/services/"),
     ]
     for rel, forbidden in rules:
         for p in (root / rel).rglob("*.go"):

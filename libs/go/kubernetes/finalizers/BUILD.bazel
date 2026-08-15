@@ -13,7 +13,7 @@ go_library(
         "doc.go",
         "finalizers.go",
     ],
-    importpath = "mindclade.internal/libs/go/kubernetes/finalizers",
+    importpath = "go.mindclade.dev/libs/go/kubernetes/finalizers",
     deps = [
         "//libs/go/faults",
         "//libs/go/kubernetes",

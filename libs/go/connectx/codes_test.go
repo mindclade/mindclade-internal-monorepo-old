@@ -10,7 +10,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 func TestCodeRoundTrip(t *testing.T) {

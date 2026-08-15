@@ -8,8 +8,8 @@ package config
 import (
 	"strings"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/signing"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/signing"
 )
 
 // Validate applies cross-field rules that cannot be expressed by individual

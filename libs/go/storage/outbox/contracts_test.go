@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"mindclade.internal/libs/go/clock"
-	canonicalmemory "mindclade.internal/libs/go/coordination/outbox/memory"
-	"mindclade.internal/libs/go/identifiers"
-	"mindclade.internal/libs/go/requestmeta"
-	storageoutbox "mindclade.internal/libs/go/storage/outbox"
+	"go.mindclade.dev/libs/go/clock"
+	canonicalmemory "go.mindclade.dev/libs/go/coordination/outbox/memory"
+	"go.mindclade.dev/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/requestmeta"
+	storageoutbox "go.mindclade.dev/libs/go/storage/outbox"
 )
 
 func TestStorageFacadeUsesCanonicalImplementation(t *testing.T) {

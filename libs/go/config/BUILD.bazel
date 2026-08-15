@@ -9,7 +9,7 @@ exports_files(["README.md"])
 go_library(
     name = "config",
     srcs = ["doc.go", "errors.go", "field.go", "loader.go", "reload.go", "snapshot.go", "source.go"],
-    importpath = "mindclade.internal/libs/go/config",
+    importpath = "go.mindclade.dev/libs/go/config",
     deps = ["//libs/go/clock", "//libs/go/faults", "//libs/go/identifiers"],
 )
 go_test(name = "config_test", srcs = ["config_test.go"], embed = [":config"])

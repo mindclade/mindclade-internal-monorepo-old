@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"mindclade.internal/libs/go/coordination/outbox"
-	"mindclade.internal/libs/go/coordination/workqueue"
+	"go.mindclade.dev/libs/go/coordination/outbox"
+	"go.mindclade.dev/libs/go/coordination/workqueue"
 )
 
 func TestIngestionCoordinatorRunsDurableWorkOutboxAndMessagingPipeline(t *testing.T) {

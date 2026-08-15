@@ -12,7 +12,7 @@ exports_files(["README.md"])
 go_library(
     name = "foundation",
     srcs = ["dependencies.go"],
-    importpath = "mindclade.internal/services/control_plane/internal/foundation",
+    importpath = "go.mindclade.dev/services/control_plane/internal/foundation",
     deps = [
         "//libs/go/audit",
         "//libs/go/auth",

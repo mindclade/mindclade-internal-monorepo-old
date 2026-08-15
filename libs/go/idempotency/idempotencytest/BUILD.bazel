@@ -10,7 +10,7 @@ package(default_visibility = ["//visibility:public"])
 go_library(
     name = "idempotencytest",
     srcs = ["doc.go", "memory.go"],
-    importpath = "mindclade.internal/libs/go/idempotency/idempotencytest",
+    importpath = "go.mindclade.dev/libs/go/idempotency/idempotencytest",
     deps = [
         "//libs/go/clock",
         "//libs/go/faults",

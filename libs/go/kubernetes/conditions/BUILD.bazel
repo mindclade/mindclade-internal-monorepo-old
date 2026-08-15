@@ -13,7 +13,7 @@ go_library(
         "conditions.go",
         "doc.go",
     ],
-    importpath = "mindclade.internal/libs/go/kubernetes/conditions",
+    importpath = "go.mindclade.dev/libs/go/kubernetes/conditions",
     deps = [
         "//libs/go/faults",
         "@io_k8s_apimachinery//pkg/apis/meta/v1",

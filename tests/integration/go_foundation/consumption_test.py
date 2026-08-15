@@ -69,7 +69,7 @@ def test_every_control_plane_command_uses_standard_bootstrap() -> None:
 
     for command, role in COMMAND_ROLES.items():
         source = (command_root / command / "main.go").read_text()
-        assert '"mindclade.internal/services/control_plane/internal/bootstrap"' in source
+        assert '"go.mindclade.dev/services/control_plane/internal/bootstrap"' in source
         assert "bootstrap.Main(" in source
         assert f"bootstrap.{role}" in source
         assert "bootstrap.UnconfiguredFactory(" in source

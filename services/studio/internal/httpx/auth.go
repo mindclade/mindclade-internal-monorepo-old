@@ -10,8 +10,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	"mindclade.internal/services/studio/internal/iap"
-	"mindclade.internal/services/studio/internal/session"
+	"go.mindclade.dev/services/studio/internal/iap"
+	"go.mindclade.dev/services/studio/internal/session"
 )
 
 type ctxKey int

@@ -13,7 +13,7 @@ go_library(
         "doc.go",
         "status.go",
     ],
-    importpath = "mindclade.internal/libs/go/kubernetes/status",
+    importpath = "go.mindclade.dev/libs/go/kubernetes/status",
     deps = [
         "//libs/go/faults",
         "//libs/go/kubernetes/conditions",

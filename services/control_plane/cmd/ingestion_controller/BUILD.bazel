@@ -10,7 +10,7 @@ package(default_visibility = ["//visibility:private"])
 go_binary(
     name = "ingestion-controller",
     srcs = ["main.go"],
-    importpath = "mindclade.internal/services/control_plane/cmd/ingestion_controller",
+    importpath = "go.mindclade.dev/services/control_plane/cmd/ingestion_controller",
     visibility = ["//services/control_plane:__subpackages__"],
     deps = ["//services/control_plane/internal/bootstrap"],
 )

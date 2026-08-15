@@ -13,7 +13,7 @@ go_library(
         "doc.go",
         "store.go",
     ],
-    importpath = "mindclade.internal/libs/go/storage/lease/memory",
+    importpath = "go.mindclade.dev/libs/go/storage/lease/memory",
     deps = [
         "//libs/go/clock",
         "//libs/go/faults",

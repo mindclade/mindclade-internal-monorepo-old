@@ -5,7 +5,7 @@
 
 package runtime_authority
 
-import "mindclade.internal/libs/go/signing"
+import "go.mindclade.dev/libs/go/signing"
 
 type ExecutionTicket struct {
 	Claims    ExecutionTicketClaims

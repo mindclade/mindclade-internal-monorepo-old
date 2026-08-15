@@ -10,7 +10,7 @@ import (
 	"os"
 	"os/signal"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // SignalContext returns a context canceled by the first configured operating

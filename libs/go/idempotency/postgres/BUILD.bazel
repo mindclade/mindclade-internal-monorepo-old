@@ -16,7 +16,7 @@ exports_files([
 go_library(
     name = "postgres",
     srcs = ["config.go", "doc.go", "errors.go", "store.go"],
-    importpath = "mindclade.internal/libs/go/idempotency/postgres",
+    importpath = "go.mindclade.dev/libs/go/idempotency/postgres",
     deps = [
         "//libs/go/clock",
         "//libs/go/faults",

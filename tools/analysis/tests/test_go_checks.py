@@ -46,7 +46,7 @@ def test_higher_layer_import_is_rejected() -> None:
         root = Path(directory)
         path = root / "libs/go/faults/bad.go"
         path.parent.mkdir(parents=True)
-        path.write_text('package faults\nimport "mindclade.internal/libs/go/servicekit"\n')
+        path.write_text('package faults\nimport "go.mindclade.dev/libs/go/servicekit"\n')
         violations = layers.import_violations(root, [path])
         assert violations and "higher layer" in violations[0].message
 

@@ -20,8 +20,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/httpx"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/httpx"
 )
 
 // Client is a policy-enforcing HTTP client. Callers cannot replace its

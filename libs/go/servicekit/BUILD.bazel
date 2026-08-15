@@ -30,7 +30,7 @@ go_library(
         "taskgroup.go",
         "timeout.go",
     ],
-    importpath = "mindclade.internal/libs/go/servicekit",
+    importpath = "go.mindclade.dev/libs/go/servicekit",
     deps = [
         "//libs/go/clock",
         "//libs/go/faults",

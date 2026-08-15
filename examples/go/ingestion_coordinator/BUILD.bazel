@@ -12,7 +12,7 @@ exports_files(["README.md"])
 go_library(
     name = "ingestion_coordinator_lib",
     srcs = ["app.go"],
-    importpath = "mindclade.internal/examples/go/ingestion_coordinator",
+    importpath = "go.mindclade.dev/examples/go/ingestion_coordinator",
     visibility = ["//visibility:private"],
     deps = [
         "//libs/go/config",

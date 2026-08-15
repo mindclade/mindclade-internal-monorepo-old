@@ -7,7 +7,7 @@ package grpcx
 
 import (
 	"google.golang.org/grpc/codes"
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 	"testing"
 )
 

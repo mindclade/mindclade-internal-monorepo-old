@@ -10,7 +10,7 @@ import (
 	"encoding/hex"
 	"strings"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // TraceContext contains only correlation identifiers needed by logs and

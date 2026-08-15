@@ -19,9 +19,9 @@ import (
 	"strings"
 	"testing"
 
-	"mindclade.internal/services/studio/internal/httpx"
-	"mindclade.internal/services/studio/internal/iap"
-	"mindclade.internal/services/studio/internal/session"
+	"go.mindclade.dev/services/studio/internal/httpx"
+	"go.mindclade.dev/services/studio/internal/iap"
+	"go.mindclade.dev/services/studio/internal/session"
 )
 
 func discardLogger() *slog.Logger { return slog.New(slog.DiscardHandler) }

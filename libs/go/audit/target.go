@@ -10,8 +10,8 @@ import (
 	"errors"
 	"strings"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/identifiers"
 )
 
 // Target identifies the resource affected by an audited operation. ID may be

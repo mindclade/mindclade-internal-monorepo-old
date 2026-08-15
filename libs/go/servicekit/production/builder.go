@@ -8,8 +8,8 @@ package production
 import (
 	"sync"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/servicekit"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/servicekit"
 )
 
 // Builder is the only supported production composition path for Go processes.

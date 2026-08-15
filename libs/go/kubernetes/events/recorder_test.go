@@ -15,9 +15,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"mindclade.internal/libs/go/faults"
-	kmetadata "mindclade.internal/libs/go/kubernetes/metadata"
-	"mindclade.internal/libs/go/requestmeta"
+	"go.mindclade.dev/libs/go/faults"
+	kmetadata "go.mindclade.dev/libs/go/kubernetes/metadata"
+	"go.mindclade.dev/libs/go/requestmeta"
 )
 
 type recordedEvent struct {

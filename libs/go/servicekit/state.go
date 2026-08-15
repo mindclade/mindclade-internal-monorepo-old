@@ -8,7 +8,7 @@ package servicekit
 import (
 	"time"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // State is the lifecycle state of a Service.

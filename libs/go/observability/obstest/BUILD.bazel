@@ -16,7 +16,7 @@ go_library(
         "metrics.go",
         "tracing.go",
     ],
-    importpath = "mindclade.internal/libs/go/observability/obstest",
+    importpath = "go.mindclade.dev/libs/go/observability/obstest",
     deps = [
         "//libs/go/observability",
         "//libs/go/requestmeta",

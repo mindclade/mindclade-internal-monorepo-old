@@ -10,8 +10,8 @@ import (
 	"errors"
 	"testing"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/identifiers"
 )
 
 func TestPermissionAuthorizer(t *testing.T) {

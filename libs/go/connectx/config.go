@@ -11,7 +11,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 const MaximumMessageBytes = 1 << 30

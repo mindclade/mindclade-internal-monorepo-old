@@ -15,7 +15,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 type testState struct {

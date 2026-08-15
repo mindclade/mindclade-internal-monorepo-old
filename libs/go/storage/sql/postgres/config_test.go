@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/storage/sql/sqltest"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/storage/sql/sqltest"
 )
 
 func TestPoolConfigValidate(t *testing.T) {

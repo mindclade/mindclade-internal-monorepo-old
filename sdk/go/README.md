@@ -1,7 +1,7 @@
 # Mindclade Go SDK
 
 This directory is an independently publishable Go module. It consumes generated
-public API contracts and must not import `mindclade.internal` packages. The
+public API contracts and must not import `go.mindclade.dev` packages. The
 current files reserve the SDK surface; API generation and release publication
 remain scaffold work and are not represented as production-complete.
 

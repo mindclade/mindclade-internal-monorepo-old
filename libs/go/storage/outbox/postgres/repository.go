@@ -8,8 +8,8 @@ package postgres
 import (
 	"database/sql"
 
-	canonical "mindclade.internal/libs/go/coordination/outbox/postgres"
-	"mindclade.internal/libs/go/storage/lease"
+	canonical "go.mindclade.dev/libs/go/coordination/outbox/postgres"
+	"go.mindclade.dev/libs/go/storage/lease"
 )
 
 // Repository is the PostgreSQL implementation of storage/outbox.Repository.

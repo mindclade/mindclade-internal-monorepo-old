@@ -9,7 +9,7 @@ import (
 	"context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	"mindclade.internal/libs/go/grpcx"
+	"go.mindclade.dev/libs/go/grpcx"
 )
 
 func UnaryFaultTranslation() grpc.UnaryServerInterceptor {

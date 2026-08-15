@@ -13,7 +13,7 @@ go_library(
         "doc.go",
         "driver.go",
     ],
-    importpath = "mindclade.internal/libs/go/storage/sql/sqltest",
+    importpath = "go.mindclade.dev/libs/go/storage/sql/sqltest",
     testonly = True,
 )
 

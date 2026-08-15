@@ -8,7 +8,7 @@ package bootstrap
 import (
 	"sort"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // Consumption is qualification metadata describing which reusable Go packages

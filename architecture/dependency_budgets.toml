@@ -9,26 +9,26 @@ schema_version = 1
 path = "libs/go/faults"
 language = "go"
 max_internal_direct = 0
-forbidden_prefixes = ["mindclade.internal/control/", "mindclade.internal/services/"]
+forbidden_prefixes = ["go.mindclade.dev/control/", "go.mindclade.dev/services/"]
 
 [[budget]]
 path = "libs/go/servicekit"
 language = "go"
 max_internal_direct = 3
-allowed_prefixes = ["mindclade.internal/libs/go/clock", "mindclade.internal/libs/go/faults", "mindclade.internal/libs/go/servicekit"]
+allowed_prefixes = ["go.mindclade.dev/libs/go/clock", "go.mindclade.dev/libs/go/faults", "go.mindclade.dev/libs/go/servicekit"]
 
 [[budget]]
 path = "control/runtime_authority"
 language = "go"
 max_internal_direct = 5
-allowed_prefixes = ["mindclade.internal/libs/go/"]
-forbidden_prefixes = ["mindclade.internal/services/"]
+allowed_prefixes = ["go.mindclade.dev/libs/go/"]
+forbidden_prefixes = ["go.mindclade.dev/services/"]
 
 [[budget]]
 path = "control"
 language = "go"
 max_internal_direct = 20
-forbidden_prefixes = ["mindclade.internal/services/", "mindclade.internal/apps/"]
+forbidden_prefixes = ["go.mindclade.dev/services/", "go.mindclade.dev/apps/"]
 
 [[budget]]
 path = "services"

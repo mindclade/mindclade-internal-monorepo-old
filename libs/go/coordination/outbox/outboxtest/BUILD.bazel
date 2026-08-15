@@ -9,7 +9,7 @@ package(default_visibility = ["//visibility:public"])
 go_library(
     name = "outboxtest",
     srcs = ["conformance.go", "doc.go"],
-    importpath = "mindclade.internal/libs/go/coordination/outbox/outboxtest",
+    importpath = "go.mindclade.dev/libs/go/coordination/outbox/outboxtest",
     deps = [
         "//libs/go/coordination/outbox",
         "//libs/go/faults",

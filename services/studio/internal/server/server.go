@@ -36,12 +36,12 @@ import (
 	"log/slog"
 	"net/http"
 
-	"mindclade.internal/services/studio/internal/handoff"
-	"mindclade.internal/services/studio/internal/httpx"
-	"mindclade.internal/services/studio/internal/iap"
-	"mindclade.internal/services/studio/internal/runlog"
-	"mindclade.internal/services/studio/internal/session"
-	"mindclade.internal/services/studio/internal/stream"
+	"go.mindclade.dev/services/studio/internal/handoff"
+	"go.mindclade.dev/services/studio/internal/httpx"
+	"go.mindclade.dev/services/studio/internal/iap"
+	"go.mindclade.dev/services/studio/internal/runlog"
+	"go.mindclade.dev/services/studio/internal/session"
+	"go.mindclade.dev/services/studio/internal/stream"
 )
 
 // Role selects which mux this process serves.

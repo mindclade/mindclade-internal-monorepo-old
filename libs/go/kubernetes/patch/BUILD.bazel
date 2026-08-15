@@ -13,7 +13,7 @@ go_library(
         "doc.go",
         "patch.go",
     ],
-    importpath = "mindclade.internal/libs/go/kubernetes/patch",
+    importpath = "go.mindclade.dev/libs/go/kubernetes/patch",
     deps = [
         "//libs/go/faults",
         "//libs/go/kubernetes",

@@ -9,7 +9,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // EventKind is the stable category of a lifecycle event.

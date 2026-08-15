@@ -12,7 +12,7 @@ exports_files(["README.md"])
 go_library(
     name = "projector",
     srcs = ["doc.go", "errors.go", "projector.go"],
-    importpath = "mindclade.internal/libs/go/coordination/projector",
+    importpath = "go.mindclade.dev/libs/go/coordination/projector",
     deps = [
         "//libs/go/clock",
         "//libs/go/coordination/cursor",

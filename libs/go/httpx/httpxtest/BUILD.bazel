@@ -14,7 +14,7 @@ go_library(
         "problem.go",
         "server.go",
     ],
-    importpath = "mindclade.internal/libs/go/httpx/httpxtest",
+    importpath = "go.mindclade.dev/libs/go/httpx/httpxtest",
     deps = ["//libs/go/httpx"],
 )
 

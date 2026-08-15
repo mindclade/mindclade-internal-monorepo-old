@@ -13,7 +13,7 @@ go_library(
         "doc.go",
         "ownerrefs.go",
     ],
-    importpath = "mindclade.internal/libs/go/kubernetes/ownerrefs",
+    importpath = "go.mindclade.dev/libs/go/kubernetes/ownerrefs",
     deps = [
         "//libs/go/faults",
         "@io_k8s_apimachinery//pkg/apis/meta/v1",

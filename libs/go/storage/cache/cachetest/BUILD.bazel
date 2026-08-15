@@ -13,7 +13,7 @@ go_library(
         "conformance.go",
         "doc.go",
     ],
-    importpath = "mindclade.internal/libs/go/storage/cache/cachetest",
+    importpath = "go.mindclade.dev/libs/go/storage/cache/cachetest",
     deps = [
         "//libs/go/faults",
         "//libs/go/storage/cache",

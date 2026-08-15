@@ -5,7 +5,7 @@
 
 package resourceversion
 
-import "mindclade.internal/libs/go/faults"
+import "go.mindclade.dev/libs/go/faults"
 
 // Precondition describes the durable existence/version condition required by a
 // mutation. At most one mode may be selected.

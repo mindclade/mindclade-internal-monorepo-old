@@ -10,8 +10,8 @@ import (
 	"reflect"
 	"testing"
 
-	"mindclade.internal/libs/go/servicekit"
-	"mindclade.internal/libs/go/servicekit/production"
+	"go.mindclade.dev/libs/go/servicekit"
+	"go.mindclade.dev/libs/go/servicekit/production"
 )
 
 func testComponent(name string) servicekit.Component {

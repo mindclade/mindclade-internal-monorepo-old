@@ -16,7 +16,7 @@ go_library(
         "doc.go",
         "factory.go",
     ],
-    importpath = "mindclade.internal/libs/go/kubernetes/client",
+    importpath = "go.mindclade.dev/libs/go/kubernetes/client",
     deps = [
         "//libs/go/faults",
         "//libs/go/kubernetes",

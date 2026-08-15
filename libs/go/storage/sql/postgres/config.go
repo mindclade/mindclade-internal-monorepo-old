@@ -10,7 +10,7 @@ import (
 	"database/sql"
 	"time"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // PoolConfig contains database/sql pool limits and an optional startup health
