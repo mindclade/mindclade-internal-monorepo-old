@@ -53,7 +53,25 @@ def check(root: Path):
         if (
             not p.is_file()
             or p.resolve() == Path(__file__).resolve()
-            or any(x in p.parts for x in (".git", "node_modules", "__pycache__"))
+            # Build and tool output, not source. The list previously stopped at node_modules,
+            # which was complete when only JS had a vendor directory. It now misses .venv in
+            # particular: `uv sync` writes one, so running this check after the Python lane
+            # scanned pip invocations inside site-packages and reported ruff's own __main__.py
+            # as a forbidden host package-manager call.
+            or any(
+                x in p.parts
+                for x in (
+                    ".git",
+                    "node_modules",
+                    "__pycache__",
+                    ".venv",
+                    "target",
+                    ".ruff_cache",
+                    ".pytest_cache",
+                    ".mypy_cache",
+                )
+            )
+            or p.parts[0].startswith("bazel-")
         ):
             continue
         if p.name == "Dockerfile" or p.name.startswith("Dockerfile."):
