@@ -1,35 +1,25 @@
-# Infra / Terraform / Modules / Secret Manager
+# Secret Manager module
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Terraform, Kubernetes, GitOps, and policy configuration
+This module creates one deletion-protected Secret Manager metadata container with
+automatic or explicit multi-region replication, optional CMEK, delayed version
+destruction, notifications, a rotation schedule, governance labels, and additive
+least-privilege IAM. It never accepts or creates a secret payload.
 
-## Purpose
+Restricted secrets require CMEK in every selected replica. Payload-access and
+version-adder principals must be disjoint. Rotation timestamps are bounded to the
+Secret Manager API window. A rotation plan must retain the API's five-minute lead
+time when applied within 24 hours, and an apply-time check rejects an expired
+timestamp; the protected apply workflow must discard saved plans older than 24
+hours. Annotations are restricted to printable non-sensitive metadata with API-valid
+keys and a byte-exact ASCII size ceiling.
 
-Deployment and cloud foundations. Infrastructure declares environments, workload identity, storage, databases, queues, clusters, security policy, observability, and GitOps composition. This path specializes that domain for **secret manager**.
+Write payload versions through an approved runtime or rotation workflow so plaintext
+does not enter Terraform configuration, plans, logs, or state. Rotation scheduling
+only emits a Pub/Sub notification; it requires an independently deployed, monitored,
+and idempotent handler. KMS and Pub/Sub service-agent grants belong to their owning
+states to preserve separation of duties.
 
-## Boundary
-
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
-
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
-
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Before rollout, validate effective IAM and inheritance, service-agent grants, data
+residency, KMS location/availability, rotation and rollback, stale-version disablement,
+audit-log routing, access-deny canaries, and emergency access. Offline tests prove the
+metadata policy only and never access a live secret.

@@ -1,35 +1,44 @@
-# Infra / Terraform / Modules / Artifact Registry
+# Artifact Registry Docker repository
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Terraform, Kubernetes, GitOps, and policy configuration
+This module creates one standard private Docker repository with immutable tags,
+provider- and Terraform-level deletion guards, inherited vulnerability scanning,
+and a bounded **untagged** cleanup candidate. Cleanup starts in dry-run mode and
+cannot become destructive until the caller sets `cleanup_activation_approved = true`
+in the same reviewed change.
 
-## Purpose
+Artifact Registry cannot delete an image that still has an immutable tag. Tagged
+release artifacts are therefore intentionally outside this cleanup policy and may
+grow without bound. The release governance owner must budget and approve their
+retention or rotate whole repositories through a separate, evidence-preserving
+workflow. Do not weaken tag immutability or silently describe total repository
+retention as bounded.
 
-Deployment and cloud foundations. Infrastructure declares environments, workload identity, storage, databases, queues, clusters, security policy, observability, and GitOps composition. This path specializes that domain for **artifact registry**.
+The module deliberately does not enable APIs, create KMS keys, grant IAM, sign
+images, create attestations, or configure admission. Callers must enable
+`artifactregistry.googleapis.com`; enable `containerscanning.googleapis.com`
+when automatic scanning is required; grant repository-scoped reader/writer
+roles to separate workload identities; and verify the effective scanning-state
+output. A CMEK, when supplied, must already grant the Artifact Registry service
+agent encrypt/decrypt access and use the repository location.
 
-## Boundary
+```hcl
+module "application_images" {
+  source = "../../modules/artifact-registry"
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+  project_id    = "mindclade-production"
+  location      = "us-central1"
+  repository_id = "application-images"
+  environment   = "production"
+  owner         = "cloud-platform"
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+  untagged_retention_days = 45
+  minimum_versions_to_keep = 25
+}
+```
 
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Before activating cleanup, review dry-run logs for at least one complete cleanup
+cycle, prove that rollback digests remain available, and record approval. Deploy
+workloads by digest: immutable tags prevent moving or deleting a tag, but they do
+not by themselves provide provenance, admission enforcement, or proof that
+scanning is active. This module is an infrastructure contract, not deployed or
+production-readiness evidence.

@@ -6,6 +6,17 @@
 # several places — research/benchmarks/build/ and tools/build/ among them — so ignoring it
 # by name would silently drop 129 tracked files from every future `git add`.
 
+# --- Terraform ---
+# .terraform/ is `terraform init` output — provider binaries for whichever platform ran it.
+# Fifteen darwin_arm64 provider paths were tracked here, in a repository whose CI is Linux.
+# .terraform.lock.hcl is the opposite case and stays: it pins provider versions and is meant
+# to be committed, which is why it is excluded from the rule below rather than covered by it.
+.terraform/
+!.terraform.lock.hcl
+.terragrunt-cache/
+terraform.tfvars
+*.auto.tfvars
+
 # --- Rust ---
 /target/
 **/target/
