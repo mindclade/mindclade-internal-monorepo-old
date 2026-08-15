@@ -5,6 +5,7 @@
 
 use mindclade_runtime_core::{ResourceKind, ResourceLimits, ResourceVector};
 
+#[must_use]
 pub fn gpu_budget(memory_bytes: u64, pinned_bytes: u64) -> ResourceVector {
     ResourceLimits::new()
         .limit(ResourceKind::GpuMemoryEstimateBytes, memory_bytes)

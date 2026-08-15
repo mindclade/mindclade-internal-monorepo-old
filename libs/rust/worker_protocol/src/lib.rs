@@ -371,7 +371,10 @@ impl ExecutionBudget {
         }
         resources
     }
-    fn canonical_bytes(&self) -> FaultResult<Vec<u8>> {
+    // Public to match ExecutionTicket, WorkloadEnvelope, and the other wire types, whose
+    // canonical_bytes is already public. The canonical encoding is the signed form — being able
+    // to reproduce it is part of the contract, not an internal detail.
+    pub fn canonical_bytes(&self) -> FaultResult<Vec<u8>> {
         self.validate()?;
         let u32_value = |kind: ResourceKind| -> FaultResult<u32> {
             u32::try_from(self.resources.get(kind)).map_err(|_| {
@@ -780,7 +783,7 @@ impl BufferDescriptor {
             || self.element_type.len() > 128
             || self.generation == 0
             || self.shape.len() > MAX_INPUT_DIMENSIONS
-            || self.shape.iter().any(|dimension| *dimension == 0)
+            || self.shape.contains(&0)
         {
             return Err(Fault::invalid_argument(
                 "buffer descriptor is incomplete or outside bounds",

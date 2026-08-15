@@ -29,8 +29,11 @@ pub use config::ProxyConfig;
 pub use grants::ValidatedGrant;
 pub use health::{ProxyHealth, ProxyHealthSnapshot};
 pub use lifecycle::ArtifactProxyComponent;
+pub use provider::ProviderArtifacts;
 pub use ranges::RangeRequest;
 pub use server::{ArtifactProxyCore, ReadResult, WriteResult};
 pub use signing::{DownloadClaim, SignedDownload};
 pub use telemetry::ProxyMetrics;
-pub use provider::ProviderArtifacts;
+// server.rs imports this as `crate::TransferEngine`; every other module's public type is
+// already re-exported here and transfer was the one omission.
+pub use transfer::TransferEngine;

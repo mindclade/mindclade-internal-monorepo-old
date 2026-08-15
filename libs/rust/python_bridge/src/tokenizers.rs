@@ -6,6 +6,15 @@
 use mindclade_faults::FaultResult;
 use mindclade_tokenizer_runtime::{Encoding, Tokenizer};
 
-pub fn encode(tokenizer: &dyn Tokenizer, text: &str) -> FaultResult<Encoding> {
-    tokenizer.encode(text)
+/// Encode text with an explicit token ceiling.
+///
+/// `maximum_tokens` is threaded through rather than defaulted here: `Tokenizer::encode` treats
+/// it as a hard bound, and a wrapper that picks its own would silently truncate at a limit the
+/// caller never chose. The trait takes bytes, so the &str is converted at this boundary.
+pub fn encode(
+    tokenizer: &dyn Tokenizer,
+    text: &str,
+    maximum_tokens: usize,
+) -> FaultResult<Encoding> {
+    tokenizer.encode(text.as_bytes(), maximum_tokens)
 }

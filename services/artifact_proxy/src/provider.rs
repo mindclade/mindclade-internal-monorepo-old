@@ -33,7 +33,10 @@ impl ProviderArtifacts {
         now_unix_millis: u64,
     ) -> FaultResult<Bytes> {
         grant.authorize_read(digest, now_unix_millis)?;
-        let bytes = self.provider.get(&content_path(digest), Some(digest)).await?;
+        let bytes = self
+            .provider
+            .get(&content_path(digest), Some(digest))
+            .await?;
         let size = byte_len(bytes.len())?;
         grant.require_read(digest, size, now_unix_millis)?;
         Ok(bytes)

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-//! Thin deployment lifecycle; execution state lives in worker_runtime.
+//! Thin deployment lifecycle; execution state lives in `worker_runtime`.
 
 use mindclade_faults::FaultResult;
 

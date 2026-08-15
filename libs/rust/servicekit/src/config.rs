@@ -9,7 +9,7 @@ use mindclade_faults::{Fault, FaultResult};
 use std::time::Duration;
 
 const MAX_SERVICE_NAME_BYTES: usize = 128;
-const MAX_LIFECYCLE_TIMEOUT: Duration = Duration::from_secs(15 * 60);
+const MAX_LIFECYCLE_TIMEOUT: Duration = Duration::from_mins(15);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ServiceConfig {

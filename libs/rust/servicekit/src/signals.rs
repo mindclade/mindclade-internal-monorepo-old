@@ -18,6 +18,7 @@ impl SignalHandle {
         Self { shutdown }
     }
     /// Idempotently request process shutdown.
+    #[must_use]
     pub fn request_shutdown(&self) -> bool {
         self.shutdown.cancel()
     }

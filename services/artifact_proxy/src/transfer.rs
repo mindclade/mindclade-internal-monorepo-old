@@ -6,7 +6,10 @@
 //! Verified CAS transfer mechanics.
 
 use crate::{LocalCache, ProxyMetrics, RangeRequest, ValidatedGrant};
-use mindclade_artifact_cas::{gc::{GarbageCollectionPlan, SweepReport}, ArtifactCas};
+use mindclade_artifact_cas::{
+    ArtifactCas,
+    gc::{GarbageCollectionPlan, SweepReport},
+};
 use mindclade_content_digest::Digest;
 use mindclade_faults::{Code, Fault, FaultResult};
 use std::sync::Arc;

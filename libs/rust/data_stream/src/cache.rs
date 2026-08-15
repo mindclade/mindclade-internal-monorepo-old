@@ -30,10 +30,11 @@ impl ShardCache {
             maximum_bytes,
         }
     }
+    #[must_use]
     pub fn get(&self, digest: Digest) -> Option<Arc<Vec<u8>>> {
         self.inner
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .entries
             .get(&digest)
             .cloned()
@@ -54,7 +55,7 @@ impl ShardCache {
         let mut state = self
             .inner
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(existing) = state.entries.get(&shard.digest) {
             return Ok(existing.clone());
         }
@@ -91,7 +92,7 @@ impl ShardCache {
     pub fn used_bytes(&self) -> u64 {
         self.inner
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .bytes
     }
 }

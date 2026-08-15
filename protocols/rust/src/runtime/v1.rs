@@ -378,6 +378,7 @@ pub struct WorkerStatus {
 }
 
 /// Maps validation faults at the transport edge without leaking internals.
+#[must_use]
 pub fn invalid_argument_status(message: &'static str) -> tonic::Status {
     tonic::Status::invalid_argument(message)
 }

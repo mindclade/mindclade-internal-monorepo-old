@@ -8,7 +8,7 @@
 use mindclade_faults::{Fault, FaultResult};
 use std::time::Duration;
 
-const MAX_GC_GRACE: Duration = Duration::from_secs(365 * 24 * 60 * 60);
+const MAX_GC_GRACE: Duration = Duration::from_hours(8760);
 const MAX_DELETES_PER_RUN: usize = 1_000_000;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

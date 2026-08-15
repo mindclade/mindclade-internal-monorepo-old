@@ -71,8 +71,12 @@ fn mcce1_ticket_matches_go_golden() {
         idempotency_key: "run:r1:stage:s1:attempt:1".into(),
     };
     let actual = claims.canonical_bytes().expect("canonical");
+    // Four levels, not three. include_bytes! resolves against this file's own directory —
+    // libs/rust/worker_protocol/tests/ — so reaching the repo root takes tests → worker_protocol
+    // → rust → libs. With three the path landed on libs/tests/... and the fixture, which does
+    // exist, read as missing.
     let expected = include_bytes!(
-        "../../../tests/integration/cross_language/fixtures/execution_ticket_claims_v1.bin"
+        "../../../../tests/integration/cross_language/fixtures/execution_ticket_claims_v1.bin"
     );
     assert_eq!(actual.as_slice(), expected);
     let verifier = HmacSha256Verifier::new([(

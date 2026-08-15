@@ -351,13 +351,13 @@ impl ControlSession {
 
 impl Drop for ControlSession {
     fn drop(&mut self) {
-        if let Some(active) = self.active.as_ref() {
-            if !matches!(
+        if let Some(active) = self.active.as_ref()
+            && !matches!(
                 active.state(),
                 WorkerState::Completed | WorkerState::Cancelled | WorkerState::Failed
-            ) {
-                let _ = active.cancel("worker control connection closed");
-            }
+            )
+        {
+            let _ = active.cancel("worker control connection closed");
         }
     }
 }

@@ -82,7 +82,7 @@ impl ModelRegistry {
         let mut models = self
             .models
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if models.contains_key(&spec.model_digest) {
             return Ok(());
         }
@@ -114,7 +114,7 @@ impl ModelRegistry {
         let process_name = self
             .models
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .get(digest)
             .map(|loaded| loaded.spec.process.name.clone());
         let Some(process_name) = process_name else {
@@ -127,7 +127,7 @@ impl ModelRegistry {
         self.processes.stop(&process_name)?;
         self.models
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .remove(digest);
         Ok(())
     }
@@ -135,14 +135,14 @@ impl ModelRegistry {
     pub fn contains(&self, digest: &Digest) -> bool {
         self.models
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .contains_key(digest)
     }
     #[must_use]
     pub fn len(&self) -> usize {
         self.models
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .len()
     }
 }

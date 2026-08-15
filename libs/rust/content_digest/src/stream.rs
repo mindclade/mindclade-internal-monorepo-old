@@ -104,11 +104,7 @@ impl<R: Read> Read for VerifyingReader<R> {
                 state.update(&buffer[..read]);
             }
         } else if !self.verified {
-            let actual = self
-                .state
-                .take()
-                .map(Sha256::finalize)
-                .unwrap_or(Digest::ZERO);
+            let actual = self.state.take().map_or(Digest::ZERO, Sha256::finalize);
             if !actual.constant_time_eq(self.expected) {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::InvalidData,

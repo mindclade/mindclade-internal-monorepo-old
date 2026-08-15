@@ -9,7 +9,7 @@ use crate::ProcessSupervisor;
 use mindclade_faults::{Code, Fault, FaultResult};
 use std::collections::BTreeMap;
 use std::io::Read;
-use std::process::{ChildStderr, ChildStdout, Command, Stdio};
+use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
@@ -102,7 +102,7 @@ impl ToolRunner {
                     .supervisor
                     .children
                     .lock()
-                    .unwrap_or_else(|p| p.into_inner());
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
                 let child = children
                     .get_mut(&process.pid)
                     .ok_or_else(|| Fault::internal("supervised child disappeared"))?;
@@ -125,7 +125,7 @@ impl ToolRunner {
             self.supervisor
                 .children
                 .lock()
-                .unwrap_or_else(|p| p.into_inner())
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .remove(&process.pid);
         }
         let stdout = join_pipe_reader(stdout_reader, "stdout")?;

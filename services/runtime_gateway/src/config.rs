@@ -45,7 +45,7 @@ impl Default for GatewayConfig {
             maximum_active_requests: 4_096,
             maximum_active_requests_per_grant: 128,
             maximum_stream_chunks: 256,
-            maximum_stream_chunk_bytes: 1 * 1024 * 1024,
+            maximum_stream_chunk_bytes: 1024 * 1024,
             maximum_stream_output_bytes: 64 * 1024 * 1024,
             maximum_request_key_bytes: 4 * 1024,
             require_fresh_route_snapshot: true,

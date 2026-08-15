@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-use crate::common::{parse_header, push_sequence, FastqRecord};
+use crate::common::{FastqRecord, parse_header, push_sequence};
 use mindclade_bounded_parse::{AllocationBudget, Cursor, Limits, ParseMode};
 use mindclade_faults::{Code, Fault, FaultResult};
 
@@ -13,19 +13,32 @@ pub fn parse(bytes: &[u8], limits: Limits, mode: ParseMode) -> FaultResult<Vec<F
     let mut total_tokens = 0_usize;
     let mut output = Vec::new();
     loop {
-        let Some((_location, header)) = cursor.next_line()? else { break; };
-        if header.is_empty() { continue; }
+        let Some((_location, header)) = cursor.next_line()? else {
+            break;
+        };
+        if header.is_empty() {
+            continue;
+        }
         if !header.starts_with(b"@") {
             return Err(Fault::invalid_argument("FASTQ header must start with @"));
         }
-        let (_, sequence_line) = cursor.next_line()?.ok_or_else(|| Fault::invalid_argument("FASTQ sequence is missing"))?;
-        let (_, plus) = cursor.next_line()?.ok_or_else(|| Fault::invalid_argument("FASTQ + line is missing"))?;
-        let (_, quality) = cursor.next_line()?.ok_or_else(|| Fault::invalid_argument("FASTQ quality is missing"))?;
+        let (_, sequence_line) = cursor
+            .next_line()?
+            .ok_or_else(|| Fault::invalid_argument("FASTQ sequence is missing"))?;
+        let (_, plus) = cursor
+            .next_line()?
+            .ok_or_else(|| Fault::invalid_argument("FASTQ + line is missing"))?;
+        let (_, quality) = cursor
+            .next_line()?
+            .ok_or_else(|| Fault::invalid_argument("FASTQ quality is missing"))?;
         if !plus.starts_with(b"+") {
             return Err(Fault::invalid_argument("FASTQ separator must start with +"));
         }
         if output.len() >= limits.maximum_records {
-            return Err(Fault::new(Code::ResourceExhausted, "FASTQ record limit exceeded"));
+            return Err(Fault::new(
+                Code::ResourceExhausted,
+                "FASTQ record limit exceeded",
+            ));
         }
         let (id, description) = parse_header(&header[1..], "FASTQ", &mut allocation)?;
         let mut sequence = Vec::new();
@@ -39,7 +52,12 @@ pub fn parse(bytes: &[u8], limits: Limits, mode: ParseMode) -> FaultResult<Vec<F
             &mut allocation,
         )?;
         allocation.charge_usize(quality.len())?;
-        let record = FastqRecord { id, description, sequence, quality: quality.to_vec() };
+        let record = FastqRecord {
+            id,
+            description,
+            sequence,
+            quality: quality.to_vec(),
+        };
         record.validate()?;
         output.push(record);
     }

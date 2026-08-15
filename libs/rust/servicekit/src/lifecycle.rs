@@ -39,17 +39,23 @@ impl Lifecycle {
     }
     #[must_use]
     pub fn state(&self) -> LifecycleState {
-        *self.state.lock().unwrap_or_else(|p| p.into_inner())
+        *self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
     pub fn transition(&self, to: LifecycleState) -> FaultResult<()> {
-        let mut s = self.state.lock().unwrap_or_else(|p| p.into_inner());
+        let mut s = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if !allowed(*s, to) {
             return Err(Fault::new(
                 Code::FailedPrecondition,
                 "invalid service lifecycle transition",
             )
             .with_context("from", format!("{:?}", *s))
-            .with_context("to", format!("{:?}", to)));
+            .with_context("to", format!("{to:?}")));
         }
         *s = to;
         Ok(())
@@ -57,19 +63,13 @@ impl Lifecycle {
 }
 
 fn allowed(from: LifecycleState, to: LifecycleState) -> bool {
-    use LifecycleState::*;
+    use LifecycleState::{Created, Draining, Failed, Running, Starting, Stopped, Stopping};
     matches!(
         (from, to),
-        (Created, Starting)
-            | (Starting, Running)
-            | (Running, Draining)
-            | (Draining, Stopping)
-            | (Running, Stopping)
-            | (Stopping, Stopped)
-            | (Created, Failed)
-            | (Starting, Failed)
-            | (Running, Failed)
-            | (Draining, Failed)
-            | (Stopping, Failed)
+        (Created, Starting | Failed)
+            | (Starting, Running | Failed)
+            | (Running, Draining | Stopping | Failed)
+            | (Draining, Stopping | Failed)
+            | (Stopping, Stopped | Failed)
     )
 }

@@ -34,6 +34,7 @@ impl ShutdownToken {
             changed: Condvar::new(),
         }))
     }
+    #[must_use]
     pub fn cancel(&self) -> bool {
         let changed = !self.0.cancelled.swap(true, Ordering::AcqRel);
         if changed {
@@ -45,6 +46,7 @@ impl ShutdownToken {
     pub fn is_cancelled(&self) -> bool {
         self.0.cancelled.load(Ordering::Acquire)
     }
+    #[must_use]
     pub fn wait_timeout(&self, timeout: Duration) -> bool {
         if self.is_cancelled() {
             return true;
@@ -53,11 +55,11 @@ impl ShutdownToken {
             .0
             .mutex
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let _result = self
             .0
             .changed
-            .wait_timeout_while(guard, timeout, |_| !self.is_cancelled());
+            .wait_timeout_while(guard, timeout, |()| !self.is_cancelled());
         self.is_cancelled()
     }
 }

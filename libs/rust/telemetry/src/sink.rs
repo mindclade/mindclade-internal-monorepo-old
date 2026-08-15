@@ -33,7 +33,7 @@ impl MemorySink {
     pub fn snapshot(&self) -> Vec<Event> {
         self.events
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone()
     }
 }
@@ -41,7 +41,7 @@ impl Sink for MemorySink {
     fn emit(&self, event: &Event) -> FaultResult<()> {
         self.events
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .push(event.clone());
         Ok(())
     }

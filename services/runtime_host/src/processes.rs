@@ -110,7 +110,7 @@ impl ProcessLauncher for StdProcessLauncher {
         let pid = child.id();
         self.children
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .insert(pid, child);
         Ok(ProcessHandle { pid })
     }
@@ -119,7 +119,7 @@ impl ProcessLauncher for StdProcessLauncher {
         let mut children = self
             .children
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let Some(mut child) = children.remove(&handle.pid) else {
             return Ok(());
         };
@@ -143,7 +143,7 @@ impl ProcessLauncher for StdProcessLauncher {
         let mut children = self
             .children
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let Some(child) = children.get_mut(&handle.pid) else {
             return Ok(false);
         };
@@ -197,7 +197,7 @@ impl ProcessSupervisor {
         let mut processes = self
             .processes
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if processes.contains_key(&spec.name) {
             return Err(Fault::new(
                 Code::AlreadyExists,
@@ -226,7 +226,7 @@ impl ProcessSupervisor {
         let handle = self
             .processes
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .get(name)
             .copied();
         let Some(handle) = handle else {
@@ -236,7 +236,7 @@ impl ProcessSupervisor {
         self.launcher.terminate(handle)?;
         self.processes
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .remove(name);
         Ok(())
     }
@@ -249,16 +249,16 @@ impl ProcessSupervisor {
         let names: Vec<String> = self
             .processes
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .keys()
             .cloned()
             .collect();
         let mut first_fault = None;
         for name in names.into_iter().rev() {
-            if let Err(fault) = self.stop(&name) {
-                if first_fault.is_none() {
-                    first_fault = Some(fault.with_context("process", name));
-                }
+            if let Err(fault) = self.stop(&name)
+                && first_fault.is_none()
+            {
+                first_fault = Some(fault.with_context("process", name));
             }
         }
         first_fault.map_or(Ok(()), Err)
@@ -268,7 +268,7 @@ impl ProcessSupervisor {
     pub fn active(&self) -> usize {
         self.processes
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .len()
     }
 }

@@ -9,7 +9,7 @@ use crate::RelativePath;
 use mindclade_content_digest::{Digest, hash_reader};
 use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_identifiers::ResourceId;
-use mindclade_runtime_core::{Clock, SystemClock};
+use mindclade_runtime_core::SystemClock;
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};

@@ -97,7 +97,11 @@ impl AdmissionLedger {
         request: &AdmissionRequest,
     ) -> FaultResult<AdmissionPermit> {
         let grant_id = grant.grant_id.to_string();
-        let mut state = self.0.state.lock().unwrap_or_else(|p| p.into_inner());
+        let mut state = self
+            .0
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let current = state.grants.get(&grant_id).copied().unwrap_or_default();
         let grant_concurrency = grant
             .maximum_concurrency
@@ -155,7 +159,7 @@ impl AdmissionLedger {
         self.0
             .state
             .lock()
-            .unwrap_or_else(|p| p.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .active
     }
 }
@@ -179,14 +183,17 @@ impl AdmissionPermit {
         let Some(ledger) = self.ledger.upgrade() else {
             return;
         };
-        let mut state = ledger.state.lock().unwrap_or_else(|p| p.into_inner());
+        let mut state = ledger
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if state.active > 0 {
             state.active -= 1;
         }
-        if let Some(usage) = state.grants.get_mut(&self.grant_id) {
-            if usage.active > 0 {
-                usage.active -= 1;
-            }
+        if let Some(usage) = state.grants.get_mut(&self.grant_id)
+            && usage.active > 0
+        {
+            usage.active -= 1;
         }
     }
 }

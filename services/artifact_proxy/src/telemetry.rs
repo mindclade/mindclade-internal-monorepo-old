@@ -8,7 +8,7 @@ use mindclade_telemetry::CounterRegistry;
 
 #[derive(Clone, Debug, Default)]
 pub struct ProxyMetrics {
-    counters: CounterRegistry
+    counters: CounterRegistry,
 }
 
 impl ProxyMetrics {
@@ -26,7 +26,8 @@ impl ProxyMetrics {
     pub fn rejected(&self) {
         let _ = self.counters.add("artifact_proxy.rejected", 1);
     }
-    #[must_use] pub fn snapshot(&self) -> std::collections::BTreeMap<String, u64> {
+    #[must_use]
+    pub fn snapshot(&self) -> std::collections::BTreeMap<String, u64> {
         self.counters.snapshot()
     }
 }

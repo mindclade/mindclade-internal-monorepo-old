@@ -32,6 +32,7 @@ impl Recovery {
     pub fn diagnostics(&self) -> &[Diagnostic] {
         &self.diagnostics
     }
+    #[must_use]
     pub fn into_diagnostics(self) -> Vec<Diagnostic> {
         self.diagnostics
     }

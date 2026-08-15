@@ -64,7 +64,7 @@ impl WorkerRuntime {
     pub fn state(&self) -> WorkerState {
         self.state
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .phase
     }
     #[must_use]
@@ -96,7 +96,7 @@ impl WorkerRuntime {
         let mut state = self
             .state
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if state.phase != WorkerState::Ready {
             return Err(Fault::new(
                 Code::FailedPrecondition,
@@ -107,7 +107,7 @@ impl WorkerRuntime {
         let mut slot = self
             .reservation
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if slot.is_some() {
             return Err(Fault::new(
                 Code::Internal,
@@ -146,7 +146,7 @@ impl WorkerRuntime {
         let mut state = self
             .state
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         state.ticket = None;
         state.fencing = None;
         Ok(())
@@ -157,7 +157,7 @@ impl WorkerRuntime {
         if self
             .reservation
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .is_some()
         {
             return Err(Fault::new(
@@ -217,7 +217,7 @@ impl WorkerRuntime {
         let mut state = self
             .state
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let sequence = state.next_status_sequence;
         state.next_status_sequence = sequence
             .checked_add(1)
@@ -229,7 +229,7 @@ impl WorkerRuntime {
         let state = self
             .state
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         DiagnosticSnapshot {
             state: state.phase,
             ticket_id: state.ticket.clone(),
@@ -242,7 +242,7 @@ impl WorkerRuntime {
         let state = self
             .state
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let current = state
             .fencing
             .ok_or_else(|| Fault::new(Code::FailedPrecondition, "worker has no fencing token"))?;
@@ -252,7 +252,7 @@ impl WorkerRuntime {
         let mut state = self
             .state
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if !machine::allowed(state.phase, to) {
             return Err(
                 Fault::new(Code::FailedPrecondition, "invalid worker state transition")
@@ -266,7 +266,7 @@ impl WorkerRuntime {
     fn release_reservation(&self) {
         self.reservation
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .take();
     }
 }

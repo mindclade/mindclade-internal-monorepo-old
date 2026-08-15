@@ -35,22 +35,28 @@ impl ProcessLifecycle {
         *self
             .state
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
     pub fn transition(&self, to: ProcessState) -> FaultResult<()> {
         let mut state = self
             .state
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let allowed = matches!(
             (*state, to),
             (ProcessState::Created, ProcessState::Starting)
-                | (ProcessState::Starting, ProcessState::Ready)
-                | (ProcessState::Ready, ProcessState::Draining)
-                | (ProcessState::Draining, ProcessState::Stopped)
-                | (ProcessState::Starting, ProcessState::Failed)
-                | (ProcessState::Ready, ProcessState::Failed)
-                | (ProcessState::Draining, ProcessState::Failed)
+                | (
+                    ProcessState::Starting,
+                    ProcessState::Ready | ProcessState::Failed
+                )
+                | (
+                    ProcessState::Ready,
+                    ProcessState::Draining | ProcessState::Failed
+                )
+                | (
+                    ProcessState::Draining,
+                    ProcessState::Stopped | ProcessState::Failed
+                )
         );
         if !allowed {
             return Err(Fault::new(

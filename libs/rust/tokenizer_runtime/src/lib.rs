@@ -49,7 +49,7 @@ pub trait Tokenizer: Send + Sync {
 pub struct ByteTokenizer;
 
 impl Tokenizer for ByteTokenizer {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "byte-v1"
     }
     fn vocabulary_size(&self) -> usize {

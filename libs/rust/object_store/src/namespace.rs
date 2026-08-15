@@ -12,6 +12,7 @@ pub struct Namespace {
 }
 
 impl Namespace {
+    #[must_use]
     pub fn new(prefix: ObjectPath) -> Self {
         Self { prefix }
     }
@@ -26,6 +27,7 @@ impl Namespace {
         ObjectPath::new(format!("{}/{}", self.prefix.as_str(), relative))
             .map_err(|e| Fault::new(Code::InvalidArgument, e.to_string()))
     }
+    #[must_use]
     pub fn contains(&self, path: &ObjectPath) -> bool {
         path.as_str() == self.prefix.as_str()
             || path

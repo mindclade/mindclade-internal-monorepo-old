@@ -37,10 +37,10 @@ pub fn select_route(request: RouteRequest<'_>) -> FaultResult<DeploymentRoute> {
         {
             continue;
         }
-        if let Some(hint) = &request.admission.deployment_hint {
-            if hint != &deployment {
-                continue;
-            }
+        if let Some(hint) = &request.admission.deployment_hint
+            && hint != &deployment
+        {
+            continue;
         }
         let deployment_allowed = request.grant.allowed_deployments.contains(&deployment);
         let capabilities_allowed = !request.admission.required_capabilities.is_empty()

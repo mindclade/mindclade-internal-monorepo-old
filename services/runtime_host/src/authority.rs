@@ -35,7 +35,7 @@ impl core::fmt::Debug for HostAuthority {
         let state = self
             .state
             .read()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         formatter
             .debug_struct("HostAuthority")
             .field("minimum_policy_epoch", &state.minimum_policy_epoch)
@@ -82,7 +82,7 @@ impl HostAuthority {
         let mut state = self
             .state
             .write()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         snapshot.validate(
             now_unix_millis,
             state.minimum_revocation_epoch,
@@ -112,7 +112,7 @@ impl HostAuthority {
         let mut state = self
             .state
             .write()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         state.minimum_policy_epoch = state.minimum_policy_epoch.max(policy_epoch);
         state.minimum_route_version = state.minimum_route_version.max(route_version);
         state.minimum_revocation_epoch = state.minimum_revocation_epoch.max(revocation_epoch);
@@ -127,7 +127,7 @@ impl HostAuthority {
         let state = self
             .state
             .read()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone();
         host.begin_invocation(
             invocation,

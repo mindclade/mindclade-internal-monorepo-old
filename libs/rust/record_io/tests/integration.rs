@@ -20,12 +20,11 @@ fn frames_and_codec_round_trip() {
     let record = reader.read_next();
     assert!(record.is_ok());
     if let Ok(Some(record)) = record {
-        let mut decoder = match Decoder::new(&record.payload, 1024) {
-            Ok(value) => value,
-            Err(_) => {
-                assert!(false);
-                return;
-            }
+        let mut decoder = if let Ok(value) = Decoder::new(&record.payload, 1024) {
+            value
+        } else {
+            assert!(false);
+            return;
         };
         assert_eq!(decoder.string().ok(), Some("checkpoint"));
         assert_eq!(decoder.u64().ok(), Some(42));

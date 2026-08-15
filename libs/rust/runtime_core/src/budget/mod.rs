@@ -109,7 +109,7 @@ impl Budget {
         parent
             .children
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .push(Arc::downgrade(&child));
         child
     }
@@ -129,7 +129,7 @@ impl Budget {
             let mut state = self
                 .state
                 .lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             if state.corrupted {
                 return Err(Fault::data_loss("resource budget accounting is corrupted"));
             }
@@ -174,7 +174,7 @@ impl Budget {
     pub fn is_corrupted(&self) -> bool {
         self.state
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .corrupted
     }
 
@@ -183,7 +183,7 @@ impl Budget {
         let state = self
             .state
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         (state.limits.clone(), state.used.clone(), state.rejections)
     }
 
@@ -196,7 +196,7 @@ impl Budget {
         let mut children = self
             .children
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let mut live = Vec::new();
         children.retain(|child| {
             if let Some(child) = child.upgrade() {
@@ -223,16 +223,13 @@ impl Drop for Reservation {
             let mut state = budget
                 .state
                 .lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             for (kind, amount) in self.resources.iter() {
-                match state.used.get(kind).checked_sub(amount) {
-                    Some(next) => {
-                        state.used.0.insert(kind, next);
-                    }
-                    None => {
-                        state.corrupted = true;
-                        state.used.0.insert(kind, 0);
-                    }
+                if let Some(next) = state.used.get(kind).checked_sub(amount) {
+                    state.used.0.insert(kind, next);
+                } else {
+                    state.corrupted = true;
+                    state.used.0.insert(kind, 0);
                 }
             }
         }

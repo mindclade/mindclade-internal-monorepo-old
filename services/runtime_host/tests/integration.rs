@@ -144,7 +144,7 @@ fn host_revalidates_ticket_and_reserves_node_resources() {
                 maximum_output_bytes: 1 << 20,
             },
             execution_class: "batch".into(),
-            accelerator_capability: "".into(),
+            accelerator_capability: String::new(),
             not_before_unix_millis: 100,
             deadline_unix_millis: 2_000,
             expires_unix_millis: 1_000,

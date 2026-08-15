@@ -52,7 +52,7 @@ impl RecordingComponent {
     fn record(&self, action: &str) {
         self.events
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .push(format!("{}:{action}", self.name));
     }
 }
@@ -115,7 +115,7 @@ fn startup_failure_rolls_back_started_components() {
     assert_eq!(
         events
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .as_slice(),
         ["database:start", "server:start", "database:stop"]
     );
@@ -138,7 +138,7 @@ fn drain_and_stop_are_reverse_order_and_exhaustive() {
     assert_eq!(
         events
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .as_slice(),
         [
             "first:start",

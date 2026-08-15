@@ -109,13 +109,13 @@ impl HostCore {
         }
         validate_bulk_descriptors(&inputs, self.config.maximum_input_buffers, now_unix_millis)?;
         revocations.validate(now_unix_millis, minimum_revocation_epoch, verifier)?;
-        if let Some(model) = ticket.claims.model_bundle {
-            if !self.models.contains(&model) {
-                return Err(Fault::new(
-                    Code::FailedPrecondition,
-                    "required model bundle is not loaded on this runtime host",
-                ));
-            }
+        if let Some(model) = ticket.claims.model_bundle
+            && !self.models.contains(&model)
+        {
+            return Err(Fault::new(
+                Code::FailedPrecondition,
+                "required model bundle is not loaded on this runtime host",
+            ));
         }
         let budget = self.resources.child(
             ticket.claims.ticket_id.to_string(),

@@ -33,7 +33,7 @@ impl Default for CasConfig {
         Self {
             maximum_blob_bytes: ByteSize::new(1_u64 << 40),
             maximum_manifest_bytes: ByteSize::new(64 * 1024 * 1024),
-            garbage_collection_grace: Duration::from_secs(24 * 60 * 60),
+            garbage_collection_grace: Duration::from_hours(24),
         }
     }
 }

@@ -61,6 +61,7 @@ impl Supervisor {
     pub fn shutdown(&self) {
         self.shutdown.cancel();
     }
+    #[must_use]
     pub fn join(mut self) -> Vec<TaskFailure> {
         self.shutdown.cancel();
         let mut failures = Vec::new();

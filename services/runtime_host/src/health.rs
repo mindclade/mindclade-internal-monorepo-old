@@ -42,13 +42,13 @@ impl HostHealth {
         }
     }
     pub fn set_accepting(&self, v: bool) {
-        self.accepting.store(v, Ordering::Release)
+        self.accepting.store(v, Ordering::Release);
     }
     pub fn set_process_supervisor_ready(&self, v: bool) {
-        self.process_supervisor_ready.store(v, Ordering::Release)
+        self.process_supervisor_ready.store(v, Ordering::Release);
     }
     pub fn set_gpu_ready(&self, v: bool) {
-        self.gpu_ready.store(v, Ordering::Release)
+        self.gpu_ready.store(v, Ordering::Release);
     }
     #[must_use]
     pub fn snapshot(&self) -> HostHealthSnapshot {

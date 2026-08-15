@@ -60,7 +60,7 @@ impl HealthRegistry {
         }
         self.reports
             .write()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .insert(
                 component,
                 HealthReport {
@@ -75,7 +75,7 @@ impl HealthRegistry {
     pub fn snapshot(&self) -> BTreeMap<String, HealthReport> {
         self.reports
             .read()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone()
     }
     #[must_use]
@@ -83,7 +83,7 @@ impl HealthRegistry {
         !self
             .reports
             .read()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .values()
             .any(|report| report.status == HealthStatus::Unhealthy)
     }
@@ -92,7 +92,7 @@ impl HealthRegistry {
         let guard = self
             .reports
             .read()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         !guard.is_empty() && guard.values().all(|report| report.status.is_ready())
     }
 }

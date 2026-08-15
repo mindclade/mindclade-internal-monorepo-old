@@ -54,7 +54,7 @@ fn reference_cache_rejects_accounting_overflow() {
 fn stage_context_is_cooperatively_cancellable_and_bounded() {
     use mindclade_node_agent::StageContext;
     use mindclade_runtime_core::{Budget, CancellationToken};
-    use std::sync::Arc;
+
     let budget = Budget::root(
         "stage",
         ResourceVector::new().set(ResourceKind::ResidentMemoryBytes, 1024),

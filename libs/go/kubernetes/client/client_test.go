@@ -8,6 +8,8 @@ package client
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -100,9 +102,34 @@ func TestProbe(t *testing.T) {
 }
 
 func TestLoadKubeconfigAndOverrides(t *testing.T) {
+	// Write a real kubeconfig. This previously pointed at a hardcoded /tmp/kubeconfig that
+	// nothing in the test created, so it could only pass on a machine that happened to have
+	// one lying around — and failed on every clean checkout, this repo's CI included.
+	kubeconfigPath := filepath.Join(t.TempDir(), "kubeconfig")
+	const kubeconfig = `apiVersion: v1
+kind: Config
+clusters:
+  - name: cluster-a
+    cluster:
+      server: https://cluster-a.example:6443
+users:
+  - name: operator
+    user:
+      token: test-token
+contexts:
+  - name: production
+    context:
+      cluster: cluster-a
+      user: operator
+current-context: production
+`
+	if err := os.WriteFile(kubeconfigPath, []byte(kubeconfig), 0o600); err != nil {
+		t.Fatalf("write kubeconfig: %v", err)
+	}
+
 	config := Config{
 		Source:         SourceKubeconfig,
-		KubeconfigPath: "/tmp/kubeconfig",
+		KubeconfigPath: kubeconfigPath,
 		Context:        "production",
 		Cluster:        "cluster-a",
 		User:           "operator",

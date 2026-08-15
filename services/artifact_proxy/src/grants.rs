@@ -8,7 +8,9 @@
 use crate::AccessContext;
 use mindclade_content_digest::Digest;
 use mindclade_faults::{Code, Fault, FaultResult};
-use mindclade_worker_protocol::{ArtifactGrant, ExecutionTicket, RevocationSnapshot, SignatureVerifier};
+use mindclade_worker_protocol::{
+    ArtifactGrant, ExecutionTicket, RevocationSnapshot, SignatureVerifier,
+};
 
 #[derive(Clone, Debug)]
 pub struct ValidatedGrant {

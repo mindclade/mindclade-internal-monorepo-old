@@ -7,7 +7,6 @@
 use mindclade_content_digest::hash_bytes;
 use mindclade_runtime_core::{Budget, ResourceVector};
 use std::hint::black_box;
-use std::sync::Arc;
 use std::time::Instant;
 
 fn main() {

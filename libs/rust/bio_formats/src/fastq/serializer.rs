@@ -10,11 +10,17 @@ pub fn serialize(records: &[FastqRecord]) -> FaultResult<Vec<u8>> {
     let mut output = Vec::new();
     for record in records {
         record.validate()?;
-        if record.id.bytes().any(|byte| byte.is_ascii_whitespace() || byte == b'@') {
+        if record
+            .id
+            .bytes()
+            .any(|byte| byte.is_ascii_whitespace() || byte == b'@')
+        {
             return Err(Fault::invalid_argument("FASTQ record id is not canonical"));
         }
         if record.description.contains('\n') || record.description.contains('\r') {
-            return Err(Fault::invalid_argument("FASTQ description contains newline"));
+            return Err(Fault::invalid_argument(
+                "FASTQ description contains newline",
+            ));
         }
         output.push(b'@');
         output.extend_from_slice(record.id.as_bytes());

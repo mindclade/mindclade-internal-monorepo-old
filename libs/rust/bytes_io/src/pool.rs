@@ -40,7 +40,7 @@ impl BufferPool {
         let mut state = self
             .inner
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(index) = state
             .buffers
             .iter()
@@ -56,13 +56,14 @@ impl BufferPool {
         }
         Ok(Vec::with_capacity(minimum_capacity))
     }
+    #[must_use]
     pub fn put(&self, mut buffer: Vec<u8>) -> bool {
         buffer.clear();
         let capacity = buffer.capacity();
         let mut state = self
             .inner
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let Some(next) = state.cached_bytes.checked_add(capacity) else {
             return false;
         };
@@ -77,7 +78,7 @@ impl BufferPool {
     pub fn cached_bytes(&self) -> usize {
         self.inner
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .cached_bytes
     }
 }

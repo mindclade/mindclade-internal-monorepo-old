@@ -7,37 +7,25 @@
 use mindclade_worker_protocol::WorkerState;
 #[must_use]
 pub const fn allowed(from: WorkerState, to: WorkerState) -> bool {
-    use WorkerState::*;
+    use WorkerState::{
+        Cancelled, Cancelling, Committing, Completed, Created, Draining, Failed, Leased, Ready,
+        Recovering, Running, Starting,
+    };
     matches!(
         (from, to),
-        (Created, Starting)
-            | (Starting, Ready)
-            | (Ready, Leased)
-            | (Leased, Running)
-            | (Running, Draining)
-            | (Running, Committing)
-            | (Draining, Committing)
-            | (Committing, Completed)
-            | (Starting, Recovering)
-            | (Ready, Recovering)
-            | (Running, Recovering)
-            | (Recovering, Ready)
-            | (Created, Cancelling)
-            | (Starting, Cancelling)
-            | (Ready, Cancelling)
-            | (Leased, Cancelling)
-            | (Running, Cancelling)
-            | (Draining, Cancelling)
-            | (Recovering, Cancelling)
-            | (Committing, Cancelling)
+        (Created, Starting | Cancelling)
+            | (Starting | Recovering, Ready)
+            | (Ready, Leased | Recovering | Cancelling | Failed)
+            | (Leased, Running | Cancelling | Failed)
+            | (
+                Running,
+                Draining | Committing | Recovering | Cancelling | Failed
+            )
+            | (Draining, Committing | Cancelling | Failed)
+            | (Committing, Completed | Cancelling | Failed)
+            | (Starting, Recovering | Cancelling | Failed)
+            | (Recovering, Cancelling | Failed)
             | (Cancelling, Cancelled)
-            | (Starting, Failed)
-            | (Ready, Failed)
-            | (Leased, Failed)
-            | (Running, Failed)
-            | (Draining, Failed)
-            | (Recovering, Failed)
-            | (Committing, Failed)
     )
 }
 #[must_use]

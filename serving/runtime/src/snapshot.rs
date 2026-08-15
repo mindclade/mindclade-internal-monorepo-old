@@ -35,7 +35,10 @@ pub struct PolicyCache {
 
 impl core::fmt::Debug for PolicyCache {
     fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let inner = self.inner.read().unwrap_or_else(|p| p.into_inner());
+        let inner = self
+            .inner
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         formatter
             .debug_struct("PolicyCache")
             .field("has_route", &inner.route.is_some())
@@ -74,7 +77,10 @@ impl PolicyCache {
         snapshot: RevocationSnapshot,
         now_unix_millis: u64,
     ) -> FaultResult<()> {
-        let mut inner = self.inner.write().unwrap_or_else(|p| p.into_inner());
+        let mut inner = self
+            .inner
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         snapshot.validate(
             now_unix_millis,
             inner.minimum_revocation_epoch,
@@ -91,7 +97,10 @@ impl PolicyCache {
         Ok(())
     }
     pub fn install_route(&self, snapshot: RouteSnapshot, now_unix_millis: u64) -> FaultResult<()> {
-        let mut inner = self.inner.write().unwrap_or_else(|p| p.into_inner());
+        let mut inner = self
+            .inner
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         snapshot.validate(
             now_unix_millis,
             inner.minimum_policy_epoch,
@@ -99,13 +108,13 @@ impl PolicyCache {
             &inner.revocations,
             self.verifier.as_ref(),
         )?;
-        if let Some(current) = &inner.route {
-            if snapshot.claims.version <= current.claims.version {
-                return Err(Fault::new(
-                    Code::Conflict,
-                    "route snapshot version is not monotonic",
-                ));
-            }
+        if let Some(current) = &inner.route
+            && snapshot.claims.version <= current.claims.version
+        {
+            return Err(Fault::new(
+                Code::Conflict,
+                "route snapshot version is not monotonic",
+            ));
         }
         inner.minimum_policy_epoch = inner.minimum_policy_epoch.max(snapshot.claims.policy_epoch);
         inner.minimum_route_version = snapshot.claims.version;
@@ -116,13 +125,19 @@ impl PolicyCache {
         if policy_epoch == 0 || route_version == 0 {
             return Err(Fault::invalid_argument("policy floors must be non-zero"));
         }
-        let mut inner = self.inner.write().unwrap_or_else(|p| p.into_inner());
+        let mut inner = self
+            .inner
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         inner.minimum_policy_epoch = inner.minimum_policy_epoch.max(policy_epoch);
         inner.minimum_route_version = inner.minimum_route_version.max(route_version);
         Ok(())
     }
     pub fn validate_grant(&self, grant: &AdmissionGrant, now_unix_millis: u64) -> FaultResult<()> {
-        let inner = self.inner.read().unwrap_or_else(|p| p.into_inner());
+        let inner = self
+            .inner
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         grant.validate(
             now_unix_millis,
             inner.minimum_policy_epoch,
@@ -131,7 +146,10 @@ impl PolicyCache {
         )
     }
     pub fn snapshot(&self, now_unix_millis: u64) -> FaultResult<PolicySnapshot> {
-        let inner = self.inner.read().unwrap_or_else(|p| p.into_inner());
+        let inner = self
+            .inner
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let route = inner
             .route
             .clone()

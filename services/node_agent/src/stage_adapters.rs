@@ -155,10 +155,12 @@ impl DataStreamFetchExecutor {
         })
     }
 
+    #[must_use]
     pub fn release(&self, segment_id: &str) -> bool {
         self.bulk.release(segment_id)
     }
 
+    #[must_use]
     pub fn reap_expired(&self, now_unix_millis: u64) -> usize {
         self.bulk.reap_expired(now_unix_millis)
     }

@@ -20,7 +20,9 @@ impl AccessContext {
             || self.principal_id.trim().is_empty()
             || self.principal_id.len() > 512
         {
-            return Err(Fault::invalid_argument("artifact access context is invalid"));
+            return Err(Fault::invalid_argument(
+                "artifact access context is invalid",
+            ));
         }
         Ok(())
     }

@@ -98,11 +98,10 @@ impl Service {
         }
         let mut first_fault = None;
         for component in self.components[..self.started].iter_mut().rev() {
-            if let Err(fault) = component.drain() {
-                if first_fault.is_none() {
-                    first_fault =
-                        Some(fault.with_context("component", component.name().to_owned()));
-                }
+            if let Err(fault) = component.drain()
+                && first_fault.is_none()
+            {
+                first_fault = Some(fault.with_context("component", component.name().to_owned()));
             }
         }
         match first_fault {
@@ -116,10 +115,10 @@ impl Service {
     /// components from receiving their stop hook.
     pub fn stop(&mut self) -> FaultResult<()> {
         let mut first_fault = None;
-        if self.lifecycle.state() == LifecycleState::Running {
-            if let Err(fault) = self.drain() {
-                first_fault = Some(fault);
-            }
+        if self.lifecycle.state() == LifecycleState::Running
+            && let Err(fault) = self.drain()
+        {
+            first_fault = Some(fault);
         }
         match self.lifecycle.state() {
             LifecycleState::Draining => self.lifecycle.transition(LifecycleState::Stopping)?,
@@ -139,11 +138,10 @@ impl Service {
             }
         }
         for component in self.components[..self.started].iter_mut().rev() {
-            if let Err(fault) = component.stop() {
-                if first_fault.is_none() {
-                    first_fault =
-                        Some(fault.with_context("component", component.name().to_owned()));
-                }
+            if let Err(fault) = component.stop()
+                && first_fault.is_none()
+            {
+                first_fault = Some(fault.with_context("component", component.name().to_owned()));
             }
         }
         self.started = 0;
@@ -161,11 +159,10 @@ impl Service {
     fn rollback_started(&mut self) -> Option<Fault> {
         let mut first_fault = None;
         for component in self.components[..self.started].iter_mut().rev() {
-            if let Err(fault) = component.stop() {
-                if first_fault.is_none() {
-                    first_fault =
-                        Some(fault.with_context("component", component.name().to_owned()));
-                }
+            if let Err(fault) = component.stop()
+                && first_fault.is_none()
+            {
+                first_fault = Some(fault.with_context("component", component.name().to_owned()));
             }
         }
         self.started = 0;

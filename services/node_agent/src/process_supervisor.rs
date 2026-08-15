@@ -33,7 +33,10 @@ impl ProcessSupervisor {
         })
     }
     pub fn register(&self, child: Child) -> FaultResult<ManagedProcess> {
-        let mut children = self.children.lock().unwrap_or_else(|p| p.into_inner());
+        let mut children = self
+            .children
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let maximum = usize::try_from(self.maximum).map_err(|_| {
             Fault::new(
                 Code::OutOfRange,
@@ -54,7 +57,7 @@ impl ProcessSupervisor {
         let Some(mut child) = self
             .children
             .lock()
-            .unwrap_or_else(|p| p.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .remove(&process.pid)
         else {
             return Ok(());
@@ -68,7 +71,7 @@ impl ProcessSupervisor {
         let pids: Vec<u32> = self
             .children
             .lock()
-            .unwrap_or_else(|p| p.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .keys()
             .copied()
             .collect();
@@ -81,7 +84,7 @@ impl ProcessSupervisor {
     pub fn active(&self) -> usize {
         self.children
             .lock()
-            .unwrap_or_else(|p| p.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .len()
     }
 }

@@ -23,7 +23,7 @@ impl NodeAgentComponent {
     }
 }
 impl Component for NodeAgentComponent {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "node-agent-core"
     }
     fn start(&mut self) -> FaultResult<()> {

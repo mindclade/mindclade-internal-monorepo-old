@@ -232,7 +232,7 @@ impl NodeAgentCore {
             let mut active = self
                 .active
                 .lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             if active
                 .insert(ticket_id.clone(), cancellation.clone())
                 .is_some()
@@ -297,7 +297,7 @@ impl NodeAgentCore {
         let active_ticket_ids = self
             .active
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .keys()
             .cloned()
             .collect();
@@ -340,7 +340,7 @@ impl NodeAgentCore {
         let active = self
             .active
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         for token in active.values() {
             token.cancel(reason.to_owned());
         }
@@ -365,7 +365,7 @@ impl NodeAgentCore {
     pub fn active_stage_count(&self) -> usize {
         self.active
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .len()
     }
 }
@@ -389,7 +389,7 @@ impl Drop for ActiveTicketGuard<'_> {
     fn drop(&mut self) {
         self.active
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .remove(&self.ticket_id);
     }
 }

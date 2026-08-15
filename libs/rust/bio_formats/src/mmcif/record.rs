@@ -4,14 +4,12 @@
 //
 
 //! Bounded lexical representation used by the conservative mmCIF parser.
-use mindclade_faults::{
-    Fault, FaultResult
-};
+use mindclade_faults::{Fault, FaultResult};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CifToken {
     pub value: String,
-    pub offset: usize
+    pub offset: usize,
 }
 
 impl CifToken {
@@ -25,7 +23,7 @@ impl CifToken {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CifDocument {
-    pub tokens: Vec<CifToken>
+    pub tokens: Vec<CifToken>,
 }
 
 impl CifDocument {

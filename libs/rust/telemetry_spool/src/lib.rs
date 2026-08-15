@@ -165,7 +165,7 @@ impl TelemetrySpool {
         let mut state = self
             .state
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let event_type = event_type.into();
         if event_type.is_empty() || event_type.len() > 256 || !event_type.is_ascii() {
             return Err(Fault::invalid_argument("telemetry event type is invalid"));
@@ -297,7 +297,7 @@ impl TelemetrySpool {
         let mut state = self
             .state
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if sequence < state.acknowledged || sequence >= state.next_sequence {
             return Err(Fault::invalid_argument(
                 "telemetry acknowledgement is outside the valid sequence window",
@@ -315,7 +315,7 @@ impl TelemetrySpool {
         let acknowledged = self
             .state
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .acknowledged;
         let mut removed = 0_usize;
         for path in segment_files(&self.root)? {

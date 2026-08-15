@@ -28,16 +28,21 @@ impl DownloadClaim {
             || self.expires_unix_millis <= now_unix_millis
             || self.maximum_bytes == 0
         {
-            return Err(Fault::invalid_argument("signed download claim is invalid or expired"));
+            return Err(Fault::invalid_argument(
+                "signed download claim is invalid or expired",
+            ));
         }
         Ok(())
     }
     pub fn canonical_bytes(&self) -> FaultResult<Vec<u8>> {
-        let tenant_length = u32::try_from(self.tenant_id.len())
-            .map_err(|_| Fault::new(Code::OutOfRange, "artifact download tenant length exceeds u32"))?;
-        let mut bytes = Vec::with_capacity(
-            CLAIM_DOMAIN.len() + 32 + 4 + self.tenant_id.len() + 8 + 8,
-        );
+        let tenant_length = u32::try_from(self.tenant_id.len()).map_err(|_| {
+            Fault::new(
+                Code::OutOfRange,
+                "artifact download tenant length exceeds u32",
+            )
+        })?;
+        let mut bytes =
+            Vec::with_capacity(CLAIM_DOMAIN.len() + 32 + 4 + self.tenant_id.len() + 8 + 8);
         bytes.extend_from_slice(CLAIM_DOMAIN);
         bytes.extend_from_slice(self.digest.as_bytes());
         bytes.extend_from_slice(&tenant_length.to_be_bytes());

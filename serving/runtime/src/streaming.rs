@@ -88,7 +88,10 @@ impl StreamSender {
                 "response chunk exceeds its byte limit",
             ));
         }
-        let mut state = self.state.lock().unwrap_or_else(|p| p.into_inner());
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if state.terminal_sent {
             return Err(Fault::new(
                 Code::FailedPrecondition,

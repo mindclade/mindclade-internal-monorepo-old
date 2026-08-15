@@ -73,14 +73,13 @@ impl CheckpointReader {
         for shard in manifest.shards {
             match self.cas.get_blob(shard.digest) {
                 Ok(bytes) => {
-                    let size = match u64::try_from(bytes.len()) {
-                        Ok(size) => size,
-                        Err(_) => {
-                            report
-                                .failures
-                                .push(format!("{}: size exceeds u64", shard.name));
-                            continue;
-                        }
+                    let size = if let Ok(size) = u64::try_from(bytes.len()) {
+                        size
+                    } else {
+                        report
+                            .failures
+                            .push(format!("{}: size exceeds u64", shard.name));
+                        continue;
                     };
                     if size != shard.size {
                         report

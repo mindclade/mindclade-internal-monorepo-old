@@ -49,7 +49,10 @@ impl ReferenceCache {
     }
     pub fn activate(&self, snapshot: ReferenceSnapshot) -> FaultResult<()> {
         snapshot.validate()?;
-        let mut entries = self.entries.write().unwrap_or_else(|p| p.into_inner());
+        let mut entries = self
+            .entries
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let current = entries.values().try_fold(0_u64, |total, entry| {
             total.checked_add(entry.bytes).ok_or_else(|| {
                 Fault::new(
@@ -80,7 +83,7 @@ impl ReferenceCache {
     pub fn resolve(&self, digest: Digest) -> FaultResult<PathBuf> {
         self.entries
             .read()
-            .unwrap_or_else(|p| p.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .get(&digest)
             .map(|v| v.root.clone())
             .ok_or_else(|| Fault::new(Code::NotFound, "reference snapshot is not active on node"))
@@ -88,7 +91,7 @@ impl ReferenceCache {
     pub fn contains_path(&self, digest: Digest, path: &Path) -> bool {
         self.entries
             .read()
-            .unwrap_or_else(|p| p.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .get(&digest)
             .is_some_and(|entry| path.starts_with(&entry.root))
     }

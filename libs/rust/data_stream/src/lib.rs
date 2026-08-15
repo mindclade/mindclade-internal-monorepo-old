@@ -68,9 +68,8 @@ impl StreamPlan {
         let assigned = order
             .into_iter()
             .enumerate()
-            .filter_map(|(position, index)| {
-                (position % world_size_usize == rank_usize).then(|| shards[index].clone())
-            })
+            .filter(|&(position, _index)| position % world_size_usize == rank_usize)
+            .map(|(_position, index)| shards[index].clone())
             .collect::<Vec<_>>();
         let digest = plan_digest(&dataset, epoch, seed, world_size, rank, &assigned)?;
         Ok(Self {

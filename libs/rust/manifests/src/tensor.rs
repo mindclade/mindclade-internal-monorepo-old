@@ -27,10 +27,10 @@ impl TensorManifest {
         {
             return Err(Fault::invalid_argument("tensor dtype/shape is invalid"));
         }
-        if let Some(s) = &self.strides {
-            if s.len() != self.shape.len() {
-                return Err(Fault::invalid_argument("tensor strides do not match rank"));
-            }
+        if let Some(s) = &self.strides
+            && s.len() != self.shape.len()
+        {
+            return Err(Fault::invalid_argument("tensor strides do not match rank"));
         }
         let elements = self.shape.iter().try_fold(1u128, |n, d| {
             n.checked_mul(u128::from(*d))

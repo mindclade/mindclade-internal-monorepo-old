@@ -136,14 +136,14 @@ where
                     RetryHint::Immediate => policy.delay(attempt, seed)?,
                     RetryHint::Never => Duration::ZERO,
                 };
-                if let Some(deadline) = deadline {
-                    if deadline.is_expired(clock) || delay > deadline.remaining(clock) {
-                        return Err(Fault::new(
-                            Code::DeadlineExceeded,
-                            "retry deadline would be exceeded",
-                        )
-                        .with_context("attempt", u64::from(attempt)));
-                    }
+                if let Some(deadline) = deadline
+                    && (deadline.is_expired(clock) || delay > deadline.remaining(clock))
+                {
+                    return Err(Fault::new(
+                        Code::DeadlineExceeded,
+                        "retry deadline would be exceeded",
+                    )
+                    .with_context("attempt", u64::from(attempt)));
                 }
                 sleeper.sleep(delay);
             }

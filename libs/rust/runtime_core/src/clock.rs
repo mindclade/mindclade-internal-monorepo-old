@@ -55,7 +55,7 @@ impl ManualClock {
         let mut state = self
             .state
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         state.system = state
             .system
             .checked_add(duration)
@@ -69,7 +69,7 @@ impl ManualClock {
     pub fn set_system_time(&self, time: SystemTime) {
         self.state
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .system = time;
     }
 }
@@ -78,13 +78,13 @@ impl Clock for ManualClock {
     fn system_now(&self) -> SystemTime {
         self.state
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .system
     }
     fn monotonic_now(&self) -> Instant {
         self.state
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .monotonic
     }
 }

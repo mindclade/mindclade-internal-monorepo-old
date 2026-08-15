@@ -20,9 +20,10 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 /// Operating-system backend used for newly published bulk segments.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub enum BulkBackend {
     /// Anonymous file-descriptor-backed segments on Linux.
+    #[default]
     Memfd,
     /// Portable bounded file segments rooted under an absolute directory.
     LocalFile(PathBuf),
@@ -33,12 +34,6 @@ impl BulkBackend {
         let directory = directory.into();
         validate_directory(&directory)?;
         Ok(Self::LocalFile(directory))
-    }
-}
-
-impl Default for BulkBackend {
-    fn default() -> Self {
-        Self::Memfd
     }
 }
 
@@ -122,7 +117,7 @@ impl BulkBufferBroker {
         let mut segments = self
             .segments
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if segments.len() >= self.maximum_segments {
             return Err(Fault::new(
                 Code::ResourceExhausted,
@@ -161,7 +156,7 @@ impl BulkBufferBroker {
         let segment = self
             .segments
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .get(segment_id)
             .cloned()
             .ok_or_else(|| Fault::new(Code::NotFound, "bulk-buffer segment was not found"))?;
@@ -171,7 +166,7 @@ impl BulkBufferBroker {
     pub fn release(&self, segment_id: &str) -> bool {
         self.segments
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .remove(segment_id)
             .is_some()
     }
@@ -181,7 +176,7 @@ impl BulkBufferBroker {
         let mut segments = self
             .segments
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let before = segments.len();
         segments
             .retain(|_, segment| segment.descriptor().lease_expires_unix_millis > now_unix_millis);
@@ -192,7 +187,7 @@ impl BulkBufferBroker {
     pub fn active(&self) -> usize {
         self.segments
             .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .len()
     }
 

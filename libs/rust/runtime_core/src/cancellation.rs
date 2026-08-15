@@ -27,7 +27,11 @@ impl CancellationToken {
     pub fn cancel(&self, reason: impl Into<String>) -> bool {
         let first = !self.inner.cancelled.swap(true, Ordering::AcqRel);
         if first {
-            *self.inner.reason.lock().unwrap_or_else(|p| p.into_inner()) = Some(reason.into());
+            *self
+                .inner
+                .reason
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(reason.into());
         }
         first
     }
@@ -40,7 +44,7 @@ impl CancellationToken {
         self.inner
             .reason
             .lock()
-            .unwrap_or_else(|p| p.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone()
     }
 }

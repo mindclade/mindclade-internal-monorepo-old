@@ -27,7 +27,7 @@ pub trait AsyncControlHandler: Send + Sync + 'static {
     ) -> Pin<Box<dyn Future<Output = FaultResult<Vec<u8>>> + Send + 'a>>;
 }
 
-/// Per-connection control session. WorkerControl is a streaming protocol, so
+/// Per-connection control session. `WorkerControl` is a streaming protocol, so
 /// cancel/drain/heartbeat commands must be scoped to the execution that was
 /// started on the same connection rather than a global process singleton.
 pub trait AsyncControlSession: Send + 'static {

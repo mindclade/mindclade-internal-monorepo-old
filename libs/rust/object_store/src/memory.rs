@@ -37,14 +37,14 @@ impl ObjectStore for MemoryStore {
         let guard = self
             .entries
             .read()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         Ok(guard.get(path).map(|entry| entry.meta.clone()))
     }
     fn get(&self, path: &ObjectPath, maximum_bytes: ByteSize) -> FaultResult<Vec<u8>> {
         let guard = self
             .entries
             .read()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let entry = guard
             .get(path)
             .ok_or_else(|| Fault::new(Code::NotFound, "object not found"))?;
@@ -61,7 +61,7 @@ impl ObjectStore for MemoryStore {
         let guard = self
             .entries
             .read()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let entry = guard
             .get(path)
             .ok_or_else(|| Fault::new(Code::NotFound, "object not found"))?;
@@ -86,7 +86,7 @@ impl ObjectStore for MemoryStore {
         let mut guard = self
             .entries
             .write()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let current = guard.get(path).map(|entry| entry.meta.version);
         match (condition, current) {
             (PutCondition::Any, _) | (PutCondition::CreateOnly, None) => {}
@@ -129,7 +129,7 @@ impl ObjectStore for MemoryStore {
         let mut guard = self
             .entries
             .write()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let Some(entry) = guard.get(path) else {
             return Ok(false);
         };
@@ -150,7 +150,7 @@ impl ObjectStore for MemoryStore {
         let guard = self
             .entries
             .read()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         Ok(guard
             .values()
             .filter(|entry| prefix.is_none_or(|value| entry.meta.path.as_str().starts_with(value)))

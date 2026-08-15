@@ -10,7 +10,7 @@
 
 use crate::BulkSegment;
 use mindclade_bytes_io::ByteRange;
-use mindclade_content_digest::{Digest, hash_bytes};
+use mindclade_content_digest::hash_bytes;
 use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_worker_protocol::{BufferAccess, BufferDescriptor, BufferTransport};
 use std::fs::{self, OpenOptions};
@@ -112,7 +112,7 @@ impl FileSegment {
                 "portable IPC segment exceeds read budget",
             ));
         }
-        let mut file = OpenOptions::new()
+        let file = OpenOptions::new()
             .read(true)
             .open(&self.path)
             .map_err(|error| {

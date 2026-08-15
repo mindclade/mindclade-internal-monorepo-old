@@ -69,7 +69,7 @@ fn retention_policy_rejects_unbounded_grace_or_delete_count() {
     );
     assert!(
         RetentionPolicy {
-            garbage_collection_grace: Duration::from_secs(366 * 24 * 60 * 60),
+            garbage_collection_grace: Duration::from_hours(8784),
             maximum_deletes_per_run: 1,
         }
         .validate()
@@ -77,7 +77,7 @@ fn retention_policy_rejects_unbounded_grace_or_delete_count() {
     );
     assert!(
         RetentionPolicy {
-            garbage_collection_grace: Duration::from_secs(60),
+            garbage_collection_grace: Duration::from_mins(1),
             maximum_deletes_per_run: 10_000,
         }
         .validate()

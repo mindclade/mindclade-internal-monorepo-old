@@ -66,7 +66,7 @@ impl TaskGroup {
             })?;
         self.handles
             .lock()
-            .unwrap_or_else(|p| p.into_inner())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .push((name, handle));
         Ok(())
     }
@@ -75,7 +75,10 @@ impl TaskGroup {
     }
     pub fn join_all(&self) -> TaskReport {
         let pending = {
-            let mut h = self.handles.lock().unwrap_or_else(|p| p.into_inner());
+            let mut h = self
+                .handles
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             std::mem::take(&mut *h)
         };
         let mut report = TaskReport::default();

@@ -57,7 +57,9 @@ func TestQualifyAPIStatusMatrix(t *testing.T) {
 		{"rate limited", metav1.StatusReasonTooManyRequests, 429, faults.CodeResourceExhausted, true},
 		{"too large", metav1.StatusReasonRequestEntityTooLarge, 413, faults.CodeResourceExhausted, false},
 		{"unavailable", metav1.StatusReasonServiceUnavailable, 503, faults.CodeUnavailable, true},
-		{"expired", metav1.StatusReasonResourceExpired, 410, faults.CodeAborted, true},
+		// StatusReasonExpired, not StatusReasonResourceExpired — apimachinery has no constant
+		// by the latter name. It is the 410 Gone reason, which is what this row already asserts.
+		{"expired", metav1.StatusReasonExpired, 410, faults.CodeAborted, true},
 		{"unsupported", metav1.StatusReasonMethodNotAllowed, 405, faults.CodeNotImplemented, false},
 	}
 	for _, test := range tests {
