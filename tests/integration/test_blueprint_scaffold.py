@@ -26,6 +26,7 @@ So:
 
 from __future__ import annotations
 
+import functools
 import importlib.util
 from pathlib import Path
 
@@ -37,11 +38,25 @@ import pytest
 # drops without this constant following it — otherwise the number drifts upward in spirit,
 # silently permitting regressions that earlier work had already ruled out.
 #
-# What remains is mostly a `.buildkite/` pipeline tree, plus .editorconfig, .bazelrc, the issue
-# and PR templates, and six infra/terraform BUILD files. Note the blueprint also reserves
-# .github/dependabot.yml, which contradicts the estate's later decision to disable Dependabot in
-# favour of Renovate — so reaching 0 requires reconciling the manifest, not only writing files.
-MATERIALIZATION_BASELINE = 48
+# What remains is mostly a `.buildkite/` pipeline tree (23 paths), plus root dotfiles
+# (.bazelrc, .bazelversion, .editorconfig, .gitattributes and friends), the .github issue and PR
+# templates, the gpu/nightly/release workflows, and two infra/kubernetes base manifests. Note the
+# blueprint also reserves .github/dependabot.yml, which contradicts the estate's later decision to
+# disable Dependabot in favour of Renovate — so reaching 0 requires reconciling the manifest, not
+# only writing files.
+#
+# RAISED 48 -> 49 deliberately, which is the one direction this number is not supposed to move.
+# tests/pytest.ini is a reserved blueprint path, and materializing it as the one-line scaffold
+# stub actively broke the test configuration: pytest resolves the NEAREST config file, so any
+# path-scoped run under tests/ took `tests/pytest.ini` as its configfile and silently dropped
+# --strict-markers, --import-mode=importlib, pythonpath and the `-m 'not nightly'` deselection
+# from pyproject.toml. `pytest tests/integration/test_blueprint_scaffold.py` therefore ran the
+# nightly test and failed, while the same suite passed from the repo root.
+#
+# A reserved path is better left unmaterialized than materialized as a stub that disables the
+# tooling around it. If tests/pytest.ini is ever wanted for real it has to carry the whole
+# configuration, not sit empty above it.
+MATERIALIZATION_BASELINE = 49
 
 
 def _load_checker(root: Path):
@@ -54,7 +69,14 @@ def _load_checker(root: Path):
     return module
 
 
+@functools.cache
 def _check() -> dict:
+    """One scan of the manifest for the whole module.
+
+    Cached because splitting one test into three otherwise loads the checker and stats all 4,475
+    blueprint paths three times over to answer three questions about the same result. The tests
+    only read it.
+    """
     root = Path(__file__).resolve().parents[2]
     module = _load_checker(root)
     return module.check(root, root / "docs/blueprint/production-monorepo-paths.txt")

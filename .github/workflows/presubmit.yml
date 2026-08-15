@@ -68,8 +68,11 @@ jobs:
   ci:
     uses: mindclade-org/.github/.github/workflows/reusable-go-ci.yml@v1.0.0
     with:
-      # Ahead of the `go` directive in go.mod (1.25.0) on purpose: the directive is a minimum,
-      # this is the toolchain CI actually resolves.
+      # BELOW the `go` directive in go.mod, which is 1.26.0 — not 1.25.0, as this comment used
+      # to claim. The lane therefore only builds because GOTOOLCHAIN defaults to `auto` and the
+      # 1.25.12 toolchain downloads 1.26.0 on demand; under GOTOOLCHAIN=local, or on a runner
+      # without module-proxy egress, `go build` fails with "go.mod requires go >= 1.26.0".
+      # Raise this to a 1.26.x release so the pin is the toolchain that actually runs.
       go-version: "1.25.12"
       # The control plane is concurrent throughout — durable coordination, schedulers, event
       # dispatch. The race detector is the point of running tests here at all.

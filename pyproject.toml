@@ -46,7 +46,11 @@ pythonpath = ["."]
 # `serving/` and friends have no __init__.py; only their leaves do. Without this, the
 # namespace parent is not traversed and those imports fail even with the root on the path.
 consider_namespace_packages = true
-testpaths = ["tests", "data", "evaluation", "kernels", "models", "preprocessing", "serving", "training"]
+# `tools` and `ci` carry the tests for the architecture checkers and the affected-target
+# selector. They were absent, so tools/analysis/tests/ and ci/common/tests/ were never collected
+# — which is how the module-path cutover left test_higher_layer_import_is_rejected red without
+# any lane reporting it.
+testpaths = ["tests", "ci", "tools", "data", "evaluation", "kernels", "models", "preprocessing", "serving", "training"]
 python_files = ["test_*.py", "*_test.py"]
 
 [tool.ruff]
