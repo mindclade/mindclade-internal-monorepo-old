@@ -30,7 +30,16 @@ package = false
 # (models/.../tests/test_attention.py and serving/.../tests/test_worker.py style). Under the
 # default prepend mode pytest imports them by basename and collection dies on the collision;
 # importlib mode imports by path and does not require __init__.py in every tests/ directory.
-addopts = "-ra --strict-config --strict-markers --import-mode=importlib"
+# -m 'not nightly' so the default run is the one a pull request gates on. Tests marked nightly
+# measure the distance to a target state rather than asserting correctness; they are meant to
+# report, not to block. The nightly lane selects them with `pytest -m nightly`, which overrides
+# this because pytest takes the last -m it is given.
+addopts = "-ra --strict-config --strict-markers --import-mode=importlib -m 'not nightly'"
+
+# --strict-markers is on, so every marker has to be declared here or using it is an error.
+markers = [
+    "nightly: measures progress toward a target state; reported nightly, not gated per PR",
+]
 # The repo is not installed as a package (`[tool.uv] package = false`), so tests that import
 # across the tree — `from serving.model_worker import ...` — need the root on sys.path.
 pythonpath = ["."]
