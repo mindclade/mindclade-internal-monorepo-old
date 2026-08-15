@@ -18,6 +18,7 @@ rust_library(
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/identifiers:mindclade_identifiers",
         "//libs/rust/record_io:mindclade_record_io",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
     ],
 )
 
@@ -31,6 +32,7 @@ rust_test(
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/identifiers:mindclade_identifiers",
         "//libs/rust/record_io:mindclade_record_io",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
         ":mindclade_ipc",
     ],
 )
@@ -45,6 +47,7 @@ rust_test(
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/identifiers:mindclade_identifiers",
         "//libs/rust/record_io:mindclade_record_io",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
         ":mindclade_ipc",
     ],
 )
@@ -59,6 +62,7 @@ rust_test(
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/identifiers:mindclade_identifiers",
         "//libs/rust/record_io:mindclade_record_io",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
         ":mindclade_ipc",
     ],
 )

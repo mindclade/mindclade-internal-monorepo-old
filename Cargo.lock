@@ -1347,7 +1347,6 @@ name = "mindclade_worker_runtime"
 version = "0.0.0"
 dependencies = [
  "mindclade_faults",
- "mindclade_identifiers",
  "mindclade_runtime_core",
  "mindclade_worker_protocol",
 ]

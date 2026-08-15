@@ -6,8 +6,8 @@
 //! Lease identity tying execution authority to a fencing generation.
 
 use mindclade_faults::{Code, Fault, FaultResult};
-use mindclade_identifiers::ResourceId;
 use mindclade_runtime_core::FencingToken;
+use mindclade_worker_protocol::ResourceId;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LeaseIdentity {

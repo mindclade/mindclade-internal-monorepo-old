@@ -15,12 +15,12 @@ use crate::protocol;
 use crate::{
     HostAuthority, HostConfig, HostCore, HostHealth, ModelSpec, ProcessSpec, StdProcessLauncher,
 };
-use mindclade_content_digest::Digest;
 use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_gpu_host::DeviceCapability;
 use mindclade_protocols::runtime::v1 as wire;
 use mindclade_runtime_core::{ResourceKind, ResourceVector};
 use mindclade_serving_runtime::host::HostInvocation;
+use mindclade_worker_protocol::Digest;
 use mindclade_worker_protocol::{Ed25519VerificationKey, WorkerState, WorkerStatus};
 use prost::Message;
 use std::collections::BTreeMap;

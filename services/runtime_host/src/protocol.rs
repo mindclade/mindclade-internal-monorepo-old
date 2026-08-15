@@ -10,11 +10,11 @@
 //! resource decision is made.
 
 use mindclade_bytes_io::ByteRange;
-use mindclade_content_digest::Digest;
 use mindclade_faults::{Fault, FaultResult};
-use mindclade_identifiers::ResourceId;
 use mindclade_protocols::runtime::v1 as wire;
 use mindclade_runtime_core::{FencingToken, ResourceKind, ResourceVector};
+use mindclade_worker_protocol::Digest;
+use mindclade_worker_protocol::ResourceId;
 use mindclade_worker_protocol::{
     ArtifactGrant, BufferAccess, BufferDescriptor, BufferTransport, DetachedSignature,
     ExecutionBudget, ExecutionTicket, ExecutionTicketClaims, RevocationSnapshot,

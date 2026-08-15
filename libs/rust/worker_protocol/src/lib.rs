@@ -19,11 +19,19 @@ pub mod ticket;
 pub mod validation;
 pub mod workload;
 use mindclade_bytes_io::ByteRange;
-use mindclade_content_digest::{Digest, hash_bytes};
+use mindclade_content_digest::hash_bytes;
 use mindclade_faults::{Code, Fault, FaultResult};
-use mindclade_identifiers::ResourceId;
 use mindclade_runtime_core::{FencingToken, ResourceKind, ResourceVector};
+// Digest and ResourceId appear in the public fields of the types below, so callers already have
+// to name them; without these re-exports they can only do that by depending on
+// mindclade_content_digest and mindclade_identifiers directly. architecture/dependency_budgets.toml
+// deliberately does not permit that for services/runtime_host — the wire contract is meant to be
+// the single seam. Re-exporting here is what makes that boundary followable rather than a rule
+// consumers have to break to compile.
+pub use mindclade_content_digest::Digest;
+pub use mindclade_identifiers::ResourceId;
 pub use signing::{Ed25519KeySet, Ed25519VerificationKey};
+
 use std::collections::{BTreeMap, BTreeSet};
 pub use workload::{WorkloadEnvelope, WorkloadKind};
 

@@ -22,9 +22,9 @@ name = "mindclade-runtime-host"
 path = "src/main.rs"
 
 [dependencies]
-# src/bootstrap.rs and src/protocol.rs use all three; none were declared.
-mindclade_content_digest = { path = "../../libs/rust/content_digest" }
-mindclade_identifiers = { path = "../../libs/rust/identifiers" }
+# prost was undeclared. Digest and ResourceId now come through mindclade_worker_protocol,
+# which re-exports them: architecture/dependency_budgets.toml does not permit this service
+# to depend on content_digest or identifiers directly.
 prost.workspace = true
 mindclade_protocols = { path = "../../protocols/rust" }
 mindclade_ipc_os = { path = "../../libs/rust/ipc_os" }
@@ -44,4 +44,8 @@ mindclade_serving_runtime = { package = "mindclade-serving-runtime", path = "../
 workspace = true
 
 [dev-dependencies]
+# tests/integration.rs reaches for hash_bytes and ResourceId directly. Dev-only on purpose:
+# architecture/dependency_budgets.toml governs what this service ships with, and a test is
+# allowed to construct fixtures the production path gets handed.
+mindclade_content_digest = { path = "../../libs/rust/content_digest" }
 mindclade_identifiers = { path = "../../libs/rust/identifiers" }

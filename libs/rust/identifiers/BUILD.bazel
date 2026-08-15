@@ -13,6 +13,7 @@ rust_library(
     crate_name = "mindclade_identifiers",
     edition = "2024",
     deps = [
+        "//libs/rust/content_digest:mindclade_content_digest",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/runtime_core:mindclade_runtime_core",
     ],
@@ -23,6 +24,7 @@ rust_test(
     srcs = ["tests/goldens.rs"],
     edition = "2024",
     deps = [
+        "//libs/rust/content_digest:mindclade_content_digest",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/runtime_core:mindclade_runtime_core",
         ":mindclade_identifiers",
@@ -34,6 +36,7 @@ rust_test(
     srcs = ["tests/integration.rs"],
     edition = "2024",
     deps = [
+        "//libs/rust/content_digest:mindclade_content_digest",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/runtime_core:mindclade_runtime_core",
         ":mindclade_identifiers",

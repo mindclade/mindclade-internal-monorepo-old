@@ -25,6 +25,7 @@ rust_library(
         "//protocols/rust:mindclade_protocols",
         "//serving/runtime:mindclade_serving_runtime",
         "@crates//:bytes",
+        "@crates//:prost",
         "@crates//:tokio",
     ],
 )
@@ -48,6 +49,7 @@ rust_binary(
         "//serving/runtime:mindclade_serving_runtime",
         ":mindclade_runtime_host",
         "@crates//:bytes",
+        "@crates//:prost",
         "@crates//:tokio",
     ],
 )
@@ -71,6 +73,7 @@ rust_test(
         "//serving/runtime:mindclade_serving_runtime",
         ":mindclade_runtime_host",
         "@crates//:bytes",
+        "@crates//:prost",
         "@crates//:tokio",
     ],
 )
@@ -94,6 +97,7 @@ rust_test(
         "//serving/runtime:mindclade_serving_runtime",
         ":mindclade_runtime_host",
         "@crates//:bytes",
+        "@crates//:prost",
         "@crates//:tokio",
     ],
 )
