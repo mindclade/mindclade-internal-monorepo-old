@@ -24,7 +24,9 @@ def test_ingestion_to_dataset_slice() -> None:
 
 
 def test_preprocessing_to_structure_inference_slice() -> None:
-    assert_contains("preprocessing/pipeline/planner.py", "MSA_SEARCH", "TEMPLATE_SEARCH", "FEATURIZE")
+    assert_contains(
+        "preprocessing/pipeline/planner.py", "MSA_SEARCH", "TEMPLATE_SEARCH", "FEATURIZE"
+    )
     assert_contains("preprocessing/provenance/manifest.py", "digest")
     assert_contains("serving/contracts/batch.py", "BatchPlan", "BatchPlanner")
     assert_contains("services/workers/model_worker/executor.py", "ModelEngine", "ModelWorker")

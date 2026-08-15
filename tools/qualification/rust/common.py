@@ -5,8 +5,8 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 ROOT = Path(__file__).resolve().parents[3]
 EXPECTED_RUSTC = "1.97.1"

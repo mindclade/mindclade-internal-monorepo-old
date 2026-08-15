@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import importlib.util
-from pathlib import Path
-import tempfile
 import sys
+import tempfile
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -18,7 +18,9 @@ def load(name: str, path: Path):
 
 
 layers = load("check_go_layers", ROOT / "tools/analysis/check_go_layers.py")
-placeholders = load("check_placeholder_packages", ROOT / "tools/analysis/check_placeholder_packages.py")
+placeholders = load(
+    "check_placeholder_packages", ROOT / "tools/analysis/check_placeholder_packages.py"
+)
 
 
 def test_layer_classifier_distinguishes_contracts_and_adapters() -> None:

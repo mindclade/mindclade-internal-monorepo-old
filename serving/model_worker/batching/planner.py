@@ -1,10 +1,12 @@
 """Bounded final tensor-aware batch planner."""
+
 from __future__ import annotations
 
 from collections import defaultdict
 
 from serving.model_worker.config import WorkerLimits
 from serving.model_worker.protocol import ModelRequest
+
 from .compatibility import TensorCompatibilityKey, compatibility_key
 from .tensor_batch import TensorBatch
 

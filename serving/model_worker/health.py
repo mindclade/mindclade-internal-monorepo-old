@@ -1,7 +1,9 @@
 """Health projection for the Python model worker."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
+
 from .protocol import WorkerPhase
 
 

@@ -1,0 +1,66 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# Note there is no bare `build/` rule. This tree uses `build/` as a source directory in
+# several places — research/benchmarks/build/ and tools/build/ among them — so ignoring it
+# by name would silently drop 129 tracked files from every future `git add`.
+
+# --- Rust ---
+/target/
+**/target/
+*.rs.bk
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# --- Node / TypeScript ---
+node_modules/
+.pnpm-store/
+*.tsbuildinfo
+/apps/*/dist/
+/apps/*/.next/
+/sdk/typescript/dist/
+/libs/ts/*/dist/
+
+# --- Bazel ---
+/bazel-*
+/.bazel-cache/
+user.bazelrc
+
+# --- Go ---
+/bin/
+*.test
+*.out
+
+# --- Nix / direnv ---
+/result
+/result-*
+.direnv/
+
+# --- Local environment. Never commit these: they are the one place a real credential
+#     plausibly lands in this repo. ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+!**/testdata/**/*.pem
+!**/testdata/**/*.key
+
+# --- Editors and OS ---
+.DS_Store
+.idea/
+.vscode/
+!.vscode/extensions.json
+*.swp

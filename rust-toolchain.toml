@@ -1,0 +1,15 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# Pinned to the workspace `rust-version` in Cargo.toml. Keep the two in step: cargo reads
+# rust-version to decide whether a toolchain is new enough, and this file decides which
+# toolchain a developer actually gets. When they disagree, local builds fail with a version
+# error that names neither file.
+#
+# CI passes this same version explicitly to reusable-rust-ci rather than relying on this file,
+# because dtolnay/rust-toolchain is invoked there with an explicit `toolchain:` input and so
+# never consults rust-toolchain.toml.
+[toolchain]
+channel = "1.97.1"
+components = ["rustfmt", "clippy"]

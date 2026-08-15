@@ -8,11 +8,11 @@ pure transforms.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
-from dataclasses import dataclass, field
 import hashlib
 import json
-from typing import Any, Protocol
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass, field
+from typing import Protocol
 
 MAX_RECORDS = 10_000_000
 MAX_METADATA_ENTRIES = 256

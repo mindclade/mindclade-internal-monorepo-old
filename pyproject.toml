@@ -5,11 +5,33 @@ description = "Mindclade internal monorepo for biomolecular data, training, eval
 requires-python = ">=3.12"
 dependencies = []
 
+# The lint and test tooling CI runs. Pinned exactly: an unpinned linter turns an unrelated
+# release into a red build on a PR that changed nothing, and `ruff format` output is only
+# stable within a version.
+#
+# Nothing here is a runtime dependency — the Python in this repo is stdlib-only by design,
+# which is why `dependencies` above is empty and must stay that way.
+[dependency-groups]
+dev = [
+    "ruff==0.14.6",
+    "pytest==9.0.1",
+]
+
 [tool.uv]
 package = false
 
 [tool.pytest.ini_options]
-addopts = "-ra --strict-config --strict-markers"
+# --import-mode=importlib because the tree has many same-named test modules
+# (models/.../tests/test_attention.py and serving/.../tests/test_worker.py style). Under the
+# default prepend mode pytest imports them by basename and collection dies on the collision;
+# importlib mode imports by path and does not require __init__.py in every tests/ directory.
+addopts = "-ra --strict-config --strict-markers --import-mode=importlib"
+# The repo is not installed as a package (`[tool.uv] package = false`), so tests that import
+# across the tree — `from serving.model_worker import ...` — need the root on sys.path.
+pythonpath = ["."]
+# `serving/` and friends have no __init__.py; only their leaves do. Without this, the
+# namespace parent is not traversed and those imports fail even with the root on the path.
+consider_namespace_packages = true
 testpaths = ["tests", "data", "evaluation", "kernels", "models", "preprocessing", "serving", "training"]
 python_files = ["test_*.py", "*_test.py"]
 
@@ -21,6 +43,13 @@ exclude = ["research/notebooks"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# This is the presubmit entry point. It inserts its own directory on sys.path so the sibling
+# check_*.py modules resolve when it is run as a script from anywhere in the tree, which means
+# those imports cannot precede the sys.path line. E402 is correct about the ordering and wrong
+# about it being a problem.
+"tools/analysis/run_architecture_checks.py" = ["E402"]
 
 [tool.mypy]
 python_version = "3.12"

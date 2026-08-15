@@ -1,0 +1,78 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# The PR gate for the monorepo.
+#
+# Named `presubmit` to match docs/blueprint/production-monorepo-paths.txt, which reserves
+# .github/workflows/{presubmit,gpu,nightly,release,security}.yml. The lanes here are the three
+# that run on ordinary hardware; gpu/nightly/release remain unmaterialized because they need
+# self-hosted runners and a release process that do not exist yet.
+#
+# JOB IDS ARE LOAD-BEARING. github-config's `required-checks-go` ruleset requires the status
+# check context "ci / build". For a called reusable workflow GitHub composes that context as
+# "<caller job id> / <called job id>", and reusable-go-ci's job is `build` — so the Go lane's
+# job MUST stay `ci`. Renaming it produces a required check that is never satisfied and a
+# default branch nothing can merge into.
+name: Presubmit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Read-only at the top level. No lane here writes anything; CodeQL's security-events: write
+# lives in security.yml, scoped to the job that needs it.
+permissions:
+  contents: read
+
+# Safe to cancel: unlike an infrastructure apply, a superseded CI run has no partial state to
+# leave behind. Cancelling saves runner minutes on force-push-heavy branches.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Go — the fleet control plane and durable policy. ~59k LOC, the largest lane.
+  #
+  # Do not rename this job. See the note above.
+  ci:
+    uses: mindclade-org/.github/.github/workflows/reusable-go-ci.yml@v1.0.0
+    with:
+      # Ahead of the `go` directive in go.mod (1.25.0) on purpose: the directive is a minimum,
+      # this is the toolchain CI actually resolves.
+      go-version: "1.25.12"
+      # The control plane is concurrent throughout — durable coordination, schedulers, event
+      # dispatch. The race detector is the point of running tests here at all.
+      race: true
+      # Reporting only for now. Raise this once the control-plane packages carry the coverage
+      # to survive a gate; a threshold that fails on day one gets disabled on day two.
+      coverage-threshold: 0
+
+  # Rust — the online/runtime data plane and node execution.
+  rust:
+    uses: mindclade-org/.github/.github/workflows/reusable-rust-ci.yml@v1.0.0
+    with:
+      # Explicit rather than empty. reusable-rust-ci resolves `inputs.toolchain || 'stable'`,
+      # so leaving this blank silently pins to whatever stable is that week — it never reads
+      # rust-toolchain.toml despite the input's description. This value tracks the workspace
+      # `rust-version`; change both together.
+      toolchain: "1.97.1"
+      features: "--all-features"
+      # deny.toml is present at the root, so cargo-deny has a policy to enforce.
+      deny: true
+
+  # Python — scientific, model, training, inference, and evaluation numerics.
+  python:
+    uses: mindclade-org/.github/.github/workflows/reusable-uv-ci.yml@v1.0.0
+    with:
+      python-version: "3.12.12"
+      # Empty, not "--all-packages". pyproject sets `[tool.uv] package = false` and declares no
+      # uv workspace members, so this is a single root project — `--all-packages` errors.
+      packages: ""
+      # Disabled deliberately. reusable-uv-ci typechecks with pyright; this repo's pyproject
+      # configures mypy in strict mode instead, and pyright is not in the dev group. Turning
+      # this on means adding pyright and reconciling two type checkers' disagreements — a real
+      # piece of work, not a flag flip.
+      typecheck: false

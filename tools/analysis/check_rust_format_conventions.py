@@ -14,7 +14,9 @@ RUST_ROOTS = (
     ROOT / "protocols/rust",
 )
 MAX_LINE_BYTES = 160
-COMPACT = re.compile(r"(?:;\s*(?:pub\s+)?(?:mod|use|fn|struct|enum|impl)\b|}\s*(?:pub\s+)?(?:fn|struct|enum|impl)\b)")
+COMPACT = re.compile(
+    r"(?:;\s*(?:pub\s+)?(?:mod|use|fn|struct|enum|impl)\b|}\s*(?:pub\s+)?(?:fn|struct|enum|impl)\b)"
+)
 
 
 def check() -> list[str]:

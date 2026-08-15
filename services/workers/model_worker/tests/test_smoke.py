@@ -1,3 +1,4 @@
+from services.workers.model_worker import ModelWorker, ModelWorkerConfig
 from serving.contracts import (
     BatchPlan,
     CompatibilityKey,
@@ -5,7 +6,6 @@ from serving.contracts import (
     InferenceResult,
     InputDescriptor,
 )
-from services.workers.model_worker import ModelWorker, ModelWorkerConfig
 
 
 class Planner:

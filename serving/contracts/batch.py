@@ -41,7 +41,10 @@ class BatchPlan:
         request_ids = [request.request_id for request in self.requests]
         if len(request_ids) != len(set(request_ids)):
             raise ValueError("batch plan contains duplicate requests")
-        if any(request.model_bundle_digest != self.compatibility.model_bundle_digest for request in self.requests):
+        if any(
+            request.model_bundle_digest != self.compatibility.model_bundle_digest
+            for request in self.requests
+        ):
             raise ValueError("batch plan mixes model bundles")
 
 

@@ -7,7 +7,6 @@ import argparse
 import os
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -27,7 +26,16 @@ def main() -> int:
     env["RUSTDOCFLAGS"] = env["RUSTFLAGS"]
     for package in PACKAGES:
         result = subprocess.run(
-            [cargo, "+nightly", "test", "-p", package, "--target", "x86_64-unknown-linux-gnu", "--locked"],
+            [
+                cargo,
+                "+nightly",
+                "test",
+                "-p",
+                package,
+                "--target",
+                "x86_64-unknown-linux-gnu",
+                "--locked",
+            ],
             cwd=ROOT,
             env=env,
             check=False,

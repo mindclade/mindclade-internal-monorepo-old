@@ -1,10 +1,12 @@
 """Validated final batch passed to a model engine."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .compatibility import TensorCompatibilityKey
 from serving.model_worker.protocol import ModelRequest
+
+from .compatibility import TensorCompatibilityKey
 
 
 @dataclass(frozen=True, slots=True)

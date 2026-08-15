@@ -14,7 +14,10 @@ class ModelWorkerConfig:
     def validate(self) -> None:
         if self.maximum_pending_requests <= 0:
             raise ValueError("pending-request limit must be positive")
-        if self.maximum_batch_requests <= 0 or self.maximum_batch_requests > self.maximum_pending_requests:
+        if (
+            self.maximum_batch_requests <= 0
+            or self.maximum_batch_requests > self.maximum_pending_requests
+        ):
             raise ValueError("batch-request limit is invalid")
         if self.maximum_gpu_bytes_per_batch <= 0:
             raise ValueError("GPU batch budget must be positive")

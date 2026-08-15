@@ -20,7 +20,9 @@ def main() -> int:
     cargo = shutil.which("cargo")
     if not cargo:
         return 1 if args.required else 0
-    probe = subprocess.run([cargo, "miri", "--version"], cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    probe = subprocess.run(
+        [cargo, "miri", "--version"], cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+    )
     if probe.returncode:
         if args.required:
             print("cargo-miri unavailable", file=sys.stderr)

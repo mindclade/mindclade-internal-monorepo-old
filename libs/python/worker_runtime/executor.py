@@ -1,4 +1,5 @@
 """Shared execution seam for Python scientific stage workers."""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -8,9 +9,12 @@ from typing import Protocol
 
 from .contracts import StageEnvelope, StageKind, StageResult
 
+
 class StageEngine(Protocol):
     """Scientific/numerical engine implemented by an owning domain package."""
+
     def execute(self, stage: StageEnvelope) -> StageResult: ...
+
 
 @dataclass(slots=True)
 class StageExecutor:

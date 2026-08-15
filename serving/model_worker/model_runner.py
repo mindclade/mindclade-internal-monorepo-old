@@ -1,4 +1,5 @@
 """Process-local model worker with explicit lifecycle and bounded batching."""
+
 from __future__ import annotations
 
 from collections.abc import Callable

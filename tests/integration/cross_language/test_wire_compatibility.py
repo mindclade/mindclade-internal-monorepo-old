@@ -18,9 +18,7 @@ BASELINE_PATH = ROOT / "protocols/compatibility/runtime_v1_fields.json"
 BASELINE = json.loads(BASELINE_PATH.read_text())
 PROTO_ROOT = ROOT / "protocols/proto/mindclade/runtime/v1"
 MESSAGE_START = re.compile(r"\bmessage\s+(\w+)\s*\{")
-FIELD = re.compile(
-    r"^\s*(?:(repeated|optional)\s+)?([.\w<>]+)\s+(\w+)\s*=\s*(\d+)\s*$"
-)
+FIELD = re.compile(r"^\s*(?:(repeated|optional)\s+)?([.\w<>]+)\s+(\w+)\s*=\s*(\d+)\s*$")
 
 
 def message_bodies(text: str) -> list[tuple[str, str]]:

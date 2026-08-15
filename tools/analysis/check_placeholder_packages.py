@@ -8,11 +8,13 @@ control-plane bootstrap/foundation must contain executable implementations.
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 import re
 import sys
+from pathlib import Path
 
-MARKER = re.compile(r"(?:\bTODO\b|\bFIXME\b|IMPLEMENT ME|const\s+scaffold_|SCAFFOLD_PATH)", re.IGNORECASE)
+MARKER = re.compile(
+    r"(?:\bTODO\b|\bFIXME\b|IMPLEMENT ME|const\s+scaffold_|SCAFFOLD_PATH)", re.IGNORECASE
+)
 
 
 def check(root: Path) -> list[str]:
@@ -44,7 +46,9 @@ def check(root: Path) -> list[str]:
                 if "operation not implemented" in line:
                     continue
                 if MARKER.search(line):
-                    violations.append(f"{relative}:{number}: incomplete source marker: {line.strip()}")
+                    violations.append(
+                        f"{relative}:{number}: incomplete source marker: {line.strip()}"
+                    )
     return sorted(violations)
 
 
@@ -57,7 +61,10 @@ def main(argv: list[str] | None = None) -> int:
     for violation in violations:
         print(violation, file=sys.stderr)
     if violations:
-        print(f"promoted-foundation completeness check failed with {len(violations)} violation(s)", file=sys.stderr)
+        print(
+            f"promoted-foundation completeness check failed with {len(violations)} violation(s)",
+            file=sys.stderr,
+        )
         return 1
     print("promoted-foundation completeness check passed")
     return 0

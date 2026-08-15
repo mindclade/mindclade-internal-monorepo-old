@@ -4,15 +4,17 @@ The canonical wire contract lives in ``protocols/proto/mindclade/orchestration/v
 Rust verifies signed execution authority before a Python engine is invoked; these
 objects deliberately contain no signature or policy-verification logic.
 """
+
 from __future__ import annotations
 
+import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
-import re
-from typing import Mapping
 
 _DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
 _ID = re.compile(r"^[a-z][a-z0-9]{1,23}_[0-9a-f]{32}$")
+
 
 class StageKind(StrEnum):
     INGESTION = "ingestion"
@@ -27,6 +29,7 @@ class StageKind(StrEnum):
     ROLLOUT = "rollout"
     SIMULATION = "simulation"
 
+
 @dataclass(frozen=True, slots=True)
 class ArtifactRef:
     digest: str
@@ -38,8 +41,14 @@ class ArtifactRef:
     def validate(self) -> None:
         if not _DIGEST.fullmatch(self.digest):
             raise ValueError("artifact digest must be canonical sha256")
-        if self.size_bytes < 0 or not self.media_type or not self.logical_kind or not self.schema_version:
+        if (
+            self.size_bytes < 0
+            or not self.media_type
+            or not self.logical_kind
+            or not self.schema_version
+        ):
             raise ValueError("artifact identity is incomplete")
+
 
 @dataclass(frozen=True, slots=True)
 class StageEnvelope:
@@ -60,7 +69,9 @@ class StageEnvelope:
             raise ValueError("stage identity, operation, and output namespace are required")
         if not _DIGEST.fullmatch(self.resolved_config_digest):
             raise ValueError("resolved config digest must be canonical sha256")
-        if self.reference_snapshot_digest is not None and not _DIGEST.fullmatch(self.reference_snapshot_digest):
+        if self.reference_snapshot_digest is not None and not _DIGEST.fullmatch(
+            self.reference_snapshot_digest
+        ):
             raise ValueError("reference snapshot digest must be canonical sha256")
         if self.attempt <= 0 or self.fencing_token <= 0 or self.deadline_unix_millis <= 0:
             raise ValueError("attempt, fencing token, and deadline must be positive")
@@ -71,6 +82,7 @@ class StageEnvelope:
         for key, value in self.metadata.items():
             if not key or len(key) > 128 or len(value) > 4096:
                 raise ValueError("stage metadata exceeds bounds")
+
 
 @dataclass(frozen=True, slots=True)
 class StageResult:

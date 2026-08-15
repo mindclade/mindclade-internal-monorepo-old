@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Enforce that canonical Rust target-state paths are implementation, not markers."""
+
 from __future__ import annotations
 
 import re
@@ -10,9 +11,9 @@ COMPAT: set[str] = set()
 FORBIDDEN = (
     "SCAFFOLD_",
     "todo!()",
-    "todo!(\"",
+    'todo!("',
     "unimplemented!()",
-    "unimplemented!(\"",
+    'unimplemented!("',
     "production implementation pending",
     "target-state scaffold marker",
 )
@@ -26,7 +27,11 @@ CANONICAL_SERVICES = (
 
 
 def _crate_dirs(root: Path) -> list[Path]:
-    return sorted(p for p in (root / "libs/rust").iterdir() if p.is_dir() and (p / "Cargo.toml").exists() and p.name not in COMPAT)
+    return sorted(
+        p
+        for p in (root / "libs/rust").iterdir()
+        if p.is_dir() and (p / "Cargo.toml").exists() and p.name not in COMPAT
+    )
 
 
 def check(root: Path) -> list[str]:
@@ -39,18 +44,30 @@ def check(root: Path) -> list[str]:
             errors.append(f"{crate.relative_to(root)}: authoritative crate has no Rust source")
         tests = sorted((crate / "tests").glob("*.rs")) if (crate / "tests").exists() else []
         if not tests:
-            errors.append(f"{crate.relative_to(root)}: authoritative crate has no package-local Rust test")
+            errors.append(
+                f"{crate.relative_to(root)}: authoritative crate has no package-local Rust test"
+            )
         for source in sources:
             text = source.read_text()
             lowered = text.lower()
             for token in FORBIDDEN:
                 if token.lower() in lowered:
-                    errors.append(f"{source.relative_to(root)}: forbidden implementation marker {token!r}")
+                    errors.append(
+                        f"{source.relative_to(root)}: forbidden implementation marker {token!r}"
+                    )
             # Tiny modules are allowed only when they deliberately re-export or
             # provide a narrow concrete adapter/function. Bare constants are not.
-            semantic = [line.strip() for line in text.splitlines() if line.strip() and not line.strip().startswith("//")]
-            if len(semantic) <= 2 and not any(key in text for key in ("pub use ", "pub fn ", "pub type ", "impl ", "mod ")):
-                errors.append(f"{source.relative_to(root)}: target-state module is effectively empty")
+            semantic = [
+                line.strip()
+                for line in text.splitlines()
+                if line.strip() and not line.strip().startswith("//")
+            ]
+            if len(semantic) <= 2 and not any(
+                key in text for key in ("pub use ", "pub fn ", "pub type ", "impl ", "mod ")
+            ):
+                errors.append(
+                    f"{source.relative_to(root)}: target-state module is effectively empty"
+                )
 
     for rel in CANONICAL_SERVICES:
         path = root / rel
@@ -65,7 +82,9 @@ def check(root: Path) -> list[str]:
             text = source.read_text()
             for token in FORBIDDEN:
                 if token.lower() in text.lower():
-                    errors.append(f"{source.relative_to(root)}: service still contains scaffold marker {token!r}")
+                    errors.append(
+                        f"{source.relative_to(root)}: service still contains scaffold marker {token!r}"
+                    )
         tests = sorted((path / "tests").glob("*.rs")) if (path / "tests").exists() else []
         if not tests:
             errors.append(f"{rel}: implemented Rust component must have tests")
@@ -76,7 +95,11 @@ def check(root: Path) -> list[str]:
         "services/runtime_gateway": {"mindclade_serving_runtime", "mindclade_worker_protocol"},
         "services/runtime_host": {"mindclade_serving_runtime", "mindclade_worker_runtime"},
         "services/artifact_proxy": {"mindclade_artifact_cas", "mindclade_worker_protocol"},
-        "services/node_agent": {"mindclade_worker_runtime", "mindclade_checkpoint_io", "mindclade_data_stream"},
+        "services/node_agent": {
+            "mindclade_worker_runtime",
+            "mindclade_checkpoint_io",
+            "mindclade_data_stream",
+        },
         "serving/runtime": {"mindclade_worker_protocol", "mindclade_runtime_core"},
     }
     for rel, expected in required_deps.items():
@@ -87,10 +110,18 @@ def check(root: Path) -> list[str]:
             errors.append(f"{rel}: missing canonical Rust foundation consumers: {sorted(missing)}")
 
     # Canonical Rust code must not use compatibility crates.
-    legacy = re.compile(r"mindclade_(clock|retry|resource_version|observability|artifact_manifest|byte_spec|python_bindings)")
-    for path in list((root / "libs/rust").rglob("*.rs")) + list((root / "services").rglob("*.rs")) + list((root / "serving/runtime").rglob("*.rs")):
+    legacy = re.compile(
+        r"mindclade_(clock|retry|resource_version|observability|artifact_manifest|byte_spec|python_bindings)"
+    )
+    for path in (
+        list((root / "libs/rust").rglob("*.rs"))
+        + list((root / "services").rglob("*.rs"))
+        + list((root / "serving/runtime").rglob("*.rs"))
+    ):
         if legacy.search(path.read_text()):
-            errors.append(f"{path.relative_to(root)}: depends on deprecated Rust compatibility facade")
+            errors.append(
+                f"{path.relative_to(root)}: depends on deprecated Rust compatibility facade"
+            )
     return errors
 
 
@@ -104,6 +135,7 @@ def main() -> int:
         return 1
     print("Rust implementation check passed")
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

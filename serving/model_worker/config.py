@@ -4,6 +4,7 @@ Global tenancy, routing and quota policy is intentionally absent. The Rust
 runtime host admits work before this worker sees it; these limits protect the
 Python process and final tensor-aware batch planner.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

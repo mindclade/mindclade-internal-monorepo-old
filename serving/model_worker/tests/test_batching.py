@@ -5,7 +5,9 @@ D = "sha256:" + "1" * 64
 
 
 def req(request_id: str, bucket: str = "a") -> ModelRequest:
-    return ModelRequest(request_id, "deployment_a", D, "bf16", "gpu", 10, 20, "segment:a", {"shape_bucket": bucket})
+    return ModelRequest(
+        request_id, "deployment_a", D, "bf16", "gpu", 10, 20, "segment:a", {"shape_bucket": bucket}
+    )
 
 
 def test_planner_groups_only_final_tensor_compatible_requests() -> None:

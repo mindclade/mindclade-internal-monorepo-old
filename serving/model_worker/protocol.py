@@ -1,9 +1,10 @@
 """Model-neutral in-process contract between the Rust host and Python engine."""
+
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Mapping
 
 
 class WorkerPhase(StrEnum):

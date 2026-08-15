@@ -39,7 +39,7 @@ members = [
 [workspace.dependencies]
 axum = { version = "=0.8.9", default-features = false, features = ["http1", "http2", "tokio"] }
 bytes = "=1.12.1"
-ed25519-dalek = { version = "=3.0.0", default-features = false, features = ["std", "pkcs8"] }
+ed25519-dalek = { version = "=3.0.0", default-features = false, features = ["alloc", "pkcs8"] }
 libc = "=0.2.183"
 object_store = { version = "=0.14.1", default-features = false, features = ["aws", "gcp", "http"] }
 prost = "=0.14.4"

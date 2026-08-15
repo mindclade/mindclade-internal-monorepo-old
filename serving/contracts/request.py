@@ -45,7 +45,10 @@ class InferenceRequest:
     def validate(self, now_unix_millis: int) -> None:
         if not self.request_id or len(self.request_id) > 256:
             raise ValueError("request id is invalid")
-        if not self.model_bundle_digest.startswith("sha256:") or len(self.model_bundle_digest) != 71:
+        if (
+            not self.model_bundle_digest.startswith("sha256:")
+            or len(self.model_bundle_digest) != 71
+        ):
             raise ValueError("model bundle digest is invalid")
         if len(self.request_key) > MAX_REQUEST_KEY_BYTES:
             raise ValueError("request key exceeds bound")

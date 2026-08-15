@@ -1,4 +1,5 @@
 """Model loading contracts; concrete PyTorch loaders live with model adapters."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

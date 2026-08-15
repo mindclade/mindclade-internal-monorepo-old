@@ -4,12 +4,12 @@
 Qualification is deliberately read-only with respect to dependency locks.  The
 only supported lock update path is tools/qualification/rust/update_lock.sh.
 """
+
 from __future__ import annotations
 
 import argparse
 import subprocess
 import sys
-from pathlib import Path
 
 from common import ROOT, require_tool, run, verify_toolchain
 
@@ -36,10 +36,19 @@ def main() -> int:
         cargo = require_tool("cargo")
         run([cargo, "fmt", "--all", "--", "--check"])
         run([cargo, "test", "--workspace", "--all-targets", "--all-features", "--locked"])
-        run([
-            cargo, "clippy", "--workspace", "--all-targets", "--all-features", "--locked",
-            "--", "-D", "warnings",
-        ])
+        run(
+            [
+                cargo,
+                "clippy",
+                "--workspace",
+                "--all-targets",
+                "--all-features",
+                "--locked",
+                "--",
+                "-D",
+                "warnings",
+            ]
+        )
         run([cargo, "test", "--workspace", "--doc", "--locked"])
         run([cargo, "doc", "--workspace", "--all-features", "--no-deps", "--locked"])
         run([sys.executable, str(ROOT / "tools/analysis/check_rust_format_conventions.py")])
@@ -56,7 +65,13 @@ def main() -> int:
         if args.mode == "release":
             run([sys.executable, str(ROOT / "tools/qualification/rust/release_performance.py")])
             run([sys.executable, str(ROOT / "tests/integration/cross_language/release_gate.py")])
-            run([sys.executable, str(ROOT / "tests/integration/vertical_slices/release_gate.py"), "--require-rust"])
+            run(
+                [
+                    sys.executable,
+                    str(ROOT / "tests/integration/vertical_slices/release_gate.py"),
+                    "--require-rust",
+                ]
+            )
     except (RuntimeError, subprocess.CalledProcessError) as error:
         print(error, file=sys.stderr)
         return 1

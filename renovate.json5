@@ -1,0 +1,82 @@
+{
+  // Matches the infrastructure repos' renovate.json5 so the whole estate reads as one.
+  //
+  // This repo is the reason the estate needs Renovate at all. Dependabot is disabled
+  // org-wide in github-config (`github_repository_vulnerability_alerts.enabled = false`,
+  // "Renovate owns dependency updates"), and this is the only repo carrying a real
+  // dependency graph — Cargo, Go, pnpm, uv, and Nix locks, twenty files in total. Without
+  // this file that handoff has no receiver and nothing updates them.
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    // Any action added without a SHA gets one in the first Renovate PR.
+    "helpers:pinGitHubActionDigests",
+  ],
+  "dependencyDashboard": true,
+  "labels": ["dependencies", "renovate"],
+  "timezone": "America/Detroit",
+  "schedule": ["before 5am"],
+  // Seven days. Long enough that a compromised or broken release is usually withdrawn before
+  // it reaches a PR here.
+  "minimumReleaseAge": "7 days",
+  // Higher than the infra repos' 5. Five languages' worth of dependencies behind a single
+  // concurrency limit means the slowest ecosystem starves the rest.
+  "prConcurrentLimit": 10,
+  "prHourlyLimit": 2,
+  "rangeStrategy": "replace",
+  "rebaseWhen": "conflicted",
+  "separateMajorMinor": true,
+  // Never automerge. Same rule as the rest of the estate: a human reads every dependency
+  // change, and here that includes anything reaching a model runtime or a serving path.
+  "automerge": false,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 5am on monday"],
+  },
+  "packageRules": [
+    {
+      // flake.lock pins the nixpkgs revision the dev shell and any Nix-based CI resolve from.
+      // Without this manager enabled the lock is written once and then silently ages.
+      "matchManagers": ["nix"],
+      "groupName": "nix flake inputs",
+      "enabled": true,
+    },
+    {
+      "description": "Keep security-sensitive workflow action upgrades isolated",
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions",
+    },
+    {
+      // One PR per ecosystem for routine patch/minor traffic. Five separate lockfiles each
+      // opening individual PRs is roughly forty a month; grouped, it is four or five, and
+      // each one is reviewable because everything in it shares a toolchain.
+      "matchManagers": ["cargo"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "groupName": "rust dependencies",
+    },
+    {
+      "matchManagers": ["gomod"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "groupName": "go dependencies",
+    },
+    {
+      "matchManagers": ["npm", "pep621"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "groupName": "typescript and python dependencies",
+    },
+    {
+      // Toolchain bumps move the floor under every other lane, so they land alone and a
+      // human decides when. `ruff` in particular reformats: taking it silently means a PR
+      // that changed one file arrives with three hundred reformatted ones.
+      "matchPackageNames": ["ruff", "pytest", "go", "golang", "rust", "rustc"],
+      "groupName": "toolchains",
+      "separateMinorPatch": true,
+    },
+    {
+      // Vendored third-party reference material and fixtures. These are pinned to specific
+      // revisions on purpose — a fixture that updates itself stops being a fixture.
+      "matchFileNames": ["**/testdata/**", "**/fixtures/**"],
+      "enabled": false,
+    },
+  ],
+}

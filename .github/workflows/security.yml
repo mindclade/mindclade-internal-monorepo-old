@@ -1,0 +1,43 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# Static analysis. Split from presubmit.yml because CodeQL needs `security-events: write` and
+# runs on a schedule as well as per-PR, and because the blueprint reserves this filename.
+#
+# THIS WILL FAIL UNTIL GHAS IS ENABLED on the repository. Code scanning on an internal repo
+# requires GitHub Advanced Security, which github-config turns on
+# (advanced_security_enabled_for_new_repositories) and which has not been applied yet. The
+# failure mode is an explicit "Advanced Security must be enabled" error, not a silent pass.
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly, Monday 04:17 UTC. Off the hour because scheduled runs cluster on :00 and get
+    # queued behind everyone else's cron.
+    - cron: "17 4 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  codeql:
+    uses: mindclade-org/.github/.github/workflows/reusable-codeql.yml@v1.0.0
+    with:
+      # Rust is omitted: CodeQL's Rust support is still maturing and the runtime data plane is
+      # covered by clippy with -D warnings plus cargo-deny in the presubmit lane. Revisit when
+      # Rust leaves beta in the CodeQL bundle.
+      languages: '["go","python","javascript-typescript"]'
+      queries: security-extended
+      # `none` rather than autobuild. Autobuild would try to build the whole Bazel workspace
+      # to extract Go; build-mode none extracts from source instead, which is both faster and
+      # not dependent on the Bazel toolchain being fully wired.
+      build-mode: none

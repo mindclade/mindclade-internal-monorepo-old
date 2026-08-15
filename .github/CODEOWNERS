@@ -1,0 +1,78 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# Review routing for the monorepo. Ordered by GitHub's rule: the LAST matching pattern wins,
+# so the broad default sits at the top and the narrow security paths at the bottom.
+#
+# Teams here mirror the language law in REPOSITORY_STATUS.md — Go owns the control plane,
+# Rust the runtime data plane, Python the science — because that is also how the teams are
+# split. Where a directory crosses that line, both teams are listed.
+#
+# Not routed here: dual-use and screening review. The biosecurity team is `privacy: secret`
+# in catalog/teams.yaml and attests on the biosecurity-review attestor rather than through
+# pull-request review; naming it in a file every reader of this repo can see would publish
+# the membership list that setting exists to keep private. The screening paths below carry
+# security + research so the code still gets a second pair of eyes in the PR.
+
+# Everyone, by default.
+*                                   @mindclade-org/engineering
+
+# ---------------------------------------------------------------------------------------
+# Go — fleet control plane and durable policy
+# ---------------------------------------------------------------------------------------
+/control/                           @mindclade-org/platform
+/libs/go/                           @mindclade-org/platform
+/services/                          @mindclade-org/platform
+
+# ---------------------------------------------------------------------------------------
+# Rust — online/runtime data plane and node execution
+# ---------------------------------------------------------------------------------------
+/libs/rust/                         @mindclade-org/platform
+/serving/                           @mindclade-org/platform
+
+# ---------------------------------------------------------------------------------------
+# Python — scientific, model, training, inference, and evaluation numerics
+# ---------------------------------------------------------------------------------------
+/models/                            @mindclade-org/research
+/training/                          @mindclade-org/research
+/evaluation/                        @mindclade-org/research
+/research/                          @mindclade-org/research
+/kernels/                           @mindclade-org/research
+
+/data/                              @mindclade-org/data
+/preprocessing/                     @mindclade-org/data @mindclade-org/research
+
+# ---------------------------------------------------------------------------------------
+# Cross-cutting
+# ---------------------------------------------------------------------------------------
+# Wire contracts between the three languages. A change here is a change to every runtime at
+# once, which is why it is platform-owned rather than owned by whichever language noticed.
+/protocols/                         @mindclade-org/platform
+/configs/                           @mindclade-org/platform
+/infra/                             @mindclade-org/platform
+/tools/                             @mindclade-org/platform
+/architecture/                      @mindclade-org/platform
+
+# Release evidence. These files are the record that a component was allowed to ship.
+/qualification/                     @mindclade-org/platform @mindclade-org/security
+/QUALIFICATION.md                   @mindclade-org/platform @mindclade-org/security
+/VALIDATION.md                      @mindclade-org/platform @mindclade-org/security
+/components.toml                    @mindclade-org/platform @mindclade-org/security
+/maturity.toml                      @mindclade-org/platform @mindclade-org/security
+
+# ---------------------------------------------------------------------------------------
+# Security — last, so these win over any broader pattern above
+# ---------------------------------------------------------------------------------------
+/security/                          @mindclade-org/security
+/ci/security/                       @mindclade-org/security
+/deny.toml                          @mindclade-org/security
+/SECURITY.md                        @mindclade-org/security
+
+# The pipeline that gates everything else, and the ownership map itself.
+/.github/                           @mindclade-org/platform @mindclade-org/security
+
+# Screening and dual-use surfaces. See the note at the top about biosecurity attestation.
+/data/curation/safety_screening.py  @mindclade-org/security @mindclade-org/research
+/evaluation/biological_risk/        @mindclade-org/security @mindclade-org/research
+/serving/safety/                    @mindclade-org/security @mindclade-org/research

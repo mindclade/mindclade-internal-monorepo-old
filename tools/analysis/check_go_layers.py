@@ -9,11 +9,11 @@ the source of truth; this tool supplies fast repository architecture feedback.
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
-from pathlib import Path
 import re
 import sys
-from typing import Iterable
+from collections.abc import Iterable
+from dataclasses import dataclass
+from pathlib import Path
 
 IMPORT_RE = re.compile(r'"(mindclade\.internal/[^"\n]+)"')
 GO_STATEMENT_RE = re.compile(r"(?m)^\s*go\s+(?:func\s*\(|[A-Za-z_][A-Za-z0-9_./]*\s*\()")
@@ -66,7 +66,16 @@ def layer_for(relative_package: str) -> int | None:
             if len(parts) == 2 or parts[2] in {"transaction", "sqltest"}:
                 return 1
             return 3
-    if top in {"auth", "audit", "idempotency", "messaging", "pagination", "requestmeta", "resourceversion", "signing"}:
+    if top in {
+        "auth",
+        "audit",
+        "idempotency",
+        "messaging",
+        "pagination",
+        "requestmeta",
+        "resourceversion",
+        "signing",
+    }:
         return 1
     if top in {"config", "observability", "retry", "servicekit"}:
         return 2
@@ -100,13 +109,17 @@ def import_violations(root: Path, files: Iterable[Path]) -> list[Violation]:
             continue
         source_layer = layer_for(source_package)
         for import_path in IMPORT_RE.findall(text):
-            if import_path.startswith((
-                "mindclade.internal/control/",
-                "mindclade.internal/services/",
-                "mindclade.internal/operators/",
-                "mindclade.internal/workers/",
-            )):
-                violations.append(Violation(path, f"libs/go imports consumer package {import_path}"))
+            if import_path.startswith(
+                (
+                    "mindclade.internal/control/",
+                    "mindclade.internal/services/",
+                    "mindclade.internal/operators/",
+                    "mindclade.internal/workers/",
+                )
+            ):
+                violations.append(
+                    Violation(path, f"libs/go imports consumer package {import_path}")
+                )
                 continue
             target_package = target_lib_package(import_path)
             if target_package is None:
@@ -114,10 +127,18 @@ def import_violations(root: Path, files: Iterable[Path]) -> list[Violation]:
             if any(part.endswith("test") for part in _parts(target_package)):
                 source_is_testonly = any(part.endswith("test") for part in _parts(source_package))
                 if not source_is_testonly:
-                    violations.append(Violation(path, f"production package imports test-only package {import_path}"))
+                    violations.append(
+                        Violation(
+                            path, f"production package imports test-only package {import_path}"
+                        )
+                    )
                 continue
             target_layer = layer_for(target_package)
-            if source_layer is not None and target_layer is not None and target_layer > source_layer:
+            if (
+                source_layer is not None
+                and target_layer is not None
+                and target_layer > source_layer
+            ):
                 violations.append(
                     Violation(
                         path,
@@ -133,7 +154,12 @@ def _line_number(text: str, offset: int) -> int:
 
 def paved_road_violations(root: Path) -> list[Violation]:
     violations: list[Violation] = []
-    production_roots = [root / "services/control_plane", root / "control", root / "operators", root / "workers"]
+    production_roots = [
+        root / "services/control_plane",
+        root / "control",
+        root / "operators",
+        root / "workers",
+    ]
     checks = {
         "http.DefaultClient": "use libs/go/httpx or httpx/outbound instead of http.DefaultClient",
         "http.DefaultTransport": "use the standard httpx transport instead of http.DefaultTransport",
@@ -157,7 +183,11 @@ def paved_road_violations(root: Path) -> list[Violation]:
             match = GO_STATEMENT_RE.search(text)
             if match:
                 violations.append(
-                    Violation(path, "detached goroutine; register owned work through servicekit.TaskGroup", _line_number(text, match.start()))
+                    Violation(
+                        path,
+                        "detached goroutine; register owned work through servicekit.TaskGroup",
+                        _line_number(text, match.start()),
+                    )
                 )
     command_root = root / "services/control_plane/cmd"
     if command_root.exists():
@@ -169,9 +199,13 @@ def paved_road_violations(root: Path) -> list[Violation]:
             ]
             for token in required:
                 if token not in text:
-                    violations.append(Violation(path, f"control-plane command must contain {token}"))
+                    violations.append(
+                        Violation(path, f"control-plane command must contain {token}")
+                    )
             if '"mindclade.internal/libs/go/servicekit"' in text or "servicekit.New(" in text:
-                violations.append(Violation(path, "command bypasses servicekit/production bootstrap"))
+                violations.append(
+                    Violation(path, "command bypasses servicekit/production bootstrap")
+                )
     return violations
 
 
@@ -180,14 +214,18 @@ def generic_package_violations(root: Path) -> list[Violation]:
     forbidden = {"common", "helpers", "shared", "utils"}
     for directory in (root / "libs/go").rglob("*"):
         if directory.is_dir() and directory.name in forbidden:
-            violations.append(Violation(directory, "generic Go dumping-ground package is prohibited"))
+            violations.append(
+                Violation(directory, "generic Go dumping-ground package is prohibited")
+            )
     return violations
 
 
 def check(root: Path) -> list[Violation]:
     go_files = list((root / "libs/go").rglob("*.go"))
     return sorted(
-        import_violations(root, go_files) + paved_road_violations(root) + generic_package_violations(root),
+        import_violations(root, go_files)
+        + paved_road_violations(root)
+        + generic_package_violations(root),
         key=lambda value: (value.path.as_posix(), value.line, value.message),
     )
 
