@@ -34,7 +34,7 @@ potentially sensitive query metadata.
 
 ```hcl
 module "postgres" {
-  source = "../../modules/cloud-sql-postgres"
+  source = "../../modules/postgres"
 
   project_id         = "mindclade-production"
   name               = "mindclade-control-plane"

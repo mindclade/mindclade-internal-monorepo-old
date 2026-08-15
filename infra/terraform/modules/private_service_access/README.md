@@ -8,7 +8,7 @@ subnets, secondary ranges, or other reserved blocks in the same routing domain.
 
 ```hcl
 module "private_service_access" {
-  source = "../../modules/private-service-access"
+  source = "../../modules/private_service_access"
 
   project_id          = "mindclade-production"
   network_id          = module.network.network_id

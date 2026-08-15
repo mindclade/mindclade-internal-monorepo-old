@@ -20,7 +20,11 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-IMPORT_RE = re.compile(r'"(mindclade\.internal/[^"\n]+)"')
+# The repository's own module path, as declared by go.mod. It is spelled out in the prefixes
+# below as well; all of them have to move together. The module-path cutover updated those and
+# left this pattern on `mindclade.internal`, so it matched nothing and every rule downstream of
+# it passed vacuously — the failure mode a layering check cannot signal about itself.
+IMPORT_RE = re.compile(r'"(go\.mindclade\.dev/[^"\n]+)"')
 GO_STATEMENT_RE = re.compile(r"(?m)^\s*go\s+(?:func\s*\(|[A-Za-z_][A-Za-z0-9_./]*\s*\()")
 
 

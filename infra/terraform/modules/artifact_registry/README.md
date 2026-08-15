@@ -23,7 +23,7 @@ agent encrypt/decrypt access and use the repository location.
 
 ```hcl
 module "application_images" {
-  source = "../../modules/artifact-registry"
+  source = "../../modules/artifact_registry"
 
   project_id    = "mindclade-production"
   location      = "us-central1"

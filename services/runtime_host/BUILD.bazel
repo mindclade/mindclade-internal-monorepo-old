@@ -60,6 +60,11 @@ rust_test(
     edition = "2024",
     deps = [
         "//libs/rust/bytes_io:mindclade_bytes_io",
+        # tests/integration.rs calls hash_bytes directly. Declared here and as a Cargo
+        # dev-dependency, not on the library: architecture/dependency_budgets.toml governs what
+        # this service ships with, and check_cargo_bazel_alignment only reads [dependencies], so
+        # nothing else would notice this label missing.
+        "//libs/rust/content_digest:mindclade_content_digest",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/gpu_host:mindclade_gpu_host",
         "//libs/rust/identifiers:mindclade_identifiers",

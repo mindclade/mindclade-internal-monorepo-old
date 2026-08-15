@@ -11,7 +11,19 @@ import re
 import tomllib
 from pathlib import Path
 
-GO_IMPORT = re.compile(r'"(mindclade\.internal/[^\"]+)"')
+# Must track go.mod's module directive, and architecture/dependency_budgets.toml's
+# allowed_prefixes/forbidden_prefixes with it. The cutover to go.mindclade.dev updated the toml
+# and left this pattern behind, so `internal_deps` returned an empty set for every Go component:
+# max_internal_direct compared 0 against the budget, the allowlist had nothing to reject, and the
+# forbidden prefixes had nothing to match. The check passed because it was looking at nothing.
+GO_IMPORT = re.compile(r'"(go\.mindclade\.dev/[^\"]+)"')
+
+# Comments are stripped before the pattern above is applied. A quoted module path in prose is
+# not a dependency: services/go_vanity documents its most-specific-first matching with
+# `"go.mindclade.dev/tools"` and `"go.mindclade.dev/toolsmith"`, neither of which is a package,
+# and counting them pushed `services` two over its budget. Safe because nothing but the package
+# clause and comments may precede a Go import block, so no real import can be swallowed.
+GO_COMMENT = re.compile(r"/\*.*?\*/|//[^\n]*", re.S)
 
 
 def internal_deps(path: Path, language: str) -> set[str]:
@@ -20,7 +32,7 @@ def internal_deps(path: Path, language: str) -> set[str]:
         for p in path.rglob("*.go"):
             if p.name.endswith("_test.go"):
                 continue
-            deps.update(GO_IMPORT.findall(p.read_text(errors="replace")))
+            deps.update(GO_IMPORT.findall(GO_COMMENT.sub("", p.read_text(errors="replace"))))
     elif language == "rust":
         c = path / "Cargo.toml"
         if c.exists():

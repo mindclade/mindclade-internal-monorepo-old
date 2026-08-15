@@ -71,7 +71,10 @@ def check(root: Path):
                     ".mypy_cache",
                 )
             )
-            or p.parts[0].startswith("bazel-")
+            # Relative to the repository, not absolute: `root.rglob` yields absolute paths, so
+            # p.parts[0] is "/" and this never matched. The convenience symlinks Bazel writes
+            # (bazel-out, bazel-bin, bazel-<workspace>) only ever sit at the root.
+            or p.relative_to(root).parts[0].startswith("bazel-")
         ):
             continue
         if p.name == "Dockerfile" or p.name.startswith("Dockerfile."):
