@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
 
 package(default_visibility = ["//libs/rust:repo_consumers"])
 
@@ -21,18 +21,13 @@ rust_binary(
     ],
 )
 
-rust_test(
-    name = "integration",
-    srcs = ["tests/integration.rs"],
-    edition = "2024",
-    deps = [
-        "//libs/rust/content_digest:mindclade_content_digest",
-        "//libs/rust/faults:mindclade_faults",
-        "//libs/rust/runtime_core:mindclade_runtime_core",
-        "//libs/rust/worker_protocol:mindclade_worker_protocol",
-        "//libs/rust/worker_runtime:mindclade_worker_runtime",
-    ],
-)
+# The integration test lives in //services/workers/ingestion/tests, which is its own package
+# — it has a BUILD.bazel. A target here naming `tests/integration.rs` reaches across that
+# boundary, which Bazel rejects outright: "Label '//services/workers/ingestion:tests/
+# integration.rs' is invalid because 'services/workers/ingestion/tests' is a subpackage".
+#
+# That error stops the whole `//...` pattern from evaluating, so it hid every other analysis
+# result in the repository until the presubmit lane surfaced it.
 
 filegroup(
     name = "package_sources",
