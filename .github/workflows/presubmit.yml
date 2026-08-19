@@ -204,27 +204,35 @@ jobs:
           exit "$failed"
 
   # ---------------------------------------------------------------------------------------
-  # Bazel — analysis only
+  # Bazel — loading phase
   # ---------------------------------------------------------------------------------------
-  # `--nobuild` stops after ANALYSIS: every BUILD file is loaded, every dependency edge is
-  # resolved, and nothing is compiled. That is the half of a Bazel build that catches the
-  # mistakes a reviewer cannot see — a target renamed without its dependents, a visibility
-  # rule that excludes a real consumer, a missing dep that the Go and Rust lanes do not notice
-  # because they build with the language toolchain rather than through Bazel.
+  # `bazel query //...` loads every BUILD file in the workspace and resolves every label in
+  # them. It does not configure or build anything, which is exactly what makes it usable here:
+  # it needs no external dependency graph, so it runs in about a minute and catches the class
+  # of error that is invisible in review and fatal to everything downstream.
   #
-  # Compiling the whole workspace on every PR is the affected-target lane's job, and that lane
-  # does not exist yet (see the note on the architecture job above).
+  # That class is not hypothetical. Wiring this lane immediately found
+  # services/workers/ingestion declaring `srcs = ["tests/integration.rs"]` across a package
+  # boundary — a label Bazel refuses outright, which stopped `//...` from evaluating AT ALL and
+  # therefore hid every other result in the repository.
   #
-  # NO BUILDIFIER STEP, and that is a decision rather than an oversight.
+  # WHY NOT `--nobuild`. Full analysis additionally resolves external repositories, and the
+  # workspace does not register them yet: Go targets fail on `org_golang_google_genproto_
+  # googleapis_rpc` not being visible from the main repository, and Rust targets fail inside
+  # the rules_rust crate_universe extension because the Cargo.toml manifests are not declared
+  # to it. Both are real gaps in the Bazel integration and neither is a workflow change.
+  # Promote this step to `bazel build //... --nobuild` in the commit that closes them.
+  #
+  # NO BUILDIFIER STEP either, and that is a decision rather than an oversight.
   # `buildifier --mode=check -r .` currently reports 549 files, every one of them the same
   # cosmetic disagreement about how a multi-argument `glob()` wraps. Adding it here would make
   # the lane red on arrival, and a gate that is red on the day it lands is one people switch
   # off rather than fix. The sweep is worth doing and belongs in its own commit where the diff
   # reads as formatting and nothing else — `buildifier -r .` — and the step comes back with it.
   bazel:
-    name: bazel analysis
+    name: bazel loading
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -239,8 +247,8 @@ jobs:
           disk-cache: ${{ github.workflow }}
           repository-cache: true
 
-      - name: Analysis
-        run: bazel build //... --nobuild --curses=no --color=no
+      - name: Every BUILD file loads and every label resolves
+        run: bazel query '//...' --output=label --curses=no --color=no > /dev/null
 
 
   # ---------------------------------------------------------------------------------------
