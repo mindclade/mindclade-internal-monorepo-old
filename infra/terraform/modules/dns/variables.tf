@@ -49,7 +49,13 @@ variable "zones" {
     # Overrides var.attached_networks for this zone only. Ignored on public zones.
     networks = optional(list(string))
 
+    # Keyed by an identifier that DEFAULTS to the relative owner name. Set
+    # `name` explicitly when one owner carries more than one type -- an apex
+    # holding CAA, MX, and SPF needs three entries that resolve to the same
+    # name, and a map cannot hold three "@" keys. Cloud DNS keys record sets by
+    # name AND type, so these are three distinct sets rather than a collision.
     records = optional(map(object({
+      name    = optional(string)
       type    = string
       ttl     = optional(number, 300)
       rrdatas = list(string)
@@ -71,11 +77,12 @@ variable "zones" {
   validation {
     condition = alltrue(flatten([
       for z in var.zones : [
-        for name, _ in z.records :
-        !endswith(name, ".") && !endswith(name, trimsuffix(z.dns_name, "."))
+        for key, r in z.records :
+        !endswith(r.name != null ? r.name : key, ".") &&
+        !endswith(r.name != null ? r.name : key, trimsuffix(z.dns_name, "."))
       ]
     ]))
-    error_message = "Record keys are relative to the zone. Use \"api\", not \"api.mindclade.ai\" and not \"api.mindclade.ai.\"; use \"\" or \"@\" for the apex."
+    error_message = "Record owner names are relative to the zone. Use \"api\", not \"api.mindclade.ai\" and not \"api.mindclade.ai.\"; use \"\" or \"@\" for the apex."
   }
 
   # A public zone with an A, AAAA, or CNAME record is the failure this estate is built to make

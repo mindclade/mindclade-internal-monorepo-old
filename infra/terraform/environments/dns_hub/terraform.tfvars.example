@@ -1,0 +1,82 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored; this file
+# is the committed reference.
+
+# Must match `solvers[].dns01.cloudDNS.project` in
+# infra/kubernetes/platform/cert-manager/base/issuer.yaml. If you change it,
+# change it there too -- cert-manager looks up the zone by domain name inside
+# THIS project, and a mismatch fails as a challenge that never gets written.
+project_id = "mc-common-dns"
+
+# wildcard_certificates mirrors cert-manager/base/certificates.yaml exactly.
+# CAA is the enforcement of what that file merely requests, so the two have to
+# agree: a Certificate asking for a name CAA forbids fails at issuance, and a
+# CAA permitting a wildcard nobody requests is a standing invitation.
+domains = {
+  studio = {
+    dns_name    = "mindclade.studio."
+    description = "Studio plane. Apex only -- CAA forbids wildcards outright."
+    # cert-mindclade-studio is apex-only and the acceptance check requires that
+    # crt.sh never show *.mindclade.studio. false publishes `issuewild ";"`,
+    # which makes that a rule Let's Encrypt enforces rather than one we observe.
+    wildcard_certificates = false
+  }
+
+  ai = {
+    dns_name              = "mindclade.ai."
+    description           = "Machine plane. Wildcard *.mindclade.ai; apex is not served."
+    wildcard_certificates = true
+  }
+
+  dev = {
+    dns_name              = "mindclade.dev."
+    description           = "Developer plane. Wildcard *.mindclade.dev; also the Go module path host."
+    wildcard_certificates = true
+  }
+
+  com = {
+    dns_name    = "mindclade.com."
+    description = "Corporate identity and mail. Serves no application hostname."
+    # No certificate exists for this domain and none should. Forbidding
+    # wildcards costs nothing and closes the gap.
+    wildcard_certificates = false
+  }
+}
+
+# The ACME account address (security@mindclade.com) lives here, so this zone's
+# MX has to work before the first certificate is requested -- Let's Encrypt
+# sends expiry warnings there and the address is awkward to change later.
+mail_domain = "com"
+
+# Matches the ClusterIssuer's acme.email in issuer.yaml.
+security_contact = "security@mindclade.com"
+
+# ---------------------------------------------------------------------------
+# Mail. Left unset on purpose.
+#
+# With `mx` empty, the com zone gets the same null-MX + reject-all SPF + p=reject
+# DMARC as the other three. That is a SAFE and correct posture for a domain that
+# does not yet receive mail -- but it means security@mindclade.com bounces, so
+# fill this in before requesting the first production certificate.
+#
+# Google Workspace:
+#
+# mail = {
+#   mx           = ["1 smtp.google.com."]
+#   spf_include  = ["_spf.google.com"]
+#   dmarc_policy = "none"                        # tighten after reports are clean
+#   dmarc_rua    = "dmarc-reports@mindclade.com"
+#   dkim = {
+#     google = {
+#       selector = "google"
+#       value    = "v=DKIM1; k=rsa; p=<paste from Workspace admin console>"
+#     }
+#   }
+# }
+# ---------------------------------------------------------------------------
+
+enable_logging = false
+owner          = "platform"
