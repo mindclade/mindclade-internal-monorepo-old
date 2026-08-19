@@ -5,6 +5,18 @@ folder foundation state. It creates one guarded project, disables default-networ
 creation, attaches billing, applies baseline labels, enables selected APIs, and
 optionally adds a project budget and resource-manager tag bindings.
 
+It optionally attaches the project to a Shared VPC host project as a service
+project, and optionally deprivileges the default compute service account. Both
+are off by default: attaching every project by default would attach the one
+project deliberately kept outside the workload network, and nothing at the call
+site would say so.
+
+The default service account is DEPRIVILEGED, never deleted. Deletion is
+recoverable for 30 days and permanent after that, and a later workload that
+legitimately needs the account fails with an error naming a missing account
+rather than a missing role — a much harder thing to diagnose than a denied
+permission.
+
 The module does not create a Google Cloud organization, folders, tag keys or tag
 values, billing accounts, notification channels, or IAM grants. Those are
 separate lifecycle and privilege boundaries.
@@ -36,9 +48,12 @@ module "application_project" {
 
   monthly_budget_usd = 500
   tag_value_names    = ["tagValues/234567890123"]
+
+  shared_vpc_host_project_id     = "mindclade-development-net"
+  remove_default_service_account = true
 }
 ```
 
 This is a reusable baseline, not a production-ready landing zone. Callers remain
-responsible for IAM, network attachment, organization-policy inheritance,
-centralized logging, alert routing, quota, and workload-specific controls.
+responsible for IAM, organization-policy inheritance, centralized logging, alert
+routing, quota, and workload-specific controls.

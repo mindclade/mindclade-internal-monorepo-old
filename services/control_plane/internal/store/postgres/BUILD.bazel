@@ -3,13 +3,48 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-package(default_visibility = ["//visibility:private"])
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
-filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
-    visibility = ["//visibility:public"],
+package(default_visibility = ["//services/control_plane:__subpackages__"])
+
+go_library(
+    name = "postgres",
+    srcs = [
+        "config.go",
+        "ddl.go",
+        "descriptors.go",
+        "doc.go",
+        "errors.go",
+        "releases.go",
+        "store.go",
+    ],
+    importpath = "go.mindclade.dev/services/control_plane/internal/store/postgres",
+    deps = [
+        "//control/registry/models",
+        "//control/registry/releases",
+        "//libs/go/clock",
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+        "//libs/go/storage/sql/postgres",
+        "//libs/go/storage/sql/transaction",
+    ],
+)
+
+go_test(
+    name = "postgres_test",
+    srcs = [
+        "ddl_test.go",
+        "descriptors_test.go",
+        "releases_test.go",
+    ],
+    embed = [":postgres"],
+    deps = [
+        "//control/artifacts",
+        "//control/registry/models",
+        "//control/registry/releases",
+        "//libs/go/clock",
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+        "//libs/go/storage/sql/sqltest",
+    ],
 )

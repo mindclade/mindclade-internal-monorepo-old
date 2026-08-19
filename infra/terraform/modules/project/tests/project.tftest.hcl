@@ -85,6 +85,80 @@ run "budget_is_optional" {
   }
 }
 
+run "shared_vpc_and_default_sa_are_off_by_default" {
+  command = plan
+
+  variables {
+    project_id         = "mindclade-standalone"
+    project_name       = "Mindclade standalone"
+    folder_id          = "folders/123456789012"
+    billing_account_id = "ABCDEF-012345-6789AB"
+    environment        = "development"
+    owner              = "cloud-platform"
+  }
+
+  # Both default to off, because both are things a caller must ask for. A module that attached
+  # every project to a Shared VPC by default would attach the one project that is deliberately
+  # outside the workload network — `4-projects/<env>/security` — and nothing about the call site
+  # would say so.
+  assert {
+    condition     = length(google_compute_shared_vpc_service_project.this) == 0
+    error_message = "A project must not be attached to a Shared VPC unless a host project is named."
+  }
+
+  assert {
+    condition     = length(google_project_default_service_accounts.this) == 0
+    error_message = "The default service account must be left alone unless removal is requested."
+  }
+}
+
+run "shared_vpc_and_default_sa_when_requested" {
+  command = plan
+
+  variables {
+    project_id                     = "mindclade-attached"
+    project_name                   = "Mindclade attached"
+    folder_id                      = "folders/123456789012"
+    billing_account_id             = "ABCDEF-012345-6789AB"
+    environment                    = "production"
+    owner                          = "cloud-platform"
+    shared_vpc_host_project_id     = "mindclade-production-net"
+    remove_default_service_account = true
+  }
+
+  assert {
+    condition = (
+      google_compute_shared_vpc_service_project.this[0].host_project == "mindclade-production-net" &&
+      google_compute_shared_vpc_service_project.this[0].service_project == "mindclade-attached"
+    )
+    error_message = "The attachment must name the supplied host project and this project as the service project."
+  }
+
+  # DEPRIVILEGE, not DELETE. Deleting the account is permanent after 30 days, and a later
+  # workload that legitimately needs it fails with an error naming a missing account rather than
+  # a missing role — which is a much harder thing to diagnose than a denied permission.
+  assert {
+    condition     = google_project_default_service_accounts.this[0].action == "DEPRIVILEGE"
+    error_message = "The default service account must be deprivileged rather than deleted."
+  }
+}
+
+run "rejects_invalid_shared_vpc_host_project_id" {
+  command = plan
+
+  variables {
+    project_id                 = "mindclade-production"
+    project_name               = "Mindclade production"
+    folder_id                  = "folders/123456789012"
+    billing_account_id         = "ABCDEF-012345-6789AB"
+    environment                = "production"
+    owner                      = "cloud-platform"
+    shared_vpc_host_project_id = "Not-A-Project-Id"
+  }
+
+  expect_failures = [var.shared_vpc_host_project_id]
+}
+
 run "rejects_restricted_project_id" {
   command = plan
 

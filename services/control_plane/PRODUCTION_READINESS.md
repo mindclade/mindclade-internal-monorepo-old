@@ -28,12 +28,25 @@ ticked only when something in the repository proves it.
       TTL. The projector advances its cursor under the elector's fence, so a
       demoted leader cannot overwrite its successor.
 
-- [ ] **Domain engines and repositories implemented outside `libs/go`**
-      **Not done, and this is the gate that matters.** Every role that performs
-      work exposes an injectable handler whose default fails closed —
-      placement, projection, delivery, staging, housekeeping. A deployed
+- [~] **Domain engines and repositories implemented outside `libs/go`**
+      **Still the gate that matters.** Repositories: `internal/store/postgres`
+      implements the two contracts `control/registry` declares —
+      `models.Repository` and `releases.Repository` — with DDL, content-addressed
+      insert-if-absent for descriptors, and compare-and-swap on the release's own
+      `ResourceVersion`. Unit-tested against `sqltest`, not against a live
+      database, and **not yet wired into any role**: nothing constructs a `Store`
+      (see the boundary note below). Engines: not started. Every role that
+      performs work still exposes an injectable handler whose default fails
+      closed — placement, projection, delivery, staging, housekeeping. A deployed
       process today assembles, validates, starts, and then refuses the work
       itself. See the domain-seam table in `GO_FOUNDATION_CONSUMPTION.md`.
+
+      Wiring is deliberately deferred, not overlooked. `internal/providers/doc.go`
+      states that no repositories or business services are assembled in the
+      composition root, so constructing the registry `Store` there would
+      contradict a documented boundary. Either that boundary is revised or a
+      Layer 5 composition point owned by `control/registry` takes the wiring;
+      that decision is open.
 
 - [x] **Authentication and authorization provider qualified where required**
       `providers/apikeys` resolves the service credential registry with
@@ -79,12 +92,14 @@ ticked only when something in the repository proves it.
 | | Count |
 |---|---:|
 | Satisfied | 6 |
-| Partial | 2 |
-| Not done | 2 |
+| Partial | 3 |
+| Not done | 1 |
 | Blocked on toolchain | 1 |
 
 **The critical path to promotion is domain implementation.** Everything the
-foundation owns is wired and guarded; nothing the domain owns is. After that,
-in order: control-plane lifecycle tests, a live-PostgreSQL qualification run,
-failure injection, then the operational artifacts. The Bazel gate is
-independent and blocked upstream.
+foundation owns is wired and guarded. The registry's storage layer now exists
+but is unreachable, and no domain engine does. The next step is the composition
+decision that lets a `Store` be constructed at all; after that, in order:
+domain engines behind the fail-closed seams, control-plane lifecycle tests, a
+live-PostgreSQL qualification run, failure injection, then the operational
+artifacts. The Bazel gate is independent and blocked upstream.

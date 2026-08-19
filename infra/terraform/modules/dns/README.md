@@ -36,6 +36,22 @@ Record keys are **relative to the zone**: `"api"` under `mindclade.ai.` becomes
 variable validation rather than silently producing `api.mindclade.ai.mindclade.ai.`, which
 resolves nowhere and reads like a propagation delay.
 
+**One owner, several types.** The map key is an *identifier* that defaults to the owner name;
+set `name` explicitly when one owner carries more than one record type. An apex holding CAA,
+MX, and SPF needs three entries, and a map cannot hold three `"@"` keys:
+
+```hcl
+records = {
+  caa = { name = "@", type = "CAA", rrdatas = ["0 issue \"letsencrypt.org\""] }
+  mx  = { name = "@", type = "MX",  rrdatas = ["1 smtp.google.com."] }
+  spf = { name = "@", type = "TXT", rrdatas = ["v=spf1 include:_spf.google.com -all"] }
+}
+```
+
+Cloud DNS keys record sets by name **and** type, so these are three distinct sets rather than
+a collision. Without the override they would compete for one key and the last one written
+would win silently.
+
 ## Three guards worth knowing about before you trip one
 
 **A public zone may carry only TXT, CAA, MX, or NS.** Every application hostname in this

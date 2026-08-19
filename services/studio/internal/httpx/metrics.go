@@ -6,10 +6,9 @@
 package httpx
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"sync/atomic"
 
+	"go.mindclade.dev/libs/go/identifiers"
 	"go.mindclade.dev/libs/go/observability"
 )
 
@@ -53,10 +52,15 @@ const SessionDecryptFailureMetricName = "studio.session.decrypt.failures"
 // It carries no authority: it is sealed inside the cookie alongside the
 // subject, and nothing authorizes on it. Its only job is joining log lines
 // across one session without putting the subject in every one.
+//
+// A v4 UUID rather than v7, and the distinction is the point: v7 embeds its
+// issuance time, and this value is the one field of the session that is meant
+// to disclose nothing. The estate's generator supplies the entropy and the
+// RFC's version and variant bits so this package holds neither.
 func newSessionID() (string, error) {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
+	uuid, err := identifiers.NewUUIDv4()
+	if err != nil {
 		return "", err
 	}
-	return base64.RawURLEncoding.EncodeToString(b), nil
+	return uuid.String(), nil
 }

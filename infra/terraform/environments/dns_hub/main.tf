@@ -76,24 +76,46 @@ locals {
   # Mail records exist only on the domain that receives mail, and only once a
   # provider has been chosen. Until then that zone falls back to the no-mail
   # posture above, so delegation is never blocked on picking a vendor.
-  mail_configured = var.mail_domain != null && length(var.mail.mx) > 0
+  #
+  # ANY mail field counts as configured, not just `mx`. A send-only domain --
+  # transactional mail through a provider, nothing received -- has SPF and DKIM
+  # but deliberately no MX. Gating on `mx` alone would silently overwrite that
+  # SPF with the reject-all record below, breaking delivery of everything the
+  # estate sends, which is the opposite of what setting spf_include asked for.
+  mail_configured = var.mail_domain != null && (
+    length(var.mail.mx) > 0 ||
+    length(var.mail.spf_include) > 0 ||
+    length(var.mail.dkim) > 0
+  )
 
   mail_records = merge(
     {
+      # Null MX when the domain sends but does not receive. "No mail here" is
+      # still the correct answer for a send-only domain.
       mx = {
         name    = "@"
         type    = "MX"
         ttl     = var.record_ttl
-        rrdatas = var.mail.mx
+        rrdatas = length(var.mail.mx) > 0 ? var.mail.mx : ["0 ."]
       }
       spf = {
         name = "@"
         type = "TXT"
         ttl  = var.record_ttl
+        # Assembled by join rather than interpolation so an empty include list
+        # yields "v=spf1 -all" and not "v=spf1  -all". The doubled space is
+        # legal per RFC 7208's ABNF and still trips third-party validators --
+        # the worst combination, since nothing rejects it and someone
+        # eventually reports the domain as misconfigured.
+        #
         # Exactly one `all` mechanism, appended last. Two of them void the
         # policy silently: receivers take the first match, and the record still
         # reads as valid to every syntax checker.
-        rrdatas = ["v=spf1 ${join(" ", [for include in var.mail.spf_include : "include:${include}"])} -all"]
+        rrdatas = [join(" ", concat(
+          ["v=spf1"],
+          [for include in var.mail.spf_include : "include:${include}"],
+          ["-all"],
+        ))]
       }
     },
     var.mail.dmarc_rua == null ? {} : {

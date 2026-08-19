@@ -74,9 +74,13 @@ variable "mail_domain" {
   type        = string
   default     = null
 
+  # Membership, not shape. A typo here does not fail -- it silently gives EVERY
+  # domain the reject-all posture, including the one that is supposed to receive
+  # mail, and the first symptom is bounced mail days later. Cross-variable
+  # references in validation need Terraform >= 1.9, which versions.tf requires.
   validation {
-    condition     = var.mail_domain == null || can(regex("^[a-z0-9-]+$", coalesce(var.mail_domain, "x")))
-    error_message = "mail_domain must be a key in the domains map."
+    condition     = var.mail_domain == null || contains(keys(var.domains), var.mail_domain)
+    error_message = "mail_domain must be a key in the domains map (e.g. \"com\"), not a domain name."
   }
 }
 
@@ -117,9 +121,13 @@ variable "mail" {
     error_message = "dmarc_policy must be \"none\", \"quarantine\", or \"reject\"."
   }
 
+  # Shape, not just the trailing dot. "smtp.google.com." alone is a plausible
+  # thing to paste from a provider's docs, passes a dot-only check, and then
+  # fails at apply with a Cloud DNS error that quotes the rrdata without saying
+  # what is wrong with it.
   validation {
-    condition     = alltrue([for record in var.mail.mx : endswith(record, ".")])
-    error_message = "Each MX rrdata must be \"<preference> <host.>\" with a fully qualified host ending in a dot, e.g. \"1 smtp.google.com.\"."
+    condition     = alltrue([for record in var.mail.mx : can(regex("^[0-9]+ [^ ]+\\.$", record))])
+    error_message = "Each MX rrdata must be \"<preference> <host.>\" -- a number, one space, and a fully qualified host ending in a dot, e.g. \"1 smtp.google.com.\"."
   }
 }
 

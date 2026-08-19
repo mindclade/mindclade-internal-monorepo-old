@@ -57,10 +57,16 @@ security_contact = "security@mindclade.com"
 # ---------------------------------------------------------------------------
 # Mail. Left unset on purpose.
 #
-# With `mx` empty, the com zone gets the same null-MX + reject-all SPF + p=reject
-# DMARC as the other three. That is a SAFE and correct posture for a domain that
-# does not yet receive mail -- but it means security@mindclade.com bounces, so
-# fill this in before requesting the first production certificate.
+# While EVERY field here is empty, the com zone gets the same null-MX +
+# reject-all SPF + p=reject DMARC as the other three. That is a safe and correct
+# posture for a domain that does not yet receive mail -- but it means
+# security@mindclade.com bounces, so fill this in before requesting the first
+# production certificate.
+#
+# Setting any one of mx / spf_include / dkim switches the zone out of that
+# posture. A send-only domain is expressible: give it spf_include and dkim but
+# no mx, and it keeps the null-MX (it still receives nothing) while publishing
+# the SPF and DKIM its provider needs to be trusted.
 #
 # Google Workspace:
 #

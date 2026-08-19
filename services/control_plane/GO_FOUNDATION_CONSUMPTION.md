@@ -79,6 +79,27 @@ internal/providers/cluster    Kubernetes REST config, client, discovery
 internal/providers/apikeys    service-to-service credential registry
 ```
 
+## Domain storage
+
+`internal/store/postgres` implements the repository contracts the domain
+declares — `control/registry/models.Repository` and
+`control/registry/releases.Repository` — rather than contracts of its own. The
+domain owns the seam; storage implements it, so the two cannot drift.
+
+Concurrency control follows each record's own model rather than one policy
+imposed across both. A `models.Descriptor` is content-addressed, since
+`SealDigest` covers every field including `Lifecycle`, so no in-place update is
+representable: writes are insert-if-absent, an identical republish is a no-op,
+and a lifecycle change is a new row under a new digest. A `releases.Release`
+carries its own `ResourceVersion`, so writes compare-and-swap on it; this is
+deliberately not `libs/go/resourceversion`, because two version fields on one
+record is two things to keep agreeing. An `EvidenceGraph` is sealed by the
+digest its release quotes and is therefore immutable once written.
+
+Nothing constructs a `Store` yet. `internal/providers/doc.go` rules repositories
+out of the composition root, so the wiring needs either that boundary revised or
+a Layer 5 composition point owned by `control/registry`.
+
 ## Durable coordination contracts
 
 ### Mutation and publication
