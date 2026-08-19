@@ -8,6 +8,7 @@ package cross_language
 import (
 	"encoding/json"
 	"go.mindclade.dev/control/artifacts"
+	"go.mindclade.dev/control/registry/models"
 	ra "go.mindclade.dev/control/runtime_authority"
 	"go.mindclade.dev/libs/go/identifiers"
 	"go.mindclade.dev/libs/go/resourceversion"
@@ -18,14 +19,38 @@ import (
 	"time"
 )
 
+// fixturePackage is the workspace-relative directory holding the golden vectors.
+const fixturePackage = "tests/integration/cross_language/fixtures"
+
+// fixture reads a golden vector under both `go test` and Bazel.
+//
+// Under `go test` the source path from runtime.Caller is absolute and resolves
+// directly. Under Bazel it is workspace-relative and the working directory is
+// not the runfiles root, so the vectors have to be found through the runfiles
+// tree that the target's `data` attribute populates. Reading only the caller
+// path is why this test could not pass under Bazel at all.
 func fixture(t *testing.T, name string) []byte {
 	t.Helper()
 	_, file, _, _ := runtime.Caller(0)
-	b, err := os.ReadFile(filepath.Join(filepath.Dir(file), "fixtures", name))
-	if err != nil {
-		t.Fatal(err)
+	candidates := []string{filepath.Join(filepath.Dir(file), "fixtures", name)}
+	workspace := os.Getenv("TEST_WORKSPACE")
+	for _, root := range []string{os.Getenv("TEST_SRCDIR"), os.Getenv("RUNFILES_DIR")} {
+		if root == "" {
+			continue
+		}
+		if workspace != "" {
+			candidates = append(candidates, filepath.Join(root, workspace, fixturePackage, name))
+		}
+		candidates = append(candidates, filepath.Join(root, fixturePackage, name))
 	}
-	return b
+	for _, candidate := range candidates {
+		b, err := os.ReadFile(candidate)
+		if err == nil {
+			return b
+		}
+	}
+	t.Fatalf("golden vector %s not found in any of %v", name, candidates)
+	return nil
 }
 func d(t *testing.T, s string) identifiers.Digest {
 	t.Helper()
@@ -46,6 +71,63 @@ func TestExecutionTicketGoldenRemainsStable(t *testing.T) {
 		t.Fatal("MCCE1 golden changed")
 	}
 }
+func TestModelDescriptorGoldenRemainsStable(t *testing.T) {
+	created := time.UnixMilli(1800000000000).UTC()
+	descriptor := models.Descriptor{
+		ModelID:              "model_019c0000000070008000000000000001",
+		Family:               "novafold",
+		Version:              "3.1.0",
+		Lifecycle:            models.LifecycleServing,
+		ModelBundleDigest:    identifiers.SHA256String("model-bundle"),
+		EngineBundleDigest:   identifiers.SHA256String("engine-bundle"),
+		ResolvedConfigDigest: identifiers.SHA256String("resolved-config"),
+		KernelManifestDigest: identifiers.SHA256String("kernel-manifest"),
+		SafetyPolicyDigest:   identifiers.SHA256String("safety-policy"),
+		Capabilities:         []string{"msa", "structure", "templates"},
+		CompatibilityClasses: []models.CompatibilityClass{
+			{ClassID: "forward-bf16-small", ExecutionKind: models.ExecutionForward, Precision: models.PrecisionBF16, ShapeBucket: "tokens<=1024", MaximumBatchRequests: 8, MaximumBatchGPUBytes: 8 << 30, MaximumInputUnits: 1024, MaximumOutputUnits: 512},
+			{ClassID: "diffusion-fp16-large", ExecutionKind: models.ExecutionDiffusionSample, Precision: models.PrecisionFP16, ShapeBucket: "atoms<=8192", MaximumBatchRequests: 2, MaximumBatchGPUBytes: 32 << 30, MaximumInputUnits: 8192, MaximumOutputUnits: 4096},
+		},
+		Envelope: models.ResourceEnvelope{
+			WeightsResidentBytes:      24 << 30,
+			HostMemoryBytes:           32 << 30,
+			GPUMemoryFloorBytes:       40 << 30,
+			GPUMemoryPerRequestBytes:  2 << 30,
+			MaximumConcurrentRequests: 4,
+			LoadDeadline:              2 * time.Minute,
+			DrainDeadline:             30 * time.Second,
+		},
+		AcceleratorCapability: "sm90",
+		MinimumRuntimeVersion: "1.4.0",
+		SchemaVersion:         1,
+		PolicyEpoch:           12,
+		Created:               created,
+		Expires:               created.Add(24 * time.Hour),
+	}
+	payload, err := descriptor.CanonicalBytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(payload) != string(fixture(t, "model_descriptor_v1.bin")) {
+		t.Fatal("inference-model-descriptor/v1 golden changed")
+	}
+	if err = descriptor.SealDigest(); err != nil {
+		t.Fatal(err)
+	}
+	var meta struct {
+		DescriptorDigest string `json:"descriptor_digest"`
+	}
+	if err = json.Unmarshal(fixture(t, "model_descriptor_v1.json"), &meta); err != nil {
+		t.Fatal(err)
+	}
+	if descriptor.DescriptorDigest.String() != meta.DescriptorDigest {
+		t.Fatalf("sealed digest = %s", descriptor.DescriptorDigest)
+	}
+	if err = descriptor.VerifyDigest(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestResourceVersionCrossLanguageFormat(t *testing.T) {
 	v, err := resourceversion.New(42, d(t, "sha256:"+repeat("a", 64)))
 	if err != nil {

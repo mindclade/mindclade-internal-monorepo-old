@@ -145,3 +145,10 @@ status = "implemented"
 owner = "runtime-platform"
 tests = ["services/workers/model_worker/tests/test_smoke.py"]
 
+
+[[component]]
+name = "control.model_registry"
+path = "control/registry/models"
+status = "implemented"
+owner = "platform-control"
+tests = ["control/registry/models/service_test.go"]

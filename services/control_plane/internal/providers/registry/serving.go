@@ -6,12 +6,10 @@
 package registry
 
 import (
-	"context"
 	"log/slog"
 	"net"
 	"net/http"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"go.mindclade.dev/libs/go/auth"
@@ -21,7 +19,6 @@ import (
 	"go.mindclade.dev/libs/go/httpx/middleware"
 	"go.mindclade.dev/libs/go/observability"
 	"go.mindclade.dev/libs/go/requestmeta"
-	"go.mindclade.dev/libs/go/servicekit"
 	"go.mindclade.dev/libs/go/servicekit/production"
 	"go.mindclade.dev/services/control_plane/internal/bootstrap"
 	"go.mindclade.dev/services/control_plane/internal/config"
@@ -32,54 +29,6 @@ import (
 // through the object store, never through the control-plane API, so this stays
 // small deliberately.
 const maximumRequestBody = 1 << 20
-
-// prober forwards health probes to the assembled service. The HTTP handler is
-// built before the service exists, so the runtime is attached by the bootstrap
-// Bind hook and read atomically from request goroutines.
-type prober struct {
-	runtime atomic.Pointer[production.Runtime]
-}
-
-func (value *prober) bind(runtime *production.Runtime) error {
-	if value == nil || runtime == nil {
-		return faults.New(
-			faults.CodeInvalidArgument,
-			"health prober cannot bind a nil runtime",
-			faults.WithReason("nil_bound_runtime"),
-			faults.WithOperation("controlplane.registry.prober.bind"),
-			faults.WithRetryPolicy(faults.NoRetry()),
-		)
-	}
-	value.runtime.Store(runtime)
-	return nil
-}
-
-func (value *prober) Liveness(ctx context.Context) servicekit.ProbeReport {
-	runtime := value.runtime.Load()
-	if runtime == nil || runtime.Service() == nil {
-		return unboundReport()
-	}
-	return runtime.Service().Liveness(ctx)
-}
-
-func (value *prober) Readiness(ctx context.Context) servicekit.ProbeReport {
-	runtime := value.runtime.Load()
-	if runtime == nil || runtime.Service() == nil {
-		return unboundReport()
-	}
-	return runtime.Service().Readiness(ctx)
-}
-
-// unboundReport fails closed for the window between the listener opening and
-// the runtime being bound, so an orchestrator never sees a premature ready.
-func unboundReport() servicekit.ProbeReport {
-	now := time.Now().UTC()
-	return servicekit.ProbeReport{
-		OK:        false,
-		CheckedAt: now,
-		Results:   []servicekit.ProbeResult{{Name: "runtime", OK: false, CheckedAt: now}},
-	}
-}
 
 // serving is the assembled inbound transport for one process.
 type serving struct {
@@ -97,7 +46,7 @@ func newServing(settings config.Settings, telemetry *observability.Runtime, auth
 			faults.WithField("address", settings.HTTPAddress),
 		)
 	}
-	value := &prober{}
+	value := &transport.Prober{}
 	handler := newHandler(value, telemetry, authenticator)
 	adapter, err := transport.NewHTTP("http-server", handler, listener, httpx.ServerConfig{
 		ReadTimeout:     30 * time.Second,
@@ -113,14 +62,14 @@ func newServing(settings config.Settings, telemetry *observability.Runtime, auth
 		_ = listener.Close()
 		return serving{}, err
 	}
-	return serving{components: components, bind: value.bind}, nil
+	return serving{components: components, bind: value.Bind}, nil
 }
 
 // newHandler mounts health outside the authenticated stack, because an
 // orchestrator probing liveness holds no credential, and everything else
 // inside it. Domain routes are registered by the API surface that owns them;
 // until one is mounted this handler correctly answers 404 for every path.
-func newHandler(value *prober, telemetry *observability.Runtime, authenticator auth.Authenticator) http.Handler {
+func newHandler(value *transport.Prober, telemetry *observability.Runtime, authenticator auth.Authenticator) http.Handler {
 	api := http.NewServeMux()
 	guarded := middleware.Server(api, middleware.StackConfig{
 		OperationResolver: middleware.OperationResolverFunc(resolveOperation),

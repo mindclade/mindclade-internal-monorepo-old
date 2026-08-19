@@ -227,10 +227,10 @@ jobs:
   #   = ...)` does not fix it: the host tools are a separate repository from the registered
   #   toolchain.
   #
-  #   Go — gazelle's fetch_repo runs under the SDK rules_go defaults to (1.22.7) with
-  #   GOTOOLCHAIN=local, and `go.opentelemetry.io/contrib/.../otelhttp@v0.67.0` requires
-  #   go >= 1.25. Pinning the SDK is the fix and is blocked upstream; see the note at the
-  #   bottom of MODULE.bazel.
+  #   Go — RESOLVED, and the step below is what keeps it that way. The blocker recorded here
+  #   (gazelle's fetch_repo running under rules_go's default 1.22.7 SDK against an otelhttp
+  #   needing go >= 1.25) no longer reproduces: external Go modules fetch and compile, and
+  #   111 of the 114 go_test targets build and pass.
   #
   # Everything BEFORE those two is now resolved — the go_deps and crate_universe extensions
   # are declared, every workspace manifest is tracked, and the visibility graph is clean. The
@@ -244,7 +244,7 @@ jobs:
   # off rather than fix. The sweep is worth doing and belongs in its own commit where the diff
   # reads as formatting and nothing else — `buildifier -r .` — and the step comes back with it.
   bazel:
-    name: bazel loading
+    name: bazel loading and Go tests
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -263,6 +263,33 @@ jobs:
 
       - name: Every BUILD file loads and every label resolves
         run: bazel query '//...' --output=label --curses=no --color=no > /dev/null
+
+      # The loading phase above proves labels resolve. It does not run a single test, and for
+      # as long as that was the whole lane the repository had 114 go_test targets that CI had
+      # never executed — which is how //tests/integration/cross_language:go_golden_test came
+      # to be unable to pass under Bazel AT ALL (no `data`, and fixtures resolved through
+      # runtime.Caller, which Bazel reports as a workspace-relative path) without anyone
+      # noticing. `--config=ci` was broken the same way and for the same reason.
+      #
+      # GO ONLY, by explicit target list rather than `//...`. The crate_universe extension
+      # still fails to evaluate — see the Rust note above — and it aborts analysis for
+      # whatever is in the configured graph, so a wildcard would take the Go targets down
+      # with it. Naming them keeps Rust's blocker from hiding Go's results. Swap this for
+      # `bazel test //...` in the commit that closes the rules_rust bump.
+      - name: Go targets build and pass under Bazel
+        run: |
+          set -euo pipefail
+          bazel query 'kind("go_test rule", //...)' \
+            --output=label --curses=no --color=no > go_tests.txt
+          count="$(wc -l < go_tests.txt)"
+          # A query that silently returns nothing would make this lane pass having tested
+          # nothing, which is the exact shape of gate this repository keeps removing.
+          if [ "$count" -eq 0 ]; then
+            echo "::error::no go_test targets matched; the query or the build graph changed" >&2
+            exit 1
+          fi
+          echo "Testing ${count} Go target(s) under Bazel."
+          bazel test --config=ci --target_pattern_file=go_tests.txt
 
 
   # ---------------------------------------------------------------------------------------

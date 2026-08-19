@@ -29,6 +29,17 @@ rust_test(
     ],
 )
 
+rust_test(
+    name = "inference_roundtrip",
+    srcs = ["tests/inference_roundtrip.rs"],
+    edition = "2024",
+    deps = [
+        ":mindclade_protocols",
+        "@crates//:prost",
+        "@crates//:tonic",
+    ],
+)
+
 filegroup(
     name = "package_sources",
     srcs = glob(["**"], exclude = ["target/**"]),

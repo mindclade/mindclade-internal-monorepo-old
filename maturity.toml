@@ -12,14 +12,20 @@ production_dependency = false
 production_dependency = false
 [rules.experimental]
 production_dependency = false
+# requires_build_target encodes ADR-0018's "a Bazel target" clause. Materializing a path is
+# not implementing it, and a package whose only BUILD content is the scaffold filegroup is
+# still reserved space no matter what its source files say.
 [rules.implemented]
 requires_tests = true
+requires_build_target = true
 [rules.qualified]
 requires_tests = true
 requires_qualification = true
+requires_build_target = true
 [rules.production]
 requires_tests = true
 requires_qualification = true
 requires_slo = true
 requires_runbook = true
 requires_release_target = true
+requires_build_target = true

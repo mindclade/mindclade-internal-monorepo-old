@@ -7,8 +7,42 @@
 from __future__ import annotations
 
 import argparse
+import re
 import tomllib
 from pathlib import Path
+
+# Rule calls that reserve a package rather than build anything in it. `filegroup` is here
+# because the scaffold BUILD files in this tree are a single `filegroup(name =
+# "scaffold_files")`, which is exactly the "materialized but not implemented" state ADR-0018
+# separates from an implemented capability.
+_NON_BUILDING_RULES = frozenset(
+    {
+        "exports_files",
+        "filegroup",
+        "licenses",
+        "load",
+        "package",
+        "package_group",
+    }
+)
+_RULE_CALL = re.compile(r"^([a-z_][a-z0-9_]*)\(", re.MULTILINE)
+
+
+def _has_build_target(path: Path) -> bool:
+    """True when the component's subtree declares at least one building Bazel rule.
+
+    The whole subtree, not just the component root: `libs/go` is one component whose targets
+    all live in subpackages, and a root-only check would call it unimplemented.
+    """
+    if not path.is_dir():
+        return False
+    for build in path.rglob("BUILD.bazel"):
+        text = build.read_text(encoding="utf-8", errors="replace")
+        # Comments can contain anything, including examples of rule calls.
+        text = re.sub(r"#.*", "", text)
+        if any(rule not in _NON_BUILDING_RULES for rule in _RULE_CALL.findall(text)):
+            return True
+    return False
 
 
 def check(root: Path) -> list[str]:
@@ -33,6 +67,11 @@ def check(root: Path) -> list[str]:
             for t in tests:
                 if not (root / t).exists():
                     errors.append(f"{name}: declared test path missing: {t}")
+        if rules.get("requires_build_target") and not _has_build_target(path):
+            errors.append(
+                f"{name}: {status} component has no Bazel build target under "
+                f"{c.get('path', '')} (only scaffold filegroups); ADR-0018 requires one"
+            )
         if rules.get("requires_qualification") and not c.get("qualification"):
             errors.append(f"{name}: qualification evidence path missing")
         if c.get("qualification") and not (root / c["qualification"]).exists():

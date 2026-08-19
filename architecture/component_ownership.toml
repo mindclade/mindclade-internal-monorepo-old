@@ -155,3 +155,9 @@ language = "python"
 slo = "docs/slo/runtime-model-worker.md"
 runbook = "docs/runbooks/runtime-model-worker.md"
 security_review = true
+
+[component."control.model_registry"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "go"
+security_review = true

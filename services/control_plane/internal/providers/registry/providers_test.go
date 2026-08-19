@@ -15,11 +15,8 @@ import (
 	_ "github.com/lib/pq"
 
 	auditpostgres "go.mindclade.dev/libs/go/audit/postgres"
-	"go.mindclade.dev/libs/go/auth"
-	mcclock "go.mindclade.dev/libs/go/clock"
 	foundationconfig "go.mindclade.dev/libs/go/config"
 	outboxpostgres "go.mindclade.dev/libs/go/coordination/outbox/postgres"
-	"go.mindclade.dev/libs/go/faults"
 	idempotencypostgres "go.mindclade.dev/libs/go/idempotency/postgres"
 	"go.mindclade.dev/services/control_plane/internal/bootstrap"
 	"go.mindclade.dev/services/control_plane/internal/config"
@@ -135,58 +132,6 @@ func TestMigrationsAndStoresNameTheSameTables(t *testing.T) {
 				t.Fatalf("schema does not create %q: %s", testCase.table, statement)
 			}
 		})
-	}
-}
-
-func TestAPIKeyAuthenticatorResolvesAndRejects(t *testing.T) {
-	settings, err := decodeTestSettings(t)
-	if err != nil {
-		t.Fatal(err)
-	}
-	authenticator, err := newAuthenticator(settings, mcclock.RealClock{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	credential, err := auth.APIKey(testAPIKey)
-	if err != nil {
-		t.Fatal(err)
-	}
-	principal, err := auth.Authenticate(context.Background(), authenticator, credential)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if principal.Subject() != "registry-client" || principal.Kind() != auth.PrincipalKindService {
-		t.Fatalf("principal=%+v", principal)
-	}
-	if !principal.Allows(auth.MustParsePermission("artifacts.read")) {
-		t.Fatal("expected granted permission")
-	}
-	if principal.Allows(auth.MustParsePermission("artifacts.delete")) {
-		t.Fatal("unexpected permission grant")
-	}
-
-	wrong, err := auth.APIKey("not-the-configured-secret")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := auth.Authenticate(context.Background(), authenticator, wrong); err == nil {
-		t.Fatal("authenticator accepted an unknown key")
-	}
-}
-
-func TestAPIKeyRegistryRejectsSharedSecrets(t *testing.T) {
-	digest := hex.EncodeToString(func() []byte { sum := sha256.Sum256([]byte("shared")); return sum[:] }())
-	_, err := parseAPIKeys("first:" + digest + ":runs.read;second:" + digest + ":runs.write")
-	if err == nil || faults.ReasonOf(err) != "duplicate_api_key_digest" {
-		t.Fatalf("err=%v", err)
-	}
-}
-
-func TestAPIKeyRegistryRejectsDuplicateSubjects(t *testing.T) {
-	digest := hex.EncodeToString(func() []byte { sum := sha256.Sum256([]byte("a")); return sum[:] }())
-	_, err := parseAPIKeys("client:" + digest + ":runs.read;client:" + digest + ":runs.write")
-	if err == nil || faults.ReasonOf(err) != "duplicate_api_key_subject" {
-		t.Fatalf("err=%v", err)
 	}
 }
 

@@ -22,11 +22,14 @@ race-enabled tests passed for all 111 entries.
 
 ## Go module closure
 
-The root `go.sum` now contains both module and `go.mod` checksums for all 18 direct
-public root requirements (36 checksum lines). The code/docs alignment gate checks
-this invariant against `go.mod`. The local sandbox cannot download the complete
-transitive module source graph, so full transitive closure remains a connected-lane
-gate rather than being fabricated from unrelated lockfiles. Connected CI runs
+The root `go.sum` contains both module and `go.mod` checksums for all 18 direct public root
+requirements, and now carries the transitive graph as well — 438 lines, up from the 36 that
+covered only the direct set. The code/docs alignment gate checks the direct-requirement
+invariant against `go.mod`; it deliberately does not assert a line count, because that number
+moves with any dependency change and a gate that fails on it teaches people to edit the
+number rather than look at the diff. Full transitive closure verification remains a
+connected-lane gate (`go mod download all`, `go mod verify`, `go mod tidy -diff`) rather than
+something inferred from the file's size. Connected CI runs
 `go mod download all`, `go mod verify`, and `go mod tidy -diff` before provider
 qualification.
 

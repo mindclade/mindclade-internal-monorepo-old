@@ -1,0 +1,5 @@
+{
+  "canonical_sha256": "sha256:abd6630a351e9e285088b33b640e0ff0065b285e1ef75b33d893fc943529f41e",
+  "descriptor_digest": "sha256:abd6630a351e9e285088b33b640e0ff0065b285e1ef75b33d893fc943529f41e",
+  "document_type": "inference-model-descriptor/v1"
+}

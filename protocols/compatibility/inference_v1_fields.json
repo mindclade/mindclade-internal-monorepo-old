@@ -1,0 +1,178 @@
+{
+  "mindclade.inference.v1.CompatibilityClass": {
+    "1": {
+      "label": "singular",
+      "name": "class_id",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "execution_kind",
+      "type": "ExecutionKind"
+    },
+    "3": {
+      "label": "singular",
+      "name": "precision",
+      "type": "ModelPrecision"
+    },
+    "4": {
+      "label": "singular",
+      "name": "shape_bucket",
+      "type": "string"
+    },
+    "5": {
+      "label": "singular",
+      "name": "maximum_batch_requests",
+      "type": "uint32"
+    },
+    "6": {
+      "label": "singular",
+      "name": "maximum_batch_gpu_bytes",
+      "type": "uint64"
+    },
+    "7": {
+      "label": "singular",
+      "name": "maximum_input_units",
+      "type": "uint64"
+    },
+    "8": {
+      "label": "singular",
+      "name": "maximum_output_units",
+      "type": "uint64"
+    }
+  },
+  "mindclade.inference.v1.ModelDescriptor": {
+    "1": {
+      "label": "singular",
+      "name": "descriptor_digest",
+      "type": "string"
+    },
+    "10": {
+      "label": "singular",
+      "name": "safety_policy_digest",
+      "type": "string"
+    },
+    "11": {
+      "label": "repeated",
+      "name": "capabilities",
+      "type": "string"
+    },
+    "12": {
+      "label": "repeated",
+      "name": "compatibility_classes",
+      "type": "CompatibilityClass"
+    },
+    "13": {
+      "label": "singular",
+      "name": "envelope",
+      "type": "ModelResourceEnvelope"
+    },
+    "14": {
+      "label": "singular",
+      "name": "accelerator_capability",
+      "type": "string"
+    },
+    "15": {
+      "label": "singular",
+      "name": "minimum_runtime_version",
+      "type": "string"
+    },
+    "16": {
+      "label": "singular",
+      "name": "schema_version",
+      "type": "uint32"
+    },
+    "17": {
+      "label": "singular",
+      "name": "policy_epoch",
+      "type": "uint64"
+    },
+    "18": {
+      "label": "singular",
+      "name": "created_unix_millis",
+      "type": "uint64"
+    },
+    "19": {
+      "label": "singular",
+      "name": "expires_unix_millis",
+      "type": "uint64"
+    },
+    "2": {
+      "label": "singular",
+      "name": "model_id",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "family",
+      "type": "string"
+    },
+    "4": {
+      "label": "singular",
+      "name": "version",
+      "type": "string"
+    },
+    "5": {
+      "label": "singular",
+      "name": "lifecycle",
+      "type": "ModelLifecycle"
+    },
+    "6": {
+      "label": "singular",
+      "name": "model_bundle_digest",
+      "type": "string"
+    },
+    "7": {
+      "label": "singular",
+      "name": "engine_bundle_digest",
+      "type": "string"
+    },
+    "8": {
+      "label": "singular",
+      "name": "resolved_config_digest",
+      "type": "string"
+    },
+    "9": {
+      "label": "singular",
+      "name": "kernel_manifest_digest",
+      "type": "string"
+    }
+  },
+  "mindclade.inference.v1.ModelResourceEnvelope": {
+    "1": {
+      "label": "singular",
+      "name": "weights_resident_bytes",
+      "type": "uint64"
+    },
+    "2": {
+      "label": "singular",
+      "name": "host_memory_bytes",
+      "type": "uint64"
+    },
+    "3": {
+      "label": "singular",
+      "name": "gpu_memory_floor_bytes",
+      "type": "uint64"
+    },
+    "4": {
+      "label": "singular",
+      "name": "gpu_memory_per_request_bytes",
+      "type": "uint64"
+    },
+    "5": {
+      "label": "singular",
+      "name": "maximum_concurrent_requests",
+      "type": "uint32"
+    },
+    "6": {
+      "label": "singular",
+      "name": "load_deadline_millis",
+      "type": "uint32"
+    },
+    "7": {
+      "label": "singular",
+      "name": "drain_deadline_millis",
+      "type": "uint32"
+    }
+  }
+}

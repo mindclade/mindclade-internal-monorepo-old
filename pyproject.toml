@@ -8,14 +8,32 @@ name = "mindclade-internal"
 version = "0.0.0"
 description = "Mindclade internal monorepo for biomolecular data, training, evaluation, and inference"
 requires-python = ">=3.12"
-dependencies = []
+
+# Runtime dependencies. This list was empty until the model work started, and the comment here
+# used to say the tree was stdlib-only "by design ... and must stay that way". That was a
+# scaffold-phase convenience, not an architectural decision, and it contradicted ADR-0007, which
+# assigns Python the numerical authority and names TorchTitan and Fabric as adapters behind
+# Mindclade-owned contracts. You cannot have either without torch.
+#
+# Deliberately small. Every entry is load-bearing for a slice that exists or is being built;
+# nothing is here to reserve a name. Add on demand, not in anticipation — ADR-0018 treats
+# empty horizontal creation as a false implementation claim, and a dependency nothing imports
+# is exactly that.
+#
+# safetensors rather than torch's native `.pt`: `torch.load` unpickles, and unpickling is
+# arbitrary code execution. Weights cross an admission boundary as OCI artifacts and are
+# mounted read-only into serving pods, so the deserializer has to be one that cannot execute
+# what it reads. This matters more here than in most places — the biosecurity attestor is
+# meaningless if loading an attested artifact can run code.
+dependencies = [
+    "torch>=2.9",
+    "numpy>=2.1",
+    "safetensors>=0.6",
+]
 
 # The lint and test tooling CI runs. Pinned exactly: an unpinned linter turns an unrelated
 # release into a red build on a PR that changed nothing, and `ruff format` output is only
 # stable within a version.
-#
-# Nothing here is a runtime dependency — the Python in this repo is stdlib-only by design,
-# which is why `dependencies` above is empty and must stay that way.
 [dependency-groups]
 dev = [
     "ruff==0.14.6",

@@ -42,7 +42,30 @@ import pytest
 # A RATCHET, not a budget. It may only ever go down. Implementing something and writing its
 # tests lowers it; the test below fails if the true count drops without this constant
 # following, because a ratchet that is not tightened stops catching the next regression.
-SCAFFOLD_BASELINE = 193
+#
+# RAISED 193 -> 225 to record a re-partitioning that d74b978 ("refactor(training): migrate
+# distributed package layout") performed without touching this number, leaving the gate red at
+# HEAD for every unrelated pull request. Verified by scanning the commit and its parent: the
+# parent counts exactly 193, the commit counts 225.
+#
+# The +32 is a net of two movements, and the net is what makes it look worse than it is:
+#
+#   -8   coarse per-package placeholders, one per subpackage
+#        (training/distributed/{backends,debug,moe,parallelism,pipeline,plans}/tests plus
+#        tests/test_mesh.py and tests/test_plan.py).
+#   +40  finer-grained placeholders, one per module the migration split those subpackages
+#        into — communication/, moe/, parallelism/, pipeline/, planning/, state_backends/,
+#        topology/ and the package root.
+#
+# So no test was deleted and no covered code became uncovered: the same unwritten surface is
+# now reserved at module granularity instead of package granularity. `training` is
+# `status = "scaffolded"` in components.toml, which is the status under which reserved
+# placeholders are legitimate.
+#
+# This raise is bounded to that migration. It is not licence to add placeholders elsewhere:
+# any further increase has to name its own cause the way this one does, and the honest way to
+# lower it is to implement training/distributed and write the 40 tests.
+SCAFFOLD_BASELINE = 225
 
 _SKIP_DIRS = {
     ".git",

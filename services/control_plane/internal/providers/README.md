@@ -22,7 +22,64 @@ config.Settings
 |---|---|---|
 | `registry` | `NewRegistryFactory` | PostgreSQL, Google Cloud Storage, Redis |
 | `event-dispatcher` | `NewEventDispatcherFactory` | PostgreSQL, broker |
+| `scheduler` | `NewSchedulerFactory` | PostgreSQL, broker, Kubernetes |
+| `controller` | `NewControllerFactory` | PostgreSQL, broker, Kubernetes + manager |
+| `event-projector` | `NewProjectorFactory` | PostgreSQL, broker subscription |
+| `api` | `NewAPIFactory` | PostgreSQL, HTTP + Connect + gRPC |
+| `webhook-dispatcher` | `NewWebhookFactory` | PostgreSQL, broker, outbound HTTP |
+| `operator` | `controller.NewOperatorFactory` | PostgreSQL, broker, Kubernetes + manager |
 | every other role | `bootstrap.UnconfiguredFactory` — fails closed with exit 78 | — |
+
+## Shared provider packages
+
+Providers used by more than one role live in a sibling package rather than in
+this one, so a role links only the adapters it uses. Putting them here would
+mean the dispatcher's binary carried a lease adapter it never opens.
+
+```text
+providers/cluster   Kubernetes REST config, client, discovery
+providers/durable   audit, idempotency, lease, work-queue, cursor adapters
+providers/broker    messaging provider resolution
+providers/apikeys   service-to-service credential registry
+```
+
+The root package keeps what every role needs: the pure mechanisms, the
+PostgreSQL pool, and the table names those adapters are bound to.
+
+The scheduler is the first role to hold a singleton lease and the first to
+reach a cluster. Its placement handler is a seam rather than a stub: with none
+injected the worker fails items closed, because a scheduler that acknowledges
+work it cannot place loses it silently.
+
+The event projector is the only role that holds the projector mechanism, and
+the first to hold the inbox and cursors. Its event source and handler are one
+injected seam: what the event log is, and what applying an event does, are
+domain decisions. Unset, both fail closed — a projector reading an empty log
+looks healthy while projecting nothing, and that is the failure that takes
+longest to notice.
+
+The api role is the only one that mounts Connect and gRPC, so every Connect
+and gRPC submodule reaches production through it. It deliberately does not wrap
+its mux in `httpx/otel`: the Connect handlers are already instrumented by
+`connectx/otel`, and otelhttp would emit a second span for every Connect
+request.
+
+The webhook dispatcher is the only role that calls systems this control plane
+does not own. Its egress allow-list is required rather than defaulted open --
+a dispatcher that will call any host it is handed is a server-side request
+forgery primitive with a queue in front of it -- and HTTPS and the ban on
+private addresses are fixed rather than configurable.
+
+The operator shares the controller's factory. The two roles have identical
+capability profiles, so they are one composition claiming a different lease and
+reporting events under a different source, not two implementations.
+
+The controller adds the controller-runtime manager, and switches off three of
+its subsystems that the foundation already owns: leader election belongs to
+`coordination/leadership`, metrics to `observability`, and health probes to
+`servicekit`. Running both would mean two answers to the same question — a
+process can be leader by one lease and not the other. Its reconcilers are
+registered by domain code; the composition root owns the manager's lifetime.
 
 A role is materialized when its factory constructs real providers. Until then
 its command starts, validates its profile, and refuses to run. `--describe-profile`

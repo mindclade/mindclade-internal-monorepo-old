@@ -22,6 +22,7 @@ import (
 	"go.mindclade.dev/services/control_plane/internal/foundation/objects"
 	"go.mindclade.dev/services/control_plane/internal/foundation/persistence"
 	"go.mindclade.dev/services/control_plane/internal/providers"
+	"go.mindclade.dev/services/control_plane/internal/providers/apikeys"
 )
 
 // RegistryFactory assembles the control-plane registry process: the durable
@@ -68,7 +69,7 @@ func (factory *RegistryFactory) Create(ctx context.Context, profile bootstrap.Pr
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}
-	authenticator, err := newAuthenticator(settings, shared.Clock)
+	authenticator, err := apikeys.NewAuthenticator(settings, shared.Clock)
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}

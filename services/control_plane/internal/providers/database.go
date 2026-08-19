@@ -29,6 +29,9 @@ const (
 	AuditTable       = "mindclade_audit_events"
 	IdempotencyTable = "mindclade_idempotency_records"
 	OutboxTable      = "mindclade_outbox"
+	LeaseTable       = "mindclade_leases"
+	WorkQueueTable   = "mindclade_work_items"
+	CursorTable      = "mindclade_cursors"
 )
 
 // Database holds the PostgreSQL pool and every store that is backed by it.

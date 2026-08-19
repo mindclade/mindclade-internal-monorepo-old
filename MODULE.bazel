@@ -8,7 +8,7 @@ module(
     version = "0.0.0",
 )
 
-bazel_dep(name = "rules_go", version = "0.51.0")
+bazel_dep(name = "rules_go", version = "0.63.0")
 bazel_dep(name = "gazelle", version = "0.40.0")
 bazel_dep(name = "rules_python", version = "1.2.0")
 bazel_dep(name = "rules_rust", version = "0.57.1")
@@ -22,6 +22,10 @@ bazel_dep(name = "rules_rust", version = "0.57.1")
 # at a version the registry actually has, when the TS packages get real rules.
 bazel_dep(name = "rules_oci", version = "2.2.6")
 bazel_dep(name = "protobuf", version = "29.3")
+
+# Tar layers for oci_image. rules_oci deliberately does not build layers itself -- it composes
+# images from tarballs -- so an image target needs this alongside it.
+bazel_dep(name = "rules_pkg", version = "1.0.1")
 
 # Rust third-party dependencies are derived from the canonical Cargo workspace.
 #
@@ -100,6 +104,7 @@ use_repo(
     "com_github_lib_pq",
     "com_github_redis_go_redis_v9",
     "com_google_cloud_go_storage",
+    "io_k8s_api",
     "io_k8s_apimachinery",
     "io_k8s_client_go",
     "io_k8s_sigs_controller_runtime",
@@ -112,12 +117,40 @@ use_repo(
     "org_golang_x_crypto",
 )
 
-# NOTE: Bazel builds Go with whatever SDK rules_go defaults to, which is NOT the
-# version go.mod pins. Pinning it is the correct fix and is currently blocked:
-# every rules_go release in the registry (0.51 and 0.55 both verified) passes
-# GOEXPERIMENT=coverageredesign to the toolchain, and Go rejects that experiment
-# as unknown, so `go_sdk.download` fails during GoStdlib. Until a rules_go
-# release supports the pinned Go, Bazel and `go build` compile against different
-# language versions -- which is how libs/go/httpx/middleware, using the Go 1.23
-# net/http Request.Pattern field, builds locally but not under Bazel.
+# Bazel compiles Go with the SAME version go.mod pins. This was previously impossible and the
+# note here said so: rules_go 0.51 hardcodes GOEXPERIMENT=nocoverageredesign, Go 1.26 removed
+# that experiment, and the toolchain rejects it with "unknown GOEXPERIMENT coverageredesign"
+# during GoStdlib. The old note concluded that "every rules_go release in the registry" was
+# affected, having verified 0.51 and 0.55 -- but the registry now serves up to 0.63.0, and the
+# hardcoded experiment is gone by then.
+#
+# Verified rather than assumed: the produced binary reports `go1.26.0`, and 216 targets across
+# //libs/go, //control, //examples and //services/go_vanity build clean. That also closed
+# libs/go/httpx/middleware, which used the Go 1.23 net/http Request.Pattern field and was the
+# one target that built with `go build` and not with Bazel.
+#
+# Keep this version in step with the `go` directive in go.mod. When they disagree, Bazel and
+# `go build` compile different language versions and only one of them is in CI.
+go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
+go_sdk.download(version = "1.26.0")
 
+# ---------------------------------------------------------------------------------------
+# Container base images
+# ---------------------------------------------------------------------------------------
+# distroless static, pinned to the SAME digest services/go_vanity used while it was still a
+# Dockerfile, so the migration to Bazel OCI changed the build system and not the base bytes.
+#
+# `nonroot` is uid 65532, which has to agree with runAsUser in
+# infra/kubernetes/planes/dev/base/go-vanity.yaml -- a manifest asking for a uid the image does
+# not have starts a container that cannot read its own filesystem.
+#
+# linux/amd64 only. The clusters are amd64 node pools; pulling other platforms costs fetch time
+# for a manifest nothing pulls, matching the `platforms` choice in .github/workflows/release.yml.
+oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
+oci.pull(
+    name = "distroless_static",
+    digest = "sha256:1b7b9f0f0e0a1d2155f531db587cc48ec26aaf97ab64364225f5bf18a054e66a",
+    image = "gcr.io/distroless/static-debian12",
+    platforms = ["linux/amd64"],
+)
+use_repo(oci, "distroless_static", "distroless_static_linux_amd64")

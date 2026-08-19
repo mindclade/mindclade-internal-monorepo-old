@@ -1,0 +1,22 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_go//go:def.bzl", "go_library")
+
+package(default_visibility = ["//services/control_plane:__subpackages__"])
+
+go_library(
+    name = "broker",
+    srcs = ["broker.go"],
+    importpath = "go.mindclade.dev/services/control_plane/internal/providers/broker",
+    deps = [
+        "//libs/go/clock",
+        "//libs/go/faults",
+        "//libs/go/messaging",
+        "//libs/go/messaging/memory",
+        "//libs/go/servicekit",
+        "//services/control_plane/internal/config",
+    ],
+)

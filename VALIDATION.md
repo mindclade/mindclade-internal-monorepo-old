@@ -34,22 +34,51 @@ A materialized scaffold path is not a production release claim.
 
 ## Current inventory
 
+Recounted 2026-08-19 against the working tree. The previous table was the 2026-08-13 snapshot
+and every row in it had drifted; the two rows that had drifted *misleadingly* are called out
+below the table, because a reader checking whether this document is current would have taken
+either as evidence that it was.
+
 | Metric | Count |
 |---|---:|
-| Repository files | 4,974 |
-| Blueprint paths materialized | 4,475 / 4,475 (100%) |
-| Files under `libs/go` | 785 |
-| Go source files under `libs/go` | 586 |
-| Go test files under `libs/go` | 171 |
-| `BUILD.bazel` files under `libs/go` | 92 |
-| Package READMEs under `libs/go` | 92 |
-| Go package directories under `libs/go` | 89 |
-| Files under `libs/rust` | 420 |
-| Rust source files under `libs/rust` | 284 |
-| Rust test sources under `libs/rust` | 66 |
-| Rust crates under `libs/rust` | 30 |
-| Root `go.sum` checksum lines | 36 |
-| Markdown files under `docs/` | 89 |
+| Repository files (tracked) | 5,331 |
+| Blueprint paths materialized | 4,361 / 4,475 (97.5%) |
+| Files under `libs/go` | 767 |
+| Go source files under `libs/go` | 573 |
+| Go test files under `libs/go` | 169 |
+| `BUILD.bazel` files under `libs/go` | 89 |
+| Package READMEs under `libs/go` | 89 |
+| Go package directories under `libs/go` | 86 |
+| Files under `libs/rust` | 407 |
+| Rust source files under `libs/rust` | 294 |
+| Rust crates under `libs/rust` | 24 |
+| Root `go.mod` direct requirements | 18 |
+| Root `go.sum` checksum lines | 438 |
+| Markdown files under `docs/` | 122 |
+| Markdown files, repository-wide | 586 |
+
+Two rows changed meaning rather than magnitude:
+
+- **Blueprint coverage was recorded as 4,475 / 4,475 (100%) and was never true after the Rust
+  consolidation.** It is 97.5%, and `tests/integration/test_blueprint_scaffold.py` has measured
+  the real number all along — the 100% claim came from `BLUEPRINT_COVERAGE.json`, a root
+  snapshot with no generator behind it, which is why that file has been deleted rather than
+  refreshed. Of the 114 unmaterialized paths, 75 are two in-flight migrations the manifest has
+  not caught up with (`training/distributed`, `libs/go/storage/outbox`), 23 are a `.buildkite/`
+  pipeline tree this estate does not use, and the rest are `.github` templates and two
+  Kubernetes manifests. The per-path breakdown is in that test's baseline comment.
+- **`libs/rust` crate count fell from 30 to 24, which is the consolidation succeeding, not
+  regression.** The seven retired compatibility crates listed in
+  `tools/analysis/check_code_docs_alignment.py` are gone, and that check now fails if any of
+  them reappears.
+
+The `libs/go` counts are lower for a different reason: the outbox package moved to
+`libs/go/coordination/outbox`, where the blueprint manifest still names it
+`libs/go/storage/outbox`. The files exist and are still counted in the repository total.
+
+Root `go.sum` has gone from 36 lines to 438: the transitive graph is now populated rather than
+just the 18 direct requirements. All 18 still carry both their module and `go.mod` checksums,
+which is the invariant `check_code_docs_alignment.py` enforces.
 
 The supplied Go archive was used as the base implementation. The expanded
 foundation adds strict configuration, signed keyset pagination, resource

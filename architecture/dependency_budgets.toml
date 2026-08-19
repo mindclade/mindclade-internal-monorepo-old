@@ -39,17 +39,66 @@ language = "go"
 # imported almost nothing, so the first materialized provider factory was
 # guaranteed to breach it while every real invariant stayed unexpressed.
 #
-# 44 counted paths today. The allowlist is the invariant worth having: a
+# NO max_internal_direct, and that is the point rather than an omission.
+#
+# The count went 40 -> 44 -> 62 -> 68 as the registry, scheduler, controller,
+# and projector factories materialized, breaching the ceiling three times in
+# one branch. Each breach was resolved by raising the number, which is the
+# tell: a composition root's job is to name every provider the fleet uses, so
+# counting them measures how much of the fleet exists, not whether the design
+# holds. Six roles remain unmaterialized; the number will move six more times
+# and reject nothing on the way.
+#
+# The allowlist is the invariant worth having, and it is enforced here: a
 # control-plane package may reach the shared foundation, domain policy under
 # control/, and its own subtree. Nothing else -- and in particular no other
-# service.
-max_internal_direct = 52
+# service. Counts belong on the subtrees below, where breadth is a defect
+# rather than a milestone.
 allowed_prefixes = [
     "go.mindclade.dev/libs/go/",
     "go.mindclade.dev/control/",
     "go.mindclade.dev/services/control_plane/",
 ]
 forbidden_prefixes = ["go.mindclade.dev/services/studio/", "go.mindclade.dev/apps/"]
+
+# The subtree budgets below carry the counts. Every one of them constrains a
+# package whose breadth is a defect: bootstrap and config must not learn about
+# providers, the aggregates must track the capability vocabulary rather than
+# grow with it, and transport must not become a second composition root.
+#
+# internal/providers deliberately has no count. It is the composition root and
+# is supposed to name every adapter the fleet runs.
+
+[[budget]]
+path = "services/control_plane/internal/bootstrap"
+language = "go"
+# 3 today. Bootstrap owns roles, profiles, and capability assembly, and must
+# stay provider-agnostic: it may not learn what a database or a cluster is.
+# A jump here means process assembly has started naming concrete mechanisms.
+max_internal_direct = 6
+
+[[budget]]
+path = "services/control_plane/internal/config"
+language = "go"
+# 3 today. Configuration decodes settings and validates them. It has no
+# business importing a provider, a store, or a transport.
+max_internal_direct = 6
+
+[[budget]]
+path = "services/control_plane/internal/foundation"
+language = "go"
+# 30 today. Each aggregate binds one group of libs/go contracts to the
+# capabilities they satisfy, so this tracks the production capability
+# vocabulary and grows only when that vocabulary does -- roughly one import
+# per contract. Materializing a role must not move it at all.
+max_internal_direct = 36
+
+[[budget]]
+path = "services/control_plane/internal/transport"
+language = "go"
+# 8 today. Transport wires the inbound stack. Provider construction belongs in
+# internal/providers, and a climb here is the sign it leaked.
+max_internal_direct = 12
 
 [[budget]]
 path = "services/go_vanity"

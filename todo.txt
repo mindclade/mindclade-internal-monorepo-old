@@ -1,0 +1,17 @@
+What's left
+
+1. cloud.google.com/go/pubsub in go.mod (needs a connected environment) — then the memory branch goes back to tests; it's a one-function swap.
+2. rules_go supporting Go 1.26 — until then Bazel compiles against 1.22.7 while go.mod pins 1.26.0, which is why httpx/middleware is the last failing target. Analysis is in MODULE.bazel.
+3. Three remaining roles. Materialized: registry, event-dispatcher, scheduler,
+   controller, operator, event-projector, api, webhook-dispatcher. Left are
+   admin, ingestion-controller, and maintenance -- none adds a new libs/go
+   package, so they are second-consumer and completeness value only.
+   Shared providers live in sibling packages (durable, broker, cluster, apikeys)
+   so a role links only what it uses.
+   UNCONSUMED.toml is down to four entries: cursortest, workqueuetest,
+   messaging/pubsub, and obstest.
+   Note: coordination/projector has exactly one intended consumer in the whole
+   designed fleet, so it can never meet ADMISSION.md's two-consumer bar. It is a
+   permanent exemption, not debt. httpx/otel is waived again -- the api factory
+   deliberately does not double-instrument Connect with otelhttp.
+4. services/go_vanity/Dockerfile — the only failing architecture check, from the other session's commit b8a77af. Needs MINDCLADE_DEV_ONLY=1 or an OCI target. I left it alone.

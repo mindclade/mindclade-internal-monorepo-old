@@ -84,8 +84,29 @@ python3 tools/analysis/check_foundation_consumption.py --write
 
 A package that appears in the table above but not in `consumption.json` is not
 consumed yet — the role that would consume it has no materialized provider
-factory. `registry` is currently the only materialized role; every other
-command bootstraps through `bootstrap.UnconfiguredFactory` and fails closed.
+factory. Eight of the twelve roles are materialized: `registry`, `event-dispatcher`,
+`scheduler`, `controller`, `operator`, `event-projector`, `api`, and
+`webhook-dispatcher`. `admin`, `ingestion-controller`, and `maintenance` still
+bootstrap through `bootstrap.UnconfiguredFactory` and fail closed.
+
+Materializing a role is what validates the foundation it links, so the order
+matters. `scheduler` was taken first because it lights up the largest unlinked
+block — the Kubernetes tree, the leased work queue, singleton leadership, and
+the PostgreSQL lease adapter. `controller` followed because it adds no new packages
+and instead gives that block its second independent consumer, which is what
+`ADMISSION.md` actually asks for. The Kubernetes tree, the leased work queue,
+and singleton leadership are now admitted rather than merely linked.
+
+`event-projector` followed, lighting the last large unlinked block: the
+projector loop, the idempotent inbox, and compare-and-advance cursors. It is
+the sole intended consumer of `coordination/projector`, which is why that
+package cannot reach the two-consumer bar and is a permanent single-consumer
+exemption rather than ordinary debt.
+
+`api` followed, retiring the whole Connect and gRPC waiver block, and
+`webhook-dispatcher` claimed `httpx/outbound`, its only required consumer.
+`operator` reuses the controller factory, which is what gives the Kubernetes
+tree its third consumer at no new package cost.
 
 ## Canonical mechanisms
 

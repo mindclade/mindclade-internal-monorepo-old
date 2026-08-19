@@ -4,6 +4,38 @@
 #
 
 load("@rules_go//go:def.bzl", "go_test")
-package(default_visibility=["//visibility:public"])
-filegroup(name="execution_ticket_claims_v1",srcs=["fixtures/execution_ticket_claims_v1.bin"])
-go_test(name="go_golden_test",srcs=["golden_test.go"],deps=["//control/artifacts","//control/runtime_authority","//libs/go/identifiers","//libs/go/resourceversion"])
+
+package(default_visibility = ["//visibility:public"])
+
+filegroup(
+    name = "execution_ticket_claims_v1",
+    srcs = ["fixtures/execution_ticket_claims_v1.bin"],
+)
+
+filegroup(
+    name = "model_descriptor_v1",
+    srcs = [
+        "fixtures/model_descriptor_v1.bin",
+        "fixtures/model_descriptor_v1.json",
+    ],
+)
+
+# The Go golden test resolves fixtures relative to its own source file, so every
+# vector it reads has to be a runfile, not just the two named above.
+filegroup(
+    name = "golden_fixtures",
+    srcs = glob(["fixtures/**"]),
+)
+
+go_test(
+    name = "go_golden_test",
+    srcs = ["golden_test.go"],
+    data = [":golden_fixtures"],
+    deps = [
+        "//control/artifacts",
+        "//control/registry/models",
+        "//control/runtime_authority",
+        "//libs/go/identifiers",
+        "//libs/go/resourceversion",
+    ],
+)

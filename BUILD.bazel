@@ -5,24 +5,65 @@
 
 package(default_visibility = ["//visibility:private"])
 
-exports_files([
+# Root metadata, in one list used twice: exports_files makes each path referenceable as a label
+# from another package, and the filegroups below bundle them for the targets that need the set.
+#
+# The list had drifted to six of the fifteen. The omissions were not a policy — LICENSE and
+# NOTICE were missing, which are the two files an OCI image layer and an SBOM are supposed to
+# carry, and so was QUALIFICATION.md, which //qualification targets cite as the evidence root.
+# A missing entry fails at analysis time with "no such target", so the cost of the drift was
+# paid by whoever next wrote a rule that needed one.
+#
+# WHAT IS NOT HERE. Root files that are tool configuration rather than repository metadata —
+# .bazelrc, .editorconfig, deny.toml, rustfmt.toml, license-header.txt and friends. They are
+# read by the tools that own them, from the workspace root, not through a Bazel label. Adding
+# them would imply a dependency edge that does not exist.
+
+_GOVERNANCE = [
+    "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md",
+    "GOVERNANCE.md",
+    "LICENSE",
+    "NOTICE",
     "OWNERS.toml",
     "README.md",
-    "REPOSITORY_STATUS.md",
     "SECURITY.md",
-    "VALIDATION.md",
-])
+]
 
+# Machine-readable component state plus the prose that interprets it. components.toml and
+# maturity.toml are the authoritative pair — REPOSITORY_STATUS.md says so — and the three
+# status/evidence documents are what a promotion review reads alongside them.
+_STATUS = [
+    "CHANGELOG.md",
+    "QUALIFICATION.md",
+    "REPOSITORY_STATUS.md",
+    "SCAFFOLD_STATUS.md",
+    "VALIDATION.md",
+    "components.toml",
+    "maturity.toml",
+]
+
+exports_files(_GOVERNANCE + _STATUS)
+
+filegroup(
+    name = "governance",
+    srcs = _GOVERNANCE,
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "status",
+    srcs = _STATUS,
+    visibility = ["//visibility:public"],
+)
+
+# Kept as the name other packages already depend on. Now the union of the two groups rather
+# than a third hand-maintained list, because that is how it fell out of date.
 filegroup(
     name = "repository_metadata",
     srcs = [
-        "CONTRIBUTING.md",
-        "OWNERS.toml",
-        "README.md",
-        "REPOSITORY_STATUS.md",
-        "SECURITY.md",
-        "VALIDATION.md",
+        ":governance",
+        ":status",
     ],
     visibility = ["//visibility:public"],
 )

@@ -3,13 +3,16 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-// Command controller is the production composition root for its
-// control-plane process role. Provider construction remains service-owned; all
-// lifecycle behavior flows through servicekit/production via bootstrap.
+// Command controller is the production composition root for the control-plane
+// controller role. Provider construction remains service-owned; all lifecycle
+// behavior flows through servicekit/production via bootstrap.
 package main
 
-import "go.mindclade.dev/services/control_plane/internal/bootstrap"
+import (
+	"go.mindclade.dev/services/control_plane/internal/bootstrap"
+	"go.mindclade.dev/services/control_plane/internal/providers/controller"
+)
 
 func main() {
-	bootstrap.Main(bootstrap.RoleController, bootstrap.UnconfiguredFactory("controller"))
+	bootstrap.Main(bootstrap.RoleController, controller.NewControllerFactory())
 }

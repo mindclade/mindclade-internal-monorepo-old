@@ -100,4 +100,4 @@ Canonical wire types live under `protocols/`. Large payloads are referenced by
 artifact or local-buffer descriptors, not embedded in control messages. Golden
 vectors verify Go, Rust, and Python agreement on identifiers, digests, faults,
 resource versions, event envelopes, execution tickets, route snapshots,
-worker commands/status, and manifests.
+worker commands/status, model descriptors, and manifests.

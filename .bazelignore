@@ -1,0 +1,37 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# Directories Bazel must not descend into when expanding a `//...` pattern.
+#
+# This is not an optimization. `bazel query //...` in presubmit.yml loads every BUILD file it
+# finds, and these trees contain BUILD files that are not ours — a vendored dependency in
+# .venv or node_modules carries its own, written against rulesets this workspace does not
+# declare, and loading one fails the whole query with an error naming a file nobody here
+# wrote. Same class of failure as the rules_go/Bazel 9 note in MODULE.bazel.
+#
+# LITERAL PATHS ONLY, relative to the workspace root. .bazelignore does not glob: a line
+# reading `**/node_modules` matches a directory named exactly that and nothing else. Nested
+# occurrences have to be listed, which is why the entries below are the root ones — a
+# node_modules under apps/ needs its own line if pnpm ever installs there.
+
+# Python virtualenv. Created by `uv sync`; carries an entire site-packages tree.
+.venv
+
+# Node. pnpm-workspace.yaml declares apps/*, libs/ts/* and sdk/typescript, so add those paths
+# here too once the lockfile installs anything — today it declares no dependencies.
+node_modules
+.pnpm-store
+
+# Cargo build output. The Rust workspace is built through rules_rust from source; a stale
+# ./target from a direct `cargo build` is not an input to anything Bazel does.
+target
+
+# Nix and direnv.
+.direnv
+result
+
+# Bazel's own convenience symlinks are ignored automatically, and `make clean-local` removes
+# them, but .bazel-cache is a plain directory that .gitignore creates room for and Bazel would
+# otherwise walk.
+.bazel-cache

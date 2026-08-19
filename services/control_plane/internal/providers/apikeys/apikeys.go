@@ -3,7 +3,13 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-package registry
+// Package apikeys resolves the service-to-service credential registry that
+// every request-serving role authenticates against.
+//
+// It is a sibling of the composition root rather than part of it so that a
+// role links it only when it actually authenticates callers. The dispatcher
+// and the projector serve nobody and should carry no credential parser.
+package apikeys
 
 import (
 	"context"
@@ -47,7 +53,7 @@ type apiKeyAuthenticator struct {
 	clock   mcclock.Clock
 }
 
-func newAuthenticator(settings config.Settings, value mcclock.Clock) (auth.Authenticator, error) {
+func NewAuthenticator(settings config.Settings, value mcclock.Clock) (auth.Authenticator, error) {
 	entries, err := parseAPIKeys(settings.AuthAPIKeys)
 	if err != nil {
 		return nil, err
@@ -57,7 +63,7 @@ func newAuthenticator(settings config.Settings, value mcclock.Clock) (auth.Authe
 			faults.CodeFailedPrecondition,
 			"control-plane API-key registry is not configured",
 			faults.WithReason("api_keys_not_configured"),
-			faults.WithOperation("controlplane.registry.newAuthenticator"),
+			faults.WithOperation("controlplane.apikeys.NewAuthenticator"),
 			faults.WithRetryPolicy(faults.NoRetry()),
 		)
 	}
@@ -78,7 +84,7 @@ func (authenticator *apiKeyAuthenticator) Authenticate(ctx context.Context, cred
 			faults.CodeUnauthenticated,
 			"unsupported credential scheme",
 			faults.WithReason("unsupported_credential_scheme"),
-			faults.WithOperation("controlplane.registry.apiKeyAuthenticator.Authenticate"),
+			faults.WithOperation("controlplane.apikeys.Authenticator.Authenticate"),
 			faults.WithContextMetadata(ctx),
 			faults.WithRetryPolicy(faults.NoRetry()),
 		)
@@ -172,7 +178,7 @@ func unauthenticated(reason string) error {
 		faults.CodeUnauthenticated,
 		"authentication failed",
 		faults.WithReason(reason),
-		faults.WithOperation("controlplane.registry.apiKeyAuthenticator.Authenticate"),
+		faults.WithOperation("controlplane.apikeys.Authenticator.Authenticate"),
 		faults.WithRetryPolicy(faults.NoRetry()),
 	)
 }
@@ -180,7 +186,7 @@ func unauthenticated(reason string) error {
 func invalidAPIKey(reason, subject string) error {
 	options := []faults.Option{
 		faults.WithReason(reason),
-		faults.WithOperation("controlplane.registry.parseAPIKeys"),
+		faults.WithOperation("controlplane.apikeys.parse"),
 		faults.WithRetryPolicy(faults.NoRetry()),
 	}
 	if subject != "" {

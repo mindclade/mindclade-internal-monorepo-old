@@ -17,6 +17,7 @@ go_library(
         "grpc.go",
         "http.go",
         "preconditions.go",
+        "prober.go",
     ],
     importpath = "go.mindclade.dev/services/control_plane/internal/transport",
     deps = [
