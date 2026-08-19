@@ -9,6 +9,8 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"sync/atomic"
+
+	"go.mindclade.dev/libs/go/observability"
 )
 
 // sessionDecryptFailures counts cookies that could not be opened.
@@ -27,6 +29,24 @@ var sessionDecryptFailures atomic.Int64
 
 // SessionDecryptFailures returns the running count, for export as a metric.
 func SessionDecryptFailures() int64 { return sessionDecryptFailures.Load() }
+
+// SessionDecryptFailureMetric is the collector form of the counter above.
+//
+// A monotonic counter rather than a gauge, so the alert can be written on
+// rate() as the comment on sessionDecryptFailures describes. The absolute value
+// carries no meaning on its own: every session that expires normally lands here
+// too, and it never resets except on restart.
+func SessionDecryptFailureMetric() observability.Measurement {
+	return observability.Measurement{
+		Name:        SessionDecryptFailureMetricName,
+		Kind:        observability.MetricCounter,
+		Value:       float64(sessionDecryptFailures.Load()),
+		Description: "Session cookies that could not be opened.",
+	}
+}
+
+// SessionDecryptFailureMetricName is the estate-vocabulary name for the counter.
+const SessionDecryptFailureMetricName = "studio.session.decrypt.failures"
 
 // newSessionID returns an opaque identifier for log correlation.
 //

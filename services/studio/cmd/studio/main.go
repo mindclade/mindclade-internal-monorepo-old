@@ -23,6 +23,7 @@ import (
 
 	"go.mindclade.dev/services/studio/internal/httpx"
 	"go.mindclade.dev/services/studio/internal/iap"
+	"go.mindclade.dev/services/studio/internal/metrics"
 	"go.mindclade.dev/services/studio/internal/server"
 	"go.mindclade.dev/services/studio/internal/session"
 )
@@ -76,6 +77,9 @@ func run(logger *slog.Logger) error {
 	}
 
 	if deps.Health, err = server.NewHealth(deps.DB); err != nil {
+		return err
+	}
+	if deps.Metrics, err = buildMetrics(); err != nil {
 		return err
 	}
 
@@ -132,6 +136,23 @@ func run(logger *slog.Logger) error {
 		return err
 	}
 	return nil
+}
+
+// buildMetrics registers what this process exposes on /metrics.
+//
+// Registration is checked rather than ignored: a collector that cannot produce
+// a valid measurement is a wiring bug, and failing here beats serving a
+// malformed scrape for the life of the deployment.
+func buildMetrics() (*metrics.Registry, error) {
+	registry := metrics.NewRegistry()
+	if err := registry.Register(
+		httpx.SessionDecryptFailureMetricName,
+		"Session cookies that could not be opened. Alert on the rate against a baseline, not on any single failure: ordinary expiry is indistinguishable from a bad key rotation at this layer.",
+		httpx.SessionDecryptFailureMetric,
+	); err != nil {
+		return nil, err
+	}
+	return registry, nil
 }
 
 func writeTimeout(role server.Role) time.Duration {
