@@ -25,6 +25,9 @@ rust_test(
 
 filegroup(
     name = "scaffold_files",
-    srcs = glob(["**"], exclude = ["BUILD.bazel"]),
+    srcs = glob(
+        ["**"],
+        exclude = ["BUILD.bazel"],
+    ),
     visibility = ["//visibility:public"],
 )

@@ -4,10 +4,19 @@
 #
 
 load("@rules_go//go:def.bzl", "go_library")
+
 package(default_visibility = ["//visibility:public"])
+
 go_library(
     name = "messagingtest",
-    srcs = ["doc.go", "fixture.go"],
+    srcs = [
+        "doc.go",
+        "fixture.go",
+    ],
     importpath = "go.mindclade.dev/libs/go/messaging/messagingtest",
-    deps = ["//libs/go/identifiers", "//libs/go/messaging", "//libs/go/requestmeta"],
+    deps = [
+        "//libs/go/identifiers",
+        "//libs/go/messaging",
+        "//libs/go/requestmeta",
+    ],
 )

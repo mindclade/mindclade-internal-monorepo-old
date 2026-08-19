@@ -9,7 +9,10 @@ package(default_visibility = ["//services/control_plane:__subpackages__"])
 
 go_library(
     name = "api",
-    srcs = ["api.go", "serving.go"],
+    srcs = [
+        "api.go",
+        "serving.go",
+    ],
     importpath = "go.mindclade.dev/services/control_plane/internal/providers/api",
     deps = [
         "//libs/go/auth",

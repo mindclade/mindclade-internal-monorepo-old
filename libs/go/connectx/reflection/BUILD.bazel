@@ -4,13 +4,26 @@
 #
 
 load("@rules_go//go:def.bzl", "go_library", "go_test")
+
 package(default_visibility = ["//visibility:public"])
 
 go_library(
     name = "reflection",
-    srcs = ["doc.go", "handlers.go"],
+    srcs = [
+        "doc.go",
+        "handlers.go",
+    ],
     importpath = "go.mindclade.dev/libs/go/connectx/reflection",
-    deps = ["//libs/go/connectx", "//libs/go/faults", "@com_connectrpc_connect//:connect", "@com_connectrpc_grpcreflect//:grpcreflect"],
+    deps = [
+        "//libs/go/connectx",
+        "//libs/go/faults",
+        "@com_connectrpc_connect//:connect",
+        "@com_connectrpc_grpcreflect//:grpcreflect",
+    ],
 )
 
-go_test(name = "reflection_test", srcs = ["handlers_test.go"], embed = [":reflection"])
+go_test(
+    name = "reflection_test",
+    srcs = ["handlers_test.go"],
+    embed = [":reflection"],
+)

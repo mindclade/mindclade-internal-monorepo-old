@@ -6,13 +6,22 @@
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 package(default_visibility = ["//visibility:public"])
+
 exports_files(["README.md"])
 
 go_library(
     name = "resourceversion",
-    srcs = ["doc.go", "errors.go", "precondition.go", "version.go"],
+    srcs = [
+        "doc.go",
+        "errors.go",
+        "precondition.go",
+        "version.go",
+    ],
     importpath = "go.mindclade.dev/libs/go/resourceversion",
-    deps = ["//libs/go/faults", "//libs/go/identifiers"],
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+    ],
 )
 
 go_test(

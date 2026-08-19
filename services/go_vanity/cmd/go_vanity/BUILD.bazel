@@ -38,14 +38,14 @@ go_binary(
 go_binary(
     name = "go_vanity_linux_amd64",
     embed = [":go_vanity_lib"],
-    goarch = "amd64",
-    goos = "linux",
     # -s -w strip the symbol table and DWARF, matching the Dockerfile's ldflags. Nothing
     # debugs this binary in-cluster; it is 8 lines of handler over the standard library.
     gc_linkopts = [
         "-s",
         "-w",
     ],
+    goarch = "amd64",
+    goos = "linux",
     pure = "on",
     visibility = ["//services/go_vanity:__pkg__"],
 )

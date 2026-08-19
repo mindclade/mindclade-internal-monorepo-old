@@ -4,7 +4,25 @@
 #
 
 load("@rules_go//go:def.bzl", "go_library", "go_test")
+
 package(default_visibility = ["//visibility:public"])
 
-go_library(name="health", srcs=["doc.go", "handler.go"], importpath="go.mindclade.dev/libs/go/httpx/health", deps=["//libs/go/httpx", "//libs/go/servicekit"])
-go_test(name="health_test", srcs=["handler_test.go"], embed=[":health"], deps=["//libs/go/servicekit"])
+go_library(
+    name = "health",
+    srcs = [
+        "doc.go",
+        "handler.go",
+    ],
+    importpath = "go.mindclade.dev/libs/go/httpx/health",
+    deps = [
+        "//libs/go/httpx",
+        "//libs/go/servicekit",
+    ],
+)
+
+go_test(
+    name = "health_test",
+    srcs = ["handler_test.go"],
+    embed = [":health"],
+    deps = ["//libs/go/servicekit"],
+)

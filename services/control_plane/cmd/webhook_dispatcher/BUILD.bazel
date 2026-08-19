@@ -15,5 +15,6 @@ go_binary(
     deps = [
         "//services/control_plane/internal/bootstrap",
         "//services/control_plane/internal/providers/webhook",
+        "@com_github_lib_pq//:pq",
     ],
 )

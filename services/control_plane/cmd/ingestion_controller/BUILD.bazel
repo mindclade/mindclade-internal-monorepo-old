@@ -12,5 +12,9 @@ go_binary(
     srcs = ["main.go"],
     importpath = "go.mindclade.dev/services/control_plane/cmd/ingestion_controller",
     visibility = ["//services/control_plane:__subpackages__"],
-    deps = ["//services/control_plane/internal/bootstrap"],
+    deps = [
+        "//services/control_plane/internal/bootstrap",
+        "//services/control_plane/internal/providers/ingestion",
+        "@com_github_lib_pq//:pq",
+    ],
 )

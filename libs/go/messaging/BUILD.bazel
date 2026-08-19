@@ -4,17 +4,34 @@
 #
 
 load("@rules_go//go:def.bzl", "go_library", "go_test")
+
 package(default_visibility = ["//visibility:public"])
+
 exports_files(["README.md"])
+
 go_library(
     name = "messaging",
-    srcs = ["doc.go", "errors.go", "message.go", "publisher.go", "subscription.go"],
+    srcs = [
+        "doc.go",
+        "errors.go",
+        "message.go",
+        "publisher.go",
+        "subscription.go",
+    ],
     importpath = "go.mindclade.dev/libs/go/messaging",
-    deps = ["//libs/go/faults", "//libs/go/identifiers", "//libs/go/requestmeta"],
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+        "//libs/go/requestmeta",
+    ],
 )
+
 go_test(
     name = "messaging_test",
     srcs = ["message_test.go"],
     embed = [":messaging"],
-    deps = ["//libs/go/identifiers", "//libs/go/requestmeta"],
+    deps = [
+        "//libs/go/identifiers",
+        "//libs/go/requestmeta",
+    ],
 )

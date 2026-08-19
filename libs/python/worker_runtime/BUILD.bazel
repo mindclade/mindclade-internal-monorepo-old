@@ -3,7 +3,28 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_python//python:defs.bzl", "py_library", "py_test")
+load("@rules_python//python:defs.bzl", "py_library")
+load("//tools/build:pytest.bzl", "pytest_test")
+
 package(default_visibility = ["//visibility:public"])
-py_library(name="worker_runtime", srcs=["__init__.py","contracts.py","executor.py","workload.py"], imports=["../../.."])
-py_test(name="test_executor", srcs=["tests/test_executor.py"], deps=[":worker_runtime"])
+
+py_library(
+    name = "worker_runtime",
+    srcs = [
+        "__init__.py",
+        "contracts.py",
+        "executor.py",
+        "workload.py",
+    ],
+    imports = ["../../.."],
+)
+
+# pytest_test, not py_test: tests/test_executor.py is a pytest module, and its src living in
+# tests/ meant the default main "<name>.py" never appeared in srcs, so the target failed
+# analysis outright rather than running anything.
+pytest_test(
+    name = "test_executor",
+    srcs = ["tests/test_executor.py"],
+    imports = ["../../.."],
+    deps = [":worker_runtime"],
+)

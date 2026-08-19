@@ -4,12 +4,36 @@
 #
 
 load("@rules_go//go:def.bzl", "go_library", "go_test")
+
 package(default_visibility = ["//visibility:public"])
+
 exports_files(["README.md"])
+
 go_library(
     name = "pagination",
-    srcs = ["codec.go", "cursor.go", "doc.go", "errors.go", "request.go"],
+    srcs = [
+        "codec.go",
+        "cursor.go",
+        "doc.go",
+        "errors.go",
+        "request.go",
+    ],
     importpath = "go.mindclade.dev/libs/go/pagination",
-    deps = ["//libs/go/clock", "//libs/go/faults", "//libs/go/identifiers", "//libs/go/signing"],
+    deps = [
+        "//libs/go/clock",
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+        "//libs/go/signing",
+    ],
 )
-go_test(name = "pagination_test", srcs = ["pagination_test.go"], embed = [":pagination"], deps = ["//libs/go/clock", "//libs/go/identifiers", "//libs/go/signing"])
+
+go_test(
+    name = "pagination_test",
+    srcs = ["pagination_test.go"],
+    embed = [":pagination"],
+    deps = [
+        "//libs/go/clock",
+        "//libs/go/identifiers",
+        "//libs/go/signing",
+    ],
+)

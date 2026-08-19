@@ -9,6 +9,7 @@ package(default_visibility = ["//visibility:public"])
 
 go_library(
     name = "blobtest",
+    testonly = True,
     srcs = [
         "doc.go",
         "suite.go",
@@ -19,5 +20,4 @@ go_library(
         "//libs/go/identifiers",
         "//libs/go/storage/blob",
     ],
-    testonly = True,
 )

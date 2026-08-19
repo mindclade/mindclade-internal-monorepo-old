@@ -9,6 +9,7 @@ package(default_visibility = ["//visibility:public"])
 
 go_library(
     name = "leasetest",
+    testonly = True,
     srcs = [
         "conformance.go",
         "doc.go",
@@ -18,5 +19,4 @@ go_library(
         "//libs/go/faults",
         "//libs/go/storage/lease",
     ],
-    testonly = True,
 )

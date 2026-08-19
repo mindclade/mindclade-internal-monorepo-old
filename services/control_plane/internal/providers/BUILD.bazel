@@ -11,7 +11,11 @@ exports_files(["README.md"])
 
 go_library(
     name = "providers",
-    srcs = ["database.go", "doc.go", "mechanisms.go"],
+    srcs = [
+        "database.go",
+        "doc.go",
+        "mechanisms.go",
+    ],
     importpath = "go.mindclade.dev/services/control_plane/internal/providers",
     deps = [
         "//libs/go/clock",

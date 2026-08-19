@@ -9,12 +9,12 @@ package(default_visibility = ["//visibility:public"])
 
 go_library(
     name = "sqltest",
+    testonly = True,
     srcs = [
         "doc.go",
         "driver.go",
     ],
     importpath = "go.mindclade.dev/libs/go/storage/sql/sqltest",
-    testonly = True,
 )
 
 go_test(

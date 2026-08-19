@@ -9,7 +9,10 @@ package(default_visibility = ["//services/control_plane:__subpackages__"])
 
 go_library(
     name = "controller",
-    srcs = ["controller.go", "manager.go"],
+    srcs = [
+        "controller.go",
+        "manager.go",
+    ],
     importpath = "go.mindclade.dev/services/control_plane/internal/providers/controller",
     deps = [
         "//libs/go/config",

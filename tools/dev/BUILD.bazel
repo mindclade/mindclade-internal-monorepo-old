@@ -16,6 +16,12 @@ py_binary(
 
 filegroup(
     name = "dev_sources",
-    srcs = glob(["**"], exclude = ["BUILD.bazel", "**/__pycache__/**"]),
+    srcs = glob(
+        ["**"],
+        exclude = [
+            "BUILD.bazel",
+            "**/__pycache__/**",
+        ],
+    ),
     visibility = ["//visibility:public"],
 )

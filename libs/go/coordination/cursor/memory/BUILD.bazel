@@ -11,7 +11,10 @@ exports_files(["README.md"])
 
 go_library(
     name = "memory",
-    srcs = ["doc.go", "store.go"],
+    srcs = [
+        "doc.go",
+        "store.go",
+    ],
     importpath = "go.mindclade.dev/libs/go/coordination/cursor/memory",
     deps = [
         "//libs/go/coordination/cursor",

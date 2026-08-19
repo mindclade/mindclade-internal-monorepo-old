@@ -11,9 +11,17 @@ exports_files(["README.md"])
 
 go_library(
     name = "bootstrap",
-    srcs = ["bootstrap.go", "build.go", "capabilities.go", "components.go", "consumption.go", "foundation.go", "profile.go"],
-    importpath = "go.mindclade.dev/services/control_plane/internal/bootstrap",
+    srcs = [
+        "bootstrap.go",
+        "build.go",
+        "capabilities.go",
+        "components.go",
+        "consumption.go",
+        "foundation.go",
+        "profile.go",
+    ],
     embedsrcs = ["consumption.json"],
+    importpath = "go.mindclade.dev/services/control_plane/internal/bootstrap",
     deps = [
         "//libs/go/faults",
         "//libs/go/servicekit",
@@ -23,6 +31,9 @@ go_library(
 
 go_test(
     name = "bootstrap_test",
-    srcs = ["command_test.go", "profile_test.go"],
+    srcs = [
+        "command_test.go",
+        "profile_test.go",
+    ],
     embed = [":bootstrap"],
 )

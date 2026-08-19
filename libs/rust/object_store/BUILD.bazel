@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 
 package(default_visibility = ["//libs/rust:repo_consumers"])
 
@@ -28,12 +28,12 @@ rust_test(
     srcs = ["tests/conditional.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_object_store",
         "//libs/rust/atomic_fs:mindclade_atomic_fs",
         "//libs/rust/bytes_io:mindclade_bytes_io",
         "//libs/rust/content_digest:mindclade_content_digest",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/runtime_core:mindclade_runtime_core",
-        ":mindclade_object_store",
         "@crates//:bytes",
         "@crates//:object_store",
         "@crates//:tokio",
@@ -45,12 +45,12 @@ rust_test(
     srcs = ["tests/conformance.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_object_store",
         "//libs/rust/atomic_fs:mindclade_atomic_fs",
         "//libs/rust/bytes_io:mindclade_bytes_io",
         "//libs/rust/content_digest:mindclade_content_digest",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/runtime_core:mindclade_runtime_core",
-        ":mindclade_object_store",
         "@crates//:bytes",
         "@crates//:object_store",
         "@crates//:tokio",
@@ -62,12 +62,12 @@ rust_test(
     srcs = ["tests/failure_injection.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_object_store",
         "//libs/rust/atomic_fs:mindclade_atomic_fs",
         "//libs/rust/bytes_io:mindclade_bytes_io",
         "//libs/rust/content_digest:mindclade_content_digest",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/runtime_core:mindclade_runtime_core",
-        ":mindclade_object_store",
         "@crates//:bytes",
         "@crates//:object_store",
         "@crates//:tokio",
@@ -79,12 +79,12 @@ rust_test(
     srcs = ["tests/integration.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_object_store",
         "//libs/rust/atomic_fs:mindclade_atomic_fs",
         "//libs/rust/bytes_io:mindclade_bytes_io",
         "//libs/rust/content_digest:mindclade_content_digest",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/runtime_core:mindclade_runtime_core",
-        ":mindclade_object_store",
         "@crates//:bytes",
         "@crates//:object_store",
         "@crates//:tokio",
@@ -96,12 +96,12 @@ rust_test(
     srcs = ["tests/provider.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_object_store",
         "//libs/rust/atomic_fs:mindclade_atomic_fs",
         "//libs/rust/bytes_io:mindclade_bytes_io",
         "//libs/rust/content_digest:mindclade_content_digest",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/runtime_core:mindclade_runtime_core",
-        ":mindclade_object_store",
         "@crates//:bytes",
         "@crates//:object_store",
         "@crates//:tokio",
@@ -113,12 +113,12 @@ rust_test(
     srcs = ["tests/range.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_object_store",
         "//libs/rust/atomic_fs:mindclade_atomic_fs",
         "//libs/rust/bytes_io:mindclade_bytes_io",
         "//libs/rust/content_digest:mindclade_content_digest",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/runtime_core:mindclade_runtime_core",
-        ":mindclade_object_store",
         "@crates//:bytes",
         "@crates//:object_store",
         "@crates//:tokio",
@@ -127,6 +127,9 @@ rust_test(
 
 filegroup(
     name = "package_sources",
-    srcs = glob(["**"], exclude = ["target/**"]),
+    srcs = glob(
+        ["**"],
+        exclude = ["target/**"],
+    ),
     visibility = ["//libs/rust:repo_consumers"],
 )

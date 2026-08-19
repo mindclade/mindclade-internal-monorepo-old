@@ -3,11 +3,16 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_python//python:defs.bzl", "py_binary")
+
 package(default_visibility = ["//visibility:private"])
 
 py_binary(
     name = "qualify",
-    srcs = ["qualify.py", "common.py"],
+    srcs = [
+        "common.py",
+        "qualify.py",
+    ],
     main = "qualify.py",
     visibility = ["//visibility:public"],
 )

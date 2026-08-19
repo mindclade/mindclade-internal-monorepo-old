@@ -9,7 +9,10 @@ package(default_visibility = ["//visibility:public"])
 
 go_library(
     name = "reflection",
-    srcs = ["doc.go", "register.go"],
+    srcs = [
+        "doc.go",
+        "register.go",
+    ],
     importpath = "go.mindclade.dev/libs/go/grpcx/reflection",
     deps = [
         "//libs/go/faults",

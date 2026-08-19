@@ -7,6 +7,9 @@ package(default_visibility = ["//visibility:private"])
 
 filegroup(
     name = "scaffold_files",
-    srcs = glob(["**"], exclude = ["BUILD.bazel"]),
+    srcs = glob(
+        ["**"],
+        exclude = ["BUILD.bazel"],
+    ),
     visibility = ["//visibility:public"],
 )

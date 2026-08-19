@@ -46,12 +46,12 @@ oci_image(
     # that builds it, which is the property a release needs: the same bytes from a laptop and
     # from a Linux runner.
     base = "@distroless_static_linux_amd64",
+    entrypoint = ["/usr/local/bin/go_vanity"],
 
     # Documentation only -- Kubernetes takes the port from the manifest. Kept because the
     # manifest and the image disagreeing is a silent readiness failure, and this is where a
     # reader looks.
     exposed_ports = ["8080/tcp"],
-    entrypoint = ["/usr/local/bin/go_vanity"],
     tars = [":layer"],
 
     # uid:gid rather than a name. distroless has no /etc/passwd entry to resolve `nonroot`

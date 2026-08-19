@@ -37,6 +37,7 @@ rust_binary(
     crate_name = "mindclade_runtime_host_bin",
     edition = "2024",
     deps = [
+        ":mindclade_runtime_host",
         "//libs/rust/bytes_io:mindclade_bytes_io",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/gpu_host:mindclade_gpu_host",
@@ -49,7 +50,6 @@ rust_binary(
         "//libs/rust/worker_runtime:mindclade_worker_runtime",
         "//protocols/rust:mindclade_protocols",
         "//serving/runtime:mindclade_serving_runtime",
-        ":mindclade_runtime_host",
         "@crates//:bytes",
         "@crates//:prost",
         "@crates//:tokio",
@@ -91,6 +91,7 @@ rust_test(
     srcs = ["tests/shutdown.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_runtime_host",
         "//libs/rust/bytes_io:mindclade_bytes_io",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/gpu_host:mindclade_gpu_host",
@@ -104,7 +105,6 @@ rust_test(
         "//libs/rust/worker_runtime:mindclade_worker_runtime",
         "//protocols/rust:mindclade_protocols",
         "//serving/runtime:mindclade_serving_runtime",
-        ":mindclade_runtime_host",
         "@crates//:bytes",
         "@crates//:prost",
         "@crates//:tokio",
@@ -113,6 +113,9 @@ rust_test(
 
 filegroup(
     name = "package_sources",
-    srcs = glob(["**"], exclude = ["target/**"]),
+    srcs = glob(
+        ["**"],
+        exclude = ["target/**"],
+    ),
     visibility = ["//libs/rust:repo_consumers"],
 )

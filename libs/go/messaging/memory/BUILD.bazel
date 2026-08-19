@@ -4,15 +4,31 @@
 #
 
 load("@rules_go//go:def.bzl", "go_library", "go_test")
+
 package(default_visibility = ["//visibility:public"])
+
 go_library(
     name = "memory",
-    srcs = ["broker.go", "doc.go"],
+    srcs = [
+        "broker.go",
+        "doc.go",
+    ],
     importpath = "go.mindclade.dev/libs/go/messaging/memory",
-    deps = ["//libs/go/clock", "//libs/go/faults", "//libs/go/identifiers", "//libs/go/messaging", "//libs/go/requestmeta"],
+    deps = [
+        "//libs/go/clock",
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+        "//libs/go/messaging",
+        "//libs/go/requestmeta",
+    ],
 )
+
 go_test(
     name = "memory_test",
     srcs = ["broker_test.go"],
-    deps = [":memory", "//libs/go/messaging", "//libs/go/messaging/messagingtest"],
+    deps = [
+        ":memory",
+        "//libs/go/messaging",
+        "//libs/go/messaging/messagingtest",
+    ],
 )

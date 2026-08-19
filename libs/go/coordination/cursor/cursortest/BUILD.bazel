@@ -9,8 +9,11 @@ package(default_visibility = ["//visibility:public"])
 
 go_library(
     name = "cursortest",
-    srcs = ["conformance.go", "doc.go"],
+    testonly = True,
+    srcs = [
+        "conformance.go",
+        "doc.go",
+    ],
     importpath = "go.mindclade.dev/libs/go/coordination/cursor/cursortest",
     deps = ["//libs/go/coordination/cursor"],
-    testonly = True,
 )

@@ -4,12 +4,30 @@
 #
 
 load("@rules_go//go:def.bzl", "go_library", "go_test")
+
 package(default_visibility = ["//visibility:public"])
+
 exports_files(["README.md"])
+
 go_library(
     name = "outbound",
-    srcs = ["client.go", "doc.go", "errors.go", "policy.go", "resolver.go", "validate.go"],
+    srcs = [
+        "client.go",
+        "doc.go",
+        "errors.go",
+        "policy.go",
+        "resolver.go",
+        "validate.go",
+    ],
     importpath = "go.mindclade.dev/libs/go/httpx/outbound",
-    deps = ["//libs/go/faults", "//libs/go/httpx"],
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/httpx",
+    ],
 )
-go_test(name = "outbound_test", srcs = ["client_test.go"], embed = [":outbound"])
+
+go_test(
+    name = "outbound_test",
+    srcs = ["client_test.go"],
+    embed = [":outbound"],
+)

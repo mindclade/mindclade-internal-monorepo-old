@@ -47,8 +47,8 @@ go_test(
         "config_test.go",
         "details_test.go",
         "metadata_test.go",
-        "server_test.go",
         "method_test.go",
+        "server_test.go",
     ],
     embed = [":grpcx"],
     deps = [

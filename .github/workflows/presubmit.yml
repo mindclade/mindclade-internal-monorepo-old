@@ -237,12 +237,8 @@ jobs:
   # last full run analysed 900 targets and configured 9,336 before hitting the Rust host
   # tools. Promote this step to `bazel build //... --nobuild` in the commit that closes them.
   #
-  # NO BUILDIFIER STEP either, and that is a decision rather than an oversight.
-  # `buildifier --mode=check -r .` currently reports 549 files, every one of them the same
-  # cosmetic disagreement about how a multi-argument `glob()` wraps. Adding it here would make
-  # the lane red on arrival, and a gate that is red on the day it lands is one people switch
-  # off rather than fix. The sweep is worth doing and belongs in its own commit where the diff
-  # reads as formatting and nothing else — `buildifier -r .` — and the step comes back with it.
+  # buildifier runs FIRST. A malformed BUILD file fails `query` with a Starlark traceback;
+  # buildifier names the file, the line and the rule in one line.
   bazel:
     name: bazel loading and Go tests
     runs-on: ubuntu-24.04
@@ -261,6 +257,21 @@ jobs:
           disk-cache: ${{ github.workflow }}
           repository-cache: true
 
+      # buildifier comes from the flake, like every other linter in this repository, so the
+      # version that gates a PR is the version `nix develop` gives you locally.
+      - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = false
+
+      # Reads .buildifier.json: format plus a 39-warning lint set, narrower than buildifier's
+      # default `all`. Every name in that file has to be one this buildifier knows — an
+      # unrecognised name makes it exit 1 before reading a single file, with a message about
+      # configuration rather than about code.
+      - name: buildifier
+        run: nix develop .#ci --command buildifier --mode=check -r .
+
       - name: Every BUILD file loads and every label resolves
         run: bazel query '//...' --output=label --curses=no --color=no > /dev/null
 
@@ -271,25 +282,25 @@ jobs:
       # runtime.Caller, which Bazel reports as a workspace-relative path) without anyone
       # noticing. `--config=ci` was broken the same way and for the same reason.
       #
-      # GO ONLY, by explicit target list rather than `//...`. The crate_universe extension
-      # still fails to evaluate — see the Rust note above — and it aborts analysis for
-      # whatever is in the configured graph, so a wildcard would take the Go targets down
-      # with it. Naming them keeps Rust's blocker from hiding Go's results. Swap this for
+      # GO AND PYTHON, by explicit target list rather than `//...`. The crate_universe
+      # extension still fails to evaluate — see the Rust note above — and it aborts analysis
+      # for whatever is in the configured graph, so a wildcard would take these down with it.
+      # Naming them keeps Rust's blocker from hiding everyone else's results. Swap this for
       # `bazel test //...` in the commit that closes the rules_rust bump.
-      - name: Go targets build and pass under Bazel
+      - name: Go and Python targets build and pass under Bazel
         run: |
           set -euo pipefail
-          bazel query 'kind("go_test rule", //...)' \
-            --output=label --curses=no --color=no > go_tests.txt
-          count="$(wc -l < go_tests.txt)"
+          bazel query 'kind("(go|py)_test rule", //...)' \
+            --output=label --curses=no --color=no > bazel_tests.txt
+          count="$(wc -l < bazel_tests.txt)"
           # A query that silently returns nothing would make this lane pass having tested
           # nothing, which is the exact shape of gate this repository keeps removing.
           if [ "$count" -eq 0 ]; then
-            echo "::error::no go_test targets matched; the query or the build graph changed" >&2
+            echo "::error::no go_test/py_test targets matched; the query or the graph changed" >&2
             exit 1
           fi
-          echo "Testing ${count} Go target(s) under Bazel."
-          bazel test --config=ci --target_pattern_file=go_tests.txt
+          echo "Testing ${count} target(s) under Bazel."
+          bazel test --config=ci --target_pattern_file=bazel_tests.txt
 
 
   # ---------------------------------------------------------------------------------------

@@ -5,7 +5,10 @@
 
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 
-package(default_visibility = ["//services:__subpackages__", "//control:__subpackages__"])
+package(default_visibility = [
+    "//control:__subpackages__",
+    "//services:__subpackages__",
+])
 
 go_library(
     name = "pubsub",

@@ -4,14 +4,30 @@
 #
 
 load("@rules_go//go:def.bzl", "go_library", "go_test")
+
 package(default_visibility = ["//visibility:public"])
 
 go_library(
     name = "interceptors",
-    srcs = ["authentication.go", "authorization.go", "doc.go", "faults.go","internal.go", "recovery.go", "requestmeta.go", "stack.go", "types.go", "validation.go"],
+    srcs = [
+        "authentication.go",
+        "authorization.go",
+        "doc.go",
+        "faults.go",
+        "internal.go",
+        "recovery.go",
+        "requestmeta.go",
+        "stack.go",
+        "types.go",
+        "validation.go",
+    ],
     importpath = "go.mindclade.dev/libs/go/connectx/interceptors",
     deps = [
-        "//libs/go/auth", "//libs/go/connectx", "//libs/go/faults", "//libs/go/httpx", "//libs/go/requestmeta",
+        "//libs/go/auth",
+        "//libs/go/connectx",
+        "//libs/go/faults",
+        "//libs/go/httpx",
+        "//libs/go/requestmeta",
         "@com_connectrpc_connect//:connect",
     ],
 )
@@ -20,5 +36,12 @@ go_test(
     name = "interceptors_test",
     srcs = ["interceptors_test.go"],
     embed = [":interceptors"],
-    deps = ["//libs/go/auth", "//libs/go/connectx", "//libs/go/faults", "//libs/go/httpx", "//libs/go/requestmeta", "@com_connectrpc_connect//:connect"],
+    deps = [
+        "//libs/go/auth",
+        "//libs/go/connectx",
+        "//libs/go/faults",
+        "//libs/go/httpx",
+        "//libs/go/requestmeta",
+        "@com_connectrpc_connect//:connect",
+    ],
 )

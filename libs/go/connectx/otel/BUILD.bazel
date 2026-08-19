@@ -9,7 +9,10 @@ package(default_visibility = ["//visibility:public"])
 
 go_library(
     name = "otel",
-    srcs = ["doc.go", "otel.go"],
+    srcs = [
+        "doc.go",
+        "otel.go",
+    ],
     importpath = "go.mindclade.dev/libs/go/connectx/otel",
     deps = [
         "//libs/go/faults",

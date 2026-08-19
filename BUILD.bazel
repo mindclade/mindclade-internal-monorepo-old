@@ -43,7 +43,14 @@ _STATUS = [
     "maturity.toml",
 ]
 
-exports_files(_GOVERNANCE + _STATUS)
+# pyproject.toml is the exception to the "tool configuration is not exported" note above, and
+# it earns it: //tools/build:pytest_runner.py passes it to pytest as `-c`, so a Bazel py_test
+# applies the same markers, import mode and nightly deselection as `uv run pytest`. That is a
+# real dependency edge — without the file in the target's runfiles, pytest picks up different
+# configuration and the two runners disagree about what passing means.
+_TOOLING = ["pyproject.toml"]
+
+exports_files(_GOVERNANCE + _STATUS + _TOOLING)
 
 filegroup(
     name = "governance",
