@@ -16,11 +16,11 @@
 resource "google_scc_organization_scc_big_query_export" "this" {
   count = var.bigquery_export == null ? 0 : 1
 
-  name         = "findings-export"
-  organization = var.org_id
-  dataset      = "projects/${var.project_id}/datasets/${google_bigquery_dataset.findings[0].dataset_id}"
-  description  = "Continuous export of SCC findings for joining against the audit dataset."
-  filter       = var.bigquery_export.filter
+  big_query_export_id = "findings-export"
+  organization        = var.org_id
+  dataset             = "projects/${var.project_id}/datasets/${google_bigquery_dataset.findings[0].dataset_id}"
+  description         = "Continuous export of SCC findings for joining against the audit dataset."
+  filter              = var.bigquery_export.filter
 }
 
 resource "google_bigquery_dataset" "findings" {
@@ -42,14 +42,6 @@ resource "google_bigquery_dataset" "findings" {
 # Detectors
 # ---------------------------------------------------------------------------------------
 
-resource "google_scc_management_organization_security_center_service" "this" {
-  for_each = var.services
-
-  organization              = var.org_id
-  name                      = each.key
-  location                  = "global"
-  intended_enablement_state = each.value
-}
 
 # ---------------------------------------------------------------------------------------
 # Notification routing
@@ -91,3 +83,23 @@ resource "google_scc_mute_config" "this" {
   description    = trimspace(each.value.description)
   filter         = each.value.filter
 }
+
+# ---------------------------------------------------------------------------------------
+# Detector enablement is NOT managed here, and cannot be
+# ---------------------------------------------------------------------------------------
+# There is no Terraform resource for enabling a built-in SCC service in either the google or
+# google-beta provider. The provider exposes custom modules, sources, notification configs,
+# exports, and mutes — and nothing that turns Security Health Analytics or Container Threat
+# Detection on.
+#
+# `var.services` is therefore accepted, validated, and surfaced as
+# `service_enablement_commands` rather than quietly dropped. Two things this deliberately
+# does not do:
+#
+#   - a `local-exec` calling gcloud. It would run on whichever machine happened to apply,
+#     with that operator's credentials, and record nothing in state — so a drift check could
+#     not tell an enabled detector from one somebody turned off in the console.
+#   - a `null_resource` that pretends. A green apply asserting a detector is on when nothing
+#     checked is the failure this whole module exists to avoid.
+#
+# The commands belong in the runbook and in the drift sweep. `1-org/scc` reads the output.

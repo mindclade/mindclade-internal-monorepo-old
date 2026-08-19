@@ -23,6 +23,21 @@ output "enabled_services" {
   value       = sort([for name, state in var.services : name if state == "ENABLE"])
 }
 
+output "service_enablement_commands" {
+  description = <<-EOT
+    The gcloud invocations that actually enable or disable each detector.
+
+    No Terraform resource exists for built-in SCC service enablement, so this is the honest
+    interface: the module records what was intended and hands back the commands, rather than
+    reporting a green apply for something it never configured. Run these once, then let the
+    drift sweep compare `gcloud scc manage services list` against `enabled_services`.
+  EOT
+  value = [
+    for name, state in var.services :
+    "gcloud scc manage services update ${name} --organization=${var.org_id} --enablement-state=${lower(state)}d"
+  ]
+}
+
 output "disabled_services" {
   description = "Detectors explicitly turned off. A short list that should stay short."
   value       = sort([for name, state in var.services : name if state == "DISABLE"])

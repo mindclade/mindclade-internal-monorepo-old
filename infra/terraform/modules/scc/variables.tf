@@ -86,7 +86,7 @@ variable "bigquery_export" {
   default = null
 
   validation {
-    condition     = var.bigquery_export == null || can(regex("^[a-zA-Z0-9_]{1,1024}$", var.bigquery_export.dataset_id))
+    condition     = var.bigquery_export == null || can(regex("^[a-zA-Z0-9_]{1,1000}$", var.bigquery_export.dataset_id))
     error_message = "dataset_id may contain only letters, numbers, and underscores."
   }
 }
