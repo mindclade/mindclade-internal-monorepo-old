@@ -93,10 +93,15 @@ def _parse_certificates(text: str) -> list[tuple[str, list[str]]]:
             continue
         name = re.search(r"^\s{2}name:\s*(\S+)\s*$", document, re.MULTILINE)
         names: list[str] = []
-        block = re.search(r"^(\s*)dnsNames:\s*$", document, re.MULTILINE)
+        # [ \t] rather than \s: \s matches newlines, so a greedy ^(\s*) anchors
+        # at the start of a preceding BLANK line and swallows the line break,
+        # which both inflates the indent and shifts the slice below by one line.
+        # The symptom is an empty dnsNames list for exactly those certificates
+        # that have a blank line above the key -- which is how this was found.
+        block = re.search(r"^([ \t]*)dnsNames:[ \t]*$", document, re.MULTILINE)
         if block:
             indent = len(block.group(1))
-            for line in document[block.start() :].splitlines()[1:]:
+            for line in document[block.end() :].splitlines()[1:]:
                 if not line.strip():
                     continue
                 stripped = line.lstrip()

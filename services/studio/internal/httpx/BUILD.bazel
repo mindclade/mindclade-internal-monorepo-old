@@ -16,6 +16,7 @@ go_library(
     ],
     importpath = "go.mindclade.dev/services/studio/internal/httpx",
     deps = [
+        "//libs/go/identifiers",
         "//libs/go/observability",
         "//services/studio/internal/iap",
         "//services/studio/internal/session",

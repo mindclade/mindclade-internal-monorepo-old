@@ -3,21 +3,54 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_go//go:def.bzl", "go_binary")
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 
 package(default_visibility = ["//visibility:private"])
 
-go_binary(
-    name = "studio",
-    srcs = ["main.go"],
+# main.go is a library so the composition root is testable. The lifecycle
+# assembly and the configuration schema both live here, and both are worth
+# pinning: the drain ordering is invisible in a test that only checks the
+# process exits, and a schema key that no longer matches its read site panics at
+# startup rather than at build time.
+go_library(
+    name = "studio_lib",
+    srcs = [
+        "main.go",
+        "settings.go",
+    ],
     importpath = "go.mindclade.dev/services/studio/cmd/studio",
-    visibility = ["//services/studio:__subpackages__"],
     deps = [
+        "//libs/go/clock",
+        "//libs/go/config",
+        "//libs/go/httpx",
+        "//libs/go/servicekit",
         "//services/studio/internal/httpx",
         "//services/studio/internal/iap",
         "//services/studio/internal/metrics",
         "//services/studio/internal/server",
         "//services/studio/internal/session",
         "@com_github_lib_pq//:pq",
+    ],
+)
+
+go_binary(
+    name = "studio",
+    embed = [":studio_lib"],
+    visibility = ["//services/studio:__subpackages__"],
+)
+
+go_test(
+    name = "studio_test",
+    srcs = [
+        "lifecycle_test.go",
+        "settings_test.go",
+    ],
+    embed = [":studio_lib"],
+    deps = [
+        "//libs/go/clock",
+        "//libs/go/config",
+        "//libs/go/httpx",
+        "//services/studio/internal/httpx",
+        "//services/studio/internal/server",
     ],
 )

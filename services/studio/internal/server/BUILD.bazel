@@ -17,6 +17,7 @@ go_library(
     importpath = "go.mindclade.dev/services/studio/internal/server",
     deps = [
         "//libs/go/httpx/health",
+        "//libs/go/identifiers",
         "//libs/go/servicekit",
         "//services/studio/internal/handoff",
         "//services/studio/internal/httpx",

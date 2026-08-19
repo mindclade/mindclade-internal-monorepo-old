@@ -184,13 +184,16 @@ func buildService(
 		return nil, err
 	}
 
-	// REGISTRATION ORDER IS THE DRAIN ORDER, REVERSED.
+	// What sequences these is servicekit's PHASE separation, not their
+	// registration order: every component's Drain runs before any component's
+	// Stop. So the gate below fails readiness and waits out the propagation
+	// window while the HTTP component is still serving, and only then is the
+	// listener gracefully closed.
 	//
-	// servicekit drains and stops in reverse registration order, so registering
-	// the readiness gate FIRST is what makes it drain LAST — after the HTTP
-	// component has had its (absent) drain hook called and before that
-	// component is stopped. That ordering is the whole behavior: readiness must
-	// fail and propagate while the listener is still serving.
+	// Registration order is genuinely irrelevant here — the gate has no Stop
+	// and the HTTP component has no Drain, so the two never contend within a
+	// phase. Adding a Stop to the gate or a Drain to the HTTP component would
+	// change that, since both phases run in reverse registration order.
 	if err := service.Add(drainGate(health, logger, timeSource)); err != nil {
 		return nil, err
 	}
