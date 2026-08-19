@@ -20,6 +20,26 @@ FORBIDDEN = [
 ]
 SCAN = {".bzl", ".bazel", ".sh", ".py", ".yml", ".yaml", ".nix"}
 
+# Files that ENFORCE this same contract, and therefore contain the forbidden strings as
+# pattern literals rather than as commands.
+#
+# This file has always exempted itself for that reason — see the `p.resolve() ==
+# Path(__file__).resolve()` test below. The exemption was written when this was the only
+# implementation; it is not any more. tools/build/nix/checks/no-host-tools.nix enforces the
+# same ADR-0002 clause ("CI rejects host-tool leakage") for `nix flake check`, which runs where
+# Python does not, and it names /usr/bin and `pip install` for the same reason this file does.
+#
+# Without the entry the two checks are mutually exclusive: adding the Nix one turns this one
+# red, and the only way to a green run is to delete a control.
+#
+# Scoped to exact paths, not to the directory. tools/build/nix/checks/ holds other checks that
+# have no business naming a host path, and skipping all of them to fix one would be trading a
+# false positive for a blind spot. What is safe to exempt is a file that DEFINES patterns and
+# runs no build action; a new one has to be added here deliberately.
+CONTRACT_IMPLEMENTATIONS = {
+    "tools/build/nix/checks/no-host-tools.nix",
+}
+
 
 def rust_version_contract(root: Path) -> list[str]:
     errors = []
@@ -53,6 +73,7 @@ def check(root: Path):
         if (
             not p.is_file()
             or p.resolve() == Path(__file__).resolve()
+            or p.relative_to(root).as_posix() in CONTRACT_IMPLEMENTATIONS
             # Build and tool output, not source. The list previously stopped at node_modules,
             # which was complete when only JS had a vendor directory. It now misses .venv in
             # particular: `uv sync` writes one, so running this check after the Python lane

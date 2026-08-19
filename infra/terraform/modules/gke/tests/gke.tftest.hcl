@@ -32,7 +32,7 @@ run "private_regional_cluster_contract" {
   assert {
     condition = (
       google_container_cluster.this.location == "us-central1" &&
-      google_container_cluster.this.min_master_version == "1.35.6-gke.1127000" &&
+      google_container_cluster.this.min_master_version == "1.36.2-gke.2064000" &&
       google_container_cluster.this.release_channel[0].channel == "REGULAR" &&
       google_container_cluster.this.networking_mode == "VPC_NATIVE" &&
       google_container_cluster.this.datapath_provider == "ADVANCED_DATAPATH" &&
@@ -47,7 +47,7 @@ run "private_regional_cluster_contract" {
   assert {
     condition = (
       google_container_cluster.this.addons_config[0].gcs_fuse_csi_driver_config[0].enabled == false &&
-      google_container_node_pool.system.version == "1.35.6-gke.1127000"
+      google_container_node_pool.system.version == "1.36.2-gke.2064000"
     )
     error_message = "The training platform pin must remain exact and GCS Fuse must remain disabled."
   }

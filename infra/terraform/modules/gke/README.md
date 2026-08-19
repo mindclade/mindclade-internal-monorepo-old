@@ -12,7 +12,7 @@ CSI/backup agents. Restricted-data clusters require application-layer Kubernetes
 Secrets encryption with Cloud KMS.
 
 The current source qualification tuple pins the Regular channel at
-`1.35.6-gke.1127000` for the control plane and initial system node version.
+`1.36.2-gke.2064000` for the control plane and initial system node version.
 The Cloud Storage FUSE CSI driver defaults off: NOVA training uses
 generation-bound object APIs and must not mount checkpoint storage through
 GCS Fuse. Changing either value requires a new immutable platform lock and
