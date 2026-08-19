@@ -42,23 +42,15 @@ ERROR
   exit 127
 fi
 
-# UNRESOLVED, AND READ THIS BEFORE TRUSTING THE SETTINGS THIS APPLIES.
-#
-# The root nix.conf and CI disagree about `accept-flake-config`, and making the root file
-# effective turns that latent disagreement into a live one:
-#
-#     nix.conf                       accept-flake-config = true
-#     presubmit.yml extra_nix_config accept-flake-config = false
-#
-# `true` accepts a flake's own `nixConfig` block without prompting -- including
-# extra-substituters and extra-trusted-public-keys, which is a supply-chain decision rather
-# than an ergonomic one: it lets a flake nominate where binaries come from. CI says false
-# deliberately; it is written out rather than left at a default.
-#
-# So a developer using this wrapper currently gets MORE trust than CI, which is the wrong
-# direction for a shim whose purpose is making the two agree. The fix is one word in nix.conf,
-# but it is a security posture call rather than a tooling one, so it is named here rather than
-# made quietly.
+# SECURITY POSTURE, STATED SO IT STAYS DELIBERATE. `accept-flake-config = false` here matches
+# presubmit.yml's `extra_nix_config`, and the match is load-bearing rather than tidiness: the
+# setting controls whether a flake's own `nixConfig` block -- including extra-substituters and
+# extra-trusted-public-keys -- is accepted without prompting. That is a supply-chain decision,
+# a flake nominating where its own binaries come from, not an ergonomic one. It was `true` here
+# until this wrapper made the file effective, which would have given a developer using this
+# shim MORE trust than CI grants -- the wrong direction for a shim whose purpose is making the
+# two agree. If this ever needs to diverge from CI again, change it in nix.conf where it is
+# declared, not by overriding it in this script.
 
 # The user's own config, kept second so it still supplies anything the repository does not set.
 # Listed only when it exists: naming a missing file is not an error to Nix, but keeping the

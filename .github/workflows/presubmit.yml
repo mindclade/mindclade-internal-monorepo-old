@@ -220,12 +220,14 @@ jobs:
   # TOOLCHAIN VERSIONS still stop it. Neither is a workflow change, and both are one line in
   # MODULE.bazel once the upstream support exists:
   #
-  #   Rust — cargo-bazel splices the workspace with rules_rust's host tools, which ship Cargo
-  #   1.84. This workspace is `edition = "2024"`, stabilised in Cargo 1.85, so cargo-bazel
-  #   cannot PARSE the workspace and the crate_universe extension fails to evaluate. That
-  #   aborts analysis for the whole repository, Go targets included. `rust.toolchain(versions
-  #   = ...)` does not fix it: the host tools are a separate repository from the registered
-  #   toolchain.
+  #   Rust — RESOLVED by moving rules_rust 0.57.1 -> 0.73.0. The old note said cargo-bazel
+  #   shipped Cargo 1.84 against an `edition = "2024"` workspace (stabilised in 1.85) and
+  #   concluded it was blocked upstream. It was blocked in 0.57.1 specifically; the host tools
+  #   in 0.73.0 parse the workspace, and 84 of the 92 rust_test targets now build and pass.
+  #
+  #   The remaining 8 are missing `deps` entries in their own BUILD files — real gaps that
+  #   were unobservable while nothing compiled Rust under Bazel — so rust_test is not in the
+  #   test step below yet. Add it in the commit that fixes those eight.
   #
   #   Go — RESOLVED, and the step below is what keeps it that way. The blocker recorded here
   #   (gazelle's fetch_repo running under rules_go's default 1.22.7 SDK against an otelhttp
