@@ -15,7 +15,16 @@
   outputs = { self, nixpkgs, rust-overlay }:
     let
       versions = import ./tools/build/nix/versions.nix;
-      systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
+      # x86_64-darwin is NOT here, and its absence is the fix rather than an oversight: nixpkgs
+      # 26.11 — the revision flake.lock pins — dropped the platform outright, so every attribute
+      # generated for it failed to evaluate with "Nixpkgs 26.11 has dropped support for
+      # x86_64-darwin". That made `nix flake check --all-systems` and `nix flake show
+      # --all-systems` fail on a platform nobody in this estate builds on, while the per-system
+      # commands people actually run kept passing, so nothing surfaced it.
+      #
+      # Restoring Intel Mac support means pinning the nixpkgs input to the 26.05 darwin branch,
+      # which is a toolchain decision for ADR-0002 and not a line in the systems list.
+      systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" ];
       forAllSystems = fn: nixpkgs.lib.genAttrs systems (system:
         let
           # allowUnfree, narrowly. Terraform is BUSL-licensed since 1.6, so `nix develop .#ci`
