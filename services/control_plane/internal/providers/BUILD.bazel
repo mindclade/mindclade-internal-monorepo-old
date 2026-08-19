@@ -1,0 +1,74 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//services/control_plane:__subpackages__"])
+
+go_library(
+    name = "providers",
+    srcs = [
+        "blobs.go",
+        "cache.go",
+        "database.go",
+        "doc.go",
+        "identity.go",
+        "mechanisms.go",
+        "registry.go",
+        "serving.go",
+    ],
+    importpath = "go.mindclade.dev/services/control_plane/internal/providers",
+    deps = [
+        "//libs/go/audit",
+        "//libs/go/audit/postgres",
+        "//libs/go/auth",
+        "//libs/go/clock",
+        "//libs/go/config",
+        "//libs/go/coordination/outbox",
+        "//libs/go/coordination/outbox/postgres",
+        "//libs/go/faults",
+        "//libs/go/httpx",
+        "//libs/go/httpx/health",
+        "//libs/go/httpx/middleware",
+        "//libs/go/idempotency",
+        "//libs/go/idempotency/postgres",
+        "//libs/go/identifiers",
+        "//libs/go/observability",
+        "//libs/go/pagination",
+        "//libs/go/requestmeta",
+        "//libs/go/retry",
+        "//libs/go/servicekit",
+        "//libs/go/servicekit/production",
+        "//libs/go/signing",
+        "//libs/go/storage/blob",
+        "//libs/go/storage/blob/gcs",
+        "//libs/go/storage/cache",
+        "//libs/go/storage/cache/redis",
+        "//libs/go/storage/sql/migrate",
+        "//libs/go/storage/sql/postgres",
+        "//libs/go/storage/sql/transaction",
+        "//services/control_plane/internal/bootstrap",
+        "//services/control_plane/internal/config",
+        "//services/control_plane/internal/foundation",
+        "//services/control_plane/internal/transport",
+        "@cloud_google_com_go_storage//:storage",
+        "@com_github_redis_go_redis_v9//:redis",
+    ],
+)
+
+go_test(
+    name = "providers_test",
+    srcs = ["provider_test.go"],
+    embed = [":providers"],
+    deps = [
+        "//libs/go/auth",
+        "//libs/go/clock",
+        "//libs/go/config",
+        "//libs/go/faults",
+        "//services/control_plane/internal/bootstrap",
+        "//services/control_plane/internal/config",
+        "@com_github_lib_pq//:pq",
+    ],
+)

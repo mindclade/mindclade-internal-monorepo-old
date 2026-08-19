@@ -33,7 +33,13 @@ forbidden_prefixes = ["go.mindclade.dev/services/", "go.mindclade.dev/apps/"]
 [[budget]]
 path = "services"
 language = "go"
-max_internal_direct = 40
+# Raised from 40 when the registry role gained a materialized provider factory.
+# The previous ceiling was calibrated against a control plane whose commands all
+# bootstrapped through UnconfiguredFactory and therefore linked no adapter; it
+# sat at exactly 40, so the first real composition root was guaranteed to breach
+# it. This budget counts distinct import paths across every service in the tree,
+# so it should be revisited per role as the remaining factories are wired.
+max_internal_direct = 56
 
 [[budget]]
 path = "services/studio"
