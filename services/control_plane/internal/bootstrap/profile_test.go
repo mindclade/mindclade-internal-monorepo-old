@@ -97,14 +97,11 @@ func TestConsumptionMatrixIsDerivedFromTheBuild(t *testing.T) {
 		t.Fatalf("matrix=%d profiles=%d", len(matrix), len(Profiles()))
 	}
 	for _, entry := range matrix {
-		if entry.Role == RoleMaintenance {
-			// No command is built for this role, so nothing links on its
-			// behalf. An empty inventory is the correct answer, not a gap in
-			// the document.
-			if len(entry.Packages) != 0 {
-				t.Fatalf("role %q has no command but declares %v", entry.Role, entry.Packages)
-			}
-			continue
+		// Every role now has a command and a materialized factory, so every
+		// inventory is non-empty. This previously excepted maintenance, which
+		// had no command at all.
+		if len(entry.Packages) == 0 {
+			t.Fatalf("role %q declares no foundation packages", entry.Role)
 		}
 		if !slices.IsSorted(entry.Packages) {
 			t.Fatalf("role %q inventory is not sorted", entry.Role)
@@ -151,15 +148,34 @@ func TestRegistryRoleLinksItsProductionAdapters(t *testing.T) {
 
 // A role without a materialized factory must not be linking provider
 // adapters. If one appears here, something is reaching past the aggregate list.
-func TestUnmaterializedRolesLinkNoProviderAdapter(t *testing.T) {
-	consumption, err := ConsumptionFor(RoleAdmin)
-	if err != nil {
-		t.Fatal(err)
+// Every role is materialized now, so the old guard -- that an unwired role
+// drags in no provider adapter -- has nothing left to catch. The invariant that
+// still has teeth is the narrower one it was really protecting: a role links
+// only the adapters its own profile justifies, and a shared composition-root
+// package must not quietly pull a provider into a binary that never opens it.
+func TestRolesLinkOnlyTheProviderAdaptersTheyNeed(t *testing.T) {
+	forbidden := map[Role][]string{
+		// Publishes and drains the outbox. Touches no artifact store, no read
+		// cache, and no cluster.
+		RoleEventDispatcher: {"/gcs", "/redis", "libs/go/kubernetes"},
+		// Housekeeping over the control plane's own tables only.
+		RoleMaintenance: {"/gcs", "/redis", "libs/go/kubernetes"},
+		// Consumes an ordered stream. Holds no artifacts and no cluster.
+		RoleEventProjector: {"/gcs", "/redis", "libs/go/kubernetes"},
+		// Serves requests. Reaches no cluster.
+		RoleAPI:   {"libs/go/kubernetes"},
+		RoleAdmin: {"libs/go/kubernetes"},
 	}
-	for _, packagePath := range consumption.Packages {
-		for _, adapter := range []string{"/postgres", "/gcs", "/redis", "/pubsub"} {
-			if strings.HasSuffix(packagePath, adapter) {
-				t.Fatalf("unwired role links provider adapter %q", packagePath)
+	for role, adapters := range forbidden {
+		consumption, err := ConsumptionFor(role)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, packagePath := range consumption.Packages {
+			for _, adapter := range adapters {
+				if strings.HasSuffix(packagePath, adapter) || strings.HasPrefix(packagePath, adapter) {
+					t.Fatalf("role %q links %q, which its profile does not justify", role, packagePath)
+				}
 			}
 		}
 	}

@@ -49,7 +49,7 @@ func controllerSettings(t *testing.T) foundationconfig.MapSource {
 	}
 	return foundationconfig.MapSource{SourceName: "test", Values: map[string]string{
 		"signing.hmac_key":      "01234567890123456789012345678901",
-		"database.dsn":          "postgres://control:control@127.0.0.1:5432/control?sslmode=disable",
+		"database.dsn":          "postgres://control:control@127.0.0.1:5432/control?sslmode=require",
 		"messaging.provider":    "memory",
 		"messaging.topic":       "mindclade.control.events",
 		"kubernetes.source":     "kubeconfig",

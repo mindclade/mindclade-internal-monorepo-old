@@ -28,7 +28,9 @@ config.Settings
 | `api` | `NewAPIFactory` | PostgreSQL, HTTP + Connect + gRPC |
 | `webhook-dispatcher` | `NewWebhookFactory` | PostgreSQL, broker, outbound HTTP |
 | `operator` | `controller.NewOperatorFactory` | PostgreSQL, broker, Kubernetes + manager |
-| every other role | `bootstrap.UnconfiguredFactory` — fails closed with exit 78 | — |
+| `admin` | `api.NewAdminFactory` | PostgreSQL, HTTP + Connect + gRPC |
+| `ingestion-controller` | `NewIngestionFactory` | PostgreSQL, GCS, Redis, broker, Kubernetes |
+| `maintenance` | `NewMaintenanceFactory` | PostgreSQL |
 
 ## Shared provider packages
 
@@ -41,6 +43,7 @@ providers/cluster   Kubernetes REST config, client, discovery
 providers/durable   audit, idempotency, lease, work-queue, cursor adapters
 providers/broker    messaging provider resolution
 providers/apikeys   service-to-service credential registry
+providers/objects   artifact store and read cache
 ```
 
 The root package keeps what every role needs: the pure mechanisms, the
@@ -70,7 +73,18 @@ a dispatcher that will call any host it is handed is a server-side request
 forgery primitive with a queue in front of it -- and HTTPS and the ban on
 private addresses are fixed rather than configurable.
 
-The operator shares the controller's factory. The two roles have identical
+The ingestion coordinator is the widest role: artifacts, a read cache, a
+cursor, a work queue, and a cluster client at once. It holds a cursor without a
+projector, because it tracks its position in each source it reads but does not
+project an ordered event stream.
+
+Maintenance is the narrowest role that still holds a lease. It runs no
+migration runner despite `CONSUMPTION.md` naming it the intended migration
+process: the registry owns the manifest today, and two runners against one
+database would race for the same version ordering. Moving that ownership is a
+deployment change, not a composition change.
+
+The admin role shares the api factory, and the operator shares the controller's. The two roles have identical
 capability profiles, so they are one composition claiming a different lease and
 reporting events under a different source, not two implementations.
 
@@ -81,10 +95,10 @@ its subsystems that the foundation already owns: leader election belongs to
 process can be leader by one lease and not the other. Its reconcilers are
 registered by domain code; the composition root owns the manager's lifetime.
 
-A role is materialized when its factory constructs real providers. Until then
-its command starts, validates its profile, and refuses to run. `--describe-profile`
-works either way, because deployment tooling needs the manifest before the
-adapters exist.
+Every role is materialized. `bootstrap.UnconfiguredFactory` remains for a role
+added before its providers exist: its command starts, validates its profile,
+and refuses to run with exit 78. `--describe-profile` works either way, because
+deployment tooling needs the manifest before the adapters do.
 
 ## Rules
 

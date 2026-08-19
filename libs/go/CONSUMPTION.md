@@ -84,10 +84,8 @@ python3 tools/analysis/check_foundation_consumption.py --write
 
 A package that appears in the table above but not in `consumption.json` is not
 consumed yet — the role that would consume it has no materialized provider
-factory. Eight of the twelve roles are materialized: `registry`, `event-dispatcher`,
-`scheduler`, `controller`, `operator`, `event-projector`, `api`, and
-`webhook-dispatcher`. `admin`, `ingestion-controller`, and `maintenance` still
-bootstrap through `bootstrap.UnconfiguredFactory` and fail closed.
+factory. All twelve roles are materialized. `bootstrap.UnconfiguredFactory` is retained
+for a role added before its providers exist, and fails closed when reached.
 
 Materializing a role is what validates the foundation it links, so the order
 matters. `scheduler` was taken first because it lights up the largest unlinked
@@ -105,8 +103,9 @@ exemption rather than ordinary debt.
 
 `api` followed, retiring the whole Connect and gRPC waiver block, and
 `webhook-dispatcher` claimed `httpx/outbound`, its only required consumer.
-`operator` reuses the controller factory, which is what gives the Kubernetes
-tree its third consumer at no new package cost.
+`operator` reuses the controller factory and `admin` reuses the api factory,
+which is what gives the Kubernetes and transport trees further consumers at no
+new package cost. `ingestion-controller` and `maintenance` closed the fleet.
 
 ## Canonical mechanisms
 

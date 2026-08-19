@@ -25,7 +25,7 @@ func apiSettings() foundationconfig.MapSource {
 	digest := sha256.Sum256([]byte(testAPIKey))
 	return foundationconfig.MapSource{SourceName: "test", Values: map[string]string{
 		"signing.hmac_key": "01234567890123456789012345678901",
-		"database.dsn":     "postgres://control:control@127.0.0.1:5432/control?sslmode=disable",
+		"database.dsn":     "postgres://control:control@127.0.0.1:5432/control?sslmode=require",
 		"auth.api_keys":    "api-client:" + hex.EncodeToString(digest[:]) + ":artifacts.read",
 		// Port 0 lets the kernel choose, so the suite never collides with a
 		// developer's running process or with a parallel package.

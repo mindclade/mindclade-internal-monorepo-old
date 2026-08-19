@@ -23,14 +23,17 @@ import (
 	"go.mindclade.dev/services/control_plane/internal/foundation/persistence"
 	"go.mindclade.dev/services/control_plane/internal/providers"
 	"go.mindclade.dev/services/control_plane/internal/providers/apikeys"
+	objectstores "go.mindclade.dev/services/control_plane/internal/providers/objects"
 )
 
 // RegistryFactory assembles the control-plane registry process: the durable
 // PostgreSQL mechanisms, the artifact object store, the read cache, and the
 // inbound HTTP transport.
 //
-// It is the first materialized control-plane factory. The remaining roles
-// still bootstrap through bootstrap.UnconfiguredFactory and fail closed.
+// It was the first materialized control-plane factory and it owns the shared
+// schema: the migration manifest for every table the other roles read and
+// write lives here, because one database holds them all and the version
+// ordering must be global.
 type RegistryFactory struct {
 	sources []foundationconfig.Source
 }
@@ -105,13 +108,13 @@ func (factory *RegistryFactory) Create(ctx context.Context, profile bootstrap.Pr
 		}
 	}
 
-	blobs, blobLifecycle, err := newBlobStore(ctx, settings)
+	blobs, blobLifecycle, err := objectstores.NewBlobStore(ctx, settings)
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}
 	release = append(release, func() { _ = blobLifecycle.Stop(ctx) })
 
-	caches, cacheLifecycle, err := newCacheStore(settings)
+	caches, cacheLifecycle, err := objectstores.NewCacheStore(settings)
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}

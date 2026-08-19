@@ -3,7 +3,14 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-package registry
+// Package objects binds the artifact store and the read cache: the two
+// provider-backed stores whose clients own a lifetime of their own.
+//
+// It is a sibling of the composition root rather than part of it so that a
+// role links only what it uses. The registry holds artifacts and the ingestion
+// coordinator stages them; no other role should carry a Cloud Storage or Redis
+// client into its binary.
+package objects
 
 import (
 	"context"
@@ -21,14 +28,14 @@ import (
 // newBlobStore builds the Google Cloud Storage adapter and the component that
 // owns the client's lifetime. The store itself is stateless; only the client
 // needs shutdown, so it is staged as infrastructure and stopped in reverse.
-func newBlobStore(ctx context.Context, settings config.Settings) (blob.Store, servicekit.Component, error) {
+func NewBlobStore(ctx context.Context, settings config.Settings) (blob.Store, servicekit.Component, error) {
 	bucket := strings.TrimSpace(settings.BlobBucket)
 	if bucket == "" {
 		return nil, servicekit.Component{}, faults.New(
 			faults.CodeFailedPrecondition,
 			"control-plane blob bucket is not configured",
 			faults.WithReason("blob_bucket_not_configured"),
-			faults.WithOperation("controlplane.registry.newBlobStore"),
+			faults.WithOperation("controlplane.objects.NewBlobStore"),
 			faults.WithRetryPolicy(faults.NoRetry()),
 		)
 	}
@@ -37,7 +44,7 @@ func newBlobStore(ctx context.Context, settings config.Settings) (blob.Store, se
 		return nil, servicekit.Component{}, faults.Wrap(err, faults.CodeUnavailable,
 			"unable to create the Google Cloud Storage client",
 			faults.WithReason("blob_client_failed"),
-			faults.WithOperation("controlplane.registry.newBlobStore"),
+			faults.WithOperation("controlplane.objects.NewBlobStore"),
 		)
 	}
 	options := make([]gcs.Option, 0, 1)
@@ -56,7 +63,7 @@ func newBlobStore(ctx context.Context, settings config.Settings) (blob.Store, se
 				return faults.Wrap(err, faults.CodeInternal,
 					"unable to close the Google Cloud Storage client",
 					faults.WithReason("blob_client_close_failed"),
-					faults.WithOperation("controlplane.registry.blobComponent.Stop"),
+					faults.WithOperation("controlplane.objects.blobComponent.Stop"),
 				)
 			}
 			return nil

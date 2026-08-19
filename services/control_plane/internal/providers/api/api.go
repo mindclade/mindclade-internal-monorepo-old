@@ -34,9 +34,16 @@ import (
 	"go.mindclade.dev/services/control_plane/internal/providers/durable"
 )
 
-// APIFactory assembles the control-plane API process: the durable PostgreSQL
-// mechanisms, the service-identity stack, and the inbound HTTP, Connect, and
-// gRPC transports.
+// APIFactory assembles a request-serving control-plane process: the durable
+// PostgreSQL mechanisms, the service-identity stack, and the inbound HTTP,
+// Connect, and gRPC transports.
+//
+// The api and admin roles have identical capability profiles, so they are the
+// same composition rather than two copies of it. They are separate processes
+// because they are separately deployed and separately addressed -- an
+// administrative surface reachable on the same endpoint as the public API is a
+// surface that cannot be firewalled off from it -- and each reads its own
+// listener addresses from its own environment.
 type APIFactory struct {
 	sources []foundationconfig.Source
 }
@@ -51,6 +58,14 @@ func NewAPIFactory(sources ...foundationconfig.Source) *APIFactory {
 	return &APIFactory{sources: sources}
 }
 
+// NewAdminFactory returns the administrative provider factory. It is the API
+// composition: the admin role requires exactly the same capabilities, and
+// giving it a second implementation would mean two places to keep the identity
+// and transport stacks correct.
+func NewAdminFactory(sources ...foundationconfig.Source) *APIFactory {
+	return NewAPIFactory(sources...)
+}
+
 // Create resolves configuration and constructs every provider the API role
 // requires. Construction is ordered cheapest-first: configuration, pure
 // mechanisms, and the credential registry all fail before a socket or a
@@ -60,7 +75,7 @@ func (factory *APIFactory) Create(ctx context.Context, profile bootstrap.Profile
 	if factory == nil || ctx == nil {
 		return bootstrap.Runtime{}, faults.New(
 			faults.CodeInvalidArgument,
-			"api factory requires a context",
+			"request-serving factory requires a context",
 			faults.WithReason("invalid_factory_request"),
 			faults.WithOperation("controlplane.api.APIFactory.Create"),
 			faults.WithRetryPolicy(faults.NoRetry()),

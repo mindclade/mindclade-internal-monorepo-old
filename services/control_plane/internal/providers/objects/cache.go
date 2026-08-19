@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-package registry
+package objects
 
 import (
 	"context"
@@ -22,14 +22,14 @@ import (
 // client. Unlike the blob client, the cache is probed: a control-plane read
 // path that silently loses its cache degrades into a database overload, so
 // reachability is part of readiness rather than discovered on first use.
-func newCacheStore(settings config.Settings) (cache.Store, servicekit.Component, error) {
+func NewCacheStore(settings config.Settings) (cache.Store, servicekit.Component, error) {
 	address := strings.TrimSpace(settings.CacheAddress)
 	if address == "" {
 		return nil, servicekit.Component{}, faults.New(
 			faults.CodeFailedPrecondition,
 			"control-plane cache address is not configured",
 			faults.WithReason("cache_address_not_configured"),
-			faults.WithOperation("controlplane.registry.newCacheStore"),
+			faults.WithOperation("controlplane.objects.NewCacheStore"),
 			faults.WithRetryPolicy(faults.NoRetry()),
 		)
 	}
@@ -51,7 +51,7 @@ func newCacheStore(settings config.Settings) (cache.Store, servicekit.Component,
 			return faults.Wrap(err, faults.CodeUnavailable,
 				"control-plane cache is unreachable",
 				faults.WithReason("cache_unreachable"),
-				faults.WithOperation("controlplane.registry.cacheComponent.Probe"),
+				faults.WithOperation("controlplane.objects.cacheComponent.Probe"),
 				faults.WithRetryPolicy(faults.BackoffRetry(3)),
 			)
 		}
@@ -66,7 +66,7 @@ func newCacheStore(settings config.Settings) (cache.Store, servicekit.Component,
 				return faults.Wrap(err, faults.CodeInternal,
 					"unable to close the control-plane cache client",
 					faults.WithReason("cache_client_close_failed"),
-					faults.WithOperation("controlplane.registry.cacheComponent.Stop"),
+					faults.WithOperation("controlplane.objects.cacheComponent.Stop"),
 				)
 			}
 			return nil

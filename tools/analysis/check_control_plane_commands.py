@@ -14,7 +14,15 @@ strings out of consumption.go; check_foundation_consumption.py now derives that
 from the import graph instead.
 
 What survives here is the part that is still an invariant: a command owns no
-lifecycle of its own.
+lifecycle of its own -- plus one the old test never covered: a command that
+links the PostgreSQL pool must also link a driver.
+
+That second rule exists because the failure it catches is invisible. Seven
+commands opened a pool while importing no driver, so every one of them would
+have died at startup on "database_driver_not_linked". Their factory tests all
+passed, because a _test.go file imported lib/pq and put the driver in the test
+binary rather than the real one. A guard that reads the production import graph
+is the only thing that can tell those two apart.
 """
 
 from __future__ import annotations
@@ -24,9 +32,28 @@ import re
 import sys
 from pathlib import Path
 
+sys.dont_write_bytecode = True
+HERE = Path(__file__).resolve().parent
+if str(HERE) not in sys.path:
+    sys.path.insert(0, str(HERE))
+import go_import_graph as graphs
+
 COMMAND_ROOT = "services/control_plane/cmd"
 PROFILE_PATH = "services/control_plane/internal/bootstrap/profile.go"
 ROLE_CONST_RE = re.compile(r'(?m)^\s*(?:const\s+)?(Role[A-Za-z]+)\s+Role\s*=\s*"([a-z0-9-]+)"')
+
+# Importing this package is what opens a *sql.DB, so it is the precise
+# condition under which a driver must be registered.
+SQL_POOL = "libs/go/storage/sql/postgres"
+
+# database/sql drivers this repository may link. A driver is registered by an
+# import side effect, so only the main package may choose one; adding an entry
+# here is the reviewed step that admits a new driver.
+DRIVERS = (
+    "github.com/lib/pq",
+    "github.com/jackc/pgx/v5/stdlib",
+    "github.com/jackc/pgx/v4/stdlib",
+)
 
 FORBIDDEN = {
     "servicekit.New(": "command bypasses servicekit/production bootstrap",
@@ -42,6 +69,10 @@ def check(root: Path) -> list[str]:
 
     roles = dict(ROLE_CONST_RE.findall((root / PROFILE_PATH).read_text(encoding="utf-8")))
     by_value = {value: name for name, value in roles.items()}
+
+    module = graphs.module_path(root)
+    graph = graphs.import_graph(root)
+    pool_package = f"{module}/{SQL_POOL}"
 
     errors: list[str] = []
     for directory in sorted(path for path in command_root.iterdir() if path.is_dir()):
@@ -66,6 +97,22 @@ def check(root: Path) -> list[str]:
         for token, message in FORBIDDEN.items():
             if token in source:
                 errors.append(f"{COMMAND_ROOT}/{command}/main.go: {message}")
+
+        # The pool is reached transitively, through the role's provider
+        # factory, so the command's own imports cannot answer this.
+        reachable = graphs.transitive_imports(graph, [f"{module}/{COMMAND_ROOT}/{command}"])
+        if pool_package in reachable:
+            imports = graphs.file_imports(source)
+            if not any(driver in imports for driver in DRIVERS):
+                errors.append(
+                    f"{COMMAND_ROOT}/{command}/main.go: links {SQL_POOL} but registers no "
+                    f"database/sql driver; add a blank import of one of {', '.join(DRIVERS)}"
+                )
+        elif any(driver in graphs.file_imports(source) for driver in DRIVERS):
+            errors.append(
+                f"{COMMAND_ROOT}/{command}/main.go: registers a database/sql driver but never "
+                f"links {SQL_POOL}; drop the import"
+            )
 
         build = directory / "BUILD.bazel"
         if not build.is_file():

@@ -3,13 +3,24 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-// Command ingestion-controller is the production composition root for its
-// control-plane process role. Provider construction remains service-owned; all
-// lifecycle behavior flows through servicekit/production via bootstrap.
+// Command ingestion_controller is the production composition root for the
+// control-plane ingestion-coordinator role. Provider construction remains
+// service-owned; all lifecycle behavior flows through servicekit/production
+// via bootstrap.
+//
+// The PostgreSQL driver is linked here, in the only package that may decide
+// which drivers this binary carries. The provider factory resolves the
+// configured driver name against the registered set and fails closed when it
+// is absent.
 package main
 
-import "go.mindclade.dev/services/control_plane/internal/bootstrap"
+import (
+	_ "github.com/lib/pq"
+
+	"go.mindclade.dev/services/control_plane/internal/bootstrap"
+	"go.mindclade.dev/services/control_plane/internal/providers/ingestion"
+)
 
 func main() {
-	bootstrap.Main(bootstrap.RoleIngestionController, bootstrap.UnconfiguredFactory("ingestion-controller"))
+	bootstrap.Main(bootstrap.RoleIngestionController, ingestion.NewIngestionFactory())
 }
