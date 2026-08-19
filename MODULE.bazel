@@ -24,11 +24,54 @@ bazel_dep(name = "rules_oci", version = "2.2.6")
 bazel_dep(name = "protobuf", version = "29.3")
 
 # Rust third-party dependencies are derived from the canonical Cargo workspace.
+#
+# EVERY MEMBER MANIFEST IS LISTED, not just the root. cargo-bazel splices the workspace from
+# the manifests it is given, and a member missing from this list makes the extension FAIL to
+# evaluate — "Some manifests are not being tracked" — which aborts analysis for the whole
+# repository rather than for the crate in question. The root manifest alone was what
+# `bazel build //... --nobuild` was failing on.
+#
+# Keep this in step with the `members` list in //:Cargo.toml. The two are one list expressed
+# twice, and cargo-bazel names the missing label when they diverge.
 crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 crate.from_cargo(
     name = "crates",
     cargo_lockfile = "//:Cargo.lock",
-    manifests = ["//:Cargo.toml"],
+    manifests = [
+        "//:Cargo.toml",
+        "//libs/rust/artifact_cas:Cargo.toml",
+        "//libs/rust/atomic_fs:Cargo.toml",
+        "//libs/rust/bio_formats:Cargo.toml",
+        "//libs/rust/bounded_parse:Cargo.toml",
+        "//libs/rust/bytes_io:Cargo.toml",
+        "//libs/rust/checkpoint_io:Cargo.toml",
+        "//libs/rust/content_digest:Cargo.toml",
+        "//libs/rust/data_stream:Cargo.toml",
+        "//libs/rust/faults:Cargo.toml",
+        "//libs/rust/gpu_host:Cargo.toml",
+        "//libs/rust/identifiers:Cargo.toml",
+        "//libs/rust/ipc:Cargo.toml",
+        "//libs/rust/ipc_os:Cargo.toml",
+        "//libs/rust/manifests:Cargo.toml",
+        "//libs/rust/object_store:Cargo.toml",
+        "//libs/rust/python_bridge:Cargo.toml",
+        "//libs/rust/record_io:Cargo.toml",
+        "//libs/rust/runtime_core:Cargo.toml",
+        "//libs/rust/servicekit:Cargo.toml",
+        "//libs/rust/telemetry:Cargo.toml",
+        "//libs/rust/telemetry_spool:Cargo.toml",
+        "//libs/rust/tokenizer_runtime:Cargo.toml",
+        "//libs/rust/worker_protocol:Cargo.toml",
+        "//libs/rust/worker_runtime:Cargo.toml",
+        "//serving/runtime:Cargo.toml",
+        "//services/artifact_proxy:Cargo.toml",
+        "//services/node_agent:Cargo.toml",
+        "//services/runtime_gateway:Cargo.toml",
+        "//services/runtime_host:Cargo.toml",
+        "//services/workers/ingestion:Cargo.toml",
+        "//protocols/rust:Cargo.toml",
+        "//tools/qualification/rust/perf_probe:Cargo.toml",
+    ],
 )
 use_repo(crate, "crates")
 

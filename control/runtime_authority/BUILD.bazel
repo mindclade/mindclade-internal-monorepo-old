@@ -9,7 +9,7 @@ go_library(
     name = "runtime_authority",
     srcs = glob(["*.go"], exclude=["*_test.go"]),
     importpath = "go.mindclade.dev/control/runtime_authority",
-    visibility = ["//control:__subpackages__", "//services:__subpackages__", "//examples:__subpackages__"],
+    visibility = ["//control:__subpackages__", "//services:__subpackages__", "//examples:__subpackages__", "//tests:__subpackages__"],
     deps = [
         "//libs/go/clock",
         "//libs/go/faults",

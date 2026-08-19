@@ -216,12 +216,26 @@ jobs:
   # boundary — a label Bazel refuses outright, which stopped `//...` from evaluating AT ALL and
   # therefore hid every other result in the repository.
   #
-  # WHY NOT `--nobuild`. Full analysis additionally resolves external repositories, and the
-  # workspace does not register them yet: Go targets fail on `org_golang_google_genproto_
-  # googleapis_rpc` not being visible from the main repository, and Rust targets fail inside
-  # the rules_rust crate_universe extension because the Cargo.toml manifests are not declared
-  # to it. Both are real gaps in the Bazel integration and neither is a workflow change.
-  # Promote this step to `bazel build //... --nobuild` in the commit that closes them.
+  # WHY NOT `--nobuild`. Full analysis additionally resolves external repositories, and two
+  # TOOLCHAIN VERSIONS still stop it. Neither is a workflow change, and both are one line in
+  # MODULE.bazel once the upstream support exists:
+  #
+  #   Rust — cargo-bazel splices the workspace with rules_rust's host tools, which ship Cargo
+  #   1.84. This workspace is `edition = "2024"`, stabilised in Cargo 1.85, so cargo-bazel
+  #   cannot PARSE the workspace and the crate_universe extension fails to evaluate. That
+  #   aborts analysis for the whole repository, Go targets included. `rust.toolchain(versions
+  #   = ...)` does not fix it: the host tools are a separate repository from the registered
+  #   toolchain.
+  #
+  #   Go — gazelle's fetch_repo runs under the SDK rules_go defaults to (1.22.7) with
+  #   GOTOOLCHAIN=local, and `go.opentelemetry.io/contrib/.../otelhttp@v0.67.0` requires
+  #   go >= 1.25. Pinning the SDK is the fix and is blocked upstream; see the note at the
+  #   bottom of MODULE.bazel.
+  #
+  # Everything BEFORE those two is now resolved — the go_deps and crate_universe extensions
+  # are declared, every workspace manifest is tracked, and the visibility graph is clean. The
+  # last full run analysed 900 targets and configured 9,336 before hitting the Rust host
+  # tools. Promote this step to `bazel build //... --nobuild` in the commit that closes them.
   #
   # NO BUILDIFIER STEP either, and that is a decision rather than an oversight.
   # `buildifier --mode=check -r .` currently reports 549 files, every one of them the same
