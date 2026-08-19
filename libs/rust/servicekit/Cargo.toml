@@ -22,6 +22,10 @@ mindclade_runtime_core = { path = "../runtime_core" }
 mindclade_faults = { path = "../faults" }
 mindclade_identifiers = { path = "../identifiers" }
 mindclade_telemetry = { path = "../telemetry" }
+# Signal registration needs an OS-signal API. std has none, and the libc route
+# needs `unsafe`, which this workspace denies. Only the `signal` feature is used;
+# it reaches sync-only consumers (artifact_proxy, node_agent) transitively.
+tokio = { workspace = true }
 
 [lints]
 workspace = true

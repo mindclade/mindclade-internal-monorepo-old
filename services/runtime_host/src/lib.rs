@@ -17,6 +17,7 @@ pub mod bulk;
 pub mod config;
 pub mod health;
 pub mod ipc;
+pub mod lifecycle;
 pub mod models;
 pub mod processes;
 pub mod protocol;
@@ -28,6 +29,7 @@ pub use authority::HostAuthority;
 pub use bulk::{BulkBackend, BulkBufferBroker};
 pub use config::HostConfig;
 pub use health::{HostHealth, HostHealthSnapshot};
+pub use lifecycle::HostComponent;
 pub use models::{LoadedModel, ModelRegistry, ModelSpec};
 pub use processes::{
     ProcessHandle, ProcessLauncher, ProcessSpec, ProcessSupervisor, StdProcessLauncher,

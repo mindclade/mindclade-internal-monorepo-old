@@ -35,6 +35,7 @@ mindclade_faults = { path = "../../libs/rust/faults" }
 mindclade_gpu_host = { path = "../../libs/rust/gpu_host" }
 mindclade_ipc = { path = "../../libs/rust/ipc" }
 mindclade_runtime_core = { path = "../../libs/rust/runtime_core" }
+mindclade_servicekit = { path = "../../libs/rust/servicekit" }
 mindclade_telemetry = { path = "../../libs/rust/telemetry" }
 mindclade_worker_protocol = { path = "../../libs/rust/worker_protocol" }
 mindclade_worker_runtime = { path = "../../libs/rust/worker_runtime" }

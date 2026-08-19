@@ -1047,6 +1047,7 @@ dependencies = [
  "mindclade_identifiers",
  "mindclade_protocols",
  "mindclade_runtime_core",
+ "mindclade_servicekit",
  "mindclade_telemetry",
  "mindclade_worker_protocol",
  "prost",
@@ -1069,6 +1070,7 @@ dependencies = [
  "mindclade_ipc_os",
  "mindclade_protocols",
  "mindclade_runtime_core",
+ "mindclade_servicekit",
  "mindclade_telemetry",
  "mindclade_worker_protocol",
  "mindclade_worker_runtime",
@@ -1298,6 +1300,7 @@ dependencies = [
  "mindclade_identifiers",
  "mindclade_runtime_core",
  "mindclade_telemetry",
+ "tokio",
 ]
 
 [[package]]

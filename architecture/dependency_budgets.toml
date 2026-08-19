@@ -50,11 +50,11 @@ allowed_prefixes = ["mindclade_faults", "mindclade_runtime_core", "mindclade_wor
 [[budget]]
 path = "services/runtime_gateway"
 language = "rust"
-max_internal_direct = 8
-allowed_prefixes = ["mindclade_content_digest", "mindclade_faults", "mindclade_identifiers", "mindclade_protocols", "mindclade_runtime_core", "mindclade_serving_runtime", "mindclade_telemetry", "mindclade_worker_protocol"]
+max_internal_direct = 9
+allowed_prefixes = ["mindclade_content_digest", "mindclade_faults", "mindclade_identifiers", "mindclade_protocols", "mindclade_runtime_core", "mindclade_servicekit", "mindclade_serving_runtime", "mindclade_telemetry", "mindclade_worker_protocol"]
 
 [[budget]]
 path = "services/runtime_host"
 language = "rust"
-max_internal_direct = 11
-allowed_prefixes = ["mindclade_bytes_io", "mindclade_faults", "mindclade_gpu_host", "mindclade_ipc", "mindclade_ipc_os", "mindclade_protocols", "mindclade_runtime_core", "mindclade_serving_runtime", "mindclade_telemetry", "mindclade_worker_protocol", "mindclade_worker_runtime"]
+max_internal_direct = 12
+allowed_prefixes = ["mindclade_bytes_io", "mindclade_faults", "mindclade_gpu_host", "mindclade_ipc", "mindclade_ipc_os", "mindclade_protocols", "mindclade_runtime_core", "mindclade_servicekit", "mindclade_serving_runtime", "mindclade_telemetry", "mindclade_worker_protocol", "mindclade_worker_runtime"]

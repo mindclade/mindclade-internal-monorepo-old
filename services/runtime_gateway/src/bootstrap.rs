@@ -9,12 +9,13 @@
 //! configuration. Global policy remains owned by the Go control plane.
 
 use crate::{
-    GatewayAuthority, GatewayConfig, GatewayCore, GatewayHealth,
+    GatewayAuthority, GatewayComponent, GatewayConfig, GatewayCore, GatewayHealth,
     network::{self, GatewayNetworkState},
     protocol,
 };
 use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_protocols::runtime::v1 as wire;
+use mindclade_servicekit::{Service, signals};
 use mindclade_worker_protocol::Ed25519VerificationKey;
 use prost::Message;
 use std::{env, fs, net::SocketAddr, path::PathBuf, sync::Arc, time::UNIX_EPOCH};
@@ -97,12 +98,20 @@ pub async fn run(config: BootstrapConfig) -> FaultResult<()> {
         authority.policy(),
         health.clone(),
     )?);
-    health.set_policy_fresh(true);
-    health.set_accepting(true);
+
+    // servicekit owns start order, drain, and stop. Readiness is asserted by
+    // the component's start hook rather than inline here, so the process cannot
+    // advertise itself as accepting before the lifecycle says it started.
+    let mut service = Service::new();
+    service.register(Box::new(GatewayComponent::new(
+        core.clone(),
+        health.clone(),
+    )))?;
+    service.start()?;
 
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
     let signal = tokio::spawn(async move {
-        termination_requested().await;
+        signals::termination_requested().await;
         let _ = shutdown_tx.send(true);
     });
     let result = network::serve(
@@ -114,45 +123,12 @@ pub async fn run(config: BootstrapConfig) -> FaultResult<()> {
     .map_err(|error| {
         Fault::new(Code::Unavailable, "runtime gateway network server failed").with_source(error)
     });
-    core.begin_drain();
     signal.abort();
-    result
-}
 
-/// Resolves when the operating system asks this process to terminate.
-///
-/// SIGTERM is the signal that matters. Kubernetes, Cloud Run, and `docker stop`
-/// all send it and none of them send SIGINT, so waiting on `ctrl_c` alone means
-/// the drain below never runs: the process sits idle through the whole
-/// termination grace period and is then killed with SIGKILL, requests still in
-/// flight. SIGINT stays handled for interactive runs.
-#[cfg(unix)]
-async fn termination_requested() {
-    use tokio::signal::unix::{SignalKind, signal};
-
-    let Ok(mut terminate) = signal(SignalKind::terminate()) else {
-        return interrupt_requested().await;
-    };
-    tokio::select! {
-        _ = terminate.recv() => {}
-        () = interrupt_requested() => {}
-    }
-}
-
-#[cfg(not(unix))]
-async fn termination_requested() {
-    interrupt_requested().await;
-}
-
-/// SIGINT, and never resolving if the handler cannot be registered.
-///
-/// A failed registration must not resolve: the caller treats a resolve as
-/// "shutdown requested", so reporting one here would stop the process during
-/// startup rather than report the signal it could not hear.
-async fn interrupt_requested() {
-    if tokio::signal::ctrl_c().await.is_err() {
-        std::future::pending::<()>().await;
-    }
+    // Drain and stop run in reverse registration order here. The serve error, if
+    // any, outranks a shutdown fault: it is the reason the process is ending.
+    let shutdown = service.stop();
+    result.and(shutdown)
 }
 
 fn read_message<M: Message + Default>(path: &PathBuf) -> FaultResult<M> {
@@ -251,34 +227,5 @@ mod tests {
         let key = decode_32_byte_hex(&"ab".repeat(32)).expect("valid key");
         assert_eq!(key, [0xab; 32]);
         assert!(decode_32_byte_hex("ab").is_err());
-    }
-
-    /// Guards the regression this fix addresses: `ctrl_c` alone listens for
-    /// SIGINT, and every orchestrator these binaries run under sends SIGTERM.
-    #[cfg(unix)]
-    #[tokio::test]
-    async fn sigterm_requests_termination() {
-        use std::{process::Command, time::Duration};
-        use tokio::signal::unix::{SignalKind, signal};
-
-        // Install the handler BEFORE raising. Until some stream exists the
-        // default disposition is still in place, and the raise below would
-        // terminate the test binary instead of being delivered to Tokio.
-        let _installed = signal(SignalKind::terminate()).expect("SIGTERM handler installs");
-
-        let waiter = tokio::spawn(termination_requested());
-        // Let the spawned task reach its own registration before signalling.
-        tokio::task::yield_now().await;
-
-        let status = Command::new("kill")
-            .args(["-TERM", &std::process::id().to_string()])
-            .status()
-            .expect("kill runs");
-        assert!(status.success(), "could not signal the test process");
-
-        tokio::time::timeout(Duration::from_secs(5), waiter)
-            .await
-            .expect("termination_requested must resolve on SIGTERM")
-            .expect("waiter task joins");
     }
 }
