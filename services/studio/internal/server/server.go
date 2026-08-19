@@ -36,6 +36,8 @@ import (
 	"log/slog"
 	"net/http"
 
+	"go.mindclade.dev/libs/go/httpx/health"
+
 	"go.mindclade.dev/services/studio/internal/handoff"
 	"go.mindclade.dev/services/studio/internal/httpx"
 	"go.mindclade.dev/services/studio/internal/iap"
@@ -78,6 +80,11 @@ type Deps struct {
 
 	DB *sql.DB
 
+	// Health answers the probes. Required for every role: an unset one would
+	// leave the probe routes reporting a fixed 200, which is the defect this
+	// field exists to prevent.
+	Health *Health
+
 	// CSP posture. Ship Report-Only first, with a working endpoint.
 	CSPMode      httpx.CSPMode
 	CSPReportURI string
@@ -87,6 +94,9 @@ type Deps struct {
 func Build(d Deps) (http.Handler, error) {
 	if d.Logger == nil {
 		return nil, errors.New("server: logger is required")
+	}
+	if d.Health == nil {
+		return nil, errors.New("server: health is required")
 	}
 
 	switch d.Role {
@@ -125,8 +135,7 @@ func Build(d Deps) (http.Handler, error) {
 // from being removed.
 func buildEmbed(d Deps) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", healthOK)
-	mux.HandleFunc("GET /readyz", healthOK)
+	mountProbes(mux, d)
 
 	mux.HandleFunc("GET /embed/_echo_headers", func(w http.ResponseWriter, r *http.Request) {
 		// Exists for the acceptance check that the Cookie header is stripped AT
@@ -160,8 +169,7 @@ func buildAuthenticated(d Deps) (http.Handler, error) {
 	// kubelet carries no assertion — and the Deployment would never become
 	// ready, with the pod logs showing only 401s.
 	probes := http.NewServeMux()
-	probes.HandleFunc("GET /healthz", healthOK)
-	probes.HandleFunc("GET /readyz", healthOK)
+	mountProbes(probes, d)
 
 	switch d.Role {
 	case RoleWeb:
@@ -328,7 +336,22 @@ func mountStream(mux *http.ServeMux, d Deps) {
 	mux.Handle("GET /api/stream/runs/{runID}", handler)
 }
 
-func healthOK(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }
+// mountProbes registers liveness and readiness on mux.
+//
+// Both answers come from d.Health, so /readyz reports what it is named after:
+// whether this process should be sent traffic. It previously returned a fixed
+// 200, which meant a pod stayed in the Endpoints list through a database
+// outage and through its own shutdown drain.
+func mountProbes(mux *http.ServeMux, d Deps) {
+	handler := health.NewHandler(d.Health, health.Config{
+		LivenessPath:  "/healthz",
+		ReadinessPath: "/readyz",
+	})
+	mux.Handle("GET /healthz", handler)
+	mux.Handle("GET /readyz", handler)
+	mux.Handle("HEAD /healthz", handler)
+	mux.Handle("HEAD /readyz", handler)
+}
 
 // readBody reads a request body under a hard cap.
 //

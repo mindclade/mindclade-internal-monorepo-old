@@ -52,13 +52,28 @@ func testVerifier(t *testing.T) *iap.Verifier {
 	return v
 }
 
+// allowAll is the resolver for tests that are not about authorization.
+func allowAll(context.Context, iap.Assertion) error { return nil }
+
+// testHealth builds a probe answerer with no database, which is what every
+// handler test wants: these tests exercise routing and authentication, and a
+// role that needs a real database is covered by the Build tests instead.
+func testHealth(t *testing.T) *Health {
+	t.Helper()
+	h, err := NewHealth(nil)
+	if err != nil {
+		t.Fatalf("NewHealth: %v", err)
+	}
+	return h
+}
+
 func buildRole(t *testing.T, role Role) http.Handler {
 	t.Helper()
-	d := Deps{Role: role, Logger: discardLogger(), CSPMode: httpx.CSPReportOnly}
+	d := Deps{Role: role, Logger: discardLogger(), CSPMode: httpx.CSPReportOnly, Health: testHealth(t)}
 	if role != RoleEmbed {
 		d.Verifier = testVerifier(t)
 		d.Codec = testCodec(t)
-		d.Resolve = func(context.Context, iap.Assertion) error { return nil }
+		d.Resolve = allowAll
 	}
 	h, err := Build(d)
 	if err != nil {
@@ -189,7 +204,7 @@ func TestEmbedEchoRevealsWhetherCookiesArrive(t *testing.T) {
 // which point the Service is already behind a route.
 func TestBuildRefusesIncompleteAuthenticatedRoles(t *testing.T) {
 	for _, role := range []Role{RoleWeb, RoleBFF, RoleBFFStream} {
-		if _, err := Build(Deps{Role: role, Logger: discardLogger()}); err == nil {
+		if _, err := Build(Deps{Role: role, Logger: discardLogger(), Health: testHealth(t)}); err == nil {
 			t.Errorf("Build(%s) with no verifier succeeded; want an error", role)
 		}
 	}
@@ -199,7 +214,7 @@ func TestBuildRefusesIncompleteAuthenticatedRoles(t *testing.T) {
 func TestBuildRequiresADatabaseWhereItIsUsed(t *testing.T) {
 	for _, role := range []Role{RoleBFF, RoleBFFStream} {
 		d := Deps{
-			Role: role, Logger: discardLogger(),
+			Role: role, Logger: discardLogger(), Health: testHealth(t),
 			Verifier: testVerifier(t), Codec: testCodec(t),
 			Resolve: func(context.Context, iap.Assertion) error { return nil },
 		}

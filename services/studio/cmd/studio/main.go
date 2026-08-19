@@ -75,6 +75,10 @@ func run(logger *slog.Logger) error {
 		}
 	}
 
+	if deps.Health, err = server.NewHealth(deps.DB); err != nil {
+		return err
+	}
+
 	handler, err := server.Build(deps)
 	if err != nil {
 		return err
@@ -100,6 +104,18 @@ func run(logger *slog.Logger) error {
 
 	go func() {
 		<-ctx.Done()
+
+		// FAIL READINESS FIRST, then keep serving for the propagation window.
+		//
+		// Endpoints removal is not synchronous with the probe flipping, so
+		// closing the listener here would strand whatever the load balancer is
+		// still routing to this pod as 502s. The process is healthy for this
+		// whole delay — it is only telling the orchestrator to stop aiming at
+		// it, and waiting for that to take effect.
+		deps.Health.BeginDrain()
+		logger.Info("draining", "propagation_delay", server.DrainPropagationDelay.String())
+		time.Sleep(server.DrainPropagationDelay)
+
 		// A short drain is correct here BECAUSE streams are resumable. Without
 		// that, terminationGracePeriodSeconds would have to exceed the longest
 		// possible run; with it, a severed stream is a clean EOF the client
