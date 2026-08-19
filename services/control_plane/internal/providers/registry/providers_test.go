@@ -3,22 +3,27 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-package providers
+package registry
 
 import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"strings"
 	"testing"
 
 	_ "github.com/lib/pq"
 
+	auditpostgres "go.mindclade.dev/libs/go/audit/postgres"
 	"go.mindclade.dev/libs/go/auth"
 	mcclock "go.mindclade.dev/libs/go/clock"
 	foundationconfig "go.mindclade.dev/libs/go/config"
+	outboxpostgres "go.mindclade.dev/libs/go/coordination/outbox/postgres"
 	"go.mindclade.dev/libs/go/faults"
+	idempotencypostgres "go.mindclade.dev/libs/go/idempotency/postgres"
 	"go.mindclade.dev/services/control_plane/internal/bootstrap"
 	"go.mindclade.dev/services/control_plane/internal/config"
+	"go.mindclade.dev/services/control_plane/internal/providers"
 )
 
 const testAPIKey = "registry-client-secret-value"
@@ -95,13 +100,6 @@ func TestRegistryFactoryFailsClosedWithoutProviders(t *testing.T) {
 	}
 }
 
-func TestOpenDatabaseRejectsUnlinkedDriver(t *testing.T) {
-	_, err := openDatabase(config.Settings{DatabaseDriver: "pgx", DatabaseDSN: "postgres://localhost/db"})
-	if err == nil || faults.ReasonOf(err) != "database_driver_not_linked" {
-		t.Fatalf("err=%v", err)
-	}
-}
-
 // The three shared adapters ship DDL but no version, so the composition root
 // orders them. A collision here would silently skip a schema.
 func TestMigrationRunnerCarriesEveryAdapterSchema(t *testing.T) {
@@ -111,6 +109,32 @@ func TestMigrationRunnerCarriesEveryAdapterSchema(t *testing.T) {
 	}
 	if runner == nil {
 		t.Fatal("nil migration runner")
+	}
+}
+
+// Each adapter takes its table as a parameter, so the schema this process
+// applies must be derived from the same constant the store is constructed
+// with. A fixed schema beside a configurable store is how a migration and its
+// reader stop describing the same table.
+func TestMigrationsAndStoresNameTheSameTables(t *testing.T) {
+	for _, testCase := range []struct {
+		name  string
+		table string
+		ddl   func(string) (string, error)
+	}{
+		{"audit", providers.AuditTable, auditpostgres.DDL},
+		{"idempotency", providers.IdempotencyTable, idempotencypostgres.DDL},
+		{"outbox", providers.OutboxTable, outboxpostgres.DDL},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			statement, err := testCase.ddl(testCase.table)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(statement, "CREATE TABLE IF NOT EXISTS "+testCase.table+" (") {
+				t.Fatalf("schema does not create %q: %s", testCase.table, statement)
+			}
+		})
 	}
 }
 

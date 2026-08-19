@@ -68,17 +68,3 @@ packages = [
   "libs/go/observability/obstest",
   "libs/go/storage/lease/postgres",
 ]
-
-[[waiver]]
-reason = """
-storage/outbox duplicates coordination/outbox: the same Store, Dispatcher,
-Factory, Claim, and Message API, plus its own PostgreSQL adapter and
-conformance suite. Two names for one mechanism contradict the first
-package-consumption rule in CONSUMPTION.md. This waiver exists to record the
-duplication, not to preserve it; the facade should be deleted rather than
-adopted.
-"""
-packages = [
-  "libs/go/storage/outbox/outboxtest",
-  "libs/go/storage/outbox/postgres",
-]

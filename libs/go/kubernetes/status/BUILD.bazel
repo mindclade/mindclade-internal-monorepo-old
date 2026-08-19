@@ -18,7 +18,7 @@ go_library(
         "//libs/go/faults",
         "//libs/go/kubernetes/conditions",
         "//libs/go/kubernetes/patch",
-        "@io_k8s_apimachinery//pkg/apis/meta/v1",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
         "@io_k8s_sigs_controller_runtime//pkg/client",
     ],
 )
@@ -27,5 +27,5 @@ go_test(
     name = "status_test",
     srcs = ["status_test.go"],
     embed = [":status"],
-    deps = ["@io_k8s_apimachinery//pkg/apis/meta/v1"],
+    deps = ["@io_k8s_apimachinery//pkg/apis/meta/v1:meta"],
 )

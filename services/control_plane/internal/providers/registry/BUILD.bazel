@@ -1,0 +1,59 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//services/control_plane:__subpackages__"])
+
+go_library(
+    name = "registry",
+    srcs = ["blobs.go", "cache.go", "identity.go", "migrations.go", "registry.go", "serving.go"],
+    importpath = "go.mindclade.dev/services/control_plane/internal/providers/registry",
+    deps = [
+        "//libs/go/audit",
+        "//libs/go/audit/postgres",
+        "//libs/go/auth",
+        "//libs/go/clock",
+        "//libs/go/config",
+        "//libs/go/coordination/outbox/postgres",
+        "//libs/go/faults",
+        "//libs/go/httpx",
+        "//libs/go/httpx/health",
+        "//libs/go/httpx/middleware",
+        "//libs/go/idempotency",
+        "//libs/go/idempotency/postgres",
+        "//libs/go/identifiers",
+        "//libs/go/observability",
+        "//libs/go/requestmeta",
+        "//libs/go/servicekit",
+        "//libs/go/servicekit/production",
+        "//libs/go/storage/blob",
+        "//libs/go/storage/blob/gcs",
+        "//libs/go/storage/cache",
+        "//libs/go/storage/cache/redis",
+        "//libs/go/storage/sql/migrate",
+        "//services/control_plane/internal/bootstrap",
+        "//services/control_plane/internal/config",
+        "//services/control_plane/internal/foundation",
+        "//services/control_plane/internal/foundation/eventing",
+        "//services/control_plane/internal/foundation/governance",
+        "//services/control_plane/internal/foundation/identity",
+        "//services/control_plane/internal/foundation/objects",
+        "//services/control_plane/internal/foundation/persistence",
+        "//services/control_plane/internal/providers",
+        "//services/control_plane/internal/transport",
+        "@com_github_redis_go_redis_v9//:go-redis",
+        "@com_google_cloud_go_storage//:storage",
+    ],
+)
+
+go_test(
+    name = "registry_test",
+    srcs = ["providers_test.go"],
+    embed = [":registry"],
+    deps = [
+        "@com_github_lib_pq//:pq",
+    ],
+)

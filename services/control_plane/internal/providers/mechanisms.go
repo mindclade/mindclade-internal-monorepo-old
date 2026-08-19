@@ -16,24 +16,24 @@ import (
 	"go.mindclade.dev/services/control_plane/internal/config"
 )
 
-// mechanisms are the provider-independent foundation objects shared by every
+// Mechanisms are the provider-independent foundation objects shared by every
 // control-plane role. They depend on configuration only, never on a reachable
 // external system, so construction failures are always deployment errors.
-type mechanisms struct {
-	clock         mcclock.Clock
-	ids           *identifiers.Generator
-	observability *observability.Runtime
-	retry         *retry.Executor
-	signer        signing.Signer
-	verifier      signing.Verifier
-	pagination    *pagination.Codec
+type Mechanisms struct {
+	Clock         mcclock.Clock
+	IDs           *identifiers.Generator
+	Observability *observability.Runtime
+	Retry         *retry.Executor
+	Signer        signing.Signer
+	Verifier      signing.Verifier
+	Pagination    *pagination.Codec
 }
 
-func newMechanisms(settings config.Settings) (mechanisms, error) {
+func NewMechanisms(settings config.Settings) (Mechanisms, error) {
 	value := mcclock.RealClock{}
 	ids, err := identifiers.NewGenerator()
 	if err != nil {
-		return mechanisms{}, err
+		return Mechanisms{}, err
 	}
 	resource, err := observability.NewResource(
 		settings.ServiceName,
@@ -41,32 +41,32 @@ func newMechanisms(settings config.Settings) (mechanisms, error) {
 		observability.WithDeploymentEnvironment(string(settings.Environment)),
 	)
 	if err != nil {
-		return mechanisms{}, err
+		return Mechanisms{}, err
 	}
 	telemetry, err := observability.NewRuntime(resource, observability.WithClock(value))
 	if err != nil {
-		return mechanisms{}, err
+		return Mechanisms{}, err
 	}
 	executor, err := retry.NewExecutor(retry.DefaultPolicy(), retry.WithClock(value))
 	if err != nil {
-		return mechanisms{}, err
+		return Mechanisms{}, err
 	}
 	signer, verifier, err := newSigning(settings, value)
 	if err != nil {
-		return mechanisms{}, err
+		return Mechanisms{}, err
 	}
 	codec, err := pagination.NewCodec(signer, verifier, value, settings.PaginationTTL)
 	if err != nil {
-		return mechanisms{}, err
+		return Mechanisms{}, err
 	}
-	return mechanisms{
-		clock:         value,
-		ids:           ids,
-		observability: telemetry,
-		retry:         executor,
-		signer:        signer,
-		verifier:      verifier,
-		pagination:    codec,
+	return Mechanisms{
+		Clock:         value,
+		IDs:           ids,
+		Observability: telemetry,
+		Retry:         executor,
+		Signer:        signer,
+		Verifier:      verifier,
+		Pagination:    codec,
 	}, nil
 }
 

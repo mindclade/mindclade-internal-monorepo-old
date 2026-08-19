@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-package providers
+package registry
 
 import (
 	"context"
@@ -57,7 +57,7 @@ func newAuthenticator(settings config.Settings, value mcclock.Clock) (auth.Authe
 			faults.CodeFailedPrecondition,
 			"control-plane API-key registry is not configured",
 			faults.WithReason("api_keys_not_configured"),
-			faults.WithOperation("controlplane.providers.newAuthenticator"),
+			faults.WithOperation("controlplane.registry.newAuthenticator"),
 			faults.WithRetryPolicy(faults.NoRetry()),
 		)
 	}
@@ -78,7 +78,7 @@ func (authenticator *apiKeyAuthenticator) Authenticate(ctx context.Context, cred
 			faults.CodeUnauthenticated,
 			"unsupported credential scheme",
 			faults.WithReason("unsupported_credential_scheme"),
-			faults.WithOperation("controlplane.providers.apiKeyAuthenticator.Authenticate"),
+			faults.WithOperation("controlplane.registry.apiKeyAuthenticator.Authenticate"),
 			faults.WithContextMetadata(ctx),
 			faults.WithRetryPolicy(faults.NoRetry()),
 		)
@@ -172,7 +172,7 @@ func unauthenticated(reason string) error {
 		faults.CodeUnauthenticated,
 		"authentication failed",
 		faults.WithReason(reason),
-		faults.WithOperation("controlplane.providers.apiKeyAuthenticator.Authenticate"),
+		faults.WithOperation("controlplane.registry.apiKeyAuthenticator.Authenticate"),
 		faults.WithRetryPolicy(faults.NoRetry()),
 	)
 }
@@ -180,7 +180,7 @@ func unauthenticated(reason string) error {
 func invalidAPIKey(reason, subject string) error {
 	options := []faults.Option{
 		faults.WithReason(reason),
-		faults.WithOperation("controlplane.providers.parseAPIKeys"),
+		faults.WithOperation("controlplane.registry.parseAPIKeys"),
 		faults.WithRetryPolicy(faults.NoRetry()),
 	}
 	if subject != "" {

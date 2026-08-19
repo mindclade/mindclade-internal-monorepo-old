@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-package providers
+package registry
 
 import (
 	"context"
@@ -12,9 +12,16 @@ import (
 	foundationconfig "go.mindclade.dev/libs/go/config"
 	"go.mindclade.dev/libs/go/faults"
 	"go.mindclade.dev/libs/go/servicekit"
+	"go.mindclade.dev/libs/go/storage/sql/migrate"
 	"go.mindclade.dev/services/control_plane/internal/bootstrap"
 	"go.mindclade.dev/services/control_plane/internal/config"
 	"go.mindclade.dev/services/control_plane/internal/foundation"
+	"go.mindclade.dev/services/control_plane/internal/foundation/eventing"
+	"go.mindclade.dev/services/control_plane/internal/foundation/governance"
+	"go.mindclade.dev/services/control_plane/internal/foundation/identity"
+	"go.mindclade.dev/services/control_plane/internal/foundation/objects"
+	"go.mindclade.dev/services/control_plane/internal/foundation/persistence"
+	"go.mindclade.dev/services/control_plane/internal/providers"
 )
 
 // RegistryFactory assembles the control-plane registry process: the durable
@@ -47,7 +54,7 @@ func (factory *RegistryFactory) Create(ctx context.Context, profile bootstrap.Pr
 			faults.CodeInvalidArgument,
 			"registry factory requires a context",
 			faults.WithReason("invalid_factory_request"),
-			faults.WithOperation("controlplane.providers.RegistryFactory.Create"),
+			faults.WithOperation("controlplane.registry.RegistryFactory.Create"),
 			faults.WithRetryPolicy(faults.NoRetry()),
 		)
 	}
@@ -57,11 +64,11 @@ func (factory *RegistryFactory) Create(ctx context.Context, profile bootstrap.Pr
 	}
 	settings := resolved.Settings
 
-	shared, err := newMechanisms(settings)
+	shared, err := providers.NewMechanisms(settings)
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}
-	authenticator, err := newAuthenticator(settings, shared.clock)
+	authenticator, err := newAuthenticator(settings, shared.Clock)
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}
@@ -76,11 +83,26 @@ func (factory *RegistryFactory) Create(ctx context.Context, profile bootstrap.Pr
 		}
 	}()
 
-	stores, err := newDatabase(settings, shared.clock, shared.ids)
+	stores, err := providers.NewDatabase(settings, shared.Clock, shared.IDs)
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}
-	release = append(release, func() { _ = stores.db.Close() })
+	release = append(release, func() { _ = stores.DB.Close() })
+
+	recorder, err := newAuditRecorder(stores.DB)
+	if err != nil {
+		return bootstrap.Runtime{}, err
+	}
+	records, err := newIdempotencyStore(stores.DB, shared.Clock, shared.IDs)
+	if err != nil {
+		return bootstrap.Runtime{}, err
+	}
+	var runner *migrate.Runner
+	if settings.MigrationsEnabled {
+		if runner, err = newMigrationRunner(); err != nil {
+			return bootstrap.Runtime{}, err
+		}
+	}
 
 	blobs, blobLifecycle, err := newBlobStore(ctx, settings)
 	if err != nil {
@@ -94,7 +116,7 @@ func (factory *RegistryFactory) Create(ctx context.Context, profile bootstrap.Pr
 	}
 	release = append(release, func() { _ = cacheLifecycle.Stop(ctx) })
 
-	inbound, err := newServing(settings, shared.observability, authenticator)
+	inbound, err := newServing(settings, shared.Observability, authenticator)
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}
@@ -106,30 +128,44 @@ func (factory *RegistryFactory) Create(ctx context.Context, profile bootstrap.Pr
 	)
 
 	return bootstrap.Runtime{
-		Dependencies: foundation.Dependencies{
-			Clock:         shared.clock,
-			Configuration: resolved.Current,
-			IDs:           shared.ids,
-			// Both flags are claims about wiring, not intent: the canonical
-			// middleware stack installs request-metadata extraction and the
-			// transport decodes conditional-request preconditions.
-			RequestMetadataConfigured:  true,
-			ResourceVersionsConfigured: true,
-			Authenticator:              authenticator,
-			Authorizer:                 auth.PermissionAuthorizer{},
-			Audit:                      stores.audit,
-			Idempotency:                stores.idempotency,
-			Retry:                      shared.retry,
-			Observability:              shared.observability,
-			Signer:                     shared.signer,
-			Verifier:                   shared.verifier,
-			Pagination:                 shared.pagination,
-			Postgres:                   stores.pool,
-			Migrations:                 stores.migrations,
-			Transactions:               stores.transactions,
-			Blobs:                      blobs,
-			Cache:                      caches,
-			Outbox:                     stores.outbox,
+		// The aggregate list is the role's capability profile, written out.
+		// Anything absent here is a package this binary does not link.
+		Dependencies: []bootstrap.Aggregate{
+			foundation.Core{
+				Clock:         shared.Clock,
+				Configuration: resolved.Current,
+				IDs:           shared.IDs,
+				// A claim about wiring, not intent: the canonical middleware
+				// stack installs request-metadata extraction.
+				RequestMetadataConfigured: true,
+				Observability:             shared.Observability,
+				Retry:                     shared.Retry,
+			},
+			persistence.SQL{
+				Postgres:     stores.Pool,
+				Migrations:   runner,
+				Transactions: stores.Transactions,
+			},
+			governance.Controls{
+				Audit:       recorder,
+				Idempotency: records,
+				Signer:      shared.Signer,
+				Verifier:    shared.Verifier,
+				Pagination:  shared.Pagination,
+				// The transport decodes conditional-request preconditions.
+				ResourceVersionsConfigured: true,
+			},
+			identity.Controls{
+				Authenticator: authenticator,
+				Authorizer:    auth.PermissionAuthorizer{},
+			},
+			objects.Stores{
+				Blobs: blobs,
+				Cache: caches,
+			},
+			eventing.Mechanisms{
+				Outbox: stores.Outbox,
+			},
 		},
 		Components: components,
 		Bind:       inbound.bind,

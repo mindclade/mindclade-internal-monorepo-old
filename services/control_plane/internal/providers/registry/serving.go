@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-package providers
+package registry
 
 import (
 	"context"
@@ -46,7 +46,7 @@ func (value *prober) bind(runtime *production.Runtime) error {
 			faults.CodeInvalidArgument,
 			"health prober cannot bind a nil runtime",
 			faults.WithReason("nil_bound_runtime"),
-			faults.WithOperation("controlplane.providers.prober.bind"),
+			faults.WithOperation("controlplane.registry.prober.bind"),
 			faults.WithRetryPolicy(faults.NoRetry()),
 		)
 	}
@@ -93,7 +93,7 @@ func newServing(settings config.Settings, telemetry *observability.Runtime, auth
 		return serving{}, faults.Wrap(err, faults.CodeUnavailable,
 			"unable to open the control-plane HTTP listener",
 			faults.WithReason("http_listener_failed"),
-			faults.WithOperation("controlplane.providers.newServing"),
+			faults.WithOperation("controlplane.registry.newServing"),
 			faults.WithField("address", settings.HTTPAddress),
 		)
 	}

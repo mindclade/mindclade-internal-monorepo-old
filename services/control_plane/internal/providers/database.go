@@ -11,62 +11,50 @@ import (
 	"strings"
 	"time"
 
-	"go.mindclade.dev/libs/go/audit"
-	auditpostgres "go.mindclade.dev/libs/go/audit/postgres"
 	mcclock "go.mindclade.dev/libs/go/clock"
 	"go.mindclade.dev/libs/go/coordination/outbox"
 	outboxpostgres "go.mindclade.dev/libs/go/coordination/outbox/postgres"
 	"go.mindclade.dev/libs/go/faults"
-	"go.mindclade.dev/libs/go/idempotency"
-	idempotencypostgres "go.mindclade.dev/libs/go/idempotency/postgres"
 	"go.mindclade.dev/libs/go/identifiers"
-	"go.mindclade.dev/libs/go/storage/sql/migrate"
 	sqlpostgres "go.mindclade.dev/libs/go/storage/sql/postgres"
 	"go.mindclade.dev/libs/go/storage/sql/transaction"
 	"go.mindclade.dev/services/control_plane/internal/config"
 )
 
-// outboxTable is the table created by the outbox adapter's own schema. The
-// composition root names it because the adapter supports several tables in one
-// database; it must agree with the DDL applied by the migration runner.
-const outboxTable = "mindclade_outbox"
-
-// foundationMigrations is the forward-only order in which the shared adapter
-// schemas are applied. Versions are owned here, not by libs/go, because one
-// database holds every adapter's tables and the ordering must be global.
+// Table names are named once and passed to both the store and its DDL. Each
+// adapter accepts a table because one database may hold several; deriving the
+// schema from the same constant is what keeps a migration and the queries that
+// read it describing the same table.
 const (
-	migrationAudit uint64 = iota + 1
-	migrationIdempotency
-	migrationOutbox
+	AuditTable       = "mindclade_audit_events"
+	IdempotencyTable = "mindclade_idempotency_records"
+	OutboxTable      = "mindclade_outbox"
 )
 
-// database holds the PostgreSQL pool and every store that is backed by it.
+// Database holds the PostgreSQL pool and every store that is backed by it.
 // One *sql.DB is shared: the adapters join a caller's transaction through
 // storage/sql/transaction, which is only correct on a single pool.
-type database struct {
-	db           *sql.DB
-	pool         *sqlpostgres.Pool
-	migrations   *migrate.Runner
-	transactions transaction.Beginner
-	audit        audit.Recorder
-	idempotency  idempotency.Store
-	outbox       outbox.Store
+type Database struct {
+	DB           *sql.DB
+	Pool         *sqlpostgres.Pool
+	Transactions transaction.Beginner
+	Outbox       outbox.Store
 }
 
-func newDatabase(settings config.Settings, value mcclock.Clock, ids *identifiers.Generator) (database, error) {
+func NewDatabase(settings config.Settings, value mcclock.Clock, ids *identifiers.Generator) (Database, error) {
 	db, err := openDatabase(settings)
 	if err != nil {
-		return database{}, err
+		return Database{}, err
 	}
 	result, err := buildDatabase(db, settings, value, ids)
 	if err != nil {
 		_ = db.Close()
-		return database{}, err
+		return Database{}, err
 	}
 	return result, nil
 }
 
-func buildDatabase(db *sql.DB, settings config.Settings, value mcclock.Clock, ids *identifiers.Generator) (database, error) {
+func buildDatabase(db *sql.DB, settings config.Settings, value mcclock.Clock, ids *identifiers.Generator) (Database, error) {
 	pool, err := sqlpostgres.NewPool(db, sqlpostgres.PoolConfig{
 		MaxOpenConnections:    settings.DatabaseMaxOpen,
 		MaxIdleConnections:    settings.DatabaseMaxIdle,
@@ -74,37 +62,17 @@ func buildDatabase(db *sql.DB, settings config.Settings, value mcclock.Clock, id
 		ConnectionMaxIdleTime: 5 * time.Minute,
 	})
 	if err != nil {
-		return database{}, err
+		return Database{}, err
 	}
-	recorder, err := auditpostgres.New(db)
+	messages, err := outboxpostgres.New(db, OutboxTable)
 	if err != nil {
-		return database{}, err
+		return Database{}, err
 	}
-	records, err := idempotencypostgres.New(db,
-		idempotencypostgres.WithClock(value),
-		idempotencypostgres.WithGenerator(ids),
-	)
-	if err != nil {
-		return database{}, err
-	}
-	messages, err := outboxpostgres.New(db, outboxTable)
-	if err != nil {
-		return database{}, err
-	}
-	result := database{
-		db:           db,
-		pool:         pool,
-		transactions: db,
-		audit:        recorder,
-		idempotency:  records,
-		outbox:       messages,
-	}
-	if settings.MigrationsEnabled {
-		runner, err := newMigrationRunner()
-		if err != nil {
-			return database{}, err
-		}
-		result.migrations = runner
+	result := Database{
+		DB:           db,
+		Pool:         pool,
+		Transactions: db,
+		Outbox:       messages,
 	}
 	return result, nil
 }
@@ -146,18 +114,4 @@ func openDatabase(settings config.Settings) (*sql.DB, error) {
 		)
 	}
 	return db, nil
-}
-
-// newMigrationRunner applies the schemas the shared adapters declare. The
-// service owns the version numbers; each adapter owns its own DDL.
-func newMigrationRunner() (*migrate.Runner, error) {
-	manifest, err := migrate.NewManifest(
-		migrate.Migration{Version: migrationAudit, Name: "audit_events", Up: auditpostgres.Schema()},
-		migrate.Migration{Version: migrationIdempotency, Name: "idempotency_records", Up: idempotencypostgres.Schema()},
-		migrate.Migration{Version: migrationOutbox, Name: "outbox_messages", Up: outboxpostgres.Schema()},
-	)
-	if err != nil {
-		return nil, err
-	}
-	return migrate.NewRunner(manifest, migrate.Options{})
 }

@@ -3,7 +3,7 @@
 Every Go control-plane executable follows the same path:
 
 ```text
-role -> ProfileFor -> provider Factory -> typed foundation Dependencies
+role -> ProfileFor -> provider Factory -> foundation aggregates
      -> capability validation -> servicekit.Assembly -> RunWithSignals
 ```
 

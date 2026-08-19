@@ -124,7 +124,10 @@ def check(root: Path) -> list[str]:
     for package in sorted(found - allowed):
         errors.append(f"{package}: no in-module importer and no waiver in {WAIVER_PATH}")
     for package in sorted(allowed - found):
-        errors.append(f"{package}: waived in {WAIVER_PATH} but now consumed; remove the waiver")
+        errors.append(
+            f"{package}: waived in {WAIVER_PATH} but no longer unconsumed "
+            "(it gained an importer, or it was removed); drop the waiver"
+        )
     return errors
 
 

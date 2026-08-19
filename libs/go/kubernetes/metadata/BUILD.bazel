@@ -17,7 +17,7 @@ go_library(
     deps = [
         "//libs/go/faults",
         "//libs/go/requestmeta",
-        "@io_k8s_apimachinery//pkg/apis/meta/v1",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
         "@io_k8s_apimachinery//pkg/util/validation",
     ],
 )
@@ -26,5 +26,5 @@ go_test(
     name = "metadata_test",
     srcs = ["metadata_test.go"],
     embed = [":metadata"],
-    deps = ["@io_k8s_apimachinery//pkg/apis/meta/v1"],
+    deps = ["@io_k8s_apimachinery//pkg/apis/meta/v1:meta"],
 )

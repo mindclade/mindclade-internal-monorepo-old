@@ -31,15 +31,34 @@ max_internal_direct = 20
 forbidden_prefixes = ["go.mindclade.dev/services/", "go.mindclade.dev/apps/"]
 
 [[budget]]
-path = "services"
+path = "services/control_plane"
 language = "go"
-# Raised from 40 when the registry role gained a materialized provider factory.
-# The previous ceiling was calibrated against a control plane whose commands all
-# bootstrapped through UnconfiguredFactory and therefore linked no adapter; it
-# sat at exactly 40, so the first real composition root was guaranteed to breach
-# it. This budget counts distinct import paths across every service in the tree,
-# so it should be revisited per role as the remaining factories are wired.
-max_internal_direct = 56
+# Replaces a single "services" budget that summed distinct import paths across
+# every Go service in the tree. That number could not constrain anything: it
+# moved when studio grew, and it sat at exactly 40 when the control plane
+# imported almost nothing, so the first materialized provider factory was
+# guaranteed to breach it while every real invariant stayed unexpressed.
+#
+# 44 counted paths today. The allowlist is the invariant worth having: a
+# control-plane package may reach the shared foundation, domain policy under
+# control/, and its own subtree. Nothing else -- and in particular no other
+# service.
+max_internal_direct = 52
+allowed_prefixes = [
+    "go.mindclade.dev/libs/go/",
+    "go.mindclade.dev/control/",
+    "go.mindclade.dev/services/control_plane/",
+]
+forbidden_prefixes = ["go.mindclade.dev/services/studio/", "go.mindclade.dev/apps/"]
+
+[[budget]]
+path = "services/go_vanity"
+language = "go"
+# One internal package and nothing shared. The ceiling exists so that adopting
+# a foundation package is a visible, reviewed step rather than a silent one.
+max_internal_direct = 6
+allowed_prefixes = ["go.mindclade.dev/libs/go/", "go.mindclade.dev/services/go_vanity/"]
+forbidden_prefixes = ["go.mindclade.dev/control/", "go.mindclade.dev/services/control_plane/"]
 
 [[budget]]
 path = "services/studio"

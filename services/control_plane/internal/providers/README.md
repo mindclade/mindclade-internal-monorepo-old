@@ -18,10 +18,11 @@ config.Settings
 
 ## Materialized roles
 
-| Role | Factory |
-|---|---|
-| `registry` | `NewRegistryFactory` |
-| every other role | `bootstrap.UnconfiguredFactory` — fails closed with exit 78 |
+| Role | Factory | Providers |
+|---|---|---|
+| `registry` | `NewRegistryFactory` | PostgreSQL, Google Cloud Storage, Redis |
+| `event-dispatcher` | `NewEventDispatcherFactory` | PostgreSQL, broker |
+| every other role | `bootstrap.UnconfiguredFactory` — fails closed with exit 78 | — |
 
 A role is materialized when its factory constructs real providers. Until then
 its command starts, validates its profile, and refuses to run. `--describe-profile`
@@ -30,9 +31,10 @@ adapters exist.
 
 ## Rules
 
-- No in-memory adapter is reachable from this package. A role either needs a
-  durable mechanism or does not declare the capability; test doubles live in
-  tests and in `examples/go`.
+- No in-memory adapter is reachable from this package, with one bounded
+  exception: the messaging provider, because no Pub/Sub SDK is in `go.mod`.
+  It is refused outside development or test by two independent gates. Do not
+  extend the pattern to another store.
 - Construction is ordered cheapest-first. Configuration and pure mechanisms
   fail before a socket, connection, or cloud client is opened, and anything
   already opened is released when a later step fails.

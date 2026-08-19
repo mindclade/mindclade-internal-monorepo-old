@@ -1,0 +1,21 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//services/control_plane:__subpackages__"])
+
+go_library(
+    name = "leasing",
+    srcs = ["leasing.go"],
+    importpath = "go.mindclade.dev/services/control_plane/internal/foundation/leasing",
+    deps = [
+        "//libs/go/coordination/leadership",
+        "//libs/go/servicekit",
+        "//libs/go/servicekit/production",
+        "//libs/go/storage/lease",
+        "//services/control_plane/internal/foundation",
+    ],
+)

@@ -1,0 +1,39 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//services/control_plane:__subpackages__"])
+
+go_library(
+    name = "dispatcher",
+    srcs = ["dispatcher.go", "messaging.go"],
+    importpath = "go.mindclade.dev/services/control_plane/internal/providers/dispatcher",
+    deps = [
+        "//libs/go/clock",
+        "//libs/go/config",
+        "//libs/go/coordination/outbox",
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+        "//libs/go/messaging",
+        "//libs/go/messaging/memory",
+        "//libs/go/servicekit",
+        "//services/control_plane/internal/bootstrap",
+        "//services/control_plane/internal/config",
+        "//services/control_plane/internal/foundation",
+        "//services/control_plane/internal/foundation/eventing",
+        "//services/control_plane/internal/foundation/persistence",
+        "//services/control_plane/internal/providers",
+    ],
+)
+
+go_test(
+    name = "dispatcher_test",
+    srcs = ["dispatcher_test.go"],
+    embed = [":dispatcher"],
+    deps = [
+        "@com_github_lib_pq//:pq",
+    ],
+)

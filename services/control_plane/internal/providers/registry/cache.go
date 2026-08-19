@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-package providers
+package registry
 
 import (
 	"context"
@@ -29,7 +29,7 @@ func newCacheStore(settings config.Settings) (cache.Store, servicekit.Component,
 			faults.CodeFailedPrecondition,
 			"control-plane cache address is not configured",
 			faults.WithReason("cache_address_not_configured"),
-			faults.WithOperation("controlplane.providers.newCacheStore"),
+			faults.WithOperation("controlplane.registry.newCacheStore"),
 			faults.WithRetryPolicy(faults.NoRetry()),
 		)
 	}
@@ -51,7 +51,7 @@ func newCacheStore(settings config.Settings) (cache.Store, servicekit.Component,
 			return faults.Wrap(err, faults.CodeUnavailable,
 				"control-plane cache is unreachable",
 				faults.WithReason("cache_unreachable"),
-				faults.WithOperation("controlplane.providers.cacheComponent.Probe"),
+				faults.WithOperation("controlplane.registry.cacheComponent.Probe"),
 				faults.WithRetryPolicy(faults.BackoffRetry(3)),
 			)
 		}
@@ -66,7 +66,7 @@ func newCacheStore(settings config.Settings) (cache.Store, servicekit.Component,
 				return faults.Wrap(err, faults.CodeInternal,
 					"unable to close the control-plane cache client",
 					faults.WithReason("cache_client_close_failed"),
-					faults.WithOperation("controlplane.providers.cacheComponent.Stop"),
+					faults.WithOperation("controlplane.registry.cacheComponent.Stop"),
 				)
 			}
 			return nil

@@ -17,9 +17,9 @@ import (
 	_ "github.com/lib/pq"
 
 	"go.mindclade.dev/services/control_plane/internal/bootstrap"
-	"go.mindclade.dev/services/control_plane/internal/providers"
+	"go.mindclade.dev/services/control_plane/internal/providers/registry"
 )
 
 func main() {
-	bootstrap.Main(bootstrap.RoleRegistry, providers.NewRegistryFactory())
+	bootstrap.Main(bootstrap.RoleRegistry, registry.NewRegistryFactory())
 }

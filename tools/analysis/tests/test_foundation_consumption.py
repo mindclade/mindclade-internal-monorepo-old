@@ -159,4 +159,4 @@ def test_orphan_requires_a_waiver_and_a_stale_waiver_is_rejected() -> None:
             'schema_version = 1\n\n[[waiver]]\nreason = "x"\n'
             'packages = ["libs/go/kubernetes/client", "libs/go/storage/blob/gcs"]\n',
         )
-        assert any("now consumed; remove the waiver" in e for e in consumption.check(root))
+        assert any("no longer unconsumed" in e for e in consumption.check(root))

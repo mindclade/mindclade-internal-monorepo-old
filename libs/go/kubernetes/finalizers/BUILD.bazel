@@ -28,7 +28,7 @@ go_test(
     srcs = ["finalizers_test.go"],
     embed = [":finalizers"],
     deps = [
-        "@io_k8s_apimachinery//pkg/apis/meta/v1",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
         "@io_k8s_sigs_controller_runtime//pkg/client",
     ],
 )

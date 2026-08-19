@@ -21,7 +21,7 @@ go_library(
         "//libs/go/faults",
         "//libs/go/identifiers",
         "//libs/go/storage/blob",
-        "@cloud_google_com_go_storage//:storage",
+        "@com_google_cloud_go_storage//:storage",
         "@com_github_googleapis_gax_go_v2//apierror",
         "@org_golang_google_api//googleapi",
         "@org_golang_google_api//iterator",
@@ -43,7 +43,7 @@ go_test(
         "//libs/go/faults",
         "//libs/go/identifiers",
         "//libs/go/storage/blob",
-        "@cloud_google_com_go_storage//:storage",
+        "@com_google_cloud_go_storage//:storage",
         "@org_golang_google_api//googleapi",
     ],
 )

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-package providers
+package registry
 
 import (
 	"context"
@@ -28,7 +28,7 @@ func newBlobStore(ctx context.Context, settings config.Settings) (blob.Store, se
 			faults.CodeFailedPrecondition,
 			"control-plane blob bucket is not configured",
 			faults.WithReason("blob_bucket_not_configured"),
-			faults.WithOperation("controlplane.providers.newBlobStore"),
+			faults.WithOperation("controlplane.registry.newBlobStore"),
 			faults.WithRetryPolicy(faults.NoRetry()),
 		)
 	}
@@ -37,7 +37,7 @@ func newBlobStore(ctx context.Context, settings config.Settings) (blob.Store, se
 		return nil, servicekit.Component{}, faults.Wrap(err, faults.CodeUnavailable,
 			"unable to create the Google Cloud Storage client",
 			faults.WithReason("blob_client_failed"),
-			faults.WithOperation("controlplane.providers.newBlobStore"),
+			faults.WithOperation("controlplane.registry.newBlobStore"),
 		)
 	}
 	options := make([]gcs.Option, 0, 1)
@@ -56,7 +56,7 @@ func newBlobStore(ctx context.Context, settings config.Settings) (blob.Store, se
 				return faults.Wrap(err, faults.CodeInternal,
 					"unable to close the Google Cloud Storage client",
 					faults.WithReason("blob_client_close_failed"),
-					faults.WithOperation("controlplane.providers.blobComponent.Stop"),
+					faults.WithOperation("controlplane.registry.blobComponent.Stop"),
 				)
 			}
 			return nil

@@ -9,6 +9,7 @@ import (
 	"context"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 
 	"go.mindclade.dev/libs/go/servicekit"
@@ -108,10 +109,13 @@ func TestConsumptionMatrixIsDerivedFromTheBuild(t *testing.T) {
 		if !slices.IsSorted(entry.Packages) {
 			t.Fatalf("role %q inventory is not sorted", entry.Role)
 		}
+		// The floor is what bootstrap itself pulls in. It is deliberately
+		// small: this package names no concrete mechanism, so a command that
+		// has no provider factory yet links almost nothing. Roles acquire the
+		// rest by composing aggregates, not by importing this package.
 		for _, required := range []string{
-			"libs/go/config",
+			"libs/go/clock",
 			"libs/go/faults",
-			"libs/go/observability",
 			"libs/go/servicekit",
 			"libs/go/servicekit/production",
 		} {
@@ -141,6 +145,22 @@ func TestRegistryRoleLinksItsProductionAdapters(t *testing.T) {
 	} {
 		if !slices.Contains(consumption.Packages, adapter) {
 			t.Fatalf("registry role does not link %q", adapter)
+		}
+	}
+}
+
+// A role without a materialized factory must not be linking provider
+// adapters. If one appears here, something is reaching past the aggregate list.
+func TestUnmaterializedRolesLinkNoProviderAdapter(t *testing.T) {
+	consumption, err := ConsumptionFor(RoleAdmin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, packagePath := range consumption.Packages {
+		for _, adapter := range []string{"/postgres", "/gcs", "/redis", "/pubsub"} {
+			if strings.HasSuffix(packagePath, adapter) {
+				t.Fatalf("unwired role links provider adapter %q", packagePath)
+			}
 		}
 	}
 }

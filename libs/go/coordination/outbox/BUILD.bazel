@@ -45,5 +45,6 @@ go_test(
         "//libs/go/requestmeta",
         "//libs/go/retry",
         "//libs/go/coordination/outbox/memory",
+        "//libs/go/coordination/outbox/outboxtest",
     ],
 )

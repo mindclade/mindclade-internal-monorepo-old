@@ -23,6 +23,7 @@ import check_cargo_bazel_alignment
 import check_code_docs_alignment
 import check_component_maturity
 import check_component_ownership
+import check_control_plane_commands
 import check_dependency_budgets
 import check_dependency_layers
 import check_enforced_decisions
@@ -52,6 +53,7 @@ CHECKS = [
     ("dependency budgets", check_dependency_budgets.check),
     ("dependency layers", check_dependency_layers.check),
     ("foundation consumption", check_foundation_consumption.check),
+    ("control-plane commands", check_control_plane_commands.check),
     ("Go layers and paved roads", _go_layers),
     ("Go modules", check_go_modules.check),
     ("libs/go admission", check_libs_go_admission.check),

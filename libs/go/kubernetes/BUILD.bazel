@@ -18,7 +18,7 @@ go_library(
     deps = [
         "//libs/go/faults",
         "@io_k8s_apimachinery//pkg/api/errors",
-        "@io_k8s_apimachinery//pkg/apis/meta/v1",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
         "@io_k8s_apimachinery//pkg/runtime/schema",
     ],
 )
@@ -33,7 +33,7 @@ go_test(
     deps = [
         "//libs/go/faults",
         "@io_k8s_apimachinery//pkg/api/errors",
-        "@io_k8s_apimachinery//pkg/apis/meta/v1",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
         "@io_k8s_apimachinery//pkg/runtime/schema",
         "@io_k8s_apimachinery//pkg/types",
     ],

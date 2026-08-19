@@ -19,7 +19,7 @@ go_library(
     deps = [
         "//libs/go/faults",
         "//libs/go/storage/cache",
-        "@com_github_redis_go_redis_v9//:redis",
+        "@com_github_redis_go_redis_v9//:go-redis",
     ],
 )
 
@@ -33,6 +33,6 @@ go_test(
     deps = [
         "//libs/go/faults",
         "//libs/go/storage/cache",
-        "@com_github_redis_go_redis_v9//:redis",
+        "@com_github_redis_go_redis_v9//:go-redis",
     ],
 )
