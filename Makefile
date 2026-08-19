@@ -6,6 +6,7 @@
 
 SHELL := /usr/bin/env bash
 .SHELLFLAGS := -u -o pipefail -c
+.DEFAULT_GOAL := help
 
 DRY_RUN ?= 0
 CLEAN_CONFIRM ?= 0
@@ -17,20 +18,39 @@ BAZEL := $(shell \
 		echo bazel; \
 	fi)
 
-.PHONY: help check-root check-bazel clean clean-bazel clean-python clean-rust clean-node clean-local clean-git clean-all clean-dry
+.PHONY: help \
+	check-root \
+	check-bazel \
+	selfcheck \
+	clean \
+	clean-soft \
+	clean-deep \
+	clean-bazel \
+	clean-python \
+	clean-rust \
+	clean-go \
+	clean-node \
+	clean-local \
+	clean-git \
+	clean-all \
+	clean-dry
 
 help:
 	@echo "Mindclade repository cleanup"
 	@echo "Usage:"
-	@echo "  make clean"
-	@echo "  make clean-bazel      # Bazel --expunge"
+	@echo "  make clean           # Production-clean baseline: python/rust/node/local/go + Bazel --expunge"
+	@echo "  make clean-soft       # Fast local cleanup (python/rust/node/local/go)"
+	@echo "  make clean-deep       # Deep reset (adds bazel --expunge + git ignored/untracked cleanup)"
+	@echo "  make clean-bazel      # Bazel --expunge only"
 	@echo "  make clean-python     # Python caches and .py[cod], coverage artifacts"
 	@echo "  make clean-rust       # Rust/Cargo target directories"
+	@echo "  make clean-go         # Go cache/testcache/modcache"
 	@echo "  make clean-node       # Node/TypeScript artifacts"
 	@echo "  make clean-local      # Bazel, Nix, Terraform, env local outputs"
 	@echo "  make clean-git        # Ignored+untracked (Bazel/ci style), safe preview by default"
-	@echo "  make clean-all        # clean + clean-git"
+	@echo "  make clean-all        # full clean+git cleanup"
 	@echo "  make clean-dry        # Dry-run preview for all cleanup targets"
+	@echo "  make selfcheck        # Validate tooling required by clean targets"
 	@echo
 	@echo "Options:"
 	@echo "  DRY_RUN=1            # preview only, no destructive operations"
@@ -42,6 +62,14 @@ check-root:
 		exit 1; \
 	fi
 
+selfcheck: check-root
+	@for cmd in find xargs git; do \
+		if ! command -v "$$cmd" >/dev/null 2>&1; then \
+			echo "ERROR: required command missing: $$cmd" >&2; \
+			exit 1; \
+		fi; \
+	done
+
 check-bazel:
 	@if [ -z "$(BAZEL)" ]; then \
 		echo "ERROR: bazelisk or bazel must be on PATH." >&2; \
@@ -49,7 +77,7 @@ check-bazel:
 	fi
 	@echo "Using Bazel binary: $(BAZEL)"
 
-clean: check-root clean-bazel clean-python clean-rust clean-node clean-local
+clean: selfcheck clean-soft clean-bazel
 
 clean-bazel: check-root check-bazel
 	@if [ "$(DRY_RUN)" = "1" ]; then \
@@ -58,83 +86,103 @@ clean-bazel: check-root check-bazel
 		$(BAZEL) clean --expunge; \
 	fi
 
+clean-soft: selfcheck clean-python clean-rust clean-go clean-node clean-local
+
 clean-python: check-root
-	@{
-		mapfile -d '' -t targets < <(find . \
+	@tmp=$$(mktemp); \
+	trap 'rm -f "$$tmp"' EXIT; \
+	( \
+		find . \
 			-path '*/.git' -prune -o \
 			-type d \( -name '__pycache__' -o -name '.pytest_cache' -o -name '.mypy_cache' -o -name '.ruff_cache' \) -print0; \
-			find . \
+		find . \
 			-path '*/.git' -prune -o \
 			-type f \( -name '*.pyc' -o -name '*.pyo' -o -name '*.pyd' \) -print0; \
-			find . \
+		find . \
 			-path '*/.git' -prune -o \
 			-type f \( -name '.coverage' -o -name 'coverage.xml' \) -print0; \
-			find . \
-			-path '*/.git' -prune -o -type d -name 'htmlcov' -print0);
-		if [ "${#targets[@]}" -eq 0 ]; then \
-			echo "No Python intermediates found."; \
-		elif [ "$(DRY_RUN)" = "1" ]; then \
-			printf 'DRY-RUN: would remove: %s\n' "${targets[@]}"; \
-		else \
-			printf '%s\0' "${targets[@]}" | xargs -0 rm -rf --; \
-		fi; \
-	}
+		find . \
+			-path '*/.git' -prune -o \
+			-type d -name 'htmlcov' -print0; \
+	) > "$$tmp"; \
+	if [ ! -s "$$tmp" ]; then \
+		echo "No Python intermediates found."; \
+	elif [ "$(DRY_RUN)" = "1" ]; then \
+		while IFS= read -r -d '' p; do \
+			echo "[dry-run] would remove: $$p"; \
+		done < "$$tmp"; \
+	else \
+		xargs -0 rm -rf -- < "$$tmp"; \
+	fi
 
 clean-rust: check-root
-	@{
-		mapfile -d '' -t targets < <(find . \
-			-path '*/.git' -prune -o \
-			-type d -name 'target' -print0);
-		if [ "${#targets[@]}" -eq 0 ]; then \
-			echo "No Rust/Cargo target directories found."; \
-		elif [ "$(DRY_RUN)" = "1" ]; then \
-			printf 'DRY-RUN: would remove: %s\n' "${targets[@]}"; \
-		else \
-			printf '%s\0' "${targets[@]}" | xargs -0 rm -rf --; \
-		fi; \
-	}
+	@tmp=$$(mktemp); \
+	trap 'rm -f "$$tmp"' EXIT; \
+	find . \
+		-path '*/.git' -prune -o \
+		-type d -name 'target' -print0 > "$$tmp"; \
+	if [ ! -s "$$tmp" ]; then \
+		echo "No Rust/Cargo target directories found."; \
+	elif [ "$(DRY_RUN)" = "1" ]; then \
+		while IFS= read -r -d '' p; do \
+			echo "[dry-run] would remove: $$p"; \
+		done < "$$tmp"; \
+	else \
+		xargs -0 rm -rf -- < "$$tmp"; \
+	fi
+
+clean-go: check-root
+	@if ! command -v go >/dev/null 2>&1; then \
+		echo "SKIP: go binary not found"; \
+	elif [ "$(DRY_RUN)" = "1" ]; then \
+		echo "[dry-run] would run: go clean -cache -testcache -modcache"; \
+	else \
+		GOWORK=off go clean -cache -testcache -modcache; \
+	fi
 
 clean-node: check-root
-	@{
-		mapfile -d '' -t targets < <(find . \
+	@tmp=$$(mktemp); \
+	trap 'rm -f "$$tmp"' EXIT; \
+	( \
+		find . \
 			-path '*/.git' -prune -o \
-			-type d \( -name 'node_modules' -o -name '.next' -o -name '.pnpm-store' \) -print0);
+			-type d \( -name 'node_modules' -o -name '.next' -o -name '.pnpm-store' \) -print0; \
 		for d in apps/*/dist libs/ts/*/dist sdk/typescript/dist; do \
-			[ -d "$$d" ] && targets+=( "$$d" ); \
-		done
-		{
-			printf '%s\0' "${targets[@]}" | tr '\0' '\n' | sort -u;
-		} | mapfile -t targets;
-		if [ "${#targets[@]}" -eq 0 ]; then \
-			echo "No Node/TS intermediates found."; \
-		elif [ "$(DRY_RUN)" = "1" ]; then \
-			printf 'DRY-RUN: would remove: %s\n' "${targets[@]}"; \
-		else \
-			printf '%s\0' "${targets[@]}" | xargs -0 rm -rf --; \
-		fi; \
-	}
+			[ -d "$$d" ] && printf '%s\0' "$$d"; \
+		done \
+	) > "$$tmp"; \
+	if [ ! -s "$$tmp" ]; then \
+		echo "No Node/TS intermediates found."; \
+	elif [ "$(DRY_RUN)" = "1" ]; then \
+		while IFS= read -r -d '' p; do \
+			echo "[dry-run] would remove: $$p"; \
+		done < "$$tmp"; \
+	else \
+		xargs -0 rm -rf -- < "$$tmp"; \
+	fi
 
 clean-local: check-root
-	@{
-		mapfile -d '' -t targets < <(for p in \
-			"bazel-bin" "bazel-out" "bazel-testlogs" "bazel-mindclade" \
-			".bazel-cache" ".direnv" "result" "result-*" ".terraform" ".terragrunt-cache" \
-			".pnpm-store" ".next" "bazel-*"; do \
-				for f in $$p; do \
-					if [ -e "$$f" ]; then \
-						printf '%s\0' "$$f"; \
-					fi; \
-				done; \
+	@tmp=$$(mktemp); \
+	trap 'rm -f "$$tmp"' EXIT; \
+	( \
+		for p in \
+			bazel-* \
+			.bazel-cache .direnv result result-* .terraform .terragrunt-cache \
+			.pnpm-store .next; do \
+			for f in $$p; do \
+				[ -e "$$f" ] && printf '%s\0' "$$f"; \
 			done; \
-		)
-		if [ "${#targets[@]}" -eq 0 ]; then \
-			echo "No local intermediates found."; \
-		elif [ "$(DRY_RUN)" = "1" ]; then \
-			printf 'DRY-RUN: would remove: %s\n' "${targets[@]}"; \
-		else \
-			printf '%s\0' "${targets[@]}" | xargs -0 rm -rf --; \
-		fi; \
-	}
+		done \
+	) > "$$tmp"; \
+	if [ ! -s "$$tmp" ]; then \
+		echo "No local intermediates found."; \
+	elif [ "$(DRY_RUN)" = "1" ]; then \
+		while IFS= read -r -d '' p; do \
+			echo "[dry-run] would remove: $$p"; \
+		done < "$$tmp"; \
+	else \
+		xargs -0 rm -rf -- < "$$tmp"; \
+	fi
 
 clean-git: check-root
 	@echo "Preview: ignored + untracked (dry-run style):"
@@ -149,7 +197,9 @@ clean-git: check-root
 		git clean -fdX; \
 	fi
 
-clean-all: clean clean-git
+clean-deep: clean clean-git
+
+clean-all: clean-deep
 
 clean-dry:
 	@$(MAKE) clean DRY_RUN=1
