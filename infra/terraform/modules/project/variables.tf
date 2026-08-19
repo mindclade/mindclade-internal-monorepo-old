@@ -161,3 +161,20 @@ variable "tag_value_names" {
     error_message = "Every tag_value_names entry must use the form tagValues/123456789012."
   }
 }
+
+variable "shared_vpc_host_project_id" {
+  description = "Shared VPC host project to attach this project to as a service project; null leaves it unattached"
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.shared_vpc_host_project_id == null ? true : can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.shared_vpc_host_project_id))
+    error_message = "shared_vpc_host_project_id must be null or a valid project ID."
+  }
+}
+
+variable "remove_default_service_account" {
+  description = "Delete the default compute service account, which otherwise holds roles/editor on its own project"
+  type        = bool
+  default     = false
+}

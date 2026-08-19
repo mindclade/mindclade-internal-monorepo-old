@@ -32,3 +32,8 @@ output "budget_name" {
   description = "Billing budget resource name, or null when budgets are disabled"
   value       = try(google_billing_budget.this[0].name, null)
 }
+
+output "shared_vpc_host_project_id" {
+  description = "Shared VPC host project this project is attached to, or null when unattached"
+  value       = var.shared_vpc_host_project_id
+}
