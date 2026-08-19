@@ -10,12 +10,14 @@ package(default_visibility = ["//visibility:public"])
 proto_library(
     name = "reference_database_proto",
     srcs = ["reference_database.proto"],
+    strip_import_prefix = "/protocols/proto",
     deps = ["//protocols/proto/mindclade/common/v1:artifact_ref_proto"],
 )
 
 proto_library(
     name = "release_proto",
     srcs = ["release.proto"],
+    strip_import_prefix = "/protocols/proto",
     deps = ["//protocols/proto/mindclade/common/v1:artifact_ref_proto"],
 )
 

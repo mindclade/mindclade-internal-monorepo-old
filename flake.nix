@@ -114,6 +114,25 @@
           root = self;
         });
 
+      # The regeneration side of checks/toolchain-manifest.nix. That check compares the
+      # committed manifest against what the flake resolves; this is how you produce a new
+      # committed manifest when the closure moved on purpose:
+      #
+      #   nix build .#toolchain-manifest
+      #   install -m 0644 result tools/build/nix/toolchain-manifest.json
+      #
+      # Exposed as a package rather than hidden inside the check so the evidence the ADR calls
+      # for is buildable on its own, without running the whole check set.
+      packages = forAllSystems ({ pkgs, ... }:
+        let
+          manifest = import ./tools/build/nix/manifest.nix {
+            inherit pkgs versions;
+            root = self;
+          };
+        in {
+          toolchain-manifest = manifest.file;
+        });
+
       formatter = forAllSystems ({ pkgs, ... }: pkgs.nixfmt-rfc-style);
     };
 }

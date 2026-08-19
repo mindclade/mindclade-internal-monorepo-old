@@ -27,6 +27,7 @@ go_library(
         "//libs/go/httpx",
         "//libs/go/httpx/middleware",
         "//libs/go/resourceversion",
+        "//libs/go/servicekit",
         "//libs/go/servicekit/production",
         "//services/control_plane/internal/bootstrap",
         "@org_golang_google_grpc//:grpc",

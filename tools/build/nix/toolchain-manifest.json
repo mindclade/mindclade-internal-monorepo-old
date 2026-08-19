@@ -1,0 +1,24 @@
+{
+  "nixpkgs": "ec2d622de0773551768cf98f3fc50cbcc003b9c5",
+  "pins": {
+    "bazel": "9.1.1",
+    "go": "1.26",
+    "nodeMajor": 22,
+    "python": "3.12",
+    "rust": "1.97.1"
+  },
+  "schema": 1,
+  "tools": {
+    "bazelisk": "1.29.0",
+    "buf": "1.72.0",
+    "buildifier": "8.5.1",
+    "go": "1.26.5",
+    "nodejs": "22.23.2",
+    "pnpm": "11.21.0",
+    "protobuf": "35.1",
+    "python": "3.12.14",
+    "ruff": "0.16.3",
+    "rust": "1.97.1",
+    "uv": "0.12.3"
+  }
+}

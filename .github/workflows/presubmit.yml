@@ -140,6 +140,37 @@ jobs:
         run: nix develop .#ci --command yamllint --strict .
 
   # ---------------------------------------------------------------------------------------
+  # Toolchain — nix flake check
+  # ---------------------------------------------------------------------------------------
+  # ADR-0002 states that CI rejects host-tool leakage and toolchain-manifest drift, and that
+  # compatibility version files are generated from the Nix-owned source. The checks that assert
+  # all three live in tools/build/nix/checks/, and until this job existed nothing ran them: they
+  # were reachable only by a developer typing `nix flake check` on a laptop, which is how
+  # .bazelversion came to disagree with versions.nix without any lane noticing.
+  #
+  # ubuntu, not macos: the checks are platform-independent text and version assertions, and the
+  # x86_64-linux evaluation is the one that matches the runners the rest of the estate builds on.
+  toolchain:
+    name: nix flake check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = false
+
+      # Not --all-systems: evaluating the darwin attributes on a linux runner builds nothing
+      # useful and costs a full nixpkgs evaluation per system.
+      - name: nix flake check
+        run: nix flake check --print-build-logs
+
+  # ---------------------------------------------------------------------------------------
   # Terraform — infra/terraform
   # ---------------------------------------------------------------------------------------
   # This is not a monorepo-internal concern. infrastructure-live consumes every module under
@@ -147,8 +178,13 @@ jobs:
   # different repository's plan — and it breaks it at a tag, after the merge, with the error
   # surfacing in a repo whose diff shows nothing.
   #
-  # `terraform test` is the part worth having. Sixteen modules carry .tftest.hcl suites and
-  # they run against a mock provider, so this needs no credentials and reaches no cloud.
+  # `terraform test` is the part worth having. The .tftest.hcl suites run against a mock
+  # provider, so this needs no credentials and reaches no cloud.
+  #
+  # environments/* are ROOT modules and are covered too. They are not consumed by
+  # infrastructure-live, but dns_hub is the first thing applied in a new estate and holds the
+  # delegation for every domain the company owns — the blast radius of it being wrong is the
+  # whole estate, not one module's callers.
   terraform:
     name: terraform fmt + validate + test
     runs-on: ubuntu-24.04
@@ -167,14 +203,17 @@ jobs:
       - name: fmt
         run: nix develop .#ci --command terraform fmt -check -recursive infra/terraform
 
-      # Per module, because `terraform validate` needs an initialised directory and there is
-      # no root module here — infra/terraform/modules/* are library modules consumed elsewhere.
-      # -backend=false so nothing looks for a state bucket.
+      # Per directory, because `terraform validate` needs an initialised one.
+      # -backend=false so nothing looks for a state bucket — environments/* declare a real
+      # GCS backend and would otherwise demand credentials to validate.
       - name: validate
         run: |
           set -euo pipefail
           failed=0
-          for dir in infra/terraform/modules/*/; do
+          for dir in infra/terraform/modules/*/ infra/terraform/environments/*/; do
+            # environments/* still holds empty scaffolds; a directory with no .tf is not a
+            # failure, it is a root nobody has written yet.
+            ls "${dir}"*.tf >/dev/null 2>&1 || continue
             if ! out=$(nix develop .#ci --command bash -c "cd '$dir' && terraform init -backend=false -input=false >/dev/null && terraform validate -no-color" 2>&1); then
               echo "::error file=${dir}::terraform validate failed"
               printf '%s\n' "$out"
@@ -184,23 +223,33 @@ jobs:
           exit "$failed"
 
       - name: test
-        # Only the modules that have a suite. A module with no tests is a gap, not a failure —
+        # Only the directories that have a suite. One with no tests is a gap, not a failure —
         # and reporting it as a failure here would make the gate something people disable
         # rather than something they close.
+        #
+        # -var-file=terraform.tfvars.example where one exists. Real terraform.tfvars is
+        # gitignored, so the committed example is the only copy of a root's inputs anyone ever
+        # reads, and nothing else loads it. A run block that declares no `variables` picks it
+        # up and executes it; without this the example can rot into something that does not
+        # even parse, and the first person to find out is whoever is standing up the estate.
         run: |
           set -euo pipefail
           failed=0
           ran=0
-          for dir in infra/terraform/modules/*/; do
+          for dir in infra/terraform/modules/*/ infra/terraform/environments/*/; do
             [ -d "${dir}tests" ] || continue
             ran=$((ran + 1))
-            if ! out=$(nix develop .#ci --command bash -c "cd '$dir' && terraform test -no-color" 2>&1); then
+            args=""
+            if [ -f "${dir}terraform.tfvars.example" ]; then
+              args="-var-file=terraform.tfvars.example"
+            fi
+            if ! out=$(nix develop .#ci --command bash -c "cd '$dir' && terraform init -backend=false -input=false >/dev/null && terraform test -no-color $args" 2>&1); then
               echo "::error file=${dir}::terraform test failed"
               printf '%s\n' "$out"
               failed=1
             fi
           done
-          echo "Ran ${ran} module test suite(s)."
+          echo "Ran ${ran} terraform test suite(s)."
           exit "$failed"
 
   # ---------------------------------------------------------------------------------------

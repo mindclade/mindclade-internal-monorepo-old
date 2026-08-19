@@ -10,6 +10,7 @@ package(default_visibility = ["//visibility:public"])
 proto_library(
     name = "stage_proto",
     srcs = ["stage.proto"],
+    strip_import_prefix = "/protocols/proto",
     deps = [
         "//protocols/proto/mindclade/common/v1:artifact_ref_proto",
         "//protocols/proto/mindclade/runtime/v1:execution_budget_proto",

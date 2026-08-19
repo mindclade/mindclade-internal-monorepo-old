@@ -56,9 +56,17 @@ decoration: `cert-manager/base/certificates.yaml` requires that crt.sh show
 requirement is a convention one cert-manager edit can undo; with it, Let's
 Encrypt enforces it on our behalf.
 
-Keep this file and `certificates.yaml` in agreement in both directions. A
-`Certificate` asking for a name CAA forbids fails at issuance; a CAA permitting
-a wildcard nobody requests is a standing invitation.
+This file and `certificates.yaml` must agree in both directions, and
+`tools/analysis/check_dns_caa_alignment.py` enforces it in presubmit rather than
+leaving it to review. The two failure modes are not symmetric, which is why it
+is a check:
+
+- **Requested but forbidden** — a `Certificate` asks for a wildcard CAA denies.
+  Let's Encrypt refuses. Loud, but *late*: nothing fails until issuance is
+  attempted, and for a renewal that can be sixty days after the commit.
+- **Permitted but unrequested** — CAA allows a wildcard nothing asks for. This
+  never fails and never expires. It is a standing authorisation for anyone who
+  can pass a domain-control challenge, sitting in a public record.
 
 ## Mail posture
 
@@ -73,6 +81,29 @@ reject-all posture as the others — safe, but it means that address **bounces**
 Fill in `mail` before requesting the first production certificate, or Let's
 Encrypt's expiry warnings go nowhere.
 
+## Test
+
+```bash
+cd infra/terraform/environments/dns_hub
+terraform init -backend=false
+terraform test -var-file=terraform.tfvars.example
+```
+
+The var-file is not optional. One run block deliberately declares no `variables`
+so that it evaluates the **committed example** — real `terraform.tfvars` is
+gitignored, so without this nothing ever executes these values and the example
+rots silently. Presubmit runs exactly this command.
+
+`terraform console -var-file=...` is not a substitute: it evaluates variables
+lazily, so a trivial expression exits 0 against inputs that violate every
+validation in `variables.tf`. `terraform test` plans through a mock provider, so
+every variable is evaluated, every validation fires, and no credentials are
+needed.
+
+`terraform output zone_records` (or the same value in a plan) is the readable
+form of what will be published — CAA and SPF are exactly the records where a
+wrong character is invisible in a resource diff and expensive in production.
+
 ## Apply
 
 The bucket is not committed — Terraform reads the backend block before it
@@ -86,6 +117,13 @@ terraform init -backend-config=bucket=<state-bucket>
 terraform plan
 terraform apply
 ```
+
+Set `impersonate_service_account` as soon as a Terraform service account
+exists. Left null, every apply runs as whoever is at the keyboard, which makes
+the delegation for every domain the company owns reachable from any laptop that
+has run `gcloud auth application-default login`. It starts null only because
+this root is the first thing applied in a new estate, when a human's credentials
+are the only ones there are.
 
 Use a bucket with **object versioning enabled**. This state holds the delegation
 for every domain the company owns; recovering from a bad apply is a restore.

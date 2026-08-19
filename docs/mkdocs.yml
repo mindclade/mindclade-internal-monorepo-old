@@ -74,6 +74,7 @@ nav:
       - ADR-0021 Component maturity: design/adr-0021-component-maturity-policy.md
       - ADR-0022 Artifact/reference/evidence identity: design/adr-0022-artifact-reference-database-evidence.md
       - ADR-0023 Resolved config/dependency budgets: design/adr-0023-resolved-config-and-dependency-budgets.md
+      - ADR-0024 Dependency layering over counts: design/adr-0024-dependency-layering-over-counts.md
   - Runbooks:
       - Control-plane outage: runbooks/control-plane-outage.md
       - Artifact corruption: runbooks/artifact-corruption.md

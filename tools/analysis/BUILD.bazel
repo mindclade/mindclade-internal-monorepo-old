@@ -100,7 +100,11 @@ pytest_test(
     srcs = ["tests/test_dns_caa_alignment.py"],
     data = [
         "check_dns_caa_alignment.py",
-        "//infra/kubernetes/platform/cert-manager/base:certificates.yaml",
-        "//infra/terraform/environments/dns_hub:terraform.tfvars.example",
+        # Neither file is its own target: cert-manager/base is not a Bazel
+        # package at all, and dns_hub exports a filegroup rather than
+        # individual files. Both enclosing scaffold_files groups glob "**" and
+        # are public, so these are the labels that actually resolve.
+        "//infra/kubernetes:scaffold_files",
+        "//infra/terraform/environments/dns_hub:scaffold_files",
     ],
 )

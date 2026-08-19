@@ -1,0 +1,52 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//services/control_plane:__subpackages__"])
+
+go_library(
+    name = "ingestion",
+    srcs = ["ingestion.go"],
+    importpath = "go.mindclade.dev/services/control_plane/internal/providers/ingestion",
+    deps = [
+        "//libs/go/config",
+        "//libs/go/coordination/leadership",
+        "//libs/go/coordination/workqueue",
+        "//libs/go/faults",
+        "//libs/go/servicekit",
+        "//libs/go/storage/lease",
+        "//services/control_plane/internal/bootstrap",
+        "//services/control_plane/internal/config",
+        "//services/control_plane/internal/foundation",
+        "//services/control_plane/internal/foundation/eventing",
+        "//services/control_plane/internal/foundation/governance",
+        "//services/control_plane/internal/foundation/leasing",
+        "//services/control_plane/internal/foundation/objects",
+        "//services/control_plane/internal/foundation/orchestration",
+        "//services/control_plane/internal/foundation/persistence",
+        "//services/control_plane/internal/foundation/projection",
+        "//services/control_plane/internal/foundation/tasks",
+        "//services/control_plane/internal/providers",
+        "//services/control_plane/internal/providers/broker",
+        "//services/control_plane/internal/providers/cluster",
+        "//services/control_plane/internal/providers/durable",
+        "//services/control_plane/internal/providers/objects",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
+    ],
+)
+
+go_test(
+    name = "ingestion_test",
+    srcs = ["ingestion_test.go"],
+    embed = [":ingestion"],
+    deps = [
+        "//libs/go/config",
+        "//libs/go/coordination/workqueue",
+        "//libs/go/faults",
+        "//services/control_plane/internal/bootstrap",
+        "@com_github_lib_pq//:pq",
+    ],
+)

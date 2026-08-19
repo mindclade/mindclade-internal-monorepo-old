@@ -25,6 +25,10 @@ rust_library(
 rust_test(
     name = "cross_language",
     srcs = ["tests/cross_language.rs"],
+    # include_bytes! is resolved by rustc at COMPILE time, so the fixture has to be an input
+    # to the compile action -- compile_data, not data. As a runfile it would not exist yet
+    # when this line is expanded, which is the error the missing entry produced.
+    compile_data = ["//tests/integration/cross_language:execution_ticket_claims_v1"],
     edition = "2024",
     deps = [
         ":mindclade_worker_protocol",
@@ -55,6 +59,10 @@ rust_test(
 rust_test(
     name = "ed25519_cross_language",
     srcs = ["tests/ed25519_cross_language.rs"],
+    # include_bytes! is resolved by rustc at COMPILE time, so the fixture has to be an input
+    # to the compile action -- compile_data, not data. As a runfile it would not exist yet
+    # when this line is expanded, which is the error the missing entry produced.
+    compile_data = ["//tests/integration/cross_language:execution_ticket_claims_v1"],
     edition = "2024",
     deps = [
         ":mindclade_worker_protocol",

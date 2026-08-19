@@ -25,6 +25,7 @@ rust_test(
     deps = [
         ":mindclade_bio_formats",
         "//libs/rust/bounded_parse:mindclade_bounded_parse",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
         "//libs/rust/faults:mindclade_faults",
     ],
 )

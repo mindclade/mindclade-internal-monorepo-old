@@ -20,12 +20,22 @@ bazel_dep(name = "rules_rust", version = "0.73.0")
 # `aspect_rules_js` -- so module resolution failed and no Bazel target in the
 # repository could be queried or built at all. Reinstate it as `aspect_rules_js`,
 # at a version the registry actually has, when the TS packages get real rules.
-bazel_dep(name = "rules_oci", version = "2.2.6")
+bazel_dep(name = "rules_oci", version = "2.3.0")
 bazel_dep(name = "protobuf", version = "29.3")
 
 # Tar layers for oci_image. rules_oci deliberately does not build layers itself -- it composes
 # images from tarballs -- so an image target needs this alongside it.
 bazel_dep(name = "rules_pkg", version = "1.0.1")
+
+# Bazel 9 removed the native sh_binary/sh_test/sh_library rules; they live in rules_shell now
+# and must be loaded explicitly. //tools/qualification/go:validate is the only sh_ rule in the
+# repository, and without this dep its package fails to LOAD -- which takes down `//...` for
+# every target, not just that one.
+#
+# It resolves as a transitive dependency of aspect_bazel_lib regardless. Declaring it directly
+# is what makes the load() legal: a transitive module is not addressable as @rules_shell from
+# this repository's own BUILD files.
+bazel_dep(name = "rules_shell", version = "0.4.1")
 
 # Rust third-party dependencies are derived from the canonical Cargo workspace.
 #

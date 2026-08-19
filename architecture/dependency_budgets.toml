@@ -8,26 +8,22 @@ schema_version = 1
 [[budget]]
 path = "libs/go/faults"
 language = "go"
-max_internal_direct = 0
 forbidden_prefixes = ["go.mindclade.dev/control/", "go.mindclade.dev/services/"]
 
 [[budget]]
 path = "libs/go/servicekit"
 language = "go"
-max_internal_direct = 3
 allowed_prefixes = ["go.mindclade.dev/libs/go/clock", "go.mindclade.dev/libs/go/faults", "go.mindclade.dev/libs/go/servicekit"]
 
 [[budget]]
 path = "control/runtime_authority"
 language = "go"
-max_internal_direct = 5
 allowed_prefixes = ["go.mindclade.dev/libs/go/"]
 forbidden_prefixes = ["go.mindclade.dev/services/"]
 
 [[budget]]
 path = "control"
 language = "go"
-max_internal_direct = 20
 forbidden_prefixes = ["go.mindclade.dev/services/", "go.mindclade.dev/apps/"]
 
 [[budget]]
@@ -75,14 +71,37 @@ language = "go"
 # 3 today. Bootstrap owns roles, profiles, and capability assembly, and must
 # stay provider-agnostic: it may not learn what a database or a cluster is.
 # A jump here means process assembly has started naming concrete mechanisms.
-max_internal_direct = 6
+# Bootstrap owns roles, profiles, and capability assembly and must stay
+# provider-agnostic: it may not learn what a database or a cluster is.
+#
+# Verified today: bootstrap imports 3 distinct paths, all under libs/go. The
+# denials below therefore cost nothing now and are here to keep it that way.
+forbidden_prefixes = [
+    "go.mindclade.dev/services/control_plane/internal/providers",
+    "go.mindclade.dev/services/control_plane/internal/transport",
+    "go.mindclade.dev/services/control_plane/internal/foundation",
+    "go.mindclade.dev/services/studio",
+    "go.mindclade.dev/apps/",
+]
 
 [[budget]]
 path = "services/control_plane/internal/config"
 language = "go"
 # 3 today. Configuration decodes settings and validates them. It has no
 # business importing a provider, a store, or a transport.
-max_internal_direct = 6
+# Configuration decodes settings and validates them. It has no business
+# importing a provider, a store, or a transport.
+#
+# Verified today: 3 distinct imports, all under libs/go. This is the narrowest
+# layer in the service and the one where a new import is most worth reading.
+forbidden_prefixes = [
+    "go.mindclade.dev/services/control_plane/internal/providers",
+    "go.mindclade.dev/services/control_plane/internal/transport",
+    "go.mindclade.dev/services/control_plane/internal/bootstrap",
+    "go.mindclade.dev/services/control_plane/internal/foundation",
+    "go.mindclade.dev/services/studio",
+    "go.mindclade.dev/apps/",
+]
 
 [[budget]]
 path = "services/control_plane/internal/foundation"
@@ -91,21 +110,51 @@ language = "go"
 # capabilities they satisfy, so this tracks the production capability
 # vocabulary and grows only when that vocabulary does -- roughly one import
 # per contract. Materializing a role must not move it at all.
-max_internal_direct = 36
+# Each aggregate binds one group of libs/go contracts to the capabilities
+# they satisfy. Binding a CONTRACT is the job; binding a concrete adapter
+# is what internal/providers is for.
+#
+# Verified today: 30 distinct imports — 29 under libs/go plus its own parent
+# package, which the 10 subpackages each import. No sibling edge exists, and
+# the denials keep it that way. This is the entry the old count guarded with
+# `36`, a number that tracked the size of the capability vocabulary rather
+# than any property of the design.
+forbidden_prefixes = [
+    "go.mindclade.dev/services/control_plane/internal/providers",
+    "go.mindclade.dev/services/control_plane/internal/transport",
+    "go.mindclade.dev/services/control_plane/internal/bootstrap",
+    "go.mindclade.dev/services/control_plane/internal/config",
+    "go.mindclade.dev/services/studio",
+    "go.mindclade.dev/apps/",
+]
 
 [[budget]]
 path = "services/control_plane/internal/transport"
 language = "go"
 # 8 today. Transport wires the inbound stack. Provider construction belongs in
 # internal/providers, and a climb here is the sign it leaked.
-max_internal_direct = 12
+# Transport wires the inbound stack. Provider construction belongs in
+# internal/providers, and an import from here is the sign it leaked --
+# which is the "transport must not become a second composition root"
+# invariant, stated as a rule rather than as a number.
+#
+# transport -> bootstrap is DELIBERATELY not forbidden. It exists today at
+# three sites (bundle.go, http.go, grpc.go): transport asks bootstrap for the
+# assembled capability set rather than assembling one itself, which is the
+# direction that keeps it from becoming that second composition root. The edge
+# the other way would be the defect, and bootstrap's own entry forbids it.
+forbidden_prefixes = [
+    "go.mindclade.dev/services/control_plane/internal/providers",
+    "go.mindclade.dev/services/control_plane/internal/config",
+    "go.mindclade.dev/services/studio",
+    "go.mindclade.dev/apps/",
+]
 
 [[budget]]
 path = "services/go_vanity"
 language = "go"
 # One internal package and nothing shared. The ceiling exists so that adopting
 # a foundation package is a visible, reviewed step rather than a silent one.
-max_internal_direct = 6
 allowed_prefixes = ["go.mindclade.dev/libs/go/", "go.mindclade.dev/services/go_vanity/"]
 forbidden_prefixes = ["go.mindclade.dev/control/", "go.mindclade.dev/services/control_plane/"]
 
@@ -122,30 +171,101 @@ language = "go"
 # against libs/go/auth). Adopting one should RAISE this number while deleting
 # code; if it ever needs raising for a reason other than that, the reason is
 # worth reading twice.
-max_internal_direct = 16
 allowed_prefixes = ["go.mindclade.dev/libs/go/", "go.mindclade.dev/services/studio/"]
 forbidden_prefixes = ["go.mindclade.dev/services/control_plane/", "go.mindclade.dev/control/"]
 
 [[budget]]
 path = "libs/rust/runtime_core"
 language = "rust"
-max_internal_direct = 2
 allowed_prefixes = ["mindclade_faults", "mindclade_content_digest"]
 
 [[budget]]
 path = "libs/rust/worker_runtime"
 language = "rust"
-max_internal_direct = 5
 allowed_prefixes = ["mindclade_faults", "mindclade_runtime_core", "mindclade_worker_protocol"]
 
 [[budget]]
 path = "services/runtime_gateway"
 language = "rust"
-max_internal_direct = 9
 allowed_prefixes = ["mindclade_content_digest", "mindclade_faults", "mindclade_identifiers", "mindclade_protocols", "mindclade_runtime_core", "mindclade_servicekit", "mindclade_serving_runtime", "mindclade_telemetry", "mindclade_worker_protocol"]
 
 [[budget]]
 path = "services/runtime_host"
 language = "rust"
-max_internal_direct = 12
 allowed_prefixes = ["mindclade_bytes_io", "mindclade_faults", "mindclade_gpu_host", "mindclade_ipc", "mindclade_ipc_os", "mindclade_protocols", "mindclade_runtime_core", "mindclade_servicekit", "mindclade_serving_runtime", "mindclade_telemetry", "mindclade_worker_protocol", "mindclade_worker_runtime"]
+
+# ---------------------------------------------------------------------------
+# TypeScript
+# ---------------------------------------------------------------------------
+# Zero internal edges today: not one package.json in the tree declares another
+# @mindclade/* package. These entries therefore reject nothing right now, and
+# that is the reason to write them NOW rather than later.
+#
+# The precedent is services/studio above. It sat outside this file entirely and
+# reached production importing nothing from libs/go — duplicating httpx, session
+# and iap locally — because nothing measured it, so nothing noticed. The rule
+# that arrives after the edges exist has to argue with working code; the rule
+# that arrives first is just the shape of the tree.
+#
+# Read from package.json rather than from import sites: an `import` can name a
+# path alias, a relative path, or the package, which is three spellings of one
+# edge. The manifest is also what pnpm enforces — a package not declared there
+# does not resolve — so it is the boundary rather than a description of one.
+
+[[budget]]
+path = "apps/admin"
+language = "typescript"
+# An app composes libs and the SDK. It must not reach into another app: two
+# front-ends sharing code means the code is shared, and shared code belongs in
+# libs/ts where both can depend on it without depending on each other.
+allowed_prefixes = ["@mindclade/libs-ts", "@mindclade/sdk-typescript"]
+forbidden_prefixes = ["@mindclade/apps-"]
+
+[[budget]]
+path = "apps/console"
+language = "typescript"
+allowed_prefixes = ["@mindclade/libs-ts", "@mindclade/sdk-typescript"]
+forbidden_prefixes = ["@mindclade/apps-"]
+
+[[budget]]
+path = "sdk/typescript"
+language = "typescript"
+# The published client. It may not depend on libs/ts or on an app: everything
+# it imports becomes a transitive dependency of every external consumer, and
+# libs/ts is internal UI machinery that has no business in a customer's
+# node_modules.
+forbidden_prefixes = ["@mindclade/apps-", "@mindclade/libs-ts"]
+
+[[budget]]
+path = "libs/ts/api_client"
+language = "typescript"
+# The lowest TS layer. It speaks to the API and knows nothing about rendering.
+forbidden_prefixes = ["@mindclade/apps-", "@mindclade/libs-ts-design-system", "@mindclade/libs-ts-charts", "@mindclade/libs-ts-molecular-viewer"]
+
+[[budget]]
+path = "libs/ts/auth"
+language = "typescript"
+forbidden_prefixes = ["@mindclade/apps-", "@mindclade/libs-ts-design-system", "@mindclade/libs-ts-charts", "@mindclade/libs-ts-molecular-viewer"]
+
+[[budget]]
+path = "libs/ts/telemetry"
+language = "typescript"
+forbidden_prefixes = ["@mindclade/apps-", "@mindclade/libs-ts-design-system", "@mindclade/libs-ts-charts", "@mindclade/libs-ts-molecular-viewer"]
+
+[[budget]]
+path = "libs/ts/design_system"
+language = "typescript"
+# Presentation primitives. A design system that fetches is a design system with
+# a runtime dependency on a network, which makes every component untestable in
+# isolation and every story a mock.
+forbidden_prefixes = ["@mindclade/apps-", "@mindclade/libs-ts-api-client", "@mindclade/libs-ts-auth"]
+
+[[budget]]
+path = "libs/ts/charts"
+language = "typescript"
+forbidden_prefixes = ["@mindclade/apps-", "@mindclade/libs-ts-api-client", "@mindclade/libs-ts-auth"]
+
+[[budget]]
+path = "libs/ts/molecular_viewer"
+language = "typescript"
+forbidden_prefixes = ["@mindclade/apps-", "@mindclade/libs-ts-api-client", "@mindclade/libs-ts-auth"]

@@ -10,16 +10,19 @@ package(default_visibility = ["//visibility:public"])
 proto_library(
     name = "artifact_grant_proto",
     srcs = ["artifact_grant.proto"],
+    strip_import_prefix = "/protocols/proto",
 )
 
 proto_library(
     name = "execution_budget_proto",
     srcs = ["execution_budget.proto"],
+    strip_import_prefix = "/protocols/proto",
 )
 
 proto_library(
     name = "execution_ticket_proto",
     srcs = ["execution_ticket.proto"],
+    strip_import_prefix = "/protocols/proto",
     deps = [
         ":artifact_grant_proto",
         ":execution_budget_proto",
@@ -29,17 +32,20 @@ proto_library(
 proto_library(
     name = "buffer_descriptor_proto",
     srcs = ["buffer_descriptor.proto"],
+    strip_import_prefix = "/protocols/proto",
 )
 
 proto_library(
     name = "route_snapshot_proto",
     srcs = ["route_snapshot.proto"],
+    strip_import_prefix = "/protocols/proto",
     deps = [":artifact_grant_proto"],
 )
 
 proto_library(
     name = "worker_command_proto",
     srcs = ["worker_command.proto"],
+    strip_import_prefix = "/protocols/proto",
     deps = [
         ":buffer_descriptor_proto",
         ":execution_ticket_proto",
@@ -49,13 +55,16 @@ proto_library(
 proto_library(
     name = "worker_status_proto",
     srcs = ["worker_status.proto"],
+    strip_import_prefix = "/protocols/proto",
     deps = [":buffer_descriptor_proto"],
 )
 
 proto_library(
     name = "service_proto",
     srcs = ["service.proto"],
+    strip_import_prefix = "/protocols/proto",
     deps = [
+        ":execution_ticket_proto",
         ":route_snapshot_proto",
         ":worker_command_proto",
         ":worker_status_proto",

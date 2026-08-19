@@ -61,3 +61,20 @@ output "caa_check" {
     key => "dig +short CAA ${trimsuffix(domain.dns_name, ".")} @1.1.1.1"
   }
 }
+
+output "zone_records" {
+  description = <<-EOT
+    Every record this root will publish, keyed by zone and then by record
+    identifier, with owner names still RELATIVE to the zone.
+
+    Two uses. Reviewing a plan by reading `google_dns_record_set` diffs means
+    reading forty lines of provider noise to answer "what will DNS actually
+    say"; this answers it directly, and CAA and SPF are exactly the records
+    where a wrong character is invisible in a diff and expensive in production.
+
+    It is also what makes this root testable. `terraform test` can assert on a
+    root output but cannot reach resources inside a child module, so without
+    this the CAA and mail logic here could only be verified by applying it.
+  EOT
+  value       = { for key, zone in local.zones : key => zone.records }
+}

@@ -163,8 +163,13 @@ variable "security_contact" {
   EOT
   type        = string
 
+  # ":" is excluded, not just whitespace and "@". Without that the promise in
+  # the error message is not kept: "mailto:security@example.com" matches a
+  # naive address pattern, and main.tf would emit CAA
+  # '0 iodef "mailto:mailto:security@example.com"' -- a malformed record that
+  # Cloud DNS accepts and no CA can act on.
   validation {
-    condition     = can(regex("^[^@[:space:]]+@[^@[:space:]]+\\.[^@[:space:]]+$", var.security_contact))
+    condition     = can(regex("^[^@:[:space:]]+@[^@:[:space:]]+\\.[^@:[:space:]]+$", var.security_contact))
     error_message = "security_contact must be a bare email address, without the mailto: prefix."
   }
 }
@@ -209,5 +214,39 @@ variable "record_ttl" {
   validation {
     condition     = var.record_ttl >= 60 && var.record_ttl <= 86400
     error_message = "record_ttl must be between 60 and 86400 seconds."
+  }
+}
+
+variable "impersonate_service_account" {
+  description = <<-EOT
+    Service account to impersonate for every API call, or null to use the
+    caller's own credentials.
+
+    At this stage the DNS host project is the most privileged thing in the
+    estate: it holds the delegation for every domain the company owns, and a
+    change here is the one change that can take every hostname dark. Applying
+    with a human's application-default credentials makes that reachable from any
+    laptop that has run `gcloud auth application-default login`, with the audit
+    log naming a person rather than a pipeline.
+
+    Impersonation moves the authority onto a service account that a human holds
+    roles/iam.serviceAccountTokenCreator on. That grant is revocable in one
+    place, it expires with the token rather than with the laptop, and every
+    mutation is attributed to the pipeline identity.
+
+    Left null by default because it cannot be set before the service account
+    exists, and this root is the FIRST thing applied in a new estate -- there is
+    a bootstrap apply where the only available credential is a human's. Set it
+    immediately after.
+  EOT
+  type        = string
+  default     = null
+
+  validation {
+    condition = var.impersonate_service_account == null || can(regex(
+      "^[a-z0-9-]+@[a-z0-9-]+\\.iam\\.gserviceaccount\\.com$",
+      var.impersonate_service_account,
+    ))
+    error_message = "impersonate_service_account must be a full service account email, e.g. \"terraform-dns@my-project.iam.gserviceaccount.com\"."
   }
 }

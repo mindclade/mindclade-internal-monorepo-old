@@ -20,4 +20,10 @@ terraform {
 
 provider "google" {
   project = var.project_id
+
+  # Null falls back to the caller's own credentials, which is the only option
+  # during the very first apply -- the service account does not exist yet. See
+  # the variable's documentation for why leaving it null afterwards is a
+  # standing risk rather than a neutral default.
+  impersonate_service_account = var.impersonate_service_account
 }
