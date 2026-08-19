@@ -3,13 +3,42 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-package(default_visibility = ["//visibility:private"])
+load("@rules_python//python:defs.bzl", "py_library")
+load("//tools/build:pytest.bzl", "pytest_test")
 
-filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
-    visibility = ["//visibility:public"],
+package(default_visibility = ["//visibility:public"])
+
+py_library(
+    name = "errors",
+    srcs = [
+        "__init__.py",
+        "base.py",
+        "codes.py",
+        "retry.py",
+    ],
+    # py.typed rides in data, not srcs: it is a marker file rather than a module,
+    # and a PEP 561 consumer only sees it if it reaches the runfiles tree.
+    data = ["py.typed"],
+    imports = ["../../.."],
+)
+
+pytest_test(
+    name = "test_codes",
+    srcs = ["tests/test_codes.py"],
+    imports = ["../../.."],
+    deps = [":errors"],
+)
+
+pytest_test(
+    name = "test_retry",
+    srcs = ["tests/test_retry.py"],
+    imports = ["../../.."],
+    deps = [":errors"],
+)
+
+pytest_test(
+    name = "test_base",
+    srcs = ["tests/test_base.py"],
+    imports = ["../../.."],
+    deps = [":errors"],
 )

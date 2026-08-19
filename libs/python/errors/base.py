@@ -144,8 +144,14 @@ class FailedPrecondition(MindcladeError, ValueError):
         super().__init__(Code.FAILED_PRECONDITION, message, **kwargs)  # type: ignore[arg-type]
 
 
-class DeadlineExceeded(MindcladeError, TimeoutError):
-    """The deadline for the operation passed before it could be completed."""
+class DeadlineExceeded(MindcladeError):
+    """The deadline for the operation passed before it could be completed.
+
+    Not a ``TimeoutError``: that type descends from ``OSError`` and carries extra
+    C-level slots, so mixing it with ``MindcladeError`` raises "multiple bases have
+    instance lay-out conflict" when the class is created. Catch ``MindcladeError``
+    or this type by name.
+    """
 
     def __init__(self, message: str = "", **kwargs: object) -> None:
         kwargs.pop("code", None)
