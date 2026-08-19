@@ -19,7 +19,10 @@
 # The go directive in go.mod is 1.26.0. Pinned by digest here for the same reason the
 # manifests are: `golang:1.26` moves, and a moved base is a different set of bytes in an
 # image whose whole purpose is to be attested.
-FROM golang@sha256:0d1d3a794be25f809dd2cb3160d8c73276c4056a9f8242a138e908ddeee7b6b6 AS build  # 1.26
+# golang 1.26 — the tag is recorded here rather than after AS, because Docker parses a
+# trailing comment on a FROM line as extra arguments and fails with
+# "FROM requires either one or three arguments".
+FROM golang@sha256:0d1d3a794be25f809dd2cb3160d8c73276c4056a9f8242a138e908ddeee7b6b6 AS build
 
 WORKDIR /src
 
@@ -47,7 +50,8 @@ RUN go build -buildvcs=false -ldflags="-s -w" -o /out/go_vanity ./services/go_va
 # `nonroot` runs as uid 65532, matching runAsUser in
 # infra/kubernetes/planes/dev/base/go-vanity.yaml. The two must agree: a manifest asking for a
 # uid the image does not have starts a container that cannot read its own filesystem.
-FROM gcr.io/distroless/static-debian12@sha256:1b7b9f0f0e0a1d2155f531db587cc48ec26aaf97ab64364225f5bf18a054e66a AS runtime  # nonroot
+# distroless/static-debian12:nonroot — tag on its own line, same parser reason as above.
+FROM gcr.io/distroless/static-debian12@sha256:1b7b9f0f0e0a1d2155f531db587cc48ec26aaf97ab64364225f5bf18a054e66a AS runtime
 
 # Documentation only — Kubernetes takes the port from the manifest. Kept because the manifest
 # and the image disagreeing is a silent readiness failure, and this is where a reader looks.
