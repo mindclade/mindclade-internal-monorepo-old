@@ -36,6 +36,23 @@ language = "go"
 max_internal_direct = 40
 
 [[budget]]
+path = "services/studio"
+language = "go"
+# studio was outside the Bazel graph and outside this file entirely, which is
+# how it reached production importing NOTHING from libs/go: nothing measured it,
+# so nothing noticed. Eleven counted paths today — three shared packages plus its
+# own eight internal ones, which this checker counts alongside them.
+#
+# The ceiling has room for the shared packages studio still duplicates locally
+# (internal/httpx against libs/go/httpx, internal/session and internal/iap
+# against libs/go/auth). Adopting one should RAISE this number while deleting
+# code; if it ever needs raising for a reason other than that, the reason is
+# worth reading twice.
+max_internal_direct = 16
+allowed_prefixes = ["go.mindclade.dev/libs/go/", "go.mindclade.dev/services/studio/"]
+forbidden_prefixes = ["go.mindclade.dev/services/control_plane/", "go.mindclade.dev/control/"]
+
+[[budget]]
 path = "libs/rust/runtime_core"
 language = "rust"
 max_internal_direct = 2

@@ -1,0 +1,20 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//services/studio:__subpackages__"])
+
+go_library(
+    name = "iap",
+    srcs = ["iap.go"],
+    importpath = "go.mindclade.dev/services/studio/internal/iap",
+)
+
+go_test(
+    name = "iap_test",
+    srcs = ["iap_test.go"],
+    embed = [":iap"],
+)
