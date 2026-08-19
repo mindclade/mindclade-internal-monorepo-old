@@ -3,4 +3,4 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Mindclade scaffold package for training/distributed/tests."""
+"""Mindclade scaffold package for training/distributed/plans."""

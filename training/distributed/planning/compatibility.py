@@ -3,10 +3,8 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Mindclade scaffold package for training/distributed."""
+"""Planning compatibility helpers for distributed plans."""
 
 from __future__ import annotations
 
-from .lifecycle import initialize, teardown
-
-__all__ = ["initialize", "teardown"]
+SCAFFOLD_PATH: str = "training/distributed/planning/compatibility.py"
