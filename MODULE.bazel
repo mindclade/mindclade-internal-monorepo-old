@@ -9,7 +9,13 @@ bazel_dep(name = "rules_go", version = "0.51.0")
 bazel_dep(name = "gazelle", version = "0.40.0")
 bazel_dep(name = "rules_python", version = "1.2.0")
 bazel_dep(name = "rules_rust", version = "0.57.1")
-bazel_dep(name = "rules_js", version = "2.2.2")
+# No JavaScript ruleset is declared here yet. The TypeScript packages under
+# libs/ts and apps carry scaffold filegroups only, and nothing loads JS rules.
+# The previous entry was `rules_js`, which the Bazel Central Registry does not
+# serve under that name at ANY version -- Aspect publishes it as
+# `aspect_rules_js` -- so module resolution failed and no Bazel target in the
+# repository could be queried or built at all. Reinstate it as `aspect_rules_js`,
+# at a version the registry actually has, when the TS packages get real rules.
 bazel_dep(name = "rules_oci", version = "2.2.6")
 bazel_dep(name = "protobuf", version = "29.3")
 # Rust third-party dependencies are derived from the canonical Cargo workspace.
