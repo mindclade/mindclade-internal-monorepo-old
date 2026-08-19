@@ -1,0 +1,19 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+# The canonical config. `.github/.yamllint.yaml` is a copy of this file, so the org's reusable
+# workflows and the monorepo lint identically — a rule that differs between them shows up as a
+# workflow that passes in one repository and fails in the other, with no diff explaining it.
+extends: default
+rules:
+  line-length: disable
+  # The Kubernetes manifests use spaced flow mappings — `{ type: RuntimeDefault }` — which is
+  # a deliberate readability choice and not a defect. yamllint's default forbids the inner
+  # spaces outright; this permits exactly one, so `{  type: x  }` is still an error.
+  braces:
+    max-spaces-inside: 1
+  truthy:
+    allowed-values: ["true", "false", "on"]

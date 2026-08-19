@@ -66,7 +66,7 @@ jobs:
   #
   # Do not rename this job. See the note above.
   ci:
-    uses: mindclade-org/.github/.github/workflows/reusable-go-ci.yml@v1.0.0
+    uses: mindclade-org/.github/.github/workflows/reusable-go-ci.yml@v1.1.0
     with:
       # BELOW the `go` directive in go.mod, which is 1.26.0 — not 1.25.0, as this comment used
       # to claim. The lane therefore only builds because GOTOOLCHAIN defaults to `auto` and the
@@ -83,7 +83,7 @@ jobs:
 
   # Rust — the online/runtime data plane and node execution.
   rust:
-    uses: mindclade-org/.github/.github/workflows/reusable-rust-ci.yml@v1.0.0
+    uses: mindclade-org/.github/.github/workflows/reusable-rust-ci.yml@v1.1.0
     with:
       # Explicit rather than empty. reusable-rust-ci resolves `inputs.toolchain || 'stable'`,
       # so leaving this blank silently pins to whatever stable is that week — it never reads
@@ -96,7 +96,7 @@ jobs:
 
   # Python — scientific, model, training, inference, and evaluation numerics.
   python:
-    uses: mindclade-org/.github/.github/workflows/reusable-uv-ci.yml@v1.0.0
+    uses: mindclade-org/.github/.github/workflows/reusable-uv-ci.yml@v1.1.0
     with:
       python-version: "3.12.12"
       # Empty, not "--all-packages". pyproject sets `[tool.uv] package = false` and declares no
@@ -107,3 +107,197 @@ jobs:
       # this on means adding pyright and reconciling two type checkers' disagreements — a real
       # piece of work, not a flag flip.
       typecheck: false
+
+  # ---------------------------------------------------------------------------------------
+  # Workflow and YAML lint
+  # ---------------------------------------------------------------------------------------
+  # .yamllint.yaml and .github/actionlint.yaml are the CANONICAL copies — the `.github`
+  # repository's are copies of these — and until now neither existed here, so the repository
+  # the configs claimed to mirror had no lint at all.
+  #
+  # Binaries from `.#ci`, not a release download: actionlint shells out to shellcheck, and
+  # versions disagree about SC2153 and SC2015. A locally installed actionlint can pass on a
+  # change this job fails.
+  lint:
+    name: actionlint + yamllint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = false
+
+      - name: actionlint
+        run: nix develop .#ci --command actionlint -color
+
+      - name: yamllint
+        run: nix develop .#ci --command yamllint --strict .
+
+  # ---------------------------------------------------------------------------------------
+  # Terraform — infra/terraform
+  # ---------------------------------------------------------------------------------------
+  # This is not a monorepo-internal concern. infrastructure-live consumes every module under
+  # infra/terraform/modules BY SEMVER TAG, so a module that does not validate here breaks a
+  # different repository's plan — and it breaks it at a tag, after the merge, with the error
+  # surfacing in a repo whose diff shows nothing.
+  #
+  # `terraform test` is the part worth having. Sixteen modules carry .tftest.hcl suites and
+  # they run against a mock provider, so this needs no credentials and reaches no cloud.
+  terraform:
+    name: terraform fmt + validate + test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = false
+
+      - name: fmt
+        run: nix develop .#ci --command terraform fmt -check -recursive infra/terraform
+
+      # Per module, because `terraform validate` needs an initialised directory and there is
+      # no root module here — infra/terraform/modules/* are library modules consumed elsewhere.
+      # -backend=false so nothing looks for a state bucket.
+      - name: validate
+        run: |
+          set -euo pipefail
+          failed=0
+          for dir in infra/terraform/modules/*/; do
+            if ! out=$(nix develop .#ci --command bash -c "cd '$dir' && terraform init -backend=false -input=false >/dev/null && terraform validate -no-color" 2>&1); then
+              echo "::error file=${dir}::terraform validate failed"
+              printf '%s\n' "$out"
+              failed=1
+            fi
+          done
+          exit "$failed"
+
+      - name: test
+        # Only the modules that have a suite. A module with no tests is a gap, not a failure —
+        # and reporting it as a failure here would make the gate something people disable
+        # rather than something they close.
+        run: |
+          set -euo pipefail
+          failed=0
+          ran=0
+          for dir in infra/terraform/modules/*/; do
+            [ -d "${dir}tests" ] || continue
+            ran=$((ran + 1))
+            if ! out=$(nix develop .#ci --command bash -c "cd '$dir' && terraform test -no-color" 2>&1); then
+              echo "::error file=${dir}::terraform test failed"
+              printf '%s\n' "$out"
+              failed=1
+            fi
+          done
+          echo "Ran ${ran} module test suite(s)."
+          exit "$failed"
+
+  # ---------------------------------------------------------------------------------------
+  # Bazel — analysis only
+  # ---------------------------------------------------------------------------------------
+  # `--nobuild` stops after ANALYSIS: every BUILD file is loaded, every dependency edge is
+  # resolved, and nothing is compiled. That is the half of a Bazel build that catches the
+  # mistakes a reviewer cannot see — a target renamed without its dependents, a visibility
+  # rule that excludes a real consumer, a missing dep that the Go and Rust lanes do not notice
+  # because they build with the language toolchain rather than through Bazel.
+  #
+  # Compiling the whole workspace on every PR is the affected-target lane's job, and that lane
+  # does not exist yet (see the note on the architecture job above).
+  #
+  # NO BUILDIFIER STEP, and that is a decision rather than an oversight.
+  # `buildifier --mode=check -r .` currently reports 549 files, every one of them the same
+  # cosmetic disagreement about how a multi-argument `glob()` wraps. Adding it here would make
+  # the lane red on arrival, and a gate that is red on the day it lands is one people switch
+  # off rather than fix. The sweep is worth doing and belongs in its own commit where the diff
+  # reads as formatting and nothing else — `buildifier -r .` — and the step comes back with it.
+  bazel:
+    name: bazel analysis
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Reads .bazelversion. rules_go 0.51 does not load under Bazel 9 — `cross.bzl` uses
+      # APIs it removed — so an unpinned launcher fails at analysis with an error about a
+      # Starlark file nobody in this repository wrote.
+      - uses: bazel-contrib/setup-bazel@4fd964a13a440a8aeb0be47350db2fc640f19ca8  # v0.15.0
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}
+          repository-cache: true
+
+      - name: Analysis
+        run: bazel build //... --nobuild --curses=no --color=no
+
+
+  # ---------------------------------------------------------------------------------------
+  # TypeScript / pnpm
+  # ---------------------------------------------------------------------------------------
+  # WHAT THIS DOES NOT DO: typecheck. There is no TypeScript toolchain in this repository —
+  # pnpm-lock.yaml declares no dependencies, every workspace package's `build` and `test` are
+  # `echo scaffold`, and the ts BUILD.bazel files are filegroups rather than ts_project. A job
+  # running `tsc` here would either fail on a missing binary or, worse, pass having compiled
+  # nothing. That is the shape of gate this repository has just finished removing from its
+  # Python suite.
+  #
+  # What it does do is real and is the part that rots silently: the workspace manifest, the
+  # lockfile and the package tree agree. A package added to pnpm-workspace.yaml with no
+  # package.json, or a lockfile that no longer matches the manifests, fails here.
+  typescript:
+    name: pnpm workspace integrity
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda  # v4.1.0
+        with:
+          version: 10
+
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903  # v6
+        with:
+          node-version: "22.16.0"
+          cache: pnpm
+
+      # --frozen-lockfile is the assertion: it fails if the lockfile does not match the
+      # manifests rather than quietly updating it, which is what a local `pnpm install` does.
+      - name: Lockfile matches the manifests
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Every workspace package exists
+        run: |
+          set -euo pipefail
+          failed=0
+          while IFS= read -r pattern; do
+            [ -z "$pattern" ] && continue
+            # A glob that matches nothing means a workspace entry with no package behind it.
+            matches=0
+            for dir in $pattern; do
+              [ -d "$dir" ] || continue
+              matches=$((matches + 1))
+              if [ ! -f "$dir/package.json" ]; then
+                echo "::error file=$dir::workspace member has no package.json"
+                failed=1
+              fi
+            done
+            if [ "$matches" -eq 0 ]; then
+              echo "::error file=pnpm-workspace.yaml::pattern '$pattern' matches no directory"
+              failed=1
+            fi
+          done < <(grep -oE '^\s+- "[^"]+"' pnpm-workspace.yaml | sed -E 's/.*"(.*)"/\1/')
+          exit "$failed"

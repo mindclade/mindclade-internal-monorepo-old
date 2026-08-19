@@ -102,7 +102,18 @@ spec:
           type: RuntimeDefault
       containers:
         - name: athens
-          image: gomods/athens:v0.16.0
+          # PINNED BY DIGEST, like everything else that reaches a cluster. A tag is mutable,
+          # so `v0.16.0` can point at different bytes tomorrow — which is the gap Binary
+          # Authorization and gitops/.github/workflows/verify-attestation.yml exist to close,
+          # and the check there rejects any reference that is not a digest.
+          #
+          # THIRD-PARTY, so it carries no Mindclade signature and no BinAuthz attestation. It
+          # is exempted by name in verify-attestation.yml alongside registry.k8s.io/*, which
+          # is the only reason a digest alone is enough here. Bumping the version means
+          # resolving the new digest and moving the exemption's recorded version with it:
+          #
+          #   crane digest gomods/athens:<version>
+          image: gomods/athens:v0.16.0@sha256:c92d4d9ef305f0cb22555f7b0b0758621de08d107f28ec89664ee8f398ff260d
           ports:
             - name: http
               containerPort: 3000

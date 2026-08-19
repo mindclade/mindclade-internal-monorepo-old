@@ -39,6 +39,7 @@ addopts = "-ra --strict-config --strict-markers --import-mode=importlib -m 'not 
 # --strict-markers is on, so every marker has to be declared here or using it is an error.
 markers = [
     "nightly: measures progress toward a target state; reported nightly, not gated per PR",
+    "scaffold: placeholder for code that does not exist yet; always skipped, counted by a ratchet",
 ]
 # The repo is not installed as a package (`[tool.uv] package = false`), so tests that import
 # across the tree — `from serving.model_worker import ...` — need the root on sys.path.

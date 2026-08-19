@@ -1,0 +1,154 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# Source → image → signature → SLSA provenance → attestation → a digest gitops can pin.
+#
+# THE FILENAME IS LOAD-BEARING. bootstrap/modules/identity/service-accounts.tf binds the
+# `attestor` service account to `.github/workflows/release.yml` in this repository
+# specifically, via a principalSet on the WIF provider. Renaming this file leaves a binding no
+# token can ever match, and the symptom is every attestation failing with "unable to acquire
+# impersonated credentials" and nothing naming the workflow.
+#
+# ONE WORKLOAD, DELIBERATELY. services/go_vanity is the whole matrix: a real Go service with
+# tests, small enough that a failure here is a supply-chain failure rather than an application
+# one. The rest of the estate's images are not built from this repository — see the note on
+# studio in gitops/render-manifest.yaml — and adding one is an entry in `matrix.include`, not
+# a new workflow.
+#
+# The chain this produces, and who checks each link:
+#
+#   reusable-oci-build       buildx → SBOM → cosign sign (keyless) → BinAuthz attestation
+#   reusable-slsa-provenance SLSA L3 provenance, then verifies its own output
+#   gitops verify-attestation every image in rendered/ is digest-pinned and verifies
+#   Binary Authorization    the cluster refuses to admit anything unattested
+#
+# Nothing here runs on a pull request. A PR from a fork must not be able to push to the
+# registry or reach the attestor key, and `push: false` on a PR would still hand the job a
+# WIF token — so the trigger is a tag and a manual dispatch, both of which only exist on main.
+name: Release
+
+on:
+  push:
+    tags:
+      # Full semver only, matching the tag-protection ruleset in github-config. `v1` cannot be
+      # created at all there, so it is not matched here either.
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      push:
+        description: Push and sign, or build and scan only.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  # NOT cancel-in-progress. A cancelled release can leave a pushed image with no signature and
+  # no attestation, which is the exact state verify-attestation.yml reports as a supply-chain
+  # event.
+  group: release-${{ github.ref }}
+
+jobs:
+  # ---------------------------------------------------------------------------------------
+  # Build, sign, attest
+  # ---------------------------------------------------------------------------------------
+  image:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: go-vanity
+            context: .
+            dockerfile: services/go_vanity/Dockerfile
+    uses: mindclade-org/.github/.github/workflows/reusable-oci-build.yml@v1.1.0
+    with:
+      # No tag and no digest — the reusable workflow appends both. The path matches the
+      # `containers` repository that 5-workloads/<env>/artifact-registry creates, and the
+      # variables are declared by github-config's catalogue.
+      #
+      # THE DEVELOPMENT REGISTRY, and only that one. There is one registry per environment by
+      # design (see that unit's header: promotion should be a question about which repository
+      # holds a digest, not about a mutable tag), which means promoting an image to staging or
+      # production is a digest COPY between registries. Nothing does that copy yet — the
+      # gitops repo promotes rendered manifests, not images — so this pushes where the image
+      # is built and the gap is named rather than papered over.
+      image: ${{ vars.ARTIFACT_REGISTRY_HOST }}/${{ vars.DEV_PLATFORM_PROJECT_ID }}/containers/${{ matrix.name }}
+      context: ${{ matrix.context }}
+      dockerfile: ${{ matrix.dockerfile }}
+      # linux/amd64 only. The clusters are amd64 node pools; building arm64 as well doubles
+      # the build time and produces a manifest list nothing pulls.
+      platforms: linux/amd64
+      push: ${{ github.event_name == 'push' || inputs.push }}
+      workload-identity-provider: ${{ vars.WIF_PROVIDER }}
+      service-account: ${{ vars.SA_ATTESTOR }}
+      attestor: ${{ vars.ATTESTOR }}
+      attestor-project: ${{ vars.ATTESTOR_PROJECT }}
+      attestor-key: ${{ vars.ATTESTOR_KEY }}
+
+  # ---------------------------------------------------------------------------------------
+  # SLSA provenance
+  # ---------------------------------------------------------------------------------------
+  # Separate from the cosign signature above, and not redundant with it. The signature says
+  # "this workflow produced these bytes"; the provenance says WHAT WENT IN — the source
+  # revision, the builder, the parameters — and is what makes "was this built from the commit
+  # it claims" answerable months later.
+  provenance:
+    needs: image
+    if: github.event_name == 'push' || inputs.push
+    uses: mindclade-org/.github/.github/workflows/reusable-slsa-provenance.yml@v1.1.0
+    permissions:
+      actions: read
+      id-token: write
+      packages: write
+      contents: write
+    with:
+      image: ${{ vars.ARTIFACT_REGISTRY_HOST }}/${{ vars.DEV_PLATFORM_PROJECT_ID }}/containers/go-vanity
+      digest: ${{ needs.image.outputs.digest }}
+      workload-identity-provider: ${{ vars.WIF_PROVIDER }}
+      service-account: ${{ vars.SA_ATTESTOR }}
+
+  # ---------------------------------------------------------------------------------------
+  # The digest, written where a human can act on it
+  # ---------------------------------------------------------------------------------------
+  # gitops pins by digest, and that pin lives in this repository's Kustomize overlays — see
+  # infra/kubernetes/planes/dev/overlays/*/kustomization.yaml. Updating it is a reviewed
+  # commit, not something a pipeline does to itself: an image that can rewrite its own
+  # deployment can deploy itself, which removes the review the digest pin exists to force.
+  #
+  # So this step publishes the exact line to change, and stops.
+  digest:
+    needs: [image, provenance]
+    if: always() && needs.image.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Publish the digest to pin
+        env:
+          IMAGE: ${{ vars.ARTIFACT_REGISTRY_HOST }}/${{ vars.DEV_PLATFORM_PROJECT_ID }}/containers/go-vanity
+          DIGEST: ${{ needs.image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### go-vanity"
+            echo
+            echo '```yaml'
+            echo "# infra/kubernetes/planes/dev/overlays/<env>/kustomization.yaml"
+            echo "images:"
+            echo "  - name: go-vanity"
+            echo "    newName: ${IMAGE}"
+            echo "    digest: ${DIGEST}"
+            echo '```'
+            echo
+            echo "Commit that, then re-render in the gitops repository:"
+            echo
+            echo '```sh'
+            echo "./scripts/render.sh --monorepo ../mindclade"
+            echo '```'
+            echo
+            echo "verify-attestation.yml checks the signature and the BinAuthz attestation on"
+            echo "every digest in rendered/, so a pin that lands before this run finishes fails"
+            echo "that job rather than reaching a cluster."
+          } >> "$GITHUB_STEP_SUMMARY"

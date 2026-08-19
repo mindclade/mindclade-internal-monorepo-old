@@ -31,7 +31,13 @@
           '';
         };
         ci = pkgs.mkShell {
-          packages = with pkgs; [ bazelisk buildifier buf cargo-deny go gotools nodejs_22 pnpm protobuf python312 ruff uv ] ++ rust.packages;
+          # actionlint/shellcheck/yamllint feed the `lint` lane, terraform the `terraform`
+          # lane. Both sets of configs (.yamllint.yaml, .github/actionlint.yaml) existed in
+          # the estate's other repositories with nothing running them; here they did not
+          # exist at all, and neither did a Terraform gate over infra/ — which
+          # infrastructure-live consumes as a module source, so a broken module there breaks
+          # a different repository's plan.
+          packages = with pkgs; [ actionlint bazelisk buildifier buf cargo-deny go gotools nodejs_22 pnpm protobuf python312 ruff shellcheck terraform uv yamllint ] ++ rust.packages;
           shellHook = ''
             export MINDCLADE_REPO_ROOT="$PWD"
             export PYTHONNOUSERSITE=1

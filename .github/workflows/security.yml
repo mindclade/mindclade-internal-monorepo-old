@@ -30,7 +30,7 @@ concurrency:
 
 jobs:
   codeql:
-    uses: mindclade-org/.github/.github/workflows/reusable-codeql.yml@v1.0.0
+    uses: mindclade-org/.github/.github/workflows/reusable-codeql.yml@v1.1.0
     with:
       # Rust is omitted: CodeQL's Rust support is still maturing and the runtime data plane is
       # covered by clippy with -D warnings plus cargo-deny in the presubmit lane. Revisit when

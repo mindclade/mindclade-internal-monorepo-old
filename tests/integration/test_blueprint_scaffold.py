@@ -45,18 +45,30 @@ import pytest
 # disable Dependabot in favour of Renovate — so reaching 0 requires reconciling the manifest, not
 # only writing files.
 #
-# RAISED 48 -> 49 deliberately, which is the one direction this number is not supposed to move.
-# tests/pytest.ini is a reserved blueprint path, and materializing it as the one-line scaffold
-# stub actively broke the test configuration: pytest resolves the NEAREST config file, so any
-# path-scoped run under tests/ took `tests/pytest.ini` as its configfile and silently dropped
-# --strict-markers, --import-mode=importlib, pythonpath and the `-m 'not nightly'` deselection
-# from pyproject.toml. `pytest tests/integration/test_blueprint_scaffold.py` therefore ran the
-# nightly test and failed, while the same suite passed from the repo root.
+# RAISED 48 -> 49 once, deliberately, which is the one direction this number is not supposed
+# to move. tests/pytest.ini is a reserved blueprint path, and materializing it as the one-line
+# scaffold stub actively broke the test configuration: pytest resolves the NEAREST config file,
+# so any path-scoped run under tests/ took `tests/pytest.ini` as its configfile and silently
+# dropped --strict-markers, --import-mode=importlib, pythonpath and the `-m 'not nightly'`
+# deselection from pyproject.toml. `pytest tests/integration/test_blueprint_scaffold.py`
+# therefore ran the nightly test and failed, while the same suite passed from the repo root.
 #
 # A reserved path is better left unmaterialized than materialized as a stub that disables the
 # tooling around it. If tests/pytest.ini is ever wanted for real it has to carry the whole
 # configuration, not sit empty above it.
-MATERIALIZATION_BASELINE = 49
+#
+# LOWERED 49 -> 46 by the release-engineering sweep, which materialized three of the reserved
+# root and workflow paths with real content rather than stubs:
+#
+#   .bazelversion                        rules_go 0.51 does not load under Bazel 9, so an
+#                                        unpinned launcher fails analysis with a Starlark
+#                                        error naming a file nobody here wrote.
+#   .github/workflows/release.yml        the image build, sign and attest chain. The filename
+#                                        is load-bearing: bootstrap binds the attestor
+#                                        identity to this exact path.
+#   .pre-commit-config.yaml              the licence-header hook every other repository in the
+#                                        estate has carried since it was created.
+MATERIALIZATION_BASELINE = 46
 
 
 def _load_checker(root: Path):
