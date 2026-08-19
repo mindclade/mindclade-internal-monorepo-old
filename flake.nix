@@ -31,19 +31,32 @@
             inherit system;
             overlays = [ rust-overlay.overlays.default ];
             config.allowUnfreePredicate = pkg:
-              builtins.elem (nixpkgs.lib.getName pkg) [
-                "terraform"
-                "cuda_cudart"
-                "cuda_cccl"
-                "cuda_nvcc"
-                "cudatoolkit"
+              let
+                name = nixpkgs.lib.getName pkg;
+              in
+              # Named exactly, because it is one package under one licence.
+              builtins.elem name [ "terraform" ]
+
+              # The CUDA closure, by prefix rather than by name. The enumerated form listed the
+              # packages `gpu`'s `packages` line asks for and nothing they pull in, so evaluation
+              # died on cuda_nvrtc — a transitive dependency of cuda_nvcc that no list written by
+              # reading the shell definition would contain. Extending the list one name per failed
+              # evaluation is not a smaller decision than this, it is the same decision made once
+              # per nixpkgs bump.
+              #
+              # Still deliberate in the sense the enumerated form was reaching for: these prefixes
+              # are the NVIDIA redistributable families and nothing else, so an unfree package
+              # from any other vendor fails evaluation exactly as before, and darwin never reaches
+              # this branch because config.cudaSupport gates the shell that needs it.
+              || builtins.any (prefix: nixpkgs.lib.hasPrefix prefix name) [
+                "cuda"
                 "cudnn"
-                "libcublas"
-                "libcufft"
-                "libcurand"
-                "libcusolver"
-                "libcusparse"
+                "cutensor"
+                "libcu"
+                "libnpp"
+                "libnv"
                 "nccl"
+                "nvidia"
               ];
             config.cudaSupport = system == "x86_64-linux";
           };
