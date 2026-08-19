@@ -58,9 +58,34 @@ lower-level APIs directly.
 | `httpx` / `connectx` / `grpcx` | required transport boundary | optional admin | optional metrics/admin | optional admin | optional admin | optional admin | optional admin |
 | `httpx/outbound` | policy-bound integrations | optional | optional | source-specific | optional | required for webhooks | maintenance-specific |
 
-The table expresses intended repository consumption, not permission for every
-package to import every other package. Bazel visibility and Go import checks
-still enforce the layering in `LAYERS.md`.
+The table expresses **intended** repository consumption, not permission for
+every package to import every other package, and not a record of what any
+binary links today. Layering is enforced by
+`tools/analysis/check_go_layers.py`; Bazel visibility does not currently
+constrain it, because nearly every package under `libs/go` declares
+`//visibility:public`.
+
+## What is actually consumed
+
+The table above is a target. The record of what each process really links is
+generated from the Go import graph and cannot be written by hand:
+
+| Artifact | Meaning |
+|---|---|
+| `services/control_plane/internal/bootstrap/consumption.json` | Per-role transitive `libs/go` inventory, generated from imports and embedded so `--describe-profile` reports what the binary links |
+| `libs/go/UNCONSUMED.toml` | Every `libs/go` package with no in-module importer, with the reason it is still here |
+| `tools/analysis/check_foundation_consumption.py` | Presubmit check that regenerates both views and fails on drift |
+
+Regenerate after changing what a command imports:
+
+```bash
+python3 tools/analysis/check_foundation_consumption.py --write
+```
+
+A package that appears in the table above but not in `consumption.json` is not
+consumed yet — the role that would consume it has no materialized provider
+factory. `registry` is currently the only materialized role; every other
+command bootstraps through `bootstrap.UnconfiguredFactory` and fails closed.
 
 ## Canonical mechanisms
 

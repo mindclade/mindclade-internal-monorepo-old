@@ -1,0 +1,84 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+# Waivers for libs/go packages that nothing in this module imports.
+#
+# A foundation package with no importer is not neutral: it is untested against
+# a real caller, its API cannot have been validated by use, and it still costs
+# review, dependency, and build surface. Presubmit therefore requires every
+# libs/go package to have an importer somewhere in the module — production or
+# test — or an explicit waiver here.
+#
+# A waiver is a debt record, not an exemption. Remove entries as the consuming
+# process is materialized; do not add entries to make a new package pass.
+
+schema_version = 1
+policy = "every libs/go package has an in-module importer or an explicit waiver"
+
+[[waiver]]
+reason = """
+Connect and gRPC submodules. Every control-plane role that mounts them is still
+bootstrapped through bootstrap.UnconfiguredFactory; the registry factory mounts
+HTTP only. Remove these as each transport is mounted by a real factory.
+"""
+packages = [
+  "libs/go/connectx/connecttest",
+  "libs/go/connectx/health",
+  "libs/go/connectx/interceptors",
+  "libs/go/connectx/otel",
+  "libs/go/connectx/reflection",
+  "libs/go/grpcx/credentials",
+  "libs/go/grpcx/grpctest",
+  "libs/go/grpcx/health",
+  "libs/go/grpcx/interceptors",
+  "libs/go/grpcx/otel",
+  "libs/go/grpcx/reflection",
+  "libs/go/httpx/httpxtest",
+  "libs/go/httpx/otel",
+]
+
+[[waiver]]
+reason = """
+Kubernetes integration. The scheduler, controller, operator, and ingestion
+coordinator roles own these; none has a materialized provider factory yet.
+"""
+packages = [
+  "libs/go/kubernetes/client",
+  "libs/go/kubernetes/controller",
+  "libs/go/kubernetes/events",
+  "libs/go/kubernetes/finalizers",
+  "libs/go/kubernetes/ownerrefs",
+  "libs/go/kubernetes/status",
+  "libs/go/kubernetes/watch",
+]
+
+[[waiver]]
+reason = """
+Durable adapters and conformance suites whose owning role is not yet
+materialized: leases and work queues belong to the scheduler, controller,
+operator, and maintenance roles; Pub/Sub to every publishing role; cursors to
+the event projector.
+"""
+packages = [
+  "libs/go/coordination/cursor/cursortest",
+  "libs/go/coordination/workqueue/workqueuetest",
+  "libs/go/messaging/pubsub",
+  "libs/go/observability/obstest",
+  "libs/go/storage/lease/postgres",
+]
+
+[[waiver]]
+reason = """
+storage/outbox duplicates coordination/outbox: the same Store, Dispatcher,
+Factory, Claim, and Message API, plus its own PostgreSQL adapter and
+conformance suite. Two names for one mechanism contradict the first
+package-consumption rule in CONSUMPTION.md. This waiver exists to record the
+duplication, not to preserve it; the facade should be deleted rather than
+adopted.
+"""
+packages = [
+  "libs/go/storage/outbox/outboxtest",
+  "libs/go/storage/outbox/postgres",
+]

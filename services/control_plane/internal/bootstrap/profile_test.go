@@ -8,6 +8,7 @@ package bootstrap
 import (
 	"context"
 	"reflect"
+	"slices"
 	"testing"
 
 	"go.mindclade.dev/libs/go/servicekit"
@@ -85,37 +86,67 @@ func TestBuildRejectsMissingCapabilities(t *testing.T) {
 	}
 }
 
-func TestConsumptionMatrixCoversEveryRoleAndCoreFoundation(t *testing.T) {
+// The consumption document is generated from the import graph, so this test
+// asserts build facts rather than the contents of a hand-written table. The
+// table it replaced listed libs/go/storage/sql for every role — a directory
+// with no Go files, which no binary could ever have linked.
+func TestConsumptionMatrixIsDerivedFromTheBuild(t *testing.T) {
 	matrix := ConsumptionMatrix()
 	if len(matrix) != len(Profiles()) {
 		t.Fatalf("matrix=%d profiles=%d", len(matrix), len(Profiles()))
 	}
-	coverage := make(map[string]struct{})
 	for _, entry := range matrix {
-		if len(entry.Packages) == 0 {
-			t.Fatalf("role %q has no package consumption", entry.Role)
+		if entry.Role == RoleMaintenance {
+			// No command is built for this role, so nothing links on its
+			// behalf. An empty inventory is the correct answer, not a gap in
+			// the document.
+			if len(entry.Packages) != 0 {
+				t.Fatalf("role %q has no command but declares %v", entry.Role, entry.Packages)
+			}
+			continue
 		}
-		for _, packagePath := range entry.Packages {
-			coverage[packagePath] = struct{}{}
+		if !slices.IsSorted(entry.Packages) {
+			t.Fatalf("role %q inventory is not sorted", entry.Role)
+		}
+		for _, required := range []string{
+			"libs/go/config",
+			"libs/go/faults",
+			"libs/go/observability",
+			"libs/go/servicekit",
+			"libs/go/servicekit/production",
+		} {
+			if !slices.Contains(entry.Packages, required) {
+				t.Fatalf("role %q does not link %q", entry.Role, required)
+			}
 		}
 	}
-	for _, packagePath := range []string{
-		"libs/go/auth",
-		"libs/go/coordination/cursor",
-		"libs/go/coordination/inbox",
-		"libs/go/coordination/leadership",
-		"libs/go/coordination/outbox",
-		"libs/go/coordination/projector",
-		"libs/go/coordination/workqueue",
-		"libs/go/kubernetes",
-		"libs/go/servicekit/production",
-		"libs/go/storage/blob",
-		"libs/go/storage/cache",
-		"libs/go/storage/lease",
-		"libs/go/storage/sql",
+}
+
+// The registry role is the first with a materialized provider factory. If its
+// factory stops constructing an adapter, the adapter leaves the import graph
+// and this test fails — which is the property the old table could not have.
+func TestRegistryRoleLinksItsProductionAdapters(t *testing.T) {
+	consumption, err := ConsumptionFor(RoleRegistry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, adapter := range []string{
+		"libs/go/audit/postgres",
+		"libs/go/coordination/outbox/postgres",
+		"libs/go/idempotency/postgres",
+		"libs/go/storage/blob/gcs",
+		"libs/go/storage/cache/redis",
+		"libs/go/storage/sql/migrate",
+		"libs/go/storage/sql/postgres",
 	} {
-		if _, ok := coverage[packagePath]; !ok {
-			t.Fatalf("foundation package %q is not consumed by any role", packagePath)
+		if !slices.Contains(consumption.Packages, adapter) {
+			t.Fatalf("registry role does not link %q", adapter)
 		}
+	}
+}
+
+func TestConsumptionRejectsUnknownRole(t *testing.T) {
+	if _, err := ConsumptionFor(Role("not-a-role")); err == nil {
+		t.Fatal("unknown role accepted")
 	}
 }

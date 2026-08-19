@@ -17,6 +17,14 @@ import (
 type Runtime struct {
 	Dependencies foundation.Dependencies
 	Components   Components
+
+	// Bind, when set, receives the assembled production runtime after Build
+	// and before Run. It exists for components that must observe process
+	// health but are constructed before the service exists, such as the
+	// liveness and readiness handler mounted into the HTTP transport. It must
+	// not start work, register components, or retain the runtime beyond the
+	// process lifetime.
+	Bind func(*production.Runtime) error
 }
 
 // Factory creates concrete providers, repositories, domain engines, and
@@ -84,6 +92,11 @@ func Execute(ctx context.Context, role Role, factory Factory) error {
 	service, err := Build(profile, runtime)
 	if err != nil {
 		return err
+	}
+	if runtime.Bind != nil {
+		if err := runtime.Bind(service); err != nil {
+			return err
+		}
 	}
 	return service.RunWithSignals(ctx)
 }

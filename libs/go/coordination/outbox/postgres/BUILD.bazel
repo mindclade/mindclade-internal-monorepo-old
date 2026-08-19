@@ -14,7 +14,8 @@ exports_files([
 
 go_library(
     name = "postgres",
-    srcs = ["doc.go", "store.go"],
+    srcs = ["doc.go", "schema.go", "store.go"],
+    embedsrcs = ["migrations/000001_outbox.up.sql"],
     importpath = "go.mindclade.dev/libs/go/coordination/outbox/postgres",
     deps = [
         "//libs/go/coordination/outbox",

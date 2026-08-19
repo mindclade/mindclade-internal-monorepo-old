@@ -19,6 +19,7 @@ go_library(
         "foundation.go",
         "profile.go",
     ],
+    embedsrcs = ["consumption.json"],
     importpath = "go.mindclade.dev/services/control_plane/internal/bootstrap",
     deps = [
         "//libs/go/faults",

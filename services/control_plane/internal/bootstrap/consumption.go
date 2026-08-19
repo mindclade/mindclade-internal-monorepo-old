@@ -6,120 +6,74 @@
 package bootstrap
 
 import (
-	"sort"
+	_ "embed"
+	"encoding/json"
+	"sync"
 
 	"go.mindclade.dev/libs/go/faults"
 )
 
+// consumptionSchemaVersion must match the version written by
+// tools/analysis/check_foundation_consumption.py.
+const consumptionSchemaVersion = 1
+
+// consumptionDocument is generated from the repository's Go import graph, not
+// written by hand. A hand-maintained inventory of package names cannot fail:
+// the previous one claimed roles consumed PostgreSQL adapters that no Go file
+// imported, and nothing compared the claim with the build. Presubmit
+// regenerates this document and fails on any difference.
+//
+//go:embed consumption.json
+var consumptionDocument []byte
+
 // Consumption is qualification metadata describing which reusable Go packages
-// a process role is expected to consume directly or through its composition
-// root. It is not a dependency-injection container or domain abstraction.
+// one process role links, directly or through its composition root. It is not
+// a dependency-injection container or domain abstraction.
 type Consumption struct {
 	Role     Role
 	Packages []string
 }
 
-var commonConsumption = []string{
-	"libs/go/clock",
-	"libs/go/config",
-	"libs/go/faults",
-	"libs/go/identifiers",
-	"libs/go/observability",
-	"libs/go/requestmeta",
-	"libs/go/retry",
-	"libs/go/servicekit",
-	"libs/go/servicekit/production",
-	"libs/go/storage/sql/postgres",
-	"libs/go/storage/sql/transaction",
+type consumptionSchema struct {
+	SchemaVersion int                 `json:"schema_version"`
+	Roles         map[string][]string `json:"roles"`
 }
 
-var roleConsumption = map[Role][]string{
-	RoleAPI: {
-		"libs/go/audit", "libs/go/audit/postgres", "libs/go/auth",
-		"libs/go/connectx", "libs/go/grpcx", "libs/go/httpx",
-		"libs/go/idempotency", "libs/go/idempotency/postgres",
-		"libs/go/pagination", "libs/go/resourceversion", "libs/go/signing",
-		"libs/go/coordination/outbox", "libs/go/coordination/outbox/postgres",
-		"libs/go/storage/blob", "libs/go/storage/cache", "libs/go/storage/sql",
-	},
-	RoleAdmin: {
-		"libs/go/audit", "libs/go/audit/postgres", "libs/go/auth",
-		"libs/go/connectx", "libs/go/grpcx", "libs/go/httpx",
-		"libs/go/idempotency", "libs/go/idempotency/postgres",
-		"libs/go/pagination", "libs/go/resourceversion", "libs/go/signing",
-		"libs/go/coordination/outbox", "libs/go/coordination/outbox/postgres",
-		"libs/go/storage/sql",
-	},
-	RoleRegistry: {
-		"libs/go/audit", "libs/go/audit/postgres", "libs/go/auth",
-		"libs/go/connectx", "libs/go/grpcx", "libs/go/httpx",
-		"libs/go/idempotency", "libs/go/idempotency/postgres",
-		"libs/go/pagination", "libs/go/resourceversion", "libs/go/signing",
-		"libs/go/coordination/outbox", "libs/go/coordination/outbox/postgres",
-		"libs/go/storage/blob", "libs/go/storage/cache", "libs/go/storage/sql",
-	},
-	RoleScheduler: {
-		"libs/go/audit", "libs/go/audit/postgres", "libs/go/idempotency", "libs/go/idempotency/postgres",
-		"libs/go/kubernetes", "libs/go/messaging", "libs/go/messaging/pubsub", "libs/go/resourceversion", "libs/go/signing",
-		"libs/go/storage/lease", "libs/go/storage/lease/postgres",
-		"libs/go/coordination/leadership", "libs/go/coordination/outbox", "libs/go/coordination/outbox/postgres",
-		"libs/go/coordination/workqueue", "libs/go/coordination/workqueue/postgres",
-		"libs/go/storage/sql",
-	},
-	RoleController: {
-		"libs/go/audit", "libs/go/audit/postgres", "libs/go/idempotency", "libs/go/idempotency/postgres",
-		"libs/go/kubernetes", "libs/go/messaging", "libs/go/messaging/pubsub", "libs/go/resourceversion",
-		"libs/go/storage/lease", "libs/go/storage/lease/postgres",
-		"libs/go/coordination/leadership", "libs/go/coordination/outbox", "libs/go/coordination/outbox/postgres",
-		"libs/go/coordination/workqueue", "libs/go/coordination/workqueue/postgres",
-		"libs/go/storage/sql",
-	},
-	RoleOperator: {
-		"libs/go/audit", "libs/go/audit/postgres", "libs/go/idempotency", "libs/go/idempotency/postgres",
-		"libs/go/kubernetes", "libs/go/messaging", "libs/go/messaging/pubsub", "libs/go/resourceversion",
-		"libs/go/storage/lease", "libs/go/storage/lease/postgres",
-		"libs/go/coordination/leadership", "libs/go/coordination/outbox", "libs/go/coordination/outbox/postgres",
-		"libs/go/coordination/workqueue", "libs/go/coordination/workqueue/postgres",
-		"libs/go/storage/sql",
-	},
-	RoleIngestionController: {
-		"libs/go/audit", "libs/go/audit/postgres", "libs/go/idempotency", "libs/go/idempotency/postgres",
-		"libs/go/kubernetes", "libs/go/messaging", "libs/go/messaging/pubsub", "libs/go/resourceversion",
-		"libs/go/storage/blob", "libs/go/storage/cache", "libs/go/storage/lease", "libs/go/storage/lease/postgres",
-		"libs/go/coordination/cursor", "libs/go/coordination/cursor/postgres",
-		"libs/go/coordination/leadership", "libs/go/coordination/outbox", "libs/go/coordination/outbox/postgres",
-		"libs/go/coordination/workqueue", "libs/go/coordination/workqueue/postgres",
-		"libs/go/storage/sql",
-	},
-	RoleEventProjector: {
-		"libs/go/idempotency", "libs/go/idempotency/postgres", "libs/go/messaging", "libs/go/messaging/pubsub",
-		"libs/go/storage/lease", "libs/go/storage/lease/postgres",
-		"libs/go/coordination/cursor", "libs/go/coordination/cursor/postgres",
-		"libs/go/coordination/inbox", "libs/go/coordination/leadership", "libs/go/coordination/projector",
-		"libs/go/storage/sql",
-	},
-	RoleEventDispatcher: {
-		"libs/go/messaging", "libs/go/messaging/pubsub", "libs/go/storage/lease", "libs/go/storage/lease/postgres",
-		"libs/go/coordination/outbox", "libs/go/coordination/outbox/postgres",
-		"libs/go/storage/sql",
-	},
-	RoleWebhookDispatcher: {
-		"libs/go/audit", "libs/go/audit/postgres", "libs/go/idempotency", "libs/go/idempotency/postgres",
-		"libs/go/messaging", "libs/go/messaging/pubsub", "libs/go/signing", "libs/go/httpx/outbound",
-		"libs/go/coordination/outbox", "libs/go/coordination/outbox/postgres",
-		"libs/go/coordination/workqueue", "libs/go/coordination/workqueue/postgres",
-		"libs/go/storage/sql",
-	},
-	RoleMaintenance: {
-		"libs/go/audit", "libs/go/audit/postgres", "libs/go/storage/lease", "libs/go/storage/lease/postgres",
-		"libs/go/coordination/leadership", "libs/go/coordination/workqueue", "libs/go/coordination/workqueue/postgres",
-		"libs/go/storage/sql", "libs/go/storage/sql/migrate",
-	},
-}
+var loadConsumption = sync.OnceValues(func() (map[Role][]string, error) {
+	var document consumptionSchema
+	if err := json.Unmarshal(consumptionDocument, &document); err != nil {
+		return nil, faults.Wrap(err, faults.CodeInternal,
+			"unreadable control-plane consumption document",
+			faults.WithReason("invalid_consumption_document"),
+			faults.WithOperation("controlplane.bootstrap.loadConsumption"),
+			faults.WithRetryPolicy(faults.NoRetry()),
+		)
+	}
+	if document.SchemaVersion != consumptionSchemaVersion {
+		return nil, faults.New(
+			faults.CodeInternal,
+			"unsupported control-plane consumption schema",
+			faults.WithReason("unsupported_consumption_schema"),
+			faults.WithOperation("controlplane.bootstrap.loadConsumption"),
+			faults.WithField("schema_version", document.SchemaVersion),
+			faults.WithRetryPolicy(faults.NoRetry()),
+		)
+	}
+	roles := make(map[Role][]string, len(document.Roles))
+	for role, packages := range document.Roles {
+		roles[Role(role)] = packages
+	}
+	return roles, nil
+})
 
-// ConsumptionFor returns an isolated, sorted package inventory for role.
+// ConsumptionFor returns an isolated package inventory for role. The document
+// is generated in sorted order, so no sorting happens here.
 func ConsumptionFor(role Role) (Consumption, error) {
-	values, ok := roleConsumption[role]
+	roles, err := loadConsumption()
+	if err != nil {
+		return Consumption{}, err
+	}
+	packages, ok := roles[role]
 	if !ok {
 		return Consumption{}, faults.New(
 			faults.CodeInvalidArgument,
@@ -130,16 +84,7 @@ func ConsumptionFor(role Role) (Consumption, error) {
 			faults.WithRetryPolicy(faults.NoRetry()),
 		)
 	}
-	set := make(map[string]struct{}, len(commonConsumption)+len(values))
-	for _, packagePath := range append(append([]string(nil), commonConsumption...), values...) {
-		set[packagePath] = struct{}{}
-	}
-	packages := make([]string, 0, len(set))
-	for packagePath := range set {
-		packages = append(packages, packagePath)
-	}
-	sort.Strings(packages)
-	return Consumption{Role: role, Packages: packages}, nil
+	return Consumption{Role: role, Packages: append([]string(nil), packages...)}, nil
 }
 
 // ConsumptionMatrix returns all role inventories in stable profile order.

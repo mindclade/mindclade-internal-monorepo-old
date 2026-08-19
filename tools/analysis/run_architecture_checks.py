@@ -26,6 +26,7 @@ import check_component_ownership
 import check_dependency_budgets
 import check_dependency_layers
 import check_enforced_decisions
+import check_foundation_consumption
 import check_foundation_hardening
 import check_go_modules
 import check_libs_go_admission
@@ -44,6 +45,7 @@ CHECKS = [
     ("code/docs alignment", check_code_docs_alignment.check),
     ("dependency budgets", check_dependency_budgets.check),
     ("dependency layers", check_dependency_layers.check),
+    ("foundation consumption", check_foundation_consumption.check),
     ("Go modules", check_go_modules.check),
     ("libs/go admission", check_libs_go_admission.check),
     ("Rust workspace", check_rust_workspace.check),
