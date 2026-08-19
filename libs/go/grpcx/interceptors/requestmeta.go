@@ -7,10 +7,10 @@ package interceptors
 
 import (
 	"context"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
 	"go.mindclade.dev/libs/go/grpcx"
 	"go.mindclade.dev/libs/go/requestmeta"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 func UnaryRequestMetadata() grpc.UnaryServerInterceptor {

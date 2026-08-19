@@ -7,9 +7,9 @@ package interceptors
 
 import (
 	"context"
-	"google.golang.org/grpc"
 	"go.mindclade.dev/libs/go/auth"
 	"go.mindclade.dev/libs/go/faults"
+	"google.golang.org/grpc"
 )
 
 type AuthorizationTarget struct {

@@ -7,9 +7,9 @@ package interceptors
 
 import (
 	"context"
-	"google.golang.org/grpc"
 	"go.mindclade.dev/libs/go/faults"
 	"go.mindclade.dev/libs/go/grpcx"
+	"google.golang.org/grpc"
 	"runtime/debug"
 )
 

@@ -28,10 +28,16 @@ import check_dependency_layers
 import check_enforced_decisions
 import check_foundation_consumption
 import check_foundation_hardening
+import check_go_layers
 import check_go_modules
 import check_libs_go_admission
 import check_rust_implementation
 import check_rust_workspace
+
+def _go_layers(root: Path) -> list[str]:
+    """Adapt the Go layering checker, which reports structured violations."""
+    return [violation.render(root) for violation in check_go_layers.check(root)]
+
 
 CHECKS = [
     ("build/toolchain", check_build_toolchain_contract.check),
@@ -46,6 +52,7 @@ CHECKS = [
     ("dependency budgets", check_dependency_budgets.check),
     ("dependency layers", check_dependency_layers.check),
     ("foundation consumption", check_foundation_consumption.check),
+    ("Go layers and paved roads", _go_layers),
     ("Go modules", check_go_modules.check),
     ("libs/go admission", check_libs_go_admission.check),
     ("Rust workspace", check_rust_workspace.check),

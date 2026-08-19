@@ -53,6 +53,9 @@ note "checking Go dependency layers and paved roads"
 PYTHONDONTWRITEBYTECODE=1 python3 tools/analysis/check_go_layers.py --repo "$repo"
 PYTHONDONTWRITEBYTECODE=1 python3 tools/analysis/check_placeholder_packages.py --repo "$repo"
 
+note "checking that declared foundation consumption matches the import graph"
+PYTHONDONTWRITEBYTECODE=1 python3 tools/analysis/check_foundation_consumption.py --repo "$repo"
+
 note "running race-enabled foundation and integration tests"
 packages=(
   ./libs/go/config
@@ -70,6 +73,8 @@ packages=(
   ./libs/go/coordination/...
   ./services/control_plane/internal/bootstrap
   ./services/control_plane/internal/foundation
+  ./services/control_plane/internal/provider
+  ./services/control_plane/internal/transport
   ./examples/go/event_dispatcher
   ./examples/go/ingestion_coordinator
 )

@@ -7,11 +7,11 @@ package interceptors
 
 import (
 	"context"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
 	"go.mindclade.dev/libs/go/auth"
 	"go.mindclade.dev/libs/go/faults"
 	"go.mindclade.dev/libs/go/httpx"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"strings"
 )
 

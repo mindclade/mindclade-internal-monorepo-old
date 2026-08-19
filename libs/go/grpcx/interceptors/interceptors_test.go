@@ -6,9 +6,9 @@
 package interceptors
 
 import (
-	"google.golang.org/grpc/metadata"
 	"go.mindclade.dev/libs/go/auth"
 	"go.mindclade.dev/libs/go/faults"
+	"google.golang.org/grpc/metadata"
 	"testing"
 )
 

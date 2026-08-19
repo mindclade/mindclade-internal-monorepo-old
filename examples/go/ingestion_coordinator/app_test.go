@@ -63,10 +63,23 @@ func TestIngestionCoordinatorRunsDurableWorkOutboxAndMessagingPipeline(t *testin
 		application.Shutdown()
 		t.Fatalf("work state=%s", workRecord.State)
 	}
-	outboxRecord, err := application.OutboxStore.Lookup(context.Background(), outboxID)
-	if err != nil {
-		application.Shutdown()
-		t.Fatal(err)
+	// The dispatcher publishes and only then marks the message published, which
+	// is the only ordering that keeps delivery at-least-once. Receiving the
+	// message above therefore proves the publish happened, not that the store
+	// transition has landed, so the terminal state is polled rather than read
+	// once.
+	deadline = time.Now().Add(5 * time.Second)
+	var outboxRecord outbox.Record
+	for {
+		outboxRecord, err = application.OutboxStore.Lookup(context.Background(), outboxID)
+		if err != nil {
+			application.Shutdown()
+			t.Fatal(err)
+		}
+		if outboxRecord.State == outbox.StatePublished || !time.Now().Before(deadline) {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 	if outboxRecord.State != outbox.StatePublished {
 		application.Shutdown()
