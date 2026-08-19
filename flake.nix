@@ -18,7 +18,18 @@
       systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
       forAllSystems = fn: nixpkgs.lib.genAttrs systems (system:
         let
-          pkgs = import nixpkgs { inherit system; overlays = [ rust-overlay.overlays.default ]; };
+          # allowUnfree, for terraform and nothing else. Terraform is BUSL-licensed since 1.6,
+          # so `nix develop .#ci` fails to EVALUATE without this — not at the terraform step,
+          # but before the shell exists, with a licence error that names no package usefully.
+          # A predicate rather than a blanket `allowUnfree = true` so that the next unfree
+          # dependency has to be added deliberately rather than inherited. bootstrap's flake
+          # takes the blanket form; this is the same decision made narrower.
+          pkgs = import nixpkgs {
+            inherit system;
+            overlays = [ rust-overlay.overlays.default ];
+            config.allowUnfreePredicate = pkg:
+              builtins.elem (nixpkgs.lib.getName pkg) [ "terraform" ];
+          };
           rust = import ./tools/build/nix/toolchains/rust.nix { inherit pkgs versions; };
         in fn { inherit pkgs rust system; });
     in {
