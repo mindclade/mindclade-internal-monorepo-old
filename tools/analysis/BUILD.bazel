@@ -91,3 +91,16 @@ py_binary(
     main = "run_architecture_checks.py",
     visibility = ["//visibility:public"],
 )
+
+# The two files this check compares are data, not srcs: the point of the test is
+# that the committed Terraform and the committed cert-manager manifest agree, so
+# a fixture-only test would pass while the real pair drifted.
+pytest_test(
+    name = "dns_caa_alignment_test",
+    srcs = ["tests/test_dns_caa_alignment.py"],
+    data = [
+        "check_dns_caa_alignment.py",
+        "//infra/kubernetes/platform/cert-manager/base:certificates.yaml",
+        "//infra/terraform/environments/dns_hub:terraform.tfvars.example",
+    ],
+)

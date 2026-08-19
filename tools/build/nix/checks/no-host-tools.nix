@@ -99,8 +99,9 @@ pkgs.runCommand "mindclade-no-host-tools"
             )
 
     # --- 3: action commands ---------------------------------------------------------------
-    # Attribute value forms: cmd = "...", cmd = '''...''', cmd = \"\"\"...\"\"\", and the
-    # select()/concatenation cases fall out because the scan is per quoted value.
+    # Attribute value forms: a single-quoted "..." value and a triple-double-quoted block. The
+    # select()/concatenation cases fall out of this because the scan is per quoted value rather
+    # than per attribute.
     COMMAND_ATTRS = r'(?:cmd|cmd_bash|cmd_bat|cmd_ps|executable)'
     VALUE = (
         rf'^\s*{COMMAND_ATTRS}\s*=\s*'
