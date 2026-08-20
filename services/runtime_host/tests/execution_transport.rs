@@ -477,6 +477,9 @@ fn bundle_digest(manifest: &str) -> String {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+// This qualification test intentionally keeps the bundle, process, transport, and cleanup
+// sequence together so a reader can audit the complete cross-language boundary in execution order.
+#[allow(clippy::too_many_lines)]
 async fn rust_host_executes_the_real_python_reference_worker() {
     let Some(worker_executable) = required_bazel_data("MINDCLADE_TEST_MODEL_WORKER") else {
         eprintln!("Bazel-only Python worker integration test skipped under Cargo");

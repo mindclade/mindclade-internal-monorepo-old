@@ -604,7 +604,7 @@ fn model_spec_from_env() -> FaultResult<Option<ModelSpec>> {
         (None, None, None, None) => Ok(None),
         (Some(digest), Some(executable), Some(control_socket), Some(config_path)) => {
             build_model_spec(
-                digest,
+                &digest,
                 executable,
                 control_socket,
                 config_path,
@@ -623,7 +623,7 @@ fn model_spec_from_env() -> FaultResult<Option<ModelSpec>> {
 
 #[allow(clippy::too_many_arguments)]
 fn build_model_spec(
-    digest: String,
+    digest: &str,
     executable: String,
     control_socket: String,
     config_path: String,
@@ -632,10 +632,12 @@ fn build_model_spec(
     minimum_gpu_memory_bytes: u64,
     pinned_memory_bytes: u64,
 ) -> FaultResult<ModelSpec> {
-    let model_digest = Digest::from_str(&digest).map_err(|error| {
+    let model_digest = Digest::from_str(digest).map_err(|error| {
         Fault::invalid_argument("preloaded model digest is invalid").with_source(error)
     })?;
     let control_socket = PathBuf::from(control_socket);
+    let host_socket = PathBuf::from(host_socket);
+    let host_grpc_socket = PathBuf::from(host_grpc_socket);
     if !control_socket.is_absolute()
         || control_socket.as_os_str().as_encoded_bytes().len() > MAX_SOCKET_PATH_BYTES
     {
@@ -643,9 +645,7 @@ fn build_model_spec(
             "model-worker socket path must be bounded and absolute",
         ));
     }
-    if control_socket == PathBuf::from(host_socket)
-        || control_socket == PathBuf::from(host_grpc_socket)
-    {
+    if control_socket == host_socket || control_socket == host_grpc_socket {
         return Err(Fault::invalid_argument(
             "model-worker socket must differ from runtime-host sockets",
         ));
@@ -845,7 +845,7 @@ mod tests {
     #[test]
     fn model_spec_forwards_only_the_bounded_worker_contract() {
         let spec = build_model_spec(
-            format!("sha256:{}", "ab".repeat(32)),
+            &format!("sha256:{}", "ab".repeat(32)),
             "/opt/mindclade/model-worker".to_owned(),
             "/run/mindclade/model-worker.sock".to_owned(),
             "/etc/mindclade/model-worker.json".to_owned(),
@@ -876,7 +876,7 @@ mod tests {
         let digest = format!("sha256:{}", "ab".repeat(32));
         assert!(
             build_model_spec(
-                digest.clone(),
+                &digest,
                 "/opt/mindclade/model-worker".to_owned(),
                 "/run/mindclade/model-worker.sock".to_owned(),
                 "relative.json".to_owned(),
@@ -889,7 +889,7 @@ mod tests {
         );
         assert!(
             build_model_spec(
-                digest,
+                &digest,
                 "/opt/mindclade/model-worker".to_owned(),
                 "/run/mindclade/runtime-host.sock".to_owned(),
                 "/etc/mindclade/model-worker.json".to_owned(),

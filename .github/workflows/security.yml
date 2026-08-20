@@ -97,14 +97,13 @@ jobs:
         run: '"${GOVULNCHECK}" -mode=source ./...'
 
   codeql:
-    uses: mindclade-org/.github/.github/workflows/reusable-codeql.yml@22cd42b4f5c08bcb579aed4b6a0bb8cd4696daa0  # v1.1.0
+    uses: mindclade/.github/.github/workflows/reusable-codeql.yml@7e4b7a873fc9312c2985ed262b251455c71756fe  # v3.0.0
     with:
       # Rust is omitted: CodeQL's Rust support is still maturing and the runtime data plane is
       # covered by clippy with -D warnings plus cargo-deny in the presubmit lane. Revisit when
       # Rust leaves beta in the CodeQL bundle.
       languages: '["go","python","javascript-typescript"]'
       queries: security-extended
-      # `none` rather than autobuild. Autobuild would try to build the whole Bazel workspace
-      # to extract Go; build-mode none extracts from source instead, which is both faster and
-      # not dependent on the Bazel toolchain being fully wired.
-      build-mode: none
+      # CodeQL requires a build for Go. The shared workflow rejects `none` for that language,
+      # so use its supported autobuild path; Python and JavaScript remain source-extracted.
+      build-mode: autobuild

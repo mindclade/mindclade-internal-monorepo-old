@@ -427,6 +427,12 @@ dev = [
     { name = "pytest" },
     { name = "ruff" },
 ]
+typecheck = [
+    { name = "hypothesis" },
+    { name = "mypy" },
+    { name = "numpy" },
+    { name = "pytest" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -441,6 +447,12 @@ dev = [
     { name = "mypy", specifier = "==2.3.1" },
     { name = "pytest", specifier = "==9.0.3" },
     { name = "ruff", specifier = "==0.14.6" },
+]
+typecheck = [
+    { name = "hypothesis", specifier = "==6.161.6" },
+    { name = "mypy", specifier = "==2.3.1" },
+    { name = "numpy", specifier = ">=2.1" },
+    { name = "pytest", specifier = "==9.0.3" },
 ]
 
 [[package]]

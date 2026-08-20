@@ -41,6 +41,15 @@ dev = [
     "ruff==0.14.6",
     "pytest==9.0.3",
 ]
+# Strict typing for libs/python includes its tests, so it needs the test decorators and NumPy's
+# PEP 561 surface, but not the root project's heavyweight Torch runtime. Keep that CI lane small
+# without allowing any dependency to drift.
+typecheck = [
+    "hypothesis==6.161.6",
+    "mypy==2.3.1",
+    "numpy>=2.1",
+    "pytest==9.0.3",
+]
 
 [tool.uv]
 package = false

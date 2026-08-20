@@ -150,14 +150,18 @@
               ''
             else
               null;
-          standardShellHook = ''
+          baseShellHook = ''
             export MINDCLADE_REPO_ROOT="$PWD"
-            export MINDCLADE_CC_TOOLCHAIN_ROOT="${ccToolchain}"
             export PYTHONNOUSERSITE=1
-          ''
-          + nixpkgs.lib.optionalString pkgs.stdenv.hostPlatform.isDarwin ''
-            export PATH="${xcodeSelectCompat}/bin:$PATH"
           '';
+          standardShellHook =
+            baseShellHook
+            + ''
+              export MINDCLADE_CC_TOOLCHAIN_ROOT="${ccToolchain}"
+            ''
+            + nixpkgs.lib.optionalString pkgs.stdenv.hostPlatform.isDarwin ''
+              export PATH="${xcodeSelectCompat}/bin:$PATH"
+            '';
           defaultPackages =
             (with pkgs; [
               bazelisk
@@ -173,6 +177,16 @@
               uv
             ])
             ++ rust.packages;
+          infraValidationPackages = with pkgs; [
+            conftest
+            kubeconform
+            kubernetes-helm
+            kustomize
+            prometheus.cli
+            python312
+            yamllint
+            yq-go
+          ];
         in
         {
           default = pkgs.mkShell {
@@ -191,6 +205,47 @@
             shellHook = standardShellHook + ''
               export PATH="${pkgs.go}/bin:$PATH"
             '';
+          };
+          # CI lanes use the smallest closure that can execute their contract. The umbrella
+          # `ci` shell remains the convenient interactive environment, but realizing it on a
+          # fresh GitHub runner needlessly compiled Terraform and Prometheus for unrelated jobs
+          # and exhausted the runner disk before the requested command started.
+          ci-lint = pkgs.mkShell {
+            packages = with pkgs; [
+              actionlint
+              python312Packages.mkdocs
+              shellcheck
+              yamllint
+            ];
+            shellHook = baseShellHook;
+          };
+          ci-terraform = pkgs.mkShell {
+            packages = with pkgs; [
+              conftest
+              python312
+              terraform
+              terraform-docs
+              tflint
+              trivy
+            ];
+            shellHook = baseShellHook;
+          };
+          ci-infra = pkgs.mkShell {
+            packages = [ pkgs.bazelisk ] ++ infraValidationPackages;
+            shellHook = standardShellHook;
+          };
+          ci-bazel = pkgs.mkShell {
+            # The full Bazel test graph includes the Kubernetes/GitOps validation targets, so
+            # their host-tool bundle is part of this lane even though configured compilation
+            # uses Bazel-registered language toolchains.
+            packages =
+              (with pkgs; [
+                bazelisk
+                buildifier
+                python312
+              ])
+              ++ infraValidationPackages;
+            shellHook = standardShellHook;
           };
           ci = pkgs.mkShell {
             # actionlint/shellcheck/yamllint feed the `lint` lane, terraform the `terraform`

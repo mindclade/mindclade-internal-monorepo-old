@@ -138,6 +138,6 @@ func TestDeploymentIsTheRuntimeAuthorityType(t *testing.T) {
 	// every route crossing this boundary needs an explicit mapping, and the compiler will not
 	// say so at the alias site -- it will say so wherever a snapshot is built.
 	var route routing.Deployment
-	var authority runtime_authority.DeploymentRoute = route
-	_ = authority
+	requireRuntimeAuthorityRoute := func(runtime_authority.DeploymentRoute) {}
+	requireRuntimeAuthorityRoute(route)
 }
