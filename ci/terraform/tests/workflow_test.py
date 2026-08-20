@@ -7,7 +7,6 @@ from __future__ import annotations
 import pathlib
 import re
 
-
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 PRESUBMIT = (ROOT / ".github/workflows/presubmit.yml").read_text(encoding="utf-8")
 SECURITY = (ROOT / ".github/workflows/security.yml").read_text(encoding="utf-8")

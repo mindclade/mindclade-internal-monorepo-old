@@ -60,8 +60,7 @@ def validate_profile(profile: Any) -> None:
             and nonempty_object(classification.get("retention"))
         ):
             fail(
-                "profile classification "
-                f"{name!r} has empty or invalid residency/retention controls"
+                f"profile classification {name!r} has empty or invalid residency/retention controls"
             )
 
 
@@ -99,9 +98,7 @@ def main() -> None:
                 "profile": profile,
                 "approvals": approvals,
                 "runtime": {
-                    "now": datetime.now(UTC)
-                    .isoformat(timespec="seconds")
-                    .replace("+00:00", "Z"),
+                    "now": datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
                     "plan_digest": hashlib.sha256(plan_bytes).hexdigest(),
                 },
             }

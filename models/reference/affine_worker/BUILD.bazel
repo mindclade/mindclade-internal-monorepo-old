@@ -1,0 +1,46 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_python//python:defs.bzl", "py_binary")
+load("//tools/build/bazel/rules:release.bzl", "mindclade_model_bundle")
+
+package(default_visibility = ["//visibility:private"])
+
+py_binary(
+    name = "make_bundle",
+    srcs = ["make_bundle.py"],
+    deps = ["//tools/release:build_model_bundle_lib"],
+)
+
+genrule(
+    name = "bundle",
+    outs = [
+        "bundle/config.json",
+        "bundle/manifest.json",
+        "bundle/model.safetensors",
+    ],
+    cmd = "$(execpath :make_bundle) --out $(RULEDIR)/bundle >/dev/null",
+    tools = [":make_bundle"],
+)
+
+genrule(
+    name = "annotations",
+    srcs = ["bundle/manifest.json"],
+    outs = ["annotations.txt"],
+    cmd = "$(execpath //tools/release:emit_annotations) " +
+          "--manifest $(location bundle/manifest.json) --out $@",
+    tools = ["//tools/release:emit_annotations"],
+)
+
+mindclade_model_bundle(
+    name = "reference_affine",
+    annotations = ":annotations",
+    visibility = ["//visibility:public"],
+    weights = {
+        ":bundle/config.json": "config.json",
+        ":bundle/manifest.json": "manifest.json",
+        ":bundle/model.safetensors": "model.safetensors",
+    },
+)

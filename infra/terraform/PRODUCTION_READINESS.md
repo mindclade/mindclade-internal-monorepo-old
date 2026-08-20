@@ -12,7 +12,7 @@ topology and live evidence remain external and unknown.
 | Gate | Status | Required evidence |
 |---|---|---|
 | Stable module contracts and owners | PASS | Generated interfaces for 32 modules plus `dns_hub`, versioned migration evidence, component ownership, and Platform/Security review routing |
-| Formatting and static repository checks | PARTIAL | Terraform formatting, diff check, Actionlint, strict YAML lint, and Nix flake evaluation pass. The static repository presubmit passed during the Terraform baseline but a final shared-worktree rerun is blocked by unrelated concurrent Rust/Bazel alignment changes |
+| Formatting and static repository checks | PASS | Terraform formatting, diff check, Actionlint, strict YAML lint, Nix flake evaluation/toolchain evidence, documentation build, and the repository static presubmit pass |
 | Backendless init/validate/mock tests | PASS | 36/36 configurations validate and 237/237 mock runs pass across 33 suites using committed locks |
 | Provider-connected non-production plan | MISSING | Saved plan, plan JSON, provider versions, project/region, and expiration |
 | IaC security and policy checks | PARTIAL | CI pins TFLint 0.64.0 and Trivy 0.74.0; Trivy has zero unsuppressed findings and three resource-local exceptions expiring 2027-08-20. Conftest's fail-closed policy and fixtures pass, and local Checkov reported 152 passed, 0 failed, 8 documented skips. An approved live profile, saved-plan evaluation, cost analysis, and retained reports remain missing |
@@ -57,9 +57,8 @@ refresh, plan against GCP, apply, import, state mutation, or cloud API operation
   changes covered by the planned v0.2.0 migration record; both hermetic Bazel tests pass.
 - Actionlint, strict workflow YAML lint, `git diff --check`, and
   `nix flake check --no-build`: pass.
-- `python3 ci/presubmit/pipeline.py --static-only` passed during the Terraform baseline.
-  A final shared-worktree rerun is currently blocked only by unrelated concurrent
-  Rust/Cargo-to-Bazel dependency alignment changes; the Terraform checks remain green.
+- `python3 ci/presubmit/pipeline.py --static-only`: all 19 repository checks pass.
+- Strict MkDocs build and `nix fmt -- --ci`: pass.
 
 The `lint` and `terraform` workflow jobs now have stable names. Their sibling
 `github-config` ruleset is deliberately scoped to `mindclade` and defaults to `evaluate`;

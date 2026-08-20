@@ -16,8 +16,13 @@ py_library(
         "model_loader.py",
         "model_runner.py",
         "protocol.py",
+        "reference.py",
         "shutdown.py",
     ],
     imports = ["../.."],
-    deps = ["//serving/model_worker/batching"],
+    deps = [
+        "//serving/model_worker/batching",
+        "@pypi//safetensors",
+        "@pypi//torch",
+    ],
 )
