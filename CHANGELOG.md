@@ -4,7 +4,20 @@ All notable changes to the repository architecture and released implementation
 surfaces are recorded here. Individual model, dataset, runtime, and service
 releases also carry immutable release manifests and evidence bundles.
 
-## 2026-08-20 — Terraform v0.2.0 candidate
+## 2026-08-20 — Terraform v0.3.0 candidate
+
+- removed the Binary Authorization module's project-wide
+  `roles/containeranalysis.occurrences.editor` grant, which could update and delete release
+  evidence, and exported the exact create/get/list occurrence contract for the authoritative
+  `infrastructure-live` custom role;
+- added the machine-checked 0.2.0-to-0.3.0 migration record for that intentional IAM address
+  removal; v0.2.0 remained an unpublished planned contract and is not a production baseline.
+
+This entry describes a release candidate, not a published tag or production deployment.
+The live custom role, connected plan, signing canary, empty drift plan, recovery, cost, and
+operational evidence remain promotion blockers.
+
+## 2026-08-20 — Terraform v0.2.0 candidate (superseded before release)
 
 - materialized and documented all 32 reusable Google Cloud modules plus the lifetime-scoped
   `dns_hub` root without creating deployable environment values or cloud state;
