@@ -1,35 +1,15 @@
-# Libs / Python / Testing
+# Python test primitives
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** the language indicated by the second path segment
+This package contains deterministic helpers used across Python test suites: bounded numerical and
+rotation assertions, pure device-spec selection, multi-rank environment matrices, an environment
+fixture that restores the exact prior snapshot, and shell-free subprocess execution.
 
-## Purpose
+Numerical assertions accept at most 4,000,000 elements and report shape, first mismatch, mismatch
+count, and maximum finite absolute error. `run_process` executes an argument vector directly with
+stdin disabled, enforces a deadline of at most 300 seconds, and terminates a process once aggregate
+stdout/stderr exceeds 1 MiB. It never interpolates a command through a shell. Device selection is
+based only on an explicit inventory and never probes or initializes an accelerator runtime.
 
-Reusable mechanisms for one language. Libraries contain stable, broadly consumed behavior and no product-domain policy or executable composition roots. This path specializes that domain for **testing**.
-
-## Boundary
-
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
-
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
-
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+These helpers do not manage production processes, initialize distributed backends, reserve ports,
+discover GPUs, or provide application fixtures. `temporary_environ` mutates process-global state
+and therefore must not be used concurrently within one interpreter.

@@ -1,0 +1,6 @@
+dependencies:
+- name: jobset
+  repository: oci://registry.k8s.io/jobset/charts
+  version: 0.12.0
+digest: sha256:6ad1f0e779c511dc433507e36f07860d4e4817c555bb82bd1e5a1981cb62f874
+generated: "2026-08-20T01:37:10.301269-04:00"

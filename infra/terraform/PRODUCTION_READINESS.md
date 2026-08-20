@@ -1,8 +1,9 @@
 # Terraform production readiness
 
 **Current decision:** Not ready for production apply.  
-**Implementation status:** Reusable modules are materialized and offline validation is
-in progress; environment topology and live evidence remain external and unknown.  
+**Implementation status:** All 32 reusable modules are materialized and pass local
+formatting, provider-schema validation, mock tests, TFLint, and Checkov; environment
+topology and live evidence remain external and unknown.
 **Last repository review:** 2026-08-20.
 
 ## Promotion evidence
@@ -10,10 +11,10 @@ in progress; environment topology and live evidence remain external and unknown.
 | Gate | Status | Required evidence |
 |---|---|---|
 | Stable module contracts and owners | PARTIAL | Module READMEs/tests plus infrastructure entries in `components.toml` and approved reviewers |
-| Formatting and static repository checks | PENDING FINAL RUN | Command output tied to the reviewed commit |
-| Backendless init/validate/mock tests | PENDING FINAL RUN | Every materialized module, using committed lock policy |
+| Formatting and static repository checks | PASS | Terraform formatting, diff check, Actionlint, strict YAML lint, and repository static presubmit passed locally on 2026-08-20 |
+| Backendless init/validate/mock tests | PASS | 32/32 modules initialized with no backend, schema-valid, and 226/226 mock runs passed using committed locks |
 | Provider-connected non-production plan | MISSING | Saved plan, plan JSON, provider versions, project/region, and expiration |
-| IaC security and policy checks | MISSING | Pinned scanner/policy versions and reports |
+| IaC security and policy checks | PARTIAL | Local TFLint passed and Checkov 3.3.0 reported 152 passed, 0 failed, 8 documented skips; CI pinning, policy-as-code, and retained reports remain missing |
 | IAM and public-access review | MISSING | Effective inherited IAM; WIF allow/deny; no keys/basic/public grants |
 | Destructive/replacement review | MISSING | Explicit zero/unapproved-action statement or signed approvals |
 | Cost review | MISSING | Estimate, budgets, allocation tags/labels, quota and capacity assumptions |
@@ -27,6 +28,21 @@ in progress; environment topology and live evidence remain external and unknown.
 `terraform test` with a mocked provider is a contract test. It cannot prove that APIs
 are enabled, service agents hold required grants, quotas/capacity exist, organization
 policy permits a resource, a restore succeeds, or a workload meets its SLO.
+
+## Local validation evidence
+
+The 2026-08-20 repository gate used Terraform 1.15.8 on `darwin_arm64` and
+checksum-verified Google providers pinned by each module lock file (7.44.0 or 7.45.0).
+Initialization used `-backend=false`; no credentials, remote state, refresh, plan against
+GCP, apply, import, state mutation, or cloud API operation was used.
+
+- `terraform fmt -check -recursive infra/terraform`: pass.
+- Backendless `terraform init -lockfile=readonly` and `terraform validate`: 32/32 pass.
+- `terraform test` with `mock_provider`: 226/226 runs pass across 32/32 modules.
+- TFLint 0.63.1 default Terraform rules: pass across 32/32 modules.
+- Checkov 3.3.0 Terraform scan: 152 passed, 0 failed, 8 documented skips.
+- Actionlint, strict workflow YAML lint, `git diff --check`, and
+  `python3 ci/presubmit/pipeline.py --static-only`: pass.
 
 ## Required decisions before live-root materialization
 
@@ -80,4 +96,3 @@ approved RTO/RPO, restore evidence, capacity/quota evidence, and a change window
 The detailed findings, target state, validation plan, approval gates, and residual
 risks are recorded in
 [`docs/architecture/gcp-terraform-well-architected-review.md`](../../docs/architecture/gcp-terraform-well-architected-review.md).
-

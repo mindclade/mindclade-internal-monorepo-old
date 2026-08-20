@@ -34,25 +34,29 @@ A materialized scaffold path is not a production release claim.
 
 ## Rust hardening validation (2026-08-20)
 
-The pinned Rust 1.97.1 toolchain and committed lockfile are available in this
-workspace. The following local gates pass with all workspace features and
-targets enabled:
+The pinned Rust 1.97.1 toolchain, committed lockfile, and `cargo-deny` are
+available in this workspace. The canonical presubmit passes with all workspace
+features and targets enabled:
 
 ```text
 cargo fmt --all -- --check                                      PASS
 cargo test --workspace --all-targets --all-features --locked    PASS
 cargo clippy ... -- -D warnings                                 PASS
+cargo test --workspace --doc / cargo doc                        PASS
 Rust format/arithmetic/implementation/Cargo-Bazel static checks PASS
-compatibility and failure-injection policy matrices             PASS
+cargo-deny advisories/bans/licenses/sources                     PASS
+compatibility matrix and 6 executed failure-injection scenarios PASS
+Rust performance policy (8 budgets; 2 portable measurements)    PASS
 ```
 
 This hardening pass also replaced placeholder Rust tests with behavioral cases
 and added regression coverage for bounded verified reads, local-store
-conditions and range integrity, gateway drain admission, early policy-snapshot
-rejection, IPC permissions/sealing, tool output/timeouts, reference-path
-escape, socket-path preservation, and dead-process cleanup. Connected Linux
-unsafe qualification, Miri/fuzz/sanitizers, provider-backed failure injection,
-measured performance, Bazel/Nix release builds, and deployment evidence remain
+conditions and range integrity, gateway and host drain admission, early
+policy-snapshot rejection, IPC permissions/sealing, tool output/timeouts,
+reference-path escape, socket-path preservation, and dead-process cleanup.
+Connected Linux unsafe qualification, Miri/fuzz/sanitizers, provider-backed
+failure injection, the six hardware/provider performance budgets not covered by
+the portable probe, Bazel/Nix release builds, and deployment evidence remain
 promotion blockers.
 
 ## Current inventory
@@ -197,9 +201,9 @@ stack. Therefore the artifact does **not** claim:
 - connected Linux and remote-execution parity for the locally passing Bazel
   graph, Bzlmod lock, and test suite;
 - `nix flake check` and local/remote toolchain-manifest parity;
-- fuzz, Miri, sanitizer, measured-performance, or connected-provider
+- fuzz, Miri, sanitizer, complete hardware/provider performance, or connected-provider
   qualification of the Rust runtime foundation and runtime service cores
-  (local pinned compilation, tests, rustfmt, rustdoc, and Clippy now pass);
+  (the canonical presubmit, including cargo-deny and portable probes, now passes);
 - broader Python numerical, TileLang, TypeScript, infrastructure, or full product
   implementation/qualification beyond their explicit local evidence.
 
@@ -250,9 +254,8 @@ foundation_freeze.py                         PASS (offline mode)
 ```
 
 The 2026-08-20 pass supersedes the historical toolchain limitation above: the
-pinned compiler and committed `Cargo.lock` are now present, and local Cargo
-format/test/Clippy gates pass. Production promotion still requires the
-repository-owned connected lane to pass Bazel/Nix and cargo-deny closure,
-fuzz/Miri/sanitizers, measured performance, provider-backed failure injection,
-image/provenance checks, and deployment rollback. No local claim substitutes
-for that evidence.
+pinned compiler and committed `Cargo.lock` are now present, and the canonical
+Rust presubmit passes. Production promotion still requires Bazel/Nix release
+qualification, fuzz/Miri/sanitizers, the remaining hardware/provider performance
+measurements, provider-backed failure injection, image/provenance checks, and
+deployment rollback. No local claim substitutes for that evidence.

@@ -7,7 +7,13 @@ from types import MappingProxyType
 
 import pytest
 
-from libs.python.config import MergeError, OverrideError, apply_override, deep_merge
+from libs.python.config import (
+    MergeError,
+    OverrideError,
+    apply_override,
+    deep_merge,
+    deep_merge_many,
+)
 from libs.python.errors import Code, code_of
 
 
@@ -35,6 +41,26 @@ def test_deep_merge_recurses_without_mutating_either_input() -> None:
 def test_deep_merge_accepts_read_only_mappings() -> None:
     base = MappingProxyType({"model": MappingProxyType({"layers": 2})})
     assert deep_merge(base, {"model": {"width": 64}}) == {"model": {"layers": 2, "width": 64}}
+
+
+def test_deep_merge_many_matches_sequential_merging_without_aliasing() -> None:
+    base = {"model": {"layers": 2, "widths": [32, 64]}, "runtime": {"seed": 7}}
+    overlays = ({"model": {"layers": 4}}, {"runtime": {"precision": "bf16"}})
+    expected = base
+    for overlay in overlays:
+        expected = deep_merge(expected, overlay)
+
+    merged = deep_merge_many(base, overlays)
+
+    assert merged == expected
+    merged_model = merged["model"]
+    base_model = base["model"]
+    assert isinstance(merged_model, dict)
+    assert isinstance(base_model, dict)
+    merged_widths = merged_model["widths"]
+    assert isinstance(merged_widths, list)
+    merged_widths.append(128)
+    assert base_model["widths"] == [32, 64]
 
 
 def test_type_change_reports_the_complete_path_as_an_invalid_argument() -> None:

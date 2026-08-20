@@ -15,19 +15,20 @@ test -f "${KUBE_ROOT}/kustomization.yaml"
 kustomize build "${KUBE_ROOT}"
 ```
 
-Expected foundation output contains Namespace, ConfigMap, ServiceAccount,
-ResourceQuota, LimitRange, two PriorityClasses, and two NetworkPolicies. It
-contains no Pod-producing workload, RBAC grant, Secret, LoadBalancer, NodePort,
-PVC, or custom resource.
+Expected foundation output contains Namespace, ConfigMap, two ServiceAccounts,
+ResourceQuota, LimitRange, two PriorityClasses, two NetworkPolicies, and the
+native admission policies/bindings. It contains no Pod-producing workload,
+RBAC grant, Secret, LoadBalancer, NodePort, PVC, or custom resource.
 
-Run offline validation before consulting a cluster:
+Run the complete offline gate before consulting a cluster:
 
 ```bash
-kustomize build "${KUBE_ROOT}" | kubeconform -strict -summary
+nix develop .#ci --command bash infra/kubernetes/tests/validate.sh
 ```
 
-If policy tests are available in the pinned toolchain, run them against the
-same rendered bytes. Do not validate one root and deploy another.
+It renders every declared root and chart, checks locks, schemas, object scope,
+and policy against the same repository bytes. Do not validate one root and
+deploy another.
 
 ## 2. Identify a cluster before any cluster command
 
@@ -63,8 +64,9 @@ approval.
   zero.
 - LoadBalancer, NodePort, PVC, and GPU requests are rejected by quota.
 - Pods have no ingress or egress except cluster DNS after activation.
-- A Pod that omits `serviceAccountName` receives the default ServiceAccount,
-  but no API token is mounted and no RBAC is granted.
+- A Pod that omits `serviceAccountName` receives the default ServiceAccount;
+  suspended templates use `mindclade-workload`. Neither receives an API token
+  or RBAC grant.
 - Provider-specific RuntimeClasses are absent rather than guessed.
 
 If any workload is running in this namespace before activation, treat it as
@@ -135,4 +137,3 @@ read and why the action cannot mutate application state.
 
 After recovery, retain events, rollout status, rendered digest, image digest,
 alert timeline, and the final empty GitOps diff with the incident record.
-

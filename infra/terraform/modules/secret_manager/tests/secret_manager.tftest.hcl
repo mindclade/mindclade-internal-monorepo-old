@@ -54,7 +54,7 @@ run "metadata_only_secret_contract" {
         description        = "Connection string for the control-plane Cloud SQL instance."
         accessors          = ["runtime"]
         rotation_period    = "7776000s"
-        next_rotation_time = timeadd(plantimestamp(), "24h")
+        next_rotation_time = "2099-01-01T00:00:00Z"
       }
     }
   }
@@ -96,7 +96,8 @@ run "rotation_without_a_topic_gets_one" {
     owner          = "cloud-platform"
 
     # Deliberately empty: this is the input that triggers the module-managed topic.
-    notification_topics = []
+    notification_topics         = []
+    rotation_topic_kms_key_name = "projects/security/locations/global/keyRings/secrets/cryptoKeys/rotation-events"
 
     replication = {
       user_managed = [{ location = "us-central1" }]
@@ -106,19 +107,31 @@ run "rotation_without_a_topic_gets_one" {
       rotation-canary = {
         description        = "Proves the rotation event has somewhere to go."
         rotation_period    = "2592000s"
-        next_rotation_time = timeadd(plantimestamp(), "24h")
+        next_rotation_time = "2099-01-01T00:00:00Z"
       }
     }
   }
 
   assert {
-    condition     = length(google_pubsub_topic.rotation) == 1
+    condition = (
+      length(google_pubsub_topic.rotation) == 1 &&
+      google_pubsub_topic.rotation[0].kms_key_name == "projects/security/locations/global/keyRings/secrets/cryptoKeys/rotation-events"
+    )
     error_message = "A rotating secret with no caller-supplied topic must get a module-managed one."
   }
 
   assert {
     condition     = length(google_pubsub_topic_iam_member.rotation_publisher) == 1
     error_message = "The rotation topic must grant publish to Secret Manager's service agent, or the schedule fails at apply."
+  }
+
+
+  assert {
+    condition = (
+      output.required_rotation_topic_kms_grant.member == "serviceAccount:service-482910385712@gcp-sa-pubsub.iam.gserviceaccount.com" &&
+      output.required_rotation_topic_kms_grant.role == "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+    )
+    error_message = "The key-owning state must receive the exact Pub/Sub service-agent CMEK grant."
   }
 
   assert {
@@ -136,7 +149,9 @@ run "no_rotation_creates_no_topic" {
     project_id     = "mindclade-development"
     project_number = "482910385712"
     environment    = "development"
-    owner          = "cloud-platform"
+
+    rotation_topic_kms_key_name = "projects/security/locations/global/keyRings/secrets/cryptoKeys/rotation-events"
+    owner                       = "cloud-platform"
 
     replication = {
       user_managed = [{ location = "us-central1" }]
@@ -263,7 +278,7 @@ run "reject_rotation_period_without_seconds_suffix" {
       rotation-format-canary = {
         description        = "A duration the API will not parse."
         rotation_period    = "90d"
-        next_rotation_time = timeadd(plantimestamp(), "24h")
+        next_rotation_time = "2099-01-01T00:00:00Z"
       }
     }
   }
@@ -302,6 +317,8 @@ run "reject_rotation_without_next_time" {
     project_id     = "mindclade-development"
     project_number = "482910385712"
     environment    = "development"
+
+    rotation_topic_kms_key_name = "projects/security/locations/global/keyRings/secrets/cryptoKeys/rotation-events"
 
     replication = {
       user_managed = [{ location = "us-central1" }]

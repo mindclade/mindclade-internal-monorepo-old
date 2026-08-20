@@ -19,7 +19,7 @@ from libs.python.errors import InvalidArgument, ResourceExhausted
 from libs.python.identifiers import Digest
 
 from .fingerprint import canonical_json, fingerprint
-from .merge import deep_merge
+from .merge import deep_merge_many
 from .overrides import MAXIMUM_OVERRIDE_LENGTH, apply_override
 
 MAXIMUM_SOURCE_BYTES: Final = 8 << 20
@@ -195,24 +195,27 @@ def resolve(
             f"resolved configuration accepts at most {MAXIMUM_OVERRIDES} overrides",
             reason="configuration_override_count",
         )
-    value: dict[str, Any] = {}
     sources: list[Source] = []
-    for item in paths:
-        if not isinstance(item, str | Path):
-            raise InvalidArgument(
-                "configuration source entries must be filesystem paths",
-                reason="configuration_source_records",
-            )
-        data, source = _load(Path(item))
-        value = deep_merge(value, data)
-        sources.append(source)
-    for overlay in materialized_overlays:
-        if not isinstance(overlay, Mapping):
-            raise InvalidArgument(
-                "configuration overlays must be mappings",
-                reason="configuration_overlay_records",
-            )
-        value = deep_merge(value, overlay)
+
+    def layers() -> Iterable[Mapping[str, Any]]:
+        for item in paths:
+            if not isinstance(item, str | Path):
+                raise InvalidArgument(
+                    "configuration source entries must be filesystem paths",
+                    reason="configuration_source_records",
+                )
+            data, source = _load(Path(item))
+            sources.append(source)
+            yield data
+        for overlay in materialized_overlays:
+            if not isinstance(overlay, Mapping):
+                raise InvalidArgument(
+                    "configuration overlays must be mappings",
+                    reason="configuration_overlay_records",
+                )
+            yield overlay
+
+    value = deep_merge_many({}, layers())
     applied: list[AppliedOverride] = []
     for expression in overrides:
         path, _ = apply_override(value, expression)

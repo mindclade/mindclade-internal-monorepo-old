@@ -119,7 +119,7 @@ run "rejects_provider_without_pool" {
     pool = null
   }
 
-  expect_failures = [google_iam_workload_identity_pool_provider.oidc["github"]]
+  expect_failures = [var.pool]
 }
 
 run "rejects_missing_subject_mapping" {

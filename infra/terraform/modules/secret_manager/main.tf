@@ -82,6 +82,12 @@ resource "google_pubsub_topic" "rotation" {
   project = var.project_id
   name    = "${var.environment}-secret-rotation"
   labels  = merge(var.labels, local.baseline_labels)
+
+  kms_key_name = var.rotation_topic_kms_key_name
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "google_pubsub_topic_iam_member" "rotation_publisher" {

@@ -1,6 +1,10 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
-# Intentionally no replica patch. No workload is active in this overlay.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - cpu-search-job.yaml
+  - feature-job.yaml
+  - reference-cache.yaml

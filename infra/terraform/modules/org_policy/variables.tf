@@ -108,13 +108,3 @@ variable "folder_overrides" {
     error_message = "An override sets exactly one of allow_all, deny_all, or enforce."
   }
 }
-
-variable "labels" {
-  description = <<-EOT
-    Accepted for call-site symmetry with the other org-layer modules and deliberately unused:
-    google_org_policy_policy carries no labels. Declared rather than dropped so that passing
-    it is not a silent no-op discovered later.
-  EOT
-  type        = map(string)
-  default     = {}
-}

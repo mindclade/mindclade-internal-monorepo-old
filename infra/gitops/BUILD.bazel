@@ -1,15 +1,37 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
+
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 package(default_visibility = ["//visibility:private"])
 
 filegroup(
-    name = "scaffold_files",
+    name = "validation_inputs",
     srcs = glob(
         ["**"],
         exclude = ["BUILD.bazel"],
-    ),
+    ) + ["//infra/kubernetes:validation_inputs"],
     visibility = ["//visibility:public"],
+)
+
+# Compatibility target for callers that consumed the originally materialized scaffold.
+filegroup(
+    name = "scaffold_files",
+    srcs = [":validation_inputs"],
+    visibility = ["//visibility:public"],
+)
+
+sh_test(
+    name = "validate",
+    size = "medium",
+    srcs = ["tests/validate.sh"],
+    data = [":validation_inputs"],
+    env_inherit = ["PATH"],
+    tags = [
+        "gitops",
+        "kubernetes",
+        "local",
+        "no-sandbox",
+    ],
 )

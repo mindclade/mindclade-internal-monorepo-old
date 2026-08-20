@@ -8,7 +8,8 @@ narrowing filter.
 The GCS destination enforces uniform access, public-access prevention, versioning,
 90-day soft delete by default, CMEK, `force_destroy = false`, provider deletion policy,
 Terraform `prevent_destroy`, and a locked retention policy. Storage-class transitions
-reduce long-term cost but never delete audit objects.
+reduce long-term cost but never delete audit objects. Server-access records are routed to
+a distinct pre-existing bucket so access to the evidence archive is itself reviewable.
 
 Bucket Lock is irreversible: retention cannot later be shortened or removed, and changing
 location requires a new bucket. The caller must supply the exact confirmation only after
@@ -29,12 +30,13 @@ and defaults to zero (unmanaged).
 module "audit_archive" {
   source = "../../modules/audit_archive"
 
-  parent      = "organizations/123456789012"
-  project_id  = "mindclade-audit"
+  parent                      = "organizations/123456789012"
+  project_id                  = "mindclade-audit"
   environment                 = "production"
   owner                       = "security"
   storage_service_agent_email = "service-123456789012@gs-project-accounts.iam.gserviceaccount.com"
   bucket_name                 = "mindclade-central-audit-archive"
+  access_log_bucket_name      = "mindclade-central-storage-access"
   location                    = "US"
   kms_key_name                = "projects/mindclade-security/locations/us/keyRings/audit/cryptoKeys/archive"
 
@@ -42,8 +44,8 @@ module "audit_archive" {
 }
 ```
 
-The Cloud Storage service agent needs access to the archive CMEK. The required additive
-grant is exported, while Key IAM remains in the key-owning state; verify that grant in the
-live project before apply.
+The Cloud Storage service agent needs access to the archive CMEK, and the Storage analytics
+group needs object-creator on the external access-log bucket. Both required additive grants
+are exported while their IAM remains in the owning states; verify them before apply.
 Mock-provider tests do not prove audit-config enablement, KMS compatibility, VPC Service
 Controls behavior, log delivery, retention-law suitability, or evidence recovery.

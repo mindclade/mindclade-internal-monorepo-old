@@ -21,10 +21,13 @@ records the platform compatibility tuple. GitOps composition belongs under
 `infra/gitops/`; a live cluster must not be mutated directly when GitOps owns
 the target.
 
-There is no first-party Helm chart. Helm may be used later for a pinned upstream
-controller only when its chart, values schema, CRDs, upgrade order, and rollback
-contract are reviewed together. It is not a second source of truth for the
-manifests in this directory.
+First-party resources remain Kustomize-owned. Helm is used only by the
+dependency-only wrappers under `platform/kueue/chart` and `platform/jobset/chart`.
+Those wrappers pin an exact upstream OCI chart and controller image digest, carry
+reviewed production values and a values schema, and keep controller/CRD lifecycle
+separate from Mindclade custom resources. `Chart.lock` plus the vendored chart
+archive makes offline rendering deterministic. Helm is not a second source of
+truth for first-party manifests.
 
 ## Fail-closed invariants
 
@@ -32,7 +35,8 @@ Every environment currently renders all of the following:
 
 - namespace `mindclade-system` with the Kubernetes `restricted` Pod Security
   Standard pinned to the qualified Kubernetes minor;
-- a default ServiceAccount with API-token automount disabled;
+- default and suspended-workload ServiceAccounts with API-token automount
+  disabled and no RBAC;
 - no Role, ClusterRole, RoleBinding, or ClusterRoleBinding;
 - default-deny ingress and egress, with DNS as the only egress exception;
 - zero Pod, Deployment, StatefulSet, DaemonSet, Job, CronJob, PVC, GPU,
@@ -58,7 +62,7 @@ Secret or external-secret object only after that integration is qualified.
 | `overlays/` | Environment identity and non-activating capacity ceilings |
 | `services/` | Per-deployable workload, identity, Service, PDB, and network policy |
 | `workloads/` | Durable Job/JobSet templates for ingestion, preprocessing, and training |
-| `platform/` | Explicitly versioned cluster add-ons and hardware/runtime integration |
+| `platform/` | Locked upstream controllers, held queue policy, native admission, and fail-closed hardware/runtime contracts |
 | `planes/` | Gateway API routing and plane-specific workloads |
 | `tests/` | Offline rendering, schema, policy, and invariant checks |
 
@@ -71,10 +75,14 @@ and model semantics remain in their owning Python/Rust packages.
 Validation is offline and does not require a kubeconfig:
 
 ```bash
-kustomize build infra/kubernetes/overlays/development | kubeconform -strict -summary
-kustomize build infra/kubernetes/overlays/staging | kubeconform -strict -summary
-kustomize build infra/kubernetes/overlays/production | kubeconform -strict -summary
+nix develop .#ci --command bash infra/kubernetes/tests/validate.sh
+tools/dev/bazelw test //infra/kubernetes:validate --test_output=errors
 ```
+
+The validator inventories every Kustomize and Helm root, verifies vendored
+artifact and controller digests, renders all environments, checks object scope
+and CRD structure, applies strict Kubernetes 1.36 schemas, and runs the
+fail-closed Conftest policy. It performs no network or cluster operation.
 
 Before any live diff, follow `RUNBOOK.md`, identify the exact context and
 namespace, and verify that GitOps is not the active writer. Applying, deleting,

@@ -15,7 +15,10 @@ and Terraform destruction protection. Log Analytics is a creation-time decision.
 destinations enforce uniform access, public-access prevention, versioning, soft delete,
 `force_destroy = false`, provider deletion policy, and Terraform destruction protection.
 CMEK is optional at this generic layer; the key-owning state must grant the relevant
-service agent.
+service agent. Every GCS destination also requires a distinct, separately governed
+`access_log_bucket_name`; `required_access_log_writer_grants` reports the additive
+Cloud Storage analytics grant that bucket's owning state must apply. Keep both buckets
+in compatible locations, organizations, and VPC Service Controls perimeters.
 
 GCS retention is distinct from lifecycle deletion. Retention locking is irreversible and
 requires both `lock_retention_policy = true` and the exact

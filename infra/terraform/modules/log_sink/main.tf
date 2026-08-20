@@ -57,6 +57,11 @@ resource "google_storage_bucket" "this" {
     retention_duration_seconds = each.value.bucket.soft_delete_retention_days * 86400
   }
 
+  logging {
+    log_bucket        = each.value.bucket.access_log_bucket_name
+    log_object_prefix = each.value.bucket.access_log_object_prefix
+  }
+
   dynamic "encryption" {
     for_each = each.value.bucket.encryption_key == null ? [] : [each.value.bucket.encryption_key]
 

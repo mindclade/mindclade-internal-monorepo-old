@@ -26,6 +26,7 @@ const (
 	keyCSPEnforce           = "csp.enforce"
 	keyCSPReportURI         = "csp.report.uri"
 	keyIAPAudience          = "iap.audience"
+	keyAuthorizedSubjects   = "authz.authorized.subjects"
 	keySessionKeyCurrentID  = "session.key.current.id"
 	keySessionKeyCurrent    = "session.key.current"
 	keySessionKeyPreviousID = "session.key.previous.id"
@@ -45,6 +46,7 @@ var envMapping = map[string]string{
 	keyCSPEnforce:           "CSP_ENFORCE",
 	keyCSPReportURI:         "CSP_REPORT_URI",
 	keyIAPAudience:          "IAP_AUDIENCE",
+	keyAuthorizedSubjects:   "AUTHORIZED_IAP_SUBJECTS",
 	keySessionKeyCurrentID:  "SESSION_KEY_CURRENT_ID",
 	keySessionKeyCurrent:    "SESSION_KEY_CURRENT",
 	keySessionKeyPreviousID: "SESSION_KEY_PREVIOUS_ID",
@@ -107,6 +109,9 @@ func settingsSchema() []config.Field {
 		},
 		{Key: keyCSPReportURI},
 		{Key: keyIAPAudience},
+		// The value is not a credential, but it is an access-control list of
+		// stable identity identifiers. Redact it from the configuration log.
+		{Key: keyAuthorizedSubjects, Secret: true},
 		{Key: keySessionKeyCurrentID},
 		{Key: keySessionKeyCurrent, Secret: true},
 		{Key: keySessionKeyPreviousID},

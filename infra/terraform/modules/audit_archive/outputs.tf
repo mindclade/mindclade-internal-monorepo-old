@@ -28,6 +28,8 @@ output "audit_contract" {
     retention_locked           = true
     soft_delete_retention_days = var.soft_delete_retention_days
     cmek_key_name              = var.kms_key_name
+    access_log_bucket_name     = var.access_log_bucket_name
+    access_log_object_prefix   = var.access_log_object_prefix
     force_destroy              = false
     deletion_policy            = "PREVENT"
     terraform_prevent_destroy  = true
@@ -41,4 +43,9 @@ output "required_kms_grant" {
     member     = "serviceAccount:${var.storage_service_agent_email}"
     role       = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
   }
+}
+
+output "required_access_log_writer_grant" {
+  description = "Additive grant the separately governed access-log bucket state must apply."
+  value       = module.archive.required_access_log_writer_grants[var.sink_name]
 }

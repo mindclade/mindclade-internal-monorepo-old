@@ -158,8 +158,10 @@ security_review = true
 
 [component."control.model_registry"]
 owner = "platform-control"
-criticality = "tier-2"
+criticality = "tier-1"
 language = "go"
+slo = "docs/slo/control-model-registry.md"
+runbook = "docs/runbooks/control-model-registry.md"
 security_review = true
 
 # ---------------------------------------------------------------------------------------

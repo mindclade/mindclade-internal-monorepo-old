@@ -67,8 +67,5 @@ run "reject_unacknowledged_spot" {
     total_min_nodes = 0
   }
 
-  expect_failures = [
-    google_service_account.executor,
-    module.worker_pool.google_container_node_pool.this,
-  ]
+  expect_failures = [var.spot_approval]
 }

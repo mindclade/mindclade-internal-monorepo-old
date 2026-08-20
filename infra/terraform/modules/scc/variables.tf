@@ -23,10 +23,28 @@ variable "project_id" {
   }
 }
 
+variable "project_number" {
+  description = "Numeric number of project_id, used to derive Google-managed CMEK service identities."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[0-9]+$", var.project_number))
+    error_message = "project_number must contain only decimal digits."
+  }
+}
+
 variable "location" {
   description = "Location for the BigQuery findings dataset"
   type        = string
   default     = "US"
+
+  validation {
+    condition = (
+      contains(["US", "EU"], var.location) ||
+      can(regex("^[a-z]+-[a-z]+[0-9]$", var.location))
+    )
+    error_message = "location must be the US or EU multi-region, or a lowercase Google Cloud region."
+  }
 }
 
 variable "services" {
@@ -56,7 +74,8 @@ variable "notifications" {
     description = string
     filter      = string
     pubsub_topic = object({
-      name = string
+      name         = string
+      kms_key_name = string
     })
   }))
   default = {}
@@ -70,6 +89,16 @@ variable "notifications" {
     condition     = alltrue([for k, v in var.notifications : can(regex("^[a-z][a-z0-9-]{2,126}[a-z0-9]$", k))])
     error_message = "Each notification key must be a 4-128 character lowercase name."
   }
+
+
+  validation {
+    condition = alltrue([
+      for notification in values(var.notifications) :
+      can(regex("^[a-z][a-z0-9._~+%-]{2,253}$", notification.pubsub_topic.name)) &&
+      can(regex("^projects/[^/]+/locations/[^/]+/keyRings/[^/]+/cryptoKeys/[^/]+$", notification.pubsub_topic.kms_key_name))
+    ])
+    error_message = "Every notification topic requires a valid name and full CMEK CryptoKey resource name."
+  }
 }
 
 variable "bigquery_export" {
@@ -79,15 +108,29 @@ variable "bigquery_export" {
     permissions, and the audit log says whether it used them.
   EOT
   type = object({
-    dataset_id = string
-    location   = optional(string)
-    filter     = string
+    dataset_id   = string
+    location     = optional(string)
+    kms_key_name = string
+    filter       = string
   })
   default = null
 
   validation {
     condition     = var.bigquery_export == null || can(regex("^[a-zA-Z0-9_]{1,1000}$", var.bigquery_export.dataset_id))
     error_message = "dataset_id may contain only letters, numbers, and underscores."
+  }
+
+
+  validation {
+    condition = var.bigquery_export == null || (
+      can(regex("^projects/[^/]+/locations/[^/]+/keyRings/[^/]+/cryptoKeys/[^/]+$", var.bigquery_export.kms_key_name)) &&
+      (
+        (coalesce(var.bigquery_export.location, var.location) == "US" && lower(split("/", var.bigquery_export.kms_key_name)[3]) == "us") ||
+        (coalesce(var.bigquery_export.location, var.location) == "EU" && lower(split("/", var.bigquery_export.kms_key_name)[3]) == "europe") ||
+        lower(split("/", var.bigquery_export.kms_key_name)[3]) == lower(coalesce(var.bigquery_export.location, var.location))
+      )
+    )
+    error_message = "bigquery_export requires a full CMEK name compatible with its US, EU, or regional dataset location."
   }
 }
 

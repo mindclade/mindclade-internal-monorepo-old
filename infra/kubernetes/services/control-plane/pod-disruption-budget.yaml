@@ -4,4 +4,47 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# PDBs exist only for roles with implemented serving availability contracts.
+# They become operative after a reviewed overlay scales the corresponding
+# Deployment above zero.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: control-plane-api
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/instance: control-plane-api
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: control-plane-api
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: control-plane-admin
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/instance: control-plane-admin
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: control-plane-admin
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: control-plane-registry
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/instance: control-plane-registry
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: control-plane-registry

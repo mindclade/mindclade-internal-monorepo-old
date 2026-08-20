@@ -112,7 +112,7 @@ variable "secrets" {
         can(regex("^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,61}[A-Za-z0-9])?$", key)) &&
         can(regex("^[\\x20-\\x7e]*$", value))
       ]) &&
-      sum([for key, value in s.annotations : length(key) + length(value)]) +
+      sum(concat([0], [for key, value in s.annotations : length(key) + length(value)])) +
       length("description") + min(length(s.description), 1000) < 16384
     ])
     error_message = "Annotation keys must be API-valid and cannot use the reserved description key; values must be printable ASCII and total key/value size including description must stay below 16 KiB."
@@ -187,6 +187,29 @@ variable "notification_topics" {
   description = "Pub/Sub topics notified on secret events. REQUIRED for any secret carrying a rotation_period — Secret Manager only emits the rotation event; something else has to act on it."
   type        = set(string)
   default     = []
+}
+
+variable "rotation_topic_kms_key_name" {
+  description = "Full CMEK resource name for the module-created rotation topic; unnecessary when notification_topics supplies pre-governed topics."
+  type        = string
+  default     = null
+
+  validation {
+    condition = (
+      var.rotation_topic_kms_key_name == null ||
+      can(regex("^projects/[^/]+/locations/[^/]+/keyRings/[^/]+/cryptoKeys/[^/]+$", var.rotation_topic_kms_key_name))
+    )
+    error_message = "rotation_topic_kms_key_name must be null or a full CryptoKey resource name."
+  }
+
+  validation {
+    condition = (
+      length(var.notification_topics) > 0 ||
+      length([for secret in values(var.secrets) : secret if secret.rotation_period != null]) == 0 ||
+      var.rotation_topic_kms_key_name != null
+    )
+    error_message = "A module-created rotation topic requires rotation_topic_kms_key_name; otherwise supply pre-governed notification_topics."
+  }
 }
 
 variable "version_destroy_delay_days" {

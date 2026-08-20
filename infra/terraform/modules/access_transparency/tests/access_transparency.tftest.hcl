@@ -13,10 +13,11 @@ variables {
     name   = "mc-access-transparency"
     filter = "logName:\"logs/cloudaudit.googleapis.com%2Faccess_transparency\""
     bucket = {
-      name           = "mc-access-transparency"
-      location       = "EUR4"
-      encryption_key = "projects/p/locations/l/keyRings/r/cryptoKeys/logs"
-      retention_days = 2555
+      name                   = "mc-access-transparency"
+      location               = "EUR4"
+      access_log_bucket_name = "mc-central-storage-access"
+      encryption_key         = "projects/p/locations/l/keyRings/r/cryptoKeys/logs"
+      retention_days         = 2555
     }
   }
 }
@@ -36,9 +37,16 @@ run "records_cannot_be_deleted_before_their_window_expires" {
       google_storage_bucket.access_transparency.public_access_prevention == "enforced" &&
       google_storage_bucket.access_transparency.deletion_policy == "PREVENT" &&
       google_storage_bucket.access_transparency.force_destroy == false &&
+      google_storage_bucket.access_transparency.logging[0].log_bucket == "mc-central-storage-access" &&
       google_storage_bucket.access_transparency.soft_delete_policy[0].retention_duration_seconds == 7776000
     )
     error_message = "An access-transparency archive must remain private and protected against early or accidental deletion."
+  }
+
+
+  assert {
+    condition     = output.required_access_log_writer_grant.member == "group:cloud-storage-analytics@google.com"
+    error_message = "The access-log bucket owner must receive the documented Cloud Storage analytics principal."
   }
 }
 
@@ -59,8 +67,9 @@ run "a_filter_that_does_not_select_access_transparency_is_rejected" {
       name   = "mc-access-transparency"
       filter = "resource.type=\"gce_instance\""
       bucket = {
-        name     = "mc-access-transparency"
-        location = "EUR4"
+        name                   = "mc-access-transparency"
+        location               = "EUR4"
+        access_log_bucket_name = "mc-central-storage-access"
       }
     }
   }
@@ -78,9 +87,10 @@ run "a_short_retention_window_is_rejected" {
       name   = "mc-access-transparency"
       filter = "logName:\"logs/cloudaudit.googleapis.com%2Faccess_transparency\""
       bucket = {
-        name           = "mc-access-transparency"
-        location       = "EUR4"
-        retention_days = 30
+        name                   = "mc-access-transparency"
+        location               = "EUR4"
+        access_log_bucket_name = "mc-central-storage-access"
+        retention_days         = 30
       }
     }
   }

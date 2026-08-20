@@ -38,6 +38,16 @@ pytest_test(
     deps = ["//libs/python/identifiers"],
 )
 
+pytest_test(
+    name = "test_properties",
+    srcs = ["test_properties.py"],
+    imports = ["../../../.."],
+    deps = [
+        "//libs/python/identifiers",
+        "@pypi//hypothesis",
+    ],
+)
+
 # Binds this package to the shared vectors. The cross-language suite checks the
 # fixture is well formed; this checks Python reproduces it byte for byte, which
 # is the assertion that fails when the Python types drift away from Go.

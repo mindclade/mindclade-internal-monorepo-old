@@ -19,6 +19,13 @@ present and is not:
   carry an accountable owner and future RFC3339 expiry; an expired mute fails planning until
   it is removed or deliberately renewed.
 
+Notification topics and the findings dataset require explicit CMEK names. `project_number`
+derives the documented Pub/Sub and BigQuery encryption service identities, and
+`required_kms_grants` hands the exact additive grants to the key-owning state. This module
+does not mutate KMS IAM. BigQuery CMEK location compatibility is checked for `US`, `EU`, and
+regional datasets; live qualification must still prove service-identity creation and key
+availability before enabling the export.
+
 ## Detector enablement is not managed here, and cannot be
 
 **There is no Terraform resource for enabling a built-in SCC service** in either the `google`

@@ -11,7 +11,9 @@ metadata:
   labels:
     app.kubernetes.io/part-of: mindclade-platform
     kubernetes.io/metadata.name: mindclade-system
+    mindclade.dev/admission: enforced
     mindclade.dev/owner: security-and-operations
+    mindclade.dev/workload-activation: blocked
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/audit-version: v1.36
     pod-security.kubernetes.io/enforce: restricted

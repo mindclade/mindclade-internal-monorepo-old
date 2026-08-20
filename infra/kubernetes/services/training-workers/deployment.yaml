@@ -37,6 +37,7 @@ spec:
     spec:
       automountServiceAccountToken: false
       enableServiceLinks: false
+      priorityClassName: mindclade-batch
       restartPolicy: Never
       serviceAccountName: training-worker
       terminationGracePeriodSeconds: 120

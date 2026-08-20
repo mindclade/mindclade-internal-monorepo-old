@@ -4,4 +4,809 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# Non-secret process defaults are immutable. The following names are external
+# activation contracts and are intentionally not materialized here:
+#
+# - Secret/control-plane-database: dsn (PostgreSQL DSN with sslmode=require,
+#   verify-ca, or verify-full);
+# - Secret/control-plane-signing: hmac-key (at least the library minimum);
+# - Secret/control-plane-api-keys: registry (service API-key registry syntax);
+# - Secret/control-plane-grpc-tls: tls.crt, tls.key, ca.crt (PEM values);
+# - Secret/control-plane-cache: password;
+# - ConfigMap/control-plane-provider-config: blob-bucket, cache-address,
+#   outbound-allowed-hosts.
+#
+# Every Deployment is held at zero replicas and every image resolves under the
+# non-routable registry.invalid domain. Listener roles can be activated only by
+# an overlay that supplies all contracts, destination-specific NetworkPolicies,
+# and an attested digest. Messaging/Kubernetes roles have additional source-code
+# blockers recorded on their Deployment annotations.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: control-plane-runtime-config
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/part-of: mindclade-platform
+immutable: true
+data:
+  MINDCLADE_ENVIRONMENT: production
+  MINDCLADE_HTTP_ADDRESS: 0.0.0.0:8080
+  MINDCLADE_GRPC_ADDRESS: 0.0.0.0:9090
+  MINDCLADE_LOG_LEVEL: info
+  MINDCLADE_SHUTDOWN_TIMEOUT: 30s
+  MINDCLADE_DRAIN_TIMEOUT: 20s
+  MINDCLADE_DATABASE_DRIVER: postgres
+  MINDCLADE_DATABASE_MAX_OPEN: "32"
+  MINDCLADE_DATABASE_MAX_IDLE: "8"
+  MINDCLADE_MESSAGING_PROVIDER: pubsub
+  MINDCLADE_MESSAGING_TOPIC: mindclade.control.events
+  MINDCLADE_KUBERNETES_SOURCE: in_cluster
+  MINDCLADE_KUBERNETES_TIMEOUT: 30s
+  MINDCLADE_SIGNING_KEY_ID: production/control-plane
+  MINDCLADE_PAGINATION_TTL: 15m
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: control-plane-api
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/instance: control-plane-api
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/control-plane-role: api
+  annotations:
+    mindclade.dev/deployment-status: disabled
+    mindclade.dev/activation-blocker: oci-release-and-provider-egress-contracts-missing
+spec:
+  replicas: 0
+  revisionHistoryLimit: 5
+  progressDeadlineSeconds: 600
+  minReadySeconds: 10
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: control-plane-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: control-plane
+        app.kubernetes.io/instance: control-plane-api
+        app.kubernetes.io/component: api
+        app.kubernetes.io/part-of: mindclade-platform
+        mindclade.dev/control-plane-role: api
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      priorityClassName: mindclade-platform-critical
+      serviceAccountName: control-plane-api
+      terminationGracePeriodSeconds: 40
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: api
+          image: registry.invalid/mindclade/control-plane-api@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http, containerPort: 8080, protocol: TCP }
+            - { name: grpc, containerPort: 9090, protocol: TCP }
+          envFrom:
+            - configMapRef:
+                name: control-plane-runtime-config
+          env:
+            - { name: MINDCLADE_MIGRATIONS_ENABLED, value: "false" }
+            - name: MINDCLADE_DATABASE_DSN
+              valueFrom: { secretKeyRef: { name: control-plane-database, key: dsn } }
+            - name: MINDCLADE_SIGNING_HMAC_KEY
+              valueFrom: { secretKeyRef: { name: control-plane-signing, key: hmac-key } }
+            - name: MINDCLADE_AUTH_API_KEYS
+              valueFrom: { secretKeyRef: { name: control-plane-api-keys, key: registry } }
+            - name: MINDCLADE_GRPC_TLS_CERTIFICATE
+              valueFrom: { secretKeyRef: { name: control-plane-grpc-tls, key: tls.crt } }
+            - name: MINDCLADE_GRPC_TLS_KEY
+              valueFrom: { secretKeyRef: { name: control-plane-grpc-tls, key: tls.key } }
+            - name: MINDCLADE_GRPC_TLS_CLIENT_CA
+              valueFrom: { secretKeyRef: { name: control-plane-grpc-tls, key: ca.crt } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          resources:
+            requests: { cpu: 250m, ephemeral-storage: 128Mi, memory: 256Mi }
+            limits: { cpu: "2", ephemeral-storage: 1Gi, memory: 1Gi }
+          startupProbe:
+            httpGet: { path: /livez, port: http, scheme: HTTP }
+            periodSeconds: 2
+            failureThreshold: 30
+            timeoutSeconds: 1
+          livenessProbe:
+            httpGet: { path: /livez, port: http, scheme: HTTP }
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 2
+          readinessProbe:
+            httpGet: { path: /readyz, port: http, scheme: HTTP }
+            periodSeconds: 5
+            failureThreshold: 2
+            timeoutSeconds: 2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: control-plane-controller
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/instance: control-plane-controller
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/control-plane-role: controller
+  annotations:
+    mindclade.dev/deployment-status: disabled
+    mindclade.dev/activation-blocker: pubsub-adapter-reconcilers-rbac-and-oci-release-missing
+spec:
+  replicas: 0
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: control-plane-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: control-plane
+        app.kubernetes.io/instance: control-plane-controller
+        app.kubernetes.io/component: controller
+        app.kubernetes.io/part-of: mindclade-platform
+        mindclade.dev/control-plane-role: controller
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      priorityClassName: mindclade-platform-critical
+      serviceAccountName: control-plane-controller
+      terminationGracePeriodSeconds: 40
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: controller
+          image: registry.invalid/mindclade/control-plane-controller@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef: { name: control-plane-runtime-config }
+          env:
+            - { name: MINDCLADE_MIGRATIONS_ENABLED, value: "false" }
+            - name: MINDCLADE_DATABASE_DSN
+              valueFrom: { secretKeyRef: { name: control-plane-database, key: dsn } }
+            - name: MINDCLADE_SIGNING_HMAC_KEY
+              valueFrom: { secretKeyRef: { name: control-plane-signing, key: hmac-key } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          resources:
+            requests: { cpu: 500m, ephemeral-storage: 128Mi, memory: 512Mi }
+            limits: { cpu: "2", ephemeral-storage: 1Gi, memory: 2Gi }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: control-plane-operator
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/instance: control-plane-operator
+    app.kubernetes.io/component: operator
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/control-plane-role: operator
+  annotations:
+    mindclade.dev/deployment-status: disabled
+    mindclade.dev/activation-blocker: pubsub-adapter-reconcilers-rbac-and-oci-release-missing
+spec:
+  replicas: 0
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: control-plane-operator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: control-plane
+        app.kubernetes.io/instance: control-plane-operator
+        app.kubernetes.io/component: operator
+        app.kubernetes.io/part-of: mindclade-platform
+        mindclade.dev/control-plane-role: operator
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      priorityClassName: mindclade-platform-critical
+      serviceAccountName: control-plane-operator
+      terminationGracePeriodSeconds: 40
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: operator
+          image: registry.invalid/mindclade/control-plane-operator@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef: { name: control-plane-runtime-config }
+          env:
+            - { name: MINDCLADE_MIGRATIONS_ENABLED, value: "false" }
+            - name: MINDCLADE_DATABASE_DSN
+              valueFrom: { secretKeyRef: { name: control-plane-database, key: dsn } }
+            - name: MINDCLADE_SIGNING_HMAC_KEY
+              valueFrom: { secretKeyRef: { name: control-plane-signing, key: hmac-key } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          resources:
+            requests: { cpu: 500m, ephemeral-storage: 128Mi, memory: 512Mi }
+            limits: { cpu: "2", ephemeral-storage: 1Gi, memory: 2Gi }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: control-plane-scheduler
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/instance: control-plane-scheduler
+    app.kubernetes.io/component: scheduler
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/control-plane-role: scheduler
+  annotations:
+    mindclade.dev/deployment-status: disabled
+    mindclade.dev/activation-blocker: pubsub-adapter-placement-handler-rbac-and-oci-release-missing
+spec:
+  replicas: 0
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: control-plane-scheduler
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: control-plane
+        app.kubernetes.io/instance: control-plane-scheduler
+        app.kubernetes.io/component: scheduler
+        app.kubernetes.io/part-of: mindclade-platform
+        mindclade.dev/control-plane-role: scheduler
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      priorityClassName: mindclade-platform-critical
+      serviceAccountName: control-plane-scheduler
+      terminationGracePeriodSeconds: 40
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: scheduler
+          image: registry.invalid/mindclade/control-plane-scheduler@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef: { name: control-plane-runtime-config }
+          env:
+            - { name: MINDCLADE_MIGRATIONS_ENABLED, value: "false" }
+            - name: MINDCLADE_DATABASE_DSN
+              valueFrom: { secretKeyRef: { name: control-plane-database, key: dsn } }
+            - name: MINDCLADE_SIGNING_HMAC_KEY
+              valueFrom: { secretKeyRef: { name: control-plane-signing, key: hmac-key } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          resources:
+            requests: { cpu: 500m, ephemeral-storage: 128Mi, memory: 512Mi }
+            limits: { cpu: "2", ephemeral-storage: 1Gi, memory: 2Gi }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: control-plane-admin
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/instance: control-plane-admin
+    app.kubernetes.io/component: admin
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/control-plane-role: admin
+  annotations:
+    mindclade.dev/deployment-status: disabled
+    mindclade.dev/activation-blocker: oci-release-and-provider-egress-contracts-missing
+spec:
+  replicas: 0
+  revisionHistoryLimit: 5
+  progressDeadlineSeconds: 600
+  minReadySeconds: 10
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: control-plane-admin
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: control-plane
+        app.kubernetes.io/instance: control-plane-admin
+        app.kubernetes.io/component: admin
+        app.kubernetes.io/part-of: mindclade-platform
+        mindclade.dev/control-plane-role: admin
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      priorityClassName: mindclade-platform-critical
+      serviceAccountName: control-plane-admin
+      terminationGracePeriodSeconds: 40
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: admin
+          image: registry.invalid/mindclade/control-plane-admin@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http, containerPort: 8080, protocol: TCP }
+            - { name: grpc, containerPort: 9090, protocol: TCP }
+          envFrom:
+            - configMapRef:
+                name: control-plane-runtime-config
+          env:
+            - { name: MINDCLADE_MIGRATIONS_ENABLED, value: "false" }
+            - name: MINDCLADE_DATABASE_DSN
+              valueFrom: { secretKeyRef: { name: control-plane-database, key: dsn } }
+            - name: MINDCLADE_SIGNING_HMAC_KEY
+              valueFrom: { secretKeyRef: { name: control-plane-signing, key: hmac-key } }
+            - name: MINDCLADE_AUTH_API_KEYS
+              valueFrom: { secretKeyRef: { name: control-plane-api-keys, key: registry } }
+            - name: MINDCLADE_GRPC_TLS_CERTIFICATE
+              valueFrom: { secretKeyRef: { name: control-plane-grpc-tls, key: tls.crt } }
+            - name: MINDCLADE_GRPC_TLS_KEY
+              valueFrom: { secretKeyRef: { name: control-plane-grpc-tls, key: tls.key } }
+            - name: MINDCLADE_GRPC_TLS_CLIENT_CA
+              valueFrom: { secretKeyRef: { name: control-plane-grpc-tls, key: ca.crt } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          resources:
+            requests: { cpu: 250m, ephemeral-storage: 128Mi, memory: 256Mi }
+            limits: { cpu: "2", ephemeral-storage: 1Gi, memory: 1Gi }
+          startupProbe:
+            httpGet: { path: /livez, port: http, scheme: HTTP }
+            periodSeconds: 2
+            failureThreshold: 30
+            timeoutSeconds: 1
+          livenessProbe:
+            httpGet: { path: /livez, port: http, scheme: HTTP }
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 2
+          readinessProbe:
+            httpGet: { path: /readyz, port: http, scheme: HTTP }
+            periodSeconds: 5
+            failureThreshold: 2
+            timeoutSeconds: 2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: control-plane-registry
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/instance: control-plane-registry
+    app.kubernetes.io/component: registry
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/control-plane-role: registry
+  annotations:
+    mindclade.dev/deployment-status: disabled
+    mindclade.dev/activation-blocker: oci-release-provider-egress-and-migration-rollout-evidence-missing
+    mindclade.dev/migration-owner: "true"
+spec:
+  replicas: 0
+  revisionHistoryLimit: 5
+  progressDeadlineSeconds: 600
+  minReadySeconds: 10
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: control-plane-registry
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: control-plane
+        app.kubernetes.io/instance: control-plane-registry
+        app.kubernetes.io/component: registry
+        app.kubernetes.io/part-of: mindclade-platform
+        mindclade.dev/control-plane-role: registry
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      priorityClassName: mindclade-platform-critical
+      serviceAccountName: control-plane-registry
+      terminationGracePeriodSeconds: 40
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: registry
+          image: registry.invalid/mindclade/control-plane-registry@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http, containerPort: 8080, protocol: TCP }
+          envFrom:
+            - configMapRef:
+                name: control-plane-runtime-config
+          env:
+            - { name: MINDCLADE_MIGRATIONS_ENABLED, value: "true" }
+            - name: MINDCLADE_DATABASE_DSN
+              valueFrom: { secretKeyRef: { name: control-plane-database, key: dsn } }
+            - name: MINDCLADE_SIGNING_HMAC_KEY
+              valueFrom: { secretKeyRef: { name: control-plane-signing, key: hmac-key } }
+            - name: MINDCLADE_AUTH_API_KEYS
+              valueFrom: { secretKeyRef: { name: control-plane-api-keys, key: registry } }
+            - name: MINDCLADE_BLOB_BUCKET
+              valueFrom: { configMapKeyRef: { name: control-plane-provider-config, key: blob-bucket } }
+            - name: MINDCLADE_CACHE_ADDRESS
+              valueFrom: { configMapKeyRef: { name: control-plane-provider-config, key: cache-address } }
+            - name: MINDCLADE_CACHE_PASSWORD
+              valueFrom: { secretKeyRef: { name: control-plane-cache, key: password } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          resources:
+            requests: { cpu: 500m, ephemeral-storage: 256Mi, memory: 512Mi }
+            limits: { cpu: "2", ephemeral-storage: 2Gi, memory: 2Gi }
+          startupProbe:
+            httpGet: { path: /livez, port: http, scheme: HTTP }
+            periodSeconds: 2
+            failureThreshold: 60
+            timeoutSeconds: 1
+          livenessProbe:
+            httpGet: { path: /livez, port: http, scheme: HTTP }
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 2
+          readinessProbe:
+            httpGet: { path: /readyz, port: http, scheme: HTTP }
+            periodSeconds: 5
+            failureThreshold: 2
+            timeoutSeconds: 2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: control-plane-ingestion-controller
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/instance: control-plane-ingestion-controller
+    app.kubernetes.io/component: ingestion-controller
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/control-plane-role: ingestion-controller
+  annotations:
+    mindclade.dev/deployment-status: disabled
+    mindclade.dev/activation-blocker: pubsub-adapter-staging-handler-rbac-and-oci-release-missing
+spec:
+  replicas: 0
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: control-plane-ingestion-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: control-plane
+        app.kubernetes.io/instance: control-plane-ingestion-controller
+        app.kubernetes.io/component: ingestion-controller
+        app.kubernetes.io/part-of: mindclade-platform
+        mindclade.dev/control-plane-role: ingestion-controller
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      priorityClassName: mindclade-platform-critical
+      serviceAccountName: control-plane-ingestion-controller
+      terminationGracePeriodSeconds: 40
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: ingestion-controller
+          image: registry.invalid/mindclade/control-plane-ingestion-controller@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef: { name: control-plane-runtime-config }
+          env:
+            - { name: MINDCLADE_MIGRATIONS_ENABLED, value: "false" }
+            - name: MINDCLADE_DATABASE_DSN
+              valueFrom: { secretKeyRef: { name: control-plane-database, key: dsn } }
+            - name: MINDCLADE_SIGNING_HMAC_KEY
+              valueFrom: { secretKeyRef: { name: control-plane-signing, key: hmac-key } }
+            - name: MINDCLADE_BLOB_BUCKET
+              valueFrom: { configMapKeyRef: { name: control-plane-provider-config, key: blob-bucket } }
+            - name: MINDCLADE_CACHE_ADDRESS
+              valueFrom: { configMapKeyRef: { name: control-plane-provider-config, key: cache-address } }
+            - name: MINDCLADE_CACHE_PASSWORD
+              valueFrom: { secretKeyRef: { name: control-plane-cache, key: password } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          resources:
+            requests: { cpu: 500m, ephemeral-storage: 256Mi, memory: 512Mi }
+            limits: { cpu: "2", ephemeral-storage: 2Gi, memory: 2Gi }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: control-plane-event-projector
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/instance: control-plane-event-projector
+    app.kubernetes.io/component: event-projector
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/control-plane-role: event-projector
+  annotations:
+    mindclade.dev/deployment-status: disabled
+    mindclade.dev/activation-blocker: pubsub-adapter-projection-handler-and-oci-release-missing
+spec:
+  replicas: 0
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: control-plane-event-projector
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: control-plane
+        app.kubernetes.io/instance: control-plane-event-projector
+        app.kubernetes.io/component: event-projector
+        app.kubernetes.io/part-of: mindclade-platform
+        mindclade.dev/control-plane-role: event-projector
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      priorityClassName: mindclade-platform-critical
+      serviceAccountName: control-plane-event-projector
+      terminationGracePeriodSeconds: 40
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: event-projector
+          image: registry.invalid/mindclade/control-plane-event-projector@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef: { name: control-plane-runtime-config }
+          env:
+            - { name: MINDCLADE_MIGRATIONS_ENABLED, value: "false" }
+            - name: MINDCLADE_DATABASE_DSN
+              valueFrom: { secretKeyRef: { name: control-plane-database, key: dsn } }
+            - name: MINDCLADE_SIGNING_HMAC_KEY
+              valueFrom: { secretKeyRef: { name: control-plane-signing, key: hmac-key } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          resources:
+            requests: { cpu: 250m, ephemeral-storage: 128Mi, memory: 256Mi }
+            limits: { cpu: "1", ephemeral-storage: 1Gi, memory: 1Gi }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: control-plane-event-dispatcher
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/instance: control-plane-event-dispatcher
+    app.kubernetes.io/component: event-dispatcher
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/control-plane-role: event-dispatcher
+  annotations:
+    mindclade.dev/deployment-status: disabled
+    mindclade.dev/activation-blocker: pubsub-adapter-and-oci-release-missing
+spec:
+  replicas: 0
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: control-plane-event-dispatcher
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: control-plane
+        app.kubernetes.io/instance: control-plane-event-dispatcher
+        app.kubernetes.io/component: event-dispatcher
+        app.kubernetes.io/part-of: mindclade-platform
+        mindclade.dev/control-plane-role: event-dispatcher
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      priorityClassName: mindclade-platform-critical
+      serviceAccountName: control-plane-event-dispatcher
+      terminationGracePeriodSeconds: 40
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: event-dispatcher
+          image: registry.invalid/mindclade/control-plane-event-dispatcher@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef: { name: control-plane-runtime-config }
+          env:
+            - { name: MINDCLADE_MIGRATIONS_ENABLED, value: "false" }
+            - name: MINDCLADE_DATABASE_DSN
+              valueFrom: { secretKeyRef: { name: control-plane-database, key: dsn } }
+            - name: MINDCLADE_SIGNING_HMAC_KEY
+              valueFrom: { secretKeyRef: { name: control-plane-signing, key: hmac-key } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          resources:
+            requests: { cpu: 250m, ephemeral-storage: 128Mi, memory: 256Mi }
+            limits: { cpu: "1", ephemeral-storage: 1Gi, memory: 1Gi }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: control-plane-webhook-dispatcher
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/instance: control-plane-webhook-dispatcher
+    app.kubernetes.io/component: webhook-dispatcher
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/control-plane-role: webhook-dispatcher
+  annotations:
+    mindclade.dev/deployment-status: disabled
+    mindclade.dev/activation-blocker: pubsub-adapter-delivery-handler-egress-and-oci-release-missing
+spec:
+  replicas: 0
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: control-plane-webhook-dispatcher
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: control-plane
+        app.kubernetes.io/instance: control-plane-webhook-dispatcher
+        app.kubernetes.io/component: webhook-dispatcher
+        app.kubernetes.io/part-of: mindclade-platform
+        mindclade.dev/control-plane-role: webhook-dispatcher
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      priorityClassName: mindclade-platform-critical
+      serviceAccountName: control-plane-webhook-dispatcher
+      terminationGracePeriodSeconds: 40
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: webhook-dispatcher
+          image: registry.invalid/mindclade/control-plane-webhook-dispatcher@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef: { name: control-plane-runtime-config }
+          env:
+            - { name: MINDCLADE_MIGRATIONS_ENABLED, value: "false" }
+            - name: MINDCLADE_DATABASE_DSN
+              valueFrom: { secretKeyRef: { name: control-plane-database, key: dsn } }
+            - name: MINDCLADE_SIGNING_HMAC_KEY
+              valueFrom: { secretKeyRef: { name: control-plane-signing, key: hmac-key } }
+            - name: MINDCLADE_OUTBOUND_ALLOWED_HOSTS
+              valueFrom: { configMapKeyRef: { name: control-plane-provider-config, key: outbound-allowed-hosts } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          resources:
+            requests: { cpu: 250m, ephemeral-storage: 128Mi, memory: 256Mi }
+            limits: { cpu: "1", ephemeral-storage: 1Gi, memory: 1Gi }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: control-plane-maintenance
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/instance: control-plane-maintenance
+    app.kubernetes.io/component: maintenance
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/control-plane-role: maintenance
+  annotations:
+    mindclade.dev/deployment-status: disabled
+    mindclade.dev/activation-blocker: maintenance-handler-and-oci-release-missing
+spec:
+  replicas: 0
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: control-plane-maintenance
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: control-plane
+        app.kubernetes.io/instance: control-plane-maintenance
+        app.kubernetes.io/component: maintenance
+        app.kubernetes.io/part-of: mindclade-platform
+        mindclade.dev/control-plane-role: maintenance
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      priorityClassName: mindclade-platform-critical
+      serviceAccountName: control-plane-maintenance
+      terminationGracePeriodSeconds: 40
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: maintenance
+          image: registry.invalid/mindclade/control-plane-maintenance@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef: { name: control-plane-runtime-config }
+          env:
+            - { name: MINDCLADE_MIGRATIONS_ENABLED, value: "false" }
+            - name: MINDCLADE_DATABASE_DSN
+              valueFrom: { secretKeyRef: { name: control-plane-database, key: dsn } }
+            - name: MINDCLADE_SIGNING_HMAC_KEY
+              valueFrom: { secretKeyRef: { name: control-plane-signing, key: hmac-key } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          resources:
+            requests: { cpu: 250m, ephemeral-storage: 128Mi, memory: 256Mi }
+            limits: { cpu: "1", ephemeral-storage: 1Gi, memory: 1Gi }

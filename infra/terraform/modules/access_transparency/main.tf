@@ -49,6 +49,11 @@ resource "google_storage_bucket" "access_transparency" {
     retention_duration_seconds = 7776000
   }
 
+  logging {
+    log_bucket        = var.sink.bucket.access_log_bucket_name
+    log_object_prefix = var.sink.bucket.access_log_object_prefix
+  }
+
   lifecycle {
     prevent_destroy = true
   }

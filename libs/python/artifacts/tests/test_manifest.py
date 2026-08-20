@@ -43,6 +43,17 @@ def test_manifest_rejects_duplicate_and_self_parents() -> None:
         ArtifactManifest(child, (child,))
 
 
+def test_manifest_parent_order_does_not_change_identity() -> None:
+    child = artifact(b"child")
+    first = artifact(b"first")
+    second = artifact(b"second")
+
+    assert (
+        ArtifactManifest(child, (first, second)).canonical_bytes()
+        == ArtifactManifest(child, (second, first)).canonical_bytes()
+    )
+
+
 def test_lineage_is_deterministic_and_rejects_cycles_or_missing_parents() -> None:
     root = ArtifactManifest(artifact(b"root"))
     child = ArtifactManifest(artifact(b"child"), (root.artifact,))

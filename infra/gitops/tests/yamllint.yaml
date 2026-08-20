@@ -1,0 +1,12 @@
+---
+extends: default
+
+rules:
+  line-length: disable
+  braces:
+    max-spaces-inside: 1
+  truthy:
+    allowed-values:
+      - "true"
+      - "false"
+      - "on"

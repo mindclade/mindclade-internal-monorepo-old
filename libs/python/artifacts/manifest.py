@@ -74,6 +74,9 @@ class ArtifactManifest:
                 "artifact manifest cannot name itself as a parent",
                 reason="artifact_manifest_self_parent",
             )
+        # Provenance parents are edges, not an ordered sequence. Normalize them
+        # so caller insertion order cannot change the manifest identity.
+        parents = tuple(sorted(parents, key=lambda parent: parent.digest.text))
         if not isinstance(self.annotations, Mapping):
             raise InvalidArgument(
                 "artifact annotations must be a mapping",

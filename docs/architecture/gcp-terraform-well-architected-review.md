@@ -69,19 +69,22 @@ The review uses the Google Cloud Well-Architected Framework's six pillars and AI
 | E-010 | [Cloud Monitoring metrics scopes](https://docs.cloud.google.com/monitoring/settings) | Multi-project observability | 2026-08-20 | N/A | Scoping projects can observe monitored projects without duplicating service SLO logic |
 | E-011 | [Cloud Audit Logs best practices](https://docs.cloud.google.com/logging/docs/audit/best-practices) | Audit/evidence | 2026-08-20 | N/A | Centralized routing and protected retention are required beyond default logs |
 | E-012 | [Pub/Sub exactly-once delivery](https://docs.cloud.google.com/pubsub/docs/exactly-once-delivery) and [retry policy](https://docs.cloud.google.com/pubsub/docs/subscription-retry-policy) | Event delivery | 2026-08-20 | N/A | Delivery semantics do not replace consumer idempotence and replay testing |
+| E-013 | Backendless Terraform initialization, provider-schema validation, and mock tests | All 32 modules | 2026-08-20 | None | 32/32 modules valid; 226/226 mock test runs passed with committed provider locks |
+| E-014 | TFLint 0.63.1 and Checkov 3.3.0 | Terraform static/security policy | 2026-08-20 | None | TFLint passed all modules; Checkov reported 152 passed, 0 failed, 8 documented skips |
+| E-015 | Actionlint, strict workflow YAML lint, diff check, and repository static presubmit | CI/repository integration | 2026-08-20 | None | Passed; CodeQL and release reusable-job token permissions were corrected |
 
 ## 4. Architecture and control assessment
 
 | Finding | Area | Status | Severity | Evidence | Blast radius | Confidence |
 |---|---|---|---|---|---|---|
-| F-001 | Terraform module structure | PARTIAL | High | E-001, E-006 | Every consumer of an incomplete module | High |
+| F-001 | Terraform module structure | PASS | High | E-001, E-006, E-013, E-014 | Every module consumer | High |
 | F-002 | Root/state architecture | FAIL | Critical | E-002 | Organization or whole environment per state mistake | High |
 | F-003 | Resource hierarchy and tags | PARTIAL | High | E-001, E-005 | Organization-wide policy and allocation | High |
 | F-004 | Keyless least-privilege identity | PARTIAL | Critical | E-001, E-008 | CI/deployment and workload impersonation | High |
 | F-005 | Network isolation and IPAM | PARTIAL | High | E-001, A-005 | Shared connectivity and data exfiltration paths | High |
 | F-006 | Security governance/audit | PARTIAL | High | E-001, E-004, E-011 | Organization-wide evidence and detection | High |
 | F-007 | Storage and data lifecycle | PARTIAL | High | E-001, E-009 | Training data, artifacts, checkpoints, and evidence | High |
-| F-008 | Pub/Sub data/event plane | FAIL | High | E-001, E-012 | Durable workflow events and replay | High |
+| F-008 | Pub/Sub data/event plane | PARTIAL | High | E-001, E-012, E-013 | Durable workflow events and replay | High |
 | F-009 | GKE AI/ML platform | PARTIAL | High | E-001, E-003 | Regional training/inference capacity | High |
 | F-010 | Observability/SLOs | PARTIAL | High | E-001, E-010 | Cross-project incident detection | High |
 | F-011 | Reliability and disaster recovery | FAIL | Critical | A-006 | Data loss and prolonged outage | High |
@@ -93,7 +96,7 @@ The review uses the Google Cloud Well-Architected Framework's six pillars and AI
 ### Key observations
 
 - Existing modules already implement strong primitives: private regional GKE, Dataplane V2, Workload Identity Federation for GKE, Binary Authorization enforcement, protected GCS, KMS, Secret Manager metadata-only ownership, private SQL/Redis, aggregated logging, SCC exports, request SLOs, and burn-rate alerts.
-- The ten missing directories are not ten new independent authorities. `object_storage`, `observability`, and `audit_archive` are composition layers over `storage`, `monitoring`, and `log_sink`; duplicating their resources would create conflicting ownership.
+- The ten initially empty directories are now materialized without creating duplicate authorities. `object_storage`, `observability`, and `audit_archive` compose `storage`, `monitoring`, and `log_sink`; the other modules own distinct hierarchy, identity, event, compute, and cache contracts.
 - Terraform cannot prove client-side manifest-last publication, Pub/Sub consumer idempotence, Kubernetes RBAC/network policy, restore correctness, accelerator availability, or service-agent permissions from mock plans. These require connected and runtime evidence.
 - Network modules intentionally exclude authoritative IPAM, Shared VPC host setup, firewall policy, PSC, hybrid networking, IPv6, and DNS policy. These are unresolved architecture choices, not safe defaults to guess.
 - Budgets, labels, GKE cost allocation, autoscaling, spot opt-in, and cache lifecycle are useful controls, but no billing export, cost-center taxonomy, anomaly routing, unit economics, commitment strategy, or telemetry budget is approved.
@@ -214,10 +217,14 @@ Sanitized repository commands used during review:
 rg --files infra/terraform
 terraform version
 terraform fmt -check -recursive infra/terraform
+terraform -chdir=infra/terraform/modules/<module> init -backend=false -lockfile=readonly
+terraform -chdir=infra/terraform/modules/<module> validate -no-color
+terraform -chdir=infra/terraform/modules/<module> test -no-color
+tflint --chdir=infra/terraform/modules/<module>
+checkov -d infra/terraform/modules --framework terraform --skip-download
 NO_COLOR=1 actionlint
 yamllint --strict .github/workflows
 PYTHONDONTWRITEBYTECODE=1 python3 ci/presubmit/pipeline.py --static-only
 ```
 
-Observed local Terraform version: `1.15.8` on `darwin_arm64`. No `terraform apply`, import, refresh, state command, credential command, API enablement, IAM mutation, or other cloud-changing command was run. Provider-connected tests were not treated as complete until their final execution results are recorded in `infra/terraform/PRODUCTION_READINESS.md`.
-
+Observed local Terraform version: `1.15.8` on `darwin_arm64`. All 32 modules passed backendless provider-schema validation and 226 mock test runs; TFLint passed, and Checkov reported 152 passed, 0 failed, and 8 documented skips. No `terraform apply`, import, refresh, state command, credential command, API enablement, IAM mutation, or other cloud-changing command was run. Live qualification remains governed by `infra/terraform/PRODUCTION_READINESS.md`.

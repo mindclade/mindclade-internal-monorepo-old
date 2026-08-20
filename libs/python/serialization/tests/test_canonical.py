@@ -8,7 +8,7 @@ from types import MappingProxyType
 
 import pytest
 
-from libs.python.errors import Code, code_of
+from libs.python.errors import Code, ResourceExhausted, code_of
 from libs.python.serialization import (
     canonical_field,
     canonical_json_bytes,
@@ -51,13 +51,21 @@ def test_encoding_is_deterministic_across_calls() -> None:
     assert canonical_json_bytes(document) == canonical_json_bytes(document)
 
 
-@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
-def test_non_finite_floats_are_rejected(value: float) -> None:
-    # Not JSON, and both Go and Rust refuse them. Failing here turns a remote
-    # parse error into a local one.
+@pytest.mark.parametrize("value", [0.0, 1.5, float("nan"), float("inf"), float("-inf")])
+def test_all_floats_are_rejected_from_identity_documents(value: float) -> None:
+    # The languages do not share a canonical-number implementation. Prohibiting
+    # floats makes independent canonicalization byte-identical by construction.
     with pytest.raises(ValueError) as caught:
         canonical_json_bytes({"k": value})
     assert code_of(caught.value) is Code.INVALID_ARGUMENT
+
+
+def test_total_node_and_encoded_byte_budgets_are_enforced() -> None:
+    with pytest.raises(ResourceExhausted, match="node budget"):
+        canonical_json_bytes({"values": [1, 2]}, maximum_nodes=4)
+
+    with pytest.raises(ResourceExhausted, match="encoded budget"):
+        canonical_json_bytes({"value": "long"}, maximum_encoded_bytes=8)
 
 
 def test_circular_references_are_reported_as_a_fault() -> None:

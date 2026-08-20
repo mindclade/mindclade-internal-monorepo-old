@@ -46,6 +46,6 @@ jobset:
         cpu: "2"
         memory: 1Gi
   certManager:
-    enable: false
+    enable: true
   prometheus:
     enable: false

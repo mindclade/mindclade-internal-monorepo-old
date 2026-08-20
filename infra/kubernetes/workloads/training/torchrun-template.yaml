@@ -4,4 +4,80 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# Single-node torchrun qualification template. Multi-node execution uses the suspended JobSet
+# template after rendezvous and transport behavior are qualified.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mindclade-torchrun-template
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/component: training
+    app.kubernetes.io/name: torchrun
+    app.kubernetes.io/part-of: mindclade-platform
+    kueue.x-k8s.io/queue-name: mindclade-batch
+    mindclade.dev/workload-state: blocked
+  annotations:
+    mindclade.dev/activation-requirements: image-ticket-checkpoint-and-numerical-qualification
+spec:
+  activeDeadlineSeconds: 86400
+  backoffLimit: 0
+  suspend: true
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: training
+        app.kubernetes.io/name: torchrun
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: trainer
+          image: registry.invalid/mindclade/training-worker@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          env:
+            - name: MINDCLADE_WORKLOAD_ACTIVATION
+              value: blocked
+            - name: MINDCLADE_CHECKPOINT_POLICY
+              value: required-before-activation
+          resources:
+            requests:
+              cpu: "8"
+              memory: 64Gi
+              ephemeral-storage: 32Gi
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "16"
+              memory: 128Gi
+              ephemeral-storage: 64Gi
+              nvidia.com/gpu: "1"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+          volumeMounts:
+            - name: scratch
+              mountPath: /tmp
+      nodeSelector:
+        mindclade.dev/gpu-profile: gke-h100-a3-megagpu-8g
+        mindclade.dev/node-pool: gpu
+      priorityClassName: mindclade-batch
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: mindclade-workload
+      terminationGracePeriodSeconds: 120
+      tolerations:
+        - effect: NoSchedule
+          key: nvidia.com/gpu
+          operator: Equal
+          value: present
+      volumes:
+        - name: scratch
+          emptyDir:
+            sizeLimit: 64Gi

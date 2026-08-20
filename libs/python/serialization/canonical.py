@@ -22,10 +22,10 @@ one Go computes over the same document, or the cross-language artifact contract
 is decorative.
 
 This module is not RFC 8785/JCS. Strings, integers, booleans, nulls and
-containers form the cross-language-compatible subset. Python's finite-float
-rendering is deterministic but not byte-identical to every other JSON encoder;
-peers hash emitted bytes rather than independently re-encoding float-bearing
-documents.
+containers form the cross-language-compatible subset. Floats are deliberately
+prohibited: Python, Go and Rust do not promise the same shortest-number spelling,
+so independently encoding a float-bearing identity document could produce a
+different digest in each language.
 
 ``allow_nan=False`` is set for a related reason: ``NaN`` and ``Infinity`` are not
 JSON, Go and Rust both refuse them, and Python's default of emitting them
@@ -45,11 +45,11 @@ what stops this module from growing a second identity vocabulary::
 from __future__ import annotations
 
 import json
-import math
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any, Final
 
-from libs.python.errors import InvalidArgument
+from libs.python.errors import InvalidArgument, ResourceExhausted
 
 # The delimiters the line-oriented encoding reserves. A field containing either
 # could impersonate a structural boundary, which would make two different
@@ -57,9 +57,59 @@ from libs.python.errors import InvalidArgument
 LINE_SEPARATOR: Final = "\n"
 FIELD_SEPARATOR: Final = "|"
 _RESERVED: Final = frozenset({LINE_SEPARATOR, FIELD_SEPARATOR})
+MAXIMUM_CANONICAL_JSON_DEPTH: Final = 128
+MAXIMUM_CANONICAL_JSON_NODES: Final = 100_000
+MAXIMUM_CANONICAL_JSON_BYTES: Final = 8 << 20
 
 
-def _json_compatible(value: object, *, active: set[int], depth: int = 0) -> object:
+@dataclass(slots=True)
+class _JsonBudget:
+    maximum_nodes: int
+    maximum_encoded_bytes: int
+    nodes: int = 0
+    text_bytes: int = 0
+
+    def consume(self) -> None:
+        self.nodes += 1
+        if self.nodes > self.maximum_nodes:
+            raise ResourceExhausted(
+                f"canonical JSON exceeds the {self.maximum_nodes}-node budget",
+                reason="canonical_json_nodes",
+            )
+
+    def consume_text(self, value: str) -> None:
+        remaining = self.maximum_encoded_bytes - self.text_bytes
+        # Every Unicode scalar consumes at least one UTF-8 byte. This length
+        # check prevents allocating a temporary encoding for an obviously
+        # oversized value.
+        if len(value) > remaining:
+            raise ResourceExhausted(
+                f"canonical JSON exceeds the {self.maximum_encoded_bytes}-byte encoded budget",
+                reason="canonical_json_bytes",
+            )
+        try:
+            encoded_size = len(value.encode("utf-8"))
+        except UnicodeEncodeError as error:
+            raise InvalidArgument(
+                "canonical JSON strings must be valid Unicode scalar values",
+                reason="canonical_json_string",
+                cause=error,
+            ) from error
+        self.text_bytes += encoded_size
+        if self.text_bytes > self.maximum_encoded_bytes:
+            raise ResourceExhausted(
+                f"canonical JSON exceeds the {self.maximum_encoded_bytes}-byte encoded budget",
+                reason="canonical_json_bytes",
+            )
+
+
+def _json_compatible(
+    value: object,
+    *,
+    active: set[int],
+    budget: _JsonBudget,
+    depth: int = 0,
+) -> object:
     """Return built-in JSON containers after validating the document tree.
 
     ``json.dumps`` accepts surprising inputs at this boundary: non-string mapping
@@ -68,20 +118,22 @@ def _json_compatible(value: object, *, active: set[int], depth: int = 0) -> obje
     first gives callers one controlled failure mode and lets immutable mapping
     implementations participate without sacrificing canonical bytes.
     """
-    if depth > 128:
+    budget.consume()
+    if depth > MAXIMUM_CANONICAL_JSON_DEPTH:
         raise InvalidArgument(
             "canonical JSON exceeds the maximum nesting depth",
             reason="canonical_json_depth",
         )
-    if value is None or isinstance(value, str | bool | int):
+    if isinstance(value, str):
+        budget.consume_text(value)
+        return value
+    if value is None or isinstance(value, bool | int):
         return value
     if isinstance(value, float):
-        if not math.isfinite(value):
-            raise InvalidArgument(
-                "canonical JSON does not permit non-finite numbers",
-                reason="canonical_json_number",
-            )
-        return value
+        raise InvalidArgument(
+            "canonical identity documents do not permit floating-point numbers",
+            reason="canonical_json_number",
+        )
 
     identity = id(value)
     if identity in active:
@@ -95,12 +147,19 @@ def _json_compatible(value: object, *, active: set[int], depth: int = 0) -> obje
         try:
             normalized: dict[str, object] = {}
             for key, item in value.items():
+                budget.consume()
                 if not isinstance(key, str):
                     raise InvalidArgument(
                         "canonical JSON object keys must be strings",
                         reason="canonical_json_key",
                     )
-                normalized[key] = _json_compatible(item, active=active, depth=depth + 1)
+                budget.consume_text(key)
+                normalized[key] = _json_compatible(
+                    item,
+                    active=active,
+                    budget=budget,
+                    depth=depth + 1,
+                )
             return normalized
         finally:
             active.remove(identity)
@@ -108,7 +167,15 @@ def _json_compatible(value: object, *, active: set[int], depth: int = 0) -> obje
     if isinstance(value, Sequence) and not isinstance(value, str | bytes | bytearray):
         active.add(identity)
         try:
-            return [_json_compatible(item, active=active, depth=depth + 1) for item in value]
+            return [
+                _json_compatible(
+                    item,
+                    active=active,
+                    budget=budget,
+                    depth=depth + 1,
+                )
+                for item in value
+            ]
         finally:
             active.remove(identity)
 
@@ -118,11 +185,16 @@ def _json_compatible(value: object, *, active: set[int], depth: int = 0) -> obje
     )
 
 
-def canonical_json_bytes(value: Mapping[str, Any]) -> bytes:
+def canonical_json_bytes(
+    value: Mapping[str, Any],
+    *,
+    maximum_nodes: int = MAXIMUM_CANONICAL_JSON_NODES,
+    maximum_encoded_bytes: int = MAXIMUM_CANONICAL_JSON_BYTES,
+) -> bytes:
     """Encode ``value`` as canonical JSON bytes.
 
-    Keys sorted, no insignificant whitespace, UTF-8, and no non-finite floats.
-    These four settings are the encoding; changing any of them changes every
+    Keys sorted, no insignificant whitespace, UTF-8, and no floats. The output
+    and total document-node counts are bounded while encoding. These settings are the encoding; changing any of them changes every
     digest in the platform, so they are written once here rather than at each
     call site.
     """
@@ -131,16 +203,49 @@ def canonical_json_bytes(value: Mapping[str, Any]) -> bytes:
             "canonical JSON documents must be mappings",
             reason="canonical_json_document_type",
         )
+    if (
+        isinstance(maximum_nodes, bool)
+        or not isinstance(maximum_nodes, int)
+        or not 1 <= maximum_nodes <= MAXIMUM_CANONICAL_JSON_NODES
+    ):
+        raise InvalidArgument(
+            f"maximum_nodes must be in [1, {MAXIMUM_CANONICAL_JSON_NODES}]",
+            reason="canonical_json_node_limit",
+        )
+    if (
+        isinstance(maximum_encoded_bytes, bool)
+        or not isinstance(maximum_encoded_bytes, int)
+        or not 1 <= maximum_encoded_bytes <= MAXIMUM_CANONICAL_JSON_BYTES
+    ):
+        raise InvalidArgument(
+            f"maximum_encoded_bytes must be in [1, {MAXIMUM_CANONICAL_JSON_BYTES}]",
+            reason="canonical_json_byte_limit",
+        )
     try:
-        normalized = _json_compatible(value, active=set())
-        return json.dumps(
-            normalized,
+        normalized = _json_compatible(
+            value,
+            active=set(),
+            budget=_JsonBudget(maximum_nodes, maximum_encoded_bytes),
+        )
+        encoder = json.JSONEncoder(
             sort_keys=True,
             separators=(",", ":"),
             ensure_ascii=False,
             allow_nan=False,
-        ).encode("utf-8")
-    except InvalidArgument:
+        )
+        encoded_chunks: list[bytes] = []
+        encoded_size = 0
+        for chunk in encoder.iterencode(normalized):
+            encoded = chunk.encode("utf-8")
+            encoded_size += len(encoded)
+            if encoded_size > maximum_encoded_bytes:
+                raise ResourceExhausted(
+                    f"canonical JSON exceeds the {maximum_encoded_bytes}-byte encoded budget",
+                    reason="canonical_json_bytes",
+                )
+            encoded_chunks.append(encoded)
+        return b"".join(encoded_chunks)
+    except (InvalidArgument, ResourceExhausted):
         raise
     except (TypeError, ValueError) as error:  # pragma: no cover - normalization owns these
         raise InvalidArgument(

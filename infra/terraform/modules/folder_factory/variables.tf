@@ -95,9 +95,3 @@ variable "budget_monitoring_channels" {
   type        = list(string)
   default     = []
 }
-
-variable "labels" {
-  description = "Non-sensitive labels applied to budgets. Folders do not carry labels in Google Cloud."
-  type        = map(string)
-  default     = {}
-}

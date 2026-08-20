@@ -4,4 +4,19 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# Sidecar injection is intentionally not enabled. The training process must first expose a
+# safe-point protocol and a qualified image; a generic file copier could publish torn state.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mindclade-checkpoint-sidecar-contract
+  namespace: mindclade-system
+data:
+  activationState: blocked
+  commitProtocol: write-verify-atomic-publish
+  consistency: trainer-safe-point-required
+  encryption: provider-managed-plus-application-integrity
+  fencing: attempt-and-ticket-fence-required
+  identity: workload-identity-required
+  restoreValidation: manifest-digest-and-model-contract
+  terminationBudget: unset-until-measured

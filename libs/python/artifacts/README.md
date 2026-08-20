@@ -1,35 +1,18 @@
-# Libs / Python / Artifacts
+# Python artifact validation
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** the language indicated by the second path segment
+This package owns bounded, process-local validation of artifact bytes and manifests. It builds
+canonical location-independent `ArtifactRef` values, verifies streamed chunks against declared
+size and SHA-256 digest, validates immutable schema-v1 manifests, and computes deterministic
+lineage order. `VerifiedArtifactClient` accepts an injected reader; no provider client or global
+configuration is constructed here.
 
-## Purpose
+Limits are enforced before or during work: in-memory references are capped at 64 MiB, verification
+accepts at most 1,000,000 chunks, manifests accept at most 256 parents and 64 annotations, and
+lineage walks accept at most 4,096 nodes and 65,536 edges. Verification supports a cooperative
+cancellation predicate. Invalid contracts raise structured Mindclade faults; bytes are never
+returned until their size and digest match.
 
-Reusable mechanisms for one language. Libraries contain stable, broadly consumed behavior and no product-domain policy or executable composition roots. This path specializes that domain for **artifacts**.
-
-## Boundary
-
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
-
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
-
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Go remains authoritative for artifact catalog and tenant policy, Rust for bulk transfer and
+artifact-byte handling. This package does not own URIs, buckets, credentials, retention, retries,
+catalog mutation, networking, or admission policy. Cross-process schema evolution belongs under
+`protocols/`; the Python manifest is a process-local projection whose `schema_version` must be 1.

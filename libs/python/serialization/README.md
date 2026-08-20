@@ -9,7 +9,7 @@ The byte encoding of a document, in exactly one form:
 
 | Function | Encoding |
 |---|---|
-| `canonical_json_bytes` | keys sorted, no insignificant whitespace, UTF-8, no non-finite floats |
+| `canonical_json_bytes` | keys sorted, no insignificant whitespace, UTF-8, no floats |
 | `canonical_lines` | newline-separated with a trailing newline, UTF-8 |
 | `canonical_field` | validates one field of a line-oriented document |
 
@@ -27,14 +27,11 @@ UTF-8 is not a preference. Go's `encoding/json` and Rust's `serde_json` both emi
 UTF-8, so the ASCII-escaping form also disagreed with the other two languages.
 
 This is deterministic JSON, not RFC 8785/JCS. Strings, integers, booleans, nulls,
-arrays and string-keyed objects use the cross-language-compatible subset. Float
-formatting is Python's stable JSON representation; another language must hash the
-emitted bytes rather than independently re-encode a float-bearing document.
-
-`allow_nan=False` for the same class of reason: `NaN` and `Infinity` are not JSON
-and both other languages refuse them, so emitting them would produce a document
-only Python can read. Failing at encode time turns a remote parse error into a
-local one.
+arrays and string-keyed objects use the cross-language-compatible subset. All
+floating-point values are rejected: Python, Go, and Rust do not share a canonical
+shortest-number algorithm, so independent encoding could assign different digests
+to one identity-bearing document. A domain that needs fractional values must use
+a reviewed integer/fixed-point or string representation in its identity contract.
 
 ## What it does not own
 
@@ -62,10 +59,17 @@ the line encoding is not injective — a field containing a vertical bar could
 impersonate a structural line, and two different documents would seal to one
 digest.
 
-Everything raises `libs.python.errors.InvalidArgument`, which is also a
-`ValueError`. Non-string object keys, generic read-only mappings, unsupported
-types, cycles, excessive nesting, and non-finite numbers are handled explicitly;
-nothing silently coerces object keys or truncates values.
+Documents are limited to 128 nesting levels, 100,000 total nodes (including object
+keys), and 8 MiB of encoded output. Text bytes are budgeted during tree validation,
+and exact output bytes are counted incrementally while encoding, so an oversized
+document fails before it can become an unbounded output buffer. Callers may lower,
+but not raise, the node and byte limits.
+
+Contract errors raise `libs.python.errors.InvalidArgument`, which is also a
+`ValueError`; exhausted node or byte budgets raise `ResourceExhausted`. Non-string
+object keys, generic read-only mappings, unsupported types, cycles, excessive
+nesting, invalid Unicode scalar values, and floats are handled explicitly; nothing
+silently coerces object keys or truncates values.
 
 ## Reserved, not implemented
 

@@ -11,7 +11,13 @@ import hashlib
 from collections.abc import Callable, Iterable
 from typing import Final
 
-from libs.python.errors import Code, FailedPrecondition, InvalidArgument, MindcladeError
+from libs.python.errors import (
+    Code,
+    FailedPrecondition,
+    InvalidArgument,
+    MindcladeError,
+    ResourceExhausted,
+)
 from libs.python.identifiers import ArtifactRef, Digest
 
 MAXIMUM_CHUNKS: Final = 1 << 20
@@ -27,11 +33,14 @@ def verify_chunks(
     """Consume and verify a bounded byte stream, returning bytes consumed."""
     if not isinstance(reference, ArtifactRef):
         raise InvalidArgument("verification requires an ArtifactRef", reason="artifact_verify_ref")
-    if not callable(getattr(chunks, "__iter__", None)):
+    try:
+        iterator = iter(chunks)
+    except TypeError as error:
         raise InvalidArgument(
             "artifact chunks must be iterable bytes",
             reason="artifact_verify_chunks",
-        )
+            cause=error,
+        ) from error
     if cancelled is not None and not callable(cancelled):
         raise InvalidArgument(
             "artifact cancellation predicate must be callable",
@@ -50,15 +59,28 @@ def verify_chunks(
 
     hasher = hashlib.sha256()
     consumed = 0
-    for index, chunk in enumerate(chunks, start=1):
-        if cancelled is not None and cancelled():
-            raise MindcladeError(
-                Code.CANCELED,
-                "artifact verification canceled",
-                reason="artifact_verify_canceled",
-            )
+    index = 0
+    while True:
+        if cancelled is not None:
+            cancellation_state = cancelled()
+            if not isinstance(cancellation_state, bool):
+                raise InvalidArgument(
+                    "artifact cancellation predicate must return a boolean",
+                    reason="artifact_verify_cancellation",
+                )
+            if cancellation_state:
+                raise MindcladeError(
+                    Code.CANCELED,
+                    "artifact verification canceled",
+                    reason="artifact_verify_canceled",
+                )
+        try:
+            chunk = next(iterator)
+        except StopIteration:
+            break
+        index += 1
         if index > maximum_chunks:
-            raise FailedPrecondition(
+            raise ResourceExhausted(
                 "artifact stream exceeded the chunk bound",
                 reason="artifact_verify_chunk_count",
             )

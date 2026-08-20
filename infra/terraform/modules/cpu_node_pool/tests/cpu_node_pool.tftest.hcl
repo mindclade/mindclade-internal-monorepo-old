@@ -5,6 +5,14 @@
 
 mock_provider "google" {}
 
+override_resource {
+  target          = google_service_account.nodes
+  override_during = plan
+  values = {
+    email = "gke-general-compute@mindclade-production.iam.gserviceaccount.com"
+  }
+}
+
 variables {
   project_id               = "mindclade-production"
   cluster_name             = "mindclade-platform"

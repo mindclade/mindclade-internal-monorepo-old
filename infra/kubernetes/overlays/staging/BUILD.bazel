@@ -6,10 +6,10 @@
 package(default_visibility = ["//visibility:private"])
 
 filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
+    name = "manifests",
+    srcs = [
+        "kustomization.yaml",
+        "patches.yaml",
+    ],
     visibility = ["//visibility:public"],
 )

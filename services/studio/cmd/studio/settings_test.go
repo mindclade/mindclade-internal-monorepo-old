@@ -59,6 +59,7 @@ func TestSecretsAreRedacted(t *testing.T) {
 	t.Setenv("STUDIO_ROLE", "bff")
 	t.Setenv("DATABASE_URL", "postgres://user:hunter2@host/db")
 	t.Setenv("SESSION_KEY_CURRENT", "c2VjcmV0LW1hdGVyaWFs")
+	t.Setenv("AUTHORIZED_IAP_SUBJECTS", "accounts.google.com:1001")
 
 	settings, err := loadSettings(context.Background())
 	if err != nil {
@@ -66,7 +67,7 @@ func TestSecretsAreRedacted(t *testing.T) {
 	}
 
 	redacted := settings.Redacted()
-	for _, key := range []string{keyDatabaseURL, keySessionKeyCurrent} {
+	for _, key := range []string{keyDatabaseURL, keySessionKeyCurrent, keyAuthorizedSubjects} {
 		if redacted[key] != "[REDACTED]" {
 			t.Errorf("%s = %q, want [REDACTED]", key, redacted[key])
 		}

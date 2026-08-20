@@ -1,46 +1,27 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
 ---
-# Content lock for every remote base a render may fetch.
-#
-# A commit SHA or a release tag in a URL identifies a REVISION; it does not bind the BYTES. A
-# mirror, a proxy, a repository rewrite, or a re-cut release can serve different content at the
-# same path, and nothing in a Kustomize build would notice. This file binds the bytes.
-#
-# gitops/scripts/render.sh re-checks every entry before rendering and refuses to proceed on a
-# mismatch. That is deliberately a hard failure rather than a warning: a base whose content
-# changed under a pinned URL is either a supply-chain compromise or an upstream doing something
-# it should not, and neither should reach a cluster while somebody decides which.
-#
-# ---------------------------------------------------------------------------------------
-# Adding or moving an entry
-# ---------------------------------------------------------------------------------------
-#   curl -fsSL -o /tmp/base.yaml <url>
-#   shasum -a 256 /tmp/base.yaml
-#   wc -c < /tmp/base.yaml
-#
-# Record both. `bytes` is not redundant with the digest — it makes a truncated download fail
-# with an obvious cause rather than as an opaque hash mismatch.
-apiVersion: mindclade.dev/v1
-kind: ContentLock
-
-spec:
-  sources:
-    # cert-manager: CRDs, controller, webhook, and cainjector.
-    #
-    # Fetched as the upstream release manifest rather than vendored, because the CRDs and the
-    # controller version must move together — vendoring invites a partial upgrade where the
-    # CRDs are new and the controller is not, which presents as a Certificate that is accepted
-    # and then never processed.
-    #
-    # This is the base that issues cert-mindclade-{studio,ai,dev} against Let's Encrypt over
-    # ACME DNS-01. Nothing else in the estate depends on it, and nothing else may be added
-    # here without the same treatment.
-    - name: cert-manager
-      version: v1.19.1
-      url: https://github.com/cert-manager/cert-manager/releases/download/v1.19.1/cert-manager.yaml
-      sha256: 876a41a57e36b85619f4124b24b3deb80912b5ffed515f90e2f160b6e6338e81
-      bytes: 1007958
+# Byte-level lock for remote bootstrap content. This standard ConfigMap is intentionally data,
+# not a custom resource with no controller. Offline validation checks its shape; a connected,
+# controlled bootstrap must fetch the URL, compare bytes and SHA-256, and fail on any mismatch.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mindclade-upstream-content-lock
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-29"
+    mindclade.dev/activation-state: blocked
+data:
+  schema.version: "1"
+  cert-manager.name: cert-manager
+  cert-manager.version: v1.19.1
+  cert-manager.url: https://github.com/cert-manager/cert-manager/releases/download/v1.19.1/cert-manager.yaml
+  cert-manager.sha256: 876a41a57e36b85619f4124b24b3deb80912b5ffed515f90e2f160b6e6338e81
+  cert-manager.bytes: "1007958"
+  cert-manager.sync-wave: "-30"
+  argocd.installation-state: blocked-until-live-repository-supplies-exact-chart-lock
+  jobset.chart-lock: infra/kubernetes/platform/jobset/chart/Chart.lock
+  kueue.chart-lock: infra/kubernetes/platform/kueue/chart/Chart.lock

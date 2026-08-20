@@ -86,6 +86,7 @@ resource "google_compute_route" "default_internet" {
 }
 
 resource "google_compute_subnetwork" "this" {
+  #checkov:skip=CKV_GCP_74: PRIVATE subnets force Private Google Access; proxy-only subnets reject that API field.
   for_each = local.subnets
 
   project       = each.value.project_id

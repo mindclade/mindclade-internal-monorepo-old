@@ -50,7 +50,7 @@ def test_verification_honors_cancellation_without_consuming_more_chunks() -> Non
     with pytest.raises(MindcladeError) as caught:
         verify_chunks(reference(), chunks(), cancelled=lambda: True)
     assert code_of(caught.value) is Code.CANCELED
-    assert consumed == 1
+    assert consumed == 0
 
 
 def test_verified_client_uses_an_injected_reader_and_enforces_memory_bound() -> None:

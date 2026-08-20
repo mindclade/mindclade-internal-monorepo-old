@@ -11,6 +11,7 @@ variables {
   owner                       = "security"
   storage_service_agent_email = "service-123456789012@gs-project-accounts.iam.gserviceaccount.com"
   bucket_name                 = "mindclade-central-audit-archive"
+  access_log_bucket_name      = "mindclade-central-storage-access"
   location                    = "US"
   kms_key_name                = "projects/mindclade-security/locations/us/keyRings/audit/cryptoKeys/archive"
   retention_lock_confirmation = "LOCKING A CLOUD STORAGE RETENTION POLICY IS IRREVERSIBLE"
@@ -36,10 +37,20 @@ run "immutable_complete_audit_contract" {
       output.audit_contract.retention_days == 2555 &&
       output.audit_contract.retention_locked == true &&
       output.audit_contract.soft_delete_retention_days == 90 &&
+      output.audit_contract.access_log_bucket_name == "mindclade-central-storage-access" &&
       output.audit_contract.deletion_policy == "PREVENT" &&
       output.audit_contract.terraform_prevent_destroy == true
     )
     error_message = "The central archive must retain locked retention, recovery, and deletion safeguards."
+  }
+
+
+  assert {
+    condition = (
+      output.required_access_log_writer_grant.member == "group:cloud-storage-analytics@google.com" &&
+      output.required_access_log_writer_grant.role == "roles/storage.objectCreator"
+    )
+    error_message = "The access-log bucket owner needs the exact additive Storage analytics writer grant."
   }
 
   assert {

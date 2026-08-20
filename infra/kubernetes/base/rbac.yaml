@@ -10,12 +10,13 @@
 # grant, and a grant is least-privilege only when a named subject is bound to verbs derived
 # from calls that subject actually makes. Neither half of that pair is available yet.
 #
-# There is no subject to bind. `base/service-accounts.yaml` declares only the namespace
-# `default` ServiceAccount, deliberately pinned to `automountServiceAccountToken: false`.
-# Every `services/*/service-account.yaml` is still an unmaterialized scaffold, so no
-# control-plane, worker, node-agent, gateway, or proxy identity exists to name in a
-# roleRef's subject list. Binding the rules to `default` instead is not a way around this;
-# see the first requirement below.
+# There is no qualified first-party API-using subject to bind. `base/service-accounts.yaml`
+# declares the namespace `default` ServiceAccount and `mindclade-workload`, while each
+# `services/*` module now declares a distinct role identity. All of them deliberately disable
+# token automount, and no workload is active. The presence of an identity is not evidence for
+# a grant: API behavior still has to be implemented, observed, and reviewed before this file
+# may add a Role or binding. Binding rules to either shared foundation account is not a way
+# around this; see the first requirement below.
 #
 # Nothing can exercise a grant. `policies/resource-quotas.yaml` pins `pods: "0"`, and
 # `base/namespace.yaml` carries
@@ -43,12 +44,11 @@
 #     `libs/go/storage/lease`, not a Kubernetes object. `coordination.k8s.io` appears nowhere
 #     in the Go tree, so the `leases` rule that controller-runtime scaffolds normally carry
 #     would be dead permission here. Do not add it back by reflex.
-#   - Kueue and JobSet cannot be sized at all. `control/orchestration/adapters/kubernetes/`
-#     and `control/scheduling/adapters/{jobset,kueue}/` are scaffold stubs that construct no
-#     client and issue no request, and `platform/kueue/` and `platform/jobset/` are scaffolds
-#     too, so the `kueue.x-k8s.io` and `jobset.x-k8s.io` CRDs are not installed. Their verbs
-#     could only be copied from upstream bundles, which describe those projects' needs and
-#     not ours.
+#   - Kueue and JobSet controller permissions do not belong here. Their locked wrapper charts
+#     own the upstream controller ServiceAccounts, Roles, and bindings in dedicated namespaces.
+#     Mindclade's Kueue and JobSet custom resources are fail-closed and do not themselves
+#     justify granting a first-party workload access to either API. The scheduling adapters
+#     still have to issue real, observed requests before their exact verbs can be derived.
 #
 # So the file stays declaration-free until a grant follows from observed behaviour, matching
 # the stance `configmaps.yaml` and `runtime-classes.yaml` take in this directory. An
@@ -61,10 +61,12 @@
 
 # Adding the first grant. Each entry is a requirement, not a suggestion.
 #
-#   - Materialize the owning `services/<name>/service-account.yaml` first and bind that named
-#     ServiceAccount. Never grant to `default`: it is the identity a pod receives when it
+#   - Bind only the owning `services/<name>/service-account.yaml` identity. Never grant to
+#     `default`: it is the identity a pod receives when it
 #     names none, so a grant there is inherited by anything later deployed without a
-#     ServiceAccount, including workloads never reviewed for it.
+#     ServiceAccount, including workloads never reviewed for it. Do not grant to
+#     `mindclade-workload` either: it is shared by suspended templates whose contract is
+#     explicitly Kubernetes-API-independent.
 #   - Derive rules from observed API traffic — an audit-log or `kubectl auth can-i --list`
 #     capture from a real run — and cite that evidence in review.
 #   - Enumerate apiGroups, resources, and verbs explicitly. No `*` in any of the three, and

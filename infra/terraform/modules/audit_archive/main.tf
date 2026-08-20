@@ -42,6 +42,8 @@ module "archive" {
       bucket = {
         name                       = var.bucket_name
         location                   = var.location
+        access_log_bucket_name     = var.access_log_bucket_name
+        access_log_object_prefix   = var.access_log_object_prefix
         encryption_key             = var.kms_key_name
         retention_days             = var.retention_days
         lock_retention_policy      = true

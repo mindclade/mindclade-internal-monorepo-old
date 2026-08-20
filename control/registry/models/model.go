@@ -84,26 +84,26 @@ func (p Precision) Valid() bool {
 // CompatibilityClass is a coarse batching class the data plane admits against.
 // Python remains authoritative for which admitted requests share tensors.
 type CompatibilityClass struct {
-	ClassID              string
-	ExecutionKind        ExecutionKind
-	Precision            Precision
-	ShapeBucket          string
-	MaximumBatchRequests uint32
-	MaximumBatchGPUBytes uint64
-	MaximumInputUnits    uint64
-	MaximumOutputUnits   uint64
+	ClassID              string        `json:"class_id"`
+	ExecutionKind        ExecutionKind `json:"execution_kind"`
+	Precision            Precision     `json:"precision"`
+	ShapeBucket          string        `json:"shape_bucket"`
+	MaximumBatchRequests uint32        `json:"maximum_batch_requests"`
+	MaximumBatchGPUBytes uint64        `json:"maximum_batch_gpu_bytes"`
+	MaximumInputUnits    uint64        `json:"maximum_input_units"`
+	MaximumOutputUnits   uint64        `json:"maximum_output_units"`
 }
 
 // ResourceEnvelope is the reservation the runtime host makes before a worker
 // forms a batch. Values are declared floors and per-request increments.
 type ResourceEnvelope struct {
-	WeightsResidentBytes      uint64
-	HostMemoryBytes           uint64
-	GPUMemoryFloorBytes       uint64
-	GPUMemoryPerRequestBytes  uint64
-	MaximumConcurrentRequests uint32
-	LoadDeadline              time.Duration
-	DrainDeadline             time.Duration
+	WeightsResidentBytes      uint64        `json:"weights_resident_bytes"`
+	HostMemoryBytes           uint64        `json:"host_memory_bytes"`
+	GPUMemoryFloorBytes       uint64        `json:"gpu_memory_floor_bytes"`
+	GPUMemoryPerRequestBytes  uint64        `json:"gpu_memory_per_request_bytes"`
+	MaximumConcurrentRequests uint32        `json:"maximum_concurrent_requests"`
+	LoadDeadline              time.Duration `json:"load_deadline_nanoseconds"`
+	DrainDeadline             time.Duration `json:"drain_deadline_nanoseconds"`
 }
 
 // Descriptor is durable catalog state for one servable model.
@@ -112,23 +112,23 @@ type ResourceEnvelope struct {
 // other field. A caller never sets it directly; Publish rejects a descriptor
 // whose digest does not match its content.
 type Descriptor struct {
-	DescriptorDigest      identifiers.Digest
-	ModelID               string
-	Family                string
-	Version               string
-	Lifecycle             Lifecycle
-	ModelBundleDigest     identifiers.Digest
-	EngineBundleDigest    identifiers.Digest
-	ResolvedConfigDigest  identifiers.Digest
-	KernelManifestDigest  identifiers.Digest
-	SafetyPolicyDigest    identifiers.Digest
-	Capabilities          []string
-	CompatibilityClasses  []CompatibilityClass
-	Envelope              ResourceEnvelope
-	AcceleratorCapability string
-	MinimumRuntimeVersion string
-	SchemaVersion         uint32
-	PolicyEpoch           uint64
-	Created               time.Time
-	Expires               time.Time
+	DescriptorDigest      identifiers.Digest   `json:"descriptor_digest,omitempty"`
+	ModelID               string               `json:"model_id"`
+	Family                string               `json:"family"`
+	Version               string               `json:"version"`
+	Lifecycle             Lifecycle            `json:"lifecycle"`
+	ModelBundleDigest     identifiers.Digest   `json:"model_bundle_digest"`
+	EngineBundleDigest    identifiers.Digest   `json:"engine_bundle_digest"`
+	ResolvedConfigDigest  identifiers.Digest   `json:"resolved_config_digest"`
+	KernelManifestDigest  identifiers.Digest   `json:"kernel_manifest_digest"`
+	SafetyPolicyDigest    identifiers.Digest   `json:"safety_policy_digest"`
+	Capabilities          []string             `json:"capabilities"`
+	CompatibilityClasses  []CompatibilityClass `json:"compatibility_classes"`
+	Envelope              ResourceEnvelope     `json:"envelope"`
+	AcceleratorCapability string               `json:"accelerator_capability"`
+	MinimumRuntimeVersion string               `json:"minimum_runtime_version"`
+	SchemaVersion         uint32               `json:"schema_version"`
+	PolicyEpoch           uint64               `json:"policy_epoch"`
+	Created               time.Time            `json:"created"`
+	Expires               time.Time            `json:"expires"`
 }

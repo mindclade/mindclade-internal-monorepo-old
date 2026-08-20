@@ -77,13 +77,56 @@ jobs:
       # GOTOOLCHAIN=local, or on a runner without module-proxy egress, `go build` fails with
       # "go.mod requires go >= 1.26.0" and the gate that was supposed to catch it is the thing
       # that breaks.
-      go-version: "1.26.5"
+      go-version: "1.26.6"
       # The control plane is concurrent throughout — durable coordination, schedulers, event
       # dispatch. The race detector is the point of running tests here at all.
       race: true
       # Reporting only for now. Raise this once the control-plane packages carry the coverage
       # to survive a gate; a threshold that fails on day one gets disabled on day two.
       coverage-threshold: 0
+
+  # Real PostgreSQL qualification for the registry composition boundary. Unit
+  # tests use sqltest to force edge conditions; this lane proves the same DDL,
+  # JSONB round trip, transaction rollback, SQLSTATE qualification, and lease
+  # fencing against the actual lib/pq driver and PostgreSQL server.
+  go-postgres-qualification:
+    name: Go registry / live PostgreSQL and failure injection
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mindclade_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d mindclade_test"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5  # v6.2.0
+        with:
+          go-version: "1.26.6"
+          cache-dependency-path: go.sum
+
+      - name: Live registry and fault qualification
+        env:
+          GOTOOLCHAIN: local
+          MINDCLADE_TEST_POSTGRES_DSN: postgres://postgres:postgres@127.0.0.1:5432/mindclade_test?sslmode=disable
+        run: go test -race -count=1 -v ./services/control_plane/internal/store/postgres
+
+      - name: Execute the declared failure-injection matrix
+        env:
+          GOTOOLCHAIN: local
+          MINDCLADE_TEST_POSTGRES_DSN: postgres://postgres:postgres@127.0.0.1:5432/mindclade_test?sslmode=disable
+        run: python3 tools/qualification/failure_injection.py --execute --owner control-plane
 
   # Rust — the online/runtime data plane and node execution.
   rust:
@@ -213,7 +256,7 @@ jobs:
   # delegation for every domain the company owns — the blast radius of it being wrong is the
   # whole estate, not one module's callers.
   terraform:
-    name: terraform fmt + validate + test
+    name: terraform contracts + validate + test + security
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -230,6 +273,24 @@ jobs:
       - name: fmt
         run: nix develop .#ci --command terraform fmt -check -recursive infra/terraform
 
+      - name: module contract
+        run: |
+          set -euo pipefail
+          failed=0
+          for dir in infra/terraform/modules/*/; do
+            for file in README.md main.tf outputs.tf variables.tf versions.tf .terraform.lock.hcl; do
+              if [ ! -f "${dir}${file}" ]; then
+                echo "::error file=${dir}${file}::required Terraform module contract file is missing"
+                failed=1
+              fi
+            done
+            if [ ! -d "${dir}tests" ] || ! compgen -G "${dir}tests/*.tftest.hcl" >/dev/null; then
+              echo "::error file=${dir}::materialized Terraform modules require a mock test suite"
+              failed=1
+            fi
+          done
+          exit "$failed"
+
       # Per directory, because `terraform validate` needs an initialised one.
       # -backend=false so nothing looks for a state bucket — environments/* declare a real
       # GCS backend and would otherwise demand credentials to validate.
@@ -241,7 +302,7 @@ jobs:
             # environments/* still holds empty scaffolds; a directory with no .tf is not a
             # failure, it is a root nobody has written yet.
             ls "${dir}"*.tf >/dev/null 2>&1 || continue
-            if ! out=$(nix develop .#ci --command bash -c "cd '$dir' && terraform init -backend=false -input=false >/dev/null && terraform validate -no-color" 2>&1); then
+            if ! out=$(nix develop .#ci --command bash -c "cd '$dir' && terraform init -backend=false -input=false -lockfile=readonly >/dev/null && terraform validate -no-color" 2>&1); then
               echo "::error file=${dir}::terraform validate failed"
               printf '%s\n' "$out"
               failed=1
@@ -249,11 +310,31 @@ jobs:
           done
           exit "$failed"
 
+      - name: tflint
+        run: |
+          set -euo pipefail
+          failed=0
+          for dir in infra/terraform/modules/*/ infra/terraform/environments/*/; do
+            ls "${dir}"*.tf >/dev/null 2>&1 || continue
+            if ! out=$(nix develop .#ci --command tflint --chdir="$dir" --format=compact 2>&1); then
+              echo "::error file=${dir}::tflint failed"
+              printf '%s\n' "$out"
+              failed=1
+            fi
+          done
+          exit "$failed"
+
+      - name: IaC security policy
+        run: >-
+          nix develop .#ci --command checkov
+          --directory infra/terraform
+          --framework terraform
+          --compact
+          --quiet
+          --skip-download
+          --skip-path .terraform
+
       - name: test
-        # Only the directories that have a suite. One with no tests is a gap, not a failure —
-        # and reporting it as a failure here would make the gate something people disable
-        # rather than something they close.
-        #
         # -var-file=terraform.tfvars.example where one exists. Real terraform.tfvars is
         # gitignored, so the committed example is the only copy of a root's inputs anyone ever
         # reads, and nothing else loads it. A run block that declares no `variables` picks it
@@ -270,7 +351,7 @@ jobs:
             if [ -f "${dir}terraform.tfvars.example" ]; then
               args="-var-file=terraform.tfvars.example"
             fi
-            if ! out=$(nix develop .#ci --command bash -c "cd '$dir' && terraform init -backend=false -input=false >/dev/null && terraform test -no-color $args" 2>&1); then
+            if ! out=$(nix develop .#ci --command bash -c "cd '$dir' && terraform init -backend=false -input=false -lockfile=readonly >/dev/null && terraform test -no-color $args" 2>&1); then
               echo "::error file=${dir}::terraform test failed"
               printf '%s\n' "$out"
               failed=1

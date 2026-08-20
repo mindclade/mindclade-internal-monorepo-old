@@ -65,9 +65,11 @@ Promotion additionally requires:
 ## Explicit non-claims
 
 The pinned Rust/Bazel/Nix toolchain is available and the local Cargo and Bazel
-suites pass, including the `runtime_gateway` / `runtime_host` cores. This is not
+suites pass, including the `runtime_gateway` / `runtime_host` cores. The Rust
+presubmit also passes cargo-deny, compatibility, six local failure-injection
+scenarios, and two portable performance measurements. This is not
 connected-provider, Linux unsafe-code, remote-execution, sanitizer, fuzz/Miri,
-or measured-performance evidence. Python configuration, preprocessing
+or complete hardware/provider performance evidence. Python configuration, preprocessing
 contracts, and cross-language fixtures are implemented and locally tested;
 broader Python numerical systems, TileLang kernels, TypeScript apps,
 infrastructure, provider adapters, and product code remain scaffolded or
@@ -79,4 +81,7 @@ qualification, or production readiness.
 
 All ten post-architecture hardening items are represented by executable source, policy, or qualification machinery: Rust lock/toolchain gating, supply-chain policy, rolling compatibility, failure injection, performance budgets, node diagnostics, resource-budget observability, finished artifact-GC semantics, canonical workload envelopes, and golden vertical release slices. Affected-test selection and component ownership/enforcement metadata are also active presubmit invariants.
 
-Offline qualification passes. `qualified` and `production` maturity still require connected evidence for the pinned Rust 1.97.1 toolchain, a Cargo-generated committed lockfile, real provider integrations, hardware performance measurements, and release/security evidence.
+The canonical Rust presubmit and offline qualification pass. `qualified` and
+`production` maturity still require connected Linux/Bazel/Nix release evidence,
+real provider integrations, the remaining hardware performance measurements,
+and release/security evidence.

@@ -40,3 +40,14 @@ pytest_test(
     imports = ["../../.."],
     deps = [":worker_runtime"],
 )
+
+pytest_test(
+    name = "test_properties",
+    srcs = ["tests/test_properties.py"],
+    imports = ["../../.."],
+    deps = [
+        ":worker_runtime",
+        "//libs/python/errors",
+        "@pypi//hypothesis",
+    ],
+)

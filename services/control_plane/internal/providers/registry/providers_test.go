@@ -33,7 +33,7 @@ func testSettings(t *testing.T) foundationconfig.MapSource {
 		"http.address":     "127.0.0.1:0",
 		"blob.bucket":      "mindclade-registry-test",
 		"cache.address":    "127.0.0.1:6379",
-		"auth.api_keys":    "registry-client:" + hex.EncodeToString(digest[:]) + ":artifacts.read,artifacts.write",
+		"auth.api_keys":    "registry-client:" + hex.EncodeToString(digest[:]) + ":artifacts.read,artifacts.write,registry.*",
 	}}
 }
 

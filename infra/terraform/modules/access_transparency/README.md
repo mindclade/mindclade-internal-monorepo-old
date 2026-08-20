@@ -23,6 +23,10 @@ happens to the logs once the entitlement exists.
 - **The archive cannot be force-destroyed.** Provider and Terraform deletion guards plus a
   90-day soft-delete window protect the container and recover accidentally deleted objects;
   the retention policy remains the stronger minimum-age control.
+- **Archive access is logged elsewhere.** `access_log_bucket_name` must identify a distinct,
+  separately governed bucket. `required_access_log_writer_grant` reports the additive
+  Storage analytics group grant its owning state must apply; keep both buckets in compatible
+  locations, organizations, and VPC Service Controls perimeters.
 - **An alert with no notification channels is rejected.** Google accepts one, the policy shows
   as enabled, and the first anyone knows is that a page never arrived.
 - **The alert is a log-match condition, not a metric threshold.** A metric needs an aggregation

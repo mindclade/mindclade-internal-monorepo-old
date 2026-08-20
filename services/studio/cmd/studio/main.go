@@ -24,6 +24,7 @@ import (
 	libhttpx "go.mindclade.dev/libs/go/httpx"
 	"go.mindclade.dev/libs/go/servicekit"
 
+	"go.mindclade.dev/services/studio/internal/authz"
 	"go.mindclade.dev/services/studio/internal/httpx"
 	"go.mindclade.dev/services/studio/internal/iap"
 	"go.mindclade.dev/services/studio/internal/metrics"
@@ -97,11 +98,11 @@ func run(ctx context.Context, logger *slog.Logger) error {
 			return err
 		}
 
-		// Authorization is out of scope for this plan. Its one interface is the
-		// verified assertion; the answer must be computable inside the
-		// five-minute session cache, which is what bounds how much can live
-		// behind this.
-		deps.Resolve = func(context.Context, iap.Assertion) error { return nil }
+		policy, policyErr := authz.New(value(settings, keyAuthorizedSubjects))
+		if policyErr != nil {
+			return fmt.Errorf("AUTHORIZED_IAP_SUBJECTS must contain at least one exact stable IAP subject: %w", policyErr)
+		}
+		deps.Resolve = policy.Resolve
 
 		if role != server.RoleWeb {
 			if deps.DB, err = openDB(settings, role); err != nil {

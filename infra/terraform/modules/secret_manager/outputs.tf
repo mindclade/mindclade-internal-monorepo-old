@@ -34,3 +34,12 @@ output "unexpected_access_alert_intent" {
     }
   }
 }
+
+output "required_rotation_topic_kms_grant" {
+  description = "Additive grant the key-owning state must apply before the module creates a CMEK-protected rotation topic; null for caller-supplied topics."
+  value = local.create_rotation_topic ? {
+    crypto_key = var.rotation_topic_kms_key_name
+    member     = "serviceAccount:service-${var.project_number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+    role       = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  } : null
+}

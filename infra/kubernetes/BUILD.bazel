@@ -3,13 +3,58 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
 package(default_visibility = ["//visibility:private"])
 
 filegroup(
-    name = "scaffold_files",
+    name = "validation_inputs",
     srcs = glob(
         ["**"],
         exclude = ["BUILD.bazel"],
-    ),
+    ) + [
+        "//infra/kubernetes/overlays/development:manifests",
+        "//infra/kubernetes/overlays/production:manifests",
+        "//infra/kubernetes/overlays/staging:manifests",
+        "//infra/kubernetes/platform/gpu:manifests",
+        "//infra/kubernetes/platform/jobset:manifests",
+        "//infra/kubernetes/platform/kueue:manifests",
+        "//infra/kubernetes/platform/nccl:manifests",
+        "//infra/kubernetes/platform/rdma:manifests",
+        "//infra/kubernetes/platform/remote-execution:manifests",
+        "//infra/kubernetes/platform/security:manifests",
+        "//infra/kubernetes/services/artifact-proxy:manifests",
+        "//infra/kubernetes/services/control-plane:manifests",
+        "//infra/kubernetes/services/curation-workers:manifests",
+        "//infra/kubernetes/services/evaluation-workers:manifests",
+        "//infra/kubernetes/services/ingestion-workers:manifests",
+        "//infra/kubernetes/services/node-agent:manifests",
+        "//infra/kubernetes/services/preprocessing-workers:manifests",
+        "//infra/kubernetes/services/rollout-workers:manifests",
+        "//infra/kubernetes/services/runtime-gateway:manifests",
+        "//infra/kubernetes/services/runtime-host:manifests",
+        "//infra/kubernetes/services/training-workers:manifests",
+    ],
     visibility = ["//visibility:public"],
+)
+
+# Compatibility target for callers that previously consumed the entire Kubernetes scaffold.
+filegroup(
+    name = "scaffold_files",
+    srcs = [":validation_inputs"],
+    visibility = ["//visibility:public"],
+)
+
+sh_test(
+    name = "validate",
+    size = "medium",
+    srcs = ["tests/validate.sh"],
+    data = [":validation_inputs"],
+    env_inherit = ["PATH"],
+    tags = [
+        "kubernetes",
+        "local",
+        "no-sandbox",
+        "policy",
+    ],
 )

@@ -149,9 +149,14 @@ tests = ["services/workers/model_worker/tests/test_smoke.py"]
 [[component]]
 name = "control.model_registry"
 path = "control/registry/models"
-status = "implemented"
+status = "qualified"
 owner = "platform-control"
-tests = ["control/registry/models/service_test.go"]
+tests = [
+  "control/registry/models/service_test.go",
+  "services/control_plane/internal/providers/registry/handler_test.go",
+  "services/control_plane/internal/store/postgres/live_postgres_test.go",
+]
+qualification = "docs/qualification/go/control-plane-registry.md"
 
 # ---------------------------------------------------------------------------------------
 # Reserved-but-unimplemented domains
@@ -186,9 +191,8 @@ owner = "data-platform"
 # ---------------------------------------------------------------------------------------
 # libs/python
 # ---------------------------------------------------------------------------------------
-# Registered per subpackage rather than as one `libs/python` umbrella. The tree is mixed —
-# five packages are implemented and five are reserved scaffolds — so a single umbrella entry
-# would have to lie in one direction or the other whatever status it claimed.
+# Registered per subpackage rather than as one `libs/python` umbrella so ownership and contract
+# tests remain explicit at the package boundary.
 
 [[component]]
 name = "libs.python.errors"
@@ -208,6 +212,7 @@ status = "implemented"
 owner = "platform-control"
 tests = [
     "libs/python/worker_runtime/tests/test_executor.py",
+    "libs/python/worker_runtime/tests/test_properties.py",
     "libs/python/worker_runtime/tests/test_workload.py",
 ]
 
@@ -219,6 +224,7 @@ owner = "platform-control"
 tests = [
     "libs/python/config/tests/test_loader.py",
     "libs/python/config/tests/test_merge.py",
+    "libs/python/config/tests/test_properties.py",
     "libs/python/config/tests/test_resolved.py",
 ]
 
@@ -231,6 +237,7 @@ tests = [
     "libs/python/identifiers/tests/test_artifact.py",
     "libs/python/identifiers/tests/test_digest.py",
     "libs/python/identifiers/tests/test_golden_vectors.py",
+    "libs/python/identifiers/tests/test_properties.py",
     "libs/python/identifiers/tests/test_resource.py",
     "libs/python/identifiers/tests/test_version.py",
 ]
@@ -242,40 +249,64 @@ status = "implemented"
 owner = "platform-control"
 tests = [
     "libs/python/serialization/tests/test_canonical.py",
+    "libs/python/serialization/tests/test_properties.py",
 ]
 
-# These packages remain deliberately scaffolded. No production package consumes them, and
-# materializing generic APIs before a concrete caller can state the contract would violate
-# ADR-0018. libs/python/ADMISSION.md records the promotion bar.
+# Owner-directed foundation promotion: these packages currently have no in-tree consumer, so
+# their narrow provider-free contracts and non-responsibilities are recorded package-locally.
+# Broadening an API still requires consumer evidence under libs/python/ADMISSION.md.
 [[component]]
 name = "libs.python.artifacts"
 path = "libs/python/artifacts"
-status = "scaffolded"
+status = "implemented"
 owner = "runtime-platform"
+tests = [
+    "libs/python/artifacts/tests/test_manifest.py",
+    "libs/python/artifacts/tests/test_verification.py",
+]
 
 [[component]]
 name = "libs.python.distributed"
 path = "libs/python/distributed"
-status = "scaffolded"
+status = "implemented"
 owner = "training-platform"
+tests = [
+    "libs/python/distributed/tests/test_environment.py",
+    "libs/python/distributed/tests/test_health.py",
+    "libs/python/distributed/tests/test_topology.py",
+]
 
 [[component]]
 name = "libs.python.geometry"
 path = "libs/python/geometry"
-status = "scaffolded"
+status = "implemented"
 owner = "biology-ml"
+tests = [
+    "libs/python/geometry/tests/test_distances.py",
+    "libs/python/geometry/tests/test_frames.py",
+    "libs/python/geometry/tests/test_rigid.py",
+]
 
 [[component]]
 name = "libs.python.observability"
 path = "libs/python/observability"
-status = "scaffolded"
+status = "implemented"
 owner = "platform-control"
+tests = [
+    "libs/python/observability/tests/test_redaction.py",
+    "libs/python/observability/tests/test_telemetry.py",
+]
 
 [[component]]
 name = "libs.python.testing"
 path = "libs/python/testing"
-status = "scaffolded"
+status = "implemented"
 owner = "biology-ml"
+tests = [
+    "libs/python/testing/tests/test_helpers.py",
+    "libs/python/testing/tests/test_numerics.py",
+    "libs/python/testing/tests/test_processes.py",
+]
 
 # ---------------------------------------------------------------------------------------
 # serving

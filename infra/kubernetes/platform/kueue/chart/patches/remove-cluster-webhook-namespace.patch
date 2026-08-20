@@ -1,0 +1,18 @@
+--- a/kueue/templates/webhook/manifests.yaml
++++ b/kueue/templates/webhook/manifests.yaml
+@@ -28,7 +28,6 @@ metadata:
+   annotations:
+     cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "kueue.fullname" . }}-serving-cert
+   {{- end }}
+-  namespace: '{{ .Release.Namespace }}'
+ webhooks:
+   - admissionReviewVersions:
+       - v1
+@@ -674,7 +673,6 @@ metadata:
+   annotations:
+     cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "kueue.fullname" . }}-serving-cert
+   {{- end }}
+-  namespace: '{{ .Release.Namespace }}'
+ webhooks:
+   - admissionReviewVersions:
+       - v1

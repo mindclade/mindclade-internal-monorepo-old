@@ -12,6 +12,11 @@ replace as units. Existing non-null values cannot change runtime type unless `de
 called with `reject_type_changes=False`. Override paths use non-empty ASCII names joined by
 dots, reject scalar traversal, and preserve existing types.
 
+`deep_merge_many` copies the base tree once and applies as many as 128 layers into that private
+copy while preserving the same input immutability and no-alias contract as `deep_merge`. The
+resolver uses this path for source and overlay composition. Identity-bearing resolved documents
+do not accept floating-point values; domains use reviewed integer/fixed-point or string forms.
+
 The returned value is a recursive read-only snapshot. Its digest is checked even when a caller
 constructs `ResolvedConfig` directly, so value and identity cannot drift apart after
 publication. Domain packages own semantic schemas through `RequiredField` or their own
@@ -25,6 +30,7 @@ validators; this library owns composition, structural validation, and fingerprin
 - explicit overrides: 256;
 - override expression: 4096 characters;
 - recursive merge depth: 64.
+- batched merge layers: 128.
 
 Unreadable, invalid UTF-8, invalid TOML, unsupported JSON values, type replacement, malformed
 paths, and digest mismatch fail with `InvalidArgument`. Collection or source-size exhaustion

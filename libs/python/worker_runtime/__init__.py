@@ -8,11 +8,13 @@
 from libs.python.identifiers import ArtifactRef
 
 from .contracts import StageEnvelope, StageKind, StageResult
-from .executor import StageEngine, StageExecutor
+from .executor import CancellationToken, ExecutionContext, StageEngine, StageExecutor
 from .workload import WorkloadEnvelope
 
 __all__ = [
     "ArtifactRef",
+    "CancellationToken",
+    "ExecutionContext",
     "StageEngine",
     "StageEnvelope",
     "StageExecutor",

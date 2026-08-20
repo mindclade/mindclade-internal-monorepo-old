@@ -73,6 +73,37 @@ variable "bucket_name" {
   }
 }
 
+variable "access_log_bucket_name" {
+  description = "Existing separately governed bucket receiving server-access logs for the audit archive."
+  type        = string
+
+  validation {
+    condition = (
+      length(var.access_log_bucket_name) >= 3 &&
+      length(var.access_log_bucket_name) <= 63 &&
+      can(regex("^[a-z0-9][a-z0-9._-]*[a-z0-9]$", var.access_log_bucket_name)) &&
+      var.access_log_bucket_name != var.bucket_name
+    )
+    error_message = "access_log_bucket_name must be a valid bucket name distinct from bucket_name."
+  }
+}
+
+variable "access_log_object_prefix" {
+  description = "Non-sensitive object prefix for audit-archive server-access logs."
+  type        = string
+  default     = "audit-archive/"
+
+  validation {
+    condition = (
+      length(var.access_log_object_prefix) >= 1 &&
+      length(var.access_log_object_prefix) <= 900 &&
+      !strcontains(var.access_log_object_prefix, "\n") &&
+      !strcontains(var.access_log_object_prefix, "\r")
+    )
+    error_message = "access_log_object_prefix must be 1-900 characters without line breaks."
+  }
+}
+
 variable "location" {
   description = "Archive bucket region, dual-region, or multi-region."
   type        = string

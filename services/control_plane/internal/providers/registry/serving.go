@@ -36,7 +36,7 @@ type serving struct {
 	bind       func(*production.Runtime) error
 }
 
-func newServing(settings config.Settings, telemetry *observability.Runtime, authenticator auth.Authenticator) (serving, error) {
+func newServing(settings config.Settings, telemetry *observability.Runtime, authenticator auth.Authenticator, domains domains) (serving, error) {
 	listener, err := net.Listen("tcp", settings.HTTPAddress)
 	if err != nil {
 		return serving{}, faults.Wrap(err, faults.CodeUnavailable,
@@ -47,7 +47,11 @@ func newServing(settings config.Settings, telemetry *observability.Runtime, auth
 		)
 	}
 	value := &transport.Prober{}
-	handler := newHandler(value, telemetry, authenticator)
+	handler, err := newHandler(value, telemetry, authenticator, domains)
+	if err != nil {
+		_ = listener.Close()
+		return serving{}, err
+	}
 	adapter, err := transport.NewHTTP("http-server", handler, listener, httpx.ServerConfig{
 		ReadTimeout:     30 * time.Second,
 		WriteTimeout:    60 * time.Second,
@@ -69,8 +73,11 @@ func newServing(settings config.Settings, telemetry *observability.Runtime, auth
 // orchestrator probing liveness holds no credential, and everything else
 // inside it. Domain routes are registered by the API surface that owns them;
 // until one is mounted this handler correctly answers 404 for every path.
-func newHandler(value *transport.Prober, telemetry *observability.Runtime, authenticator auth.Authenticator) http.Handler {
-	api := http.NewServeMux()
+func newHandler(value *transport.Prober, telemetry *observability.Runtime, authenticator auth.Authenticator, domains domains) (http.Handler, error) {
+	api, err := newRegistryMux(domains)
+	if err != nil {
+		return nil, err
+	}
 	guarded := middleware.Server(api, middleware.StackConfig{
 		OperationResolver: middleware.OperationResolverFunc(resolveOperation),
 		AccessObserver:    accessObserver(telemetry),
@@ -78,15 +85,19 @@ func newHandler(value *transport.Prober, telemetry *observability.Runtime, authe
 		Security:          middleware.SecurityHeadersConfig{},
 		MaximumBodyBytes:  maximumRequestBody,
 		Authentication:    &middleware.AuthenticationConfig{Authenticator: authenticator},
-		Authorization:     &middleware.AuthorizationConfig{Authorizer: auth.PermissionAuthorizer{}},
-		Additional:        []middleware.Middleware{transport.Preconditions()},
+		Authorization: &middleware.AuthorizationConfig{
+			Authorizer:     auth.PermissionAuthorizer{},
+			Resolver:       middleware.AuthorizationResolverFunc(resolveAuthorization),
+			RequireMapping: true,
+		},
+		Additional: []middleware.Middleware{transport.Preconditions()},
 	})
 
 	root := http.NewServeMux()
 	root.Handle("/livez", health.NewHandler(value, health.Config{}))
 	root.Handle("/readyz", health.NewHandler(value, health.Config{}))
 	root.Handle("/", guarded)
-	return root
+	return root, nil
 }
 
 // resolveOperation names the request before routing has happened, so only the

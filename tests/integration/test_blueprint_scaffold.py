@@ -122,13 +122,14 @@ import pytest
 # for the estate, so writing one would field a second updater against the same lockfiles. That
 # was the reconciliation the note near the top of this file predicted would be needed.
 #
-# What remains is entirely libs/python/*/tests/BUILD.bazel. Config's real test targets restore
-# one of the six; the other five belong to deliberately scaffolded packages and remain absent
-# until those packages clear libs/python/ADMISSION.md.
+# What remained included four libs/python/*/tests/BUILD.bazel files and one Rust runtime-core
+# reservation. The Python packages now carry real test targets; only the pre-existing Rust
+# reservation remains. (Any other missing paths reported locally belong to separate worktree
+# changes and must not be absorbed into this ratchet.)
 # This number is now a tight floor rather than 90 counts of slack. The assertion below is
 # two-sided on purpose: lower it as these close, and do not raise it without saying which
 # movement raised it.
-MATERIALIZATION_BASELINE = 5
+MATERIALIZATION_BASELINE = 1
 
 
 def _load_checker(root: Path):

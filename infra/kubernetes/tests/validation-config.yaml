@@ -38,6 +38,13 @@ spec:
     - platform/gateway/overlays/development
     - platform/gateway/overlays/production
     - platform/gateway/overlays/staging
+    - platform/gpu
+    - platform/jobset
+    - platform/kueue
+    - platform/nccl
+    - platform/rdma
+    - platform/remote-execution
+    - platform/security
     - policies
     - services/artifact-proxy
     - services/control-plane
@@ -50,26 +57,92 @@ spec:
     - services/runtime-gateway
     - services/runtime-host
     - services/training-workers
+    - workloads/ingestion
+    - workloads/preprocessing
+    - workloads/training
 
-  # These modules are provider/release activation points. Empty is fail-closed only while the
-  # Kustomization says resources: [] explicitly; any later resources are rendered and validated.
-  activationGatedEmptyRoots:
-    - platform/gpu
-    - platform/jobset
-    - platform/kueue
-    - platform/nccl
-    - platform/rdma
-    - platform/remote-execution
-    - platform/security
+  # There are no intentionally empty roots. Keep this list explicit so adding a future
+  # activation-gated module requires an inventory review instead of receiving a vacuous pass.
+  activationGatedEmptyRoots: []
+
+  # Helm release identity and supply-chain inputs are part of the rendered contract. The archive
+  # and controller digest variables are read from versions.env without sourcing executable text.
+  helmReleases:
+    - chart: platform/jobset/chart
+      release: jobset
+      namespace: jobset-system
+      archive: platform/jobset/chart/charts/jobset-0.12.0.tgz
+      archiveDigestVariable: MINDCLADE_JOBSET_VENDORED_CHART_ARCHIVE_SHA256
+      controllerImageDigestVariable: MINDCLADE_JOBSET_IMAGE_DIGEST
+      controllerVersionVariable: MINDCLADE_JOBSET_VERSION
+      controllerImageRepository: registry.k8s.io/jobset/jobset
+      controllerName: jobset-controller
+    - chart: platform/kueue/chart
+      release: kueue
+      namespace: kueue-system
+      archive: platform/kueue/chart/charts/kueue-0.19.1.tgz
+      archiveDigestVariable: MINDCLADE_KUEUE_VENDORED_CHART_ARCHIVE_SHA256
+      controllerImageDigestVariable: MINDCLADE_KUEUE_IMAGE_DIGEST
+      controllerVersionVariable: MINDCLADE_KUEUE_VERSION
+      controllerImageRepository: registry.k8s.io/kueue/kueue
+      controllerName: kueue-controller-manager
 
   # Custom resources are rendered but do not use a core schema. Enumerating exact GVKs prevents a
   # typo or an unreviewed CRD dependency from being silently treated as "schema unavailable".
   allowedCustomGVKs:
     - cert-manager.io/v1/Certificate
     - cert-manager.io/v1/ClusterIssuer
+    - cert-manager.io/v1/Issuer
     - gateway.networking.k8s.io/v1/Gateway
     - gateway.networking.k8s.io/v1/HTTPRoute
+    - jobset.x-k8s.io/v1alpha2/JobSet
+    - kueue.x-k8s.io/v1beta2/ClusterQueue
+    - kueue.x-k8s.io/v1beta2/LocalQueue
+    - kueue.x-k8s.io/v1beta2/ResourceFlavor
     - networking.gke.io/v1/GCPBackendPolicy
+
+  # These APIs ship in the pinned operator archives above, so their live instances can be checked
+  # offline against the exact structural schemas rendered from those archives.
+  chartBackedCustomGVKs:
+    - jobset.x-k8s.io/v1alpha2/JobSet
+    - kueue.x-k8s.io/v1beta2/ClusterQueue
+    - kueue.x-k8s.io/v1beta2/LocalQueue
+    - kueue.x-k8s.io/v1beta2/ResourceFlavor
+
+  # Everything not enumerated here is namespaced and must render metadata.namespace explicitly.
+  # Exact GVKs avoid kind-name collisions between unrelated API groups.
+  clusterScopedGVKs:
+    - admissionregistration.k8s.io/v1/MutatingWebhookConfiguration
+    - admissionregistration.k8s.io/v1/ValidatingAdmissionPolicy
+    - admissionregistration.k8s.io/v1/ValidatingAdmissionPolicyBinding
+    - admissionregistration.k8s.io/v1/ValidatingWebhookConfiguration
+    - admissionregistration.k8s.io/v1alpha1/MutatingAdmissionPolicy
+    - admissionregistration.k8s.io/v1alpha1/MutatingAdmissionPolicyBinding
+    - apiregistration.k8s.io/v1/APIService
+    - apiextensions.k8s.io/v1/CustomResourceDefinition
+    - certificates.k8s.io/v1/CertificateSigningRequest
+    - certificates.k8s.io/v1beta1/ClusterTrustBundle
+    - cert-manager.io/v1/ClusterIssuer
+    - flowcontrol.apiserver.k8s.io/v1/FlowSchema
+    - flowcontrol.apiserver.k8s.io/v1/PriorityLevelConfiguration
+    - gateway.networking.k8s.io/v1/GatewayClass
+    - kueue.x-k8s.io/v1beta2/ClusterQueue
+    - kueue.x-k8s.io/v1beta2/ResourceFlavor
+    - networking.k8s.io/v1/IngressClass
+    - node.k8s.io/v1/RuntimeClass
+    - rbac.authorization.k8s.io/v1/ClusterRole
+    - rbac.authorization.k8s.io/v1/ClusterRoleBinding
+    - resource.k8s.io/v1/DeviceClass
+    - resource.k8s.io/v1/ResourceSlice
+    - scheduling.k8s.io/v1/PriorityClass
+    - storage.k8s.io/v1/CSIDriver
+    - storage.k8s.io/v1/CSINode
+    - storage.k8s.io/v1/StorageClass
+    - storage.k8s.io/v1/VolumeAttachment
+    - storage.k8s.io/v1/VolumeAttributesClass
+    - v1/Namespace
+    - v1/Node
+    - v1/PersistentVolume
 
   # These are deployment-capable roots, so they receive workload policy in addition to render and
   # schema checks. Base-only routing/certificate packages remain schema-checked above.
@@ -77,6 +150,45 @@ spec:
     - overlays/development
     - overlays/production
     - overlays/staging
+    - planes/dev/base
+    - planes/dev/overlays/development
+    - planes/dev/overlays/production
+    - planes/dev/overlays/staging
+    - planes/studio/base
+    - planes/studio/overlays/development
+    - planes/studio/overlays/production
+    - planes/studio/overlays/staging
+    - platform/jobset
+    - services/artifact-proxy
+    - services/control-plane
+    - services/curation-workers
+    - services/evaluation-workers
+    - services/ingestion-workers
+    - services/node-agent
+    - services/preprocessing-workers
+    - services/rollout-workers
+    - services/runtime-gateway
+    - services/runtime-host
+    - services/training-workers
+    - workloads/ingestion
+    - workloads/preprocessing
+    - workloads/training
+
+  # Standalone workload templates inherit the namespace-wide policies above when instantiated.
+  # These roots must carry a local ingress-and-egress default deny because they are deployable
+  # services or complete environment compositions.
+  networkPolicyRoots:
+    - overlays/development
+    - overlays/production
+    - overlays/staging
+    - planes/dev/base
+    - planes/dev/overlays/development
+    - planes/dev/overlays/production
+    - planes/dev/overlays/staging
+    - planes/studio/base
+    - planes/studio/overlays/development
+    - planes/studio/overlays/production
+    - planes/studio/overlays/staging
     - services/artifact-proxy
     - services/control-plane
     - services/curation-workers

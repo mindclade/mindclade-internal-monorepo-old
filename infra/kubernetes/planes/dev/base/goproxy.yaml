@@ -17,6 +17,7 @@ metadata:
   name: goproxy
   namespace: dev
 spec:
+  type: ClusterIP
   selector:
     app.kubernetes.io/name: goproxy
   ports:
@@ -31,6 +32,9 @@ kind: ConfigMap
 metadata:
   name: goproxy-config
   namespace: dev
+  annotations:
+    mindclade.dev/deployment-status: disabled
+immutable: true
 data:
   config.toml: |
     GoBinaryEnvVars = [
@@ -84,8 +88,12 @@ kind: Deployment
 metadata:
   name: goproxy
   namespace: dev
+  annotations:
+    mindclade.dev/deployment-status: disabled
+    mindclade.dev/activation-blocker: credential-egress-cache-durability-and-rollout-evidence-missing
 spec:
-  replicas: 2
+  replicas: 0
+  revisionHistoryLimit: 3
   selector:
     matchLabels:
       app.kubernetes.io/name: goproxy
@@ -95,9 +103,16 @@ spec:
         app.kubernetes.io/name: goproxy
         app.kubernetes.io/part-of: mindclade
     spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
       serviceAccountName: goproxy
+      terminationGracePeriodSeconds: 30
       securityContext:
         runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
         seccompProfile:
           type: RuntimeDefault
       containers:
@@ -137,25 +152,44 @@ spec:
               readOnly: true
             - name: cache
               mountPath: /var/lib/athens
+            - name: tmp
+              mountPath: /tmp
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
+            runAsNonRoot: true
             capabilities:
               drop: ["ALL"]
           resources:
             requests:
               cpu: 100m
+              ephemeral-storage: 2Gi
               memory: 256Mi
             limits:
+              cpu: "1"
+              ephemeral-storage: 20Gi
               memory: 1Gi
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
+            timeoutSeconds: 1
           livenessProbe:
             httpGet:
               path: /healthz
               port: http
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 2
           readinessProbe:
             httpGet:
               path: /healthz
               port: http
+            periodSeconds: 5
+            failureThreshold: 2
+            timeoutSeconds: 2
       volumes:
         - name: config
           configMap:
@@ -163,9 +197,16 @@ spec:
         - name: netrc
           secret:
             secretName: goproxy-netrc
+            defaultMode: 0400
+            items:
+              - key: netrc
+                path: netrc
         - name: cache
           emptyDir:
-            sizeLimit: 20Gi
+            sizeLimit: 18Gi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
 
 ---
 apiVersion: v1
@@ -173,3 +214,4 @@ kind: ServiceAccount
 metadata:
   name: goproxy
   namespace: dev
+automountServiceAccountToken: false

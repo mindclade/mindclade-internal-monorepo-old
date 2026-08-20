@@ -22,6 +22,11 @@
 // silent success. No other store may follow this pattern: when the Pub/Sub
 // module lands, the memory branch goes back to tests where it belongs.
 //
-// Domain policy stays out: no repositories, no route tables, no generated
-// handlers, and no business services are assembled here.
+// This package (the shared mechanism package itself) contains no domain policy,
+// repositories, or route tables. Role packages beneath internal/providers are
+// the Layer-5 process composition roots accepted by ADR-0010 and ADR-0015: they
+// may bind reusable control/ domain services to concrete repositories and
+// transports. Keeping that binding in a role package makes it testable and
+// prevents either the command or reusable domain package from selecting a
+// production provider.
 package providers

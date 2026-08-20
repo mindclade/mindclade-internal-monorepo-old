@@ -56,11 +56,14 @@ the digest, so hashing a checkpoint does not require reading it into memory.
 `Digest.equals` compares in constant time; digests gate artifact admission, and an
 early-returning comparison leaks how much of a forged digest was correct.
 
-The UUIDv7 generator is monotonic under a lock. Within one millisecond it counts
+The UUIDv7 generator is monotonic under a lock within one `IdGenerator` instance
+(and therefore within the process using the default instance). Within one millisecond it counts
 up through the 12-bit `rand_a` field (RFC 9562 method 2); when that space is
 exhausted it advances into the next millisecond rather than reusing a value, and a
 backward clock step holds the last stamp and counts forward. IDs never go
-backwards and never repeat.
+backwards or repeat within that generator. Separate processes and machines have independent clocks,
+counters, and random fields: UUIDv7 provides useful time locality and uniqueness, not a globally
+coordinated lexicographic total order.
 
 ## Non-responsibility: absence
 

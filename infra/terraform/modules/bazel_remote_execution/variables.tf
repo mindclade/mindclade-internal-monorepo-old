@@ -198,6 +198,14 @@ variable "spot_approval" {
   type        = string
   default     = null
   sensitive   = true
+
+  validation {
+    condition = (
+      (var.capacity_type == "SPOT" && var.spot_approval == "I ACCEPT EVICTION AND CAPACITY-LOSS RISK") ||
+      (var.capacity_type == "ON_DEMAND" && var.spot_approval == null)
+    )
+    error_message = "SPOT requires the exact spot_approval acknowledgement; ON_DEMAND must leave spot_approval null."
+  }
 }
 
 variable "total_min_nodes" {

@@ -4,6 +4,9 @@ This module owns Mindclade's queue policy, not the controller lifecycle. The con
 CRDs are installed from the locked wrapper chart in `chart/`; `resources.yaml` is reconciled
 only after that chart is healthy.
 
+The wrapper uses the separately locked cert-manager module for webhook certificates. Install
+and prove cert-manager ready before this chart; no certificate key material is rendered here.
+
 Current state is deliberately blocked. `mindclade-batch` is held, every nominal quota is zero,
 its LocalQueue is held, and only namespaces labeled `mindclade.dev/kueue-enabled=true` are
 eligible. All four controls are reviewed independently before a workload can be admitted.
@@ -11,17 +14,22 @@ eligible. All four controls are reviewed independently before a workload can be 
 ## Controller install
 
 ```bash
-helm dependency build infra/kubernetes/platform/kueue/chart
 helm lint infra/kubernetes/platform/kueue/chart
 helm template kueue infra/kubernetes/platform/kueue/chart \
   --namespace kueue-system --include-crds
 ```
 
-The wrapper locks Kueue `0.19.1`, the OCI chart digest in `Chart.lock`, and the controller image
-digest in `values.yaml`. It opts into only Kubernetes Jobs and JobSet and only in explicitly
-labeled namespaces. Controller CRDs must be upgraded before these custom resources. Never
-remove Kueue CRDs during rollback: first hold queues, drain or finish admitted work, roll back
-the controller to a CRD-compatible version, and preserve all custom resources.
+The wrapper locks Kueue `0.19.1`, vendors the dependency archive, and pins the controller image
+digest in `values.yaml`. `versions.env` records both the upstream OCI artifact digest and the
+vendored archive digest; `Chart.lock` locks the dependency graph. The controller opts into only
+Kubernetes Jobs and JobSet and only in explicitly labeled namespaces. Controller CRDs must be
+upgraded before these custom resources. Never remove Kueue CRDs during rollback: first hold
+queues, drain or finish admitted work, roll back the controller to a CRD-compatible version,
+and preserve all custom resources.
+
+Do not run `helm dependency update` as an ordinary render step: upstream `0.19.1` has the
+cluster-scope defect documented in `chart/patches/README.md`, and a raw refresh overwrites the
+reviewed vendored patch. Validation checks the vendored digest and the rendered object scopes.
 
 ## Activation review
 

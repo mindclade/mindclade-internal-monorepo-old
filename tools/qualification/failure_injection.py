@@ -22,12 +22,23 @@ REQUIRED = {
     "checkpoint_upload_interrupted",
     "object_store_unavailable",
     "control_plane_unavailable_after_admission",
+    "control_plane_database_loss",
+    "control_plane_transaction_rollback",
+    "control_plane_lease_loss",
+    "control_plane_duplicate_event",
+    "control_plane_retry_exhaustion",
 }
 
 
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--execute", action="store_true")
+    p.add_argument(
+        "--owner",
+        action="append",
+        default=[],
+        help="execute only scenarios owned by this team; all scenarios are still validated",
+    )
     a = p.parse_args()
     data = tomllib.loads((ROOT / "configs/qualification/failure_injection.toml").read_text())
     scenarios = data.get("scenario", [])
@@ -49,7 +60,11 @@ def main() -> int:
         print("\n".join(failures))
         return 1
     if a.execute:
-        for scenario in scenarios:
+        selected = [s for s in scenarios if not a.owner or s.get("owner") in a.owner]
+        if not selected:
+            print(f"no failure-injection scenarios matched owner filter: {a.owner}")
+            return 1
+        for scenario in selected:
             command = list(scenario["command"])
             if shutil.which(command[0]) is None:
                 print(f"required tool unavailable for {scenario['name']}: {command[0]}")

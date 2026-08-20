@@ -37,6 +37,10 @@ resource "google_bigquery_dataset" "findings" {
 
   description = "Security Command Center findings. Written by the SCC export service account, not by anything in this repository."
 
+  default_encryption_configuration {
+    kms_key_name = var.bigquery_export.kms_key_name
+  }
+
   # A findings dataset that can be dropped by the export's own service account is one an
   # attacker who reaches that identity can erase. Deletion is a deliberate act elsewhere.
   delete_contents_on_destroy = false
@@ -62,6 +66,8 @@ resource "google_pubsub_topic" "findings" {
   project = var.project_id
   name    = each.value.pubsub_topic.name
   labels  = var.labels
+
+  kms_key_name = each.value.pubsub_topic.kms_key_name
 
   lifecycle {
     prevent_destroy = true

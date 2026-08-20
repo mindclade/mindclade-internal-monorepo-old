@@ -4,4 +4,71 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# Only the three roles with implemented listeners receive Services. Background
+# consumers/controllers expose no fabricated port.
+apiVersion: v1
+kind: Service
+metadata:
+  name: control-plane-api
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/instance: control-plane-api
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/instance: control-plane-api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+      appProtocol: http
+    - name: grpc
+      port: 9090
+      targetPort: grpc
+      protocol: TCP
+      appProtocol: grpc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: control-plane-admin
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/instance: control-plane-admin
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/instance: control-plane-admin
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+      appProtocol: http
+    - name: grpc
+      port: 9090
+      targetPort: grpc
+      protocol: TCP
+      appProtocol: grpc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: control-plane-registry
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/instance: control-plane-registry
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/instance: control-plane-registry
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+      appProtocol: http

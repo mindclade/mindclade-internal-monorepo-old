@@ -3,19 +3,23 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold test for libs/python/testing/tests/test_numerics.py."""
-
+import numpy as np
 import pytest
 
+from libs.python.testing import assert_allclose, assert_rotation_matrix
 
-# SKIPPED, not passing.
-#
-# A placeholder for tests that do not exist yet. It used to `assert True` — which pytest
-# reports as a pass, so the suite was green and the number it printed was not the number of
-# things actually verified. A vacuous gate is worse than no gate: it manufactures confidence.
-#
-# Write real tests here when there is an implementation to test, and lower SCAFFOLD_BASELINE
-# in tests/integration/test_python_scaffold.py in the same commit.
-@pytest.mark.scaffold
-def test_scaffold_contract() -> None:
-    pytest.skip("scaffold: no implementation to test yet")
+
+def test_allclose_reports_shape_and_value_mismatches() -> None:
+    assert_allclose([1.0, 2.0], [1.0, 2.00000001], atol=1e-7)
+
+    with pytest.raises(AssertionError, match="shape mismatch"):
+        assert_allclose([1.0], [[1.0]])
+    with pytest.raises(AssertionError, match="first index"):
+        assert_allclose([1.0, 2.0], [1.0, 3.0])
+
+
+def test_rotation_matrix_checks_handedness() -> None:
+    assert_rotation_matrix(np.eye(3))
+    reflection = np.diag([-1.0, 1.0, 1.0])
+    with pytest.raises(AssertionError, match="determinant"):
+        assert_rotation_matrix(reflection)

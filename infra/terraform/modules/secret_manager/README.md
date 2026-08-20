@@ -16,8 +16,11 @@ keys and a byte-exact ASCII size ceiling.
 Write payload versions through an approved runtime or rotation workflow so plaintext
 does not enter Terraform configuration, plans, logs, or state. Rotation scheduling
 only emits a Pub/Sub notification; it requires an independently deployed, monitored,
-and idempotent handler. KMS and Pub/Sub service-agent grants belong to their owning
-states to preserve separation of duties.
+and idempotent handler. When the module must create the topic,
+`rotation_topic_kms_key_name` is mandatory and the topic is deletion-protected;
+`required_rotation_topic_kms_grant` reports the additive Pub/Sub service-agent grant.
+KMS and caller-supplied topic IAM remain in their owning states to preserve separation
+of duties.
 
 Before rollout, validate effective IAM and inheritance, service-agent grants, data
 residency, KMS location/availability, rotation and rollback, stale-version disablement,

@@ -16,3 +16,13 @@ pytest_test(
     imports = ["../../../.."],
     deps = ["//libs/python/serialization"],
 )
+
+pytest_test(
+    name = "test_properties",
+    srcs = ["test_properties.py"],
+    imports = ["../../../.."],
+    deps = [
+        "//libs/python/serialization",
+        "@pypi//hypothesis",
+    ],
+)

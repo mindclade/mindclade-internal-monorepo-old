@@ -36,10 +36,12 @@ variable "sink" {
     destination = optional(string, "storage")
     filter      = string
     bucket = object({
-      name           = string
-      location       = string
-      encryption_key = optional(string)
-      retention_days = optional(number, 2555)
+      name                     = string
+      location                 = string
+      access_log_bucket_name   = string
+      access_log_object_prefix = optional(string, "access-transparency/")
+      encryption_key           = optional(string)
+      retention_days           = optional(number, 2555)
     })
   })
 
@@ -64,6 +66,18 @@ variable "sink" {
   validation {
     condition     = var.sink.bucket.retention_days == null || var.sink.bucket.retention_days >= 365
     error_message = "Access records are kept for at least a year; a shorter window defeats the point of the export."
+  }
+
+  validation {
+    condition = (
+      can(regex("^[a-z0-9][a-z0-9._-]{1,61}[a-z0-9]$", var.sink.bucket.access_log_bucket_name)) &&
+      var.sink.bucket.access_log_bucket_name != var.sink.bucket.name &&
+      length(var.sink.bucket.access_log_object_prefix) >= 1 &&
+      length(var.sink.bucket.access_log_object_prefix) <= 900 &&
+      !strcontains(var.sink.bucket.access_log_object_prefix, "\n") &&
+      !strcontains(var.sink.bucket.access_log_object_prefix, "\r")
+    )
+    error_message = "The access-log bucket must be valid and distinct; its object prefix must be 1-900 characters without line breaks."
   }
 }
 

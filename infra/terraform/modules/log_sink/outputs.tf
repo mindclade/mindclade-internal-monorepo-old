@@ -38,6 +38,18 @@ output "storage_kms_key_names" {
   }
 }
 
+output "required_access_log_writer_grants" {
+  description = "Additive grants required on separately governed Cloud Storage access-log buckets."
+  value = {
+    for name, sink in local.storage_sinks : name => {
+      bucket = sink.bucket.access_log_bucket_name
+      member = "group:cloud-storage-analytics@google.com"
+      role   = "roles/storage.objectCreator"
+      prefix = sink.bucket.access_log_object_prefix
+    }
+  }
+}
+
 output "analytics_enabled_buckets" {
   description = "Cloud Logging destinations configured with Log Analytics."
   value       = sort([for name, sink in local.logging_sinks : name if sink.enable_analytics])

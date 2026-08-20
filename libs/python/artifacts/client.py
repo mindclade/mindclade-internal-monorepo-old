@@ -40,10 +40,10 @@ class VerifiedArtifactClient:
         if (
             isinstance(self.maximum_bytes, bool)
             or not isinstance(self.maximum_bytes, int)
-            or self.maximum_bytes < 0
+            or not 0 <= self.maximum_bytes <= MAXIMUM_IN_MEMORY_ARTIFACT_BYTES
         ):
             raise InvalidArgument(
-                "artifact client byte bound must be a non-negative integer",
+                f"artifact client byte bound must be in [0, {MAXIMUM_IN_MEMORY_ARTIFACT_BYTES}]",
                 reason="artifact_client_bound",
             )
 

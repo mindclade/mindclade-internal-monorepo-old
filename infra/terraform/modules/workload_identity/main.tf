@@ -56,7 +56,7 @@ resource "google_iam_workload_identity_pool" "external" {
 }
 
 resource "google_iam_workload_identity_pool_provider" "oidc" {
-  for_each = var.oidc_providers
+  for_each = var.pool == null ? {} : var.oidc_providers
 
   project                            = var.project_id
   workload_identity_pool_id          = try(google_iam_workload_identity_pool.external[0].workload_identity_pool_id, "missing-pool")
@@ -113,7 +113,7 @@ resource "google_project_iam_member" "service_account_roles" {
 # External identities may impersonate only an explicitly referenced dedicated
 # service account and only through a constrained, mapped pool attribute.
 resource "google_service_account_iam_member" "federated" {
-  for_each = var.federated_principal_sets
+  for_each = var.pool == null ? {} : var.federated_principal_sets
 
   service_account_id = try(google_service_account.this[each.value.service_account_key].name, "projects/${var.project_id}/serviceAccounts/invalid@${var.project_id}.iam.gserviceaccount.com")
   role               = "roles/iam.workloadIdentityUser"

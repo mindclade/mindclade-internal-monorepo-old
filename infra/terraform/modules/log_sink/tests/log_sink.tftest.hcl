@@ -61,10 +61,11 @@ run "folder_storage_sink_uses_folder_resource" {
         destination = "storage"
         filter      = "resource.type=\"k8s_container\""
         bucket = {
-          name           = "mc-app-logs-archive"
-          location       = "US"
-          encryption_key = "projects/security/locations/us/keyRings/logs/cryptoKeys/archive"
-          retention_days = 2555
+          name                   = "mc-app-logs-archive"
+          location               = "US"
+          access_log_bucket_name = "mc-central-storage-access"
+          encryption_key         = "projects/security/locations/us/keyRings/logs/cryptoKeys/archive"
+          retention_days         = 2555
         }
       }
     }
@@ -85,6 +86,7 @@ run "folder_storage_sink_uses_folder_resource" {
       google_storage_bucket.this["application-archive"].public_access_prevention == "enforced" &&
       google_storage_bucket.this["application-archive"].force_destroy == false &&
       google_storage_bucket.this["application-archive"].deletion_policy == "PREVENT" &&
+      google_storage_bucket.this["application-archive"].logging[0].log_bucket == "mc-central-storage-access" &&
       google_storage_bucket.this["application-archive"].retention_policy[0].is_locked == false
     )
     error_message = "A generic archive must be private and deletion guarded without an implicit irreversible lock."
@@ -93,6 +95,12 @@ run "folder_storage_sink_uses_folder_resource" {
   assert {
     condition     = google_storage_bucket_iam_member.storage_writer["application-archive"].role == "roles/storage.objectCreator"
     error_message = "Archive writers require append-only objectCreator, not objectAdmin."
+  }
+
+
+  assert {
+    condition     = output.required_access_log_writer_grants["application-archive"].member == "group:cloud-storage-analytics@google.com"
+    error_message = "The access-log bucket owner must receive the exact required writer principal."
   }
 }
 
@@ -107,10 +115,11 @@ run "explicit_retention_lock_is_honored" {
         destination = "storage"
         filter      = "log_id(\"cloudaudit.googleapis.com/activity\")"
         bucket = {
-          name                  = "mc-audit-archive"
-          location              = "US"
-          retention_days        = 2555
-          lock_retention_policy = true
+          name                   = "mc-audit-archive"
+          location               = "US"
+          access_log_bucket_name = "mc-central-storage-access"
+          retention_days         = 2555
+          lock_retention_policy  = true
         }
       }
     }
@@ -132,10 +141,11 @@ run "reject_retention_lock_without_confirmation" {
         destination = "storage"
         filter      = "log_id(\"cloudaudit.googleapis.com/activity\")"
         bucket = {
-          name                  = "mc-audit-archive"
-          location              = "US"
-          retention_days        = 2555
-          lock_retention_policy = true
+          name                   = "mc-audit-archive"
+          location               = "US"
+          access_log_bucket_name = "mc-central-storage-access"
+          retention_days         = 2555
+          lock_retention_policy  = true
         }
       }
     }

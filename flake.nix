@@ -146,7 +146,12 @@
                 buildifier
                 buf
                 cargo-deny
+                checkov
+                conftest
                 go
+                kubeconform
+                kubernetes-helm
+                kustomize
                 nodejs_22
                 pnpm
                 protobuf
@@ -155,8 +160,10 @@
                 ruff
                 shellcheck
                 terraform
+                tflint
                 uv
                 yamllint
+                yq-go
               ]
               ++ rust.packages;
             shellHook = standardShellHook;

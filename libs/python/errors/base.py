@@ -151,6 +151,14 @@ class InvalidArgument(MindcladeError, ValueError):
         super().__init__(Code.INVALID_ARGUMENT, message, **kwargs)  # type: ignore[arg-type]
 
 
+class Canceled(MindcladeError):
+    """The caller or coordinator canceled an in-flight operation."""
+
+    def __init__(self, message: str = "", **kwargs: object) -> None:
+        kwargs.pop("code", None)
+        super().__init__(Code.CANCELED, message, **kwargs)  # type: ignore[arg-type]
+
+
 class FailedPrecondition(MindcladeError, ValueError):
     """The system is not in a state where the operation can be attempted."""
 

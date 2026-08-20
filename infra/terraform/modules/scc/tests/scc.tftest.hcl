@@ -6,9 +6,10 @@
 mock_provider "google" {}
 
 variables {
-  org_id     = "123456789012"
-  project_id = "mc-b-audit-001"
-  location   = "EUR4"
+  org_id         = "123456789012"
+  project_id     = "mc-b-audit-001"
+  project_number = "123456789012"
+  location       = "EU"
 }
 
 run "each_notification_gets_its_own_topic" {
@@ -17,14 +18,20 @@ run "each_notification_gets_its_own_topic" {
   variables {
     notifications = {
       all-findings = {
-        description  = "Every active finding."
-        filter       = "state=\"ACTIVE\""
-        pubsub_topic = { name = "mc-scc-findings" }
+        description = "Every active finding."
+        filter      = "state=\"ACTIVE\""
+        pubsub_topic = {
+          name         = "mc-scc-findings"
+          kms_key_name = "projects/mc-security/locations/global/keyRings/scc/cryptoKeys/notifications"
+        }
       }
       urgent = {
-        description  = "HIGH and CRITICAL only."
-        filter       = "state=\"ACTIVE\" AND severity=\"HIGH\""
-        pubsub_topic = { name = "mc-scc-urgent" }
+        description = "HIGH and CRITICAL only."
+        filter      = "state=\"ACTIVE\" AND severity=\"HIGH\""
+        pubsub_topic = {
+          name         = "mc-scc-urgent"
+          kms_key_name = "projects/mc-security/locations/global/keyRings/scc/cryptoKeys/notifications"
+        }
       }
     }
   }
@@ -40,6 +47,15 @@ run "each_notification_gets_its_own_topic" {
     condition     = google_scc_notification_config.this["urgent"].streaming_config[0].filter == "state=\"ACTIVE\" AND severity=\"HIGH\""
     error_message = "The filter must reach the streaming config unchanged."
   }
+
+
+  assert {
+    condition = (
+      google_pubsub_topic.findings["urgent"].kms_key_name == "projects/mc-security/locations/global/keyRings/scc/cryptoKeys/notifications" &&
+      output.required_kms_grants.notification_topics["urgent"].member == "serviceAccount:service-123456789012@gcp-sa-pubsub.iam.gserviceaccount.com"
+    )
+    error_message = "SCC notification topics must be CMEK protected with an explicit service-agent grant contract."
+  }
 }
 
 run "a_notification_with_an_empty_filter_is_rejected" {
@@ -48,9 +64,12 @@ run "a_notification_with_an_empty_filter_is_rejected" {
   variables {
     notifications = {
       everything = {
-        description  = "No filter."
-        filter       = "  "
-        pubsub_topic = { name = "mc-scc-all" }
+        description = "No filter."
+        filter      = "  "
+        pubsub_topic = {
+          name         = "mc-scc-all"
+          kms_key_name = "projects/mc-security/locations/global/keyRings/scc/cryptoKeys/notifications"
+        }
       }
     }
   }
@@ -115,15 +134,25 @@ run "the_findings_dataset_survives_a_destroy_of_its_contents" {
 
   variables {
     bigquery_export = {
-      dataset_id = "scc_findings"
-      location   = "EUR4"
-      filter     = "state=\"ACTIVE\""
+      dataset_id   = "scc_findings"
+      location     = "EU"
+      kms_key_name = "projects/mc-security/locations/europe/keyRings/scc/cryptoKeys/findings"
+      filter       = "state=\"ACTIVE\""
     }
   }
 
   assert {
-    condition     = google_bigquery_dataset.findings[0].delete_contents_on_destroy == false
+    condition = (
+      google_bigquery_dataset.findings[0].delete_contents_on_destroy == false &&
+      google_bigquery_dataset.findings[0].default_encryption_configuration[0].kms_key_name == "projects/mc-security/locations/europe/keyRings/scc/cryptoKeys/findings"
+    )
     error_message = "A findings dataset that the export identity can empty is one an attacker reaching that identity can erase."
+  }
+
+
+  assert {
+    condition     = output.required_kms_grants.findings_dataset.member == "serviceAccount:bq-123456789012@bigquery-encryption.iam.gserviceaccount.com"
+    error_message = "The key-owning state must receive the exact BigQuery encryption service identity."
   }
 }
 

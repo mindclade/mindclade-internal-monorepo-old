@@ -7,9 +7,10 @@
 
 A resource ID is ``<kind>_<32 lowercase hexadecimal UUIDv7 characters>`` — the
 same shape ``libs/go/identifiers/id.go`` parses and the cross-language fixture
-``tests/integration/cross_language/fixtures/primitives_v1.json`` carries. Because
-the payload is a UUIDv7, IDs of one kind sort lexicographically by creation time,
-which is what lets a database range-scan them and a log stay readable.
+``tests/integration/cross_language/fixtures/primitives_v1.json`` carries. Within
+one :class:`IdGenerator`, IDs of one kind sort lexicographically by mint order,
+which keeps process-local logs and batches readable. UUIDv7 does not establish a
+global total order across generators, processes, or machines.
 
 This module owns the *format*. Which kinds exist is a domain decision and stays
 with the packages that mint them, exactly as Go splits ``Kind`` validation from
@@ -161,6 +162,10 @@ class IdGenerator:
     Locked because a stage worker mints from more than one thread, and two threads
     racing on the counter would produce a duplicate — the one failure a unique
     identifier may not have.
+
+    The lock and remembered timestamp belong to this generator instance. Separate
+    instances have separate counters and clocks, so lexicographic ordering across
+    processes or hosts is neither coordinated nor guaranteed.
     """
 
     __slots__ = ("_clock", "_counter", "_last_millis", "_lock")

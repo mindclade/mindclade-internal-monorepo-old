@@ -134,15 +134,16 @@ use_repo(
 # affected, having verified 0.51 and 0.55 -- but the registry now serves up to 0.63.0, and the
 # hardcoded experiment is gone by then.
 #
-# Verified rather than assumed: the produced binary reports `go1.26.0`, and 216 targets across
+# Verified rather than assumed: the produced binary reports `go1.26.6`, and 216 targets across
 # //libs/go, //control, //examples and //services/go_vanity build clean. That also closed
 # libs/go/httpx/middleware, which used the Go 1.23 net/http Request.Pattern field and was the
 # one target that built with `go build` and not with Bazel.
 #
-# Keep this version in step with the `go` directive in go.mod. When they disagree, Bazel and
-# `go build` compile different language versions and only one of them is in CI.
+# Keep this compiler on the latest security patch for the language level in go.mod. The go
+# directive intentionally expresses the 1.26 language floor; this pin determines the patched
+# standard library used by Bazel and must agree with CI and the Nix toolchain evidence.
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
-go_sdk.download(version = "1.26.0")
+go_sdk.download(version = "1.26.6")
 
 # ---------------------------------------------------------------------------------------
 # Python interpreter and third-party wheels

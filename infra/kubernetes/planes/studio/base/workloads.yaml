@@ -19,10 +19,8 @@ metadata:
   name: studio-bff
   namespace: studio
   annotations:
-    # Workload Identity. The pod holds no credential: it authenticates to Cloud
-    # SQL, Secret Manager, and KMS as this principal, and the chain terminates at
-    # a token GKE mints per pod that expires in an hour.
-    iam.gke.io/gcp-service-account: studio-bff@PROJECT_ID.iam.gserviceaccount.com
+    mindclade.dev/activation-blocker: workload-identity-binding-unbound
+automountServiceAccountToken: false
 
 ---
 apiVersion: v1
@@ -31,7 +29,8 @@ metadata:
   name: studio-bff-stream
   namespace: studio
   annotations:
-    iam.gke.io/gcp-service-account: studio-bff-stream@PROJECT_ID.iam.gserviceaccount.com
+    mindclade.dev/activation-blocker: workload-identity-binding-unbound
+automountServiceAccountToken: false
 
 ---
 # The embed role gets its own service account with NO bindings, deliberately.
@@ -42,6 +41,7 @@ kind: ServiceAccount
 metadata:
   name: studio-embed
   namespace: studio
+automountServiceAccountToken: false
 
 ---
 apiVersion: v1
@@ -49,6 +49,7 @@ kind: ServiceAccount
 metadata:
   name: studio-web
   namespace: studio
+automountServiceAccountToken: false
 
 ---
 apiVersion: v1
@@ -57,6 +58,7 @@ metadata:
   name: studio-web
   namespace: studio
 spec:
+  type: ClusterIP
   selector:
     app.kubernetes.io/name: studio
     studio.mindclade.dev/role: web
@@ -73,6 +75,7 @@ metadata:
   name: studio-bff
   namespace: studio
 spec:
+  type: ClusterIP
   selector:
     app.kubernetes.io/name: studio
     studio.mindclade.dev/role: bff
@@ -89,6 +92,7 @@ metadata:
   name: studio-bff-stream
   namespace: studio
 spec:
+  type: ClusterIP
   selector:
     app.kubernetes.io/name: studio
     studio.mindclade.dev/role: bff-stream
@@ -105,6 +109,7 @@ metadata:
   name: studio-embed
   namespace: studio
 spec:
+  type: ClusterIP
   selector:
     app.kubernetes.io/name: studio
     studio.mindclade.dev/role: embed
@@ -120,8 +125,14 @@ kind: Deployment
 metadata:
   name: studio-web
   namespace: studio
+  annotations:
+    mindclade.dev/deployment-status: disabled
+    mindclade.dev/activation-blocker: attested-image-config-credentials-and-edge-validation-missing
 spec:
-  replicas: 2
+  replicas: 0
+  revisionHistoryLimit: 5
+  progressDeadlineSeconds: 600
+  minReadySeconds: 10
   selector:
     matchLabels:
       app.kubernetes.io/name: studio
@@ -132,18 +143,27 @@ spec:
         app.kubernetes.io/name: studio
         studio.mindclade.dev/role: web
     spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
       serviceAccountName: studio-web
+      terminationGracePeriodSeconds: 40
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: studio
-          image: studio:latest
+          image: registry.invalid/mindclade/studio@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
           ports: [{ name: http, containerPort: 8080 }]
           env:
             - { name: STUDIO_ROLE, value: web }
+            - { name: CSP_ENFORCE, value: "true" }
             - { name: IAP_AUDIENCE, valueFrom: { configMapKeyRef: { name: studio-config, key: iap_audience } } }
+            - { name: AUTHORIZED_IAP_SUBJECTS, valueFrom: { secretKeyRef: { name: studio-authorization, key: subjects } } }
             - { name: CSP_REPORT_URI, valueFrom: { configMapKeyRef: { name: studio-config, key: csp_report_uri } } }
             - { name: SESSION_KEY_CURRENT_ID, valueFrom: { secretKeyRef: { name: studio-session-keys, key: current_id } } }
             - { name: SESSION_KEY_CURRENT, valueFrom: { secretKeyRef: { name: studio-session-keys, key: current } } }
@@ -152,14 +172,33 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
+            runAsNonRoot: true
             capabilities: { drop: ["ALL"] }
           resources:
-            requests: { cpu: 50m, memory: 64Mi }
-            limits: { memory: 256Mi }
+            requests: { cpu: 50m, ephemeral-storage: 32Mi, memory: 64Mi }
+            limits: { cpu: 500m, ephemeral-storage: 256Mi, memory: 256Mi }
+          startupProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 2
+            failureThreshold: 30
+            timeoutSeconds: 1
           livenessProbe:
             httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 2
           readinessProbe:
             httpGet: { path: /readyz, port: http }
+            periodSeconds: 5
+            failureThreshold: 2
+            timeoutSeconds: 2
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
 
 ---
 apiVersion: apps/v1
@@ -167,8 +206,14 @@ kind: Deployment
 metadata:
   name: studio-bff
   namespace: studio
+  annotations:
+    mindclade.dev/deployment-status: disabled
+    mindclade.dev/activation-blocker: attested-image-database-workload-identity-and-migration-evidence-missing
 spec:
-  replicas: 2
+  replicas: 0
+  revisionHistoryLimit: 5
+  progressDeadlineSeconds: 600
+  minReadySeconds: 10
   selector:
     matchLabels:
       app.kubernetes.io/name: studio
@@ -179,18 +224,27 @@ spec:
         app.kubernetes.io/name: studio
         studio.mindclade.dev/role: bff
     spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
       serviceAccountName: studio-bff
+      terminationGracePeriodSeconds: 40
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: studio
-          image: studio:latest
+          image: registry.invalid/mindclade/studio@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
           ports: [{ name: http, containerPort: 8080 }]
           env:
             - { name: STUDIO_ROLE, value: bff }
+            - { name: CSP_ENFORCE, value: "true" }
             - { name: IAP_AUDIENCE, valueFrom: { configMapKeyRef: { name: studio-config, key: iap_audience } } }
+            - { name: AUTHORIZED_IAP_SUBJECTS, valueFrom: { secretKeyRef: { name: studio-authorization, key: subjects } } }
             - { name: CSP_REPORT_URI, valueFrom: { configMapKeyRef: { name: studio-config, key: csp_report_uri } } }
             - { name: DATABASE_URL, valueFrom: { secretKeyRef: { name: studio-database, key: url } } }
             - { name: SESSION_KEY_CURRENT_ID, valueFrom: { secretKeyRef: { name: studio-session-keys, key: current_id } } }
@@ -200,14 +254,33 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
+            runAsNonRoot: true
             capabilities: { drop: ["ALL"] }
           resources:
-            requests: { cpu: 100m, memory: 128Mi }
-            limits: { memory: 512Mi }
+            requests: { cpu: 100m, ephemeral-storage: 64Mi, memory: 128Mi }
+            limits: { cpu: "1", ephemeral-storage: 512Mi, memory: 512Mi }
+          startupProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 2
+            failureThreshold: 30
+            timeoutSeconds: 1
           livenessProbe:
             httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 2
           readinessProbe:
             httpGet: { path: /readyz, port: http }
+            periodSeconds: 5
+            failureThreshold: 2
+            timeoutSeconds: 2
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 128Mi
 
 ---
 apiVersion: apps/v1
@@ -215,8 +288,15 @@ kind: Deployment
 metadata:
   name: studio-bff-stream
   namespace: studio
+  annotations:
+    mindclade.dev/deployment-status: disabled
+    mindclade.dev/activation-blocker: attested-image-database-workload-identity-metrics-adapter-and-load-evidence-missing
+    mindclade.dev/autoscaling: disabled
 spec:
-  replicas: 2
+  replicas: 0
+  revisionHistoryLimit: 5
+  progressDeadlineSeconds: 600
+  minReadySeconds: 10
   selector:
     matchLabels:
       app.kubernetes.io/name: studio
@@ -227,6 +307,8 @@ spec:
         app.kubernetes.io/name: studio
         studio.mindclade.dev/role: bff-stream
     spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
       serviceAccountName: studio-bff-stream
 
       # SHORT, deliberately, and only because streams are resumable.
@@ -235,19 +317,25 @@ spec:
       # the longest possible run. Because the run log is the state, a severed
       # stream is a clean EOF the client resumes from — so holding the pod open
       # buys nothing and slows every deploy.
-      terminationGracePeriodSeconds: 30
+      terminationGracePeriodSeconds: 40
 
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: studio
-          image: studio:latest
+          image: registry.invalid/mindclade/studio@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
           ports: [{ name: http, containerPort: 8080 }]
           env:
             - { name: STUDIO_ROLE, value: bff-stream }
+            - { name: CSP_ENFORCE, value: "true" }
             - { name: IAP_AUDIENCE, valueFrom: { configMapKeyRef: { name: studio-config, key: iap_audience } } }
+            - { name: AUTHORIZED_IAP_SUBJECTS, valueFrom: { secretKeyRef: { name: studio-authorization, key: subjects } } }
             - { name: CSP_REPORT_URI, valueFrom: { configMapKeyRef: { name: studio-config, key: csp_report_uri } } }
             - { name: DATABASE_URL, valueFrom: { secretKeyRef: { name: studio-database, key: url } } }
             - { name: SESSION_KEY_CURRENT_ID, valueFrom: { secretKeyRef: { name: studio-session-keys, key: current_id } } }
@@ -257,14 +345,33 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
+            runAsNonRoot: true
             capabilities: { drop: ["ALL"] }
           resources:
-            requests: { cpu: 100m, memory: 128Mi }
-            limits: { memory: 512Mi }
+            requests: { cpu: 100m, ephemeral-storage: 64Mi, memory: 128Mi }
+            limits: { cpu: "1", ephemeral-storage: 512Mi, memory: 512Mi }
+          startupProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 2
+            failureThreshold: 30
+            timeoutSeconds: 1
           livenessProbe:
             httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 2
           readinessProbe:
             httpGet: { path: /readyz, port: http }
+            periodSeconds: 5
+            failureThreshold: 2
+            timeoutSeconds: 2
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 128Mi
 
 ---
 apiVersion: apps/v1
@@ -272,8 +379,14 @@ kind: Deployment
 metadata:
   name: studio-embed
   namespace: studio
+  annotations:
+    mindclade.dev/deployment-status: disabled
+    mindclade.dev/activation-blocker: attested-image-cookieless-security-and-edge-validation-missing
 spec:
-  replicas: 2
+  replicas: 0
+  revisionHistoryLimit: 5
+  progressDeadlineSeconds: 600
+  minReadySeconds: 10
   selector:
     matchLabels:
       app.kubernetes.io/name: studio
@@ -284,61 +397,83 @@ spec:
         app.kubernetes.io/name: studio
         studio.mindclade.dev/role: embed
     spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
       serviceAccountName: studio-embed
+      terminationGracePeriodSeconds: 40
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: studio
-          image: studio:latest
+          image: registry.invalid/mindclade/studio@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
           ports: [{ name: http, containerPort: 8080 }]
           # NO session keys, NO database, NO IAP audience. This role is
           # cookieless and sessionless by design, and the absence is the point —
           # it cannot acquire a session it has no key to seal.
           env:
             - { name: STUDIO_ROLE, value: embed }
+            - { name: CSP_ENFORCE, value: "true" }
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
+            runAsNonRoot: true
             capabilities: { drop: ["ALL"] }
           resources:
-            requests: { cpu: 50m, memory: 64Mi }
-            limits: { memory: 128Mi }
+            requests: { cpu: 50m, ephemeral-storage: 32Mi, memory: 64Mi }
+            limits: { cpu: 500m, ephemeral-storage: 256Mi, memory: 128Mi }
+          startupProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 2
+            failureThreshold: 30
+            timeoutSeconds: 1
           livenessProbe:
             httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 2
           readinessProbe:
             httpGet: { path: /readyz, port: http }
+            periodSeconds: 5
+            failureThreshold: 2
+            timeoutSeconds: 2
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
 
 ---
-# The streaming tier scales on CONNECTIONS, not CPU.
+# Disabled autoscaling contract for the streaming tier.
 #
-# Its connections are long-lived and mostly idle: each costs a goroutine and,
-# while tailing, a database cursor — but almost no CPU. A CPU-based HPA therefore
-# UNDER-SCALES IT UNDER EXACTLY THE LOAD THAT MATTERS, and the failure presents as
-# connection-pool exhaustion showing up as latency on unrelated requests.
-#
-# The compensating property is what makes scaling on connection count safe: because
-# the run log is the state, every replica is stateless and interchangeable. Any
-# replica can serve any cursor for any run — no session affinity, no sticky
-# routing, and no reason a resume must land on the same pod.
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
+# This is data, not an autoscaling resource, so it cannot raise a zero-replica
+# Deployment. Activation must replace it with a reviewed HPA only after the
+# custom metrics adapter exports the named Pods metric and load tests qualify
+# the connection and database-pool envelope. Connections remain the correct
+# signal because long-lived idle streams consume almost no CPU.
+apiVersion: v1
+kind: ConfigMap
 metadata:
-  name: studio-bff-stream
+  name: studio-bff-stream-autoscaling-contract
   namespace: studio
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: studio-bff-stream
-  minReplicas: 2
-  maxReplicas: 20
-  metrics:
-    - type: Pods
-      pods:
-        metric:
-          name: studio_stream_active_connections
-        target:
-          type: AverageValue
-          averageValue: "50"
+  annotations:
+    mindclade.dev/deployment-status: disabled
+    mindclade.dev/activation-blocker: metrics-adapter-and-load-qualification-missing
+immutable: true
+data:
+  enabled: "false"
+  target-api-version: apps/v1
+  target-kind: Deployment
+  target-name: studio-bff-stream
+  metric-type: Pods
+  metric-name: studio_stream_active_connections
+  target-average-value: "50"
+  intended-min-replicas: "2"
+  intended-max-replicas: "20"

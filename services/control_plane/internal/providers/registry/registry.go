@@ -8,6 +8,8 @@ package registry
 import (
 	"context"
 
+	"go.mindclade.dev/control/registry/models"
+	"go.mindclade.dev/control/registry/releases"
 	"go.mindclade.dev/libs/go/auth"
 	foundationconfig "go.mindclade.dev/libs/go/config"
 	"go.mindclade.dev/libs/go/faults"
@@ -24,6 +26,7 @@ import (
 	"go.mindclade.dev/services/control_plane/internal/providers"
 	"go.mindclade.dev/services/control_plane/internal/providers/apikeys"
 	objectstores "go.mindclade.dev/services/control_plane/internal/providers/objects"
+	registrystore "go.mindclade.dev/services/control_plane/internal/store/postgres"
 )
 
 // RegistryFactory assembles the control-plane registry process: the durable
@@ -92,6 +95,24 @@ func (factory *RegistryFactory) Create(ctx context.Context, profile bootstrap.Pr
 		return bootstrap.Runtime{}, err
 	}
 	release = append(release, func() { _ = stores.DB.Close() })
+	registryStore, err := registrystore.New(stores.DB, registrystore.WithClock(shared.Clock))
+	if err != nil {
+		return bootstrap.Runtime{}, err
+	}
+	domainServices := domains{
+		models: models.Service{
+			Repository: registryStore,
+			Policy:     models.ProductionPolicy(),
+			Clock:      shared.Clock,
+		},
+		releases: transactionalReleaseEngine{
+			beginner: stores.Transactions,
+			service: releases.Service{
+				Repository: registryStore,
+				Policy:     releases.ProductionPolicy(),
+			},
+		},
+	}
 
 	recorder, err := newAuditRecorder(stores.DB)
 	if err != nil {
@@ -120,7 +141,7 @@ func (factory *RegistryFactory) Create(ctx context.Context, profile bootstrap.Pr
 	}
 	release = append(release, func() { _ = cacheLifecycle.Stop(ctx) })
 
-	inbound, err := newServing(settings, shared.Observability, authenticator)
+	inbound, err := newServing(settings, shared.Observability, authenticator, domainServices)
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}

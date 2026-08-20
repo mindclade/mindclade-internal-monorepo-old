@@ -1,0 +1,185 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mindclade-staging-kueue-controller
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/skip-reconcile: "true"
+    argocd.argoproj.io/sync-wave: "-20"
+    mindclade.dev/activation-state: blocked
+    mindclade.dev/environment: staging
+spec:
+  project: mindclade-operators
+  source:
+    repoURL: https://github.com/mindclade-org/mindclade.git
+    targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
+    path: infra/kubernetes/platform/kueue/chart
+    helm:
+      releaseName: mindclade-kueue
+      valuesObject:
+        kueue:
+          enableCertManager: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kueue-system
+  revisionHistoryLimit: 10
+  syncPolicy:
+    automated:
+      enabled: false
+      prune: false
+      selfHeal: false
+    managedNamespaceMetadata:
+      labels:
+        app.kubernetes.io/part-of: mindclade-platform
+        mindclade.dev/owner: ml-platform
+        pod-security.kubernetes.io/audit: restricted
+        pod-security.kubernetes.io/audit-version: v1.36
+        pod-security.kubernetes.io/enforce: restricted
+        pod-security.kubernetes.io/enforce-version: v1.36
+        pod-security.kubernetes.io/warn: restricted
+        pod-security.kubernetes.io/warn-version: v1.36
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=true
+      - PruneLast=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mindclade-staging-jobset-controller
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/skip-reconcile: "true"
+    argocd.argoproj.io/sync-wave: "-20"
+    mindclade.dev/activation-state: blocked
+    mindclade.dev/environment: staging
+spec:
+  project: mindclade-operators
+  source:
+    repoURL: https://github.com/mindclade-org/mindclade.git
+    targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
+    path: infra/kubernetes/platform/jobset/chart
+    helm:
+      releaseName: mindclade-jobset
+      valuesObject:
+        jobset:
+          certManager:
+            enable: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: jobset-system
+  revisionHistoryLimit: 10
+  syncPolicy:
+    automated:
+      enabled: false
+      prune: false
+      selfHeal: false
+    managedNamespaceMetadata:
+      labels:
+        app.kubernetes.io/part-of: mindclade-platform
+        mindclade.dev/owner: ml-platform
+        pod-security.kubernetes.io/audit: restricted
+        pod-security.kubernetes.io/audit-version: v1.36
+        pod-security.kubernetes.io/enforce: restricted
+        pod-security.kubernetes.io/enforce-version: v1.36
+        pod-security.kubernetes.io/warn: restricted
+        pod-security.kubernetes.io/warn-version: v1.36
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=true
+      - PruneLast=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mindclade-staging-foundation
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/skip-reconcile: "true"
+    argocd.argoproj.io/sync-wave: "0"
+    mindclade.dev/activation-state: blocked
+    mindclade.dev/environment: staging
+spec:
+  project: mindclade-foundation
+  source:
+    repoURL: https://github.com/mindclade-org/mindclade.git
+    targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
+    path: infra/gitops/environments/staging
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mindclade-system
+  revisionHistoryLimit: 10
+  syncPolicy:
+    automated:
+      enabled: false
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=false
+      - PruneLast=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mindclade-staging-kueue-resources
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/skip-reconcile: "true"
+    argocd.argoproj.io/sync-wave: "20"
+    mindclade.dev/activation-state: blocked
+    mindclade.dev/environment: staging
+spec:
+  project: mindclade-ml-resources
+  source:
+    repoURL: https://github.com/mindclade-org/mindclade.git
+    targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
+    path: infra/kubernetes/platform/kueue
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mindclade-system
+  revisionHistoryLimit: 10
+  syncPolicy:
+    automated:
+      enabled: false
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=false
+      - PruneLast=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mindclade-staging-jobset-resources
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/skip-reconcile: "true"
+    argocd.argoproj.io/sync-wave: "22"
+    mindclade.dev/activation-state: blocked
+    mindclade.dev/environment: staging
+spec:
+  project: mindclade-ml-resources
+  source:
+    repoURL: https://github.com/mindclade-org/mindclade.git
+    targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
+    path: infra/kubernetes/platform/jobset
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mindclade-system
+  revisionHistoryLimit: 10
+  syncPolicy:
+    automated:
+      enabled: false
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=false
+      - PruneLast=true

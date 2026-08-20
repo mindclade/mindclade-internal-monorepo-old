@@ -42,32 +42,32 @@ func (k EvidenceKind) Valid() bool {
 }
 
 type EvidenceNode struct {
-	NodeID        string
-	Kind          EvidenceKind
-	Artifact      artifacts.Ref
-	SubjectDigest identifiers.Digest
-	PolicyDigest  identifiers.Digest
-	Passed        bool
-	Created       time.Time
+	NodeID        string             `json:"node_id"`
+	Kind          EvidenceKind       `json:"kind"`
+	Artifact      artifacts.Ref      `json:"artifact"`
+	SubjectDigest identifiers.Digest `json:"subject_digest"`
+	PolicyDigest  identifiers.Digest `json:"policy_digest"`
+	Passed        bool               `json:"passed"`
+	Created       time.Time          `json:"created"`
 }
 type EvidenceEdge struct {
-	From     string
-	To       string
-	Relation string
+	From     string `json:"from"`
+	To       string `json:"to"`
+	Relation string `json:"relation"`
 }
 type EvidenceGraph struct {
-	ReleaseID     string
-	SubjectDigest identifiers.Digest
-	Nodes         []EvidenceNode
-	Edges         []EvidenceEdge
-	PolicyDigest  identifiers.Digest
-	PolicyEpoch   uint64
+	ReleaseID     string             `json:"release_id"`
+	SubjectDigest identifiers.Digest `json:"subject_digest"`
+	Nodes         []EvidenceNode     `json:"nodes"`
+	Edges         []EvidenceEdge     `json:"edges"`
+	PolicyDigest  identifiers.Digest `json:"policy_digest"`
+	PolicyEpoch   uint64             `json:"policy_epoch"`
 }
 type Release struct {
-	ReleaseID           string
-	ModelBundleDigest   identifiers.Digest
-	EvidenceGraphDigest identifiers.Digest
-	Channel             string
-	Status              string
-	ResourceVersion     uint64
+	ReleaseID           string             `json:"release_id"`
+	ModelBundleDigest   identifiers.Digest `json:"model_bundle_digest"`
+	EvidenceGraphDigest identifiers.Digest `json:"evidence_graph_digest"`
+	Channel             string             `json:"channel"`
+	Status              string             `json:"status"`
+	ResourceVersion     uint64             `json:"resource_version"`
 }

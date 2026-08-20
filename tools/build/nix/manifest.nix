@@ -73,9 +73,14 @@ let
   ciTools = {
     actionlint = pkgs.actionlint.version;
     cargo-deny = pkgs.cargo-deny.version;
+    conftest = pkgs.conftest.version;
+    helm = pkgs.kubernetes-helm.version;
+    kubeconform = pkgs.kubeconform.version;
+    kustomize = pkgs.kustomize.version;
     shellcheck = pkgs.shellcheck.version;
     terraform = pkgs.terraform.version;
     yamllint = pkgs.yamllint.version;
+    yq = pkgs.yq-go.version;
   };
 
   attrs = {

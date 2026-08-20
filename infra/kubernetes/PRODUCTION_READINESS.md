@@ -12,6 +12,7 @@ for production apply.
 | Development/staging/production roots render | PASS | Kustomize roots under `overlays/` |
 | Restricted Pod Security is explicit and version-pinned | PASS | `base/namespace.yaml` |
 | Default identity has no API token | PASS | `base/service-accounts.yaml` |
+| Suspended workload identity has no API token or RBAC | PASS | `mindclade-workload` in `base/service-accounts.yaml` |
 | Foundation RBAC is least privilege | PASS | No grants exist in `base/rbac.yaml` |
 | Default-deny networking | PASS | DNS is the only allowed egress in `policies/network-policies.yaml` |
 | Workload activation is fail-closed | PASS | Pod and workload-object quotas are zero in every overlay |
@@ -23,7 +24,8 @@ for production apply.
 | Workload images and supply-chain evidence | BLOCKED | Digest-pinned OCI image, SBOM, signature, provenance, and admission result per service |
 | Network allowlists | BLOCKED | Exact DNS/API/database/cache/broker/object-store/telemetry flows per service |
 | Availability and scaling | BLOCKED | Probes, drain, PDB, topology spread, autoscaling, capacity, and disruption tests |
-| Kueue/JobSet/GPU/RDMA/NCCL | BLOCKED | Versions, CRDs/controllers, resource classes, hardware qualification, and rollback |
+| Kueue/JobSet controller supply chain | PARTIAL | Versions, chart locks, image digests, HA values, and CRD ordering are declared; connected install/upgrade evidence is missing |
+| Queue and GPU/RDMA/NCCL activation | BLOCKED | Queues are held with zero quota; hardware, topology, transport, checkpoint, and rollback qualification is missing |
 | Observability and MLOps | BLOCKED | SLOs, metrics, alerts, dashboards, drift/data/model-quality evidence |
 | Connected non-production qualification | MISSING | Server-side validation, rollout, failure injection, and recovery exercise |
 
@@ -84,4 +86,3 @@ executable rollback. The repository must record the rendered digest and empty
 post-rollout drift result.
 
 See `RUNBOOK.md` for operational steps and `MLOPS.md` for ML-specific gates.
-

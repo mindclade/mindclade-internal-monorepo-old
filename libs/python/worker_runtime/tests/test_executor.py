@@ -11,6 +11,8 @@ from libs.python.errors import Code, MindcladeError, code_of
 from libs.python.identifiers import Digest
 from libs.python.worker_runtime import (
     ArtifactRef,
+    CancellationToken,
+    ExecutionContext,
     StageEnvelope,
     StageExecutor,
     StageKind,
@@ -47,7 +49,8 @@ def stage(*, kind: StageKind = StageKind.PREPROCESS, deadline: int = 5_000) -> S
 
 
 class Engine:
-    def execute(self, stage: StageEnvelope) -> StageResult:
+    def execute(self, stage: StageEnvelope, context: ExecutionContext) -> StageResult:
+        context.checkpoint(operation=stage.operation)
         return StageResult(outputs=(artifact(),), metrics={"items": 1.0})
 
 
@@ -76,6 +79,35 @@ def test_stage_executor_rejects_an_expired_deadline() -> None:
     with pytest.raises(MindcladeError) as caught:
         StageExecutor(StageKind.PREPROCESS, Engine(), now_millis=lambda: 5_000).execute(stage())
     assert code_of(caught.value) is Code.DEADLINE_EXCEEDED
+
+
+def test_stage_executor_rejects_success_after_deadline_passes_during_execution() -> None:
+    now = [1_000]
+
+    class SlowEngine:
+        def execute(self, stage: StageEnvelope, context: ExecutionContext) -> StageResult:
+            now[0] = stage.deadline_unix_millis
+            return StageResult(outputs=(artifact(),))
+
+    executor = StageExecutor(StageKind.PREPROCESS, SlowEngine(), now_millis=lambda: now[0])
+    with pytest.raises(MindcladeError) as caught:
+        executor.execute(stage())
+    assert code_of(caught.value) is Code.DEADLINE_EXCEEDED
+
+
+def test_engine_can_cooperatively_observe_cancellation() -> None:
+    token = CancellationToken()
+
+    class CancelingEngine:
+        def execute(self, stage: StageEnvelope, context: ExecutionContext) -> StageResult:
+            token.cancel()
+            context.checkpoint(operation=stage.operation)
+            raise AssertionError("checkpoint must interrupt execution")
+
+    executor = StageExecutor(StageKind.PREPROCESS, CancelingEngine(), now_millis=lambda: 1_000)
+    with pytest.raises(MindcladeError) as caught:
+        executor.execute(stage(), cancellation=token)
+    assert code_of(caught.value) is Code.CANCELED
 
 
 def test_stage_metadata_and_result_metrics_are_immutable_snapshots() -> None:

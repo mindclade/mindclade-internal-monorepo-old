@@ -10,26 +10,15 @@ kind: Kustomization
 resources:
   - ../../base
 
-# ---------------------------------------------------------------------------------------
-# Images
-# ---------------------------------------------------------------------------------------
-# The base carries `image: go-vanity:latest`, which is not a resolvable reference anywhere —
-# no registry, and a tag where every consumer in this estate requires a digest. Its comment
-# said "replaced by the image tag at release", and nothing did the replacing: there was no
-# Dockerfile, no build workflow, and no images: transformer in any overlay.
-#
-# This is that transformer. `newName` is the `containers` repository that
-# 5-workloads/production/artifact-registry creates.
-#
-# NO `digest:` YET, and that is why rendered/production/platform-plane-dev is excluded from
-# the platform ApplicationSet in gitops/applications/platform.yaml. The first run of this
-# repository's .github/workflows/release.yml prints the exact two lines to add:
-#
-#   digest: sha256:...
-#
-# Add it, drop the exclusion in gitops, re-render. verify-attestation.yml then has a real
-# digest to check the cosign signature and the Binary Authorization attestation against, which
-# is the whole point of the chain.
-images:
-  - name: go-vanity
-    newName: europe-west4-docker.pkg.dev/mc-production-platform/containers/go-vanity
+# Images deliberately remain the base's registry.invalid digest-zero activation
+# gate. A release overlay must replace the full name and digest together.
+patches:
+  - target:
+      group: networking.k8s.io
+      version: v1
+      kind: NetworkPolicy
+      name: allow-proxy-only-subnet
+    patch: |-
+      - op: replace
+        path: /spec/ingress/0/from/0/ipBlock/cidr
+        value: 10.48.32.0/24

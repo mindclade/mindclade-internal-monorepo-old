@@ -2,9 +2,14 @@
   "ciTools": {
     "actionlint": "1.7.12",
     "cargo-deny": "0.20.2",
+    "conftest": "0.63.0",
+    "helm": "4.2.4",
+    "kubeconform": "0.8.0",
+    "kustomize": "5.8.1",
     "shellcheck": "0.11.0",
     "terraform": "1.15.8",
-    "yamllint": "1.37.1"
+    "yamllint": "1.37.1",
+    "yq": "4.53.3"
   },
   "nixpkgs": "ec2d622de0773551768cf98f3fc50cbcc003b9c5",
   "pins": {

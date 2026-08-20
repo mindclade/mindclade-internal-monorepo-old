@@ -33,6 +33,7 @@ spec:
     spec:
       automountServiceAccountToken: false
       enableServiceLinks: false
+      priorityClassName: mindclade-batch
       restartPolicy: Never
       serviceAccountName: ingestion-worker
       terminationGracePeriodSeconds: 60

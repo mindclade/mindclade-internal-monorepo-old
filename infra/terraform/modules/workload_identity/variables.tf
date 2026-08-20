@@ -47,6 +47,14 @@ variable "pool" {
     )
     error_message = "pool_id must be 4-32 lowercase letters, digits, or hyphens (without the reserved gcp- prefix); display_name and description must fit provider limits."
   }
+
+  validation {
+    condition = (
+      var.pool != null ||
+      (length(var.oidc_providers) == 0 && length(var.federated_principal_sets) == 0)
+    )
+    error_message = "pool must be configured whenever oidc_providers or federated_principal_sets is non-empty."
+  }
 }
 
 variable "oidc_providers" {

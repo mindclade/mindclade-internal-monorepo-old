@@ -1,0 +1,13 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Support objects only. app-of-apps.yaml is a manually instantiated template and is excluded
+# here to avoid self-reconciliation before its environment and exact revision are configured.
+resources:
+  - repositories.yaml
+  - bootstrap

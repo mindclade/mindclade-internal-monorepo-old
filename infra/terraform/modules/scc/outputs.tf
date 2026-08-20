@@ -62,3 +62,21 @@ output "mute_governance" {
     }
   }
 }
+
+output "required_kms_grants" {
+  description = "Additive grants the key-owning state must apply before creating CMEK-protected findings destinations."
+  value = {
+    notification_topics = {
+      for name, notification in var.notifications : name => {
+        crypto_key = notification.pubsub_topic.kms_key_name
+        member     = "serviceAccount:service-${var.project_number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+        role       = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+      }
+    }
+    findings_dataset = var.bigquery_export == null ? null : {
+      crypto_key = var.bigquery_export.kms_key_name
+      member     = "serviceAccount:bq-${var.project_number}@bigquery-encryption.iam.gserviceaccount.com"
+      role       = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+    }
+  }
+}

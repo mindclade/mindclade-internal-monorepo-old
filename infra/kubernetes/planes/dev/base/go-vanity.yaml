@@ -10,6 +10,7 @@ metadata:
   name: go-vanity
   namespace: dev
 spec:
+  type: ClusterIP
   selector:
     app.kubernetes.io/name: go-vanity
   ports:
@@ -24,11 +25,12 @@ kind: Deployment
 metadata:
   name: go-vanity
   namespace: dev
+  annotations:
+    mindclade.dev/deployment-status: disabled
+    mindclade.dev/activation-blocker: attested-image-and-environment-egress-contracts-missing
 spec:
-  # Two replicas for a service that renders a template. Not for load — for the
-  # rolling deploy: every build in the organization resolves through this, and a
-  # single replica means a restart is a window where `go get` fails.
-  replicas: 2
+  replicas: 0
+  revisionHistoryLimit: 3
   selector:
     matchLabels:
       app.kubernetes.io/name: go-vanity
@@ -38,15 +40,22 @@ spec:
         app.kubernetes.io/name: go-vanity
         app.kubernetes.io/part-of: mindclade
     spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
       serviceAccountName: go-vanity
+      terminationGracePeriodSeconds: 30
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
         seccompProfile:
           type: RuntimeDefault
       containers:
         - name: go-vanity
-          image: go-vanity:latest  # replaced by the image tag at release
+          image: registry.invalid/mindclade/go-vanity@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 8080
@@ -64,22 +73,46 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
+            runAsNonRoot: true
             capabilities:
               drop: ["ALL"]
           resources:
             requests:
               cpu: 10m
+              ephemeral-storage: 16Mi
               memory: 32Mi
             limits:
+              cpu: 100m
+              ephemeral-storage: 64Mi
               memory: 64Mi
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 2
+            failureThreshold: 15
+            timeoutSeconds: 1
           livenessProbe:
             httpGet:
               path: /healthz
               port: http
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 2
           readinessProbe:
             httpGet:
               path: /readyz
               port: http
+            periodSeconds: 5
+            failureThreshold: 2
+            timeoutSeconds: 2
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 16Mi
 
 ---
 apiVersion: v1
@@ -87,6 +120,7 @@ kind: ServiceAccount
 metadata:
   name: go-vanity
   namespace: dev
+automountServiceAccountToken: false
 
 ---
 # NO GCPBackendPolicy for this Service, and that absence is deliberate.

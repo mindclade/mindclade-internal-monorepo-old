@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 
 kueue:
-  enableCertManager: false
+  enableCertManager: true
   enablePrometheus: false
   enableVisibilityAPF: false
   enableVisibilityAuthReaderRoleBinding: false
@@ -23,7 +23,6 @@ kueue:
       enabled: true
       minAvailable: 1
     manager:
-      priorityClassName: mindclade-platform-critical
       image:
         repository: registry.k8s.io/kueue/kueue
         tag: v0.19.1@sha256:7a2204a64388f51a0239f22df989b62390ec1b3d21424ee3a35be7bbc23f9f8f

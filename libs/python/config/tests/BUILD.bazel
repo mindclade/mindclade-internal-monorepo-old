@@ -20,3 +20,13 @@ package(default_visibility = ["//visibility:private"])
         "test_resolved.py",
     ]
 ]
+
+pytest_test(
+    name = "test_properties",
+    srcs = ["test_properties.py"],
+    imports = ["../../../.."],
+    deps = [
+        "//libs/python/config",
+        "@pypi//hypothesis",
+    ],
+)

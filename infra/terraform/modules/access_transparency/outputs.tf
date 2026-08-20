@@ -32,3 +32,13 @@ output "notification_channel_ids" {
   description = "Monitoring notification channel ids keyed by email address."
   value       = { for email, channel in google_monitoring_notification_channel.this : email => channel.id }
 }
+
+output "required_access_log_writer_grant" {
+  description = "Additive grant required on the separately governed access-log bucket."
+  value = {
+    bucket = var.sink.bucket.access_log_bucket_name
+    member = "group:cloud-storage-analytics@google.com"
+    role   = "roles/storage.objectCreator"
+    prefix = var.sink.bucket.access_log_object_prefix
+  }
+}

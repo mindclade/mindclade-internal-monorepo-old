@@ -1,0 +1,26 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//visibility:public"])
+
+py_library(
+    name = "distributed",
+    srcs = [
+        "__init__.py",
+        "environment.py",
+        "health.py",
+        "rendezvous.py",
+        "topology.py",
+    ],
+    data = ["py.typed"],
+    imports = ["../../.."],
+    deps = [
+        "//libs/python/errors",
+        "//libs/python/identifiers",
+        "//libs/python/serialization",
+    ],
+)

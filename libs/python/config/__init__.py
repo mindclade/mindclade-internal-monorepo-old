@@ -16,13 +16,20 @@ from .loader import (
     Source,
     resolve,
 )
-from .merge import MAXIMUM_MERGE_DEPTH, MergeError, deep_merge
+from .merge import (
+    MAXIMUM_MERGE_DEPTH,
+    MAXIMUM_MERGE_LAYERS,
+    MergeError,
+    deep_merge,
+    deep_merge_many,
+)
 from .overrides import MAXIMUM_OVERRIDE_LENGTH, OverrideError, apply_override
 from .schema import RequiredField, get_path
 from .validation import ValidationError, validate_required
 
 __all__ = [
     "MAXIMUM_MERGE_DEPTH",
+    "MAXIMUM_MERGE_LAYERS",
     "MAXIMUM_OVERLAYS",
     "MAXIMUM_OVERRIDES",
     "MAXIMUM_OVERRIDE_LENGTH",
@@ -38,6 +45,7 @@ __all__ = [
     "apply_override",
     "canonical_json",
     "deep_merge",
+    "deep_merge_many",
     "fingerprint",
     "get_path",
     "resolve",

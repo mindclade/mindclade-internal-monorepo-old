@@ -5,8 +5,9 @@
   "properties": {
     "kueue": {
       "type": "object",
-      "required": ["controllerManager", "managerConfig"],
+      "required": ["enableCertManager", "controllerManager", "managerConfig"],
       "properties": {
+        "enableCertManager": {"const": true},
         "controllerManager": {
           "type": "object",
           "required": ["replicas", "manager"],

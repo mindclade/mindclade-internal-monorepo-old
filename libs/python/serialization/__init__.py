@@ -13,6 +13,9 @@ this document's identity" — digesting belongs to `libs.python.identifiers`.
 from .canonical import (
     FIELD_SEPARATOR,
     LINE_SEPARATOR,
+    MAXIMUM_CANONICAL_JSON_BYTES,
+    MAXIMUM_CANONICAL_JSON_DEPTH,
+    MAXIMUM_CANONICAL_JSON_NODES,
     canonical_field,
     canonical_json_bytes,
     canonical_lines,
@@ -21,6 +24,9 @@ from .canonical import (
 __all__ = [
     "FIELD_SEPARATOR",
     "LINE_SEPARATOR",
+    "MAXIMUM_CANONICAL_JSON_BYTES",
+    "MAXIMUM_CANONICAL_JSON_DEPTH",
+    "MAXIMUM_CANONICAL_JSON_NODES",
     "canonical_field",
     "canonical_json_bytes",
     "canonical_lines",

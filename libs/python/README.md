@@ -15,23 +15,24 @@ one umbrella component.
 | `identifiers` | implemented | platform-control | digests, UUIDv7 IDs, versions, artifact identity |
 | `serialization` | implemented | platform-control | deterministic JSON and line bytes |
 | `config` | implemented | platform-control | bounded TOML composition, overrides, provenance, digest |
-| `worker_runtime` | implemented | platform-control | validated stage/workload DTOs and engine delegation |
-| `artifacts` | scaffolded | runtime-platform | reserved; no production API |
-| `distributed` | scaffolded | training-platform | reserved; no production API |
-| `geometry` | scaffolded | biology-ml | reserved; no production API |
-| `observability` | scaffolded | platform-control | reserved; no production API |
-| `testing` | scaffolded | biology-ml | reserved; no production API |
+| `worker_runtime` | implemented | platform-control | validated DTOs, cooperative deadlines/cancellation |
+| `artifacts` | implemented | runtime-platform | bounded byte/reference/manifest verification and lineage |
+| `distributed` | implemented | training-platform | environment, topology, rendezvous, and health validation |
+| `geometry` | implemented | biology-ml | bounded finite float64 rigid geometry |
+| `observability` | implemented | platform-control | redacted provider-neutral logs, metrics, and trace values |
+| `testing` | implemented | biology-ml | bounded numeric, environment, device, rank, and process helpers |
 
-The five reserved packages have no in-tree consumer from which to derive a stable contract.
-Their files remain honest scaffolds under the admission rules in `ADMISSION.md`; importing a
-`SCAFFOLD_PATH` constant is not a production capability.
+The five newest packages were promoted by explicit repository-owner direction before their first
+in-tree consumer. Their APIs are intentionally narrow and provider-free; broadening them still
+requires consumer evidence under `ADMISSION.md`.
 
 ## Dependency layers
 
 ```text
 Layer 0  errors
 Layer 1  identifiers, serialization
-Layer 2  config, worker_runtime
+Layer 2  artifacts, config, distributed, geometry, observability, worker_runtime
+Layer 3  testing
 ```
 
 Lower layers do not import higher ones. Cross-process data uses versioned contracts under

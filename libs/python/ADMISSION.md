@@ -1,7 +1,9 @@
 # Python library admission
 
-A reserved `libs/python` package becomes implemented only when one concrete in-tree consumer
-needs a reusable mechanism and the following evidence lands in the same change:
+A reserved `libs/python` package normally becomes implemented when one concrete in-tree consumer
+needs a reusable mechanism. An explicit repository-owner direction may promote a foundational
+package before its first consumer, but the package must state that fact, keep the contract narrow
+and provider-free, and satisfy all of the following evidence in the same change:
 
 - a named owner and component entry with an explicit public contract;
 - package boundaries and non-responsibilities that keep product policy and providers out;

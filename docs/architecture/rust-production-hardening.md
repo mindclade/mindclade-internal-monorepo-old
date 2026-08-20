@@ -19,6 +19,12 @@ leaf/runtime responsibilities:
 Every dependency requires a Cargo-generated lock, Bazel/rules_rust lock parity, Nix
 supply-chain pinning, SBOM inclusion, vulnerability scanning, and ownership review.
 
+The committed graph uses exact versions for external dependencies and rejects
+Git or repository-escaping path dependencies. `cargo-deny` enforces advisory,
+license, ban, and source policy; first-party unpublished crates are excluded
+from third-party license classification. Content digests retain the stable
+Mindclade API while using the pinned RustCrypto SHA-256 implementation.
+
 ## Bulk IPC
 
 Large tensors, feature bundles, MSA matrices and checkpoints do not transit gRPC.
@@ -49,9 +55,11 @@ and node agent are direct consumers.
 
 `tools/qualification/rust/qualify.py` is the canonical Cargo qualification lane.
 Presubmit requires the pinned Rust 1.97.1 compiler, generated lockfile, rustfmt,
-workspace tests, doc tests and Clippy with warnings denied. Nightly/release add Miri,
-fuzzing and sanitizer/failure-injection lanes. Release also runs cross-language wire
-compatibility and the four architecture-defining vertical slices.
+workspace tests, doc tests, Clippy with warnings denied, cargo-deny, compatibility,
+executed local failure injection, and portable performance probes. Nightly/release
+add Miri and fuzzing. Release also requires the complete performance evidence,
+cross-language wire compatibility, and the four architecture-defining vertical
+slices.
 
 The workspace deliberately exempts `clippy::missing_errors_doc`: public
 fallible APIs use the shared typed `Fault` taxonomy documented at module and

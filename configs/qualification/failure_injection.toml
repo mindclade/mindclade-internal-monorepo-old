@@ -40,3 +40,33 @@ name = "control_plane_unavailable_after_admission"
 invariant = "admitted_work_continues"
 owner = "runtime-platform"
 command = ["cargo", "test", "-p", "mindclade-serving-runtime", "--test", "outage", "established_local_stream_survives_control_plane_unavailability", "--locked", "--", "--exact"]
+
+[[scenario]]
+name = "control_plane_database_loss"
+invariant = "database_failures_are_retryable_and_never_report_success"
+owner = "control-plane"
+command = ["tools/qualification/go/failure_injection.sh", "database_loss"]
+
+[[scenario]]
+name = "control_plane_transaction_rollback"
+invariant = "evidence_and_release_writes_commit_atomically"
+owner = "control-plane"
+command = ["tools/qualification/go/failure_injection.sh", "transaction_rollback"]
+
+[[scenario]]
+name = "control_plane_lease_loss"
+invariant = "stale_owners_cannot_renew_or_commit_after_fence_loss"
+owner = "control-plane"
+command = ["tools/qualification/go/failure_injection.sh", "lease_loss"]
+
+[[scenario]]
+name = "control_plane_duplicate_event"
+invariant = "duplicate_events_do_not_reapply_domain_effects"
+owner = "control-plane"
+command = ["tools/qualification/go/failure_injection.sh", "duplicate_event"]
+
+[[scenario]]
+name = "control_plane_retry_exhaustion"
+invariant = "bounded_retries_surface_an_exhausted_fault"
+owner = "control-plane"
+command = ["tools/qualification/go/failure_injection.sh", "retry_exhaustion"]

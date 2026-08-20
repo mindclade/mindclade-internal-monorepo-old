@@ -56,6 +56,8 @@ variable "sinks" {
     bucket = optional(object({
       name                       = string
       location                   = string
+      access_log_bucket_name     = string
+      access_log_object_prefix   = optional(string, "log-archive/")
       encryption_key             = optional(string)
       retention_days             = optional(number)
       lock_retention_policy      = optional(bool, false)
@@ -112,6 +114,12 @@ variable "sinks" {
     condition = alltrue([
       for sink in values(var.sinks) : sink.destination != "storage" ? true : (
         can(regex("^[a-z0-9][a-z0-9._-]{1,61}[a-z0-9]$", sink.bucket.name)) &&
+        can(regex("^[a-z0-9][a-z0-9._-]{1,61}[a-z0-9]$", sink.bucket.access_log_bucket_name)) &&
+        sink.bucket.access_log_bucket_name != sink.bucket.name &&
+        length(sink.bucket.access_log_object_prefix) >= 1 &&
+        length(sink.bucket.access_log_object_prefix) <= 900 &&
+        !strcontains(sink.bucket.access_log_object_prefix, "\n") &&
+        !strcontains(sink.bucket.access_log_object_prefix, "\r") &&
         length(trimspace(sink.bucket.location)) > 0 &&
         (sink.bucket.encryption_key == null || can(regex("^projects/[^/]+/locations/[^/]+/keyRings/[^/]+/cryptoKeys/[^/]+$", sink.bucket.encryption_key))) &&
         (sink.bucket.retention_days == null ? true : (sink.bucket.retention_days >= 1 && sink.bucket.retention_days <= 36500 && floor(sink.bucket.retention_days) == sink.bucket.retention_days)) &&
@@ -120,7 +128,7 @@ variable "sinks" {
         floor(sink.bucket.soft_delete_retention_days) == sink.bucket.soft_delete_retention_days
       )
     ])
-    error_message = "Storage bucket names, locations, CMEK names, retention, and 7-90 day soft-delete windows must be valid and bounded."
+    error_message = "Storage bucket and distinct access-log bucket names, access-log prefix, location, CMEK name, retention, and 7-90 day soft-delete window must be valid and bounded."
   }
 
   validation {

@@ -201,11 +201,11 @@ class StageResult:
             )
         for key, value in self.metrics.items():
             _bounded_text(key, name="metric name")
-            if (
-                isinstance(value, bool)
-                or not isinstance(value, int | float)
-                or not math.isfinite(value)
-            ):
+            try:
+                is_finite = isinstance(value, int | float) and math.isfinite(value)
+            except OverflowError:
+                is_finite = False
+            if isinstance(value, bool) or not is_finite:
                 raise InvalidArgument(
                     "stage metric values must be finite numbers",
                     reason="stage_metric_value",

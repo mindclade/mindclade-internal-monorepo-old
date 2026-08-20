@@ -13,9 +13,10 @@
 | Cross-language release blocker | golden + field-tag compatibility gate | Go/Rust/Python protocols | release gate |
 | Vertical slices | integration release gate | ingestion/preprocessing/serving/training | provider/GPU-connected release evidence |
 
-Local qualification was rerun on 2026-08-20 with the pinned Rust 1.97.1
-toolchain: locked all-feature/all-target tests, rustfmt, rustdoc, and Clippy with
-warnings denied pass. Promotion still requires connected Linux/Bazel/Nix,
-provider, sanitizer/Miri/fuzz, measured-performance, image/provenance, and
-deployment evidence; local compiler evidence is not a substitute for those
-release gates.
+The canonical presubmit was rerun on 2026-08-20 with the pinned Rust 1.97.1
+toolchain. Locked all-feature/all-target tests, rustfmt, rustdoc, Clippy with
+warnings denied, cargo-deny, compatibility, six executed local failure scenarios,
+and the two portable performance measurements pass. Promotion still requires
+connected Linux/Bazel/Nix, provider, sanitizer/Miri/fuzz, the remaining six
+hardware/provider performance measurements, image/provenance, and deployment
+evidence; presubmit evidence is not a substitute for those release gates.

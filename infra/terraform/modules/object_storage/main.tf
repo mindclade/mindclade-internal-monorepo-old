@@ -7,6 +7,15 @@
 
 locals {
   storage_analytics_writer = "group:cloud-storage-analytics@google.com"
+
+  # Keep the child module evaluable when the wrapper's cross-variable validation
+  # rejects a self-logging cycle. The root validation still fails the plan; this
+  # sentinel prevents a second, less actionable child-resource diagnostic.
+  validated_upstream_access_log_bucket = (
+    var.upstream_access_log_bucket_name == var.access_log_bucket.name
+    ? "invalid-object-storage-composition"
+    : var.upstream_access_log_bucket_name
+  )
 }
 
 module "access_logs" {
@@ -21,7 +30,7 @@ module "access_logs" {
   data_classification        = "restricted"
   labels                     = merge(var.labels, var.access_log_bucket.labels, { "bucket-class" = "access-log" })
   kms_key_name               = var.access_log_bucket.kms_key_name
-  access_log_bucket          = var.upstream_access_log_bucket_name
+  access_log_bucket          = local.validated_upstream_access_log_bucket
   access_log_object_prefix   = "object-storage-access-log-bucket/"
   versioning_enabled         = true
   soft_delete_retention_days = var.access_log_bucket.soft_delete_retention_days
