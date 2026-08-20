@@ -1,5 +1,5 @@
 {
-  "contract_version": "0.2.0",
+  "contract_version": "0.3.0",
   "generated_by": {
     "terraform-docs": "0.24.0"
   },
@@ -1336,8 +1336,7 @@
         "google_container_analysis_note_iam_member.attestor_occurrence_viewer",
         "google_container_analysis_note_iam_member.signer_attacher",
         "google_kms_crypto_key.attestor",
-        "google_kms_crypto_key_iam_member.signer",
-        "google_project_iam_member.signer_occurrence_editor"
+        "google_kms_crypto_key_iam_member.signer"
       ],
       "module_calls": {},
       "moved": [],
@@ -1377,10 +1376,20 @@
           "sensitive": false,
           "value_fingerprint": "sha256:6338bb3514c9a374784107fabcd44a2def18d7387859a88b66ceec74e313e402"
         },
+        "project_id": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:faeae34494efedb128a0efe3fb57e4dd1cbd9c795e56541660042fe67855eff2"
+        },
+        "required_occurrence_permissions": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:05aacadd1dea9e4728dbdab4d9b6d604d098873b3149ab2dde10a63a4857d105"
+        },
         "signer_grants": {
           "ephemeral": false,
           "sensitive": false,
-          "value_fingerprint": "sha256:562976bef079ad725f4f78be23fceedd752d6d29656b3482470a4ad775f326e0"
+          "value_fingerprint": "sha256:83783986428bd39377ce1f63fd37112c293db4cf0ca04455511f5a22fe61154b"
         },
         "verifier_grants": {
           "ephemeral": false,

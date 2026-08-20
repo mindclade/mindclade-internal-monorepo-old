@@ -35,12 +35,18 @@ agent is number-addressed. The module grants that service agent occurrence-viewe
 each note so an attestor cannot exist while being unable to evaluate its attestations.
 
 `attestor_signers` is who may *attest*, deliberately not who may *deploy*. Each signer gets
-the three capabilities Google documents for the operation: attach an occurrence to that
-specific Container Analysis note, create the occurrence in the attestation project, and use
-the attestor's KMS key to sign. `roles/binaryauthorization.attestorsVerifier` is not a signer
-role; it is granted separately through `attestor_verifiers` to the Binary Authorization
-service agent in a deployer project. An identity that can both attest and deploy approves its
-own artefacts, which is the control removed. An empty list is
+attacher access on only its specific Container Analysis note and signer/verifier access on
+only its attestor KMS key. Occurrences are project resources, so the authoritative live
+repository owns their one custom-role binding. That role must contain only
+`containeranalysis.occurrences.create`, `containeranalysis.occurrences.get`, and
+`containeranalysis.occurrences.list` (plus the project-read permissions Google needs); update
+and delete are prohibited. This module exports those three required occurrence permissions but
+does not create a duplicate project-level IAM state owner.
+
+`roles/binaryauthorization.attestorsVerifier` is not a signer role; it is granted separately
+through `attestor_verifiers` to the Binary Authorization service agent in a deployer project.
+An identity that can both attest and deploy approves its own artefacts, which is the control
+removed. An empty list is
 meaningful and is not the same as omitting the entry: it declares that only a human granted
 the role out of band may sign, which is how a human-review attestor stays un-automatable.
 
@@ -48,6 +54,11 @@ Upgrading from a release that used the old `attestor_signers` implementation cha
 resource addresses and corrects a semantic defect: the old code granted signers only the
 verifier role. Review the transition as an IAM change, create the new grants before relying
 on the pipeline, and remove the obsolete verifier grants only after a signing canary passes.
+
+Upgrading from a release that granted `roles/containeranalysis.occurrences.editor` removes
+that project-wide member. Apply the live repository's custom occurrence-creator role first,
+prove a signing canary with create/get/list only, and only then apply the module upgrade. The
+safe plan contains destruction of the editor member and no replacement editor grant.
 
 Every entry in `exempt_images` is a hole by design, so the list is an output as well as an
 input — it shows up in a plan diff.
@@ -94,6 +105,8 @@ input — it shows up in a plan diff.
 | <a name="output_enforcement_mode"></a> [enforcement\_mode](#output\_enforcement\_mode) | The default rule's enforcement mode, surfaced so a caller can assert that production is not silently in dry-run. |
 | <a name="output_exempt_image_patterns"></a> [exempt\_image\_patterns](#output\_exempt\_image\_patterns) | Image patterns admitted without attestation. Every entry here is a hole by design; the list is an output so it appears in a plan diff. |
 | <a name="output_policy_id"></a> [policy\_id](#output\_policy\_id) | Binary Authorization policy resource id. |
-| <a name="output_signer_grants"></a> [signer\_grants](#output\_signer\_grants) | Least-privilege note-attacher, occurrence-editor, and KMS signer grants created for attestation producers. |
+| <a name="output_project_id"></a> [project\_id](#output\_project\_id) | Project that owns the policy, attestors, notes, and attestation occurrences; consumers must not reconstruct it from resource names. |
+| <a name="output_required_occurrence_permissions"></a> [required\_occurrence\_permissions](#output\_required\_occurrence\_permissions) | Exact project-level occurrence permissions the live caller must grant through one custom role; update and delete are prohibited. |
+| <a name="output_signer_grants"></a> [signer\_grants](#output\_signer\_grants) | Attestor-scoped note-attacher and KMS signer grants created for attestation producers. |
 | <a name="output_verifier_grants"></a> [verifier\_grants](#output\_verifier\_grants) | Attestor verifier grants created for Binary Authorization service agents. |
 <!-- END_TF_DOCS -->

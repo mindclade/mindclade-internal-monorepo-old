@@ -1,0 +1,54 @@
+{
+  "_comment": [
+    "Copyright © 2026 Mindclade, LLC. All Rights Reserved.",
+    "Mindclade Proprietary and Confidential.",
+    "SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary"
+  ],
+  "schema_version": 1,
+  "activation_state": "unprovisioned",
+  "issuer": "https://agent.buildkite.com",
+  "organization_slug": "mindclade",
+  "organization_id": null,
+  "wif_provider_audience": null,
+  "default_branch": "main",
+  "allowed_build_sources": [
+    "api",
+    "webhook"
+  ],
+  "repository_urls": [
+    "git@github.com:mindclade/mindclade-internal-monorepo.git",
+    "https://github.com/mindclade/mindclade-internal-monorepo.git"
+  ],
+  "queue": {
+    "cluster_id": null,
+    "id": null,
+    "key": "mindclade-artifact-private",
+    "runner_environment": "self-hosted"
+  },
+  "pipelines": {
+    "build": {
+      "slug": "mindclade-artifact-build",
+      "id": null,
+      "definition": ".buildkite/pipelines/artifact-build.yml",
+      "step_key": "artifact-build",
+      "denied_step_key": "artifact-build-wif-denied",
+      "service_account": null
+    },
+    "qualification": {
+      "slug": "mindclade-artifact-qualify",
+      "id": null,
+      "definition": ".buildkite/pipelines/artifact-qualify.yml",
+      "step_key": "artifact-qualify",
+      "denied_step_key": "artifact-qualify-wif-denied",
+      "service_account": null
+    },
+    "promotion": {
+      "slug": "mindclade-artifact-promote",
+      "id": null,
+      "definition": ".buildkite/pipelines/artifact-promote.yml",
+      "step_key": "artifact-promote",
+      "denied_step_key": "artifact-promote-wif-denied",
+      "service_account": null
+    }
+  }
+}

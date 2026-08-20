@@ -1,0 +1,32 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# Identity canary only. Artifact building remains prohibited until this contract is activated
+# with real immutable IDs and both exchanges have been observed in a connected Buildkite run.
+checkout:
+  commit_verification: strict
+
+steps:
+  - label: ":no_entry: build WIF rejects an untrusted step"
+    key: artifact-build-wif-denied
+    branches: main
+    agents:
+      queue: mindclade-artifact-private
+    timeout_in_minutes: 10
+    command: .buildkite/scripts/wif-preflight.sh build denied
+    artifact_paths:
+      - .buildkite-evidence/wif-build-denied.json
+
+  - wait
+
+  - label: ":closed_lock_with_key: build WIF accepts the exact contract"
+    key: artifact-build
+    branches: main
+    agents:
+      queue: mindclade-artifact-private
+    timeout_in_minutes: 10
+    command: .buildkite/scripts/wif-preflight.sh build allowed
+    artifact_paths:
+      - .buildkite-evidence/wif-build-allowed.json

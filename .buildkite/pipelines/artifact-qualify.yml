@@ -1,0 +1,32 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# Identity canary only. Qualification attestations remain prohibited until this contract is
+# activated with real immutable IDs and both exchanges pass in the independent pipeline.
+checkout:
+  commit_verification: strict
+
+steps:
+  - label: ":no_entry: qualification WIF rejects an untrusted step"
+    key: artifact-qualify-wif-denied
+    branches: main
+    agents:
+      queue: mindclade-artifact-private
+    timeout_in_minutes: 10
+    command: .buildkite/scripts/wif-preflight.sh qualification denied
+    artifact_paths:
+      - .buildkite-evidence/wif-qualification-denied.json
+
+  - wait
+
+  - label: ":closed_lock_with_key: qualification WIF accepts the exact contract"
+    key: artifact-qualify
+    branches: main
+    agents:
+      queue: mindclade-artifact-private
+    timeout_in_minutes: 10
+    command: .buildkite/scripts/wif-preflight.sh qualification allowed
+    artifact_paths:
+      - .buildkite-evidence/wif-qualification-allowed.json

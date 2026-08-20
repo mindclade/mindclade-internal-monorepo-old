@@ -26,6 +26,11 @@ run "attestor_keys_are_asymmetric_sign_and_hsm_by_default" {
   command = plan
 
   assert {
+    condition     = output.project_id == "mc-development-platform"
+    error_message = "Consumers require the exact applied attestor project rather than a reconstructed name."
+  }
+
+  assert {
     condition     = google_kms_crypto_key.attestor["build-attestor"].purpose == "ASYMMETRIC_SIGN"
     error_message = "An attestor key must be a signing key; a symmetric key cannot produce an attestation."
   }
@@ -127,7 +132,7 @@ run "signers_for_an_unknown_attestor_are_rejected" {
   expect_failures = [google_binary_authorization_policy.this]
 }
 
-run "signers_get_attestation_permissions_not_verifier" {
+run "signers_get_attestor_scoped_permissions_and_declare_create_only_occurrences" {
   command = plan
 
   variables {
@@ -139,10 +144,15 @@ run "signers_get_attestation_permissions_not_verifier" {
   assert {
     condition = (
       google_container_analysis_note_iam_member.signer_attacher["build-attestor:serviceAccount:release@mc-development-platform.iam.gserviceaccount.com"].role == "roles/containeranalysis.notes.attacher" &&
-      google_project_iam_member.signer_occurrence_editor["serviceAccount:release@mc-development-platform.iam.gserviceaccount.com"].role == "roles/containeranalysis.occurrences.editor" &&
-      google_kms_crypto_key_iam_member.signer["build-attestor:serviceAccount:release@mc-development-platform.iam.gserviceaccount.com"].role == "roles/cloudkms.signerVerifier"
+      google_kms_crypto_key_iam_member.signer["build-attestor:serviceAccount:release@mc-development-platform.iam.gserviceaccount.com"].role == "roles/cloudkms.signerVerifier" &&
+      output.required_occurrence_permissions == toset([
+        "containeranalysis.occurrences.create",
+        "containeranalysis.occurrences.get",
+        "containeranalysis.occurrences.list",
+      ]) &&
+      !contains(output.signer_grants["build-attestor:serviceAccount:release@mc-development-platform.iam.gserviceaccount.com"].roles, "roles/containeranalysis.occurrences.editor")
     )
-    error_message = "A signer must be able to attach the note occurrence, create the occurrence, and sign with KMS."
+    error_message = "The module must scope note/key access and require only create/get/list occurrence permissions from the live caller."
   }
 }
 
