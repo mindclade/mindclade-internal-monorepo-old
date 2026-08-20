@@ -2,6 +2,7 @@
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 
+---
 kueue:
   enableCertManager: true
   enablePrometheus: false

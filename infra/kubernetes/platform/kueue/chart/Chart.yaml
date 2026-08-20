@@ -2,6 +2,7 @@
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 
+---
 apiVersion: v2
 name: mindclade-kueue
 description: Supply-chain-locked Kueue controller dependency for Mindclade clusters

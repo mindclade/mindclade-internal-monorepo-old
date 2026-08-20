@@ -2,6 +2,7 @@
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 
+---
 apiVersion: v2
 name: mindclade-jobset
 description: Supply-chain-locked JobSet controller dependency for Mindclade clusters

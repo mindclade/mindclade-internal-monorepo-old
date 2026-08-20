@@ -2,6 +2,7 @@
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 
+---
 jobset:
   commonLabels:
     app.kubernetes.io/part-of: mindclade-platform
