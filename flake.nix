@@ -105,11 +105,53 @@
             ccToolchain = import ./tools/build/nix/toolchains/cc.nix {
               inherit pkgs versions system;
             };
+            # nixpkgs builds Prometheus from source. On an uncached GitHub runner that made the
+            # Kubernetes lane spend more than twenty minutes compiling a Go server just to get
+            # its small `promtool` companion binary. Use Prometheus' upstream release payload
+            # with fixed hashes and install only the executable the validators invoke.
+            # The version assertion makes a nixpkgs bump request an explicit hash review rather
+            # than silently pairing a new manifest version with stale release bytes.
+            promtoolVersion = "3.13.2";
+            promtoolArtifact =
+              {
+                x86_64-linux = {
+                  platform = "linux-amd64";
+                  hash = "sha256-DoxNRhAb0CXqgmXjd9LKq8V/SI/Bvhw2fzfbaepBvm8=";
+                };
+                aarch64-linux = {
+                  platform = "linux-arm64";
+                  hash = "sha256-fOyxem9B1ZgU4aBYGh+B95BRrVlz0ezzniOp90fWVyo=";
+                };
+                aarch64-darwin = {
+                  platform = "darwin-arm64";
+                  hash = "sha256-9oyk8dvt1jZrv92KxdLAt7ofJzR0rMjTjrMyAvvux6Q=";
+                };
+              }
+              .${system};
+            promtoolBinary =
+              assert pkgs.prometheus.version == promtoolVersion;
+              pkgs.stdenvNoCC.mkDerivation {
+                pname = "promtool-bin";
+                version = promtoolVersion;
+                src = pkgs.fetchurl {
+                  url = "https://github.com/prometheus/prometheus/releases/download/v${promtoolVersion}/prometheus-${promtoolVersion}.${promtoolArtifact.platform}.tar.gz";
+                  inherit (promtoolArtifact) hash;
+                };
+                sourceRoot = "prometheus-${promtoolVersion}.${promtoolArtifact.platform}";
+                dontConfigure = true;
+                dontBuild = true;
+                installPhase = ''
+                  runHook preInstall
+                  install -Dm755 promtool "$out/bin/promtool"
+                  runHook postInstall
+                '';
+              };
           in
           fn {
             inherit
               ccToolchain
               pkgs
+              promtoolBinary
               rust
               system
               ;
@@ -120,6 +162,7 @@
       devShells = forAllSystems (
         {
           pkgs,
+          promtoolBinary,
           rust,
           ccToolchain,
           system,
@@ -177,16 +220,18 @@
               uv
             ])
             ++ rust.packages;
-          infraValidationPackages = with pkgs; [
-            conftest
-            kubeconform
-            kubernetes-helm
-            kustomize
-            prometheus.cli
-            python312
-            yamllint
-            yq-go
-          ];
+          infraValidationPackages =
+            with pkgs;
+            [
+              conftest
+              kubeconform
+              kubernetes-helm
+              kustomize
+              python312
+              yamllint
+              yq-go
+            ]
+            ++ [ promtoolBinary ];
         in
         {
           default = pkgs.mkShell {
@@ -270,7 +315,7 @@
                 nodejs_22
                 pnpm
                 protobuf
-                prometheus.cli
+                promtoolBinary
                 python312
                 python312Packages.mkdocs
                 ruff
@@ -313,7 +358,7 @@
                 buildifier
                 go
                 protobuf
-                prometheus.cli
+                promtoolBinary
                 python312
                 ruff
                 uv

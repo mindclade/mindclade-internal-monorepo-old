@@ -17,6 +17,12 @@ extends: default
 ignore-from-file: .gitignore
 
 rules:
+  # pnpm 11 treats a YAML document marker as an empty lockfile, so its generated lock is the
+  # sole YAML document that cannot carry the repository-wide `---` marker.
+  document-start:
+    present: true
+    ignore: |
+      pnpm-lock.yaml
   line-length: disable
   # The Kubernetes manifests use spaced flow mappings — `{ type: RuntimeDefault }` — which is
   # a deliberate readability choice and not a defect. yamllint's default forbids the inner

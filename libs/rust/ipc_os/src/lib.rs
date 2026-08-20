@@ -17,7 +17,9 @@ mod linux;
 pub use broker::{BulkBackend, BulkBufferBroker};
 #[cfg(target_os = "linux")]
 pub use linux::MemfdSegment;
-use mindclade_faults::{Code, Fault, FaultResult};
+use mindclade_faults::FaultResult;
+#[cfg(not(target_os = "linux"))]
+use mindclade_faults::{Code, Fault};
 use mindclade_worker_protocol::BufferDescriptor;
 
 /// Handle retained by the runtime host until every consumer releases a bulk

@@ -4,6 +4,7 @@
 #
 
 load("@rules_cc//cc:cc_test.bzl", "cc_test")
+load(":defs.bzl", "mindclade_cc_toolchain_config")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -16,6 +17,30 @@ cc_test(
     name = "smoke_test",
     srcs = ["smoke_test.cc"],
     visibility = ["//visibility:public"],
+)
+
+# Linux needs no host-specific default flags. Keep an in-repository analysis fixture for that
+# valid shape so a Darwin-only qualification cannot reintroduce an empty flag_group, which
+# rules_cc rejects before the first compile action runs.
+mindclade_cc_toolchain_config(
+    name = "empty_default_flags_config_fixture",
+    builtin_include_directories = ["/unused/include"],
+    compile_flags = [],
+    link_flags = [],
+    system = "x86_64-linux",
+    target_cpu = "k8",
+    target_triple = "x86_64-unknown-linux-gnu",
+    tools = {
+        "ar": "/bin/false",
+        "cpp": "/bin/false",
+        "cxx_linker": "/bin/false",
+        "gcc": "/bin/false",
+        "gcov": "/bin/false",
+        "ld": "/bin/false",
+        "nm": "/bin/false",
+        "objdump": "/bin/false",
+        "strip": "/bin/false",
+    },
 )
 
 filegroup(

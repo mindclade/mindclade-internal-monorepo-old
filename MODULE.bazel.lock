@@ -253,8 +253,8 @@
   "selectedYankedVersions": {},
   "moduleExtensions": {
     "//tools/build/bazel/extensions:infra_validation.bzl%infra_validation": {
-      "os:osx": {
-        "bzlTransitiveDigest": "2iPWUwFeuN6n5PQRkl/Qi1RroYvdv1FOjf8gmpJzlYU=",
+      "general": {
+        "bzlTransitiveDigest": "kPkAU8zYo43nZuPaR9aVbA3dRHjmUPYHsdWDRduBAS4=",
         "usagesDigest": "hDI9cgLqA5wD/5TR1JKFRj/Ad4bCyYKDEUeQyJERkpM=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
@@ -618,7 +618,7 @@
           "FILE:@@//services/workers/ingestion/Cargo.toml 41a8ef6551863728e154d46e45029042bdbdd6511d42d7aa7df021cc409e32ee",
           "FILE:@@//protocols/rust/Cargo.toml ef703fdc528938a0843c6acb2e62c5d6949ae511ebc901f4124dc4f95a664365",
           "FILE:@@//tools/qualification/rust/perf_probe/Cargo.toml 5551cf36298db8dc7a451221665529896ac586aaa1ed656bd1050fde80901126",
-          "FILE:@@//libs/rust/process_os/Cargo.toml 79dd975e8329c725966dec4dc2e8bc601b3c10e368d298673d793e86a9ac9e25"
+          "FILE:@@//libs/rust/process_os/Cargo.toml b7e850317c1754c2226b9b3649b19c9e72148bd3a2f45b7ba100190e9cc3716a"
         ],
         "generatedRepoSpecs": {
           "crates": {

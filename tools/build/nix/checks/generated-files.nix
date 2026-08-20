@@ -47,6 +47,7 @@ pkgs.runCommand "mindclade-generated-files"
     python_version = "${versions.python}"
     node_major = "${toString versions.nodeMajor}"
     pnpm_major = "${toString versions.pnpmMajor}"
+    pnpm = "${pkgs.pnpm.version}"
 
     failures: list[str] = []
 
@@ -134,13 +135,21 @@ pkgs.runCommand "mindclade-generated-files"
             elif node != f">={node_major}":
                 fail("package.json engines.node", f">={node_major}", node)
 
-            # corepack reads this to decide which pnpm to run, so it is the file that decides
-            # what a developer OUTSIDE the devShell gets against the same lockfile.
+            # Corepack reads this to decide which pnpm to run, and setup-pnpm uses the same
+            # value in CI. Keep it exact and equal to the Nix-resolved toolchain so all three
+            # paths interpret one lockfile with one pnpm release.
             manager = manifest.get("packageManager")
             if manager is None:
                 failures.append("  package.json\n      missing: packageManager")
-            elif manager != f"pnpm@{pnpm_major}":
-                fail("package.json packageManager", f"pnpm@{pnpm_major}", manager)
+            elif not pnpm.startswith(f"{pnpm_major}."):
+                failures.append(
+                    "  tools/build/nix/versions.nix pnpmMajor\n"
+                    f"      expected: {pnpm_major}.x\n"
+                    f"      actual:   {pnpm}\n"
+                    "      nixpkgs resolved a pnpm release outside the declared compatibility line"
+                )
+            elif manager != f"pnpm@{pnpm}":
+                fail("package.json packageManager", f"pnpm@{pnpm}", manager)
 
     # --- .github/workflows/*.yml ----------------------------------------------------------
     # The CI lanes pin their own toolchains, and those pins are the same compatibility surface

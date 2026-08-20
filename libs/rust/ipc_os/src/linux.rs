@@ -147,7 +147,7 @@ impl BulkSegment for MemfdSegment {
         let mut file = self.file.try_clone().map_err(|error| {
             Fault::new(Code::Unavailable, "failed to clone memfd descriptor").with_source(error)
         })?;
-        file.seek(SeekFrom::Start(self.descriptor.range.offset()))
+        file.seek(SeekFrom::Start(self.descriptor.range.start()))
             .map_err(|error| {
                 Fault::new(Code::Unavailable, "failed to seek memfd segment").with_source(error)
             })?;

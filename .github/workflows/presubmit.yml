@@ -79,6 +79,9 @@ jobs:
       # "go.mod requires go >= 1.26.0" and the gate that was supposed to catch it is the thing
       # that breaks.
       go-version: "1.26.6"
+      # The shared workflow's v2.6.2 default was compiled with Go 1.25 and refuses to analyze
+      # a module targeting Go 1.26. Pin the first validated release line built with Go 1.26.
+      golangci-lint-version: "v2.12.2"
       # The control plane is concurrent throughout — durable coordination, schedulers, event
       # dispatch. The race detector is the point of running tests here at all.
       race: true

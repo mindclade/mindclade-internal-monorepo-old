@@ -1,7 +1,27 @@
-# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
-# Mindclade Proprietary and Confidential.
-# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
+lockfileVersion: '9.0'
 
----
-# Scaffold configuration; promotion requires schema validation.
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .: {}
+
+  apps/admin: {}
+
+  apps/console: {}
+
+  libs/ts/api_client: {}
+
+  libs/ts/auth: {}
+
+  libs/ts/charts: {}
+
+  libs/ts/design_system: {}
+
+  libs/ts/molecular_viewer: {}
+
+  libs/ts/telemetry: {}
+
+  sdk/typescript: {}
