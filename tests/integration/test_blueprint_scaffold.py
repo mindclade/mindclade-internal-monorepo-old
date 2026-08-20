@@ -96,7 +96,34 @@ import pytest
 #        migrations owns that edit. Until then the gate would be red for a reason no reviewer
 #        of an unrelated pull request can act on, which is the exact failure mode this file's
 #        opening comment exists to prevent.
-MATERIALIZATION_BASELINE = 114
+#
+# LOWERED 114 -> 20 by the manifest reconciliation in 1a3b46c, which is the edit the note
+# directly above was waiting for. It did not materialize anything; it corrected the manifest to
+# the layout that shipped, so the two migrations named above stopped being counted as missing
+# work:
+#
+#   training/distributed/*        54 paths. d74b978 moved the flat modules into communication/,
+#                                 topology/, planning/{,plans/} and state_backends/ -- 53 git
+#                                 renames, most at similarity >= R082.
+#   libs/go/storage/outbox/*      21 paths. Outbox is Layer 2 in libs/go/LAYERS.md, beside
+#                                 inbox/leadership/workqueue, and imports retry, servicekit and
+#                                 storage/lease. A Layer-1 storage/ contract root may not, and
+#                                 check_go_layers.py enforces that -- so the manifest was
+#                                 naming a location the layering forbids.
+#   .buildkite/** (23)            the repository runs GitHub Actions; lane logic lives in ci/.
+#   .../store/postgres/*.go (3)   the three stubs described in the raise above.
+#   tests/pytest.ini (1)          left unmaterialized deliberately, per the opening comment.
+#   workflows/{gpu,nightly} (2)   waiting on self-hosted runners, per presubmit.yml.
+#   base/network-policies.yaml    relocated to policies/network-policies.yaml.
+#
+# The 20 that remain are real, and split two ways: 12 files nobody has written
+# (.github/ISSUE_TEMPLATE/* and four .github metadata files, infra/kubernetes/base/rbac.yaml),
+# and the rest gone missing under the in-flight libs/python restructuring, which belongs to
+# whoever owns that work -- that group is still moving, so re-measure before trusting a split.
+# This number is now a tight floor rather than 90 counts of slack. The assertion below is
+# two-sided on purpose: lower it as these close, and do not raise it without saying which
+# movement raised it.
+MATERIALIZATION_BASELINE = 20
 
 
 def _load_checker(root: Path):
