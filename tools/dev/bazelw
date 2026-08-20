@@ -51,9 +51,9 @@ fi
 cat >&2 <<'ERROR'
 error: neither bazelisk nor bazel is on PATH.
 
-Both dev shells in flake.nix provide bazelisk:
+The development shells in flake.nix provide bazelisk:
 
-    nix develop          # or: nix develop .#ci
+    tools/dev/nixw develop          # or: tools/dev/nixw develop .#ci
     direnv allow         # if you would rather have it on every shell in this tree
 
 CI installs it with bazel-contrib/setup-bazel, which reads .bazelversion the same way.

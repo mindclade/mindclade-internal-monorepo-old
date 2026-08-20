@@ -46,10 +46,10 @@ same Nix derivation
 ## Developer path
 
 ```bash
-nix develop .#default
+tools/dev/nixw develop .#default
 bazel test //...
 
-nix develop .#cuda --command bazel test --config=cuda //tests/...
+tools/dev/nixw develop .#gpu --command bazel test --config=cuda //tests/...
 ```
 
 This scaffold includes target files and checks; connected CI must populate and

@@ -174,14 +174,14 @@ stack. Therefore the artifact does **not** claim:
 Required connected closure:
 
 ```bash
-nix develop .#ci --command go mod tidy
-nix develop .#ci --command go test -race -count=1 ./libs/go/... ./control/... \
+tools/dev/nixw develop .#ci --command go mod tidy
+tools/dev/nixw develop .#ci --command go test -race -count=1 ./libs/go/... ./control/... \
   ./services/control_plane/... ./examples/go/...
-nix develop .#ci --command go vet ./libs/go/... ./control/... \
+tools/dev/nixw develop .#ci --command go vet ./libs/go/... ./control/... \
   ./services/control_plane/... ./examples/go/...
-nix develop .#ci --command bazel test //libs/go/... //control/... \
+tools/dev/nixw develop .#ci --command bazel test //libs/go/... //control/... \
   //services/control_plane/... //examples/go/...
-nix flake check
+tools/dev/nixw flake check
 ```
 
 Provider, security, performance, fault-injection, image, SBOM, provenance, and
@@ -219,4 +219,3 @@ foundation_freeze.py                         PASS (offline mode)
 ```
 
 The pinned Rust compiler is not available in this sandbox, and `Cargo.lock` remains an intentionally unresolved connected-lane artifact. Production promotion therefore still requires the repository-owned connected Rust lane to generate and commit the real lock and pass `cargo fmt`, workspace tests, Clippy, docs, cargo-deny, fuzz/Miri, measured performance, and provider-backed failure injection. No local claim substitutes for that evidence.
-

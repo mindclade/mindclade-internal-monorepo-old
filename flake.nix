@@ -98,28 +98,37 @@
           system,
           ...
         }:
+        let
+          standardShellHook = ''
+            export MINDCLADE_REPO_ROOT="$PWD"
+            export PYTHONNOUSERSITE=1
+          '';
+          defaultPackages =
+            (with pkgs; [
+              bazelisk
+              buildifier
+              buf
+              go
+              nodejs_22
+              pnpm
+              protobuf
+              python312
+              ruff
+              uv
+            ])
+            ++ rust.packages;
+        in
         {
           default = pkgs.mkShell {
-            packages =
-              with pkgs;
-              [
-                bazelisk
-                buildifier
-                buf
-                go
-                gotools
-                nodejs_22
-                pnpm
-                protobuf
-                python312
-                ruff
-                uv
-              ]
-              ++ rust.packages;
-            shellHook = ''
-              export MINDCLADE_REPO_ROOT="$PWD"
-              export PYTHONNOUSERSITE=1
-            '';
+            packages = defaultPackages;
+            shellHook = standardShellHook;
+          };
+          # The full golang.org/x/tools command suite is useful interactively but contributes
+          # hundreds of megabytes and is not used by repository automation. Keep it available
+          # without charging every default shell for it.
+          go-tools = pkgs.mkShell {
+            packages = defaultPackages ++ [ pkgs.gotools ];
+            shellHook = standardShellHook;
           };
           ci = pkgs.mkShell {
             # actionlint/shellcheck/yamllint feed the `lint` lane, terraform the `terraform`
@@ -137,7 +146,6 @@
                 buf
                 cargo-deny
                 go
-                gotools
                 nodejs_22
                 pnpm
                 protobuf
@@ -149,10 +157,7 @@
                 yamllint
               ]
               ++ rust.packages;
-            shellHook = ''
-              export MINDCLADE_REPO_ROOT="$PWD"
-              export PYTHONNOUSERSITE=1
-            '';
+            shellHook = standardShellHook;
           };
         }
         // nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
@@ -180,7 +185,6 @@
                 bazelisk
                 buildifier
                 go
-                gotools
                 protobuf
                 python312
                 ruff
@@ -199,10 +203,7 @@
                 libcublas
               ])
               ++ rust.packages;
-            shellHook = ''
-              export MINDCLADE_REPO_ROOT="$PWD"
-              export PYTHONNOUSERSITE=1
-
+            shellHook = standardShellHook + ''
               # nvcc finds the headers and the stub libraries through CUDA_PATH. Set here rather
               # than left to the caller because a missing CUDA_PATH produces "cannot find
               # -lcudart" at link time, which reads like a broken build file.
