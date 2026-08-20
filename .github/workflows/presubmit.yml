@@ -352,7 +352,11 @@ jobs:
   bazel:
     name: bazel graph, analysis, and tests
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    # A cold hosted runner compiles the complete C++/protobuf tool graph before running tests.
+    # The exact-head qualification reached 264 passing tests but hit the old 45-minute ceiling
+    # while that upstream tool graph was still compiling. Keep a bounded ceiling with enough
+    # room for a cold cache; the BEP/profile artifact makes regressions diagnosable.
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -409,6 +413,10 @@ jobs:
         run: |
           evidence="${RUNNER_TEMP}/bazel-evidence"
           mkdir -p "${evidence}"
+          # setup-bazel exports a short-lived download token. Bazel records every client env
+          # value in the raw BEP command metadata, which this job uploads as evidence, so the
+          # token must leave the environment before either evidence-producing invocation.
+          unset BAZELISK_GITHUB_TOKEN
           set +e
           nix develop .#ci-bazel --command tools/dev/bazelw build //... --nobuild --config=ci \
             --build_event_json_file="${evidence}/analysis.bep.json" \
@@ -430,6 +438,7 @@ jobs:
         run: |
           evidence="${RUNNER_TEMP}/bazel-evidence"
           mkdir -p "${evidence}"
+          unset BAZELISK_GITHUB_TOKEN
           set +e
           nix develop .#ci-bazel --command tools/dev/bazelw test //... --config=ci \
             --build_event_json_file="${evidence}/test.bep.json" \
