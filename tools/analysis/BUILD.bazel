@@ -8,6 +8,19 @@ load("//tools/build:pytest.bzl", "pytest_test")
 
 package(default_visibility = ["//visibility:private"])
 
+# No `data` for docs/blueprint/production-monorepo-paths.txt, and that is not an oversight. The
+# checker measures which blueprint paths exist in a real checkout; under `bazel run` its default
+# --root resolves into the runfiles tree, where only declared files are present, so declaring
+# the manifest would make it report against a tree containing the manifest and nothing else —
+# a confidently wrong coverage number instead of a missing-file error. Same shape as every
+# sibling checker here: run it against a checkout, or pass --root.
+py_binary(
+    name = "check_blueprint_scaffold",
+    srcs = ["check_blueprint_scaffold.py"],
+    main = "check_blueprint_scaffold.py",
+    visibility = ["//visibility:public"],
+)
+
 py_binary(
     name = "check_go_layers",
     srcs = ["check_go_layers.py"],
