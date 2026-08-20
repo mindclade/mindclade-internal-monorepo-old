@@ -69,7 +69,8 @@ let
   #     as a module source — a silent bump changes plan output in a DIFFERENT repository;
   #   * actionlint and shellcheck disagree across versions about which findings exist at all
   #     (SC2153, SC2015), so "passes locally, fails in CI" is a version question;
-  #   * cargo-deny's advisory verdicts move with its database and its own release line.
+  #   * cargo-deny and trivy security verdicts move with their databases and their own
+  #     release lines.
   ciTools = {
     actionlint = pkgs.actionlint.version;
     cargo-deny = pkgs.cargo-deny.version;
@@ -79,6 +80,7 @@ let
     kustomize = pkgs.kustomize.version;
     shellcheck = pkgs.shellcheck.version;
     terraform = pkgs.terraform.version;
+    trivy = pkgs.trivy.version;
     yamllint = pkgs.yamllint.version;
     yq = pkgs.yq-go.version;
   };
