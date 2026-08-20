@@ -326,13 +326,13 @@ jobs:
 
       - name: IaC security policy
         run: >-
-          nix develop .#ci --command checkov
-          --directory infra/terraform
-          --framework terraform
-          --compact
-          --quiet
-          --skip-download
-          --skip-path .terraform
+          nix develop .#ci --command trivy config
+          --disable-telemetry
+          --exit-code 1
+          --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
+          --skip-check-update
+          --skip-dirs '**/.terraform'
+          infra/terraform
 
       - name: test
         # -var-file=terraform.tfvars.example where one exists. Real terraform.tfvars is

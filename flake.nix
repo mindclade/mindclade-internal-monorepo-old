@@ -20,6 +20,19 @@
     }:
     let
       versions = import ./tools/build/nix/versions.nix;
+      # nixos-unstable can lag a Go security point release by a few days. Keep the
+      # compiler closure fail-closed during that window instead of allowing the
+      # dev shell to retain a standard library with reachable vulnerabilities.
+      # The source hash is for the upstream go1.26.6 release tarball.
+      goSecurityOverlay = final: prev: {
+        go = prev.go.overrideAttrs (_: {
+          version = "1.26.6";
+          src = final.fetchurl {
+            url = "https://go.dev/dl/go1.26.6.src.tar.gz";
+            hash = "sha256-oHIcVMaIkBRI13rZs+x+p8R0cwdV/4kTgukuy5P/LLE=";
+          };
+        });
+      };
       # x86_64-darwin is NOT here, and its absence is the fix rather than an oversight: nixpkgs
       # 26.11 — the revision flake.lock pins — dropped the platform outright, so every attribute
       # generated for it failed to evaluate with "Nixpkgs 26.11 has dropped support for
@@ -50,7 +63,10 @@
             # blanket form; this is the same decision made narrower.
             pkgs = import nixpkgs {
               inherit system;
-              overlays = [ rust-overlay.overlays.default ];
+              overlays = [
+                rust-overlay.overlays.default
+                goSecurityOverlay
+              ];
               config.allowUnfreePredicate =
                 pkg:
                 let
@@ -146,7 +162,6 @@
                 buildifier
                 buf
                 cargo-deny
-                checkov
                 conftest
                 go
                 kubeconform
@@ -161,6 +176,7 @@
                 shellcheck
                 terraform
                 tflint
+                trivy
                 uv
                 yamllint
                 yq-go
