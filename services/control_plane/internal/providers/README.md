@@ -61,6 +61,14 @@ reach a cluster. Its placement handler is a seam rather than a stub: with none
 injected the worker fails items closed, because a scheduler that acknowledges
 work it cannot place loses it silently.
 
+Singleton work is structurally lease-owned. Scheduler placement, ingestion
+staging, maintenance housekeeping, event projection, and the controller-runtime
+manager transfer their `Run` function to the leadership elector; the component
+registered at the work stage retains probes but has no independent run loop.
+Standby replicas therefore cannot perform singleton work. Lease loss is
+fail-stop for these single-use mechanisms so the pod restarts with fresh
+lifecycle state.
+
 The event projector is the only role that holds the projector mechanism, and
 the first to hold the inbox and cursors. Its event source and handler are one
 injected seam: what the event log is, and what applying an event does, are
@@ -100,7 +108,8 @@ its subsystems that the foundation already owns: leader election belongs to
 `coordination/leadership`, metrics to `observability`, and health probes to
 `servicekit`. Running both would mean two answers to the same question — a
 process can be leader by one lease and not the other. Its reconcilers are
-registered by domain code; the composition root owns the manager's lifetime.
+registered by domain code; the composition root owns the manager's lifetime
+through the foundation leadership handler.
 
 Every role is materialized. `bootstrap.UnconfiguredFactory` remains for a role
 added before its providers exist: its command starts, validates its profile,

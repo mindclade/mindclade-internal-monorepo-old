@@ -27,6 +27,7 @@ declare_bazel_layer_package_groups()
 # them would imply a dependency edge that does not exist.
 
 _GOVERNANCE = [
+    "AGENTS.md",
     "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md",
     "GOVERNANCE.md",

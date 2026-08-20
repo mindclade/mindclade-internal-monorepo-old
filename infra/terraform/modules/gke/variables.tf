@@ -180,13 +180,24 @@ variable "resource_labels" {
 }
 
 variable "release_channel" {
-  description = "Pinned GKE release channel for the NOVA v1 training substrate"
+  description = "GKE release channel: RAPID for the development canary or REGULAR for qualified staging, production, and control clusters"
   type        = string
   default     = "REGULAR"
 
   validation {
-    condition     = var.release_channel == "REGULAR"
-    error_message = "release_channel must remain REGULAR for the immutable NOVA v1 training platform tuple."
+    condition     = contains(["RAPID", "REGULAR"], var.release_channel)
+    error_message = "release_channel must be RAPID or REGULAR; STABLE and UNSPECIFIED bypass the approved canary-to-qualified promotion path."
+  }
+}
+
+variable "channel_policy" {
+  description = "Upgrade cohort paired with release_channel: CANARY is development-only RAPID; QUALIFIED is REGULAR"
+  type        = string
+  default     = "QUALIFIED"
+
+  validation {
+    condition     = contains(["CANARY", "QUALIFIED"], var.channel_policy)
+    error_message = "channel_policy must be CANARY or QUALIFIED."
   }
 }
 
@@ -250,6 +261,23 @@ variable "enable_backup_agent" {
   description = "Enable the Backup for GKE agent; backup plans, IAM, retention, and restore tests remain separate resources"
   type        = bool
   default     = true
+}
+
+variable "enable_secret_sync" {
+  description = "Enable the GKE Secret Manager SecretSync controller for workloads that require native Kubernetes Secret objects"
+  type        = bool
+  default     = false
+}
+
+variable "secret_sync_rotation_interval" {
+  description = "Rotation interval for GKE SecretSync; used only when enable_secret_sync is true"
+  type        = string
+  default     = "120s"
+
+  validation {
+    condition     = can(regex("^[1-9][0-9]*s$", var.secret_sync_rotation_interval)) && tonumber(trimsuffix(var.secret_sync_rotation_interval, "s")) >= 60
+    error_message = "secret_sync_rotation_interval must be at least 60 seconds and use the form 120s."
+  }
 }
 
 variable "database_encryption_key_name" {

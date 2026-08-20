@@ -53,6 +53,11 @@ type Config struct {
 	AcquireInterval        time.Duration
 	ReleaseTimeout         time.Duration
 	RequireLeaderReadiness bool
+	// ExitOnLeadershipLoss makes a lost lease terminal for this process. Use it
+	// when the handler owns a single-use runtime such as a workqueue worker,
+	// projector, or controller manager: those mechanisms cannot be restarted
+	// safely in the same process after their leadership context is canceled.
+	ExitOnLeadershipLoss bool
 }
 
 func (config Config) normalized() Config {
@@ -264,6 +269,9 @@ func (elector *Elector) Run(ctx context.Context) error {
 		}
 		if errors.Is(err, ErrLeadershipLost) || errors.Is(err, lease.ErrStale) || errors.Is(err, lease.ErrNotFound) {
 			elector.observe(Event{Kind: EventLost, Session: session, At: elector.clock.Now(), Err: err})
+			if elector.config.ExitOnLeadershipLoss {
+				return err
+			}
 			if sleepErr := elector.clock.Sleep(ctx, elector.config.AcquireInterval); sleepErr != nil {
 				return nil
 			}
@@ -272,6 +280,27 @@ func (elector *Elector) Run(ctx context.Context) error {
 		elector.release(value)
 		return err
 	}
+}
+
+// GateComponent transfers ownership of component.Run to a leadership Handler.
+// The returned component retains startup, shutdown, and health hooks, but has
+// no independent Run loop; the elector is therefore the only path that can
+// start the work. This prevents standby replicas from doing singleton work
+// while still registering the component at its canonical servicekit stage.
+func GateComponent(component servicekit.Component) (Handler, servicekit.Component, error) {
+	if strings.TrimSpace(component.Name) == "" || component.Run == nil {
+		return nil, servicekit.Component{}, invalid(
+			"invalid_leader_managed_component",
+			"leader-managed component requires a name and run function",
+			"leadership.GateComponent",
+		)
+	}
+	run := component.Run
+	component.Run = nil
+	handler := func(ctx context.Context, _ Session) error {
+		return run(ctx)
+	}
+	return handler, component, nil
 }
 
 func (elector *Elector) acquire(ctx context.Context) (lease.Lease, error) {

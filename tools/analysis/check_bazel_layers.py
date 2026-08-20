@@ -325,6 +325,7 @@ def query_graph(repo: Path, bazel: Path) -> str:
         "--output=xml",
         "--noimplicit_deps",
         "--order_output=no",
+        "--lockfile_mode=error",
         "--curses=no",
         "--color=no",
     ]

@@ -1,0 +1,86 @@
+{
+  "apiVersion": "batch/v1",
+  "kind": "Job",
+  "metadata": {
+    "name": "mindclade-foundation-qualification-cpu",
+    "namespace": "mindclade-qualification",
+    "labels": {
+      "app.kubernetes.io/component": "foundation-qualification",
+      "app.kubernetes.io/name": "mindclade-foundation-qualification",
+      "mindclade.dev/qualification-contract": "gke-foundation-v1",
+      "mindclade.dev/qualification-profile": "cpu",
+      "mindclade.dev/workload-class": "foundation-qualification"
+    },
+    "annotations": {
+      "mindclade.dev/activation-requirements": "external-gitops-real-image-measured-quota-and-signed-request"
+    }
+  },
+  "spec": {
+    "activeDeadlineSeconds": 900,
+    "backoffLimit": 0,
+    "suspend": true,
+    "ttlSecondsAfterFinished": 86400,
+    "template": {
+      "metadata": {
+        "labels": {
+          "app.kubernetes.io/component": "foundation-qualification",
+          "app.kubernetes.io/name": "mindclade-foundation-qualification",
+          "mindclade.dev/qualification-contract": "gke-foundation-v1",
+          "mindclade.dev/qualification-profile": "cpu",
+          "mindclade.dev/workload-class": "foundation-qualification"
+        }
+      },
+      "spec": {
+        "automountServiceAccountToken": false,
+        "containers": [
+          {
+            "name": "qualification",
+            "image": "registry.invalid/mindclade/foundation-gke-qualification@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "imagePullPolicy": "IfNotPresent",
+            "command": ["/opt/mindclade/bin/release-hardware-qualification"],
+            "args": ["--profile", "cpu", "--scratch", "/scratch", "--require-complete", "--contract", "gke-foundation-v1"],
+            "resources": {
+              "requests": {
+                "cpu": "1",
+                "memory": "1Gi",
+                "ephemeral-storage": "2Gi"
+              },
+              "limits": {
+                "cpu": "2",
+                "memory": "2Gi",
+                "ephemeral-storage": "4Gi"
+              }
+            },
+            "securityContext": {
+              "allowPrivilegeEscalation": false,
+              "capabilities": {"drop": ["ALL"]},
+              "readOnlyRootFilesystem": true,
+              "runAsNonRoot": true,
+              "runAsGroup": 65532,
+              "runAsUser": 65532
+            },
+            "volumeMounts": [{"name": "scratch", "mountPath": "/scratch"}]
+          }
+        ],
+        "nodeSelector": {
+          "mindclade.dev/capacity-type": "on-demand",
+          "mindclade.dev/node-pool": "cpu",
+          "mindclade.dev/workload-profile": "general-purpose"
+        },
+        "restartPolicy": "Never",
+        "securityContext": {
+          "fsGroup": 65532,
+          "fsGroupChangePolicy": "OnRootMismatch",
+          "runAsNonRoot": true,
+          "runAsGroup": 65532,
+          "runAsUser": 65532,
+          "seccompProfile": {"type": "RuntimeDefault"}
+        },
+        "serviceAccountName": "mindclade-foundation-qualification",
+        "terminationGracePeriodSeconds": 60,
+        "volumes": [{"name": "scratch", "emptyDir": {"sizeLimit": "4Gi"}}]
+      }
+    }
+  }
+}
+

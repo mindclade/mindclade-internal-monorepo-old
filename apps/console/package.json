@@ -1,10 +1,25 @@
 {
   "name": "@mindclade/apps-console",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
+  "dependencies": {
+    "@mindclade/libs-ts-api-client": "workspace:*",
+    "@mindclade/libs-ts-charts": "workspace:*",
+    "@mindclade/libs-ts-design-system": "workspace:*",
+    "@mindclade/libs-ts-molecular-viewer": "workspace:*",
+    "@mindclade/libs-ts-telemetry": "workspace:*",
+    "@mindclade/sdk-typescript": "workspace:*",
+    "next": "16.3.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
   "scripts": {
-    "build": "echo scaffold",
-    "test": "echo scaffold"
+    "build": "next build",
+    "dev": "next dev",
+    "lint": "next typegen && tsc -p tsconfig.json --noEmit",
+    "start": "next start",
+    "test": "tsx --test tests/**/*.test.tsx",
+    "typecheck": "next typegen && tsc -p tsconfig.json --noEmit"
   }
 }

@@ -177,25 +177,6 @@ func (factory *IngestionFactory) Create(ctx context.Context, profile bootstrap.P
 		return bootstrap.Runtime{}, err
 	}
 
-	elector, err := leadership.New(
-		leases,
-		leadership.Config{
-			Key:                    key,
-			Owner:                  owner,
-			TTL:                    leaseTTL,
-			RenewInterval:          leaseRenewInterval,
-			AcquireInterval:        leaseAcquireInterval,
-			ReleaseTimeout:         leaseReleaseTimeout,
-			RequireLeaderReadiness: leaderReadinessRequired,
-		},
-		holdLeadership,
-		leadership.WithClock(shared.Clock),
-		leadership.WithRetry(shared.Retry),
-	)
-	if err != nil {
-		return bootstrap.Runtime{}, err
-	}
-
 	handler := factory.staging
 	if handler == nil {
 		handler = workqueue.HandlerFunc(refuseStaging)
@@ -215,6 +196,31 @@ func (factory *IngestionFactory) Create(ctx context.Context, profile bootstrap.P
 		},
 		workqueue.WithClock(shared.Clock),
 		workqueue.WithRetry(shared.Retry),
+	)
+	if err != nil {
+		return bootstrap.Runtime{}, err
+	}
+	leaderHandler, workerComponent, err := leadership.GateComponent(
+		worker.Component("worker/" + stagingWorker),
+	)
+	if err != nil {
+		return bootstrap.Runtime{}, err
+	}
+	elector, err := leadership.New(
+		leases,
+		leadership.Config{
+			Key:                    key,
+			Owner:                  owner,
+			TTL:                    leaseTTL,
+			RenewInterval:          leaseRenewInterval,
+			AcquireInterval:        leaseAcquireInterval,
+			ReleaseTimeout:         leaseReleaseTimeout,
+			RequireLeaderReadiness: leaderReadinessRequired,
+			ExitOnLeadershipLoss:   true,
+		},
+		leaderHandler,
+		leadership.WithClock(shared.Clock),
+		leadership.WithRetry(shared.Retry),
 	)
 	if err != nil {
 		return bootstrap.Runtime{}, err
@@ -280,7 +286,7 @@ func (factory *IngestionFactory) Create(ctx context.Context, profile bootstrap.P
 			},
 			tasks.Mechanisms{
 				Queue:   queue,
-				Workers: map[string]*workqueue.Worker{stagingWorker: worker},
+				Workers: map[string]servicekit.Component{stagingWorker: workerComponent},
 			},
 			// The cursor without the projector: this role tracks its position
 			// in each source it reads, but it does not project an ordered event
@@ -322,14 +328,6 @@ func refuseStaging(context.Context, workqueue.Item) (workqueue.Result, error) {
 		faults.WithOperation("controlplane.ingestion.refuseStaging"),
 		faults.WithRetryPolicy(faults.NoRetry()),
 	)
-}
-
-// holdLeadership is the elector's handler. The staging worker runs as its own
-// lifecycle component, so this holds the lease and returns when leadership is
-// lost or the process is shutting down.
-func holdLeadership(ctx context.Context, _ leadership.Session) error {
-	<-ctx.Done()
-	return ctx.Err()
 }
 
 // leaseOwner identifies this process instance to the lease store. The hostname

@@ -1,7 +1,27 @@
+---
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
-
----
-# Scaffold configuration; promotion requires schema validation.
+# Closed target catalog. A release request selects a name; it cannot inject commands, labels,
+# registry locations, attestors, or service accounts.
+schemaVersion: 1
+targets:
+  go-vanity:
+    imageRepository: releases/go-vanity
+    imageTarget: //services/go_vanity:image
+    pushTarget: //services/go_vanity:push
+    qualification:
+      - tools/dev/bazelw
+      - test
+      - //services/go_vanity/...
+      - --config=ci
+  weights-fixture:
+    imageRepository: releases/weights-fixture
+    imageTarget: //models/reference/weights_fixture:fixture_image
+    pushTarget: //models/reference/weights_fixture:fixture_push
+    qualification:
+      - tools/dev/bazelw
+      - build
+      - //models/reference/weights_fixture:fixture_image
+      - --config=ci

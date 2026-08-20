@@ -11,8 +11,12 @@ Managed Service for Prometheus, cost allocation, deletion protection, and manage
 CSI/backup agents. Restricted-data clusters require application-layer Kubernetes
 Secrets encryption with Cloud KMS.
 
-The current source qualification tuple pins the Regular channel at
-`1.36.2-gke.2064000` for the control plane and initial system node version.
+The environment channel policy uses a development-only `RAPID`/`CANARY` cohort and
+`REGULAR`/`QUALIFIED` for staging, production, and control clusters. This exposes an upgrade in
+development without placing production on a different slower channel than staging. The current
+source baseline sets `1.36.2-gke.2064000` as the minimum control-plane and initial system-node
+version; connected planning must verify that baseline is still available in the selected region and
+channel before any apply.
 The Cloud Storage FUSE CSI driver defaults off: NOVA training uses
 generation-bound object APIs and must not mount checkpoint storage through
 GCS Fuse. Changing either value requires a new immutable platform lock and

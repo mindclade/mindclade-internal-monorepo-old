@@ -34,7 +34,8 @@ func TestManagerRegistersAWorkStageComponent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cluster := Cluster{Manager: runtime}
+	component := runtime.Component(ManagerComponent)
+	cluster := Cluster{Manager: &component}
 
 	capabilities := cluster.Capabilities()
 	if len(capabilities) != 1 || capabilities[0] != production.CapabilityKubernetesManager {

@@ -4,6 +4,18 @@ All notable changes to the repository architecture and released implementation
 surfaces are recorded here. Individual model, dataset, runtime, and service
 releases also carry immutable release manifests and evidence bundles.
 
+## 2026-08-20 — Bazel graph production hardening
+
+- retained the qualified Bazel 9.1.1/ruleset graph after testing the current LTS minor and
+  finding that its lock-format migration could not be regenerated in the available environment;
+- made every CI loading, layering, toolchain-selection, affected-test, and qualification
+  invocation read the committed module lock without updating it;
+- centralized noninteractive output under `--config=ci`, routed repository and documentation
+  commands through `tools/dev/bazelw`, and added regression assertions for those contracts.
+
+This is local build-graph qualification, not remote-execution, connected-provider, artifact
+publication, deployment, or production-promotion evidence.
+
 ## 2026-08-20 — Terraform v0.3.0 candidate
 
 - removed the Binary Authorization module's project-wide

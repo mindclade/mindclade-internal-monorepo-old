@@ -1,0 +1,67 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+schema_version: 1
+repository: mindclade-internal-monorepo
+repository_class: source-monorepo
+visibility: internal
+github:
+  enterprise_url: https://github.com/enterprises/mindclade
+  organization_url: https://github.com/mindclade
+  repository_index_url: https://github.com/orgs/mindclade/repositories
+  repository_url: https://github.com/mindclade/mindclade-internal-monorepo
+authority:
+  - application-source
+  - platform-source
+  - model-source
+  - training-source
+  - data-source
+  - serving-source
+  - sdk-source
+  - bazel-build-graph
+  - qualification-policy
+  - release-artifact-definitions
+forbidden_authority:
+  - github-enterprise-desired-state
+  - cloud-resource-desired-state
+  - kubernetes-desired-state
+  - production-environment-image-selection
+  - production-deployment
+  - production-secrets
+required_paths:
+  - AGENTS.md
+  - MODULE.bazel
+  - flake.nix
+  - components.toml
+  - apps
+  - control
+  - data
+  - evaluation
+  - models
+  - preprocessing
+  - protocols
+  - sdk
+  - services
+  - serving
+  - training
+  - ci
+  - tools
+  - QUALIFICATION.md
+  - REPOSITORY_STATUS.md
+  - .github/workflows/presubmit.yml
+  - .github/workflows/release.yml
+forbidden_paths:
+  - .terraform
+  - .terragrunt-cache
+  - credentials
+default_branch: main
+change_model: pull-request
+production_controls:
+  required_reviews: true
+  codeowners: true
+  merge_queue: true
+  immutable_actions: true
+  oidc_only_cloud_authentication: true

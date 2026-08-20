@@ -163,25 +163,6 @@ func (factory *Factory) Create(ctx context.Context, profile bootstrap.Profile) (
 		return bootstrap.Runtime{}, err
 	}
 
-	elector, err := leadership.New(
-		leases,
-		leadership.Config{
-			Key:                    key,
-			Owner:                  owner,
-			TTL:                    leaseTTL,
-			RenewInterval:          leaseRenewInterval,
-			AcquireInterval:        leaseAcquireInterval,
-			ReleaseTimeout:         leaseReleaseTimeout,
-			RequireLeaderReadiness: leaderReadinessRequired,
-		},
-		holdLeadership,
-		leadership.WithClock(shared.Clock),
-		leadership.WithRetry(shared.Retry),
-	)
-	if err != nil {
-		return bootstrap.Runtime{}, err
-	}
-
 	publisher, brokerLifecycle, err := broker.NewPublisher(settings, shared.Clock)
 	if err != nil {
 		return bootstrap.Runtime{}, err
@@ -200,6 +181,31 @@ func (factory *Factory) Create(ctx context.Context, profile bootstrap.Profile) (
 	// because a manager whose cache has gone stale is still running: asking
 	// the API server directly is what distinguishes the two.
 	managerRuntime, err := controller.NewManagerRuntime(manager, kubernetes.Readiness)
+	if err != nil {
+		return bootstrap.Runtime{}, err
+	}
+	leaderHandler, managerComponent, err := leadership.GateComponent(
+		managerRuntime.Component(orchestration.ManagerComponent),
+	)
+	if err != nil {
+		return bootstrap.Runtime{}, err
+	}
+	elector, err := leadership.New(
+		leases,
+		leadership.Config{
+			Key:                    key,
+			Owner:                  owner,
+			TTL:                    leaseTTL,
+			RenewInterval:          leaseRenewInterval,
+			AcquireInterval:        leaseAcquireInterval,
+			ReleaseTimeout:         leaseReleaseTimeout,
+			RequireLeaderReadiness: leaderReadinessRequired,
+			ExitOnLeadershipLoss:   true,
+		},
+		leaderHandler,
+		leadership.WithClock(shared.Clock),
+		leadership.WithRetry(shared.Retry),
+	)
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}
@@ -259,7 +265,7 @@ func (factory *Factory) Create(ctx context.Context, profile bootstrap.Profile) (
 			orchestration.Cluster{
 				Client:  manager.GetClient(),
 				Events:  publications,
-				Manager: managerRuntime,
+				Manager: &managerComponent,
 			},
 			eventing.Mechanisms{
 				Publisher: publisher,
@@ -272,14 +278,6 @@ func (factory *Factory) Create(ctx context.Context, profile bootstrap.Profile) (
 			},
 		},
 	}, nil
-}
-
-// holdLeadership is the elector's handler. The reconcilers themselves are
-// registered with the manager by domain code, so this holds the lease and
-// returns when leadership is lost or the process is shutting down.
-func holdLeadership(ctx context.Context, _ leadership.Session) error {
-	<-ctx.Done()
-	return ctx.Err()
 }
 
 // leaseOwner identifies this process instance to the lease store. The hostname

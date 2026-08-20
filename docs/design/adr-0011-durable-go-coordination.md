@@ -24,6 +24,14 @@ failure recovery.
 - `workqueue`: fenced claims, heartbeat, cancellation, retry, and dead letter;
 - `leadership`: lease-backed singleton authority with fencing.
 
+When a role declares singleton authority, the elector owns the active
+component's `Run` loop through `leadership.GateComponent`; the same loop must
+not also be started independently by `servicekit`. Standby replicas retain
+health probes and lifecycle hooks but execute no singleton work. Components
+whose run loop is single-use set `ExitOnLeadershipLoss`, so loss cancels the
+work and terminates the process for a clean restart instead of attempting to
+reuse a canceled worker, projector, or controller manager.
+
 Memory/conformance adapters support tests. PostgreSQL adapters are the default
 authoritative production persistence. Domain schemas, event meaning, workflow
 policy, and handlers remain with their consumers.
@@ -34,6 +42,10 @@ policy, and handlers remain with their consumers.
 - Projector effects, inbox completion, and cursor advancement can be atomic.
 - Stale workers/leaders cannot commit after replacement when consumers enforce
   the returned fence.
+- Standby singleton roles cannot process queue items, projections, or
+  reconciliations before acquiring their lease.
+- A leader that cannot renew fails closed and is restarted; Kubernetes process
+  supervision, rather than an in-process second run, owns recovery.
 - Outbox, inbox, work queue, and broker delivery remain distinct mechanisms.
 
 ## Rejected alternatives
@@ -46,4 +58,5 @@ and claims of exactly-once delivery were rejected.
 Go architecture checks reject promoted service-local replacements. Role
 capability profiles distinguish stores from active dispatchers/workers.
 Conformance and failure-injection tests cover duplicates, stale tokens, lease
-loss, retry exhaustion, transaction rollback, and bounded shutdown.
+loss, fail-stop leader-managed components, retry exhaustion, transaction
+rollback, and bounded shutdown.

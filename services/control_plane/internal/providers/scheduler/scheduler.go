@@ -190,6 +190,12 @@ func (factory *SchedulerFactory) Create(ctx context.Context, profile bootstrap.P
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}
+	leaderHandler, workerComponent, err := leadership.GateComponent(
+		worker.Component("worker/" + placementWorker),
+	)
+	if err != nil {
+		return bootstrap.Runtime{}, err
+	}
 
 	elector, err := leadership.New(
 		leases,
@@ -201,8 +207,9 @@ func (factory *SchedulerFactory) Create(ctx context.Context, profile bootstrap.P
 			AcquireInterval:        leaseAcquireInterval,
 			ReleaseTimeout:         leaseReleaseTimeout,
 			RequireLeaderReadiness: leaderReadinessRequired,
+			ExitOnLeadershipLoss:   true,
 		},
-		holdLeadership,
+		leaderHandler,
 		leadership.WithClock(shared.Clock),
 		leadership.WithRetry(shared.Retry),
 	)
@@ -270,7 +277,7 @@ func (factory *SchedulerFactory) Create(ctx context.Context, profile bootstrap.P
 			},
 			tasks.Mechanisms{
 				Queue:   queue,
-				Workers: map[string]*workqueue.Worker{placementWorker: worker},
+				Workers: map[string]servicekit.Component{placementWorker: workerComponent},
 			},
 			orchestration.Cluster{
 				Client: kubernetes.Client,
@@ -294,15 +301,6 @@ func (factory *SchedulerFactory) Create(ctx context.Context, profile bootstrap.P
 			},
 		},
 	}, nil
-}
-
-// holdLeadership is the elector's handler. The scheduler's actual placement
-// loop is domain policy and is not assembled in a composition root, so this
-// holds the lease and returns when leadership is lost or the process is
-// shutting down. Replacing it is a domain change, not a provider change.
-func holdLeadership(ctx context.Context, _ leadership.Session) error {
-	<-ctx.Done()
-	return ctx.Err()
 }
 
 // refusePlacement is the default placement handler. Scheduling policy is

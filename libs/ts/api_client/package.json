@@ -1,10 +1,21 @@
 {
   "name": "@mindclade/libs-ts-api-client",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@mindclade/sdk-typescript": "workspace:*"
+  },
   "scripts": {
-    "build": "echo scaffold",
-    "test": "echo scaffold"
+    "build": "tsc -p tsconfig.json",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test tests/**/*.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }

@@ -147,6 +147,12 @@ enqueue immutable item
 `coordination/leadership` adapts `storage/lease` into a service-managed elector.
 Domain code observes leadership; it does not own election goroutines.
 
+For singleton roles, `leadership.GateComponent` moves the worker, projector, or
+manager `Run` loop into the elector handler. The work-stage component keeps its
+health probes but cannot execute independently on a standby. Loss of a lease is
+terminal for these single-use loops; Kubernetes restarts the process rather
+than the process attempting to reuse canceled lifecycle state.
+
 The controller and operator run the controller-runtime manager with its own
 leader election switched off. Singleton authority is the foundation lease, and
 a process holding two elections can be leader by one and not the other.

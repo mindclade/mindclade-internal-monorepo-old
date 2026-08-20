@@ -14,6 +14,14 @@ locals {
   kms_key_location = var.kms_key_name == null ? null : split("/", var.kms_key_name)[3]
 }
 
+resource "google_kms_crypto_key_iam_member" "artifact_registry" {
+  count = var.kms_key_name == null ? 0 : 1
+
+  crypto_key_id = var.kms_key_name
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  member        = "serviceAccount:service-${var.project_number}@gcp-sa-artifactregistry.iam.gserviceaccount.com"
+}
+
 resource "google_artifact_registry_repository" "this" {
   project       = var.project_id
   location      = var.location
@@ -68,5 +76,13 @@ resource "google_artifact_registry_repository" "this" {
       condition     = var.kms_key_name == null || local.kms_key_location == var.location
       error_message = "kms_key_name must use the same location as the Artifact Registry repository."
     }
+
+    precondition {
+      condition     = var.kms_key_name == null || var.project_number != null
+      error_message = "A CMEK repository requires project_number so the exact Artifact Registry service agent can use the key."
+    }
   }
+
+
+  depends_on = [google_kms_crypto_key_iam_member.artifact_registry]
 }

@@ -17,8 +17,9 @@
 #
 # WHY A WRAPPER RATHER THAN CALLING bazel DIRECTLY. Three reasons, and none is style:
 #
-#   1. .bazelversion pins 9.1.1. bazelisk reads the pin and fetches the right launcher; this
-#      script prefers it, so an unrelated host Bazel cannot silently own the build graph.
+#   1. .bazelversion pins an exact Bazel release. bazelisk reads the pin and fetches the right
+#      launcher; this script prefers it, so an unrelated host Bazel cannot silently own the
+#      build graph.
 #   2. Bazel resolves the workspace from the working directory. `pipeline.py` already passes
 #      cwd=REPO, but a person running this from a subdirectory should get the same build, so
 #      the cd here is not redundant with that.

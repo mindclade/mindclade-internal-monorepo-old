@@ -214,6 +214,13 @@ Use `coordination/leadership` over `storage/lease`. The handler receives a
 leader could otherwise commit after replacement. Register the elector's
 component with `servicekit/production`, not as a detached goroutine.
 
+For a servicekit component that must run only on the leader, pass it through
+`leadership.GateComponent`, give the returned handler to the elector, and
+register the returned probe/lifecycle component at its normal production
+stage. Set `ExitOnLeadershipLoss` for single-use loops. Never register the
+original component as well: that starts the work on standby replicas and makes
+the lease a readiness signal rather than an authority boundary.
+
 ## Strict configuration
 
 Define a finite field schema, layer explicit sources, reject unknown keys,

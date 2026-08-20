@@ -16,6 +16,7 @@ import (
 	foundationconfig "go.mindclade.dev/libs/go/config"
 	"go.mindclade.dev/libs/go/faults"
 	"go.mindclade.dev/services/control_plane/internal/bootstrap"
+	"go.mindclade.dev/services/control_plane/internal/foundation/orchestration"
 )
 
 // A kubeconfig pointing at an address nothing listens on. Construction must
@@ -128,6 +129,28 @@ func TestControllerHoldsTheKubernetesManager(t *testing.T) {
 	if !found {
 		t.Fatal("controller composed no Kubernetes manager")
 	}
+}
+
+func TestControllerManagerHasNoStandbyRunLoop(t *testing.T) {
+	profile, err := bootstrap.ProfileFor(bootstrap.RoleController)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime, err := NewControllerFactory(controllerSettings(t)).Create(context.Background(), profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, dependency := range runtime.Dependencies {
+		cluster, ok := dependency.(orchestration.Cluster)
+		if !ok || cluster.Manager == nil {
+			continue
+		}
+		if cluster.Manager.Run != nil {
+			t.Fatal("controller manager can run independently of leadership")
+		}
+		return
+	}
+	t.Fatal("controller manager component was not composed")
 }
 
 // One database holds every adapter's tables and the registry role owns their

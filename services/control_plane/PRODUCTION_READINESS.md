@@ -91,3 +91,8 @@ successful work.
 - The control-plane failure matrix names database loss, transaction rollback,
   lease loss, duplicate replay, and retry exhaustion explicitly; CI executes
   the control-plane subset rather than accepting placeholder scenarios.
+- Singleton work loops are bound to the foundation leadership handler. Unit
+  tests prove standby scheduler, projector, and controller components have no
+  independent `Run` path, and lease-loss tests prove configured electors fail
+  stop rather than reusing a canceled loop. Connected multi-replica failover
+  and stale-leader rejection remain required before any held role is promoted.

@@ -118,8 +118,9 @@ documentation, and ownership routes.
 Run the same gates locally with:
 
 ```bash
-nix develop .#ci --command python3 tools/analysis/check_bazel_layers.py
-nix develop .#ci --command tools/dev/bazelw build //... --nobuild --config=ci
+tools/dev/nixw develop .#ci-bazel --command python3 tools/analysis/check_bazel_layers.py
+tools/dev/nixw develop .#ci-bazel --command \
+  tools/dev/bazelw build //... --nobuild --config=ci
 ```
 
 ## Deprecated Rust compatibility paths

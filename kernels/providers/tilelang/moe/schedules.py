@@ -1,14 +1,20 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
-"""Scaffold boundary for kernels/providers/tilelang/moe/schedules.py.
+"""Padded expert-major grouped-GEMM schedule contract."""
 
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+from kernels.providers.tilelang.fp8.schedules import GemmSchedule
 
-from __future__ import annotations
+GroupedGemmSchedule = GemmSchedule
 
-SCAFFOLD_PATH: str = "kernels/providers/tilelang/moe/schedules.py"
+
+def candidate_schedules(dtype: str) -> tuple[GroupedGemmSchedule, ...]:
+    return tuple(
+        GroupedGemmSchedule(m, n, 32, threads, stages, dtype, dtype)
+        for m, n, threads, stages in (
+            (32, 64, 128, 1),
+            (64, 64, 128, 2),
+            (64, 128, 256, 3),
+        )
+    )

@@ -17,6 +17,7 @@ import (
 	"go.mindclade.dev/libs/go/faults"
 	"go.mindclade.dev/libs/go/idempotency"
 	"go.mindclade.dev/services/control_plane/internal/bootstrap"
+	foundationprojection "go.mindclade.dev/services/control_plane/internal/foundation/projection"
 )
 
 func projectorSettings() foundationconfig.MapSource {
@@ -50,6 +51,32 @@ func TestProjectorFactoryBuildsThroughProductionLifecycle(t *testing.T) {
 	if service == nil || service.Service() == nil {
 		t.Fatal("production runtime was not assembled")
 	}
+}
+
+func TestProjectorHasNoStandbyRunLoop(t *testing.T) {
+	profile, err := bootstrap.ProfileFor(bootstrap.RoleEventProjector)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime, err := NewProjectorFactory(projectorSettings()).Create(context.Background(), profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, dependency := range runtime.Dependencies {
+		mechanisms, ok := dependency.(foundationprojection.Mechanisms)
+		if !ok {
+			continue
+		}
+		component, found := mechanisms.Projectors[projectionName]
+		if !found {
+			t.Fatal("projector component was not composed")
+		}
+		if component.Run != nil {
+			t.Fatal("projector can run independently of leadership")
+		}
+		return
+	}
+	t.Fatal("projection mechanisms were not composed")
 }
 
 // The projector consumes. It serves no transport, reaches no cluster, records

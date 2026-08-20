@@ -16,7 +16,7 @@ import (
 
 type Mechanisms struct {
 	Queue   workqueue.Store
-	Workers map[string]*workqueue.Worker
+	Workers map[string]servicekit.Component
 }
 
 func (mechanisms Mechanisms) declarations() []foundation.Declaration {
@@ -26,11 +26,10 @@ func (mechanisms Mechanisms) declarations() []foundation.Declaration {
 	// Workers are registered by name in stable order so a process assembles the
 	// same way on every start.
 	for _, name := range foundation.SortedKeys(mechanisms.Workers) {
-		worker := mechanisms.Workers[name]
-		if worker == nil {
+		component := mechanisms.Workers[name]
+		if component.Name == "" {
 			continue
 		}
-		component := worker.Component("worker/" + name)
 		declarations = append(declarations, foundation.Declaration{
 			Capability: production.CapabilityWorkQueueWorker,
 			Present:    true,

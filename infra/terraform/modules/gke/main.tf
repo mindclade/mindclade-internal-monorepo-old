@@ -139,6 +139,19 @@ resource "google_container_cluster" "this" {
     enabled = true
   }
 
+  secret_sync_config {
+    enabled = var.enable_secret_sync
+
+    dynamic "rotation_config" {
+      for_each = var.enable_secret_sync ? [var.secret_sync_rotation_interval] : []
+
+      content {
+        enabled           = true
+        rotation_interval = rotation_config.value
+      }
+    }
+  }
+
   vertical_pod_autoscaling {
     enabled = true
   }
@@ -211,8 +224,17 @@ resource "google_container_cluster" "this" {
     }
 
     precondition {
-      condition     = var.release_channel == "REGULAR" && var.kubernetes_version == "1.36.2-gke.2064000"
-      error_message = "The NOVA v1 training substrate is qualified only for GKE Regular 1.36.2-gke.2064000; update the immutable platform lock and qualification evidence before changing it."
+      condition = (
+        var.channel_policy == "CANARY" ?
+        (var.environment == "development" && var.release_channel == "RAPID") :
+        var.release_channel == "REGULAR"
+      )
+      error_message = "CANARY requires the development environment on RAPID; QUALIFIED requires REGULAR."
+    }
+
+    precondition {
+      condition     = var.kubernetes_version == "1.36.2-gke.2064000"
+      error_message = "The source baseline remains 1.36.2-gke.2064000; connected qualification must confirm current channel availability before apply."
     }
   }
 

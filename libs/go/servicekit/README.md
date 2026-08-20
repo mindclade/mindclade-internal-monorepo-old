@@ -282,7 +282,7 @@ The result includes Go version, main module, VCS, revision, dirty-tree status, a
 ## Bazel
 
 ```bash
-bazel test //libs/go/servicekit:servicekit_test
+tools/dev/bazelw test //libs/go/servicekit:servicekit_test --config=ci
 ```
 
 The package intentionally has no nested `go.mod`. It uses the monorepo's authoritative Go module or workspace.
@@ -295,7 +295,7 @@ Recommended local qualification:
 go test ./libs/go/servicekit/...
 go test -race ./libs/go/servicekit/...
 go vet ./libs/go/servicekit/...
-bazel test //libs/go/servicekit:servicekit_test
+tools/dev/bazelw test //libs/go/servicekit:servicekit_test --config=ci
 ```
 
 The test suite covers ordered startup, reverse shutdown, startup rollback, structured failure propagation, context metadata, probe concurrency, panic containment, signal context behavior, and timeout handling.

@@ -29,6 +29,9 @@ def load(name: str, path: Path):
 validator = load(
     "validate_cc_toolchain_bundle", ROOT / "tools/analysis/validate_cc_toolchain_bundle.py"
 )
+selection = load(
+    "verify_cc_toolchain_selection", ROOT / "tools/analysis/verify_cc_toolchain_selection.py"
+)
 
 
 def bundle(tmp_path: Path, *, system: str = "x86_64-linux") -> Path:
@@ -93,3 +96,7 @@ def test_missing_darwin_link_library_has_focused_diagnostic(tmp_path: Path) -> N
     os.rmdir(root / "lib")
     with pytest.raises(validator.BundleError, match="link library directory is missing"):
         validator.validate(root)
+
+
+def test_toolchain_selection_query_cannot_update_the_module_lock(tmp_path: Path) -> None:
+    assert "--lockfile_mode=error" in selection.aquery_command(tmp_path)

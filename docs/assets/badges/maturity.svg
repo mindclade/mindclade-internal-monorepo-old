@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="maturity: mixed" width="128" height="24" viewBox="0 0 128 24">
+  <title>maturity: mixed</title>
+  <defs><clipPath id="badge-shape"><rect width="128" height="24" rx="4"/></clipPath></defs>
+  <g clip-path="url(#badge-shape)">
+    <rect width="128" height="24" fill="#201C24"/>
+    <path d="M74 0h54v24H74z" fill="#B5673F"/>
+  </g>
+  <g fill="#F2EFE8" font-family="Verdana,DejaVu Sans,sans-serif" font-size="11" text-anchor="middle">
+    <text x="37" y="16">maturity</text>
+    <text x="101" y="16" font-weight="700">mixed</text>
+  </g>
+</svg>

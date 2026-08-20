@@ -59,8 +59,8 @@
             # Nix the toolchain authority and there is no free path to a CUDA compiler.
             #
             # A predicate rather than a blanket `allowUnfree = true` so the next unfree dependency
-            # has to be added deliberately rather than inherited. bootstrap's flake takes the
-            # blanket form; this is the same decision made narrower.
+            # has to be added deliberately rather than inherited. The estate control-plane
+            # flakes apply the same package-name predicate to Terraform.
             pkgs = import nixpkgs {
               inherit system;
               overlays = [
@@ -259,6 +259,7 @@
           ci-lint = pkgs.mkShell {
             packages = with pkgs; [
               actionlint
+              buf
               python312Packages.mkdocs
               shellcheck
               yamllint

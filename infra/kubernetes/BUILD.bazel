@@ -29,6 +29,7 @@ filegroup(
         "//infra/kubernetes/platform/nccl:manifests",
         "//infra/kubernetes/platform/observability:manifests",
         "//infra/kubernetes/platform/operator-system:manifests",
+        "//infra/kubernetes/platform/qualification:manifests",
         "//infra/kubernetes/platform/rdma:manifests",
         "//infra/kubernetes/platform/remote-execution:manifests",
         "//infra/kubernetes/platform/security:manifests",

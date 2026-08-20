@@ -75,18 +75,24 @@ registered toolchain and never through Command Line Tools or Homebrew.
 Validate the contract and resolution directly:
 
 ```bash
-nix develop .#ci --command python3 tools/analysis/validate_cc_toolchain_bundle.py
-nix develop .#ci --command tools/dev/bazelw test \
-  //tools/build/bazel/toolchains/cc:smoke_test
-nix develop .#ci --command python3 tools/analysis/verify_cc_toolchain_selection.py
+tools/dev/nixw develop .#ci-bazel --command \
+  python3 tools/analysis/validate_cc_toolchain_bundle.py
+tools/dev/nixw develop .#ci-bazel --command tools/dev/bazelw test \
+  //tools/build/bazel/toolchains/cc:smoke_test --config=ci
+tools/dev/nixw develop .#ci-bazel --command \
+  python3 tools/analysis/verify_cc_toolchain_selection.py
 ```
 
-The committed Bzlmod lock is enforced read-only by `--config=ci`. After an
-intentional module or extension change, regenerate and verify it explicitly:
+The committed Bzlmod lock is enforced read-only by `--config=ci`. The standalone layering and
+toolchain-selection checkers also pass `--lockfile_mode=error` themselves so invoking them
+cannot repair drift before the CI configuration sees it. After an intentional module or
+extension change, regenerate and verify the lock explicitly:
 
 ```bash
-tools/dev/bazelw mod deps --lockfile_mode=update
-tools/dev/bazelw build //... --nobuild --config=ci
+tools/dev/nixw develop .#ci-bazel --command \
+  tools/dev/bazelw mod deps --lockfile_mode=update
+tools/dev/nixw develop .#ci-bazel --command \
+  tools/dev/bazelw build //... --nobuild --config=ci
 ```
 
 Presubmit loads every BUILD file, checks the language-independent dependency

@@ -1,159 +1,131 @@
-<p align="center">
-  <img src=".github/assets/brand/mindclade-wordmark.png" alt="Mindclade" width="420">
-</p>
-
-<p align="center"><strong>Frontier models for programmable biology</strong></p>
+<!-- mindclade-doc: repository-home@2 -->
+<!-- Brand source: mindclade/.github-private/mindclade-brand-assets (MONO family). -->
 
 <p align="center">
-  Go control plane&nbsp;&nbsp;·&nbsp;&nbsp;Rust runtime&nbsp;&nbsp;·&nbsp;&nbsp;Python science&nbsp;&nbsp;·&nbsp;&nbsp;TileLang kernels&nbsp;&nbsp;·&nbsp;&nbsp;TypeScript products
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand/mono-wordmark-dark-1080w.png">
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/brand/mono-wordmark-1080w.png">
+    <img alt="Mindclade." src="docs/assets/brand/mono-wordmark-1080w.png" width="360">
+  </picture>
 </p>
 
 <p align="center">
-  <img src=".github/assets/badges/build-bazel.svg" alt="Build: Bazel">
-  <img src=".github/assets/badges/toolchains-nix.svg" alt="Toolchains: Nix">
-  <img src=".github/assets/badges/modules-bzlmod.svg" alt="Modules: Bzlmod">
-  <img src=".github/assets/badges/maturity-mixed.svg" alt="Maturity: mixed">
+  <img alt="class: source-monorepo" src="docs/assets/badges/repository-class.svg">
+  <img alt="visibility: internal" src="docs/assets/badges/visibility.svg">
+  <img alt="change: pull-request" src="docs/assets/badges/change-model.svg">
+  <img alt="build: Bazel + Nix" src="docs/assets/badges/build.svg">
+  <img alt="maturity: mixed" src="docs/assets/badges/maturity.svg">
 </p>
 
-# Mindclade internal monorepo
+# Mindclade · Internal Monorepo
 
-Mindclade's production-oriented, polyglot platform for biomolecular data
-ingestion, preprocessing, model training, evaluation, and inference. Bazel owns
-the build graph, Nix owns pinned toolchains and execution environments, and
-versioned contracts connect the language domains.
+> **Programmable biology · Product and model source**
+> Build and qualify the polyglot product, control-plane, data, model, training, evaluation,
+> serving, and SDK source behind Mindclade systems.
+
+| Repository contract | Value |
+| --- | --- |
+| Class | `source-monorepo` |
+| Visibility | `internal` |
+| Change model | `pull-request` |
+| Authority | `application-source`<br>`platform-source`<br>`model-source`<br>`training-source`<br>`data-source`<br>`serving-source`<br>`sdk-source`<br>`bazel-build-graph`<br>`qualification-policy`<br>`release-artifact-definitions` |
+| Start here | [`docs/README.md`](docs/README.md) |
+
+## Mission
+
+This repository is Mindclade's domain-oriented, polyglot source estate. Bazel owns the build,
+test, generation, image, qualification, and release graph; Nix owns pinned host toolchains and
+execution environments; versioned contracts connect Go, Rust, Python, TileLang, and TypeScript.
 
 > [!IMPORTANT]
-> This repository has mixed maturity. A path can reserve a target-state boundary
-> without being production-ready. Check [`components.toml`](components.toml),
-> [`SCAFFOLD_STATUS.md`](SCAFFOLD_STATUS.md), and
-> [`QUALIFICATION.md`](QUALIFICATION.md) before depending on a component.
+> Maturity is mixed. A path may reserve a target-state boundary without being ready for
+> production. Check [`components.toml`](components.toml),
+> [`SCAFFOLD_STATUS.md`](SCAFFOLD_STATUS.md), and [`QUALIFICATION.md`](QUALIFICATION.md) before
+> depending on it.
 
-## Start here
+## Authority boundary
 
-### 1. Enter the pinned development environment
+### This repository creates
 
-Install [Nix](https://nixos.org/download/) with flakes enabled, then run these
-commands from the repository root:
+- Product, control-plane, runtime, scientific, model, training, evaluation, and SDK source.
+- The Bazel build graph, reusable infrastructure modules, qualification rules, and release
+  artifact definitions.
+- Evidence-producing tests and environment-neutral packaging source.
 
-```bash
-tools/dev/nixw develop .#default
-python3 ci/presubmit/pipeline.py --static-only
+### This repository deliberately does not create
+
+- GitHub organization policy, live cloud resources, or Kubernetes desired state.
+- Production environment image selection, deployment approval, or production credentials.
+- A readiness claim from scaffolding, file presence, or a successful local build alone.
+
+## Quick start
+
+Enter the pinned CI environment and run provider-independent architecture checks:
+
+```sh
+tools/dev/nixw develop .#ci --command python3 ci/presubmit/pipeline.py --static-only
+tools/dev/nixw flake check --no-update-lock-file
 ```
 
-The first command opens the standard development shell. The second runs the
-provider-independent architecture and repository checks used by presubmit.
+Expected result: repository structure, dependency boundaries, generated metadata, and static
+presubmit checks pass without cloud, GPU, or release credentials. Use
+[`VALIDATION.md`](VALIDATION.md) to select additional owning targets; connected qualification
+remains a separate evidence lane.
 
-### 2. Explore a runnable vertical slice
+## Estate position
 
-The local Go examples use in-memory adapters and do not require cloud provider
-credentials:
-
-```bash
-go run ./examples/go/control_plane_api/cmd/control-plane-api
-go run ./examples/go/event_dispatcher
-go run ./examples/go/ingestion_coordinator
-```
-
-See the [integration examples guide](docs/guides/go-integration-examples.md) for
-the responsibilities and expected behavior of each slice.
-
-### 3. Choose the relevant validation lane
-
-- Run `tools/qualification/go/validate.sh offline` for the implemented Go
-  foundation.
-- Run `tools/dev/bazelw test //...` for the repository Bazel graph.
-- Use [`VALIDATION.md`](VALIDATION.md) for exact connected-provider and release
-  qualification requirements.
-
-## Platform map
+The highlighted node is this repository. The contract and maturity warning are the text
+equivalent of its source and artifact relationship to the deployment estate.
 
 ```mermaid
+%% current: mindclade-internal-monorepo %%
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#F2EFE8","primaryTextColor":"#201C24","primaryBorderColor":"#B5673F","secondaryColor":"#FBFAF7","tertiaryColor":"#FBFAF7","lineColor":"#5B5660","edgeLabelBackground":"#FBFAF7","clusterBkg":"#FBFAF7","clusterBorder":"#E2DED4"}}}%%
 flowchart LR
-    products["Apps + SDKs"] --> contracts["Versioned protocols"]
-    contracts --> control["Go control plane"]
-    contracts --> runtime["Rust runtime"]
-    control --> science["Data + preprocessing"]
-    science --> models["Models + training"]
-    models --> evaluation["Evaluation + qualification"]
-    evaluation --> releases["Qualified releases"]
-    releases --> runtime
-    runtime --> serving["Serving + workers"]
-
-    classDef product fill:#FBFAF7,stroke:#B5673F,color:#201C24,stroke-width:2px;
-    classDef authority fill:#201C24,stroke:#201C24,color:#FBFAF7,stroke-width:2px;
-    classDef execution fill:#F2EFE8,stroke:#B5673F,color:#201C24,stroke-width:2px;
-    class products product;
-    class contracts,control,releases authority;
-    class runtime,science,models,evaluation,serving execution;
+    GHP[".github-private<br/>profile + brand"] --> GH[".github<br/>shared workflows"]
+    GH --> GC["github-config<br/>GitHub governance"]
+    GH --> BS["bootstrap<br/>Ring 0 trust"]
+    BS --> IL["infrastructure-live<br/>cloud foundation"]
+    IL --> GO["gitops<br/>cluster desired state"]
+    MO["internal monorepo<br/>source + evidence"] --> GO
+    GC --> MO
+    classDef current fill:#201C24,color:#F2EFE8,stroke:#D68A61,stroke-width:3px;
+    classDef managed fill:#F2EFE8,color:#201C24,stroke:#B5673F,stroke-width:1.5px;
+    classDef source fill:#FBFAF7,color:#423D48,stroke:#5B5660,stroke-width:1.5px;
+    class MO current;
+    class GH,GC,BS,IL,GO managed;
+    class GHP source;
 ```
 
-The diagram shows authority and flow, not component readiness. Use the status
-sources linked above before depending on any node.
+## Repository map
 
-| Area | Responsibility | Entry point |
-| --- | --- | --- |
-| Product surfaces | Internal applications and generated client libraries | [`apps/`](apps/), [`sdk/`](sdk/) |
-| Contracts | Protobuf, OpenAPI, events, mappings, and compatibility policy | [`protocols/`](protocols/) |
-| Control plane | Durable policy, orchestration, scheduling, registry, and audit | [`control/`](control/), [`services/control_plane/`](services/control_plane/) |
-| Data and science | Ingestion, curation, preprocessing, models, and training | [`data/`](data/), [`preprocessing/`](preprocessing/), [`models/`](models/), [`training/`](training/) |
-| Runtime and serving | Online admission, node execution, artifacts, batching, and inference | [`services/`](services/), [`serving/`](serving/) |
-| Quality and operations | Evaluation, qualification, infrastructure, CI, and repository tooling | [`evaluation/`](evaluation/), [`tests/`](tests/), [`infra/`](infra/), [`ci/`](ci/), [`tools/`](tools/) |
-
-The canonical cross-system design is the
-[system design reference](docs/architecture/system-design-reference.md). The
-[traceability map](docs/architecture/system-design-traceability.md) connects its
-decisions to source, tests, and qualification evidence.
-
-## Engineering boundaries
-
-| Language | Owns |
+| Path | Purpose |
 | --- | --- |
-| Go | Fleet control plane, durable workflow state, and policy |
-| Rust | Online/runtime data plane, node execution, and bounded byte movement |
-| Python | Scientific, model, training, inference, and evaluation numerics |
-| TileLang | Qualification-gated accelerator kernels |
-| TypeScript | Product surfaces and generated web clients |
+| `apps/`, `sdk/` | Product surfaces and generated clients. |
+| `protocols/`, `libs/` | Versioned contracts and reusable foundations. |
+| `control/`, `services/` | Control-plane policy, orchestration, runtimes, and composition roots. |
+| `data/`, `preprocessing/` | Ingestion, curation, transformation, and publication. |
+| `models/`, `training/`, `evaluation/` | Model source, training, evaluation, and qualification. |
+| `serving/`, `kernels/` | Inference, workers, batching, and qualified accelerator kernels. |
+| `ci/`, `tools/`, `infra/` | Build, qualification, developer tooling, and reusable infrastructure source. |
 
-Reusable mechanisms belong under [`libs/`](libs/); deployable composition roots
-belong under [`services/`](services/). Cross-process and cross-language data uses
-versioned contracts under [`protocols/`](protocols/) rather than
-language-private structures. The enforced dependency direction is documented in
-[`docs/architecture/dependency-rules.md`](docs/architecture/dependency-rules.md).
+## Change path
 
-## Documentation paths
+Start from the owning domain and its maturity declaration, run the narrowest Bazel target and
+affected reverse dependencies, then update contracts, generated outputs, documentation, and
+qualification evidence together. The current release workflow remains fail-closed pending its
+shared-workflow migration and connected qualification; it must not be presented as active
+production publication.
 
-- [Engineering documentation](docs/README.md) — architecture, decisions,
-  guides, runbooks, security, and qualification evidence
-- [Repository status](REPOSITORY_STATUS.md) — implemented foundations and
-  connected qualification still required
-- [Scaffold status](SCAFFOLD_STATUS.md) — substantive, partial, and reserved
-  areas
-- [Qualification](QUALIFICATION.md) — recorded evidence and promotion gates
-- [Contributing](CONTRIBUTING.md) — environment, boundaries, workflow, and
-  security expectations
-- [Security](SECURITY.md) — private reporting and repository security policy
+## Documentation and support
 
-## Build ownership
+- [Engineering documentation](docs/README.md)
+- [System design](docs/architecture/system-design-reference.md)
+- [Dependency rules](docs/architecture/dependency-rules.md)
+- [Repository status](REPOSITORY_STATUS.md)
+- [Qualification](QUALIFICATION.md)
+- [Contributing](CONTRIBUTING.md)
 
-- **Bazel** owns build, test, generation, images, qualification, and release
-  outputs. The repository is Bzlmod-only.
-- **Nix** owns pinned toolchains and developer/CI execution environments.
-- **Repository wrappers** in [`tools/dev/`](tools/dev/) keep local invocations
-  aligned with checked-in pins and configuration.
+## Security
 
-Do not infer readiness from a successful build or the presence of a file. A
-production claim requires implementation, current qualification, ownership,
-operational expectations, security review, release evidence, and rollback.
-
-## Contributing
-
-Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before changing a durable boundary.
-Changes that cross language or dependency boundaries require an accepted ADR or
-an update to the governing decision. Never commit credentials, private datasets,
-model-weight secrets, hidden evaluation material, patient information, or
-proprietary partner data.
-
----
-
-Mindclade proprietary and confidential. See [`LICENSE`](LICENSE) and
-[`NOTICE`](NOTICE).
+Never commit credentials, private datasets, model-weight secrets, holdout material, patient
+information, partner data, or local caches. Use [the private security process](SECURITY.md).

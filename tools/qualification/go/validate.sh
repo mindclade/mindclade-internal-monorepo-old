@@ -106,15 +106,11 @@ if [[ "$mode" == "connected" ]]; then
   GOWORK=off go vet ./libs/go/... ./control/... ./services/control_plane/... ./examples/go/...
   GOWORK=off go test -race -count=1 ./libs/go/... ./control/... ./services/control_plane/... ./examples/go/...
 
-  if command -v bazel >/dev/null 2>&1; then
-    note "running Bazel Go qualification"
-    bazel test \
-      //libs/go/... \
-      //services/control_plane/internal/... \
-      //examples/go/...
-  else
-    fail "connected mode requires Bazel on PATH"
-  fi
+  note "running Bazel Go qualification"
+  tools/dev/bazelw test --config=ci \
+    //libs/go/... \
+    //services/control_plane/internal/... \
+    //examples/go/...
 fi
 
 note "Go foundation qualification passed ($mode mode)"

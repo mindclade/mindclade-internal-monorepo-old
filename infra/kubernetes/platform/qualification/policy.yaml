@@ -1,0 +1,79 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: mindclade-qualification-capacity
+  namespace: mindclade-qualification
+  annotations:
+    mindclade.dev/activation-blocker: all-qualification-capacity-is-zero
+    mindclade.dev/capacity-status: fail-closed
+spec:
+  hard:
+    configmaps: "0"
+    count/cronjobs.batch: "0"
+    count/daemonsets.apps: "0"
+    count/deployments.apps: "0"
+    count/jobs.batch: "0"
+    count/statefulsets.apps: "0"
+    limits.cpu: "0"
+    limits.ephemeral-storage: "0"
+    limits.memory: "0"
+    persistentvolumeclaims: "0"
+    pods: "0"
+    requests.cpu: "0"
+    requests.ephemeral-storage: "0"
+    requests.memory: "0"
+    requests.nvidia.com/gpu: "0"
+    requests.storage: "0"
+    secrets: "0"
+    services: "0"
+    services.loadbalancers: "0"
+    services.nodeports: "0"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: mindclade-qualification-bounds
+  namespace: mindclade-qualification
+  annotations:
+    mindclade.dev/defaulting-policy: forbidden-explicit-resources-required
+spec:
+  limits:
+    - type: Container
+      max:
+        cpu: "16"
+        ephemeral-storage: 64Gi
+        memory: 128Gi
+        nvidia.com/gpu: "8"
+      min:
+        cpu: 10m
+        ephemeral-storage: 16Mi
+        memory: 32Mi
+    - type: Pod
+      max:
+        cpu: "16"
+        ephemeral-storage: 64Gi
+        memory: 128Gi
+        nvidia.com/gpu: "8"
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: mindclade-qualification
+  annotations:
+    mindclade.dev/activation-blocker: qualification-is-local-only
+    mindclade.dev/failure-mode: fail-closed
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+  egress: []
+

@@ -43,6 +43,7 @@ spec:
     - platform/kueue
     - platform/nccl
     - platform/observability
+    - platform/qualification
     - platform/rdma
     - platform/remote-execution
     - platform/security
@@ -203,6 +204,7 @@ spec:
     - planes/studio/overlays/production
     - planes/studio/overlays/staging
     - platform/jobset
+    - platform/qualification
     - services/artifact-proxy
     - services/control-plane
     - services/curation-workers

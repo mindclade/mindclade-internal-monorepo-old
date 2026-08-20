@@ -16,6 +16,7 @@ import (
 	foundationconfig "go.mindclade.dev/libs/go/config"
 	"go.mindclade.dev/libs/go/faults"
 	"go.mindclade.dev/services/control_plane/internal/bootstrap"
+	"go.mindclade.dev/services/control_plane/internal/foundation/tasks"
 )
 
 // A kubeconfig pointing at an address nothing listens on. Construction must
@@ -77,6 +78,32 @@ func TestSchedulerFactoryBuildsThroughProductionLifecycle(t *testing.T) {
 	if service == nil || service.Service() == nil {
 		t.Fatal("production runtime was not assembled")
 	}
+}
+
+func TestSchedulerWorkerHasNoStandbyRunLoop(t *testing.T) {
+	profile, err := bootstrap.ProfileFor(bootstrap.RoleScheduler)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime, err := NewSchedulerFactory(schedulerSettings(t)).Create(context.Background(), profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, dependency := range runtime.Dependencies {
+		mechanisms, ok := dependency.(tasks.Mechanisms)
+		if !ok {
+			continue
+		}
+		worker, found := mechanisms.Workers[placementWorker]
+		if !found {
+			t.Fatal("placement worker component was not composed")
+		}
+		if worker.Run != nil {
+			t.Fatal("placement worker can run independently of leadership")
+		}
+		return
+	}
+	t.Fatal("workqueue mechanisms were not composed")
 }
 
 // The scheduler places work and holds a singleton lease. It serves no inbound

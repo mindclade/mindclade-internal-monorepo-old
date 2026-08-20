@@ -57,7 +57,8 @@ run "private_regional_cluster_contract" {
       google_container_cluster.this.workload_identity_config[0].workload_pool == "mindclade-production.svc.id.goog" &&
       google_container_cluster.this.enable_legacy_abac == false &&
       google_container_cluster.this.enable_shielded_nodes == true &&
-      google_container_cluster.this.binary_authorization[0].evaluation_mode == "PROJECT_SINGLETON_POLICY_ENFORCE"
+      google_container_cluster.this.binary_authorization[0].evaluation_mode == "PROJECT_SINGLETON_POLICY_ENFORCE" &&
+      google_container_cluster.this.secret_sync_config[0].enabled == false
     )
     error_message = "Identity and cluster security controls must remain enforced."
   }
@@ -88,6 +89,99 @@ run "private_regional_cluster_contract" {
       google_container_node_pool.system.node_config[0].workload_metadata_config[0].mode == "GKE_METADATA"
     )
     error_message = "The system node pool must remain redundant, managed, and Workload Identity aware."
+  }
+}
+
+run "development_uses_rapid_canary" {
+  command = plan
+
+  variables {
+    project_id                        = "mindclade-development"
+    name                              = "development-canary"
+    region                            = "us-central1"
+    network                           = "development"
+    subnetwork                        = "gke"
+    pod_secondary_range_name          = "gke-pods"
+    service_secondary_range_name      = "gke-services"
+    master_ipv4_cidr_block            = "172.16.1.0/28"
+    system_node_service_account_email = "gke-nodes@mindclade-development.iam.gserviceaccount.com"
+    rbac_security_group               = "gke-security-groups@example.com"
+    environment                       = "development"
+    owner                             = "cloud-platform"
+    release_channel                   = "RAPID"
+    channel_policy                    = "CANARY"
+    master_authorized_networks = [{
+      cidr_block   = "10.20.0.0/24"
+      display_name = "platform-administration"
+    }]
+  }
+
+  assert {
+    condition     = google_container_cluster.this.release_channel[0].channel == "RAPID"
+    error_message = "Development must expose upgrades through the RAPID canary before the qualified environments."
+  }
+}
+
+run "reject_rapid_qualified_channel" {
+  command = plan
+
+  variables {
+    project_id                        = "mindclade-staging"
+    name                              = "staging-wrong-channel"
+    region                            = "us-central1"
+    network                           = "staging"
+    subnetwork                        = "gke"
+    pod_secondary_range_name          = "gke-pods"
+    service_secondary_range_name      = "gke-services"
+    master_ipv4_cidr_block            = "172.16.2.0/28"
+    system_node_service_account_email = "gke-nodes@mindclade-staging.iam.gserviceaccount.com"
+    rbac_security_group               = "gke-security-groups@example.com"
+    environment                       = "staging"
+    owner                             = "cloud-platform"
+    release_channel                   = "RAPID"
+    channel_policy                    = "QUALIFIED"
+    master_authorized_networks = [{
+      cidr_block   = "10.20.0.0/24"
+      display_name = "platform-administration"
+    }]
+  }
+
+  expect_failures = [google_container_cluster.this]
+}
+
+run "ci_secret_sync_is_explicit_and_rotating" {
+  command = plan
+
+  variables {
+    project_id                        = "mindclade-common-ci"
+    name                              = "mindclade-ci-arc"
+    region                            = "us-central1"
+    network                           = "ci-arc"
+    subnetwork                        = "arc-nodes"
+    pod_secondary_range_name          = "arc-pods"
+    service_secondary_range_name      = "arc-services"
+    master_ipv4_cidr_block            = "10.243.0.0/28"
+    system_node_service_account_email = "arc-nodes@mindclade-common-ci.iam.gserviceaccount.com"
+    rbac_security_group               = "gke-security-groups@example.com"
+    environment                       = "ci"
+    owner                             = "platform"
+    enable_backup_agent               = false
+    enable_secret_sync                = true
+    secret_sync_rotation_interval     = "120s"
+    master_authorized_networks = [{
+      cidr_block   = "10.240.0.0/20"
+      display_name = "arc-private-nodes"
+    }]
+  }
+
+  assert {
+    condition = (
+      google_container_cluster.this.secret_manager_config[0].enabled == true &&
+      google_container_cluster.this.secret_sync_config[0].enabled == true &&
+      google_container_cluster.this.secret_sync_config[0].rotation_config[0].enabled == true &&
+      google_container_cluster.this.secret_sync_config[0].rotation_config[0].rotation_interval == "120s"
+    )
+    error_message = "The CI cluster must synchronize and rotate the reviewed GitHub App credential."
   }
 }
 
