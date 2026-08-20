@@ -54,13 +54,21 @@ build logic.
 
 ## Buildkite activation status
 
-Current `main` has no repository-owned `.buildkite/` pipeline or token helper,
-so Buildkite-to-Google Cloud federation is not active and must not be presented
-as production-qualified. Activation is blocked on a separate connected change
-that implements the bootstrap trust contract: request `pipeline_id` as the OIDC
-subject claim, include the `organization_id` claim, use the exact configured
-audience, request Google Cloud token format, and prove token exchange end to end.
-The generic plugin defaults do not satisfy that contract.
+The repository owns fail-closed identity canaries under `.buildkite/`, but their
+checked-in contract is explicitly `unprovisioned`: it contains no live organization,
+pipeline, provider, or service-account identifier and refuses to request a token.
+Buildkite-to-Google Cloud federation is therefore not active and must not be
+presented as production-qualified.
+
+Activation requires three private pipelines and self-hosted agents, the exact
+immutable IDs committed in a protected change, bootstrap WIF enabled with those
+same pipeline/step pairs, and normal-plane identities applied. Each canary first
+proves that an untrusted step is denied and then proves that only its exact
+`artifact-build`, `artifact-qualify`, or `artifact-promote` step can impersonate
+its dedicated service account. The helper requests `pipeline_id` as subject,
+includes `organization_id`, uses the exact provider audience and GCP token format,
+and never performs an artifact, attestation, registry, GitOps, or cluster mutation.
+See `.buildkite/README.md` for the connected activation order and evidence contract.
 
 ## Release activation status
 

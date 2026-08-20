@@ -8,6 +8,11 @@ output "policy_id" {
   value       = google_binary_authorization_policy.this.id
 }
 
+output "project_id" {
+  description = "Project that owns the policy, attestors, notes, and attestation occurrences; consumers must not reconstruct it from resource names."
+  value       = var.project_id
+}
+
 output "attestor_ids" {
   description = "Attestor resource ids keyed by short name."
   value       = { for name, a in google_binary_authorization_attestor.this : name => a.id }
@@ -29,18 +34,22 @@ output "attestor_key_versions" {
 }
 
 output "signer_grants" {
-  description = "Least-privilege note-attacher, occurrence-editor, and KMS signer grants created for attestation producers."
+  description = "Attestor-scoped note-attacher and KMS signer grants created for attestation producers."
   value = {
     for key, pair in local.signer_pairs : key => {
       attestor = pair.attestor
       member   = pair.member
       roles = [
         "roles/containeranalysis.notes.attacher",
-        "roles/containeranalysis.occurrences.editor",
         "roles/cloudkms.signerVerifier",
       ]
     }
   }
+}
+
+output "required_occurrence_permissions" {
+  description = "Exact project-level occurrence permissions the live caller must grant through one custom role; update and delete are prohibited."
+  value       = local.required_occurrence_permissions
 }
 
 output "verifier_grants" {

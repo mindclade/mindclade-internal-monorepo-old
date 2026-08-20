@@ -228,6 +228,7 @@
               kubernetes-helm
               kustomize
               python312
+              python312Packages.pyyaml
               yamllint
               yq-go
             ]

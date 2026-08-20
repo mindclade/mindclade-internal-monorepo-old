@@ -125,5 +125,6 @@ policy_output="$(
 [[ "${policy_output}" != *"--approval"* ]]
 
 python3 "${SCRIPT_DIR}/workflow_test.py"
+python3 "${SCRIPT_DIR}/binauthz_iam_test.py"
 
 printf 'Terraform CI driver contract tests passed.\n'

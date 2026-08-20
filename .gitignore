@@ -52,6 +52,11 @@ user.bazelrc
 # --- Generated documentation ---
 /.generated/
 
+# --- Buildkite runtime evidence ---
+# The WIF canaries upload these JSON records as short-lived Buildkite artifacts. They contain
+# no credentials, but they are run evidence rather than source and must never be committed.
+/.buildkite-evidence/
+
 # --- Go ---
 /bin/
 *.test

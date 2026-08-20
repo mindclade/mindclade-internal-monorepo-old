@@ -35,7 +35,15 @@ locals {
     } if contains(keys(var.attestors), attestor)
   ]...)
 
-  signer_members = toset(flatten(values(var.attestor_signers)))
+  # Occurrences are project resources rather than note resources. The live repository owns
+  # their one project-local custom role so this reusable module does not create a second IAM
+  # state owner. This exported contract is intentionally create/read-only: update or delete
+  # would let a compromised issuer rewrite or erase release evidence.
+  required_occurrence_permissions = toset([
+    "containeranalysis.occurrences.create",
+    "containeranalysis.occurrences.get",
+    "containeranalysis.occurrences.list",
+  ])
 
   verifier_pairs = merge([
     for attestor, members in var.attestor_verifiers : {
@@ -145,14 +153,6 @@ resource "google_container_analysis_note_iam_member" "signer_attacher" {
   note    = google_container_analysis_note.attestor[each.value.attestor].name
   role    = "roles/containeranalysis.notes.attacher"
   member  = each.value.member
-}
-
-resource "google_project_iam_member" "signer_occurrence_editor" {
-  for_each = local.signer_members
-
-  project = var.project_id
-  role    = "roles/containeranalysis.occurrences.editor"
-  member  = each.value
 }
 
 resource "google_kms_crypto_key_iam_member" "signer" {
