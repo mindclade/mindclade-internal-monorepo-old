@@ -1,0 +1,45 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+name: Feature request
+description: Propose new capability inside an existing ownership boundary.
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        A change that moves a language boundary, reverses a dependency direction, or
+        creates a new deployable is an ADR rather than a feature request. See
+        docs/design/ and docs/architecture/dependency-rules.md.
+  - type: input
+    id: component
+    attributes:
+      label: Owning component
+      description: Which existing path would own this, per components.toml and OWNERS.toml.
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: The need, in terms of behaviour that is impossible or unsafe today.
+    validations:
+      required: true
+  - type: textarea
+    id: contract
+    attributes:
+      label: Proposed contract
+      description: Inputs, outputs, failure modes, retry semantics, and bounds.
+    validations:
+      required: true
+  - type: checkboxes
+    id: laws
+    attributes:
+      label: Architecture laws this must not break
+      options:
+        - label: Reusable logic does not originate under services/
+        - label: Production code does not depend on research/
+        - label: Every queue, parser, buffer pool, retry loop, and spool stays bounded

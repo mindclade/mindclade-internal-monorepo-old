@@ -44,7 +44,7 @@ import (
 	"strconv"
 	"time"
 
-	"mindclade.internal/services/studio/internal/runlog"
+	"go.mindclade.dev/services/studio/internal/runlog"
 )
 
 const (

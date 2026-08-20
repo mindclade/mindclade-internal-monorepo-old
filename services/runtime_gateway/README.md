@@ -1,7 +1,7 @@
 # Runtime gateway
 
 **Language:** Rust  
-**Implementation status:** implemented core; production qualification pending.
+**Implementation status:** executable transport implemented; production qualification pending.
 
 ## Role
 
@@ -21,8 +21,20 @@ The current source implements the model-independent runtime core for:
 - cancellation, deadlines, readiness, drain, and fail-closed state transitions;
 - structured runtime telemetry seams.
 
-The integration and shutdown tests exercise the core contracts. The binary and
-provider/network leaves are intentionally not described as production-qualified.
+The HTTP `POST /v1/runtime/resolve` endpoint is a bounded resolver API. It
+validates admission authority, selects a route, releases its local resolver
+permit, and returns the selected host endpoint with `200 OK`. The legacy
+`POST /v1/runtime/dispatch` alias retains its `202 Accepted` response and emits
+`Deprecation: true` plus a successor `Link` header.
+
+Execution uses the `RuntimeExecution.Execute` server-streaming gRPC method.
+That path keeps its admission permit through the terminal host status, bridges
+client disconnects and ticket deadlines to a host cancellation command, and
+holds weighted request/response byte reservations while bytes are retained.
+Execution is disabled unless `MINDCLADE_RUNTIME_EXECUTION_ENABLED=true`.
+
+The integration, transport, and shutdown tests exercise the core contracts.
+Provider and hardware qualification remain release requirements.
 
 ## Owns
 

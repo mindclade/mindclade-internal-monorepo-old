@@ -21,7 +21,7 @@ go_library(
         "role.go",
         "runtime.go",
     ],
-    importpath = "mindclade.internal/libs/go/servicekit/production",
+    importpath = "go.mindclade.dev/libs/go/servicekit/production",
     deps = [
         "//libs/go/faults",
         "//libs/go/servicekit",

@@ -405,8 +405,11 @@ not a duplicate success.
 claim expiry, publication attempts, retry/dead-letter state, bounded dispatcher,
 and conformance tests.
 
-**Adapters:** memory and PostgreSQL. `storage/outbox` is a compatibility façade
-to the same implementation, not a second state machine.
+**Adapters:** memory and PostgreSQL. This is the only outbox namespace. A
+`storage/outbox` façade delegating to it existed and was removed: it carried no
+behaviour of its own, nothing ever imported it, and a second import path for
+one mechanism defeats the rule that a consumer imports the package that owns
+it.
 
 ```text
 request transaction commits outbox record

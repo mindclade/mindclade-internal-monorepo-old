@@ -10,7 +10,7 @@ import (
 
 	runtimecontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // Settings contains stable high-level controller settings. It deliberately

@@ -4,7 +4,7 @@
 //
 
 use mindclade_content_digest::hash_bytes;
-use mindclade_faults::FaultResult;
+use mindclade_faults::{Code, FaultResult};
 use mindclade_gpu_host::DeviceCapability;
 use mindclade_identifiers::ResourceId;
 use mindclade_runtime_core::{FencingToken, ResourceKind, ResourceVector};
@@ -16,6 +16,7 @@ use mindclade_worker_protocol::{
     RevocationSnapshot, RevocationSnapshotClaims, SignatureVerifier,
 };
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 struct AcceptAll;
@@ -26,9 +27,18 @@ impl SignatureVerifier for AcceptAll {
     }
 }
 
-#[derive(Default)]
 struct RecordingLauncher {
     next: Mutex<u32>,
+    running: AtomicBool,
+}
+
+impl Default for RecordingLauncher {
+    fn default() -> Self {
+        Self {
+            next: Mutex::new(0),
+            running: AtomicBool::new(true),
+        }
+    }
 }
 
 impl ProcessLauncher for RecordingLauncher {
@@ -38,10 +48,11 @@ impl ProcessLauncher for RecordingLauncher {
         Ok(ProcessHandle { pid: *next })
     }
     fn terminate(&self, _: ProcessHandle) -> FaultResult<()> {
+        self.running.store(false, Ordering::Release);
         Ok(())
     }
     fn running(&self, _: ProcessHandle) -> FaultResult<bool> {
-        Ok(true)
+        Ok(self.running.load(Ordering::Acquire))
     }
 }
 
@@ -74,44 +85,18 @@ fn resources() -> ResourceVector {
         .set(ResourceKind::GpuMemoryEstimateBytes, 80 << 30)
 }
 
-fn revocations() -> RevocationSnapshot {
-    RevocationSnapshot {
-        claims: RevocationSnapshotClaims {
-            epoch: 1,
-            created_unix_millis: 100,
-            expires_unix_millis: 10_000,
-            revoked_grant_ids: BTreeSet::new(),
-            revoked_ticket_ids: BTreeSet::new(),
-            revoked_deployment_ids: BTreeSet::new(),
-            revoked_bundle_digests: BTreeSet::new(),
-        },
-        signature: sig(),
-    }
-}
-
-#[test]
-fn host_revalidates_ticket_and_reserves_node_resources() {
-    let config = HostConfig {
+fn host_config() -> HostConfig {
+    HostConfig {
         maximum_processes: 8,
         maximum_model_slots: 4,
         maximum_input_buffers: 16,
         maximum_control_payload_bytes: 256 * 1024,
         node_resources: resources(),
-    };
-    let health = Arc::new(HostHealth::new());
-    let host = HostCore::new(
-        config,
-        DeviceCapability {
-            vendor: "nvidia".into(),
-            architecture: "hopper".into(),
-            total_memory_bytes: 80 << 30,
-        },
-        Arc::new(RecordingLauncher::default()),
-        health.clone(),
-    )
-    .expect("host");
-    health.set_accepting(true);
-    let ticket = ExecutionTicket {
+    }
+}
+
+fn execution_ticket() -> ExecutionTicket {
+    ExecutionTicket {
         claims: ExecutionTicketClaims {
             ticket_id: id("ticket", "000000000000001"),
             issuer: "control-plane".into(),
@@ -154,7 +139,40 @@ fn host_revalidates_ticket_and_reserves_node_resources() {
             idempotency_key: "test".into(),
         },
         signature: sig(),
-    };
+    }
+}
+
+fn revocations() -> RevocationSnapshot {
+    RevocationSnapshot {
+        claims: RevocationSnapshotClaims {
+            epoch: 1,
+            created_unix_millis: 100,
+            expires_unix_millis: 10_000,
+            revoked_grant_ids: BTreeSet::new(),
+            revoked_ticket_ids: BTreeSet::new(),
+            revoked_deployment_ids: BTreeSet::new(),
+            revoked_bundle_digests: BTreeSet::new(),
+        },
+        signature: sig(),
+    }
+}
+
+#[test]
+fn host_revalidates_ticket_and_reserves_node_resources() {
+    let health = Arc::new(HostHealth::new());
+    let host = HostCore::new(
+        host_config(),
+        DeviceCapability {
+            vendor: "nvidia".into(),
+            architecture: "hopper".into(),
+            total_memory_bytes: 80 << 30,
+        },
+        Arc::new(RecordingLauncher::default()),
+        health.clone(),
+    )
+    .expect("host");
+    host.resume_admission();
+    let ticket = execution_ticket();
     let session = host
         .begin_execution(
             &ticket,
@@ -173,6 +191,38 @@ fn host_revalidates_ticket_and_reserves_node_resources() {
 }
 
 #[test]
+fn host_drain_closes_execution_admission() {
+    let health = Arc::new(HostHealth::new());
+    let host = HostCore::new(
+        host_config(),
+        DeviceCapability {
+            vendor: "nvidia".into(),
+            architecture: "hopper".into(),
+            total_memory_bytes: 80 << 30,
+        },
+        Arc::new(RecordingLauncher::default()),
+        health,
+    )
+    .expect("host");
+    host.resume_admission();
+    host.begin_drain();
+
+    let fault = host
+        .begin_execution(
+            &execution_ticket(),
+            Vec::new(),
+            200,
+            1,
+            1,
+            1,
+            &revocations(),
+            &AcceptAll,
+        )
+        .expect_err("draining host must reject new work");
+    assert_eq!(fault.code(), Code::Unavailable);
+}
+
+#[test]
 fn process_spec_is_bounded() {
     let spec = ProcessSpec {
         name: "worker".into(),
@@ -181,4 +231,23 @@ fn process_spec_is_bounded() {
         environment: BTreeMap::new(),
     };
     spec.validate().expect("valid process spec");
+}
+
+#[test]
+fn supervisor_removes_workers_that_have_exited() {
+    use mindclade_runtime_host::ProcessSupervisor;
+
+    let launcher = Arc::new(RecordingLauncher::default());
+    let supervisor = ProcessSupervisor::new(launcher.clone(), 1).expect("supervisor");
+    let spec = ProcessSpec {
+        name: "worker".into(),
+        executable: "/usr/bin/python3".into(),
+        arguments: Vec::new(),
+        environment: BTreeMap::new(),
+    };
+    supervisor.launch(&spec).expect("launch");
+    assert_eq!(supervisor.active(), 1);
+    launcher.running.store(false, Ordering::Release);
+    assert!(!supervisor.running("worker").expect("liveness check"));
+    assert_eq!(supervisor.active(), 0);
 }

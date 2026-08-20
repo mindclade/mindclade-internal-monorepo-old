@@ -1,0 +1,102 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored; this file
+# is the committed reference.
+
+# Must match `solvers[].dns01.cloudDNS.project` in
+# infra/kubernetes/platform/cert-manager/base/issuer.yaml. If you change it,
+# change it there too -- cert-manager looks up the zone by domain name inside
+# THIS project, and a mismatch fails as a challenge that never gets written.
+project_id = "mc-common-dns"
+
+# wildcard_certificates mirrors cert-manager/base/certificates.yaml exactly.
+# CAA is the enforcement of what that file merely requests, so the two have to
+# agree: a Certificate asking for a name CAA forbids fails at issuance, and a
+# CAA permitting a wildcard nobody requests is a standing invitation.
+domains = {
+  studio = {
+    dns_name    = "mindclade.studio."
+    description = "Studio plane. Apex only -- CAA forbids wildcards outright."
+    # cert-mindclade-studio is apex-only and the acceptance check requires that
+    # crt.sh never show *.mindclade.studio. false publishes `issuewild ";"`,
+    # which makes that a rule Let's Encrypt enforces rather than one we observe.
+    wildcard_certificates = false
+  }
+
+  ai = {
+    dns_name              = "mindclade.ai."
+    description           = "Machine plane. Wildcard *.mindclade.ai; apex is not served."
+    wildcard_certificates = true
+  }
+
+  dev = {
+    dns_name              = "mindclade.dev."
+    description           = "Developer plane. Wildcard *.mindclade.dev; also the Go module path host."
+    wildcard_certificates = true
+  }
+
+  com = {
+    dns_name    = "mindclade.com."
+    description = "Corporate identity and mail. Serves no application hostname."
+    # No certificate exists for this domain and none should. Forbidding
+    # wildcards costs nothing and closes the gap.
+    wildcard_certificates = false
+  }
+}
+
+# The ACME account address (security@mindclade.com) lives here, so this zone's
+# MX has to work before the first certificate is requested -- Let's Encrypt
+# sends expiry warnings there and the address is awkward to change later.
+mail_domain = "com"
+
+# Matches the ClusterIssuer's acme.email in issuer.yaml.
+security_contact = "security@mindclade.com"
+
+# ---------------------------------------------------------------------------
+# Mail: Google Workspace.
+#
+# security@mindclade.com is the ACME account address in
+# cert-manager/base/issuer.yaml, so this MX has to be LIVE before the first
+# production certificate is requested. Let's Encrypt sends expiry warnings
+# there, and the account address is awkward to change afterwards.
+#
+# One MX host, not the five-host preference list Google used to publish. The
+# single smtp.google.com. record is current Workspace guidance and the old list
+# is still all over the internet; either works, but mixing them does not.
+# ---------------------------------------------------------------------------
+mail = {
+  mx          = ["1 smtp.google.com."]
+  spf_include = ["_spf.google.com"]
+
+  # Start at none and watch the reports before tightening to quarantine and then
+  # reject. Going straight to reject is how a missed sending source -- a billing
+  # system, a CI notifier, anything that sends as @mindclade.com without going
+  # through Workspace -- silently stops being delivered, with the evidence only
+  # in reports nobody is reading yet.
+  dmarc_policy = "none"
+  dmarc_rua    = "dmarc-reports@mindclade.com"
+
+  # DKIM IS DELIBERATELY ABSENT until the key exists.
+  #
+  # The value is generated per domain in Admin console -> Apps -> Google
+  # Workspace -> Gmail -> Authenticate email, and there is no way to predict it.
+  # A placeholder here would not be harmless: it publishes a syntactically valid
+  # record at selector `google` that fails verification, which is worse than no
+  # record at all -- receivers treat a broken signature as a signal, absence as
+  # nothing. Uncomment once you have the real key:
+  #
+  # dkim = {
+  #   google = {
+  #     selector = "google"
+  #     value    = "v=DKIM1; k=rsa; p=<paste the key from the admin console>"
+  #   }
+  # }
+  #
+  # SPF alone still passes DMARC alignment for mail sent through Workspace, so
+  # this ordering is safe.
+}
+
+enable_logging = false
+owner          = "platform"

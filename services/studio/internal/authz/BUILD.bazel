@@ -1,0 +1,22 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//services/studio:__subpackages__"])
+
+go_library(
+    name = "authz",
+    srcs = ["policy.go"],
+    importpath = "go.mindclade.dev/services/studio/internal/authz",
+    deps = ["//services/studio/internal/iap"],
+)
+
+go_test(
+    name = "authz_test",
+    srcs = ["policy_test.go"],
+    embed = [":authz"],
+    deps = ["//services/studio/internal/iap"],
+)

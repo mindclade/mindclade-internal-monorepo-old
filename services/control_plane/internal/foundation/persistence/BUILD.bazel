@@ -1,0 +1,29 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//services/control_plane:__subpackages__"])
+
+go_library(
+    name = "persistence",
+    srcs = ["persistence.go"],
+    importpath = "go.mindclade.dev/services/control_plane/internal/foundation/persistence",
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/servicekit",
+        "//libs/go/servicekit/production",
+        "//libs/go/storage/sql/migrate",
+        "//libs/go/storage/sql/postgres",
+        "//libs/go/storage/sql/transaction",
+        "//services/control_plane/internal/foundation",
+    ],
+)
+
+go_test(
+    name = "persistence_test",
+    srcs = ["persistence_test.go"],
+    embed = [":persistence"],
+)

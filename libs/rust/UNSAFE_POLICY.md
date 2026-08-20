@@ -4,13 +4,17 @@ Unsafe Rust is denied by default across the workspace. It is permitted only in
 named leaf adapter crates that require OS/ABI functionality which cannot be
 expressed through safe Rust.
 
-## Current exception
+## Current exceptions
 
-`libs/rust/ipc_os` is the only current foundation exception. Its Linux `memfd`
-and file-descriptor adapter contains a deliberately small audited unsafe surface
-around `libc::memfd_create`, `File::from_raw_fd`, and descriptor `fcntl` calls.
-The crate overrides the workspace lint locally and carries `SAFETY.md` with the
-ownership and lifetime invariants for each block.
+- `libs/rust/ipc_os` contains the Linux `memfd` and file-descriptor adapter. Its
+  deliberately small unsafe surface wraps `libc::memfd_create`, `File::from_raw_fd`,
+  and descriptor `fcntl` calls.
+- `libs/rust/process_os` contains Unix process-group signaling. Its unsafe surface
+  is limited to checked `libc::kill` calls for signal zero, `SIGTERM`, and `SIGKILL`;
+  it passes no pointers or Rust-owned memory across the ABI.
+
+Each exception overrides the workspace lint locally and carries a package-local
+`SAFETY.md` with the invariants for every unsafe block.
 
 Every unsafe-enabled crate requires:
 

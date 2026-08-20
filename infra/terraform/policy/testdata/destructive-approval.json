@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "approvals": [
+    {
+      "kind": "destructive_change",
+      "address": "google_pubsub_topic.synthetic",
+      "resource": "projects/synthetic-project/topics/synthetic-topic",
+      "change": "delete",
+      "ticket": "SYNTHETIC-SEC-201",
+      "owner": "security@example.test",
+      "reason": "Synthetic fixture proving Pub/Sub deletion uses the compensating digest-bound gate.",
+      "issued_at": "2099-12-31T22:59:59Z",
+      "expires_at": "2099-12-31T23:59:59Z",
+      "plan_digest": "412e851e1ad569cff127450787e71f26ee5238f22d8c8db398eb515cc5d9c167"
+    }
+  ]
+}

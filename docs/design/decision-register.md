@@ -33,7 +33,8 @@ silently rewrites an earlier decision.
 | ADR-0020 | [Unified ticketed stage-worker protocol](adr-0020-unified-stage-worker-protocol.md) | Accepted |
 | ADR-0021 | [Machine-readable component maturity](adr-0021-component-maturity-policy.md) | Accepted |
 | ADR-0022 | [Artifact/reference-data/evidence identity](adr-0022-artifact-reference-database-evidence.md) | Accepted |
-| ADR-0023 | [Resolved config and dependency budgets](adr-0023-resolved-config-and-dependency-budgets.md) | Accepted |
+| ADR-0023 | [Resolved config and dependency budgets](adr-0023-resolved-config-and-dependency-budgets.md) | Superseded in part by ADR-0024 |
+| ADR-0024 | [Dependency layering over counts](adr-0024-dependency-layering-over-counts.md) | Accepted |
 
 ## Operating policies derived from these decisions
 

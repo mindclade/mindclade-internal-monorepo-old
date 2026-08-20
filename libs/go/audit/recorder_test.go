@@ -10,7 +10,7 @@ import (
 	"errors"
 	"testing"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 func TestRecord(t *testing.T) {

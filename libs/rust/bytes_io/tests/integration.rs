@@ -19,7 +19,7 @@ fn bounded_copy_and_pool_obey_limits() {
     drop(r);
     let pool = BufferPool::new(1024);
     let b = pool.take(128).expect("buffer");
-    pool.put(b);
+    let _ = pool.put(b);
     assert!(pool.cached_bytes() >= 128);
     assert!(ByteRange::new(1, 2).is_ok());
 }

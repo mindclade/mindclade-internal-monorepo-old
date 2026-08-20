@@ -14,6 +14,14 @@ pub struct HostTelemetry {
     sink: Arc<dyn Sink>,
 }
 
+impl core::fmt::Debug for HostTelemetry {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        formatter
+            .debug_struct("HostTelemetry")
+            .finish_non_exhaustive()
+    }
+}
+
 impl HostTelemetry {
     #[must_use]
     pub fn new(clock: Arc<dyn Clock>, sink: Arc<dyn Sink>) -> Self {

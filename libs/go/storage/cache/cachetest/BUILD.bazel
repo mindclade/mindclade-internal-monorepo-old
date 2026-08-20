@@ -9,14 +9,14 @@ package(default_visibility = ["//visibility:public"])
 
 go_library(
     name = "cachetest",
+    testonly = True,
     srcs = [
         "conformance.go",
         "doc.go",
     ],
-    importpath = "mindclade.internal/libs/go/storage/cache/cachetest",
+    importpath = "go.mindclade.dev/libs/go/storage/cache/cachetest",
     deps = [
         "//libs/go/faults",
         "//libs/go/storage/cache",
     ],
-    testonly = True,
 )

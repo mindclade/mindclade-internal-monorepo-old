@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"time"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // Task is one owned long-running unit. It must honor cancellation and must not

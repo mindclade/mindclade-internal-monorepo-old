@@ -4,4 +4,22 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# Capacity ceiling for an inactive production namespace. Workload object and
+# Pod quotas remain zero; activation is a separately reviewed change.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: mindclade-system
+  namespace: mindclade-system
+spec:
+  hard:
+    configmaps: "200"
+    limits.cpu: "64"
+    limits.ephemeral-storage: 800Gi
+    limits.memory: 256Gi
+    pods: "0"
+    requests.cpu: "32"
+    requests.ephemeral-storage: 400Gi
+    requests.memory: 128Gi
+    secrets: "100"
+    services: "50"

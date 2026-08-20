@@ -15,8 +15,14 @@ exports_files([
 
 go_library(
     name = "postgres",
-    srcs = ["config.go", "doc.go", "errors.go", "store.go"],
-    importpath = "mindclade.internal/libs/go/idempotency/postgres",
+    srcs = [
+        "config.go",
+        "ddl.go",
+        "doc.go",
+        "errors.go",
+        "store.go",
+    ],
+    importpath = "go.mindclade.dev/libs/go/idempotency/postgres",
     deps = [
         "//libs/go/clock",
         "//libs/go/faults",
@@ -30,7 +36,11 @@ go_library(
 
 go_test(
     name = "postgres_test",
-    srcs = ["config_test.go", "store_test.go"],
+    srcs = [
+        "config_test.go",
+        "ddl_test.go",
+        "store_test.go",
+    ],
     embed = [":postgres"],
     deps = [
         "//libs/go/clock",

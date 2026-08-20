@@ -7,11 +7,11 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from threading import Lock
 
 
-class State(str, Enum):
+class State(StrEnum):
     STARTING = "starting"
     READY = "ready"
     DRAINING = "draining"

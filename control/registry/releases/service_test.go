@@ -6,8 +6,8 @@
 package releases
 
 import (
-	"mindclade.internal/control/artifacts"
-	"mindclade.internal/libs/go/identifiers"
+	"go.mindclade.dev/control/artifacts"
+	"go.mindclade.dev/libs/go/identifiers"
 	"testing"
 	"time"
 )

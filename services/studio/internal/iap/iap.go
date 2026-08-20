@@ -44,6 +44,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"net/http"
 	"strings"
@@ -63,6 +64,13 @@ const Issuer = "https://cloud.google.com/iap"
 // matches, and the failure reads as "unknown key" rather than "wrong endpoint".
 const KeysURL = "https://www.gstatic.com/iap/verify/public_key-jwk"
 
+const (
+	maximumAssertionBytes     = 16 << 10
+	maximumKeySetBytes        = 1 << 20
+	maximumKeyCount           = 64
+	unknownKeyRefreshInterval = time.Minute
+)
+
 var (
 	ErrMissing    = errors.New("iap: no assertion header")
 	ErrMalformed  = errors.New("iap: malformed assertion")
@@ -70,6 +78,7 @@ var (
 	ErrIssuer     = errors.New("iap: unexpected issuer")
 	ErrAudience   = errors.New("iap: unexpected audience")
 	ErrExpired    = errors.New("iap: assertion expired")
+	ErrIssuedAt   = errors.New("iap: invalid assertion issued-at time")
 	ErrUnknownKey = errors.New("iap: assertion names an unknown key")
 )
 
@@ -100,10 +109,12 @@ type Verifier struct {
 	keysURL string
 	client  *http.Client
 
-	mu        sync.RWMutex
-	keys      map[string]*ecdsa.PublicKey
-	fetchedAt time.Time
-	ttl       time.Duration
+	mu                 sync.RWMutex
+	keys               map[string]*ecdsa.PublicKey
+	fetchedAt          time.Time
+	ttl                time.Duration
+	lastUnknownRefresh time.Time
+	refreshMu          sync.Mutex
 
 	now func() time.Time
 }
@@ -131,8 +142,14 @@ func NewVerifier(audience string, client *http.Client) (*Verifier, error) {
 
 // Verify checks an assertion and returns its content.
 func (v *Verifier) Verify(ctx context.Context, token string) (Assertion, error) {
+	if v == nil || ctx == nil {
+		return Assertion{}, ErrMalformed
+	}
 	if token == "" {
 		return Assertion{}, ErrMissing
+	}
+	if len(token) > maximumAssertionBytes {
+		return Assertion{}, ErrMalformed
 	}
 
 	parts := strings.Split(token, ".")
@@ -195,41 +212,50 @@ func (v *Verifier) Verify(ctx context.Context, token string) (Assertion, error) 
 	}
 
 	now := v.now()
+	issuedAt := time.Unix(claims.IssuedAt, 0)
+	if claims.IssuedAt <= 0 || issuedAt.After(now) {
+		return Assertion{}, ErrIssuedAt
+	}
 	// A small skew allowance on expiry only. None on iat: a token from the
 	// future is not a clock problem worth tolerating.
 	if claims.Expiry == 0 || now.After(time.Unix(claims.Expiry, 0).Add(30*time.Second)) {
+		return Assertion{}, ErrExpired
+	}
+	if claims.Expiry <= claims.IssuedAt {
 		return Assertion{}, ErrExpired
 	}
 
 	return Assertion{
 		Subject:   claims.Subject,
 		Email:     claims.Email,
-		IssuedAt:  time.Unix(claims.IssuedAt, 0),
+		IssuedAt:  issuedAt,
 		ExpiresAt: time.Unix(claims.Expiry, 0),
 	}, nil
 }
 
 // FromRequest verifies the assertion carried by an HTTP request.
 func (v *Verifier) FromRequest(r *http.Request) (Assertion, error) {
+	if r == nil {
+		return Assertion{}, ErrMalformed
+	}
 	return v.Verify(r.Context(), r.Header.Get(HeaderName))
 }
 
 func (v *Verifier) keyByID(ctx context.Context, kid string) (*ecdsa.PublicKey, error) {
+	now := v.now()
 	v.mu.RLock()
 	key, ok := v.keys[kid]
-	fresh := v.now().Sub(v.fetchedAt) < v.ttl
+	fresh := !v.fetchedAt.IsZero() && !now.Before(v.fetchedAt) && now.Sub(v.fetchedAt) < v.ttl
 	v.mu.RUnlock()
 
 	if ok && fresh {
 		return key, nil
 	}
 
-	// An unknown kid triggers exactly one refetch. Google rotates these keys,
-	// so a kid absent from a cached set is the expected shape of a rotation
-	// rather than an attack — but refetching on every unknown kid without the
-	// freshness check above would let an attacker drive unbounded outbound
-	// requests by sending garbage kids.
-	if err := v.refresh(ctx); err != nil {
+	// An unknown kid in a fresh set triggers a rate-limited forced refresh so
+	// genuine Google key rotation is picked up without letting attacker-chosen
+	// kid values drive one outbound request per assertion.
+	if err := v.refresh(ctx, fresh); err != nil {
 		return nil, err
 	}
 
@@ -237,12 +263,36 @@ func (v *Verifier) keyByID(ctx context.Context, kid string) (*ecdsa.PublicKey, e
 	key, ok = v.keys[kid]
 	v.mu.RUnlock()
 	if !ok {
+		v.mu.Lock()
+		if v.lastUnknownRefresh.Before(now) {
+			v.lastUnknownRefresh = now
+		}
+		v.mu.Unlock()
 		return nil, fmt.Errorf("%w: kid %q", ErrUnknownKey, kid)
 	}
 	return key, nil
 }
 
-func (v *Verifier) refresh(ctx context.Context) error {
+func (v *Verifier) refresh(ctx context.Context, force bool) error {
+	v.refreshMu.Lock()
+	defer v.refreshMu.Unlock()
+
+	now := v.now()
+	v.mu.RLock()
+	fresh := !v.fetchedAt.IsZero() && !now.Before(v.fetchedAt) && now.Sub(v.fetchedAt) < v.ttl
+	recentUnknownRefresh := !v.lastUnknownRefresh.IsZero() && !now.Before(v.lastUnknownRefresh) && now.Sub(v.lastUnknownRefresh) < unknownKeyRefreshInterval
+	v.mu.RUnlock()
+	if (!force && fresh) || (force && recentUnknownRefresh) {
+		return nil
+	}
+	if force {
+		// Record the attempt before I/O. A failing endpoint must not turn an
+		// arbitrary unknown kid into an unbounded retry loop.
+		v.mu.Lock()
+		v.lastUnknownRefresh = now
+		v.mu.Unlock()
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, v.keysURL, nil)
 	if err != nil {
 		return fmt.Errorf("iap: build key request: %w", err)
@@ -265,17 +315,35 @@ func (v *Verifier) refresh(ctx context.Context) error {
 			Y   string `json:"y"`
 		} `json:"keys"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&jwks); err != nil {
+	limited := &io.LimitedReader{R: resp.Body, N: maximumKeySetBytes + 1}
+	decoder := json.NewDecoder(limited)
+	if err := decoder.Decode(&jwks); err != nil {
 		return fmt.Errorf("iap: decode keys: %w", err)
+	}
+	if limited.N <= 0 {
+		return errors.New("iap: decode keys: response is too large")
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) || limited.N <= 0 {
+		return errors.New("iap: decode keys: response must contain exactly one bounded JSON value")
+	}
+	if len(jwks.Keys) == 0 || len(jwks.Keys) > maximumKeyCount {
+		return errors.New("iap: key set contained an invalid number of keys")
 	}
 
 	parsed := make(map[string]*ecdsa.PublicKey, len(jwks.Keys))
 	for _, k := range jwks.Keys {
+		if k.Kid == "" {
+			continue
+		}
 		pub, err := jwkToECDSA(k.Crv, k.X, k.Y)
 		if err != nil {
 			// Skip rather than fail: one unparseable key should not make every
 			// other key unusable.
 			continue
+		}
+		if _, duplicate := parsed[k.Kid]; duplicate {
+			return errors.New("iap: key set contained a duplicate key id")
 		}
 		parsed[k.Kid] = pub
 	}
@@ -332,9 +400,16 @@ func jwkToECDSA(crv, x, y string) (*ecdsa.PublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ecdsa.PublicKey{
-		Curve: elliptic.P256(),
-		X:     new(big.Int).SetBytes(xb),
-		Y:     new(big.Int).SetBytes(yb),
-	}, nil
+	if len(xb) != 32 || len(yb) != 32 {
+		return nil, errors.New("iap: invalid P-256 coordinate length")
+	}
+	encoded := make([]byte, 1+len(xb)+len(yb))
+	encoded[0] = 4 // SEC 1 uncompressed point marker.
+	copy(encoded[1:], xb)
+	copy(encoded[1+len(xb):], yb)
+	key, err := ecdsa.ParseUncompressedPublicKey(elliptic.P256(), encoded)
+	if err != nil {
+		return nil, fmt.Errorf("iap: invalid P-256 key: %w", err)
+	}
+	return key, nil
 }

@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"mindclade.internal/libs/go/clock"
+	"go.mindclade.dev/libs/go/clock"
 )
 
 type KeySet struct {

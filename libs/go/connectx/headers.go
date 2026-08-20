@@ -6,7 +6,7 @@
 package connectx
 
 import (
-	"mindclade.internal/libs/go/httpx"
+	"go.mindclade.dev/libs/go/httpx"
 	"net/http"
 )
 

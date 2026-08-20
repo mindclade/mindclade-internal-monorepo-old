@@ -1,0 +1,89 @@
+{
+  "apiVersion": "batch/v1",
+  "kind": "Job",
+  "metadata": {
+    "name": "mindclade-release-qualification-h200",
+    "namespace": "mindclade-training-h200",
+    "labels": {
+      "app.kubernetes.io/component": "release-qualification",
+      "app.kubernetes.io/name": "mindclade-hardware-qualification",
+      "app.kubernetes.io/part-of": "mindclade-platform",
+      "kueue.x-k8s.io/queue-name": "mindclade-training-h200",
+      "mindclade.dev/gpu-class": "1g-packed",
+      "mindclade.dev/hardware-profile": "h200",
+      "mindclade.dev/workload-class": "training-h200"
+    },
+    "annotations": {
+      "mindclade.dev/activation-requirements": "active-capacity-release-image-and-live-evidence"
+    }
+  },
+  "spec": {
+    "activeDeadlineSeconds": 3600,
+    "backoffLimit": 0,
+    "suspend": true,
+    "ttlSecondsAfterFinished": 86400,
+    "template": {
+      "metadata": {
+        "labels": {
+          "app.kubernetes.io/component": "release-qualification",
+          "app.kubernetes.io/name": "mindclade-hardware-qualification",
+          "mindclade.dev/hardware-profile": "h200",
+          "mindclade.dev/workload-class": "training-h200"
+        },
+        "annotations": {
+          "kueue.x-k8s.io/podset-unconstrained-topology": "true"
+        }
+      },
+      "spec": {
+        "automountServiceAccountToken": false,
+        "containers": [
+          {
+            "name": "qualification",
+            "image": "registry.invalid/mindclade/release-qualification@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "imagePullPolicy": "IfNotPresent",
+            "command": ["/opt/mindclade/bin/release-hardware-qualification"],
+            "args": ["--profile", "h200", "--scratch", "/scratch", "--require-complete"],
+            "resources": {
+              "requests": {
+                "cpu": "8",
+                "memory": "64Gi",
+                "ephemeral-storage": "64Gi",
+                "nvidia.com/gpu": "1"
+              },
+              "limits": {
+                "cpu": "16",
+                "memory": "128Gi",
+                "ephemeral-storage": "128Gi",
+                "nvidia.com/gpu": "1"
+              }
+            },
+            "securityContext": {
+              "allowPrivilegeEscalation": false,
+              "capabilities": {"drop": ["ALL"]},
+              "readOnlyRootFilesystem": true,
+              "runAsNonRoot": true,
+              "runAsUser": 65532
+            },
+            "volumeMounts": [{"name": "scratch", "mountPath": "/scratch"}]
+          }
+        ],
+        "nodeSelector": {
+          "mindclade.dev/gpu-profile": "gke-h200-a3-ultragpu-8g",
+          "mindclade.dev/node-pool": "gpu"
+        },
+        "priorityClassName": "mindclade-batch",
+        "restartPolicy": "Never",
+        "securityContext": {
+          "runAsNonRoot": true,
+          "seccompProfile": {"type": "RuntimeDefault"}
+        },
+        "serviceAccountName": "mindclade-training-h200",
+        "terminationGracePeriodSeconds": 120,
+        "tolerations": [
+          {"effect": "NoSchedule", "key": "nvidia.com/gpu", "operator": "Equal", "value": "present"}
+        ],
+        "volumes": [{"name": "scratch", "emptyDir": {"sizeLimit": "128Gi"}}]
+      }
+    }
+  }
+}

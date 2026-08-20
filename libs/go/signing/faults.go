@@ -9,7 +9,7 @@ import (
 	"context"
 	"errors"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 func invalid(cause error, message, reason, operation string, fields faults.Fields) error {

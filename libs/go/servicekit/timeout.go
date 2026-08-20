@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"mindclade.internal/libs/go/clock"
+	"go.mindclade.dev/libs/go/clock"
 )
 
 // deadlineContext preserves normal context deadline semantics while allowing

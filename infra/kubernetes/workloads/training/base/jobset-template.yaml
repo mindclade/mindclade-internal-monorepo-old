@@ -1,0 +1,108 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+# Each replica consumes a complete eight-GPU node. Required zone TAS keeps the two-node PodSet in
+# one qualified failure domain; hostname spread prevents both replicas targeting the same node.
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  name: mindclade-8g-full-template
+  labels:
+    app.kubernetes.io/component: training
+    app.kubernetes.io/name: distributed-training
+    app.kubernetes.io/part-of: mindclade-platform
+    kueue.x-k8s.io/queue-name: blocked-unbound
+    mindclade.dev/gpu-class: 8g-full
+    mindclade.dev/workload-class: unbound
+    mindclade.dev/workload-state: blocked
+  annotations:
+    mindclade.dev/activation-requirements: image-ticket-checkpoint-topology-and-numerical-qualification
+    mindclade.dev/distributed-transport: unset-until-qualified
+spec:
+  suspend: true
+  replicatedJobs:
+    - name: trainer
+      replicas: 2
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: training
+            app.kubernetes.io/name: distributed-training
+        spec:
+          activeDeadlineSeconds: 86400
+          backoffLimit: 0
+          completions: 1
+          parallelism: 1
+          ttlSecondsAfterFinished: 86400
+          template:
+            metadata:
+              labels:
+                app.kubernetes.io/component: training
+                app.kubernetes.io/name: distributed-training
+                mindclade.dev/distributed-transport: unqualified
+                mindclade.dev/gpu-class: 8g-full
+                mindclade.dev/workload-class: unbound
+              annotations:
+                kueue.x-k8s.io/podset-required-topology: topology.kubernetes.io/zone
+            spec:
+              automountServiceAccountToken: false
+              containers:
+                - name: trainer
+                  image: registry.invalid/mindclade/training-worker@sha256:0000000000000000000000000000000000000000000000000000000000000000
+                  env:
+                    - name: MINDCLADE_WORKLOAD_ACTIVATION
+                      value: blocked
+                    - name: MINDCLADE_CHECKPOINT_POLICY
+                      value: required-before-activation
+                  resources:
+                    requests:
+                      cpu: "8"
+                      memory: 64Gi
+                      ephemeral-storage: 32Gi
+                      nvidia.com/gpu: "8"
+                    limits:
+                      cpu: "16"
+                      memory: 128Gi
+                      ephemeral-storage: 64Gi
+                      nvidia.com/gpu: "8"
+                  securityContext:
+                    allowPrivilegeEscalation: false
+                    capabilities:
+                      drop:
+                        - ALL
+                    readOnlyRootFilesystem: true
+                    runAsNonRoot: true
+                    runAsUser: 65532
+                  volumeMounts:
+                    - name: scratch
+                      mountPath: /tmp
+              nodeSelector:
+                mindclade.dev/gpu-profile: unbound
+                mindclade.dev/node-pool: gpu
+              priorityClassName: mindclade-batch
+              restartPolicy: Never
+              securityContext:
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              serviceAccountName: mindclade-training-unbound
+              terminationGracePeriodSeconds: 120
+              tolerations:
+                - effect: NoSchedule
+                  key: nvidia.com/gpu
+                  operator: Equal
+                  value: present
+              topologySpreadConstraints:
+                - labelSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: distributed-training
+                  maxSkew: 1
+                  topologyKey: kubernetes.io/hostname
+                  whenUnsatisfiable: DoNotSchedule
+              volumes:
+                - name: scratch
+                  emptyDir:
+                    sizeLimit: 64Gi

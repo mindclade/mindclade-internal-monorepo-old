@@ -4,4 +4,20 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# This is an auditable contract, not an Argo CD repository registration. Argo CD repository
+# registrations are Secrets and must be provisioned by the controlled live-cluster secret system.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mindclade-repository-contract
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-29"
+    mindclade.dev/activation-state: blocked
+    mindclade.dev/non-operative-contract: "true"
+data:
+  repository.url: https://github.com/mindclade-org/mindclade.git
+  repository.credential-source: operator-provisioned-outside-source-tree
+  repository.revision-policy: exact-lowercase-40-character-git-commit-sha
+  repository.mutable-revisions: forbidden
+  repository.registration-state: absent

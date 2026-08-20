@@ -3,4 +3,4 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Mindclade scaffold package for libs/python/testing/tests."""
+"""Shared testing-primitive tests."""

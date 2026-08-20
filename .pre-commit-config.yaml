@@ -1,0 +1,23 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# Parity with the other five repositories in the estate, which have carried one of these since
+# they were created. This was the only repository without it — and the one with the most
+# source in it.
+#
+# Deliberately just the licence header. The heavy gates in this tree (ruff, mypy, golangci,
+# clippy, bazel) are slow enough that running them on every commit trains people to pass
+# --no-verify, and presubmit.yml runs them properly. A hook that gets bypassed is worse than
+# one that does not exist, because it looks like coverage.
+repos:
+  - repo: local
+    hooks:
+      - id: mindclade-license-header
+        name: Mindclade proprietary license header
+        description: Ensure proprietary license comment headers are present on supported source files
+        entry: python3 tools/analysis/check_license_headers.py
+        language: system
+        pass_filenames: true
+        stages: [pre-commit]

@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"mindclade.internal/libs/go/clock"
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/requestmeta"
+	"go.mindclade.dev/libs/go/clock"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/requestmeta"
 )
 
 func TestRuntimeComposition(t *testing.T) {

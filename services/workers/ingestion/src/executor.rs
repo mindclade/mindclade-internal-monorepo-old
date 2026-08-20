@@ -17,6 +17,7 @@ pub trait IngestionEngine: Send + Sync {
     fn execute(&self, ticket: &ExecutionTicket) -> FaultResult<Vec<Digest>>;
 }
 
+#[derive(Debug)]
 pub struct IngestionExecutor {
     config: IngestionWorkerConfig,
     budget: Arc<Budget>,

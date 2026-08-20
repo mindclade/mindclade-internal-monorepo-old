@@ -10,7 +10,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"mindclade.internal/libs/go/requestmeta"
+	"go.mindclade.dev/libs/go/requestmeta"
 )
 
 // RequestMetadata establishes request lineage for each reconciliation.

@@ -14,7 +14,7 @@ use mindclade_content_digest::Digest;
 use mindclade_faults::{Code, Fault, FaultResult};
 use std::sync::Arc;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TransferEngine {
     cas: ArtifactCas,
     cache: Arc<LocalCache>,

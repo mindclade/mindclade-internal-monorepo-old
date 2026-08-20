@@ -1,0 +1,27 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_python//python:defs.bzl", "py_test")
+
+package(default_visibility = ["//visibility:private"])
+
+filegroup(
+    name = "scaffold_files",
+    srcs = glob(
+        ["**"],
+        exclude = ["BUILD.bazel"],
+    ),
+    visibility = ["//visibility:public"],
+)
+
+py_test(
+    name = "interface_governance_test",
+    srcs = ["interface_governance_test.py"],
+    data = [
+        ":scaffold_files",
+        "//infra/terraform/governance:governance_data",
+    ],
+    deps = ["//infra/terraform/governance:interface_governance"],
+)

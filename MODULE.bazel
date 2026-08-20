@@ -3,20 +3,227 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-module(name = "mindclade_internal", version = "0.0.0")
+module(
+    name = "mindclade_internal",
+    version = "0.0.0",
+)
 
-bazel_dep(name = "rules_go", version = "0.51.0")
-bazel_dep(name = "gazelle", version = "0.40.0")
-bazel_dep(name = "rules_python", version = "1.2.0")
-bazel_dep(name = "rules_rust", version = "0.57.1")
-bazel_dep(name = "rules_js", version = "2.2.2")
-bazel_dep(name = "rules_oci", version = "2.2.6")
-bazel_dep(name = "protobuf", version = "29.3")
+bazel_dep(name = "rules_go", version = "0.63.0")
+bazel_dep(name = "gazelle", version = "0.51.3")
+bazel_dep(name = "rules_python", version = "1.7.0")
+bazel_dep(name = "rules_rust", version = "0.73.0")
+bazel_dep(name = "rules_cc", version = "0.2.17")
+bazel_dep(name = "platforms", version = "1.1.0")
+
+# No JavaScript ruleset is declared here yet. The TypeScript packages under
+# libs/ts and apps carry scaffold filegroups only, and nothing loads JS rules.
+# The previous entry was `rules_js`, which the Bazel Central Registry does not
+# serve under that name at ANY version -- Aspect publishes it as
+# `aspect_rules_js` -- so module resolution failed and no Bazel target in the
+# repository could be queried or built at all. Reinstate it as `aspect_rules_js`,
+# at a version the registry actually has, when the TS packages get real rules.
+bazel_dep(name = "rules_oci", version = "2.3.0")
+bazel_dep(name = "protobuf", version = "33.4")
+
+# Tar layers for oci_image. rules_oci deliberately does not build layers itself -- it composes
+# images from tarballs -- so an image target needs this alongside it.
+bazel_dep(name = "rules_pkg", version = "1.0.1")
+
+# Bazel 9 removed the native sh_binary/sh_test/sh_library rules; they live in rules_shell now
+# and must be loaded explicitly. //tools/qualification/go:validate is the only sh_ rule in the
+# repository, and without this dep its package fails to LOAD -- which takes down `//...` for
+# every target, not just that one.
+#
+# It resolves as a transitive dependency of aspect_bazel_lib regardless. Declaring it directly
+# is what makes the load() legal: a transitive module is not addressable as @rules_shell from
+# this repository's own BUILD files.
+bazel_dep(name = "rules_shell", version = "0.6.1")
+
+# Nix owns the compiler closure. This extension turns the bundle exported by every development
+# shell into a registered C/C++ toolchain, so Bazel never probes /usr/bin, Xcode Command Line
+# Tools, or Homebrew to discover build semantics.
+nix_toolchains = use_extension(
+    "//tools/build/bazel/extensions:nix_toolchains.bzl",
+    "nix_toolchains",
+)
+use_repo(nix_toolchains, "mindclade_nix_cc")
+
+register_toolchains("@mindclade_nix_cc//:registered_toolchain")
+
+# Static infrastructure validation consumes fixed-hash Kubernetes schemas and captures the
+# Nix-owned CLI closure as declared runfiles. The latter is a documented transition bridge:
+# actions do not inherit PATH and remain sandboxed, while Nix remains the version authority.
+infra_validation = use_extension(
+    "//tools/build/bazel/extensions:infra_validation.bzl",
+    "infra_validation",
+)
+use_repo(
+    infra_validation,
+    "mindclade_infra_validation_tools",
+    "mindclade_kubernetes_schemas",
+)
+
 # Rust third-party dependencies are derived from the canonical Cargo workspace.
+#
+# EVERY MEMBER MANIFEST IS LISTED, not just the root. cargo-bazel splices the workspace from
+# the manifests it is given, and a member missing from this list makes the extension FAIL to
+# evaluate — "Some manifests are not being tracked" — which aborts analysis for the whole
+# repository rather than for the crate in question. The root manifest alone was what
+# `bazel build //... --nobuild` was failing on.
+#
+# Keep this in step with the `members` list in //:Cargo.toml. The two are one list expressed
+# twice, and cargo-bazel names the missing label when they diverge.
 crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 crate.from_cargo(
     name = "crates",
     cargo_lockfile = "//:Cargo.lock",
-    manifests = ["//:Cargo.toml"],
+    manifests = [
+        "//:Cargo.toml",
+        "//libs/rust/artifact_cas:Cargo.toml",
+        "//libs/rust/atomic_fs:Cargo.toml",
+        "//libs/rust/bio_formats:Cargo.toml",
+        "//libs/rust/bounded_parse:Cargo.toml",
+        "//libs/rust/bytes_io:Cargo.toml",
+        "//libs/rust/checkpoint_io:Cargo.toml",
+        "//libs/rust/content_digest:Cargo.toml",
+        "//libs/rust/data_stream:Cargo.toml",
+        "//libs/rust/faults:Cargo.toml",
+        "//libs/rust/gpu_host:Cargo.toml",
+        "//libs/rust/identifiers:Cargo.toml",
+        "//libs/rust/ipc:Cargo.toml",
+        "//libs/rust/ipc_os:Cargo.toml",
+        "//libs/rust/manifests:Cargo.toml",
+        "//libs/rust/object_store:Cargo.toml",
+        "//libs/rust/python_bridge:Cargo.toml",
+        "//libs/rust/record_io:Cargo.toml",
+        "//libs/rust/runtime_core:Cargo.toml",
+        "//libs/rust/servicekit:Cargo.toml",
+        "//libs/rust/telemetry:Cargo.toml",
+        "//libs/rust/telemetry_spool:Cargo.toml",
+        "//libs/rust/tokenizer_runtime:Cargo.toml",
+        "//libs/rust/worker_protocol:Cargo.toml",
+        "//libs/rust/worker_runtime:Cargo.toml",
+        "//serving/runtime:Cargo.toml",
+        "//services/artifact_proxy:Cargo.toml",
+        "//services/node_agent:Cargo.toml",
+        "//services/runtime_gateway:Cargo.toml",
+        "//services/runtime_host:Cargo.toml",
+        "//services/workers/ingestion:Cargo.toml",
+        "//protocols/rust:Cargo.toml",
+        "//tools/qualification/rust/perf_probe:Cargo.toml",
+    ],
 )
 use_repo(crate, "crates")
+
+# Go third-party dependencies are derived from the canonical root go.mod, the
+# same way Rust's are derived from Cargo.lock above.
+#
+# Without this extension the `@cloud_google_com_go_storage`-style labels that
+# every Go BUILD file already carries resolve to nothing, so no Go target in
+# the repository can be built -- including the `bazel test //libs/go/...` that
+# both libs/go/README.md and tools/qualification/go/validate.sh call
+# qualification. That gap was invisible because `go test` was doing the work
+# and nothing ever asked Bazel.
+#
+# use_repo lists exactly the modules the BUILD files reference. Adding a new
+# external Go dependency to a BUILD file means adding it here too;
+# `bazel mod tidy` maintains the list.
+go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
+go_deps.from_file(go_mod = "//:go.mod")
+use_repo(
+    go_deps,
+    "com_connectrpc_connect",
+    "com_connectrpc_grpchealth",
+    "com_connectrpc_grpcreflect",
+    "com_connectrpc_otelconnect",
+    "com_github_googleapis_gax_go_v2",
+    "com_github_lib_pq",
+    "com_github_redis_go_redis_v9",
+    "com_google_cloud_go_storage",
+    "io_k8s_api",
+    "io_k8s_apimachinery",
+    "io_k8s_client_go",
+    "io_k8s_sigs_controller_runtime",
+    "io_opentelemetry_go_contrib_instrumentation_google_golang_org_grpc_otelgrpc",
+    "io_opentelemetry_go_contrib_instrumentation_net_http_otelhttp",
+    "org_golang_google_api",
+    "org_golang_google_genproto_googleapis_rpc",
+    "org_golang_google_grpc",
+    "org_golang_google_protobuf",
+    "org_golang_x_crypto",
+)
+
+# Bazel compiles Go with the SAME version go.mod pins. This was previously impossible and the
+# note here said so: rules_go 0.51 hardcodes GOEXPERIMENT=nocoverageredesign, Go 1.26 removed
+# that experiment, and the toolchain rejects it with "unknown GOEXPERIMENT coverageredesign"
+# during GoStdlib. The old note concluded that "every rules_go release in the registry" was
+# affected, having verified 0.51 and 0.55 -- but the registry now serves up to 0.63.0, and the
+# hardcoded experiment is gone by then.
+#
+# Verified rather than assumed: the produced binary reports `go1.26.6`, and 216 targets across
+# //libs/go, //control, //examples and //services/go_vanity build clean. That also closed
+# libs/go/httpx/middleware, which used the Go 1.23 net/http Request.Pattern field and was the
+# one target that built with `go build` and not with Bazel.
+#
+# Keep this compiler on the latest security patch for the language level in go.mod. The go
+# directive intentionally expresses the 1.26 language floor; this pin determines the patched
+# standard library used by Bazel and must agree with CI and the Nix toolchain evidence.
+go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
+go_sdk.download(version = "1.26.6")
+
+# ---------------------------------------------------------------------------------------
+# Python interpreter and third-party wheels
+# ---------------------------------------------------------------------------------------
+# A hermetic interpreter, pinned to the version reusable-uv-ci runs. Without this rules_python
+# falls back to whatever `python3` the machine has, which is enough to assemble a py_library
+# but not to run a py_test the same way twice.
+#
+# Keep in step with `requires-python` in pyproject.toml and `python-version` in
+# .github/workflows/presubmit.yml.
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    is_default = True,
+    python_version = "3.12",
+)
+
+# Third-party wheels, resolved from the SAME uv lock that `uv sync` and the Python CI lane
+# use. requirements.lock.txt is generated, never hand-edited:
+#
+#     uv lock && uv export --format requirements-txt --no-emit-project -o requirements.lock.txt
+#
+# uv.lock is the source of truth; rules_python cannot read it, so the export is the bridge.
+# Two resolvers over one lock is the point — Bazel and uv install the same versions, and the
+# exported hashes mean a wheel that changed under a version is a hard failure rather than a
+# silently different dependency.
+#
+# Wheels are fetched per package and on demand: depending on @pypi//pytest does not download
+# torch. That matters here, because torch is the largest dependency in the tree by two orders
+# of magnitude and almost nothing needs it at build time.
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    hub_name = "pypi",
+    python_version = "3.12",
+    requirements_lock = "//:requirements.lock.txt",
+)
+use_repo(pip, "pypi")
+
+# ---------------------------------------------------------------------------------------
+# Container base images
+# ---------------------------------------------------------------------------------------
+# distroless static, pinned to the SAME digest services/go_vanity used while it was still a
+# Dockerfile, so the migration to Bazel OCI changed the build system and not the base bytes.
+#
+# `nonroot` is uid 65532, which has to agree with runAsUser in
+# infra/kubernetes/planes/dev/base/go-vanity.yaml -- a manifest asking for a uid the image does
+# not have starts a container that cannot read its own filesystem.
+#
+# linux/amd64 only. The clusters are amd64 node pools; pulling other platforms costs fetch time
+# for a manifest nothing pulls, matching the `platforms` choice in .github/workflows/release.yml.
+oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
+oci.pull(
+    name = "distroless_static",
+    digest = "sha256:1b7b9f0f0e0a1d2155f531db587cc48ec26aaf97ab64364225f5bf18a054e66a",
+    image = "gcr.io/distroless/static-debian12",
+    platforms = ["linux/amd64"],
+)
+use_repo(oci, "distroless_static", "distroless_static_linux_amd64")

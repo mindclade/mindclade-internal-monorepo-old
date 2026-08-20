@@ -3,7 +3,50 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_go//go:def.bzl","go_library","go_test")
-package(default_visibility=["//visibility:public"])
-go_library(name="interceptors",srcs=["authentication.go","authorization.go","config.go","doc.go","faults.go","internal.go","recovery.go","requestmeta.go","stream.go","validation.go"],importpath="mindclade.internal/libs/go/grpcx/interceptors",deps=["@org_golang_google_grpc//:grpc","@org_golang_google_grpc//metadata","//libs/go/auth","//libs/go/faults","//libs/go/grpcx","//libs/go/httpx","//libs/go/requestmeta"])
-go_test(name="interceptors_test",srcs=["full_test.go","interceptors_test.go"],embed=[":interceptors"],deps=["@org_golang_google_grpc//:grpc","@org_golang_google_grpc//codes","@org_golang_google_grpc//metadata","@org_golang_google_grpc//status","//libs/go/auth","//libs/go/faults","//libs/go/requestmeta"])
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "interceptors",
+    srcs = [
+        "authentication.go",
+        "authorization.go",
+        "config.go",
+        "doc.go",
+        "faults.go",
+        "internal.go",
+        "recovery.go",
+        "requestmeta.go",
+        "stream.go",
+        "validation.go",
+    ],
+    importpath = "go.mindclade.dev/libs/go/grpcx/interceptors",
+    deps = [
+        "//libs/go/auth",
+        "//libs/go/faults",
+        "//libs/go/grpcx",
+        "//libs/go/httpx",
+        "//libs/go/requestmeta",
+        "@org_golang_google_grpc//:grpc",
+        "@org_golang_google_grpc//metadata",
+    ],
+)
+
+go_test(
+    name = "interceptors_test",
+    srcs = [
+        "full_test.go",
+        "interceptors_test.go",
+    ],
+    embed = [":interceptors"],
+    deps = [
+        "//libs/go/auth",
+        "//libs/go/faults",
+        "//libs/go/requestmeta",
+        "@org_golang_google_grpc//:grpc",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//metadata",
+        "@org_golang_google_grpc//status",
+    ],
+)

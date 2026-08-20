@@ -10,8 +10,11 @@ metadata:
   name: default-deny
   namespace: mindclade-system
   labels:
+    app.kubernetes.io/component: network-policy
     app.kubernetes.io/part-of: mindclade-platform
     mindclade.dev/owner: security-and-operations
+  annotations:
+    mindclade.dev/failure-mode: fail-closed
 spec:
   podSelector: {}
   policyTypes:
@@ -24,8 +27,11 @@ metadata:
   name: allow-cluster-dns
   namespace: mindclade-system
   labels:
+    app.kubernetes.io/component: network-policy
     app.kubernetes.io/part-of: mindclade-platform
     mindclade.dev/owner: security-and-operations
+  annotations:
+    mindclade.dev/scope: dns-only
 spec:
   podSelector: {}
   policyTypes:
@@ -43,3 +49,65 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
+---
+# Capacity namespaces intentionally have no inferred DNS, registry, object-store, telemetry, or
+# control-plane path. Exact egress is part of a workload's reviewed activation bundle.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: mindclade-batch-cpu
+  labels:
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/capacity-domain: batch-cpu
+  annotations:
+    mindclade.dev/activation-blocker: exact-workload-flows-unqualified
+    mindclade.dev/failure-mode: fail-closed
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+  egress: []
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: mindclade-training-h100
+  labels:
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/capacity-domain: training-h100
+  annotations:
+    mindclade.dev/activation-blocker: exact-training-and-checkpoint-flows-unqualified
+    mindclade.dev/failure-mode: fail-closed
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+  egress: []
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: mindclade-training-h200
+  labels:
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/capacity-domain: training-h200
+  annotations:
+    mindclade.dev/activation-blocker: exact-training-and-checkpoint-flows-unqualified
+    mindclade.dev/failure-mode: fail-closed
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+  egress: []

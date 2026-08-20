@@ -9,8 +9,8 @@ import (
 	"context"
 	"log/slog"
 
-	"mindclade.internal/libs/go/clock"
-	"mindclade.internal/libs/go/requestmeta"
+	"go.mindclade.dev/libs/go/clock"
+	"go.mindclade.dev/libs/go/requestmeta"
 )
 
 type runtimeConfiguration struct {

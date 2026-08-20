@@ -15,10 +15,10 @@ import (
 	"strings"
 	"sync"
 
-	"mindclade.internal/libs/go/clock"
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/identifiers"
-	"mindclade.internal/libs/go/storage/blob"
+	"go.mindclade.dev/libs/go/clock"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/storage/blob"
 )
 
 const DefaultMaximumObjectBytes int64 = 64 << 20

@@ -4,6 +4,127 @@ All notable changes to the repository architecture and released implementation
 surfaces are recorded here. Individual model, dataset, runtime, and service
 releases also carry immutable release manifests and evidence bundles.
 
+## 2026-08-20 — Terraform v0.2.0 candidate
+
+- materialized and documented all 32 reusable Google Cloud modules plus the lifetime-scoped
+  `dns_hub` root without creating deployable environment values or cloud state;
+- added generated API documentation, an immutable v0.1.1 interface baseline, breaking-change
+  classification, and a machine-checked 0.1.1-to-0.2.0 migration record;
+- normalized reviewed Google provider locks to 7.45.0 and added backendless compatibility
+  qualification at the declared minimum 7.41.0 and reviewed 7.45.0;
+- added bounded Terraform CI, exact trusted provider caching, Trivy and Conftest gates, and a
+  digest-bound saved-plan policy interface;
+- SHA-pinned shared presubmit/security workflows and prepared `lint`/`terraform` required
+  checks in an external ruleset that remains in evaluate mode pending real PR evidence.
+
+This entry describes a release candidate, not a published tag or production deployment.
+Live roots, connected plans, apply authorization, recovery, cost, and operational evidence
+remain promotion blockers.
+
+
+## 2026-08-19 — Estate audit remediation
+
+Work on the `estate-audit-remediation` branch, which took the repository from a materialized
+scaffold with no executing gates to one where the gates run. Grouped by what each change was
+actually fixing rather than by date.
+
+### Build and CI now execute
+
+- gated the toolchains that had no gate, and built the first real image —
+  `services/go_vanity`, chosen because it is small and genuinely real, to prove the
+  build/sign/attest chain end to end;
+- added a `bazel query //...` presubmit lane. It immediately found
+  `services/workers/ingestion` declaring a source across a package boundary, a label Bazel
+  refuses outright, which had been stopping `//...` from evaluating at all and therefore
+  hiding every other Bazel result in the repository;
+- declared the Go and Rust third-party dependency extensions in `MODULE.bazel`. Every Go
+  BUILD file already carried `@org_golang_*`-style labels that resolved to nothing, so no Go
+  target could be built — invisible because `go test` was doing the work and nothing asked
+  Bazel;
+- pinned `.bazelversion`, which did not exist, so bazelisk stopped choosing a Bazel per
+  machine. It went to 8.4.2 first — rules_go 0.51 does not load under Bazel 9, `cross.bzl`
+  using APIs it removed — and then to 9.1.1 once the rules_go 0.63.0 bump below removed that
+  constraint. 9.1.1 is what `tools/build/nix/versions.nix` declares, and
+  `checks/bazel-version.nix` now fails the build when the two disagree;
+- added `.pre-commit-config.yaml`, the licence-header hook every other repository in the
+  estate had carried since it was created and this one — the one with the most source in it —
+  did not;
+- made directly-invoked scripts executable, and let the `ci` Nix shell evaluate now that it
+  carries Terraform (BUSL-licensed since 1.6, so the shell failed to *evaluate* without an
+  `allowUnfree` predicate, before the shell existed, with an error naming no useful package).
+
+### Infrastructure
+
+- added the seven organization-layer security modules, including SCC and Access Transparency,
+  and documented them;
+- added a production-grade cleanup Makefile with dry-run and confirmation gates, covering
+  Bazel, Python, Rust, Go, Node and local Nix/Terraform intermediates.
+
+### Root files
+
+- **materialized the seven reserved root paths that had never been written**: `.bazelrc`,
+  `.bazelignore`, `.buildifier.json`, `.dockerignore`, `.editorconfig`, `.envrc`,
+  `.gitattributes`. The repository had been running every Bazel invocation on stock defaults,
+  which is why the presubmit query lane needed three flags on the command line to produce
+  parseable output;
+- **replaced the three root files that were materialized as stubs** — `OWNERS.toml`,
+  `rustfmt.toml`, `bazel_downloader.cfg` — with real content. Blueprint coverage counts
+  existence, not content, so all three had counted as done while saying nothing;
+- **deleted five orphaned root snapshots**: `MANIFEST.sha256`, `REPOSITORY_TREE.txt`,
+  `BLUEPRINT_COVERAGE.json`, `SCOPED_VALIDATION.json`, `go.mod.foundation-reference`. Nothing
+  read them, no generator produced them, and all five described a tree that no longer existed
+  — `MANIFEST.sha256` listed a `.bazelrc` the repository did not have. `BLUEPRINT_COVERAGE.json`
+  was the source of the standing 100%-coverage claim, which had not been true since the Rust
+  consolidation;
+- reconciled `BUILD.bazel`'s root metadata exports, which had drifted to six of fifteen files
+  and omitted `LICENSE`, `NOTICE` and `QUALIFICATION.md`;
+- recounted the `VALIDATION.md` inventory against the tree and corrected the coverage figure
+  to the measured 97.5%; corrected the stale `go.sum` line count in `QUALIFICATION.md`.
+
+### Images are Bazel-built
+
+- **`services/go_vanity` moved from a Dockerfile to `oci_image`**, which was the last failing
+  architecture check — `check_build_toolchain_contract.py` forbids production Dockerfiles.
+  The image is `go_library` → cross-compiled `go_binary` (`goos=linux`, `goarch=amd64`,
+  `pure=on`) → `pkg_tar` → `oci_image` → `oci_push`, on the same distroless digest the
+  Dockerfile pinned, so the migration changed the build system and not the base bytes;
+- the resulting image is **bit-identical across a clean rebuild** — same manifest digest — a
+  property the Dockerfile could not offer, because it ran `go mod download` inside the build
+  and so depended on what the network served that day;
+- `.github/workflows/release.yml` keeps calling `reusable-oci-build.yml` rather than growing
+  its own copy of the signing chain. That workflow gained a `builder: bazel` mode — only its
+  build step differs, since SBOM, cosign signature, SBOM attestation and Binary Authorization
+  all key off `image@digest` — so the release job stays a `uses:` block and the estate keeps one
+  signing chain. **Ordering constraint: this requires `reusable-oci-build.yml >= v1.2.0`**; an
+  earlier tag ignores the `bazel-*` inputs as unknown and looks for a Dockerfile that is no
+  longer there;
+- the `platforms:` input is deliberately not passed under the bazel builder. It is buildx's;
+  the target platform is now a property of the artifact (`goos`/`goarch` on the `go_binary`,
+  and the amd64 base), and passing it again would be an unread second declaration free to
+  drift.
+
+### The Go SDK pin, which turned out not to be blocked
+
+- **Bazel now compiles Go with 1.26.0, the version `go.mod` pins.** The standing note in
+  `MODULE.bazel` said this was blocked because rules_go hardcodes a `GOEXPERIMENT` Go 1.26
+  rejects, having verified 0.51 and 0.55 and concluded "every rules_go release in the
+  registry". The registry serves up to 0.63.0, and the experiment is gone by then. Bumping
+  rules_go 0.51 → 0.63.0 and pinning `go_sdk.download(version = "1.26.0")` builds clean across
+  216 targets in `//libs/go`, `//control`, `//examples` and `//services/go_vanity`;
+- that also closed `libs/go/httpx/middleware`, which used the Go 1.23 `net/http`
+  `Request.Pattern` field and was the one target that built with `go build` and not with Bazel.
+
+### Known open
+
+- `MATERIALIZATION_BASELINE` was raised 46 → 114. Seven of that movement is this sweep closing
+  root paths; the other 75 is two in-flight migrations (`training/distributed`,
+  `libs/go/storage/outbox`) whose files moved without the blueprint manifest following. That
+  is manifest reconciliation, owed by whichever change finishes those migrations.
+- The release workflow references `reusable-oci-build.yml@v1.2.0`. That tag has to be cut in
+  `mindclade-org/.github` before this lands, or the release job fails resolving it.
+- Rust targets still fail Bazel analysis in the `crate_universe` extension, because `Cargo.lock`
+  remains the unresolved connected-lane artifact `VALIDATION.md` describes. Unaffected by the
+  rules_go bump.
 
 ## 2026-08-13 — Eighteen optimizations and canonical system design
 

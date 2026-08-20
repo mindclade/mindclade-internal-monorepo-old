@@ -1,1 +1,86 @@
-{}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.mindclade.internal/qualification/toolchain-manifest.schema.json",
+  "title": "Toolchain manifest",
+  "description": "Release evidence for the Nix-owned toolchain closure (ADR-0002). Rendered by tools/build/nix/manifest.nix, committed at tools/build/nix/toolchain-manifest.json, and asserted by the flake check of the same name. Records resolved versions and the nixpkgs revision rather than store paths: a store path moves on any rebuild of any dependency, so a path-keyed manifest churns without carrying more information.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "nixpkgs", "pins", "cxx", "tools", "ciTools"],
+  "properties": {
+    "schema": {
+      "description": "Manifest format version. Bumped only when a consumer would break.",
+      "const": 1
+    },
+    "nixpkgs": {
+      "description": "The nixpkgs revision from flake.lock. With the tool versions below, this is what makes the closure recoverable.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "pins": {
+      "description": "The declared pins from tools/build/nix/versions.nix, so a versions.nix edit that no compatibility file mirrors also shows up as manifest drift.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bazel", "rust", "go", "python", "nodeMajor", "pnpmMajor", "darwinDeploymentTarget"],
+      "properties": {
+        "bazel": { "$ref": "#/$defs/exactVersion" },
+        "rust": { "$ref": "#/$defs/exactVersion" },
+        "go": { "$ref": "#/$defs/languageLevel" },
+        "python": { "$ref": "#/$defs/languageLevel" },
+        "nodeMajor": { "$ref": "#/$defs/major" },
+        "pnpmMajor": { "$ref": "#/$defs/major" },
+        "darwinDeploymentTarget": { "$ref": "#/$defs/languageLevel" }
+      }
+    },
+    "cxx": {
+      "description": "Stable configuration evidence for the registered Nix C/C++ toolchain. Host-specific store paths remain in the per-system bundle manifest.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["compiler", "darwinDeploymentTarget", "darwinSystemLibraries"],
+      "properties": {
+        "compiler": { "const": "clang" },
+        "darwinDeploymentTarget": { "$ref": "#/$defs/languageLevel" },
+        "darwinSystemLibraries": {
+          "description": "SDK-adjacent Darwin libraries supplied by pinned nixpkgs derivations to strict Bazel link actions.",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      }
+    },
+    "tools": {
+      "description": "Resolved versions of the default devShell's packages.",
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/version" }
+    },
+    "ciTools": {
+      "description": "Resolved versions of what the .#ci shell adds on top of the default shell — the tools that gate a pull request.",
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/version" }
+    }
+  },
+  "$defs": {
+    "version": {
+      "description": "A resolved package version as nixpkgs reports it.",
+      "type": "string",
+      "pattern": "^[0-9]+(\\.[0-9]+)*([A-Za-z0-9.+_-]*)$"
+    },
+    "exactVersion": {
+      "description": "A pin that names one release.",
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "languageLevel": {
+      "description": "A major.minor language level, deliberately less precise than the toolchain that implements it.",
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$"
+    },
+    "major": {
+      "description": "A major version, held as a number because the source attrset holds it as one.",
+      "type": "integer",
+      "minimum": 1
+    }
+  }
+}

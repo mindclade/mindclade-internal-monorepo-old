@@ -13,7 +13,7 @@ go_library(
         "doc.go",
         "harness.go",
     ],
-    importpath = "mindclade.internal/libs/go/grpcx/grpctest",
+    importpath = "go.mindclade.dev/libs/go/grpcx/grpctest",
     deps = [
         "@org_golang_google_grpc//:grpc",
         "@org_golang_google_grpc//credentials/insecure",

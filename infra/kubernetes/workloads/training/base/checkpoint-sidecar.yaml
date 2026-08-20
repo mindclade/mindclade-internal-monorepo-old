@@ -1,0 +1,23 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+# This is a non-runnable contract. A generic file-copy sidecar could publish torn state, so
+# injection remains absent until the trainer exposes and qualifies a safe-point protocol.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mindclade-checkpoint-sidecar-contract
+  labels:
+    mindclade.dev/workload-class: unbound
+data:
+  activationState: blocked
+  commitProtocol: write-verify-atomic-publish
+  consistency: trainer-safe-point-required
+  encryption: provider-managed-plus-application-integrity
+  fencing: attempt-and-ticket-fence-required
+  identity: workload-identity-required
+  restoreValidation: manifest-digest-and-model-contract
+  terminationBudget: unset-until-measured

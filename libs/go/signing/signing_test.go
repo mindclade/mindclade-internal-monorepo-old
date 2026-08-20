@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	mcclock "mindclade.internal/libs/go/clock"
+	mcclock "go.mindclade.dev/libs/go/clock"
 )
 
 func TestHMACRoundTripAndText(t *testing.T) {

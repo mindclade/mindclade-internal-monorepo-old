@@ -8,11 +8,29 @@ yanked = "deny"
 
 [licenses]
 confidence-threshold = 0.93
-allow = ["Apache-2.0", "MIT", "BSD-2-Clause", "BSD-3-Clause", "ISC", "Unicode-3.0", "Zlib"]
+allow = [
+    "Apache-2.0",
+    "MIT",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "CDLA-Permissive-2.0",
+    "ISC",
+    "Unicode-3.0",
+    "Zlib",
+]
+
+[licenses.private]
+# First-party workspace crates are intentionally unpublished and carry the
+# repository's proprietary LicenseRef identifier. Third-party licenses remain
+# subject to the allowlist above.
+ignore = true
 
 [bans]
 multiple-versions = "warn"
-wildcards = "deny"
+# cargo-deny classifies versionless local path dependencies as wildcards. The
+# companion supply_chain.py policy admits only repository-local paths and
+# requires exact versions for every external dependency table.
+wildcards = "allow"
 
 [sources]
 unknown-registry = "deny"

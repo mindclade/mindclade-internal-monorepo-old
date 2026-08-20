@@ -12,9 +12,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	crclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/kubernetes/conditions"
-	kpatch "mindclade.internal/libs/go/kubernetes/patch"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/kubernetes/conditions"
+	kpatch "go.mindclade.dev/libs/go/kubernetes/patch"
 )
 
 // ConditionAccessor is implemented by custom-resource status values that own

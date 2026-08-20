@@ -18,7 +18,7 @@ go_library(
         "options.go",
         "store.go",
     ],
-    importpath = "mindclade.internal/libs/go/storage/blob",
+    importpath = "go.mindclade.dev/libs/go/storage/blob",
     deps = [
         "//libs/go/faults",
         "//libs/go/identifiers",

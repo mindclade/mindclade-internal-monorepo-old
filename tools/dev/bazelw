@@ -1,1 +1,66 @@
-# Scaffold file: tools/dev/bazelw
+#!/usr/bin/env bash
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# The repository's Bazel entry point.
+#
+# WHAT THIS REPLACED. A 34-byte file reading `# Scaffold file: tools/dev/bazelw`, without an
+# executable bit, which ci/presubmit/pipeline.py invokes as a program:
+#
+#     return run([str(REPO / "tools/dev/bazelw"), "test", *targets])
+#
+# That call raises PermissionError. Nothing had noticed because presubmit.yml runs
+# `pipeline.py --static-only`, which returns before reaching that line, and because until the
+# rules_go/Go 1.26 fix no Go target could be built by Bazel at all — so the lane that would
+# have hit it was not worth turning on. Both of those are now false.
+#
+# WHY A WRAPPER RATHER THAN CALLING bazel DIRECTLY. Three reasons, and none is style:
+#
+#   1. .bazelversion pins 9.1.1. bazelisk reads the pin and fetches the right launcher; this
+#      script prefers it, so an unrelated host Bazel cannot silently own the build graph.
+#   2. Bazel resolves the workspace from the working directory. `pipeline.py` already passes
+#      cwd=REPO, but a person running this from a subdirectory should get the same build, so
+#      the cd here is not redundant with that.
+#   3. The registered toolchain reads MINDCLADE_CC_TOOLCHAIN_ROOT from the Nix shell. The
+#      launcher deliberately does not translate compiler flags: toolchain configuration is
+#      analysis data, not shell behavior.
+#
+# WHAT THIS DELIBERATELY DOES NOT DO: choose a build mode or target set. No --config=ci and no
+# implicit //... . The caller still owns build semantics.
+
+set -euo pipefail
+
+repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd -- "${repo_root}"
+
+# Bazelisk first: it reads .bazelversion and downloads that exact launcher.
+if command -v bazelisk >/dev/null 2>&1; then
+  bazel_launcher="$(command -v bazelisk)"
+elif command -v bazel >/dev/null 2>&1; then
+  # Plain `bazel` cannot read .bazelversion or fetch the pin, so verify it before accepting the
+  # fallback. A mismatched launcher is worse than no launcher because its failures implicate
+  # repository Starlark while actually coming from a host installation.
+  bazel_launcher="$(command -v bazel)"
+  pinned_version="$(tr -d '[:space:]' < .bazelversion)"
+  actual_version="$("${bazel_launcher}" --version)"
+  if [[ -z "${pinned_version}" || "${actual_version}" != "bazel ${pinned_version}" ]]; then
+    echo "error: ${bazel_launcher} reports '${actual_version}'; this repository requires 'bazel ${pinned_version:-<non-empty .bazelversion>}'" >&2
+    echo "install bazelisk or enter the Nix development shell" >&2
+    exit 2
+  fi
+else
+  cat >&2 <<'ERROR'
+error: neither bazelisk nor bazel is on PATH.
+
+The development shells in flake.nix provide bazelisk:
+
+    tools/dev/nixw develop          # or: tools/dev/nixw develop .#ci
+    direnv allow                    # to load it automatically in this tree
+
+CI installs it with bazel-contrib/setup-bazel, which reads .bazelversion the same way.
+ERROR
+  exit 127
+fi
+
+exec "${bazel_launcher}" "$@"

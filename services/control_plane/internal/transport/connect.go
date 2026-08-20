@@ -8,9 +8,9 @@ package transport
 import (
 	"net/http"
 
-	"mindclade.internal/libs/go/connectx"
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/servicekit/production"
+	"go.mindclade.dev/libs/go/connectx"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/servicekit/production"
 )
 
 // ConnectMount is one generated Connect handler and its canonical procedure

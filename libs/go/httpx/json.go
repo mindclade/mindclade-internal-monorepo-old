@@ -12,7 +12,7 @@ import (
 	"mime"
 	"net/http"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 const DefaultMaximumJSONBytes int64 = 1 << 20

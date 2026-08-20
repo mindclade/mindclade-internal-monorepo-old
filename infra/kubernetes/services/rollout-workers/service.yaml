@@ -4,4 +4,4 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# Intentionally no Service. Rollout workers expose no implemented listener.

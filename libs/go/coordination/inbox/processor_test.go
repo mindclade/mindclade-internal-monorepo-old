@@ -7,10 +7,10 @@ package inbox_test
 
 import (
 	"context"
-	"mindclade.internal/libs/go/coordination/inbox"
-	"mindclade.internal/libs/go/idempotency"
-	"mindclade.internal/libs/go/idempotency/idempotencytest"
-	"mindclade.internal/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/coordination/inbox"
+	"go.mindclade.dev/libs/go/idempotency"
+	"go.mindclade.dev/libs/go/idempotency/idempotencytest"
+	"go.mindclade.dev/libs/go/identifiers"
 	"testing"
 )
 

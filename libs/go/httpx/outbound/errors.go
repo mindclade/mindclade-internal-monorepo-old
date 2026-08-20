@@ -8,7 +8,7 @@ package outbound
 import (
 	"errors"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 var (

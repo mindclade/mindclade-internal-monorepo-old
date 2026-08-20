@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -28,10 +29,16 @@ def check(root: Path) -> list[str]:
     for token in (
         "affected.select(changed)",
         "affected.rust_qualification_required(changed)",
-        "bazelw'),'test'",
     ):
         if token not in pipeline:
             errors.append(f"presubmit pipeline missing {token}")
+    # The requirement is that the pipeline shells out to bazelw with the test verb. This used to
+    # be spelled as the literal substring `bazelw'),'test'`, which encoded one exact quoting and
+    # spacing of that call — single quotes, no space after the comma. The pipeline has never been
+    # written that way, so the check reported a missing token on a file that satisfied it, and
+    # would break again the first time a formatter touched the line. Matched on structure now.
+    if not re.search(r"""bazelw["']\s*\)\s*,\s*["']test["']""", pipeline):
+        errors.append("presubmit pipeline must invoke bazelw with the test verb")
     if "fetch-depth: 0" not in workflow or "ci/presubmit/pipeline.py" not in workflow:
         errors.append("presubmit workflow must use full history and affected pipeline")
     return errors

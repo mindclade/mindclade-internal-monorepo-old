@@ -23,13 +23,20 @@ locals {
       "${zone_key}/${record_key}" => {
         zone_key = zone_key
 
+        # The map key is an identifier; the owner name is `name` when set and the key
+        # otherwise. They differ only when one owner carries several types -- an apex with
+        # CAA, MX, and SPF needs three map entries and cannot have three "@" keys.
+        #
         # "" and "@" both mean the apex. Anything else is a label prefixed onto dns_name.
         # variables.tf has already rejected an over-qualified name, so this concatenation
         # cannot produce api.mindclade.ai.mindclade.ai.
+        # Not coalesce(): it treats "" as absent, and "" is a legal owner name meaning the
+        # apex, so an apex record keyed "" would resolve to the key instead of the override.
         name = (
-          record_key == "" || record_key == "@"
+          (record.name != null ? record.name : record_key) == "" ||
+          (record.name != null ? record.name : record_key) == "@"
           ? zone.dns_name
-          : "${record_key}.${zone.dns_name}"
+          : "${record.name != null ? record.name : record_key}.${zone.dns_name}"
         )
 
         type    = upper(record.type)

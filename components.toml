@@ -145,3 +145,223 @@ status = "implemented"
 owner = "runtime-platform"
 tests = ["services/workers/model_worker/tests/test_smoke.py"]
 
+
+[[component]]
+name = "control.model_registry"
+path = "control/registry/models"
+status = "qualified"
+owner = "platform-control"
+tests = [
+  "control/registry/models/service_test.go",
+  "services/control_plane/internal/providers/registry/handler_test.go",
+  "services/control_plane/internal/store/postgres/live_postgres_test.go",
+]
+qualification = "docs/qualification/go/control-plane-registry.md"
+
+[[component]]
+name = "infra.terraform.modules"
+path = "infra/terraform/modules"
+status = "implemented"
+owner = "platform-control"
+tests = ["infra/terraform/modules/interface_governance_test.py"]
+qualification = "infra/terraform/PRODUCTION_READINESS.md"
+
+[[component]]
+name = "infra.terraform.dns_hub"
+path = "infra/terraform/environments/dns_hub"
+status = "implemented"
+owner = "platform-control"
+tests = ["infra/terraform/environments/dns_hub/interface_governance_test.py"]
+qualification = "infra/terraform/PRODUCTION_READINESS.md"
+
+# ---------------------------------------------------------------------------------------
+# Reserved-but-unimplemented domains
+# ---------------------------------------------------------------------------------------
+# Registered so the maturity gate can see them. An unregistered path is neither pass nor
+# fail — it is invisible, which is the one state ADR-0021 has no answer for. Each entry
+# below is `scaffolded` because its non-test sources declare zero functions or classes and
+# its BUILD.bazel is the scaffold `filegroup`; that is materialized space, not capability.
+
+[[component]]
+name = "evaluation"
+path = "evaluation"
+status = "scaffolded"
+owner = "training-platform"
+
+[[component]]
+name = "kernels"
+path = "kernels"
+status = "scaffolded"
+owner = "biology-ml"
+
+# The `data` umbrella, not `data/curation`. Curation is the one implemented package in this
+# tree and stays declared separately above as `data.curation`; everything else under `data/`
+# — connectors, contracts, datasets, ingestion, loaders, quality, reference, tokenizers and
+# the root modules — is reserved space.
+[[component]]
+name = "data"
+path = "data"
+status = "scaffolded"
+owner = "data-platform"
+
+# ---------------------------------------------------------------------------------------
+# libs/python
+# ---------------------------------------------------------------------------------------
+# Registered per subpackage rather than as one `libs/python` umbrella so ownership and contract
+# tests remain explicit at the package boundary.
+
+[[component]]
+name = "libs.python.errors"
+path = "libs/python/errors"
+status = "implemented"
+owner = "platform-control"
+tests = [
+    "libs/python/errors/tests/test_base.py",
+    "libs/python/errors/tests/test_codes.py",
+    "libs/python/errors/tests/test_retry.py",
+]
+
+[[component]]
+name = "libs.python.worker_runtime"
+path = "libs/python/worker_runtime"
+status = "implemented"
+owner = "platform-control"
+tests = [
+    "libs/python/worker_runtime/tests/test_executor.py",
+    "libs/python/worker_runtime/tests/test_properties.py",
+    "libs/python/worker_runtime/tests/test_workload.py",
+]
+
+[[component]]
+name = "libs.python.config"
+path = "libs/python/config"
+status = "implemented"
+owner = "platform-control"
+tests = [
+    "libs/python/config/tests/test_loader.py",
+    "libs/python/config/tests/test_merge.py",
+    "libs/python/config/tests/test_properties.py",
+    "libs/python/config/tests/test_resolved.py",
+]
+
+[[component]]
+name = "libs.python.identifiers"
+path = "libs/python/identifiers"
+status = "implemented"
+owner = "platform-control"
+tests = [
+    "libs/python/identifiers/tests/test_artifact.py",
+    "libs/python/identifiers/tests/test_digest.py",
+    "libs/python/identifiers/tests/test_golden_vectors.py",
+    "libs/python/identifiers/tests/test_properties.py",
+    "libs/python/identifiers/tests/test_resource.py",
+    "libs/python/identifiers/tests/test_version.py",
+]
+
+[[component]]
+name = "libs.python.serialization"
+path = "libs/python/serialization"
+status = "implemented"
+owner = "platform-control"
+tests = [
+    "libs/python/serialization/tests/test_canonical.py",
+    "libs/python/serialization/tests/test_properties.py",
+]
+
+# Owner-directed foundation promotion: these packages currently have no in-tree consumer, so
+# their narrow provider-free contracts and non-responsibilities are recorded package-locally.
+# Broadening an API still requires consumer evidence under libs/python/ADMISSION.md.
+[[component]]
+name = "libs.python.artifacts"
+path = "libs/python/artifacts"
+status = "implemented"
+owner = "runtime-platform"
+tests = [
+    "libs/python/artifacts/tests/test_manifest.py",
+    "libs/python/artifacts/tests/test_verification.py",
+]
+
+[[component]]
+name = "libs.python.distributed"
+path = "libs/python/distributed"
+status = "implemented"
+owner = "training-platform"
+tests = [
+    "libs/python/distributed/tests/test_environment.py",
+    "libs/python/distributed/tests/test_health.py",
+    "libs/python/distributed/tests/test_topology.py",
+]
+
+[[component]]
+name = "libs.python.geometry"
+path = "libs/python/geometry"
+status = "implemented"
+owner = "biology-ml"
+tests = [
+    "libs/python/geometry/tests/test_distances.py",
+    "libs/python/geometry/tests/test_frames.py",
+    "libs/python/geometry/tests/test_rigid.py",
+]
+
+[[component]]
+name = "libs.python.observability"
+path = "libs/python/observability"
+status = "implemented"
+owner = "platform-control"
+tests = [
+    "libs/python/observability/tests/test_redaction.py",
+    "libs/python/observability/tests/test_telemetry.py",
+]
+
+[[component]]
+name = "libs.python.testing"
+path = "libs/python/testing"
+status = "implemented"
+owner = "biology-ml"
+tests = [
+    "libs/python/testing/tests/test_helpers.py",
+    "libs/python/testing/tests/test_numerics.py",
+    "libs/python/testing/tests/test_processes.py",
+]
+
+# ---------------------------------------------------------------------------------------
+# serving
+# ---------------------------------------------------------------------------------------
+# Also per subpackage. `serving/runtime` (Rust) and `serving/contracts` are declared above
+# as `runtime.serving_core` and `serving.contracts`; these are the remaining packages.
+
+[[component]]
+name = "serving.model_worker"
+path = "serving/model_worker"
+status = "implemented"
+owner = "runtime-platform"
+tests = [
+    "serving/model_worker/tests/test_batching.py",
+    "serving/model_worker/tests/test_model_loader.py",
+    "serving/model_worker/tests/test_training_parity.py",
+    "serving/model_worker/tests/test_worker.py",
+]
+
+[[component]]
+name = "serving.batch"
+path = "serving/batch"
+status = "scaffolded"
+owner = "runtime-platform"
+
+[[component]]
+name = "serving.rollouts"
+path = "serving/rollouts"
+status = "scaffolded"
+owner = "runtime-platform"
+
+[[component]]
+name = "serving.safety"
+path = "serving/safety"
+status = "scaffolded"
+owner = "runtime-platform"
+
+[[component]]
+name = "serving.testing"
+path = "serving/testing"
+status = "scaffolded"
+owner = "runtime-platform"

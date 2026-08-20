@@ -1,0 +1,163 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.9.8",
+  "resource_changes": [
+    {
+      "address": "google_storage_bucket.invalid",
+      "mode": "managed",
+      "type": "google_storage_bucket",
+      "name": "invalid",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "deletion_policy": "DELETE",
+          "encryption": [],
+          "force_destroy": true,
+          "labels": {
+            "data-classification": "restricted",
+            "environment": "test",
+            "managed-by": "terraform",
+            "owner": "platform"
+          },
+          "location": "europe-west1",
+          "name": "invalid-storage",
+          "retention_policy": [{"is_locked": false, "retention_period": 60}]
+        }
+      }
+    },
+    {
+      "address": "google_secret_manager_secret.invalid",
+      "mode": "managed",
+      "type": "google_secret_manager_secret",
+      "name": "invalid",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "deletion_policy": "DELETE",
+          "deletion_protection": false,
+          "labels": {
+            "data-classification": "restricted",
+            "environment": "test",
+            "managed-by": "terraform",
+            "owner": "platform"
+          },
+          "replication": [{
+            "auto": [{"customer_managed_encryption": []}],
+            "user_managed": []
+          }],
+          "secret_id": "invalid-secret",
+          "version_destroy_ttl": "86400s"
+        }
+      }
+    },
+    {
+      "address": "google_pubsub_topic.invalid",
+      "mode": "managed",
+      "type": "google_pubsub_topic",
+      "name": "invalid",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "kms_key_name": null,
+          "labels": {
+            "data-classification": "restricted",
+            "environment": "test",
+            "managed-by": "terraform",
+            "owner": "platform"
+          },
+          "message_retention_duration": "600s",
+          "message_storage_policy": [{"allowed_persistence_regions": ["us-east1"]}],
+          "name": "invalid-topic"
+        }
+      }
+    },
+    {
+      "address": "google_artifact_registry_repository.invalid",
+      "mode": "managed",
+      "type": "google_artifact_registry_repository",
+      "name": "invalid",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "cleanup_policies": [{
+            "action": "DELETE",
+            "condition": [{"older_than": "1d", "tag_state": "UNTAGGED"}],
+            "id": "delete-too-soon"
+          }],
+          "deletion_policy": "DELETE",
+          "kms_key_name": null,
+          "labels": {
+            "data-classification": "restricted",
+            "environment": "test",
+            "managed-by": "terraform",
+            "owner": "platform"
+          },
+          "location": "us-east1",
+          "repository_id": "invalid-artifacts"
+        }
+      }
+    },
+    {
+      "address": "google_sql_database_instance.invalid",
+      "mode": "managed",
+      "type": "google_sql_database_instance",
+      "name": "invalid",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "deletion_policy": "DELETE",
+          "deletion_protection": false,
+          "encryption_key_name": null,
+          "name": "invalid-postgres",
+          "region": "us-east1",
+          "settings": [{
+            "backup_configuration": [{
+              "backup_retention_settings": [{"retained_backups": 1, "retention_unit": "COUNT"}],
+              "enabled": true
+            }],
+            "deletion_protection_enabled": false,
+            "final_backup_config": [{"enabled": false, "retention_days": 1}],
+            "user_labels": {
+              "data-classification": "restricted",
+              "environment": "test",
+              "managed-by": "terraform",
+              "owner": "platform"
+            }
+          }]
+        }
+      }
+    },
+    {
+      "address": "google_redis_instance.invalid",
+      "mode": "managed",
+      "type": "google_redis_instance",
+      "name": "invalid",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "customer_managed_key": null,
+          "deletion_policy": "DELETE",
+          "deletion_protection": false,
+          "labels": {
+            "data-classification": "restricted",
+            "environment": "test",
+            "managed-by": "terraform",
+            "owner": "platform"
+          },
+          "name": "invalid-redis",
+          "persistence_config": [{
+            "persistence_mode": "RDB",
+            "rdb_snapshot_period": "TWENTY_FOUR_HOURS"
+          }],
+          "region": "us-east1"
+        }
+      }
+    }
+  ]
+}

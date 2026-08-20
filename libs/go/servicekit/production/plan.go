@@ -8,8 +8,8 @@ package production
 import (
 	"strings"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/servicekit"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/servicekit"
 )
 
 // validateRuntimePlan prevents a role from satisfying its capability manifest

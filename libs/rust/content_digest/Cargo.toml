@@ -19,6 +19,7 @@ crate-type = ["rlib"]
 
 [dependencies]
 mindclade_faults = { path = "../faults" }
+sha2.workspace = true
 
 [lints]
 workspace = true

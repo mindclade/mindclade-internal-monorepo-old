@@ -16,8 +16,9 @@ use mindclade_serving_runtime::{BatchEnvelope, host::HostInvocation};
 use mindclade_worker_protocol::{
     BufferDescriptor, ExecutionTicket, RevocationSnapshot, SignatureVerifier, WorkerState,
 };
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
+#[derive(Debug)]
 pub struct ExecutionSession {
     worker: WorkerSession,
     pub inputs: Vec<BufferDescriptor>,
@@ -46,14 +47,19 @@ impl ExecutionSession {
     pub fn commit(&self) -> FaultResult<()> {
         self.worker.commit()
     }
+    pub fn fail(&self, message: impl Into<String>) -> FaultResult<()> {
+        self.worker.fail(message)
+    }
 }
 
+#[derive(Debug)]
 pub struct HostCore {
     config: HostConfig,
     resources: NodeResources,
     processes: Arc<ProcessSupervisor>,
     models: Arc<ModelRegistry>,
     health: Arc<HostHealth>,
+    admission: Mutex<bool>,
 }
 
 impl HostCore {
@@ -80,6 +86,7 @@ impl HostCore {
             processes,
             models,
             health,
+            admission: Mutex::new(false),
         })
     }
     #[must_use]
@@ -87,9 +94,16 @@ impl HostCore {
         self.models.clone()
     }
     #[must_use]
+    pub(crate) const fn config(&self) -> &HostConfig {
+        &self.config
+    }
+    #[must_use]
     pub fn processes(&self) -> Arc<ProcessSupervisor> {
         self.processes.clone()
     }
+    // These explicit policy floors are security inputs and intentionally stay
+    // visible at the trust-boundary call instead of hiding in ambient state.
+    #[allow(clippy::too_many_arguments)]
     pub fn begin_execution<V: SignatureVerifier + ?Sized>(
         &self,
         ticket: &ExecutionTicket,
@@ -101,7 +115,13 @@ impl HostCore {
         revocations: &RevocationSnapshot,
         verifier: &V,
     ) -> FaultResult<ExecutionSession> {
-        if !self.health.snapshot().accepting {
+        // Keep the gate through ticket validation and resource reservation so
+        // `begin_drain` cannot return while a new session is still starting.
+        let accepting = self
+            .admission
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if !*accepting || !self.health.snapshot().accepting {
             return Err(Fault::new(
                 Code::Unavailable,
                 "runtime host is draining or not accepting",
@@ -110,7 +130,7 @@ impl HostCore {
         validate_bulk_descriptors(&inputs, self.config.maximum_input_buffers, now_unix_millis)?;
         revocations.validate(now_unix_millis, minimum_revocation_epoch, verifier)?;
         if let Some(model) = ticket.claims.model_bundle
-            && !self.models.contains(&model)
+            && !self.models.contains_running(&model)?
         {
             return Err(Fault::new(
                 Code::FailedPrecondition,
@@ -136,6 +156,7 @@ impl HostCore {
             batches: Vec::new(),
         })
     }
+    #[allow(clippy::too_many_arguments)]
     pub fn begin_invocation<V: SignatureVerifier + ?Sized>(
         &self,
         invocation: HostInvocation,
@@ -163,10 +184,18 @@ impl HostCore {
         Ok(session)
     }
     pub fn begin_drain(&self) {
+        *self
+            .admission
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = false;
         self.health.set_accepting(false);
     }
     pub fn resume_admission(&self) {
         self.health.set_accepting(true);
+        *self
+            .admission
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = true;
     }
     pub fn shutdown(&self) -> FaultResult<()> {
         self.begin_drain();

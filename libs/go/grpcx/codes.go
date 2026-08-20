@@ -6,8 +6,8 @@
 package grpcx
 
 import (
+	"go.mindclade.dev/libs/go/faults"
 	"google.golang.org/grpc/codes"
-	"mindclade.internal/libs/go/faults"
 )
 
 func CodeFromFault(code faults.Code) codes.Code {

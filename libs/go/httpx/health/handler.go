@@ -10,8 +10,8 @@ import (
 	"net/http"
 	"time"
 
-	"mindclade.internal/libs/go/httpx"
-	"mindclade.internal/libs/go/servicekit"
+	"go.mindclade.dev/libs/go/httpx"
+	"go.mindclade.dev/libs/go/servicekit"
 )
 
 type Prober interface {

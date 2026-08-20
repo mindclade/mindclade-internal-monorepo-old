@@ -8,8 +8,8 @@ package workqueuetest
 import (
 	"context"
 	"encoding/json"
-	"mindclade.internal/libs/go/coordination/workqueue"
-	"mindclade.internal/libs/go/requestmeta"
+	"go.mindclade.dev/libs/go/coordination/workqueue"
+	"go.mindclade.dev/libs/go/requestmeta"
 	"testing"
 	"time"
 )

@@ -22,9 +22,12 @@ name = "mindclade-runtime-gateway"
 path = "src/main.rs"
 
 [dependencies]
+hyper-util.workspace = true
 mindclade_protocols = { path = "../../protocols/rust" }
 tower.workspace = true
 tokio.workspace = true
+tokio-stream.workspace = true
+tonic.workspace = true
 prost.workspace = true
 bytes.workspace = true
 axum.workspace = true
@@ -32,6 +35,7 @@ mindclade_content_digest = { path = "../../libs/rust/content_digest" }
 mindclade_faults = { path = "../../libs/rust/faults" }
 mindclade_identifiers = { path = "../../libs/rust/identifiers" }
 mindclade_runtime_core = { path = "../../libs/rust/runtime_core" }
+mindclade_servicekit = { path = "../../libs/rust/servicekit" }
 mindclade_telemetry = { path = "../../libs/rust/telemetry" }
 mindclade_worker_protocol = { path = "../../libs/rust/worker_protocol" }
 mindclade_serving_runtime = { package = "mindclade-serving-runtime", path = "../../serving/runtime" }

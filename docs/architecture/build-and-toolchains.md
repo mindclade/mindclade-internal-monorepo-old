@@ -46,14 +46,58 @@ same Nix derivation
 ## Developer path
 
 ```bash
-nix develop .#default
-bazel test //...
+tools/dev/nixw develop .#default --command tools/dev/bazelw test //...
 
-nix develop .#cuda --command bazel test --config=cuda //tests/...
+tools/dev/nixw develop .#gpu --command tools/dev/bazelw test --config=cuda //tests/...
+
+tools/dev/nixw develop .#default --command mkdocs build -f docs/mkdocs.yml --strict
 ```
 
-This scaffold includes target files and checks; connected CI must populate and
-verify real locks/toolchains before a full build claim.
+`tools/dev/bazelw` is the repository entry point. It prefers Bazelisk, verifies
+the exact version before accepting plain Bazel, moves execution to the workspace
+root, and passes arguments unchanged. It does not discover compilers, inject
+Darwin flags, or choose a configuration or target set.
+
+Every development and CI shell exports `MINDCLADE_CC_TOOLCHAIN_ROOT` from
+`packages.<system>.cc-toolchain-bundle`. The bundle records Clang and binutils,
+resource headers, target triple, platform constraints, system include paths,
+SDK/sysroot, compile/link flags, and the Darwin deployment target. The
+`nix_toolchains` Bzlmod extension validates that manifest and registers
+`@mindclade_nix_cc` for the host constraints. Missing tools, headers, or a
+Darwin SDK fail repository configuration with a focused diagnostic.
+
+On Darwin, the shell also provides a Nix-owned `xcode-select` compatibility
+adapter for rules_python repository materialization. It exposes a
+CommandLineTools-shaped path whose SDK is a symlink to the pinned Nix SDK; it
+does not select the C/C++ compiler. Compile and link actions resolve through the
+registered toolchain and never through Command Line Tools or Homebrew.
+
+Validate the contract and resolution directly:
+
+```bash
+nix develop .#ci --command python3 tools/analysis/validate_cc_toolchain_bundle.py
+nix develop .#ci --command tools/dev/bazelw test \
+  //tools/build/bazel/toolchains/cc:smoke_test
+nix develop .#ci --command python3 tools/analysis/verify_cc_toolchain_selection.py
+```
+
+The committed Bzlmod lock is enforced read-only by `--config=ci`. After an
+intentional module or extension change, regenerate and verify it explicitly:
+
+```bash
+tools/dev/bazelw mod deps --lockfile_mode=update
+tools/dev/bazelw build //... --nobuild --config=ci
+```
+
+Presubmit loads every BUILD file, checks the language-independent dependency
+graph, performs full configured analysis, and runs all non-manual Bazel tests.
+The analysis and test phases each emit a JSON Build Event Protocol stream and a
+compressed trace profile. CI publishes normalized wall/analysis/execution and
+critical-path timing, graph/action/cache/runner counts, and test outcomes to the
+job summary, then retains the raw and normalized evidence for 14 days. These
+metrics establish an observational baseline; they are not performance gates.
+Release and remote-execution claims still require their own platform evidence;
+passing the local/CI graph is not a claim about an unconfigured remote cluster.
 
 ## Go module checksum closure
 

@@ -3,10 +3,27 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_rust//rust:defs.bzl", "rust_test")
+
 package(default_visibility = ["//visibility:private"])
+
+# Declared HERE rather than in the parent package, because this directory carries its own
+# BUILD.bazel and is therefore its own package — a `srcs = ["tests/integration.rs"]` one level
+# up crosses that boundary and Bazel refuses to evaluate `//...` at all.
+rust_test(
+    name = "integration",
+    srcs = ["integration.rs"],
+    edition = "2024",
+    deps = [
+        "//services/workers/ingestion:mindclade_ingestion_worker",
+    ],
+)
 
 filegroup(
     name = "scaffold_files",
-    srcs = glob(["**"], exclude = ["BUILD.bazel"]),
+    srcs = glob(
+        ["**"],
+        exclude = ["BUILD.bazel"],
+    ),
     visibility = ["//visibility:public"],
 )

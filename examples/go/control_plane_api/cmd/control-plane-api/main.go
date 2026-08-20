@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"os"
 
-	controlplaneapi "mindclade.internal/examples/go/control_plane_api"
+	controlplaneapi "go.mindclade.dev/examples/go/control_plane_api"
 )
 
 func main() {

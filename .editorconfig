@@ -1,0 +1,105 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# Editor defaults, derived from the formatters that already gate this repository rather than
+# invented alongside them. Where a formatter owns a setting, the value here MATCHES it and the
+# formatter stays authoritative — gofmt, rustfmt, ruff and buildifier all rewrite files, and an
+# .editorconfig that disagreed with one would show up as an editor and a presubmit fighting
+# over the same line on every save.
+#
+# The settings that are genuinely this file's own are the last three in [*]: trailing
+# whitespace, final newline, and UTF-8. Nothing else in the repository enforces them on the
+# file types the formatters do not cover.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# ---------------------------------------------------------------------------------------
+# Go — gofmt
+# ---------------------------------------------------------------------------------------
+# Tabs, and no line limit. gofmt is not configurable and .golangci.yml runs it; this only
+# stops an editor inserting spaces before gofmt gets the chance to object.
+[*.go]
+indent_style = tab
+indent_size = 4
+
+[go.mod]
+indent_style = tab
+
+# ---------------------------------------------------------------------------------------
+# Rust — rustfmt
+# ---------------------------------------------------------------------------------------
+# Matches rustfmt.toml: tab_spaces = 4, hard_tabs = false, max_width = 100.
+[*.rs]
+indent_size = 4
+max_line_length = 100
+
+# ---------------------------------------------------------------------------------------
+# Python — ruff
+# ---------------------------------------------------------------------------------------
+# Matches [tool.ruff] line-length = 100 in pyproject.toml.
+[*.py]
+indent_size = 4
+max_line_length = 100
+
+# ---------------------------------------------------------------------------------------
+# Starlark — buildifier
+# ---------------------------------------------------------------------------------------
+# buildifier formats with 4 spaces and is not configurable on that point. See the note in
+# .github/workflows/presubmit.yml about why the buildifier step is not wired up yet: 549 files
+# currently disagree with it, all on the same glob() wrapping.
+[{BUILD,BUILD.bazel,WORKSPACE,MODULE.bazel,*.bzl,*.bazel}]
+indent_size = 4
+
+[*.bazelrc]
+indent_size = 2
+
+# ---------------------------------------------------------------------------------------
+# Data and config
+# ---------------------------------------------------------------------------------------
+# 2 spaces, which is what .yamllint.yaml's inherited default expects and what every manifest
+# under infra/kubernetes already uses.
+[*.{yml,yaml}]
+indent_size = 2
+
+[*.{json,json5}]
+indent_size = 2
+
+[*.toml]
+indent_size = 4
+
+[*.{ts,tsx,js,jsx,mjs,cjs}]
+indent_size = 2
+
+[*.{md,mdx}]
+indent_size = 2
+# Markdown gives two trailing spaces meaning — a hard line break. VALIDATION.md's header block
+# uses them, and trimming turns three lines into one paragraph.
+trim_trailing_whitespace = false
+
+[*.{sh,bash}]
+indent_size = 2
+
+# Make is the one format where the indent character is syntax rather than style: a recipe line
+# indented with spaces fails with "missing separator", naming the line and not the reason.
+[Makefile]
+indent_style = tab
+
+[*.nix]
+indent_size = 2
+
+# Generated. Listed so an editor does not reformat a lockfile on open and produce a diff the
+# generating tool will undo.
+[{Cargo.lock,go.sum,pnpm-lock.yaml,uv.lock,flake.lock,MODULE.bazel.lock}]
+indent_style = unset
+indent_size = unset
+insert_final_newline = unset
+trim_trailing_whitespace = unset

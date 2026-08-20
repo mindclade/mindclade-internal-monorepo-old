@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"mindclade.internal/libs/go/servicekit"
+	"go.mindclade.dev/libs/go/servicekit"
 )
 
 type prober struct{ ok bool }

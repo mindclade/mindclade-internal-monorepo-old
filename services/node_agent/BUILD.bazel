@@ -23,6 +23,7 @@ rust_library(
         "//libs/rust/ipc_os:mindclade_ipc_os",
         "//libs/rust/manifests:mindclade_manifests",
         "//libs/rust/object_store:mindclade_object_store",
+        "//libs/rust/process_os:mindclade_process_os",
         "//libs/rust/runtime_core:mindclade_runtime_core",
         "//libs/rust/servicekit:mindclade_servicekit",
         "//libs/rust/telemetry:mindclade_telemetry",
@@ -38,6 +39,7 @@ rust_binary(
     crate_name = "mindclade_node_agent_bin",
     edition = "2024",
     deps = [
+        ":mindclade_node_agent",
         "//libs/rust/artifact_cas:mindclade_artifact_cas",
         "//libs/rust/bytes_io:mindclade_bytes_io",
         "//libs/rust/checkpoint_io:mindclade_checkpoint_io",
@@ -48,12 +50,12 @@ rust_binary(
         "//libs/rust/ipc_os:mindclade_ipc_os",
         "//libs/rust/manifests:mindclade_manifests",
         "//libs/rust/object_store:mindclade_object_store",
+        "//libs/rust/process_os:mindclade_process_os",
         "//libs/rust/runtime_core:mindclade_runtime_core",
         "//libs/rust/servicekit:mindclade_servicekit",
         "//libs/rust/telemetry:mindclade_telemetry",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
         "//libs/rust/worker_runtime:mindclade_worker_runtime",
-        ":mindclade_node_agent",
         "@crates//:bytes",
     ],
 )
@@ -63,6 +65,7 @@ rust_test(
     srcs = ["tests/diagnostics_bundle.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_node_agent",
         "//libs/rust/artifact_cas:mindclade_artifact_cas",
         "//libs/rust/bytes_io:mindclade_bytes_io",
         "//libs/rust/checkpoint_io:mindclade_checkpoint_io",
@@ -78,7 +81,6 @@ rust_test(
         "//libs/rust/telemetry:mindclade_telemetry",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
         "//libs/rust/worker_runtime:mindclade_worker_runtime",
-        ":mindclade_node_agent",
         "@crates//:bytes",
         "@crates//:tokio",
     ],
@@ -89,6 +91,7 @@ rust_test(
     srcs = ["tests/failure_injection.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_node_agent",
         "//libs/rust/artifact_cas:mindclade_artifact_cas",
         "//libs/rust/bytes_io:mindclade_bytes_io",
         "//libs/rust/checkpoint_io:mindclade_checkpoint_io",
@@ -104,7 +107,6 @@ rust_test(
         "//libs/rust/telemetry:mindclade_telemetry",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
         "//libs/rust/worker_runtime:mindclade_worker_runtime",
-        ":mindclade_node_agent",
         "@crates//:bytes",
         "@crates//:tokio",
     ],
@@ -115,6 +117,7 @@ rust_test(
     srcs = ["tests/integration.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_node_agent",
         "//libs/rust/artifact_cas:mindclade_artifact_cas",
         "//libs/rust/bytes_io:mindclade_bytes_io",
         "//libs/rust/checkpoint_io:mindclade_checkpoint_io",
@@ -130,7 +133,6 @@ rust_test(
         "//libs/rust/telemetry:mindclade_telemetry",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
         "//libs/rust/worker_runtime:mindclade_worker_runtime",
-        ":mindclade_node_agent",
         "@crates//:bytes",
         "@crates//:tokio",
     ],
@@ -141,6 +143,7 @@ rust_test(
     srcs = ["tests/shutdown.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_node_agent",
         "//libs/rust/artifact_cas:mindclade_artifact_cas",
         "//libs/rust/bytes_io:mindclade_bytes_io",
         "//libs/rust/checkpoint_io:mindclade_checkpoint_io",
@@ -156,7 +159,6 @@ rust_test(
         "//libs/rust/telemetry:mindclade_telemetry",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
         "//libs/rust/worker_runtime:mindclade_worker_runtime",
-        ":mindclade_node_agent",
         "@crates//:bytes",
         "@crates//:tokio",
     ],
@@ -167,6 +169,7 @@ rust_test(
     srcs = ["tests/stage_adapters.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_node_agent",
         "//libs/rust/artifact_cas:mindclade_artifact_cas",
         "//libs/rust/bytes_io:mindclade_bytes_io",
         "//libs/rust/checkpoint_io:mindclade_checkpoint_io",
@@ -182,7 +185,6 @@ rust_test(
         "//libs/rust/telemetry:mindclade_telemetry",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
         "//libs/rust/worker_runtime:mindclade_worker_runtime",
-        ":mindclade_node_agent",
         "@crates//:bytes",
         "@crates//:tokio",
     ],
@@ -190,6 +192,9 @@ rust_test(
 
 filegroup(
     name = "package_sources",
-    srcs = glob(["**"], exclude = ["target/**"]),
+    srcs = glob(
+        ["**"],
+        exclude = ["target/**"],
+    ),
     visibility = ["//libs/rust:repo_consumers"],
 )

@@ -51,6 +51,14 @@ impl Sink for MemorySink {
 pub struct FanoutSink {
     sinks: Vec<Arc<dyn Sink>>,
 }
+impl core::fmt::Debug for FanoutSink {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        formatter
+            .debug_struct("FanoutSink")
+            .field("sink_count", &self.sinks.len())
+            .finish()
+    }
+}
 impl FanoutSink {
     #[must_use]
     pub fn new(sinks: Vec<Arc<dyn Sink>>) -> Self {

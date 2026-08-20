@@ -1,0 +1,15 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+[google]
+source = "registry.terraform.io/hashicorp/google"
+constraint = ">= 7.41.0, < 8.0.0"
+minimum = "7.41.0"
+reviewed = "7.45.0"
+platforms = ["linux_amd64", "linux_arm64", "darwin_arm64"]
+
+[google.locks]
+minimum = "locks/google-7.41.0.lock.hcl"
+reviewed = "locks/google-7.45.0.lock.hcl"

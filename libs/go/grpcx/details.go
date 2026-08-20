@@ -14,8 +14,8 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/durationpb"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/internal/rpcfaults"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/internal/rpcfaults"
 )
 
 const ErrorDomain = "mindclade.dev"

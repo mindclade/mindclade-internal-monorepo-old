@@ -37,6 +37,8 @@ func TestRejectsPrivateResolution(t *testing.T) {
 func TestAllowsExplicitPrivateTestEndpointAndBoundsBody(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 		writer.Header().Set("Content-Type", "application/json")
+		writer.WriteHeader(http.StatusOK)
+		writer.(http.Flusher).Flush()
 		_, _ = writer.Write([]byte(strings.Repeat("x", 32)))
 	}))
 	defer server.Close()
@@ -57,8 +59,12 @@ func TestAllowsExplicitPrivateTestEndpointAndBoundsBody(t *testing.T) {
 		return
 	}
 	defer response.Body.Close()
-	if _, err := io.ReadAll(response.Body); !errors.Is(err, ErrResponseTooLarge) {
+	payload, err := io.ReadAll(response.Body)
+	if !errors.Is(err, ErrResponseTooLarge) {
 		t.Fatalf("expected body limit error, got %v", err)
+	}
+	if len(payload) != 16 {
+		t.Fatalf("read %d bytes through a 16-byte limit", len(payload))
 	}
 }
 

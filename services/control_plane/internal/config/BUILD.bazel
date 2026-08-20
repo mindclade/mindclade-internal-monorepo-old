@@ -13,7 +13,7 @@ go_library(
         "config.go",
         "validation.go",
     ],
-    importpath = "mindclade.internal/services/control_plane/internal/config",
+    importpath = "go.mindclade.dev/services/control_plane/internal/config",
     deps = [
         "//libs/go/config",
         "//libs/go/faults",

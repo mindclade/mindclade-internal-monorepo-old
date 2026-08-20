@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 
 package(default_visibility = ["//libs/rust:repo_consumers"])
 
@@ -24,10 +24,10 @@ rust_test(
     srcs = ["tests/failure_injection.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_worker_runtime",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/runtime_core:mindclade_runtime_core",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
-        ":mindclade_worker_runtime",
     ],
 )
 
@@ -36,10 +36,10 @@ rust_test(
     srcs = ["tests/fencing.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_worker_runtime",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/runtime_core:mindclade_runtime_core",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
-        ":mindclade_worker_runtime",
     ],
 )
 
@@ -48,10 +48,10 @@ rust_test(
     srcs = ["tests/heartbeat.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_worker_runtime",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/runtime_core:mindclade_runtime_core",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
-        ":mindclade_worker_runtime",
     ],
 )
 
@@ -60,10 +60,10 @@ rust_test(
     srcs = ["tests/integration.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_worker_runtime",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/runtime_core:mindclade_runtime_core",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
-        ":mindclade_worker_runtime",
     ],
 )
 
@@ -72,10 +72,10 @@ rust_test(
     srcs = ["tests/shutdown.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_worker_runtime",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/runtime_core:mindclade_runtime_core",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
-        ":mindclade_worker_runtime",
     ],
 )
 
@@ -84,15 +84,18 @@ rust_test(
     srcs = ["tests/state_machine.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_worker_runtime",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/runtime_core:mindclade_runtime_core",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
-        ":mindclade_worker_runtime",
     ],
 )
 
 filegroup(
     name = "package_sources",
-    srcs = glob(["**"], exclude = ["target/**"]),
+    srcs = glob(
+        ["**"],
+        exclude = ["target/**"],
+    ),
     visibility = ["//libs/rust:repo_consumers"],
 )

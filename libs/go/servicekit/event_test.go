@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 func TestEventFieldsAndClassification(t *testing.T) {

@@ -6,10 +6,10 @@ This guide answers two questions:
 2. How should a production Go process compose it without moving domain policy
    into the foundation?
 
-The module path is `mindclade.internal`. Imports therefore look like:
+The module path is `go.mindclade.dev`. Imports therefore look like:
 
 ```go
-import "mindclade.internal/libs/go/faults"
+import "go.mindclade.dev/libs/go/faults"
 ```
 
 ## Choose the narrowest package

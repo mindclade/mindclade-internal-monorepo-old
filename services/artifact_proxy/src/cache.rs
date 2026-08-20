@@ -33,7 +33,7 @@ pub struct LocalCache {
 
 impl LocalCache {
     pub fn new(maximum_bytes: u64, maximum_entries: usize) -> FaultResult<Self> {
-        if maximum_entries == 0 || maximum_entries > 1_000_000 {
+        if maximum_bytes == 0 || maximum_entries == 0 || maximum_entries > 1_000_000 {
             return Err(Fault::invalid_argument(
                 "artifact cache entry limit is invalid",
             ));

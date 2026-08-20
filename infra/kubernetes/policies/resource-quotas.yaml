@@ -13,11 +13,16 @@ metadata:
     app.kubernetes.io/part-of: mindclade-platform
     mindclade.dev/owner: security-and-operations
   annotations:
-    mindclade.dev/capacity-status: proposed-unqualified-ceiling
+    mindclade.dev/capacity-status: fail-closed-foundation-ceiling
     mindclade.dev/workload-activation: blocked
 spec:
   hard:
     configmaps: "100"
+    count/cronjobs.batch: "0"
+    count/daemonsets.apps: "0"
+    count/deployments.apps: "0"
+    count/jobs.batch: "0"
+    count/statefulsets.apps: "0"
     limits.cpu: "16"
     limits.ephemeral-storage: 200Gi
     limits.memory: 64Gi
@@ -26,6 +31,8 @@ spec:
     requests.cpu: "8"
     requests.ephemeral-storage: 100Gi
     requests.memory: 32Gi
+    requests.nvidia.com/gpu: "0"
+    requests.storage: "0"
     secrets: "50"
     services: "20"
     services.loadbalancers: "0"
@@ -37,6 +44,7 @@ metadata:
   name: mindclade-system-containers
   namespace: mindclade-system
   labels:
+    app.kubernetes.io/component: resource-policy
     app.kubernetes.io/part-of: mindclade-platform
     mindclade.dev/owner: security-and-operations
 spec:
@@ -57,3 +65,201 @@ spec:
       min:
         cpu: 10m
         memory: 32Mi
+---
+# Static capacity-domain templates may exist, but no Pod-producing object or resource request can
+# be admitted until an environment activation bundle replaces these zero ceilings.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: mindclade-batch-cpu-capacity
+  namespace: mindclade-batch-cpu
+  labels:
+    app.kubernetes.io/component: capacity-policy
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/capacity-domain: batch-cpu
+  annotations:
+    mindclade.dev/activation-blocker: all-workload-capacity-is-zero
+    mindclade.dev/capacity-status: fail-closed
+spec:
+  hard:
+    configmaps: "10"
+    count/cronjobs.batch: "0"
+    count/daemonsets.apps: "0"
+    count/deployments.apps: "0"
+    count/jobs.batch: "0"
+    count/jobsets.jobset.x-k8s.io: "0"
+    count/statefulsets.apps: "0"
+    limits.cpu: "0"
+    limits.ephemeral-storage: "0"
+    limits.memory: "0"
+    persistentvolumeclaims: "0"
+    pods: "0"
+    requests.cpu: "0"
+    requests.ephemeral-storage: "0"
+    requests.memory: "0"
+    requests.nvidia.com/gpu: "0"
+    requests.storage: "0"
+    secrets: "0"
+    services: "0"
+    services.loadbalancers: "0"
+    services.nodeports: "0"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: mindclade-batch-cpu-bounds
+  namespace: mindclade-batch-cpu
+  labels:
+    app.kubernetes.io/component: capacity-policy
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/capacity-domain: batch-cpu
+  annotations:
+    mindclade.dev/defaulting-policy: forbidden-explicit-resources-required
+spec:
+  limits:
+    - type: Container
+      max:
+        cpu: "16"
+        ephemeral-storage: 32Gi
+        memory: 32Gi
+      min:
+        cpu: 10m
+        ephemeral-storage: 16Mi
+        memory: 32Mi
+    - type: Pod
+      max:
+        cpu: "16"
+        ephemeral-storage: 32Gi
+        memory: 32Gi
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: mindclade-training-h100-capacity
+  namespace: mindclade-training-h100
+  labels:
+    app.kubernetes.io/component: capacity-policy
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/capacity-domain: training-h100
+  annotations:
+    mindclade.dev/activation-blocker: all-workload-and-h100-capacity-is-zero
+    mindclade.dev/capacity-status: fail-closed
+spec:
+  hard:
+    configmaps: "10"
+    count/cronjobs.batch: "0"
+    count/daemonsets.apps: "0"
+    count/deployments.apps: "0"
+    count/jobs.batch: "0"
+    count/jobsets.jobset.x-k8s.io: "0"
+    count/statefulsets.apps: "0"
+    limits.cpu: "0"
+    limits.ephemeral-storage: "0"
+    limits.memory: "0"
+    persistentvolumeclaims: "0"
+    pods: "0"
+    requests.cpu: "0"
+    requests.ephemeral-storage: "0"
+    requests.memory: "0"
+    requests.nvidia.com/gpu: "0"
+    requests.storage: "0"
+    secrets: "0"
+    services: "0"
+    services.loadbalancers: "0"
+    services.nodeports: "0"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: mindclade-training-h100-bounds
+  namespace: mindclade-training-h100
+  labels:
+    app.kubernetes.io/component: capacity-policy
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/capacity-domain: training-h100
+  annotations:
+    mindclade.dev/defaulting-policy: forbidden-explicit-resources-required
+spec:
+  limits:
+    - type: Container
+      max:
+        cpu: "16"
+        ephemeral-storage: 64Gi
+        memory: 128Gi
+        nvidia.com/gpu: "8"
+      min:
+        cpu: 10m
+        ephemeral-storage: 16Mi
+        memory: 32Mi
+    - type: Pod
+      max:
+        cpu: "16"
+        ephemeral-storage: 64Gi
+        memory: 128Gi
+        nvidia.com/gpu: "8"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: mindclade-training-h200-capacity
+  namespace: mindclade-training-h200
+  labels:
+    app.kubernetes.io/component: capacity-policy
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/capacity-domain: training-h200
+  annotations:
+    mindclade.dev/activation-blocker: all-workload-and-h200-capacity-is-zero
+    mindclade.dev/capacity-status: fail-closed
+spec:
+  hard:
+    configmaps: "10"
+    count/cronjobs.batch: "0"
+    count/daemonsets.apps: "0"
+    count/deployments.apps: "0"
+    count/jobs.batch: "0"
+    count/jobsets.jobset.x-k8s.io: "0"
+    count/statefulsets.apps: "0"
+    limits.cpu: "0"
+    limits.ephemeral-storage: "0"
+    limits.memory: "0"
+    persistentvolumeclaims: "0"
+    pods: "0"
+    requests.cpu: "0"
+    requests.ephemeral-storage: "0"
+    requests.memory: "0"
+    requests.nvidia.com/gpu: "0"
+    requests.storage: "0"
+    secrets: "0"
+    services: "0"
+    services.loadbalancers: "0"
+    services.nodeports: "0"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: mindclade-training-h200-bounds
+  namespace: mindclade-training-h200
+  labels:
+    app.kubernetes.io/component: capacity-policy
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/capacity-domain: training-h200
+  annotations:
+    mindclade.dev/defaulting-policy: forbidden-explicit-resources-required
+spec:
+  limits:
+    - type: Container
+      max:
+        cpu: "16"
+        ephemeral-storage: 64Gi
+        memory: 128Gi
+        nvidia.com/gpu: "8"
+      min:
+        cpu: 10m
+        ephemeral-storage: 16Mi
+        memory: 32Mi
+    - type: Pod
+      max:
+        cpu: "16"
+        ephemeral-storage: 64Gi
+        memory: 128Gi
+        nvidia.com/gpu: "8"

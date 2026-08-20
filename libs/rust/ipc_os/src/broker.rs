@@ -42,7 +42,13 @@ pub struct BulkBufferBroker {
     backend: BulkBackend,
     maximum_segments: usize,
     maximum_bytes_per_segment: u64,
-    segments: Mutex<BTreeMap<String, Arc<dyn BulkSegment>>>,
+    state: Mutex<BrokerState>,
+}
+
+#[derive(Default)]
+struct BrokerState {
+    pending: usize,
+    segments: BTreeMap<String, Arc<dyn BulkSegment>>,
 }
 
 impl core::fmt::Debug for BulkBufferBroker {
@@ -53,7 +59,8 @@ impl core::fmt::Debug for BulkBufferBroker {
             .field("maximum_segments", &self.maximum_segments)
             .field("maximum_bytes_per_segment", &self.maximum_bytes_per_segment)
             .field("active", &self.active())
-            .finish()
+            .field("pending", &self.pending())
+            .finish_non_exhaustive()
     }
 }
 
@@ -83,7 +90,7 @@ impl BulkBufferBroker {
             backend,
             maximum_segments,
             maximum_bytes_per_segment,
-            segments: Mutex::new(BTreeMap::new()),
+            state: Mutex::new(BrokerState::default()),
         })
     }
 
@@ -111,36 +118,56 @@ impl BulkBufferBroker {
             ));
         }
 
-        // Hold the registry lock while creating the OS object.  Segment
-        // creation is local and bounded; doing so closes the admission race in
-        // which concurrent publishers could all observe spare capacity.
-        let mut segments = self
-            .segments
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if segments.len() >= self.maximum_segments {
-            return Err(Fault::new(
-                Code::ResourceExhausted,
-                "bulk-buffer segment limit reached",
-            ));
+        {
+            let mut state = self
+                .state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let admitted = state
+                .segments
+                .len()
+                .checked_add(state.pending)
+                .ok_or_else(|| {
+                    Fault::new(Code::ResourceExhausted, "bulk-buffer accounting overflow")
+                })?;
+            if admitted >= self.maximum_segments {
+                return Err(Fault::new(
+                    Code::ResourceExhausted,
+                    "bulk-buffer segment limit reached",
+                ));
+            }
+            state.pending += 1;
         }
 
-        let segment = self.create_segment(
+        // Capacity is reserved above, so potentially slow file allocation and
+        // synchronization never hold the registry mutex or block readers.
+        let created = self.create_segment(
             name,
             bytes,
             generation,
             owner_process,
             lease_expires_unix_millis,
             now_unix_millis,
-        )?;
+        );
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        state.pending = state
+            .pending
+            .checked_sub(1)
+            .ok_or_else(|| Fault::internal("bulk-buffer pending accounting underflow"))?;
+        let segment = created?;
         let descriptor = segment.descriptor().clone();
-        if segments.contains_key(&descriptor.segment_id) {
+        if state.segments.contains_key(&descriptor.segment_id) {
             return Err(Fault::new(
                 Code::AlreadyExists,
                 "bulk-buffer segment id already exists",
             ));
         }
-        segments.insert(descriptor.segment_id.clone(), segment);
+        state
+            .segments
+            .insert(descriptor.segment_id.clone(), segment);
         Ok(descriptor)
     }
 
@@ -154,9 +181,10 @@ impl BulkBufferBroker {
             return Err(Fault::invalid_argument("bulk-buffer read limit is invalid"));
         }
         let segment = self
-            .segments
+            .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .segments
             .get(segment_id)
             .cloned()
             .ok_or_else(|| Fault::new(Code::NotFound, "bulk-buffer segment was not found"))?;
@@ -164,31 +192,41 @@ impl BulkBufferBroker {
     }
 
     pub fn release(&self, segment_id: &str) -> bool {
-        self.segments
+        self.state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .segments
             .remove(segment_id)
             .is_some()
     }
 
     /// Removes expired segments and returns the number released.
     pub fn reap_expired(&self, now_unix_millis: u64) -> usize {
-        let mut segments = self
-            .segments
+        let mut state = self
+            .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let before = segments.len();
-        segments
+        let before = state.segments.len();
+        state
+            .segments
             .retain(|_, segment| segment.descriptor().lease_expires_unix_millis > now_unix_millis);
-        before - segments.len()
+        before - state.segments.len()
     }
 
     #[must_use]
     pub fn active(&self) -> usize {
-        self.segments
+        self.state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .segments
             .len()
+    }
+
+    fn pending(&self) -> usize {
+        self.state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .pending
     }
 
     #[must_use]

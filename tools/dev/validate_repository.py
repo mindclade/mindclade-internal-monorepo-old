@@ -26,44 +26,110 @@ sys.dont_write_bytecode = True
 
 _LINK = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
 
+# Vendored and tool-output trees. This is the set proven in
+# tools/analysis/check_build_toolchain_contract.py, and it is here for the same reason: these
+# directories hold third-party or regenerated content that the repository does not own, so
+# reporting on them is noise at best and wrong at worst.
+#
+# .venv is the one that actually bit. Every walk below stopped at node_modules/.git, which was
+# complete when only JS vendored into the tree. `uv sync` then wrote a .venv, and the hygiene
+# walk began reporting ~180 __pycache__ directories under site-packages -- burying the ~35
+# genuine in-repo reports -- while structured_files parsed every JSON/TOML/YAML shipped by
+# torch and numpy on the way past.
+#
+# .claude holds agent worktrees -- full checkouts of this repository nested inside it. Without
+# it every finding is reported once per live worktree, and a transient agent checkout is not
+# something the repository should be validating.
+_VENDORED = frozenset(
+    {
+        ".claude",
+        ".git",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        ".venv",
+        "__pycache__",
+        "node_modules",
+        "target",
+    }
+)
+
+
+def _walk(root: Path):
+    """Yield every file under root, pruning vendored trees instead of filtering them.
+
+    os.walk rather than Path.rglob: rglob has no way to stop descending, so it still visits
+    every file in .venv even when the caller discards them. Pruning dirnames in place is what
+    makes this cheap -- and cheap matters, because a full site-packages traversal is what made
+    this validator slow enough to look hung.
+    """
+    root = root.resolve()
+    for dirpath, dirnames, filenames in os.walk(root):
+        here = Path(dirpath)
+        # Bazel writes bazel-out/bazel-bin/bazel-<workspace> convenience SYMLINKS at the
+        # repository root. Relative to root, so parts[0] is the first repo-level component --
+        # against an absolute path parts[0] is "/" and this never matches.
+        relative = here.relative_to(root)
+        if relative.parts and relative.parts[0].startswith("bazel-"):
+            dirnames[:] = []
+            continue
+        dirnames[:] = sorted(d for d in dirnames if d not in _VENDORED)
+        for name in sorted(filenames):
+            yield here / name
+
+
+def _walk_dirs(root: Path):
+    """Yield every directory under root, pruning vendored trees but still reporting them.
+
+    Distinct from _walk because hygiene has to *name* a transient directory it finds. Pruning
+    happens after the yield so an in-repo __pycache__ is still reported -- it is simply not
+    descended into.
+    """
+    root = root.resolve()
+    for dirpath, dirnames, _ in os.walk(root):
+        here = Path(dirpath)
+        relative = here.relative_to(root)
+        if relative.parts and relative.parts[0].startswith("bazel-"):
+            dirnames[:] = []
+            continue
+        for name in sorted(dirnames):
+            yield here / name
+        dirnames[:] = sorted(d for d in dirnames if d not in _VENDORED)
+
 
 def structured_files(root: Path) -> list[str]:
     errors: list[str] = []
-    for p in root.rglob("*.json"):
-        if any(x in p.parts for x in ("node_modules", ".git")):
-            continue
-        try:
-            json.loads(p.read_text())
-        except Exception as exc:
-            errors.append(f"JSON parse failed {p.relative_to(root)}: {exc}")
-    for p in root.rglob("*.toml"):
-        if any(x in p.parts for x in ("node_modules", ".git")):
-            continue
-        try:
-            tomllib.loads(p.read_text())
-        except Exception as exc:
-            errors.append(f"TOML parse failed {p.relative_to(root)}: {exc}")
     try:
         import yaml  # type: ignore
     except Exception:
         yaml = None
-    if yaml is not None:
-        for pattern in ("*.yaml", "*.yml"):
-            for p in root.rglob(pattern):
-                if any(x in p.parts for x in ("node_modules", ".git")):
-                    continue
-                try:
-                    for _ in yaml.safe_load_all(p.read_text()):
-                        pass
-                except Exception as exc:
-                    errors.append(f"YAML parse failed {p.relative_to(root)}: {exc}")
+    # One traversal for all three formats. Three rglob passes re-walked the tree per suffix,
+    # which is wasted work once the walk is pruned rather than filtered.
+    for p in _walk(root):
+        suffix = p.suffix
+        if suffix == ".json":
+            try:
+                json.loads(p.read_text())
+            except Exception as exc:
+                errors.append(f"JSON parse failed {p.relative_to(root)}: {exc}")
+        elif suffix == ".toml":
+            try:
+                tomllib.loads(p.read_text())
+            except Exception as exc:
+                errors.append(f"TOML parse failed {p.relative_to(root)}: {exc}")
+        elif suffix in {".yaml", ".yml"} and yaml is not None:
+            try:
+                for _ in yaml.safe_load_all(p.read_text()):
+                    pass
+            except Exception as exc:
+                errors.append(f"YAML parse failed {p.relative_to(root)}: {exc}")
     return errors
 
 
 def markdown_links(root: Path) -> list[str]:
     errors: list[str] = []
-    for p in root.rglob("*.md"):
-        if any(x in p.parts for x in ("node_modules", ".git")):
+    for p in _walk(root):
+        if p.suffix != ".md":
             continue
         text = p.read_text(errors="replace")
         for raw in _LINK.findall(text):
@@ -87,11 +153,13 @@ def markdown_links(root: Path) -> list[str]:
 def hygiene(root: Path) -> list[str]:
     errors = []
     transient_dirs = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache"}
-    for d in root.rglob("*"):
-        if d.is_dir() and d.name in transient_dirs:
+    # _walk_dirs still reports an in-repo __pycache__; it just refuses to descend into one, and
+    # never enters .venv/node_modules/target at all. `make clean-python` removes what this finds.
+    for d in _walk_dirs(root):
+        if d.name in transient_dirs:
             errors.append(f"generated cache directory present: {d.relative_to(root)}")
-    for p in root.rglob("*"):
-        if p.is_file() and p.name in {".DS_Store", ".coverage"}:
+    for p in _walk(root):
+        if p.name in {".DS_Store", ".coverage"}:
             errors.append(f"transient file present: {p.relative_to(root)}")
     return errors
 

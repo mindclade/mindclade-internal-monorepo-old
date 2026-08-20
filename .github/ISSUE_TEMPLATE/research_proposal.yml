@@ -1,0 +1,48 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+name: Research proposal
+description: Propose an experiment under research/.
+labels: ["research", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Research may depend on production packages. Production packages may never
+        depend on research. A proposal that needs the reverse is an ADR.
+  - type: textarea
+    id: hypothesis
+    attributes:
+      label: Hypothesis
+      description: Stated so a result can contradict it.
+    validations:
+      required: true
+  - type: input
+    id: baseline
+    attributes:
+      label: Baseline
+      description: What this is measured against, e.g. research/experiments/baselines/.
+    validations:
+      required: true
+  - type: textarea
+    id: metric
+    attributes:
+      label: Success metric and decision rule
+      description: The number, and what result would end the line of work.
+    validations:
+      required: true
+  - type: input
+    id: budget
+    attributes:
+      label: Compute budget
+      placeholder: 8xH100 for 12h
+    validations:
+      required: true
+  - type: input
+    id: extends
+    attributes:
+      label: Config or recipe this extends
+      placeholder: configs/recipes/pretraining/dense-debug.toml

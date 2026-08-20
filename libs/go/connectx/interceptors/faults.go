@@ -10,7 +10,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	"mindclade.internal/libs/go/connectx"
+	"go.mindclade.dev/libs/go/connectx"
 )
 
 // FaultTranslation encodes handler errors and decodes client errors for unary

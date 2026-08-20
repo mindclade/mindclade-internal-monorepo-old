@@ -1,1 +1,65 @@
-# Scaffold file: tools/dev/nixw
+#!/usr/bin/env bash
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# The repository's Nix entry point, and the only thing that makes the root nix.conf mean
+# anything.
+#
+# WHAT THIS REPLACED. A 32-byte file reading `# Scaffold file: tools/dev/nixw`, without an
+# executable bit. Unlike its sibling bazelw, nothing invoked it, so it was inert rather than a
+# latent crash -- the same bug waiting for its first caller.
+#
+# THE ACTUAL PROBLEM IT SOLVES. Nix reads /etc/nix/nix.conf and the per-user config under
+# $XDG_CONFIG_HOME/nix, and NOTHING ELSE. A nix.conf at a repository root is not consulted by
+# anything: the file has sat there since the tree was created, declaring three settings, with
+# no mechanism on earth reading it. Confirm with `nix config show` in this directory -- you get
+# your own settings, not these.
+#
+# That is why .github/workflows/presubmit.yml passes the same settings again inline as
+# `extra_nix_config` to install-nix-action. The root file and the CI block are one
+# configuration expressed twice, and only the CI copy has ever taken effect.
+#
+# HOW. NIX_USER_CONF_FILES replaces the per-user config search with an explicit
+# colon-separated list. Order is precedence and the FIRST match wins -- verified, not assumed:
+# with the repo file second, its `warn-dirty = false` loses to a user file's `warn-dirty =
+# true`. So the repo file goes first, and the developer's own config stays on the list behind
+# it, because that is where their substituters and cache keys live and dropping those turns a
+# cached build into an hour of compiling.
+
+set -euo pipefail
+
+repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd -- "${repo_root}"
+
+if ! command -v nix >/dev/null 2>&1; then
+  cat >&2 <<'ERROR'
+error: nix is not on PATH.
+
+Install it from https://nixos.org/download, or use the Determinate installer. CI installs it
+with cachix/install-nix-action.
+ERROR
+  exit 127
+fi
+
+# SECURITY POSTURE, STATED SO IT STAYS DELIBERATE. `accept-flake-config = false` here matches
+# presubmit.yml's `extra_nix_config`, and the match is load-bearing rather than tidiness: the
+# setting controls whether a flake's own `nixConfig` block -- including extra-substituters and
+# extra-trusted-public-keys -- is accepted without prompting. That is a supply-chain decision,
+# a flake nominating where its own binaries come from, not an ergonomic one. It was `true` here
+# until this wrapper made the file effective, which would have given a developer using this
+# shim MORE trust than CI grants -- the wrong direction for a shim whose purpose is making the
+# two agree. If this ever needs to diverge from CI again, change it in nix.conf where it is
+# declared, not by overriding it in this script.
+
+# The user's own config, kept second so it still supplies anything the repository does not set.
+# Listed only when it exists: naming a missing file is not an error to Nix, but keeping the
+# variable honest makes `echo $NIX_USER_CONF_FILES` readable when something is being debugged.
+user_conf="${XDG_CONFIG_HOME:-${HOME}/.config}/nix/nix.conf"
+if [ -f "${user_conf}" ]; then
+  export NIX_USER_CONF_FILES="${repo_root}/nix.conf:${user_conf}"
+else
+  export NIX_USER_CONF_FILES="${repo_root}/nix.conf"
+fi
+
+exec nix "$@"

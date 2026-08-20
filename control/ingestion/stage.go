@@ -5,7 +5,7 @@
 
 package ingestion
 
-import "mindclade.internal/control/orchestration"
+import "go.mindclade.dev/control/orchestration"
 
 func ValidIngestionStage(kind orchestration.StageKind) bool {
 	switch kind {

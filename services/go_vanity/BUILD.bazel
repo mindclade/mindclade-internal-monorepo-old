@@ -1,0 +1,93 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# The monorepo's first Bazel-built container, and the reference for every one after it.
+#
+# This replaced a Dockerfile. Both produced the same image; the reason to move is that
+# tools/analysis/check_build_toolchain_contract.py forbids production Dockerfiles, and it is
+# right to — a Dockerfile re-resolves the module graph inside the build with its own `go mod
+# download`, so the bytes in the image depend on what the network served that day rather than
+# on the same pinned dependency graph every other target in the repository builds from.
+#
+# Everything downstream keys off the image DIGEST, never a tag: gitops pins by digest, Binary
+# Authorization attests a digest, and gitops/.github/workflows/verify-attestation.yml refuses
+# any reference in rendered/ that is not one.
+
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+
+package(default_visibility = ["//visibility:private"])
+
+# `files` maps label -> destination path, so the binary lands at the exact path the entrypoint
+# names. The alternative, `srcs`, would name it after the target -- /usr/local/bin/
+# go_vanity_linux_amd64 -- and the entrypoint would have to encode the cross-compilation in its
+# path.
+#
+# 0555: read and execute, no write, for everyone. The process runs as 65532 and has no reason
+# to modify its own executable.
+pkg_tar(
+    name = "layer",
+    files = {
+        "//services/go_vanity/cmd/go_vanity:go_vanity_linux_amd64": "/usr/local/bin/go_vanity",
+    },
+    mode = "0555",
+)
+
+oci_image(
+    name = "image",
+    # The platform-specific repository, NOT the `@distroless_static` alias. That alias is a
+    # select() over the TARGET platform, and this target is configured for the host -- only the
+    # Go binary inside it is cross-compiled, by the goos/goarch on the go_binary rule. Building
+    # on a Mac therefore asked the alias for a darwin image, which distroless does not publish,
+    # and analysis failed with "could not find an image matching the target platform".
+    #
+    # Naming the amd64 repository directly makes the image's platform independent of the host
+    # that builds it, which is the property a release needs: the same bytes from a laptop and
+    # from a Linux runner.
+    base = "@distroless_static_linux_amd64",
+    entrypoint = ["/usr/local/bin/go_vanity"],
+
+    # Documentation only -- Kubernetes takes the port from the manifest. Kept because the
+    # manifest and the image disagreeing is a silent readiness failure, and this is where a
+    # reader looks.
+    exposed_ports = ["8080/tcp"],
+    tars = [":layer"],
+
+    # uid:gid rather than a name. distroless has no /etc/passwd entry to resolve `nonroot`
+    # against at every runtime that reads this field, and the number is what
+    # infra/kubernetes/planes/dev/base/go-vanity.yaml sets in runAsUser.
+    user = "65532:65532",
+    visibility = ["//visibility:public"],
+)
+
+# `bazel run //services/go_vanity:load` puts the image in the local Docker daemon for
+# inspection. Not part of the release path -- the release pushes from oci_push below, which
+# never involves a local daemon.
+oci_load(
+    name = "load",
+    image = ":image",
+    repo_tags = ["go_vanity:local"],
+)
+
+# `repository` here is a PLACEHOLDER and is overridden at run time.
+#
+# The usual rules_oci shape hardcodes the destination, which works when there is one registry.
+# This estate has one registry PER ENVIRONMENT by design -- promotion is a digest copy between
+# registries, not a moved tag -- and the host and project id arrive as GitHub variables. So
+# .github/workflows/release.yml runs:
+#
+#   bazel run //services/go_vanity:push -- --repository "$IMAGE" --tag "$TAG"
+#
+# Baking the dev registry in here instead would put one environment's address in the source
+# tree and make promoting to another a code change.
+#
+# remote_tags is deliberately NOT set: tags are computed per run from the git ref, and a tag
+# fixed at build time would be wrong on every run but one. Nothing downstream reads a tag
+# anyway -- gitops pins the digest.
+oci_push(
+    name = "push",
+    image = ":image",
+    repository = "localhost/mindclade/go-vanity",
+    visibility = ["//visibility:public"],
+)

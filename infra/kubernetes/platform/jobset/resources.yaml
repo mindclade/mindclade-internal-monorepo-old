@@ -4,4 +4,60 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# This suspended object is an API compatibility canary. It proves that the pinned v1alpha2
+# contract is accepted without starting a child Job. It is not a workload example.
+apiVersion: jobset.x-k8s.io/v1alpha2
+kind: JobSet
+metadata:
+  name: mindclade-jobset-api-contract
+  namespace: mindclade-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "22"
+spec:
+  suspend: true
+  replicatedJobs:
+    - name: contract
+      replicas: 1
+      template:
+        spec:
+          activeDeadlineSeconds: 60
+          backoffLimit: 0
+          completions: 1
+          parallelism: 1
+          ttlSecondsAfterFinished: 300
+          template:
+            metadata:
+              labels:
+                app.kubernetes.io/name: mindclade-jobset-api-contract
+                mindclade.dev/workload-state: blocked
+            spec:
+              automountServiceAccountToken: false
+              containers:
+                - name: contract
+                  image: registry.invalid/mindclade/jobset-contract@sha256:0000000000000000000000000000000000000000000000000000000000000000
+                  args:
+                    - /bin/false
+                  resources:
+                    requests:
+                      cpu: 10m
+                      memory: 16Mi
+                      ephemeral-storage: 16Mi
+                    limits:
+                      cpu: 10m
+                      memory: 16Mi
+                      ephemeral-storage: 16Mi
+                  securityContext:
+                    allowPrivilegeEscalation: false
+                    capabilities:
+                      drop:
+                        - ALL
+                    readOnlyRootFilesystem: true
+                    runAsNonRoot: true
+                    runAsUser: 65532
+              restartPolicy: Never
+              securityContext:
+                runAsNonRoot: true
+                seccompProfile:
+                  type: RuntimeDefault
+              serviceAccountName: mindclade-workload
+              terminationGracePeriodSeconds: 30

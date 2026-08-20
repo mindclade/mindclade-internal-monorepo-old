@@ -11,8 +11,14 @@ exports_files(["README.md"])
 
 go_library(
     name = "workqueue",
-    srcs = ["doc.go", "errors.go", "model.go", "store.go", "worker.go"],
-    importpath = "mindclade.internal/libs/go/coordination/workqueue",
+    srcs = [
+        "doc.go",
+        "errors.go",
+        "model.go",
+        "store.go",
+        "worker.go",
+    ],
+    importpath = "go.mindclade.dev/libs/go/coordination/workqueue",
     deps = [
         "//libs/go/clock",
         "//libs/go/coordination",

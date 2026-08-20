@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"strings"
 
-	"mindclade.internal/libs/go/httpx"
-	"mindclade.internal/libs/go/requestmeta"
+	"go.mindclade.dev/libs/go/httpx"
+	"go.mindclade.dev/libs/go/requestmeta"
 )
 
 type OperationResolver interface {

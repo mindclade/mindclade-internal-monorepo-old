@@ -10,8 +10,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	"mindclade.internal/services/studio/internal/iap"
-	"mindclade.internal/services/studio/internal/session"
+	"go.mindclade.dev/services/studio/internal/iap"
+	"go.mindclade.dev/services/studio/internal/session"
 )
 
 type ctxKey int
@@ -41,9 +41,10 @@ func Principal(r *http.Request) (string, bool) {
 
 // Resolver resolves a verified IAP identity into an authorization decision.
 //
-// Called only when there is no valid session — its result is what the session
-// cookie caches. It must be computable quickly enough to run on every cache
-// miss, which is what bounds how much can live behind it.
+// Called for every verified request, including one carrying a valid session.
+// A session authenticates its holder and carries a correlation identifier; it
+// never caches authorization. Otherwise refreshing the cookie on each request
+// would let a removed principal remain authorized indefinitely while active.
 type Resolver func(ctx context.Context, assertion iap.Assertion) error
 
 // Authenticate is the two-layer gate, and the ordering matters.
@@ -73,6 +74,14 @@ func Authenticate(v *iap.Verifier, codec *session.Codec, resolve Resolver, logge
 				return
 			}
 
+			// Authorization follows live cryptographic authentication and runs
+			// before the session fast path. A valid session is not authority.
+			if err := resolve(r.Context(), assertion); err != nil {
+				logger.Info("authorization denied", "subject", assertion.Subject, "error", err)
+				http.Error(w, "forbidden", http.StatusForbidden)
+				return
+			}
+
 			if cookie, cerr := r.Cookie(session.CookieName); cerr == nil {
 				if claims, oerr := codec.Open(cookie.Value, assertion.Subject); oerr == nil {
 					// Refresh silently. The five-minute TTL is the revocation
@@ -89,12 +98,6 @@ func Authenticate(v *iap.Verifier, codec *session.Codec, resolve Resolver, logge
 					// non-zero rate otherwise means a bug or someone probing.
 					sessionDecryptFailures.Add(1)
 				}
-			}
-
-			if err := resolve(r.Context(), assertion); err != nil {
-				logger.Info("authorization denied", "subject", assertion.Subject, "error", err)
-				http.Error(w, "forbidden", http.StatusForbidden)
-				return
 			}
 
 			sessionID, err := newSessionID()

@@ -4,4 +4,30 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mindclade-nccl-contract
+  namespace: mindclade-system
+data:
+  activationState: blocked
+  transportLabel: mindclade.dev/distributed-transport=nccl
+  networkInterface: unset-until-qualified
+  rendezvousPorts: unset-until-qualified
+  topologyPolicy: unset-until-qualified
+  debugLevel: WARN
+---
+# A pod cannot acquire peer transport merely by adding the NCCL label. Exact peer selectors,
+# ports, and topology are added only after an observed qualification run.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: block-unqualified-nccl
+  namespace: mindclade-system
+spec:
+  podSelector:
+    matchLabels:
+      mindclade.dev/distributed-transport: nccl
+  policyTypes:
+    - Egress
+    - Ingress

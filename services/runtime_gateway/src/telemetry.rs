@@ -14,6 +14,13 @@ pub struct GatewayTelemetry {
     clock: Arc<dyn Clock>,
     sink: Arc<dyn Sink>,
 }
+impl core::fmt::Debug for GatewayTelemetry {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        formatter
+            .debug_struct("GatewayTelemetry")
+            .finish_non_exhaustive()
+    }
+}
 impl GatewayTelemetry {
     #[must_use]
     pub fn new(clock: Arc<dyn Clock>, sink: Arc<dyn Sink>) -> Self {

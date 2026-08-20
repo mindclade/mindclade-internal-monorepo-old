@@ -1,0 +1,21 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//services/studio:__subpackages__"])
+
+go_library(
+    name = "stream",
+    srcs = ["stream.go"],
+    importpath = "go.mindclade.dev/services/studio/internal/stream",
+    deps = ["//services/studio/internal/runlog"],
+)
+
+go_test(
+    name = "stream_test",
+    srcs = ["stream_test.go"],
+    embed = [":stream"],
+)

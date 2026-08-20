@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+set -euo pipefail
+
+case "$*" in
+  *' init '*) exit 0 ;;
+  *'/modules/zeta validate '*)
+    printf 'synthetic validation failure\n' >&2
+    exit 42
+    ;;
+  *' validate '*) exit 0 ;;
+  *)
+    printf 'unexpected fake terraform invocation: %s\n' "$*" >&2
+    exit 64
+    ;;
+esac

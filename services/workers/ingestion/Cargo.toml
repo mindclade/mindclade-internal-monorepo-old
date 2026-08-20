@@ -12,6 +12,9 @@ license.workspace=true
 rust-version.workspace=true
 repository.workspace=true
 authors.workspace=true
+[lib]
+name="mindclade_ingestion_worker"
+path="src/lib.rs"
 [[bin]]
 name="mindclade-ingestion-worker"
 path="src/main.rs"

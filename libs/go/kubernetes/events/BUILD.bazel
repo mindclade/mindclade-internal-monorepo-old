@@ -13,7 +13,7 @@ go_library(
         "doc.go",
         "recorder.go",
     ],
-    importpath = "mindclade.internal/libs/go/kubernetes/events",
+    importpath = "go.mindclade.dev/libs/go/kubernetes/events",
     deps = [
         "//libs/go/faults",
         "//libs/go/kubernetes",
@@ -32,7 +32,7 @@ go_test(
         "//libs/go/faults",
         "//libs/go/kubernetes/metadata",
         "//libs/go/requestmeta",
-        "@io_k8s_apimachinery//pkg/apis/meta/v1",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
         "@io_k8s_apimachinery//pkg/runtime",
     ],
 )

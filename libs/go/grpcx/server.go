@@ -15,8 +15,8 @@ import (
 
 	"google.golang.org/grpc"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/servicekit"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/servicekit"
 )
 
 type Server struct {
@@ -77,9 +77,6 @@ func (server *Server) Shutdown(ctx context.Context) error {
 	}
 	if ctx == nil {
 		return faults.New(faults.CodeInvalidArgument, "shutdown context is required", faults.WithReason("nil_context"))
-	}
-	if !server.serving.Load() {
-		return nil
 	}
 	done := make(chan struct{})
 	go func() { server.server.GracefulStop(); close(done) }()

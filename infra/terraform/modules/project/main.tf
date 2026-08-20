@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 locals {
   baseline_labels = {
     data-classification = var.data_classification
@@ -13,6 +18,10 @@ locals {
   )
 }
 
+# Owner: Cloud Platform + Security. Data Access audit policy is owned once at the hierarchy
+# IAM boundary; applying it from every project state would create competing authorities.
+# Promotion verifies inherited coverage. Review the Well-Architected assessment annually.
+#trivy:ignore:GCP-0079:exp:2027-08-20
 resource "google_project" "this" {
   name                = var.project_name
   project_id          = var.project_id
@@ -94,4 +103,43 @@ resource "google_tags_tag_binding" "this" {
 
   parent    = "//cloudresourcemanager.googleapis.com/projects/${google_project.this.number}"
   tag_value = each.value
+}
+
+# Shared VPC service-project attachment.
+#
+# A workload with its own VPC is a workload outside every firewall rule and outside every
+# VPC-SC perimeter, and nothing about the project itself says so. Attaching here — rather
+# than leaving it to a separate unit — means a project cannot exist in a state where it has
+# been created but not yet placed inside the network its policies assume.
+#
+# Depends on the API being enabled first: compute.googleapis.com is what serves the
+# attachment call, and without the explicit ordering Terraform is free to try the attachment
+# against a project that has not turned it on yet.
+resource "google_compute_shared_vpc_service_project" "this" {
+  count = var.shared_vpc_host_project_id == null ? 0 : 1
+
+  host_project    = var.shared_vpc_host_project_id
+  service_project = google_project.this.project_id
+
+  depends_on = [google_project_service.required]
+}
+
+# The default compute service account holds roles/editor on its own project. The org policy
+# in bootstrap already denies the automatic IAM grant; this removes the identity itself, so
+# nothing can fall back to it when a Workload Identity binding is missing.
+#
+# Removing it is what turns "the pod authenticated as something" into a failure rather than a
+# silent escalation to project editor.
+#
+# DEPRIVILEGE, not DELETE. Deleting the account is recoverable for 30 days and permanent
+# after that, and a later workload that legitimately needs it — a Dataflow job, a managed
+# service that provisions through it — fails with an error naming a missing account rather
+# than a missing role. Deprivileging strips roles/editor and is reversible.
+resource "google_project_default_service_accounts" "this" {
+  count = var.remove_default_service_account ? 1 : 0
+
+  project = google_project.this.project_id
+  action  = "DEPRIVILEGE"
+
+  depends_on = [google_project_service.required]
 }

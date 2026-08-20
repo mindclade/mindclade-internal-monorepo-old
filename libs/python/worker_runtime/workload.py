@@ -7,12 +7,12 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 
-from .contracts import StageEnvelope
+from libs.python.errors import InvalidArgument
 
-_ID = re.compile(r"^[a-z][a-z0-9]{1,23}_[0-9a-f]{32}$")
+from .contracts import MAXIMUM_UINT64, StageEnvelope, _bounded_positive_integer, _bounded_text
+from .contracts import _resource_id as _validated_resource_id
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,21 +27,28 @@ class WorkloadEnvelope:
     resource_class: str
     created_unix_millis: int
 
+    def __post_init__(self) -> None:
+        self.validate()
+
     def validate(self) -> None:
-        for value in (
-            self.workload_id,
-            self.run_id,
-            self.job_id,
-            self.tenant_id,
-            self.workspace_id,
-            self.execution_ticket_id,
+        for field, value, kind in (
+            ("workload_id", self.workload_id, "workload"),
+            ("run_id", self.run_id, "run"),
+            ("job_id", self.job_id, "job"),
+            ("tenant_id", self.tenant_id, "tenant"),
+            ("workspace_id", self.workspace_id, "workspace"),
+            ("execution_ticket_id", self.execution_ticket_id, "ticket"),
         ):
-            if not _ID.fullmatch(value):
-                raise ValueError("workload identity must use canonical resource IDs")
-        if (
-            not self.resource_class
-            or len(self.resource_class) > 128
-            or self.created_unix_millis <= 0
-        ):
-            raise ValueError("workload resource class/creation time is invalid")
+            _validated_resource_id(value, name=field, kind=kind)
+        if not isinstance(self.stage, StageEnvelope):
+            raise InvalidArgument(
+                "workload stage must be a StageEnvelope",
+                reason="workload_stage",
+            )
+        _bounded_text(self.resource_class, name="resource_class")
+        _bounded_positive_integer(
+            self.created_unix_millis,
+            name="created_unix_millis",
+            maximum=MAXIMUM_UINT64,
+        )
         self.stage.validate()

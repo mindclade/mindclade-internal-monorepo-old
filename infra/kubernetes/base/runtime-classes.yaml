@@ -3,6 +3,9 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-# Intentionally empty. A RuntimeClass is cluster-provider configuration, not a portable
-# placeholder. Activation requires an observed GKE runtime handler, supported cluster
-# version, workload compatibility evidence, ownership, and a tested rollback path.
+# Intentionally declares no RuntimeClass. A handler name is cluster-provider
+# configuration, not a portable default, and a fabricated handler makes every Pod
+# referencing it unschedulable. Materialization requires an observed GKE handler,
+# the pinned cluster version from ../versions.env, workload compatibility evidence,
+# an owner, and a tested rollback path. This comment-only resource is included by the
+# base Kustomization so adding the first qualified RuntimeClass cannot be forgotten.

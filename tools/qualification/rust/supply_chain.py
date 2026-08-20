@@ -29,6 +29,51 @@ def cargo_packages() -> list[tuple[Path, dict]]:
     return result
 
 
+def dependency_tables(manifest: dict) -> list[dict]:
+    tables = [
+        manifest.get("dependencies", {}),
+        manifest.get("dev-dependencies", {}),
+        manifest.get("build-dependencies", {}),
+    ]
+    for target in manifest.get("target", {}).values():
+        tables.extend(
+            [
+                target.get("dependencies", {}),
+                target.get("dev-dependencies", {}),
+                target.get("build-dependencies", {}),
+            ]
+        )
+    return tables
+
+
+def validate_dependency(
+    name: str, value: object, directory: Path, manifest_path: Path
+) -> list[str]:
+    label = f"{manifest_path.relative_to(ROOT)}: {name}"
+    if isinstance(value, str):
+        return (
+            []
+            if value.startswith("=") and "*" not in value
+            else [f"{label}: external dependency must be exactly pinned"]
+        )
+    if not isinstance(value, dict):
+        return [f"{label}: dependency declaration is invalid"]
+    if value.get("git"):
+        return [f"{label}: git dependency is not admitted"]
+    if value.get("workspace") is True:
+        return []
+    if path := value.get("path"):
+        try:
+            (directory / path).resolve().relative_to(ROOT)
+        except (OSError, ValueError):
+            return [f"{label}: path dependency escapes the repository"]
+        return []
+    version = value.get("version")
+    if not isinstance(version, str) or not version.startswith("=") or "*" in version:
+        return [f"{label}: external dependency must be exactly pinned"]
+    return []
+
+
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--connected", action="store_true")
@@ -52,6 +97,10 @@ def main() -> int:
         if version and not version.startswith("="):
             errors.append(f"{name}: external workspace dependency must be exactly pinned")
     for directory, manifest in cargo_packages():
+        manifest_path = directory / "Cargo.toml"
+        for table in dependency_tables(manifest):
+            for name, value in table.items():
+                errors.extend(validate_dependency(name, value, directory, manifest_path))
         package = manifest.get("package", {}).get("name", "")
         unsafe_files = []
         for source in directory.glob("src/**/*.rs"):

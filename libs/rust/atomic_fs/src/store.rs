@@ -6,7 +6,7 @@
 //! Atomic file publication.
 
 use crate::RelativePath;
-use mindclade_content_digest::{Digest, hash_reader};
+use mindclade_content_digest::{Digest, hash_bytes};
 use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_identifiers::ResourceId;
 use mindclade_runtime_core::SystemClock;
@@ -126,8 +126,11 @@ impl AtomicFileStore {
         maximum_bytes: u64,
     ) -> FaultResult<Vec<u8>> {
         let full_path = self.root.join(path.as_path());
-        let metadata = fs::metadata(&full_path)
+        let file = File::open(&full_path)
             .map_err(|error| Fault::new(Code::NotFound, "file not found").with_source(error))?;
+        let metadata = file
+            .metadata()
+            .map_err(|error| Fault::internal("failed to inspect opened file").with_source(error))?;
         if metadata.len() > maximum_bytes {
             return Err(Fault::new(
                 Code::ResourceExhausted,
@@ -140,18 +143,29 @@ impl AtomicFileStore {
                 "file is too large for this process",
             )
         })?;
-        let mut file = File::open(&full_path)
-            .map_err(|error| Fault::internal("failed to open file").with_source(error))?;
-        let actual = hash_reader(&mut file)?;
-        if !actual.constant_time_eq(expected) {
+        let mut bytes = Vec::with_capacity(capacity);
+        // Read one sentinel byte beyond the configured limit when it is
+        // representable so growth after metadata inspection is detected.
+        let read_limit = maximum_bytes.saturating_add(1);
+        let mut limited = file.take(read_limit);
+        limited
+            .read_to_end(&mut bytes)
+            .map_err(|error| Fault::internal("failed to read verified file").with_source(error))?;
+        let bytes_read = u64::try_from(bytes.len()).map_err(|_| {
+            Fault::new(
+                Code::ResourceExhausted,
+                "file is too large for this process",
+            )
+        })?;
+        if bytes_read > maximum_bytes {
+            return Err(Fault::new(
+                Code::ResourceExhausted,
+                "file exceeds configured read limit",
+            ));
+        }
+        if !hash_bytes(&bytes).constant_time_eq(expected) {
             return Err(Fault::data_loss("file digest mismatch"));
         }
-        let mut bytes = Vec::with_capacity(capacity);
-        let mut file = File::open(&full_path).map_err(|error| {
-            Fault::internal("failed to reopen verified file").with_source(error)
-        })?;
-        file.read_to_end(&mut bytes)
-            .map_err(|error| Fault::internal("failed to read verified file").with_source(error))?;
         Ok(bytes)
     }
 }

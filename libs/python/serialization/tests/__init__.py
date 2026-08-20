@@ -3,4 +3,4 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Mindclade scaffold package for libs/python/serialization/tests."""
+"""Tests for Mindclade Python canonical serialization."""

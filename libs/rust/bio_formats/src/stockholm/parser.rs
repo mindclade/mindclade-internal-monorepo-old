@@ -8,6 +8,9 @@ use mindclade_bounded_parse::{AllocationBudget, Cursor, Limits};
 use mindclade_faults::{Code, Fault, FaultResult};
 use std::collections::BTreeMap;
 
+// The state-machine stays contiguous so header, record, and terminator bounds
+// can be audited in protocol order.
+#[allow(clippy::too_many_lines)]
 pub fn parse(bytes: &[u8], limits: Limits) -> FaultResult<Vec<SequenceRecord>> {
     let mut cursor = Cursor::new(bytes, limits)?;
     let mut allocation = AllocationBudget::from_limits(limits);

@@ -6,9 +6,9 @@
 package transport
 
 import (
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/servicekit/production"
-	"mindclade.internal/services/control_plane/internal/bootstrap"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/servicekit/production"
+	"go.mindclade.dev/services/control_plane/internal/bootstrap"
 )
 
 // Bundle combines the transport mechanisms constructed for one process. It

@@ -1,0 +1,17 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+apiVersion: v2
+name: mindclade-jobset
+description: Supply-chain-locked JobSet controller dependency for Mindclade clusters
+type: application
+version: 1.0.0
+appVersion: "0.12.0"
+kubeVersion: ">=1.34.0-0 <1.37.0-0"
+dependencies:
+  - name: jobset
+    version: 0.12.0
+    repository: oci://registry.k8s.io/jobset/charts

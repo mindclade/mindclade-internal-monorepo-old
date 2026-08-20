@@ -15,8 +15,8 @@ import (
 	"google.golang.org/api/googleapi"
 	"google.golang.org/grpc/codes"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/storage/blob"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/storage/blob"
 )
 
 type errorIntent int

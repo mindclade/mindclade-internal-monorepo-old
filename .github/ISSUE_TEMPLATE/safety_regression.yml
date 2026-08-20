@@ -1,0 +1,48 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+name: Safety or isolation regression
+description: A safety, isolation, or access-control gate stopped holding.
+labels: ["safety-regression", "blocks-release"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        **Stop if this is exploitable.** Do not describe a working bypass, hazardous
+        biological specifics, or anything that would help reproduce harm. Those go to
+        the private channel in SECURITY.md, not here. Use this form only for a gate
+        that is failing in a way already safe to state in public - for example a suite
+        that no longer runs, or a control that is not wired up.
+  - type: dropdown
+    id: gate
+    attributes:
+      label: Which gate
+      options:
+        - Biological risk screening
+        - Safety evaluation suite
+        - Hidden evaluation set isolation
+        - Model-weight access control
+        - Tenant isolation
+        - Execution-ticket expiry or revocation
+        - Artifact grant scope
+    validations:
+      required: true
+  - type: dropdown
+    id: disclosure
+    attributes:
+      label: Disclosure check
+      options:
+        - "This report contains no exploit detail or hazardous specifics"
+        - "It does - I will use the private channel instead"
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: What is failing
+      description: Reference run and evidence digests rather than pasting content.
+    validations:
+      required: true

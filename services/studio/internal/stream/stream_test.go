@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"mindclade.internal/services/studio/internal/runlog"
+	"go.mindclade.dev/services/studio/internal/runlog"
 )
 
 // fakeReader is an in-memory log. Events can be appended while a stream is

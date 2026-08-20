@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"mindclade.internal/libs/go/clock"
-	"mindclade.internal/libs/go/coordination/outbox"
-	"mindclade.internal/libs/go/coordination/outbox/memory"
-	"mindclade.internal/libs/go/coordination/outbox/outboxtest"
+	"go.mindclade.dev/libs/go/clock"
+	"go.mindclade.dev/libs/go/coordination/outbox"
+	"go.mindclade.dev/libs/go/coordination/outbox/memory"
+	"go.mindclade.dev/libs/go/coordination/outbox/outboxtest"
 )
 
 func TestDispatcherPublishesAndCommits(t *testing.T) {

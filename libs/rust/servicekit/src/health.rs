@@ -39,6 +39,15 @@ pub struct HealthRegistry {
     reports: Arc<RwLock<BTreeMap<String, HealthReport>>>,
 }
 
+impl core::fmt::Debug for HealthRegistry {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        formatter
+            .debug_struct("HealthRegistry")
+            .field("reports", &self.snapshot())
+            .finish_non_exhaustive()
+    }
+}
+
 impl HealthRegistry {
     #[must_use]
     pub fn new(clock: Arc<dyn Clock>) -> Self {

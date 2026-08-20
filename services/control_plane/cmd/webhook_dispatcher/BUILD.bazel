@@ -10,7 +10,11 @@ package(default_visibility = ["//visibility:private"])
 go_binary(
     name = "webhook-dispatcher",
     srcs = ["main.go"],
-    importpath = "mindclade.internal/services/control_plane/cmd/webhook_dispatcher",
+    importpath = "go.mindclade.dev/services/control_plane/cmd/webhook_dispatcher",
     visibility = ["//services/control_plane:__subpackages__"],
-    deps = ["//services/control_plane/internal/bootstrap"],
+    deps = [
+        "//services/control_plane/internal/bootstrap",
+        "//services/control_plane/internal/providers/webhook",
+        "@com_github_lib_pq//:pq",
+    ],
 )

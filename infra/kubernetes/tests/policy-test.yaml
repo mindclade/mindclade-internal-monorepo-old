@@ -4,4 +4,47 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# Deliberately insecure negative fixture. validate.sh requires Conftest to reject it for the
+# immutable-image rule; it is never part of a Kustomize root or a deployment render.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: must-be-rejected
+  namespace: validation-fixture
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: must-be-rejected
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: must-be-rejected
+    spec:
+      containers:
+        - name: application
+          image: registry.invalid/mindclade/application:latest
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: external-ip-must-be-rejected
+  namespace: validation-fixture
+spec:
+  externalIPs:
+    - 192.0.2.10
+  ports:
+    - port: 80
+  selector:
+    app.kubernetes.io/name: validation-fixture
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ephemeral-container-must-be-rejected
+  namespace: validation-fixture
+spec:
+  ephemeralContainers:
+    - name: debugger
+      image: registry.invalid/debugger@sha256:1111111111111111111111111111111111111111111111111111111111111111
+  containers: []

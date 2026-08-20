@@ -20,7 +20,7 @@ import (
 	"syscall"
 	"time"
 
-	"mindclade.internal/services/go_vanity/internal/vanity"
+	"go.mindclade.dev/services/go_vanity/internal/vanity"
 )
 
 func main() {

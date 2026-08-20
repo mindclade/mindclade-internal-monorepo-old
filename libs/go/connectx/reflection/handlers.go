@@ -13,8 +13,8 @@ import (
 	"connectrpc.com/connect"
 	"connectrpc.com/grpcreflect"
 
-	"mindclade.internal/libs/go/connectx"
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/connectx"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 type Mount struct {

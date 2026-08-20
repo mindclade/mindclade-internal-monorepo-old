@@ -1,0 +1,99 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# Line endings, diff behaviour, and what counts as generated.
+#
+# The line-ending rules are the load-bearing part. CI is Linux, contributors are not, and a
+# CRLF that reaches the tree breaks things in ways that do not name themselves: a shell script
+# with CRLF fails with "bad interpreter: /usr/bin/env bash^M", and a testdata fixture with CRLF
+# fails a content_digest test with a hash mismatch and no hint that the bytes on disk differ
+# from the bytes committed.
+
+# Normalize to LF in the repository, on every text file Git detects as text. `eol=lf` on top
+# of `text=auto` means the WORKING TREE also gets LF, on Windows too — deliberate, because
+# .editorconfig already says end_of_line = lf and the two must not disagree.
+* text=auto eol=lf
+
+# ---------------------------------------------------------------------------------------
+# Explicitly binary
+# ---------------------------------------------------------------------------------------
+# Git's text detection is a heuristic over the first 8000 bytes. These are files where a wrong
+# guess corrupts content, so they are stated rather than sniffed.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.so binary
+*.dylib binary
+*.dll binary
+*.a binary
+*.o binary
+*.wasm binary
+*.pyc binary
+*.safetensors binary
+*.ckpt binary
+*.pt binary
+*.npy binary
+*.npz binary
+*.parquet binary
+*.tar binary
+*.gz binary
+*.zst binary
+*.zip binary
+
+# Scientific fixtures. Structure files are text and must stay LF-normalized like anything
+# else, but they are listed so nobody adds them to the binary block above by association:
+# preprocessing's cross-language fixtures compare them by content digest.
+*.pdb text eol=lf
+*.cif text eol=lf
+*.mmcif text eol=lf
+*.fasta text eol=lf
+*.a3m text eol=lf
+
+# ---------------------------------------------------------------------------------------
+# Generated files
+# ---------------------------------------------------------------------------------------
+# linguist-generated collapses these in pull-request diffs and drops them from the language
+# statistics. They stay diffable — `git diff` still prints them — but a lockfile bump no longer
+# buries the four lines of real change under nine thousand.
+Cargo.lock            linguist-generated=true
+go.sum                linguist-generated=true
+pnpm-lock.yaml        linguist-generated=true
+uv.lock               linguist-generated=true
+flake.lock            linguist-generated=true
+MODULE.bazel.lock     linguist-generated=true
+
+# Generated protocol code. protocols/proto is the source; anything emitted from it is not
+# reviewed as source.
+protocols/**/*.pb.go        linguist-generated=true
+protocols/**/*_pb2.py       linguist-generated=true
+protocols/**/*_pb2.pyi      linguist-generated=true
+protocols/**/*_connect.go   linguist-generated=true
+
+# Vendored blueprint manifests. docs/blueprint/production-monorepo-paths.txt is a 4,475-line
+# path list; it is data the scaffold checker reads, not prose anyone reviews line by line.
+docs/blueprint/production-monorepo-paths.txt linguist-generated=true
+
+# ---------------------------------------------------------------------------------------
+# Diff drivers
+# ---------------------------------------------------------------------------------------
+# Teaches `git diff` to find the enclosing function for the @@ hunk header, which is the
+# difference between a hunk labelled `func (s *Service) Reconcile` and one labelled `}`.
+*.go   diff=golang
+*.rs   diff=rust
+*.py   diff=python
+*.md   diff=markdown
+
+# ---------------------------------------------------------------------------------------
+# Export
+# ---------------------------------------------------------------------------------------
+# Excluded from `git archive`. Nothing consuming a source tarball of this repository needs its
+# CI configuration, and the release lane builds from a checkout rather than an archive.
+.github/            export-ignore
+.gitattributes      export-ignore
+.gitignore          export-ignore

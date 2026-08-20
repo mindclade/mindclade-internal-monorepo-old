@@ -8,7 +8,7 @@ package interceptors
 import (
 	"context"
 
-	"mindclade.internal/libs/go/auth"
+	"go.mindclade.dev/libs/go/auth"
 )
 
 // Validator is implemented by request messages with transport-boundary

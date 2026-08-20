@@ -6,12 +6,32 @@
 package grpcx
 
 import (
+	"context"
 	"errors"
 	"net"
 	"testing"
+	"time"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
+
+func TestServerShutdownBeforeServePreventsLateStart(t *testing.T) {
+	server, err := NewServer(ServerConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := server.Shutdown(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := server.Serve(failingListener{err: errors.New("accept must not run")}); err != nil {
+		t.Fatalf("Serve after Shutdown = %v", err)
+	}
+	if server.Serving() {
+		t.Fatal("server started after shutdown")
+	}
+}
 
 type failingListener struct{ err error }
 

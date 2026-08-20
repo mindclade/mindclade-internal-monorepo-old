@@ -1,11 +1,11 @@
-# Training / Distributed / Pipeline
+# Training / Distributed
 
 - **Status:** Target-state scaffold; no production capability is claimed by this file.
 - **Primary implementation ownership:** Python/PyTorch
 
 ## Purpose
 
-Authoritative training contracts, core state machine, engine adapters, distributed plans, checkpoint orchestration, optimizers, runtime mechanisms, and task objectives. This path specializes that domain for **pipeline**.
+Authoritative training contracts, core state machine, engine adapters, distributed plans, checkpoint orchestration, optimizers, runtime mechanisms, and task objectives. This path specializes that domain for **distributed**.
 
 ## Boundary
 

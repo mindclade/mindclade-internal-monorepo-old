@@ -1,0 +1,8 @@
+JobSet {{ .Chart.AppVersion }} is installed from a locked upstream dependency.
+
+Before reconciling Mindclade JobSets:
+1. verify the CRD reports v1alpha2 as served and storage-compatible;
+2. verify leader election and webhook endpoints with both replicas ready;
+3. keep every JobSet suspended until queue admission and workload qualification.
+
+This chart does not activate a JobSet or install a workload image.

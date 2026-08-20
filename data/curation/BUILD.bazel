@@ -3,10 +3,16 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-package(default_visibility = ["//visibility:private"])
+load("@rules_python//python:defs.bzl", "py_library")
 
-filegroup(
-    name = "scaffold_files",
-    srcs = glob(["**"], exclude = ["BUILD.bazel"]),
-    visibility = ["//visibility:public"],
+package(default_visibility = ["//visibility:public"])
+
+# sources/ has no BUILD file of its own, so it is part of this package and the glob reaches it.
+py_library(
+    name = "curation",
+    srcs = glob(
+        ["**/*.py"],
+        exclude = ["tests/**"],
+    ),
+    imports = ["../.."],
 )

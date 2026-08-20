@@ -5,6 +5,7 @@
 
 //! Provider-specific object-store adapters.
 
+#[cfg(feature = "provider-adapters")]
 pub mod arrow;
 pub mod local;
 pub mod memory;

@@ -6,10 +6,15 @@
 //! Bounded process supervision for process-isolated model workers.
 
 use mindclade_faults::{Code, Fault, FaultResult};
-use std::collections::BTreeMap;
+use mindclade_process_os::{
+    DEFAULT_TERMINATION_GRACE, MAXIMUM_TERMINATION_GRACE, configure_process_group,
+    terminate_process_group,
+};
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 const MAX_PROCESS_NAME_BYTES: usize = 128;
 const MAX_EXECUTABLE_BYTES: usize = 4_096;
@@ -85,9 +90,33 @@ pub trait ProcessLauncher: Send + Sync {
     fn running(&self, handle: ProcessHandle) -> FaultResult<bool>;
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct StdProcessLauncher {
     children: Mutex<BTreeMap<u32, Child>>,
+    termination_grace: Duration,
+}
+
+impl Default for StdProcessLauncher {
+    fn default() -> Self {
+        Self {
+            children: Mutex::new(BTreeMap::new()),
+            termination_grace: DEFAULT_TERMINATION_GRACE,
+        }
+    }
+}
+
+impl StdProcessLauncher {
+    pub fn with_termination_grace(termination_grace: Duration) -> FaultResult<Self> {
+        if termination_grace > MAXIMUM_TERMINATION_GRACE {
+            return Err(Fault::invalid_argument(
+                "worker termination grace exceeds supported bound",
+            ));
+        }
+        Ok(Self {
+            children: Mutex::new(BTreeMap::new()),
+            termination_grace,
+        })
+    }
 }
 
 impl ProcessLauncher for StdProcessLauncher {
@@ -103,6 +132,7 @@ impl ProcessLauncher for StdProcessLauncher {
         for (key, value) in &spec.environment {
             command.env(key, value);
         }
+        configure_process_group(&mut command)?;
         let child = command.spawn().map_err(|error| {
             Fault::new(Code::Unavailable, "failed to launch model worker process")
                 .with_source(error)
@@ -116,27 +146,16 @@ impl ProcessLauncher for StdProcessLauncher {
     }
 
     fn terminate(&self, handle: ProcessHandle) -> FaultResult<()> {
-        let mut children = self
+        let Some(mut child) = self
             .children
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let Some(mut child) = children.remove(&handle.pid) else {
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .remove(&handle.pid)
+        else {
             return Ok(());
         };
 
-        // `kill` is the force-stop path used after graceful worker drain. The
-        // host keeps ownership of the Child until it has been reaped.
-        child.kill().map_err(|error| {
-            Fault::new(
-                Code::Unavailable,
-                "failed to terminate model worker process",
-            )
-            .with_source(error)
-        })?;
-        child.wait().map_err(|error| {
-            Fault::new(Code::Unavailable, "failed to reap model worker process").with_source(error)
-        })?;
-        Ok(())
+        terminate_process_group(&mut child, self.termination_grace)
     }
 
     fn running(&self, handle: ProcessHandle) -> FaultResult<bool> {
@@ -147,10 +166,15 @@ impl ProcessLauncher for StdProcessLauncher {
         let Some(child) = children.get_mut(&handle.pid) else {
             return Ok(false);
         };
-        match child.try_wait() {
+        let status = child.try_wait();
+        match status {
             Ok(None) => Ok(true),
             Ok(Some(_)) => {
-                children.remove(&handle.pid);
+                let mut child = children
+                    .remove(&handle.pid)
+                    .ok_or_else(|| Fault::internal("worker process disappeared"))?;
+                drop(children);
+                terminate_process_group(&mut child, self.termination_grace)?;
                 Ok(false)
             }
             Err(error) => Err(Fault::new(
@@ -165,7 +189,13 @@ impl ProcessLauncher for StdProcessLauncher {
 pub struct ProcessSupervisor {
     launcher: Arc<dyn ProcessLauncher>,
     maximum_processes: u32,
-    processes: Mutex<BTreeMap<String, ProcessHandle>>,
+    state: Mutex<SupervisorState>,
+}
+
+#[derive(Default)]
+struct SupervisorState {
+    pending: BTreeSet<String>,
+    processes: BTreeMap<String, ProcessHandle>,
 }
 
 impl core::fmt::Debug for ProcessSupervisor {
@@ -174,7 +204,7 @@ impl core::fmt::Debug for ProcessSupervisor {
             .debug_struct("ProcessSupervisor")
             .field("maximum_processes", &self.maximum_processes)
             .field("active", &self.active())
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -188,45 +218,69 @@ impl ProcessSupervisor {
         Ok(Self {
             launcher,
             maximum_processes,
-            processes: Mutex::new(BTreeMap::new()),
+            state: Mutex::new(SupervisorState::default()),
         })
     }
 
     pub fn launch(&self, spec: &ProcessSpec) -> FaultResult<ProcessHandle> {
         spec.validate()?;
-        let mut processes = self
-            .processes
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if processes.contains_key(&spec.name) {
-            return Err(Fault::new(
-                Code::AlreadyExists,
-                "worker process name already exists",
-            ));
-        }
         let maximum_processes = usize::try_from(self.maximum_processes).map_err(|_| {
             Fault::new(
                 Code::OutOfRange,
                 "worker process limit exceeds platform usize",
             )
         })?;
-        if processes.len() >= maximum_processes {
-            return Err(Fault::new(
-                Code::ResourceExhausted,
-                "worker process limit reached",
-            ));
+        {
+            let mut state = self
+                .state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if state.processes.contains_key(&spec.name) || state.pending.contains(&spec.name) {
+                return Err(Fault::new(
+                    Code::AlreadyExists,
+                    "worker process name already exists",
+                ));
+            }
+            let admitted = state
+                .processes
+                .len()
+                .checked_add(state.pending.len())
+                .ok_or_else(|| {
+                    Fault::new(
+                        Code::ResourceExhausted,
+                        "worker process accounting overflow",
+                    )
+                })?;
+            if admitted >= maximum_processes {
+                return Err(Fault::new(
+                    Code::ResourceExhausted,
+                    "worker process limit reached",
+                ));
+            }
+            state.pending.insert(spec.name.clone());
         }
 
-        let handle = self.launcher.launch(spec)?;
-        processes.insert(spec.name.clone(), handle);
+        let launched = self.launcher.launch(spec);
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if !state.pending.remove(&spec.name) {
+            return Err(Fault::internal(
+                "worker process pending reservation disappeared",
+            ));
+        }
+        let handle = launched?;
+        state.processes.insert(spec.name.clone(), handle);
         Ok(handle)
     }
 
     pub fn stop(&self, name: &str) -> FaultResult<()> {
         let handle = self
-            .processes
+            .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .processes
             .get(name)
             .copied();
         let Some(handle) = handle else {
@@ -234,9 +288,10 @@ impl ProcessSupervisor {
         };
 
         self.launcher.terminate(handle)?;
-        self.processes
+        self.state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .processes
             .remove(name);
         Ok(())
     }
@@ -247,9 +302,10 @@ impl ProcessSupervisor {
     /// received their termination attempt.
     pub fn stop_all(&self) -> FaultResult<()> {
         let names: Vec<String> = self
-            .processes
+            .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .processes
             .keys()
             .cloned()
             .collect();
@@ -266,9 +322,34 @@ impl ProcessSupervisor {
 
     #[must_use]
     pub fn active(&self) -> usize {
-        self.processes
+        self.state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .processes
             .len()
+    }
+
+    pub fn running(&self, name: &str) -> FaultResult<bool> {
+        let handle = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .processes
+            .get(name)
+            .copied();
+        let Some(handle) = handle else {
+            return Ok(false);
+        };
+        if self.launcher.running(handle)? {
+            return Ok(true);
+        }
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if state.processes.get(name) == Some(&handle) {
+            state.processes.remove(name);
+        }
+        Ok(false)
     }
 }

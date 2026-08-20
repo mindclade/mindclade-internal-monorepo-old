@@ -7,7 +7,7 @@ package idempotency
 
 import (
 	"encoding/json"
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 	"testing"
 )
 

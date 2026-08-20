@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 output "key_ring_id" {
   description = "Fully qualified Cloud KMS key-ring resource ID"
   value       = google_kms_key_ring.this.id

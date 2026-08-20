@@ -14,10 +14,10 @@ import (
 	"testing"
 	"time"
 
-	mcclock "mindclade.internal/libs/go/clock"
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/idempotency"
-	"mindclade.internal/libs/go/identifiers"
+	mcclock "go.mindclade.dev/libs/go/clock"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/idempotency"
+	"go.mindclade.dev/libs/go/identifiers"
 )
 
 func memoryFixture(t *testing.T) (*MemoryStore, *mcclock.FakeClock, idempotency.AcquireRequest) {

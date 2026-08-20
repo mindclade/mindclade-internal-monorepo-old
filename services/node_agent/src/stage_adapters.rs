@@ -30,6 +30,7 @@ pub const DATA_STREAM_FETCH_OPERATION: &str = "data-stream.fetch";
 /// This is the reusable implementation behind the planned checkpoint-transfer
 /// worker.  A standalone daemon is unnecessary while node-agent owns the same
 /// ticket, budget, cache, and provider lifecycle.
+#[derive(Debug)]
 pub struct CheckpointCopyExecutor {
     transfer: CheckpointTransfer,
     source: ProviderSource,
@@ -130,6 +131,7 @@ impl StageExecutor for CheckpointCopyExecutor {
 
 /// Fetches immutable ticket-authorized dataset shards and materializes them as
 /// bounded local bulk buffers for a downstream Python/training worker.
+#[derive(Debug)]
 pub struct DataStreamFetchExecutor {
     worker: StreamWorker,
     source: ProviderSource,

@@ -1,11 +1,16 @@
 # Tools / Build / Bazel
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
+- **Status:** Layer governance is materialized; platform/toolchain subpackages remain target-state scaffolds.
 - **Primary implementation ownership:** Bazel/Nix/Python/Go/Rust development and qualification tooling
 
 ## Purpose
 
 Repository-owned code generation, analysis, developer, qualification, and release tools. Tools are invoked through Bazel targets in production/CI paths. This path specializes that domain for **bazel**.
+
+`layers.bzl` is active production policy. It owns the package groups declared by
+the root BUILD and the forbidden-edge data consumed by
+`tools/analysis/check_bazel_layers.py`. Its exception map accepts only exact
+target edges backed by an ADR and is checked for stale entries.
 
 ## Boundary
 
@@ -20,7 +25,8 @@ ground. It may depend only in the direction documented by
 
 ## Materialization requirements
 
-Before this scaffold boundary is treated as implemented, add:
+Before the remaining scaffold modules in `extensions/`, `platforms/`, and
+`rules/` are treated as implemented, add:
 
 - a named owner and reviewed stable contract;
 - implementation with bounded resources, cancellation, and deterministic or

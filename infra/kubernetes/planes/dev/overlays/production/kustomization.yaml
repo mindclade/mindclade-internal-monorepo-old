@@ -9,3 +9,16 @@ kind: Kustomization
 
 resources:
   - ../../base
+
+# Images deliberately remain the base's registry.invalid digest-zero activation
+# gate. A release overlay must replace the full name and digest together.
+patches:
+  - target:
+      group: networking.k8s.io
+      version: v1
+      kind: NetworkPolicy
+      name: allow-proxy-only-subnet
+    patch: |-
+      - op: replace
+        path: /spec/ingress/0/from/0/ipBlock/cidr
+        value: 10.48.32.0/24

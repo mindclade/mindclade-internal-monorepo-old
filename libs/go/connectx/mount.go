@@ -11,7 +11,7 @@ import (
 	"reflect"
 	"strings"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 type Mux interface{ Handle(string, http.Handler) }

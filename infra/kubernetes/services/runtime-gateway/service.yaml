@@ -4,4 +4,21 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+apiVersion: v1
+kind: Service
+metadata:
+  name: runtime-gateway
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: runtime-gateway
+    app.kubernetes.io/part-of: mindclade-platform
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: runtime-gateway
+  ports:
+    - name: http
+      port: 8080
+      protocol: TCP
+      targetPort: http
+      appProtocol: http

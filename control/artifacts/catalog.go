@@ -7,16 +7,16 @@ package artifacts
 
 import (
 	"context"
-	"mindclade.internal/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/identifiers"
 	"strings"
 )
 
 type Ref struct {
-	Digest        identifiers.Digest
-	SizeBytes     uint64
-	MediaType     string
-	LogicalKind   string
-	SchemaVersion uint32
+	Digest        identifiers.Digest `json:"digest"`
+	SizeBytes     uint64             `json:"size_bytes"`
+	MediaType     string             `json:"media_type"`
+	LogicalKind   string             `json:"logical_kind"`
+	SchemaVersion uint32             `json:"schema_version"`
 }
 
 func (r Ref) Validate() error {

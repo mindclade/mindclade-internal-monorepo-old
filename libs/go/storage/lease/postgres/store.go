@@ -16,9 +16,9 @@ import (
 	"strings"
 	"time"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/storage/lease"
-	sqlpostgres "mindclade.internal/libs/go/storage/sql/postgres"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/storage/lease"
+	sqlpostgres "go.mindclade.dev/libs/go/storage/sql/postgres"
 )
 
 const maximumPostgresIdentifierBytes = 63

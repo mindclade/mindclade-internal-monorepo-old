@@ -14,6 +14,12 @@ pub struct Logger {
     sink: Arc<dyn Sink>,
 }
 
+impl core::fmt::Debug for Logger {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        formatter.debug_struct("Logger").finish_non_exhaustive()
+    }
+}
+
 impl Logger {
     #[must_use]
     pub fn new(clock: Arc<dyn Clock>, sink: Arc<dyn Sink>) -> Self {

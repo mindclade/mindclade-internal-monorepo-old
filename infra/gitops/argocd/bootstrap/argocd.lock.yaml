@@ -1,46 +1,41 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
 ---
-# Content lock for every remote base a render may fetch.
-#
-# A commit SHA or a release tag in a URL identifies a REVISION; it does not bind the BYTES. A
-# mirror, a proxy, a repository rewrite, or a re-cut release can serve different content at the
-# same path, and nothing in a Kustomize build would notice. This file binds the bytes.
-#
-# gitops/scripts/render.sh re-checks every entry before rendering and refuses to proceed on a
-# mismatch. That is deliberately a hard failure rather than a warning: a base whose content
-# changed under a pinned URL is either a supply-chain compromise or an upstream doing something
-# it should not, and neither should reach a cluster while somebody decides which.
-#
-# ---------------------------------------------------------------------------------------
-# Adding or moving an entry
-# ---------------------------------------------------------------------------------------
-#   curl -fsSL -o /tmp/base.yaml <url>
-#   shasum -a 256 /tmp/base.yaml
-#   wc -c < /tmp/base.yaml
-#
-# Record both. `bytes` is not redundant with the digest — it makes a truncated download fail
-# with an obvious cause rather than as an opaque hash mismatch.
-apiVersion: mindclade.dev/v1
-kind: ContentLock
-
-spec:
-  sources:
-    # cert-manager: CRDs, controller, webhook, and cainjector.
-    #
-    # Fetched as the upstream release manifest rather than vendored, because the CRDs and the
-    # controller version must move together — vendoring invites a partial upgrade where the
-    # CRDs are new and the controller is not, which presents as a Certificate that is accepted
-    # and then never processed.
-    #
-    # This is the base that issues cert-mindclade-{studio,ai,dev} against Let's Encrypt over
-    # ACME DNS-01. Nothing else in the estate depends on it, and nothing else may be added
-    # here without the same treatment.
-    - name: cert-manager
-      version: v1.19.1
-      url: https://github.com/cert-manager/cert-manager/releases/download/v1.19.1/cert-manager.yaml
-      sha256: 876a41a57e36b85619f4124b24b3deb80912b5ffed515f90e2f160b6e6338e81
-      bytes: 1007958
+# Provenance lock for remote promotion input and checked-in generated deployment content. This
+# standard ConfigMap is intentionally data, not an unimplemented custom resource. A connected
+# promotion must reproduce the cert-manager split from the exact URL/bytes/SHA before activation.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mindclade-upstream-content-lock
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-29"
+    mindclade.dev/activation-state: blocked
+data:
+  schema.version: "2"
+  cert-manager.name: cert-manager
+  cert-manager.version: v1.19.1
+  cert-manager.url: https://github.com/cert-manager/cert-manager/releases/download/v1.19.1/cert-manager.yaml
+  cert-manager.sha256: 876a41a57e36b85619f4124b24b3deb80912b5ffed515f90e2f160b6e6338e81
+  cert-manager.bytes: "1007958"
+  cert-manager.objects: "49"
+  cert-manager.normalized-sha256: bfed2738c90092d611ddbad9ba4ae5e1a4af3a291c45f1fd3cddfe9f5914f677
+  cert-manager.crds.path: infra/gitops/vendor/cert-manager/v1.19.1/crds/upstream.yaml
+  cert-manager.crds.sha256: 1c3d0aa45351c8480a6ce7d4e7d01a1d84cf8d59e0475fd92a8b00f2428e7b1a
+  cert-manager.crds.bytes: "969489"
+  cert-manager.crds.objects: "6"
+  cert-manager.crds.sync-wave: "-70"
+  cert-manager.controllers.path: infra/gitops/vendor/cert-manager/v1.19.1/controllers/upstream.yaml
+  cert-manager.controllers.sha256: d2b2b330f1975b205bbbc44338dce91293b0171d2cf2d5759b196033dc15b78e
+  cert-manager.controllers.bytes: "36125"
+  cert-manager.controllers.objects: "43"
+  cert-manager.controllers.sync-wave: "-60"
+  cert-manager.controller.image: sha256:cd49e769e18ada1fd7b9a9bacc87c90db24c65cbfd4bf71694dda7ed40e91187
+  cert-manager.cainjector.image: sha256:c7898aece8fb08102fca0b37683e37cb94e0a77c0d15b8e3c9128f6c04c868e0
+  cert-manager.webhook.image: sha256:f5bfe77541e38978aec53cc6eb924d190e1fe923c98b2582e6ccf5edf6c02cce
+  argocd.installation-state: blocked-until-live-repository-supplies-exact-chart-lock
+  jobset.chart-lock: infra/kubernetes/platform/jobset/chart/Chart.lock
+  kueue.chart-lock: infra/kubernetes/platform/kueue/chart/Chart.lock

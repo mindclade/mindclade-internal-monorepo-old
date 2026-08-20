@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 variable "project_id" {
   description = "GCP project ID that owns the cluster"
   type        = string
@@ -188,11 +193,27 @@ variable "release_channel" {
 variable "kubernetes_version" {
   description = "Pinned minimum control-plane and initial system node version for the NOVA v1 training qualification tuple"
   type        = string
-  default     = "1.35.6-gke.1127000"
+
+  # Moved from 1.35.6-gke.1127000 to 1.36.2-gke.2064000.
+  #
+  # The reason is a specific capability, not currency: OCI VolumeSource (KEP-4639) is STABLE in
+  # Kubernetes 1.36. It was alpha in 1.31 and beta in 1.33. Model weights ship as OCI artifacts
+  # mounted as image volumes, so this is the first release where that mechanism is a supported
+  # feature rather than a gate somebody has to remember to enable.
+  #
+  # 1.36.2-gke.2064000 specifically: it is the newest 1.36 in the Regular channel that is not
+  # deprecated. Several earlier ones already are — 1.36.0-gke.4447000, .4681000, .3712000,
+  # .3302004 and .3070003 among them — so "the first 1.36" is the wrong choice and picking one
+  # from a list without checking is how a lock lands on a version with 90 days to live.
+  #
+  # NOTE: the Regular channel's DEFAULT for new clusters is still a 1.35. This version is
+  # available, not default, which is exactly why min_master_version is set explicitly in
+  # main.tf rather than left to the channel.
+  default = "1.36.2-gke.2064000"
 
   validation {
-    condition     = var.kubernetes_version == "1.35.6-gke.1127000"
-    error_message = "kubernetes_version must match the immutable NOVA v1 training platform lock."
+    condition     = var.kubernetes_version == "1.36.2-gke.2064000"
+    error_message = "kubernetes_version must match the immutable NOVA v1 training platform lock (1.36.2-gke.2064000)."
   }
 }
 

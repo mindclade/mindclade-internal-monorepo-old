@@ -1,1 +1,45 @@
-# Scaffold file: infra/terraform/modules/secret_manager/outputs.tf
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+output "secret_ids" {
+  description = "Secret id by map key."
+  value       = { for k, s in google_secret_manager_secret.this : k => s.secret_id }
+}
+
+output "secret_names" {
+  description = "Fully qualified secret names, for a CSI SecretProviderClass or a workload's own config."
+  value       = { for k, s in google_secret_manager_secret.this : k => s.name }
+}
+
+output "rotating_secret_ids" {
+  description = <<-EOT
+    Secrets carrying a rotation period.
+
+    Exported so a rotation job can enumerate what it owns rather than being configured with a
+    list that drifts from this one.
+  EOT
+  value       = [for k, s in var.secrets : k if s.rotation_period != null]
+}
+
+output "unexpected_access_alert_intent" {
+  description = "Declarative input for the observability state that owns unexpected Secret Manager DATA_READ alerting."
+  value = {
+    enabled      = var.alert_on_unexpected_access
+    project_id   = var.project_id
+    secret_names = { for key, secret in google_secret_manager_secret.this : key => secret.name }
+    expected_bindings = {
+      for secret_id, secret in var.secrets : secret_id => sort(tolist(secret.accessors))
+    }
+  }
+}
+
+output "required_rotation_topic_kms_grant" {
+  description = "Additive grant the key-owning state must apply before the module creates a CMEK-protected rotation topic; null for caller-supplied topics."
+  value = local.create_rotation_topic ? {
+    crypto_key = var.rotation_topic_kms_key_name
+    member     = "serviceAccount:service-${var.project_number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+    role       = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  } : null
+}

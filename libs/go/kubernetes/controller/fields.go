@@ -8,7 +8,7 @@ package controller
 import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 func requestFields(request reconcile.Request) faults.Fields {

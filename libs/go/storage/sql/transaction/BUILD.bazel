@@ -15,7 +15,7 @@ go_library(
         "errors.go",
         "run.go",
     ],
-    importpath = "mindclade.internal/libs/go/storage/sql/transaction",
+    importpath = "go.mindclade.dev/libs/go/storage/sql/transaction",
     deps = ["//libs/go/faults"],
 )
 

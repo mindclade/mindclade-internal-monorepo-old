@@ -64,9 +64,9 @@ belongs in composition roots. Domain packages depend on narrow contracts.
 
 See:
 
-- [`../../libs/go/README.md`](../../libs/go/README.md)
-- [`../../libs/go/LAYERS.md`](../../libs/go/LAYERS.md)
-- [`../../libs/go/CONSUMPTION.md`](../../libs/go/CONSUMPTION.md)
+- [`libs/go/README.md`](https://github.com/mindclade-org/mindclade/blob/HEAD/libs/go/README.md)
+- [`libs/go/LAYERS.md`](https://github.com/mindclade-org/mindclade/blob/HEAD/libs/go/LAYERS.md)
+- [`libs/go/CONSUMPTION.md`](https://github.com/mindclade-org/mindclade/blob/HEAD/libs/go/CONSUMPTION.md)
 - [`../guides/libs-go-module-reference.md`](../guides/libs-go-module-reference.md)
 - [`../guides/libs-go-recipes.md`](../guides/libs-go-recipes.md)
 - [`../guides/go-service-golden-path.md`](../guides/go-service-golden-path.md)

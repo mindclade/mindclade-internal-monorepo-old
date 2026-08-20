@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-use mindclade_protocols::runtime::v1::{ArtifactGrant, ExecutionBudget, ExecutionTicketClaims};
+use mindclade_protocols::runtime::v1::{
+    ArtifactGrant, ExecutionBudget, ExecutionTicketClaims, HeartbeatCommand, WorkerCommand,
+    WorkerState, WorkerStatus, worker_command,
+};
 use prost::Message;
 
 #[test]
@@ -60,4 +63,39 @@ fn execution_ticket_claims_round_trip() {
     let encoded = claims.encode_to_vec();
     let decoded = ExecutionTicketClaims::decode(encoded.as_slice()).expect("decode");
     assert_eq!(decoded, claims);
+}
+
+#[test]
+fn python_worker_command_golden_matches() {
+    let command = WorkerCommand {
+        sequence: 7,
+        command: Some(worker_command::Command::Heartbeat(HeartbeatCommand {
+            requested_at_unix_millis: 100,
+        })),
+    };
+    assert_eq!(
+        command.encode_to_vec(),
+        [0x08, 0x07, 0x2a, 0x02, 0x08, 0x64]
+    );
+}
+
+#[test]
+fn python_worker_status_golden_matches() {
+    let status = WorkerStatus {
+        sequence: 11,
+        ticket_id: "ticket".to_owned(),
+        fencing_token: 9,
+        state: WorkerState::Running as i32,
+        observed_unix_millis: 100,
+        message: "running".to_owned(),
+        outputs: Vec::new(),
+        diagnostic_artifact_digest: String::new(),
+    };
+    assert_eq!(
+        status.encode_to_vec(),
+        [
+            0x08, 0x0b, 0x12, 0x06, 0x74, 0x69, 0x63, 0x6b, 0x65, 0x74, 0x18, 0x09, 0x20, 0x05,
+            0x28, 0x64, 0x32, 0x07, 0x72, 0x75, 0x6e, 0x6e, 0x69, 0x6e, 0x67,
+        ]
+    );
 }

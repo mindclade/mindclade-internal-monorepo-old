@@ -1,5 +1,12 @@
 {
   "schema_version": 1,
-  "crates": [],
-  "policy": "standard-library and internal path dependencies only"
+  "crates": [
+    "bytes",
+    "ed25519-dalek",
+    "libc",
+    "object_store",
+    "sha2",
+    "tokio"
+  ],
+  "policy": "exactly pinned Cargo dependencies with cargo-deny and Cargo/Bazel qualification"
 }

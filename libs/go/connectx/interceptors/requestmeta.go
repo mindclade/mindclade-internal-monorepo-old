@@ -11,10 +11,10 @@ import (
 
 	"connectrpc.com/connect"
 
-	"mindclade.internal/libs/go/connectx"
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/httpx"
-	"mindclade.internal/libs/go/requestmeta"
+	"go.mindclade.dev/libs/go/connectx"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/httpx"
+	"go.mindclade.dev/libs/go/requestmeta"
 )
 
 // RequestMetadata establishes request lineage on handlers and injects existing

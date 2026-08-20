@@ -1,0 +1,25 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
+syntax = "proto3";
+package mindclade.runtime.v1;
+
+import "mindclade/runtime/v1/service.proto";
+import "mindclade/runtime/v1/execution_ticket.proto";
+import "mindclade/runtime/v1/buffer_descriptor.proto";
+import "mindclade/runtime/v1/worker_status.proto";
+
+// Additive execution endpoint. Dispatch remains the compatibility resolver;
+// Execute owns the admitted lifecycle until a terminal WorkerStatus.
+message RuntimeExecuteRequest {
+  RuntimeDispatchRequest dispatch = 1;
+  ExecutionTicket ticket = 2;
+  repeated BufferDescriptor inputs = 3;
+  string operation = 4;
+}
+
+service RuntimeExecution {
+  rpc Execute(RuntimeExecuteRequest) returns (stream WorkerStatus);
+}

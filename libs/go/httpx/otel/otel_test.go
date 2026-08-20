@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"testing"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 type nilHandler struct{}

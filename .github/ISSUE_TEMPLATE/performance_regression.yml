@@ -1,0 +1,49 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+name: Performance regression
+description: A declared budget from blueprint §12 has been exceeded.
+labels: ["performance-regression", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        A budget needs a baseline to regress from. If none is recorded in
+        tests/performance/baselines.yaml, this is new measurement, not a regression.
+  - type: dropdown
+    id: budget
+    attributes:
+      label: Which budget
+      options:
+        - Runtime latency p50/p95/p99
+        - Cancellation, drain, or restart
+        - Resident memory (RSS)
+        - File descriptors
+        - Copy count
+        - Cache hit rate
+        - Training step time
+        - Checkpoint bandwidth
+    validations:
+      required: true
+  - type: dropdown
+    id: hardware
+    attributes:
+      label: Hardware profile
+      description: From configs/profiles/hardware/.
+      options: ["cpu", "a100-8x", "h100-8x", "h200-8x", "b200-8x", "mi300x-8x"]
+    validations:
+      required: true
+  - type: textarea
+    id: numbers
+    attributes:
+      label: Baseline vs measured
+      description: Both numbers, their units, and how many runs each.
+    validations:
+      required: true
+  - type: input
+    id: firstbad
+    attributes:
+      label: First bad revision, if bisected

@@ -11,11 +11,11 @@ import (
 	"errors"
 	"fmt"
 
-	"mindclade.internal/libs/go/audit"
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/identifiers"
-	sqlpostgres "mindclade.internal/libs/go/storage/sql/postgres"
-	"mindclade.internal/libs/go/storage/sql/transaction"
+	"go.mindclade.dev/libs/go/audit"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/identifiers"
+	sqlpostgres "go.mindclade.dev/libs/go/storage/sql/postgres"
+	"go.mindclade.dev/libs/go/storage/sql/transaction"
 )
 
 const DefaultTable = "mindclade_audit_events"

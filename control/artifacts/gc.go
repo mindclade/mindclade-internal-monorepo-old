@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"mindclade.internal/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/identifiers"
 )
 
 type GCBlockReason string

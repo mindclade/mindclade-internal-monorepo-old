@@ -1,0 +1,8 @@
+Kueue {{ .Chart.AppVersion }} is installed from a locked upstream dependency.
+
+Before reconciling Mindclade queue resources:
+1. verify the CRDs report the expected stored versions;
+2. verify both controller replicas and webhook endpoints are ready;
+3. keep ClusterQueue and LocalQueue stopPolicy set to Hold.
+
+This chart does not grant queue capacity or activate workload namespaces.

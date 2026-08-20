@@ -2,16 +2,20 @@
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
+# These were plain py_test targets over pytest modules. A py_test runs its src as a script, so
+# the bare `test_*` functions never executed and every target passed having verified nothing —
+# while importing a pytest that was not a declared dependency. pytest_test runs them for real.
 
-load("@rules_python//python:defs.bzl", "py_test")
+load("//tools/build:pytest.bzl", "pytest_test")
 
 package(default_visibility = ["//visibility:private"])
 
 [
-    py_test(
+    pytest_test(
         name = name,
         srcs = [name + ".py"],
-        deps = ["//serving/model_worker:model_worker"],
+        imports = ["../../.."],
+        deps = ["//serving/model_worker"],
     )
     for name in [
         "test_batching",

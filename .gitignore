@@ -6,6 +6,17 @@
 # several places — research/benchmarks/build/ and tools/build/ among them — so ignoring it
 # by name would silently drop 129 tracked files from every future `git add`.
 
+# --- Terraform ---
+# .terraform/ is `terraform init` output — provider binaries for whichever platform ran it.
+# Fifteen darwin_arm64 provider paths were tracked here, in a repository whose CI is Linux.
+# .terraform.lock.hcl is the opposite case and stays: it pins provider versions and is meant
+# to be committed, which is why it is excluded from the rule below rather than covered by it.
+.terraform/
+!.terraform.lock.hcl
+.terragrunt-cache/
+terraform.tfvars
+*.auto.tfvars
+
 # --- Rust ---
 /target/
 **/target/
@@ -38,6 +49,9 @@ node_modules/
 /.bazel-cache/
 user.bazelrc
 
+# --- Generated documentation ---
+/.generated/
+
 # --- Go ---
 /bin/
 *.test
@@ -47,6 +61,15 @@ user.bazelrc
 /result
 /result-*
 .direnv/
+
+# --- Agent scratch ---
+# .claude/worktrees holds `git worktree` checkouts — each one a full copy of this repository,
+# 300 MB and counting at the time this line was added. Untracked and unignored, they were one
+# `git add -A` away from being committed, and tools that walk the filesystem rather than the
+# index already had to learn about them: .bazelignore names the directory, and
+# tools/analysis/check_go_modules.py skips it so every worktree's go.mod stops reading as an
+# unexpected module boundary.
+.claude/
 
 # --- Local environment. Never commit these: they are the one place a real credential
 #     plausibly lands in this repo. ---

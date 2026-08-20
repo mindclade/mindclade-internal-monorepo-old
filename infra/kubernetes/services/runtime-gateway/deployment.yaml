@@ -4,4 +4,150 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# Activation contract:
+# - runtime-gateway-policy is an externally managed ConfigMap containing key-id,
+#   public-key-hex, key-not-before-ms, and key-not-after-ms. These are public
+#   verification materials, not credentials.
+# - runtime-gateway-policy-snapshots is an externally populated read-only PVC
+#   containing route_snapshot.pb and revocation_snapshot.pb. Each signed protobuf
+#   must be non-empty and at most 16 MiB.
+#
+# The workload stays at zero replicas because the production bootstrap never
+# marks runtime_host_ready, so /readyz cannot currently succeed. The invalid
+# digest is a second activation interlock until an attested image is published.
+# The required execution gRPC listener remains loopback-only and explicitly
+# disabled; exposing it requires the co-scheduled runtime-host bundle.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: runtime-gateway
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: runtime-gateway
+    app.kubernetes.io/component: model-serving-edge
+    app.kubernetes.io/part-of: mindclade-platform
+  annotations:
+    mindclade.dev/deployment-status: disabled
+    mindclade.dev/activation-blocker: runtime-host-readiness-and-snapshot-refresh-not-wired
+spec:
+  replicas: 0
+  revisionHistoryLimit: 5
+  progressDeadlineSeconds: 600
+  minReadySeconds: 10
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: runtime-gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: runtime-gateway
+        app.kubernetes.io/component: model-serving-edge
+        app.kubernetes.io/part-of: mindclade-platform
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      serviceAccountName: runtime-gateway
+      terminationGracePeriodSeconds: 40
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: runtime-gateway
+          image: registry.invalid/mindclade/runtime-gateway@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: MINDCLADE_RUNTIME_GATEWAY_ADDR
+              value: 0.0.0.0:8080
+            - name: MINDCLADE_RUNTIME_GATEWAY_GRPC_ADDR
+              value: 127.0.0.1:8081
+            - name: MINDCLADE_POD_MEMORY_LIMIT_BYTES
+              value: "1073741824"
+            - name: MINDCLADE_RUNTIME_EXECUTION_ENABLED
+              value: "false"
+            - name: MINDCLADE_RUNTIME_KEY_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: runtime-gateway-policy
+                  key: key-id
+            - name: MINDCLADE_RUNTIME_PUBLIC_KEY_HEX
+              valueFrom:
+                configMapKeyRef:
+                  name: runtime-gateway-policy
+                  key: public-key-hex
+            - name: MINDCLADE_RUNTIME_KEY_NOT_BEFORE_MS
+              valueFrom:
+                configMapKeyRef:
+                  name: runtime-gateway-policy
+                  key: key-not-before-ms
+            - name: MINDCLADE_RUNTIME_KEY_NOT_AFTER_MS
+              valueFrom:
+                configMapKeyRef:
+                  name: runtime-gateway-policy
+                  key: key-not-after-ms
+            - name: MINDCLADE_RUNTIME_ROUTE_SNAPSHOT_FILE
+              value: /var/lib/mindclade/policy/route_snapshot.pb
+            - name: MINDCLADE_RUNTIME_REVOCATION_SNAPSHOT_FILE
+              value: /var/lib/mindclade/policy/revocation_snapshot.pb
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          resources:
+            requests:
+              cpu: 250m
+              ephemeral-storage: 128Mi
+              memory: 256Mi
+            limits:
+              cpu: "2"
+              ephemeral-storage: 1Gi
+              memory: 1Gi
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+              scheme: HTTP
+            periodSeconds: 2
+            failureThreshold: 30
+            timeoutSeconds: 1
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+              scheme: HTTP
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 2
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+              scheme: HTTP
+            periodSeconds: 5
+            failureThreshold: 2
+            timeoutSeconds: 2
+          volumeMounts:
+            - name: policy-snapshots
+              mountPath: /var/lib/mindclade/policy
+              readOnly: true
+      volumes:
+        - name: policy-snapshots
+          persistentVolumeClaim:
+            claimName: runtime-gateway-policy-snapshots
+            readOnly: true

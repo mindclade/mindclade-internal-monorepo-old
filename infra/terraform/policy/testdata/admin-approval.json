@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "approvals": [
+    {
+      "kind": "administrative_iam",
+      "address": "google_storage_bucket_iam_member.synthetic_admin",
+      "resource": "synthetic-storage",
+      "member": "group:storage-admins@example.test",
+      "role": "roles/storage.admin",
+      "ticket": "SYNTHETIC-SEC-101",
+      "owner": "security@example.test",
+      "reason": "Synthetic fixture proving an exact administrative IAM approval.",
+      "issued_at": "2099-12-31T22:59:59Z",
+      "expires_at": "2099-12-31T23:59:59Z",
+      "plan_digest": "ce1916b8189c381e6adc52008ed46964f6f2408530e973908681580a558d87dd"
+    }
+  ]
+}

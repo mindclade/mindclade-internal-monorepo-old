@@ -1,0 +1,101 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+schemaVersion: mindclade.dev/cloud-monitoring-alert-contract/v1alpha1
+name: kubernetes-operator-platform
+owner: ml-platform
+deployment:
+  provider: google-cloud-monitoring
+  terraformModule: infra/terraform/modules/monitoring
+  deployableKubernetesResource: false
+
+requiredEnvironmentInputs:
+  - projectId
+  - environment
+  - httpsRunbookUrl
+  - notificationChannelResourceNames
+  - qualificationEvidenceSha256
+
+signals:
+  - name: operator-target-absent
+    metrics:
+      - mindclade:kueue_controller_up:max
+      - mindclade:jobset_controller_up:max
+    condition: below
+    threshold: 1
+    duration: 10m
+    severity: critical
+    missingData: fire
+  - name: kueue-reconcile-error-ratio
+    metric: mindclade:kueue_reconcile_error_ratio:ratio5m
+    condition: above
+    threshold: 0.05
+    duration: 10m
+    severity: warning
+    minimumEventMetric: mindclade:kueue_reconciles:increase5m
+    minimumEvents: 20
+  - name: jobset-reconcile-error-ratio
+    metric: mindclade:jobset_reconcile_error_ratio:ratio5m
+    condition: above
+    threshold: 0.05
+    duration: 10m
+    severity: warning
+    minimumEventMetric: mindclade:jobset_reconciles:increase5m
+    minimumEvents: 20
+  - name: queue-admission-stalled
+    metric: mindclade:kueue_pending_workloads:sum
+    filter:
+      status: active
+    condition: above
+    threshold: 0
+    duration: 15m
+    severity: warning
+    corroboratingMetric: mindclade:kueue_admission_attempts:rate5m
+  - name: queue-workload-inadmissible
+    metric: mindclade:kueue_pending_workloads:sum
+    filter:
+      status: inadmissible
+    condition: above
+    threshold: 0
+    duration: 15m
+    severity: warning
+
+blockedSignals:
+  - name: jobset-terminal-outcomes
+    reason: >-
+      Upstream terminal counters are partitioned by unique jobset_name and first appear at one,
+      so range increases do not reliably observe a JobSet's only terminal transition. Capacity
+      remains blocked until a durable condition/event exporter supplies bounded completion and
+      failure signals.
+
+cardinality:
+  scope: recorded-alert-series
+  permittedDimensions:
+    - cluster
+    - location
+    - namespace
+    - operator
+    - cluster_queue
+    - result
+    - status
+  forbiddenDimensions:
+    - tenant
+    - model
+    - dataset
+    - prompt
+    - feature
+    - label
+    - request_id
+  rawScrapeGuards:
+    - allowlisted metric families only
+    - bounded samples and label lengths
+    - no JobSet terminal counters keyed by jobset_name
+
+activationPolicy:
+  enabledByDefault: false
+  requiresSyntheticFireAndResolve: true
+  requiresHealthyPodMonitoringTargets: true
+  requiresReviewedMinimumTraffic: true

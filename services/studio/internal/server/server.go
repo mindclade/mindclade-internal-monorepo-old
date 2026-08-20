@@ -35,13 +35,18 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"sort"
 
-	"mindclade.internal/services/studio/internal/handoff"
-	"mindclade.internal/services/studio/internal/httpx"
-	"mindclade.internal/services/studio/internal/iap"
-	"mindclade.internal/services/studio/internal/runlog"
-	"mindclade.internal/services/studio/internal/session"
-	"mindclade.internal/services/studio/internal/stream"
+	"go.mindclade.dev/libs/go/httpx/health"
+
+	"go.mindclade.dev/services/studio/internal/metrics"
+
+	"go.mindclade.dev/services/studio/internal/handoff"
+	"go.mindclade.dev/services/studio/internal/httpx"
+	"go.mindclade.dev/services/studio/internal/iap"
+	"go.mindclade.dev/services/studio/internal/runlog"
+	"go.mindclade.dev/services/studio/internal/session"
+	"go.mindclade.dev/services/studio/internal/stream"
 )
 
 // Role selects which mux this process serves.
@@ -78,6 +83,15 @@ type Deps struct {
 
 	DB *sql.DB
 
+	// Health answers the probes. Required for every role: an unset one would
+	// leave the probe routes reporting a fixed 200, which is the defect this
+	// field exists to prevent.
+	Health *Health
+
+	// Metrics is the scrape surface. Optional: a role built without one simply
+	// does not serve /metrics, which is what the handler tests want.
+	Metrics *metrics.Registry
+
 	// CSP posture. Ship Report-Only first, with a working endpoint.
 	CSPMode      httpx.CSPMode
 	CSPReportURI string
@@ -87,6 +101,9 @@ type Deps struct {
 func Build(d Deps) (http.Handler, error) {
 	if d.Logger == nil {
 		return nil, errors.New("server: logger is required")
+	}
+	if d.Health == nil {
+		return nil, errors.New("server: health is required")
 	}
 
 	switch d.Role {
@@ -125,8 +142,7 @@ func Build(d Deps) (http.Handler, error) {
 // from being removed.
 func buildEmbed(d Deps) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", healthOK)
-	mux.HandleFunc("GET /readyz", healthOK)
+	mountProbes(mux, d)
 
 	mux.HandleFunc("GET /embed/_echo_headers", func(w http.ResponseWriter, r *http.Request) {
 		// Exists for the acceptance check that the Cookie header is stripped AT
@@ -160,8 +176,7 @@ func buildAuthenticated(d Deps) (http.Handler, error) {
 	// kubelet carries no assertion — and the Deployment would never become
 	// ready, with the pod logs showing only 401s.
 	probes := http.NewServeMux()
-	probes.HandleFunc("GET /healthz", healthOK)
-	probes.HandleFunc("GET /readyz", healthOK)
+	unauthenticated := mountProbes(probes, d)
 
 	switch d.Role {
 	case RoleWeb:
@@ -177,8 +192,10 @@ func buildAuthenticated(d Deps) (http.Handler, error) {
 	)
 
 	root := http.NewServeMux()
-	root.Handle("GET /healthz", probes)
-	root.Handle("GET /readyz", probes)
+	for _, path := range unauthenticated {
+		root.Handle("GET "+path, probes)
+		root.Handle("HEAD "+path, probes)
+	}
 	root.Handle("/", httpx.SecurityHeaders(d.CSPMode, d.CSPReportURI, authenticated))
 
 	return root, nil
@@ -328,7 +345,49 @@ func mountStream(mux *http.ServeMux, d Deps) {
 	mux.Handle("GET /api/stream/runs/{runID}", handler)
 }
 
-func healthOK(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }
+// unauthenticatedRoutes are the paths served OUTSIDE the authentication chain.
+//
+// Liveness and readiness are here because the kubelet carries no IAP assertion:
+// behind IAP every probe 401s, the Deployment never becomes ready, and the pod
+// logs show only 401s with nothing naming the probe. /metrics is here for the
+// same reason — a scraper has no assertion either — and it is safe to expose
+// because it carries counts with no subject in them, on a port reachable only
+// from inside the cluster.
+//
+// Both answers come from d.Health, so /readyz reports what it is named after:
+// whether this process should be sent traffic. It previously returned a fixed
+// 200, which meant a pod stayed in the Endpoints list through a database outage
+// and through its own shutdown drain.
+func unauthenticatedRoutes(d Deps) map[string]http.Handler {
+	probe := health.NewHandler(d.Health, health.Config{
+		LivenessPath:  "/healthz",
+		ReadinessPath: "/readyz",
+	})
+	routes := map[string]http.Handler{"/healthz": probe, "/readyz": probe}
+	if d.Metrics != nil {
+		routes["/metrics"] = d.Metrics.Handler()
+	}
+	return routes
+}
+
+// mountProbes registers the unauthenticated routes on mux and returns their
+// paths.
+//
+// The caller needs the paths back because the authenticated roles serve them
+// from a SECOND mux that forwards to this one, and a path registered on only
+// one of the two silently lands behind IAP. Returning them is what keeps the
+// two registrations from drifting.
+func mountProbes(mux *http.ServeMux, d Deps) []string {
+	routes := unauthenticatedRoutes(d)
+	paths := make([]string, 0, len(routes))
+	for path, handler := range routes {
+		mux.Handle("GET "+path, handler)
+		mux.Handle("HEAD "+path, handler)
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	return paths
+}
 
 // readBody reads a request body under a hard cap.
 //

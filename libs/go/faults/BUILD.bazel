@@ -19,7 +19,7 @@ go_library(
         "options.go",
         "retry.go",
     ],
-    importpath = "mindclade.internal/libs/go/faults",
+    importpath = "go.mindclade.dev/libs/go/faults",
 )
 
 go_test(

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["jobset"],
+  "properties": {
+    "jobset": {
+      "type": "object",
+      "required": ["image", "controller", "certManager"],
+      "properties": {
+        "image": {
+          "type": "object",
+          "required": ["repository", "tag"],
+          "properties": {
+            "repository": {"const": "registry.k8s.io/jobset/jobset"},
+            "tag": {"pattern": "^v0\\.12\\.0@sha256:[0-9a-f]{64}$"}
+          }
+        },
+        "controller": {
+          "type": "object",
+          "required": ["enabled", "replicas", "leaderElection", "resources"],
+          "properties": {
+            "enabled": {"type": "boolean"},
+            "replicas": {"type": "integer", "minimum": 2},
+            "leaderElection": {
+              "type": "object",
+              "required": ["enable"],
+              "properties": {"enable": {"const": true}}
+            },
+            "resources": {"type": "object"}
+          }
+        },
+        "certManager": {
+          "type": "object",
+          "required": ["enable"],
+          "properties": {"enable": {"const": true}}
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

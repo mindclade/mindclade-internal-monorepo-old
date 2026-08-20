@@ -20,7 +20,7 @@ go_library(
         "recovery.go",
         "requestmeta.go",
     ],
-    importpath = "mindclade.internal/libs/go/kubernetes/controller",
+    importpath = "go.mindclade.dev/libs/go/kubernetes/controller",
     deps = [
         "//libs/go/clock",
         "//libs/go/faults",

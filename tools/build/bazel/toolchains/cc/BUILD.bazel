@@ -3,10 +3,26 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
+
 package(default_visibility = ["//visibility:private"])
+
+exports_files([
+    "defs.bzl",
+    "manifest.bzl",
+])
+
+cc_test(
+    name = "smoke_test",
+    srcs = ["smoke_test.cc"],
+    visibility = ["//visibility:public"],
+)
 
 filegroup(
     name = "scaffold_files",
-    srcs = glob(["**"], exclude = ["BUILD.bazel"]),
+    srcs = glob(
+        ["**"],
+        exclude = ["BUILD.bazel"],
+    ),
     visibility = ["//visibility:public"],
 )

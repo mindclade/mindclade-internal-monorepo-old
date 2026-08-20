@@ -1,0 +1,54 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+name: Bug report
+description: Something behaves differently from its documented contract.
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Do not paste secrets, customer data, or sensitive model inputs. Reference an
+        immutable artifact digest instead where one exists.
+  - type: input
+    id: component
+    attributes:
+      label: Component
+      description: The path that owns the behaviour, as named in components.toml.
+      placeholder: libs/go/coordination/outbox
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Documented contract
+      description: What the package README, doc.go, or ADR says should happen.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Observed behaviour
+      description: Include the smallest reproduction you have, and the exact command.
+    validations:
+      required: true
+  - type: input
+    id: revision
+    attributes:
+      label: Revision
+      description: git rev-parse HEAD
+    validations:
+      required: true
+  - type: dropdown
+    id: reachable
+    attributes:
+      label: Is the affected path reachable in a deployed environment today?
+      options:
+        - "No - scaffold or unreleased"
+        - "Yes - implemented, not yet qualified"
+        - "Yes - qualified or production"
+    validations:
+      required: true

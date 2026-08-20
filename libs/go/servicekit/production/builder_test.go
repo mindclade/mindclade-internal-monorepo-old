@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"testing"
 
-	"mindclade.internal/libs/go/servicekit"
+	"go.mindclade.dev/libs/go/servicekit"
 )
 
 func component(name string) servicekit.Component {

@@ -6,9 +6,10 @@
 package httpx
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"sync/atomic"
+
+	"go.mindclade.dev/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/observability"
 )
 
 // sessionDecryptFailures counts cookies that could not be opened.
@@ -28,15 +29,38 @@ var sessionDecryptFailures atomic.Int64
 // SessionDecryptFailures returns the running count, for export as a metric.
 func SessionDecryptFailures() int64 { return sessionDecryptFailures.Load() }
 
+// SessionDecryptFailureMetric is the collector form of the counter above.
+//
+// A monotonic counter rather than a gauge, so the alert can be written on
+// rate() as the comment on sessionDecryptFailures describes. The absolute value
+// carries no meaning on its own: every session that expires normally lands here
+// too, and it never resets except on restart.
+func SessionDecryptFailureMetric() observability.Measurement {
+	return observability.Measurement{
+		Name:        SessionDecryptFailureMetricName,
+		Kind:        observability.MetricCounter,
+		Value:       float64(sessionDecryptFailures.Load()),
+		Description: "Session cookies that could not be opened.",
+	}
+}
+
+// SessionDecryptFailureMetricName is the estate-vocabulary name for the counter.
+const SessionDecryptFailureMetricName = "studio.session.decrypt.failures"
+
 // newSessionID returns an opaque identifier for log correlation.
 //
 // It carries no authority: it is sealed inside the cookie alongside the
 // subject, and nothing authorizes on it. Its only job is joining log lines
 // across one session without putting the subject in every one.
+//
+// A v4 UUID rather than v7, and the distinction is the point: v7 embeds its
+// issuance time, and this value is the one field of the session that is meant
+// to disclose nothing. The estate's generator supplies the entropy and the
+// RFC's version and variant bits so this package holds neither.
 func newSessionID() (string, error) {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
+	uuid, err := identifiers.NewUUIDv4()
+	if err != nil {
 		return "", err
 	}
-	return base64.RawURLEncoding.EncodeToString(b), nil
+	return uuid.String(), nil
 }

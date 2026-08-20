@@ -8,8 +8,8 @@ package retry
 import (
 	"reflect"
 
-	"mindclade.internal/libs/go/clock"
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/clock"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // Classifier decides whether an error without explicit faults retry intent may

@@ -13,7 +13,7 @@ go_library(
         "doc.go",
         "store.go",
     ],
-    importpath = "mindclade.internal/libs/go/storage/lease/postgres",
+    importpath = "go.mindclade.dev/libs/go/storage/lease/postgres",
     deps = [
         "//libs/go/faults",
         "//libs/go/storage/lease",

@@ -9,7 +9,7 @@ import (
 	"context"
 	"time"
 
-	"mindclade.internal/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/identifiers"
 )
 
 // Publication is provider acknowledgement of a publish operation.

@@ -6,10 +6,10 @@
 package ingestion
 
 import (
-	"mindclade.internal/control/artifacts"
-	"mindclade.internal/control/orchestration"
-	"mindclade.internal/control/runtime_authority"
-	"mindclade.internal/libs/go/identifiers"
+	"go.mindclade.dev/control/artifacts"
+	"go.mindclade.dev/control/orchestration"
+	"go.mindclade.dev/control/runtime_authority"
+	"go.mindclade.dev/libs/go/identifiers"
 	"time"
 )
 

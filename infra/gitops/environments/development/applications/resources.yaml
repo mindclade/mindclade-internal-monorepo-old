@@ -1,0 +1,490 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mindclade-development-operator-foundation
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/skip-reconcile: "true"
+    argocd.argoproj.io/sync-wave: "-80"
+    mindclade.dev/activation-state: blocked
+    mindclade.dev/environment: development
+spec:
+  project: mindclade-operator-foundation
+  source:
+    repoURL: https://github.com/mindclade-org/mindclade.git
+    targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
+    path: infra/kubernetes/platform/operator-system/foundation
+    directory:
+      recurse: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  revisionHistoryLimit: 10
+  syncPolicy:
+    automated:
+      enabled: false
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=false
+      - FailOnSharedResource=true
+      - PruneLast=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mindclade-development-cert-manager-crds
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/skip-reconcile: "true"
+    argocd.argoproj.io/sync-wave: "-70"
+    mindclade.dev/activation-state: blocked
+    mindclade.dev/environment: development
+spec:
+  project: mindclade-operator-crds
+  source:
+    repoURL: https://github.com/mindclade-org/mindclade.git
+    targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
+    path: infra/gitops/vendor/cert-manager/v1.19.1/crds
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  revisionHistoryLimit: 10
+  syncPolicy:
+    automated:
+      enabled: false
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=false
+      - DisableClientSideApplyMigration=true
+      - FailOnSharedResource=true
+      - PruneLast=true
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mindclade-development-cert-manager-controller
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/skip-reconcile: "true"
+    argocd.argoproj.io/sync-wave: "-60"
+    mindclade.dev/activation-state: blocked
+    mindclade.dev/environment: development
+spec:
+  project: mindclade-cert-manager-controller
+  source:
+    repoURL: https://github.com/mindclade-org/mindclade.git
+    targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
+    path: infra/gitops/vendor/cert-manager/v1.19.1/controllers
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  revisionHistoryLimit: 10
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      name: cert-manager-webhook
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: cert-manager-webhook
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+  syncPolicy:
+    automated:
+      enabled: false
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=false
+      - FailOnSharedResource=true
+      - PruneLast=true
+      - RespectIgnoreDifferences=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mindclade-development-jobset-crds
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/skip-reconcile: "true"
+    argocd.argoproj.io/sync-wave: "-50"
+    mindclade.dev/activation-state: blocked
+    mindclade.dev/environment: development
+spec:
+  project: mindclade-operator-crds
+  source:
+    repoURL: https://github.com/mindclade-org/mindclade.git
+    targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
+    path: infra/kubernetes/platform/jobset/chart
+    helm:
+      releaseName: jobset
+      skipCrds: false
+      valuesObject:
+        jobset:
+          controller:
+            enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: jobset-system
+  revisionHistoryLimit: 10
+  syncPolicy:
+    automated:
+      enabled: false
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=false
+      - DisableClientSideApplyMigration=true
+      - FailOnSharedResource=true
+      - PruneLast=true
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mindclade-development-jobset-controller
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/skip-reconcile: "true"
+    argocd.argoproj.io/sync-wave: "-40"
+    mindclade.dev/activation-state: blocked
+    mindclade.dev/environment: development
+spec:
+  project: mindclade-jobset-controller
+  source:
+    repoURL: https://github.com/mindclade-org/mindclade.git
+    targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
+    path: infra/kubernetes/platform/jobset/chart
+    helm:
+      releaseName: jobset
+      skipCrds: true
+      valuesObject:
+        jobset:
+          controller:
+            enabled: true
+          certManager:
+            enable: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: jobset-system
+  revisionHistoryLimit: 10
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      name: jobset-mutating-webhook-configuration
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: jobset-validating-webhook-configuration
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+  syncPolicy:
+    automated:
+      enabled: false
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=false
+      - FailOnSharedResource=true
+      - PruneLast=true
+      - RespectIgnoreDifferences=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mindclade-development-kueue-crds
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/skip-reconcile: "true"
+    argocd.argoproj.io/sync-wave: "-30"
+    mindclade.dev/activation-state: blocked
+    mindclade.dev/environment: development
+spec:
+  project: mindclade-operator-crds
+  source:
+    repoURL: https://github.com/mindclade-org/mindclade.git
+    targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
+    path: infra/kubernetes/platform/kueue/chart
+    helm:
+      releaseName: kueue
+      valuesObject:
+        kueue:
+          controller:
+            enabled: false
+          crds:
+            enabled: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kueue-system
+  revisionHistoryLimit: 10
+  ignoreDifferences:
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: admissionchecks.kueue.x-k8s.io
+      jqPathExpressions:
+        - .spec.conversion.webhook.clientConfig.caBundle
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: clusterqueues.kueue.x-k8s.io
+      jqPathExpressions:
+        - .spec.conversion.webhook.clientConfig.caBundle
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: cohorts.kueue.x-k8s.io
+      jqPathExpressions:
+        - .spec.conversion.webhook.clientConfig.caBundle
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: localqueues.kueue.x-k8s.io
+      jqPathExpressions:
+        - .spec.conversion.webhook.clientConfig.caBundle
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: multikueueclusters.kueue.x-k8s.io
+      jqPathExpressions:
+        - .spec.conversion.webhook.clientConfig.caBundle
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: multikueueconfigs.kueue.x-k8s.io
+      jqPathExpressions:
+        - .spec.conversion.webhook.clientConfig.caBundle
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: provisioningrequestconfigs.kueue.x-k8s.io
+      jqPathExpressions:
+        - .spec.conversion.webhook.clientConfig.caBundle
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: resourceflavors.kueue.x-k8s.io
+      jqPathExpressions:
+        - .spec.conversion.webhook.clientConfig.caBundle
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: topologies.kueue.x-k8s.io
+      jqPathExpressions:
+        - .spec.conversion.webhook.clientConfig.caBundle
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: workloadpriorityclasses.kueue.x-k8s.io
+      jqPathExpressions:
+        - .spec.conversion.webhook.clientConfig.caBundle
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: workloads.kueue.x-k8s.io
+      jqPathExpressions:
+        - .spec.conversion.webhook.clientConfig.caBundle
+  syncPolicy:
+    automated:
+      enabled: false
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=false
+      - DisableClientSideApplyMigration=true
+      - FailOnSharedResource=true
+      - PruneLast=true
+      - RespectIgnoreDifferences=true
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mindclade-development-kueue-controller
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/skip-reconcile: "true"
+    argocd.argoproj.io/sync-wave: "-20"
+    mindclade.dev/activation-state: blocked
+    mindclade.dev/environment: development
+spec:
+  project: mindclade-kueue-controller
+  source:
+    repoURL: https://github.com/mindclade-org/mindclade.git
+    targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
+    path: infra/kubernetes/platform/kueue/chart
+    helm:
+      releaseName: kueue
+      valuesObject:
+        kueue:
+          controller:
+            enabled: true
+          crds:
+            enabled: false
+          enableCertManager: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kueue-system
+  revisionHistoryLimit: 10
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      name: kueue-mutating-webhook-configuration
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: kueue-validating-webhook-configuration
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+    - group: apiregistration.k8s.io
+      kind: APIService
+      name: v1beta1.visibility.kueue.x-k8s.io
+      jqPathExpressions:
+        - .spec.caBundle
+    - group: apiregistration.k8s.io
+      kind: APIService
+      name: v1beta2.visibility.kueue.x-k8s.io
+      jqPathExpressions:
+        - .spec.caBundle
+  syncPolicy:
+    automated:
+      enabled: false
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=false
+      - FailOnSharedResource=true
+      - PruneLast=true
+      - RespectIgnoreDifferences=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mindclade-development-operator-observability
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/skip-reconcile: "true"
+    argocd.argoproj.io/sync-wave: "-10"
+    mindclade.dev/activation-state: blocked
+    mindclade.dev/environment: development
+spec:
+  project: mindclade-operator-observability
+  source:
+    repoURL: https://github.com/mindclade-org/mindclade.git
+    targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
+    path: infra/kubernetes/platform/observability
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kueue-system
+  revisionHistoryLimit: 10
+  syncPolicy:
+    automated:
+      enabled: false
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=false
+      - FailOnSharedResource=true
+      - PruneLast=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mindclade-development-foundation
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/skip-reconcile: "true"
+    argocd.argoproj.io/sync-wave: "0"
+    mindclade.dev/activation-state: blocked
+    mindclade.dev/environment: development
+spec:
+  project: mindclade-foundation
+  source:
+    repoURL: https://github.com/mindclade-org/mindclade.git
+    targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
+    path: infra/gitops/environments/development
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mindclade-system
+  revisionHistoryLimit: 10
+  syncPolicy:
+    automated:
+      enabled: false
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=false
+      - FailOnSharedResource=true
+      - PruneLast=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mindclade-development-kueue-resources
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/skip-reconcile: "true"
+    argocd.argoproj.io/sync-wave: "20"
+    mindclade.dev/activation-state: blocked
+    mindclade.dev/environment: development
+spec:
+  project: mindclade-ml-resources
+  source:
+    repoURL: https://github.com/mindclade-org/mindclade.git
+    targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
+    path: infra/kubernetes/platform/kueue
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mindclade-system
+  revisionHistoryLimit: 10
+  syncPolicy:
+    automated:
+      enabled: false
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=false
+      - FailOnSharedResource=true
+      - PruneLast=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mindclade-development-jobset-resources
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/skip-reconcile: "true"
+    argocd.argoproj.io/sync-wave: "22"
+    mindclade.dev/activation-state: blocked
+    mindclade.dev/environment: development
+spec:
+  project: mindclade-ml-resources
+  source:
+    repoURL: https://github.com/mindclade-org/mindclade.git
+    targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
+    path: infra/kubernetes/platform/jobset
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mindclade-system
+  revisionHistoryLimit: 10
+  syncPolicy:
+    automated:
+      enabled: false
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - ApplyOutOfSyncOnly=true
+      - CreateNamespace=false
+      - FailOnSharedResource=true
+      - PruneLast=true

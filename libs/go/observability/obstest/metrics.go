@@ -9,7 +9,7 @@ import (
 	"context"
 	"sync"
 
-	"mindclade.internal/libs/go/observability"
+	"go.mindclade.dev/libs/go/observability"
 )
 
 // MetricRecorder is a concurrency-safe in-memory MetricSink.

@@ -8,7 +8,7 @@ package audit
 import (
 	"strings"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // Action is a stable lower-case operation name such as "runs.cancel" or

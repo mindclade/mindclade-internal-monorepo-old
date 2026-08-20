@@ -1,0 +1,47 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+# Waivers for libs/go packages that nothing in this module imports.
+#
+# A foundation package with no importer is not neutral: it is untested against
+# a real caller, its API cannot have been validated by use, and it still costs
+# review, dependency, and build surface. Presubmit therefore requires every
+# libs/go package to have an importer somewhere in the module — production or
+# test — or an explicit waiver here.
+#
+# A waiver is a debt record, not an exemption. Remove entries as the consuming
+# process is materialized; do not add entries to make a new package pass.
+
+schema_version = 1
+policy = "every libs/go package has an in-module importer or an explicit waiver"
+
+[[waiver]]
+reason = """
+No role's production profile requires HTTP OpenTelemetry instrumentation, and
+the httpx README actively steers callers away from it: Connect routes are
+instrumented through connectx/otel, so wrapping the API process's mux in
+otelhttp would emit a second span for every Connect request. The api factory
+mounts Connect and deliberately does not wrap -- see the comment in
+providers/api/serving.go. It is a supported option for a consumer outside this
+module, not a package awaiting an in-module importer.
+"""
+packages = [
+  "libs/go/httpx/otel",
+]
+
+[[waiver]]
+reason = """
+Conformance suites and adapters whose owning role is not yet materialized. The
+scheduler and controller claim the lease and work-queue adapters and the
+projector claims cursors, so what remains waits on the operator and maintenance
+roles for a second consumer of the work-queue suite, on every publishing role
+for Pub/Sub, and on a telemetry conformance test for obstest.
+"""
+packages = [
+  "libs/go/coordination/cursor/cursortest",
+  "libs/go/coordination/workqueue/workqueuetest",
+  "libs/go/messaging/pubsub",
+  "libs/go/observability/obstest",
+]

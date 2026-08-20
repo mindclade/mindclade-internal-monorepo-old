@@ -15,10 +15,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/kubernetes"
-	kmetadata "mindclade.internal/libs/go/kubernetes/metadata"
-	"mindclade.internal/libs/go/requestmeta"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/kubernetes"
+	kmetadata "go.mindclade.dev/libs/go/kubernetes/metadata"
+	"go.mindclade.dev/libs/go/requestmeta"
 )
 
 const MaximumMessageBytes = 1024

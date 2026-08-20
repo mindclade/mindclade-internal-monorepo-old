@@ -51,8 +51,24 @@
 /protocols/                         @mindclade-org/platform
 /configs/                           @mindclade-org/platform
 /infra/                             @mindclade-org/platform
+/infra/terraform/                   @mindclade-org/platform @mindclade-org/security
 /tools/                             @mindclade-org/platform
 /architecture/                      @mindclade-org/platform
+
+# Bazel graph and dependency policy. Root files need explicit routes because the directory
+# patterns above cannot match them; lock and rc changes also affect the supply-chain gate.
+/BUILD.bazel                        @mindclade-org/platform
+/.bazelrc                           @mindclade-org/platform @mindclade-org/security
+/.bazelversion                      @mindclade-org/platform
+/.buildifier.json                   @mindclade-org/platform
+/flake.lock                         @mindclade-org/platform @mindclade-org/security
+/flake.nix                          @mindclade-org/platform @mindclade-org/security
+/MODULE.bazel                       @mindclade-org/platform @mindclade-org/security
+/MODULE.bazel.lock                  @mindclade-org/platform @mindclade-org/security
+/docs/architecture/build-and-toolchains.md @mindclade-org/platform
+/docs/architecture/dependency-rules.md      @mindclade-org/platform
+/tools/dev/bazel-repo-bin/         @mindclade-org/platform
+/tools/dev/bazelw                  @mindclade-org/platform
 
 # Release evidence. These files are the record that a component was allowed to ship.
 /qualification/                     @mindclade-org/platform @mindclade-org/security

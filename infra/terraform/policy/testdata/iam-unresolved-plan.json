@@ -1,0 +1,100 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.9.8",
+  "resource_changes": [
+    {
+      "address": "google_project_iam_member.unknown_member",
+      "mode": "managed",
+      "type": "google_project_iam_member",
+      "name": "unknown_member",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "member": null,
+          "project": "synthetic-project",
+          "role": "roles/logging.viewer"
+        },
+        "after_unknown": {"member": true}
+      }
+    },
+    {
+      "address": "google_project_iam_member.unknown_role",
+      "mode": "managed",
+      "type": "google_project_iam_member",
+      "name": "unknown_role",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "member": "group:readers@example.test",
+          "project": "synthetic-project",
+          "role": null
+        },
+        "after_unknown": {"role": true}
+      }
+    },
+    {
+      "address": "google_project_iam_binding.malformed_members",
+      "mode": "managed",
+      "type": "google_project_iam_binding",
+      "name": "malformed_members",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "members": {"unexpected": "group:readers@example.test"},
+          "project": "synthetic-project",
+          "role": "roles/logging.viewer"
+        },
+        "after_unknown": {}
+      }
+    },
+    {
+      "address": "google_project_iam_binding.partial_unknown_members",
+      "mode": "managed",
+      "type": "google_project_iam_binding",
+      "name": "partial_unknown_members",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "members": ["group:readers@example.test", null],
+          "project": "synthetic-project",
+          "role": "roles/logging.viewer"
+        },
+        "after_unknown": {"members": [false, true]}
+      }
+    },
+    {
+      "address": "google_project_iam_policy.unknown_policy_data",
+      "mode": "managed",
+      "type": "google_project_iam_policy",
+      "name": "unknown_policy_data",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "policy_data": null,
+          "project": "synthetic-project"
+        },
+        "after_unknown": {"policy_data": true}
+      }
+    },
+    {
+      "address": "google_project_iam_policy.malformed_binding",
+      "mode": "managed",
+      "type": "google_project_iam_policy",
+      "name": "malformed_binding",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "policy_data": "{\"bindings\":[{\"members\":{\"unexpected\":\"group:readers@example.test\"},\"role\":null}]}",
+          "project": "synthetic-project"
+        },
+        "after_unknown": {"policy_data": false}
+      }
+    }
+  ]
+}

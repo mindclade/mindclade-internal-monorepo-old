@@ -1,6 +1,6 @@
 # Mindclade Go Faults
 
-`mindclade.internal/libs/go/faults` is Mindclade's transport-neutral structured-error package for Go services and libraries.
+`go.mindclade.dev/libs/go/faults` is Mindclade's transport-neutral structured-error package for Go services and libraries.
 
 It provides:
 
@@ -17,7 +17,7 @@ The package depends only on the Go standard library. It must remain below HTTP, 
 ## Import
 
 ```go
-import "mindclade.internal/libs/go/faults"
+import "go.mindclade.dev/libs/go/faults"
 ```
 
 Do not add a `go.mod` inside this package when it lives in the Mindclade monorepo. Use the repository's authoritative Go module or workspace.
@@ -181,5 +181,5 @@ The included `BUILD.bazel` exports:
 Adjust the target path only if the package is placed elsewhere. The import path is fixed to:
 
 ```text
-mindclade.internal/libs/go/faults
+go.mindclade.dev/libs/go/faults
 ```

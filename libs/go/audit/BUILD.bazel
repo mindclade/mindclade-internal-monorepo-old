@@ -20,7 +20,7 @@ go_library(
         "target.go",
         "validation.go",
     ],
-    importpath = "mindclade.internal/libs/go/audit",
+    importpath = "go.mindclade.dev/libs/go/audit",
     visibility = ["//visibility:public"],
     deps = [
         "//libs/go/auth",

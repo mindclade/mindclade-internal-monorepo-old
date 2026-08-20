@@ -11,8 +11,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/servicekit"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/servicekit"
 )
 
 // Manager is the minimal controller-runtime manager contract needed by the

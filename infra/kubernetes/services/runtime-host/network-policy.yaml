@@ -4,4 +4,18 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: runtime-host-default-deny
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: runtime-host
+    app.kubernetes.io/part-of: mindclade-platform
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: runtime-host
+  policyTypes:
+    - Ingress
+    - Egress

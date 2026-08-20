@@ -16,7 +16,7 @@ go_library(
         "lease.go",
         "store.go",
     ],
-    importpath = "mindclade.internal/libs/go/storage/lease",
+    importpath = "go.mindclade.dev/libs/go/storage/lease",
     deps = [
         "//libs/go/faults",
         "//libs/go/identifiers",

@@ -4,4 +4,187 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# Activation contract:
+# - runtime-host-policy supplies public Ed25519 verification material, monotonic
+#   policy floors, and the GPU architecture/memory values for the selected pool.
+# - runtime-host-policy-snapshots is an externally populated read-only PVC with
+#   revocation_snapshot.pb (a non-empty signed protobuf of at most 16 MiB).
+# - a qualified client must be co-scheduled in this Pod and mount the runtime-ipc
+#   emptyDir; the host exposes only a mode-0600 Unix-domain socket.
+#
+# No model-worker executable is configured because that executable currently
+# fails closed. The Deployment remains at zero replicas until the IPC client,
+# worker engine, GPU qualification, and image evidence exist.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: runtime-host
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: runtime-host
+    app.kubernetes.io/component: model-serving-runtime
+    app.kubernetes.io/part-of: mindclade-platform
+  annotations:
+    mindclade.dev/deployment-status: disabled
+    mindclade.dev/activation-blocker: local-client-model-worker-and-gpu-qualification-missing
+    mindclade.dev/transport: unix-domain-socket-only
+spec:
+  replicas: 0
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: runtime-host
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: runtime-host
+        app.kubernetes.io/component: model-serving-runtime
+        app.kubernetes.io/part-of: mindclade-platform
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      nodeSelector:
+        mindclade.dev/node-pool: gpu
+      serviceAccountName: runtime-host
+      terminationGracePeriodSeconds: 40
+      tolerations:
+        - effect: NoSchedule
+          key: nvidia.com/gpu
+          operator: Equal
+          value: present
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: runtime-host
+          image: registry.invalid/mindclade/runtime-host@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: MINDCLADE_RUNTIME_HOST_SOCKET
+              value: /run/mindclade/runtime-host.sock
+            - name: MINDCLADE_RUNTIME_HOST_GRPC_SOCKET
+              value: /run/mindclade/runtime-host-grpc.sock
+            - name: MINDCLADE_RUNTIME_KEY_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: runtime-host-policy
+                  key: key-id
+            - name: MINDCLADE_RUNTIME_PUBLIC_KEY_HEX
+              valueFrom:
+                configMapKeyRef:
+                  name: runtime-host-policy
+                  key: public-key-hex
+            - name: MINDCLADE_RUNTIME_KEY_NOT_BEFORE_MS
+              valueFrom:
+                configMapKeyRef:
+                  name: runtime-host-policy
+                  key: key-not-before-ms
+            - name: MINDCLADE_RUNTIME_KEY_NOT_AFTER_MS
+              valueFrom:
+                configMapKeyRef:
+                  name: runtime-host-policy
+                  key: key-not-after-ms
+            - name: MINDCLADE_RUNTIME_REVOCATION_SNAPSHOT_FILE
+              value: /var/lib/mindclade/policy/revocation_snapshot.pb
+            - name: MINDCLADE_RUNTIME_MIN_POLICY_EPOCH
+              valueFrom:
+                configMapKeyRef:
+                  name: runtime-host-policy
+                  key: minimum-policy-epoch
+            - name: MINDCLADE_RUNTIME_MIN_ROUTE_VERSION
+              valueFrom:
+                configMapKeyRef:
+                  name: runtime-host-policy
+                  key: minimum-route-version
+            - name: MINDCLADE_RUNTIME_MIN_REVOCATION_EPOCH
+              valueFrom:
+                configMapKeyRef:
+                  name: runtime-host-policy
+                  key: minimum-revocation-epoch
+            - name: MINDCLADE_RUNTIME_MAX_PROCESSES
+              value: "16"
+            - name: MINDCLADE_RUNTIME_MAX_MODEL_SLOTS
+              value: "4"
+            - name: MINDCLADE_RUNTIME_MAX_INPUT_BUFFERS
+              value: "64"
+            - name: MINDCLADE_RUNTIME_MAX_CONTROL_BYTES
+              value: "1048576"
+            - name: MINDCLADE_RUNTIME_NODE_CPU_MILLIS
+              value: "8000"
+            - name: MINDCLADE_RUNTIME_NODE_MEMORY_BYTES
+              value: "34359738368"
+            - name: MINDCLADE_RUNTIME_NODE_PINNED_MEMORY_BYTES
+              value: "0"
+            - name: MINDCLADE_RUNTIME_NODE_SHARED_MEMORY_BYTES
+              value: "0"
+            - name: MINDCLADE_RUNTIME_NODE_DISK_BYTES
+              value: "21474836480"
+            - name: MINDCLADE_RUNTIME_NODE_OPEN_FDS
+              value: "4096"
+            - name: MINDCLADE_RUNTIME_NODE_OBJECT_REQUESTS
+              value: "0"
+            - name: MINDCLADE_RUNTIME_NODE_QUEUED_REQUESTS
+              value: "1024"
+            - name: MINDCLADE_RUNTIME_NODE_PROCESSES
+              value: "64"
+            - name: MINDCLADE_RUNTIME_NODE_CPU_THREADS
+              value: "8"
+            - name: MINDCLADE_RUNTIME_NODE_GPU_MEMORY_BYTES
+              valueFrom:
+                configMapKeyRef:
+                  name: runtime-host-policy
+                  key: gpu-memory-bytes
+            - name: MINDCLADE_RUNTIME_NODE_CHECKPOINT_STAGING_BYTES
+              value: "0"
+            - name: MINDCLADE_RUNTIME_NODE_TELEMETRY_SPOOL_BYTES
+              value: "0"
+            - name: MINDCLADE_RUNTIME_GPU_VENDOR
+              value: nvidia
+            - name: MINDCLADE_RUNTIME_GPU_ARCH
+              valueFrom:
+                configMapKeyRef:
+                  name: runtime-host-policy
+                  key: gpu-architecture
+            - name: MINDCLADE_RUNTIME_GPU_MEMORY_BYTES
+              valueFrom:
+                configMapKeyRef:
+                  name: runtime-host-policy
+                  key: gpu-memory-bytes
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          resources:
+            requests:
+              cpu: "2"
+              ephemeral-storage: 1Gi
+              memory: 4Gi
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "8"
+              ephemeral-storage: 20Gi
+              memory: 32Gi
+              nvidia.com/gpu: "1"
+          volumeMounts:
+            - name: runtime-ipc
+              mountPath: /run/mindclade
+            - name: policy-snapshots
+              mountPath: /var/lib/mindclade/policy
+              readOnly: true
+      volumes:
+        - name: runtime-ipc
+          emptyDir:
+            medium: Memory
+            sizeLimit: 64Mi
+        - name: policy-snapshots
+          persistentVolumeClaim:
+            claimName: runtime-host-policy-snapshots
+            readOnly: true

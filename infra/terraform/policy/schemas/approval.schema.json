@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mindclade.example/schemas/terraform-plan-approval-v1.json",
+  "title": "Mindclade Terraform plan policy approvals",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "approvals"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "approvals": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {"$ref": "#/$defs/administrativeIam"},
+          {"$ref": "#/$defs/destructiveChange"}
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "exactString": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^*?\\[\\]]+$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "expiry": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "administrativeIam": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "address",
+        "resource",
+        "member",
+        "role",
+        "ticket",
+        "owner",
+        "reason",
+        "issued_at",
+        "expires_at",
+        "plan_digest"
+      ],
+      "properties": {
+        "kind": {"const": "administrative_iam"},
+        "address": {"$ref": "#/$defs/exactString"},
+        "resource": {"$ref": "#/$defs/exactString"},
+        "member": {"$ref": "#/$defs/exactString"},
+        "role": {
+          "type": "string",
+          "pattern": "[Aa][Dd][Mm][Ii][Nn]$"
+        },
+        "ticket": {"$ref": "#/$defs/exactString"},
+        "owner": {"$ref": "#/$defs/exactString"},
+        "reason": {"$ref": "#/$defs/exactString"},
+        "issued_at": {"$ref": "#/$defs/expiry"},
+        "expires_at": {"$ref": "#/$defs/expiry"},
+        "plan_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "destructiveChange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "address",
+        "resource",
+        "change",
+        "ticket",
+        "owner",
+        "reason",
+        "issued_at",
+        "expires_at",
+        "plan_digest"
+      ],
+      "properties": {
+        "kind": {"const": "destructive_change"},
+        "address": {"$ref": "#/$defs/exactString"},
+        "resource": {"$ref": "#/$defs/exactString"},
+        "change": {"enum": ["delete", "replace"]},
+        "ticket": {"$ref": "#/$defs/exactString"},
+        "owner": {"$ref": "#/$defs/exactString"},
+        "reason": {"$ref": "#/$defs/exactString"},
+        "issued_at": {"$ref": "#/$defs/expiry"},
+        "expires_at": {"$ref": "#/$defs/expiry"},
+        "plan_digest": {"$ref": "#/$defs/digest"}
+      }
+    }
+  }
+}

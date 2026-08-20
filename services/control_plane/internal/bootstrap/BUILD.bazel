@@ -14,17 +14,18 @@ go_library(
     srcs = [
         "bootstrap.go",
         "build.go",
+        "capabilities.go",
         "components.go",
         "consumption.go",
         "foundation.go",
         "profile.go",
     ],
-    importpath = "mindclade.internal/services/control_plane/internal/bootstrap",
+    embedsrcs = ["consumption.json"],
+    importpath = "go.mindclade.dev/services/control_plane/internal/bootstrap",
     deps = [
         "//libs/go/faults",
         "//libs/go/servicekit",
         "//libs/go/servicekit/production",
-        "//services/control_plane/internal/foundation",
     ],
 )
 
@@ -35,8 +36,4 @@ go_test(
         "profile_test.go",
     ],
     embed = [":bootstrap"],
-    deps = [
-        "//libs/go/servicekit",
-        "//libs/go/servicekit/production",
-    ],
 )

@@ -60,8 +60,8 @@ import (
     "net/http"
     "time"
 
-    "mindclade.internal/libs/go/faults"
-    "mindclade.internal/libs/go/servicekit"
+    "go.mindclade.dev/libs/go/faults"
+    "go.mindclade.dev/libs/go/servicekit"
 )
 
 func run(ctx context.Context) error {

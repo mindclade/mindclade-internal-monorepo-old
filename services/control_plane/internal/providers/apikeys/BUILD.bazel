@@ -1,0 +1,32 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//services/control_plane:__subpackages__"])
+
+go_library(
+    name = "apikeys",
+    srcs = ["apikeys.go"],
+    importpath = "go.mindclade.dev/services/control_plane/internal/providers/apikeys",
+    deps = [
+        "//libs/go/auth",
+        "//libs/go/clock",
+        "//libs/go/faults",
+        "//services/control_plane/internal/config",
+    ],
+)
+
+go_test(
+    name = "apikeys_test",
+    srcs = ["apikeys_test.go"],
+    embed = [":apikeys"],
+    deps = [
+        "//libs/go/auth",
+        "//libs/go/clock",
+        "//libs/go/faults",
+        "//services/control_plane/internal/config",
+    ],
+)

@@ -13,10 +13,10 @@ go_library(
         "conditions.go",
         "doc.go",
     ],
-    importpath = "mindclade.internal/libs/go/kubernetes/conditions",
+    importpath = "go.mindclade.dev/libs/go/kubernetes/conditions",
     deps = [
         "//libs/go/faults",
-        "@io_k8s_apimachinery//pkg/apis/meta/v1",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
         "@io_k8s_apimachinery//pkg/util/validation",
     ],
 )
@@ -25,5 +25,5 @@ go_test(
     name = "conditions_test",
     srcs = ["conditions_test.go"],
     embed = [":conditions"],
-    deps = ["@io_k8s_apimachinery//pkg/apis/meta/v1"],
+    deps = ["@io_k8s_apimachinery//pkg/apis/meta/v1:meta"],
 )

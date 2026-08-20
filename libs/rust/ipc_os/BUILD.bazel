@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 
 package(default_visibility = ["//libs/rust:repo_consumers"])
 
@@ -26,11 +26,11 @@ rust_test(
     srcs = ["tests/broker.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_ipc_os",
         "//libs/rust/bytes_io:mindclade_bytes_io",
         "//libs/rust/content_digest:mindclade_content_digest",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
-        ":mindclade_ipc_os",
         "@crates//:libc",
     ],
 )
@@ -40,11 +40,11 @@ rust_test(
     srcs = ["tests/file_fallback.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_ipc_os",
         "//libs/rust/bytes_io:mindclade_bytes_io",
         "//libs/rust/content_digest:mindclade_content_digest",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
-        ":mindclade_ipc_os",
         "@crates//:libc",
     ],
 )
@@ -54,17 +54,20 @@ rust_test(
     srcs = ["tests/linux_memfd.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_ipc_os",
         "//libs/rust/bytes_io:mindclade_bytes_io",
         "//libs/rust/content_digest:mindclade_content_digest",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
-        ":mindclade_ipc_os",
         "@crates//:libc",
     ],
 )
 
 filegroup(
     name = "package_sources",
-    srcs = glob(["**"], exclude = ["target/**"]),
+    srcs = glob(
+        ["**"],
+        exclude = ["target/**"],
+    ),
     visibility = ["//libs/rust:repo_consumers"],
 )

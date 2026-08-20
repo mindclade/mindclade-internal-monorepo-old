@@ -3,10 +3,67 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_pkg//pkg:mappings.bzl", "pkg_files", "strip_prefix")
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
 package(default_visibility = ["//visibility:private"])
 
 filegroup(
-    name = "scaffold_files",
-    srcs = glob(["**"], exclude = ["BUILD.bazel"]),
+    name = "validation_inputs",
+    srcs = glob(
+        ["**"],
+        exclude = [
+            "**/__pycache__/**",
+            "**/*.pyc",
+            "BUILD.bazel",
+        ],
+    ) + ["//infra/kubernetes:validation_inputs"],
     visibility = ["//visibility:public"],
+)
+
+pkg_files(
+    name = "validation_tree",
+    srcs = [":validation_inputs"],
+    strip_prefix = strip_prefix.from_root(),
+)
+
+pkg_tar(
+    name = "validation_archive",
+    srcs = [":validation_tree"],
+)
+
+# Compatibility target for callers that consumed the originally materialized scaffold.
+filegroup(
+    name = "scaffold_files",
+    srcs = [":validation_inputs"],
+    visibility = ["//visibility:public"],
+)
+
+sh_test(
+    name = "validate",
+    size = "medium",
+    srcs = ["tests/bazel_validate.sh"],
+    data = [
+        ":validation_archive",
+        "//infra/kubernetes:extract_validation_archive",
+        "//tools/build/nix:toolchain-manifest.json",
+        "@mindclade_infra_validation_tools//:bin/.tool-root",
+        "@mindclade_infra_validation_tools//:tools",
+        "@mindclade_kubernetes_schemas//:core_schemas",
+        "@mindclade_kubernetes_schemas//:crds/cert-manager-v1.19.1.yaml",
+        "@mindclade_kubernetes_schemas//:schemas/.schema-root",
+    ],
+    env = {
+        "MINDCLADE_CERT_MANAGER_SOURCE_RLOCATION": "$(rlocationpath @mindclade_kubernetes_schemas//:crds/cert-manager-v1.19.1.yaml)",
+        "MINDCLADE_KUBERNETES_SCHEMA_MARKER_RLOCATION": "$(rlocationpath @mindclade_kubernetes_schemas//:schemas/.schema-root)",
+        "MINDCLADE_TOOLCHAIN_MANIFEST_RLOCATION": "$(rlocationpath //tools/build/nix:toolchain-manifest.json)",
+        "MINDCLADE_VALIDATION_ARCHIVE_RLOCATION": "$(rlocationpath :validation_archive)",
+        "MINDCLADE_VALIDATION_EXTRACTOR_RLOCATION": "$(rlocationpath //infra/kubernetes:extract_validation_archive)",
+        "MINDCLADE_VALIDATION_TOOL_MARKER_RLOCATION": "$(rlocationpath @mindclade_infra_validation_tools//:bin/.tool-root)",
+    },
+    tags = [
+        "gitops",
+        "kubernetes",
+    ],
 )

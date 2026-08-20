@@ -4,4 +4,113 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: control-plane-default-deny
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: control-plane
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: control-plane
+  policyTypes:
+    - Ingress
+    - Egress
+---
+# DNS alone is safe to make common. Database, Redis, object-store, webhook,
+# broker, and Kubernetes API destinations are environment-owned and remain
+# denied until overlays add destination-specific rules.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: control-plane-allow-dns
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: control-plane
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: control-plane
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: control-plane-api-allow-labeled-clients
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: control-plane
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: control-plane-api
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              networking.mindclade.dev/control-plane-api-client: "true"
+      ports:
+        - { protocol: TCP, port: 8080 }
+        - { protocol: TCP, port: 9090 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: control-plane-admin-allow-labeled-clients
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: control-plane
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: control-plane-admin
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              networking.mindclade.dev/control-plane-admin-client: "true"
+      ports:
+        - { protocol: TCP, port: 8080 }
+        - { protocol: TCP, port: 9090 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: control-plane-registry-allow-labeled-clients
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: control-plane
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: control-plane-registry
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              networking.mindclade.dev/control-plane-registry-client: "true"
+      ports:
+        - protocol: TCP
+          port: 8080

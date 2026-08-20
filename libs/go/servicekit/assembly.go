@@ -9,7 +9,7 @@ import (
 	"sort"
 	"sync"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // Stage defines the only supported production component-startup bands.

@@ -4,12 +4,32 @@
 #
 
 load("@rules_go//go:def.bzl", "go_library", "go_test")
+
 package(default_visibility = ["//visibility:public"])
+
 exports_files(["README.md"])
+
 go_library(
     name = "config",
-    srcs = ["doc.go", "errors.go", "field.go", "loader.go", "reload.go", "snapshot.go", "source.go"],
-    importpath = "mindclade.internal/libs/go/config",
-    deps = ["//libs/go/clock", "//libs/go/faults", "//libs/go/identifiers"],
+    srcs = [
+        "doc.go",
+        "errors.go",
+        "field.go",
+        "loader.go",
+        "reload.go",
+        "snapshot.go",
+        "source.go",
+    ],
+    importpath = "go.mindclade.dev/libs/go/config",
+    deps = [
+        "//libs/go/clock",
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+    ],
 )
-go_test(name = "config_test", srcs = ["config_test.go"], embed = [":config"])
+
+go_test(
+    name = "config_test",
+    srcs = ["config_test.go"],
+    embed = [":config"],
+)

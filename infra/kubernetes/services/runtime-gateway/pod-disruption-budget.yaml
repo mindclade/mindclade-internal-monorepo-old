@@ -4,4 +4,18 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# This PDB applies only after the activation gate is deliberately scaled above
+# zero; it protects the verified HTTP serving surface during voluntary drains.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: runtime-gateway
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: runtime-gateway
+    app.kubernetes.io/part-of: mindclade-platform
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: runtime-gateway

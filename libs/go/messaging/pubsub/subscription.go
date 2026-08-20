@@ -12,8 +12,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/messaging"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/messaging"
 )
 
 // Subscription adapts one provider receiver with a strict handler-concurrency

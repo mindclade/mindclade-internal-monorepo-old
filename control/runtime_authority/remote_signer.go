@@ -9,7 +9,7 @@ import (
 	"context"
 	"fmt"
 
-	"mindclade.internal/libs/go/signing"
+	"go.mindclade.dev/libs/go/signing"
 )
 
 // AsymmetricSignClient is the narrow provider seam used by the durable control

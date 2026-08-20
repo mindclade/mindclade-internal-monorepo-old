@@ -26,6 +26,9 @@ APPROVED = {
     "libs/rust/record_io/src/codec.rs": {
         "saturating_sub": "remaining decoder bytes; offset is independently range-checked",
     },
+    "libs/rust/atomic_fs/src/store.rs": {
+        "saturating_add": "bounded-reader sentinel; u64::MAX is already the largest possible limit",
+    },
     "libs/rust/runtime_core/src/retry.rs": {
         "wrapping_add": "SplitMix64 deterministic jitter mixer",
         "wrapping_mul": "SplitMix64 deterministic jitter mixer",

@@ -1,0 +1,335 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# Source → image → signature → SLSA provenance → attestation → a digest gitops can pin.
+#
+# THE FILENAME IS LOAD-BEARING. bootstrap/modules/identity/service-accounts.tf binds the
+# `attestor` service account to `.github/workflows/release.yml` in this repository
+# specifically, via a principalSet on the WIF provider. Renaming this file leaves a binding no
+# token can ever match, and the symptom is every attestation failing with "unable to acquire
+# impersonated credentials" and nothing naming the workflow.
+#
+# ONE WORKLOAD, DELIBERATELY. services/go_vanity is the whole matrix: a real Go service with
+# tests, small enough that a failure here is a supply-chain failure rather than an application
+# one. The rest of the estate's images are not built from this repository — see the note on
+# studio in gitops/render-manifest.yaml — and adding one is an entry in `matrix.include`, not
+# a new workflow.
+#
+# The chain this produces, and who checks each link:
+#
+#   image (this file)        Bazel oci_image → push → SBOM → cosign sign → BinAuthz attestation
+#   reusable-slsa-provenance SLSA L3 provenance, then verifies its own output
+#   gitops verify-attestation every image in rendered/ is digest-pinned and verifies
+#   Binary Authorization    the cluster refuses to admit anything unattested
+#
+# Nothing here runs on a pull request. A PR from a fork must not be able to push to the
+# registry or reach the attestor key, and `push: false` on a PR would still hand the job a
+# WIF token — so the trigger is a tag and a manual dispatch, both of which only exist on main.
+name: Release
+
+on:
+  push:
+    tags:
+      # Full semver only, matching the tag-protection ruleset in github-config. `v1` cannot be
+      # created at all there, so it is not matched here either.
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      push:
+        description: Push, sign, attest, and emit rollback evidence. False performs no release.
+        type: boolean
+        default: false
+      rollback_digest:
+        description: Signed last-known-good go-vanity digest (sha256:...). Required when push is true.
+        type: string
+        required: false
+      weights_rollback_digest:
+        description: Signed last-known-good weights digest (sha256:...). Required when push is true.
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  # NOT cancel-in-progress. A cancelled release can leave a pushed image with no signature and
+  # no attestation, which is the exact state verify-attestation.yml reports as a supply-chain
+  # event.
+  group: release-${{ github.ref }}
+
+jobs:
+  # ---------------------------------------------------------------------------------------
+  # Build, sign, attest
+  # ---------------------------------------------------------------------------------------
+  # services/go_vanity has no Dockerfile: tools/analysis/check_build_toolchain_contract.py
+  # forbids production Dockerfiles, and the image is a Bazel oci_image target. The reusable
+  # workflow takes `builder: bazel` for exactly that, so the SBOM → cosign → BinAuthz chain
+  # stays centralized for the estate instead of being copied into this file. Only the build
+  # step differs between the two builders; everything downstream keys off image@digest.
+  #
+  # REQUIRES reusable-oci-build.yml >= v1.2.0, which is the tag that adds `builder`. An earlier
+  # tag ignores every bazel-* input below as unknown and tries to build a Dockerfile that is not
+  # there, so the org tag has to exist before this reference merges.
+  #
+  # THE WIF IDENTITY IS UNCHANGED. bootstrap binds the attestor service account to
+  # `.github/workflows/release.yml` in this repository via a principalSet on the WIF provider,
+  # and that binding is on this file's path rather than on what it calls.
+  # NO MATRIX, and this replaced one — the reason is worth stating because the file used to
+  # say "adding one is an entry in `matrix.include`, not a new workflow", and that stopped
+  # being true the moment there were two.
+  #
+  # GitHub Actions gives a matrix job ONE set of outputs. Every leg writes the same
+  # `outputs.digest` key, and the value the downstream job reads is whichever leg happened to
+  # finish last. With a single entry that is invisible; with two it means the SLSA provenance
+  # job can attest the weights digest under the go-vanity name, or the reverse, and the
+  # resulting attestation is wrong in a way nothing downstream can detect — it is a valid
+  # signature over the wrong subject.
+  #
+  # There is no clean workaround: a reusable-workflow call cannot run a step first, so the
+  # digest cannot be routed through an artifact before it is consumed. Two explicit jobs cost
+  # a duplicated `with:` block and make each digest unambiguous. That trade is not close.
+  image-go-vanity:
+    if: github.event_name == 'push' || inputs.push
+    uses: mindclade-org/.github/.github/workflows/reusable-oci-build.yml@55b37943ab048f13bee88c2e6acb7284cc0d8e2d  # v1.2.0
+    permissions:
+      contents: read
+      id-token: write
+    with:
+      image: ${{ vars.ARTIFACT_REGISTRY_HOST }}/${{ vars.DEV_PLATFORM_PROJECT_ID }}/containers/go-vanity
+      bazel-image-target: //services/go_vanity:image
+      bazel-push-target: //services/go_vanity:push
+      builder: bazel
+      # This repository's release configuration, from .bazelrc — chiefly --lockfile_mode=error,
+      # so a MODULE.bazel.lock that no longer matches MODULE.bazel fails the release instead of
+      # being silently regenerated inside it.
+      bazel-args: --config=ci
+      # NO `platforms:` INPUT. That one is buildx's. Under the bazel builder the target platform
+      # is a property of the artifact — goos/goarch on the go_binary and the
+      # @distroless_static_linux_amd64 base, both in //services/go_vanity — so setting it here
+      # would be a second declaration of the same fact, unread and free to drift from the real
+      # one.
+      push: ${{ github.event_name == 'push' || inputs.push }}
+      workload-identity-provider: ${{ vars.WIF_PROVIDER }}
+      service-account: ${{ vars.SA_ATTESTOR }}
+      attestor: ${{ vars.ATTESTOR }}
+      attestor-project: ${{ vars.ATTESTOR_PROJECT }}
+      attestor-key: ${{ vars.ATTESTOR_KEY }}
+
+
+  # Model weights as an OCI artifact, mounted by the serving pod as a Kubernetes image volume.
+  # See tools/build/bazel/rules/release.bzl for why a volume rather than an `oras` pull in an
+  # init container: Binary Authorization does not enforce init containers.
+  #
+  # A SYNTHETIC FIXTURE, and its own manifest says so. There are no trained weights in this
+  # repository yet; the distribution and admission machinery is independent of the model and
+  # has to exist before the first real checkpoint does. A real model gets its own job here
+  # with the same shape.
+  #
+  # A DIFFERENT REPOSITORY — `weights`, not `containers`. Weights and container images have
+  # different retention, different size profiles and different readers, and a cleanup policy
+  # written for images must not be able to delete a model.
+  image-weights:
+    if: github.event_name == 'push' || inputs.push
+    uses: mindclade-org/.github/.github/workflows/reusable-oci-build.yml@55b37943ab048f13bee88c2e6acb7284cc0d8e2d  # v1.2.0
+    permissions:
+      contents: read
+      id-token: write
+    with:
+      image: ${{ vars.ARTIFACT_REGISTRY_HOST }}/${{ vars.DEV_PLATFORM_PROJECT_ID }}/weights/mindclade-fixture
+      bazel-image-target: //models/reference/weights_fixture:fixture_image
+      bazel-push-target: //models/reference/weights_fixture:fixture_push
+      builder: bazel
+      # This repository's release configuration, from .bazelrc — chiefly --lockfile_mode=error,
+      # so a MODULE.bazel.lock that no longer matches MODULE.bazel fails the release instead of
+      # being silently regenerated inside it.
+      bazel-args: --config=ci
+      # NO `platforms:` INPUT. That one is buildx's. Under the bazel builder the target platform
+      # is a property of the artifact — goos/goarch on the go_binary and the
+      # @distroless_static_linux_amd64 base, both in //services/go_vanity — so setting it here
+      # would be a second declaration of the same fact, unread and free to drift from the real
+      # one.
+      push: ${{ github.event_name == 'push' || inputs.push }}
+      workload-identity-provider: ${{ vars.WIF_PROVIDER }}
+      service-account: ${{ vars.SA_ATTESTOR }}
+      attestor: ${{ vars.ATTESTOR }}
+      attestor-project: ${{ vars.ATTESTOR_PROJECT }}
+      attestor-key: ${{ vars.ATTESTOR_KEY }}
+
+  # ---------------------------------------------------------------------------------------
+  # SLSA provenance
+  # ---------------------------------------------------------------------------------------
+  # Separate from the cosign signature above, and not redundant with it. The signature says
+  # "this workflow produced these bytes"; the provenance says WHAT WENT IN — the source
+  # revision, the builder, the parameters — and is what makes "was this built from the commit
+  # it claims" answerable months later.
+  provenance:
+    needs: image-go-vanity
+    if: github.event_name == 'push' || inputs.push
+    uses: mindclade-org/.github/.github/workflows/reusable-slsa-provenance.yml@22cd42b4f5c08bcb579aed4b6a0bb8cd4696daa0  # v1.1.0
+    permissions:
+      actions: read
+      id-token: write
+      packages: write
+      contents: write
+    with:
+      image: ${{ vars.ARTIFACT_REGISTRY_HOST }}/${{ vars.DEV_PLATFORM_PROJECT_ID }}/containers/go-vanity
+      digest: ${{ needs.image-go-vanity.outputs.digest }}
+      workload-identity-provider: ${{ vars.WIF_PROVIDER }}
+      service-account: ${{ vars.SA_ATTESTOR }}
+
+  provenance-weights:
+    needs: image-weights
+    if: github.event_name == 'push' || inputs.push
+    uses: mindclade-org/.github/.github/workflows/reusable-slsa-provenance.yml@22cd42b4f5c08bcb579aed4b6a0bb8cd4696daa0  # v1.1.0
+    permissions:
+      actions: read
+      id-token: write
+      packages: write
+      contents: write
+    with:
+      image: ${{ vars.ARTIFACT_REGISTRY_HOST }}/${{ vars.DEV_PLATFORM_PROJECT_ID }}/weights/mindclade-fixture
+      digest: ${{ needs.image-weights.outputs.digest }}
+      workload-identity-provider: ${{ vars.WIF_PROVIDER }}
+      service-account: ${{ vars.SA_ATTESTOR }}
+
+  # A production promotion without a known rollback target is one-way. Verify
+  # both previous digests are signed before publishing the new pins, then
+  # retain a content-addressed record beside the other release evidence.
+  rollback-evidence:
+    needs: [image-go-vanity, image-weights, provenance, provenance-weights]
+    if: github.event_name == 'push' || inputs.push
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: mindclade-org/.github/.github/actions/wif-auth@b72b0d8f9bd854d9f398fea7d78b43e2c2942e04  # b72b0d8
+        with:
+          workload-identity-provider: ${{ vars.WIF_PROVIDER }}
+          service-account: ${{ vars.SA_ATTESTOR }}
+          setup-gcloud: "true"
+
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6  # v4.1.2
+
+      - name: Verify last-known-good signatures and emit rollback evidence
+        env:
+          IMAGE: ${{ vars.ARTIFACT_REGISTRY_HOST }}/${{ vars.DEV_PLATFORM_PROJECT_ID }}/containers/go-vanity
+          NEW_DIGEST: ${{ needs.image-go-vanity.outputs.digest }}
+          ROLLBACK_DIGEST: ${{ inputs.rollback_digest || vars.GO_VANITY_ROLLBACK_DIGEST }}
+          WEIGHTS_IMAGE: ${{ vars.ARTIFACT_REGISTRY_HOST }}/${{ vars.DEV_PLATFORM_PROJECT_ID }}/weights/mindclade-fixture
+          NEW_WEIGHTS_DIGEST: ${{ needs.image-weights.outputs.digest }}
+          WEIGHTS_ROLLBACK_DIGEST: ${{ inputs.weights_rollback_digest || vars.WEIGHTS_ROLLBACK_DIGEST }}
+        run: |
+          set -euo pipefail
+          digest_re='^sha256:[0-9a-f]{64}$'
+          for value in "$NEW_DIGEST" "$ROLLBACK_DIGEST" "$NEW_WEIGHTS_DIGEST" "$WEIGHTS_ROLLBACK_DIGEST"; do
+            if [[ ! "$value" =~ $digest_re ]]; then
+              echo "::error::release and rollback digests must be canonical sha256 values" >&2
+              exit 1
+            fi
+          done
+          if [ "$NEW_DIGEST" = "$ROLLBACK_DIGEST" ] || [ "$NEW_WEIGHTS_DIGEST" = "$WEIGHTS_ROLLBACK_DIGEST" ]; then
+            echo "::error::a rollback target must differ from the candidate digest" >&2
+            exit 1
+          fi
+
+          registry="${IMAGE%%/*}"
+          gcloud auth configure-docker "$registry" --quiet
+          identity='^https://github\.com/mindclade-org/mindclade/\.github/workflows/release\.yml@(refs/tags/v[0-9]+\.[0-9]+\.[0-9]+|refs/heads/main)$'
+          cosign verify \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-identity-regexp "$identity" \
+            "${IMAGE}@${ROLLBACK_DIGEST}"
+          cosign verify \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-identity-regexp "$identity" \
+            "${WEIGHTS_IMAGE}@${WEIGHTS_ROLLBACK_DIGEST}"
+
+          jq -n \
+            --arg schema_version "1" \
+            --arg source_revision "$GITHUB_SHA" \
+            --arg source_ref "$GITHUB_REF" \
+            --arg image "${IMAGE}@${NEW_DIGEST}" \
+            --arg rollback_image "${IMAGE}@${ROLLBACK_DIGEST}" \
+            --arg weights "${WEIGHTS_IMAGE}@${NEW_WEIGHTS_DIGEST}" \
+            --arg rollback_weights "${WEIGHTS_IMAGE}@${WEIGHTS_ROLLBACK_DIGEST}" \
+            --arg run_id "$GITHUB_RUN_ID" \
+            '{schema_version:($schema_version|tonumber),source_revision:$source_revision,source_ref:$source_ref,image:$image,rollback_image:$rollback_image,weights:$weights,rollback_weights:$rollback_weights,workflow_run_id:$run_id,signatures_verified:true}' \
+            > rollback-evidence.json
+
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        with:
+          name: rollback-evidence-${{ needs.image-go-vanity.outputs.digest }}
+          path: rollback-evidence.json
+          retention-days: 90
+
+  # ---------------------------------------------------------------------------------------
+  # The digest, written where a human can act on it
+  # ---------------------------------------------------------------------------------------
+  # gitops pins by digest, and that pin lives in this repository's Kustomize overlays — see
+  # infra/kubernetes/planes/dev/overlays/*/kustomization.yaml. Updating it is a reviewed
+  # commit, not something a pipeline does to itself: an image that can rewrite its own
+  # deployment can deploy itself, which removes the review the digest pin exists to force.
+  #
+  # So this step publishes the exact line to change, and stops.
+  digest:
+    needs: [image-go-vanity, image-weights, provenance, provenance-weights, rollback-evidence]
+    if: always() && needs.image-go-vanity.result == 'success' && (needs.rollback-evidence.result == 'success' || needs.rollback-evidence.result == 'skipped')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Publish the digest to pin
+        env:
+          IMAGE: ${{ vars.ARTIFACT_REGISTRY_HOST }}/${{ vars.DEV_PLATFORM_PROJECT_ID }}/containers/go-vanity
+          DIGEST: ${{ needs.image-go-vanity.outputs.digest }}
+          WEIGHTS_IMAGE: ${{ vars.ARTIFACT_REGISTRY_HOST }}/${{ vars.DEV_PLATFORM_PROJECT_ID }}/weights/mindclade-fixture
+          WEIGHTS_DIGEST: ${{ needs.image-weights.outputs.digest }}
+          WEIGHTS_RESULT: ${{ needs.image-weights.result }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### go-vanity"
+            echo
+            echo '```yaml'
+            echo "# infra/kubernetes/planes/dev/overlays/<env>/kustomization.yaml"
+            echo "images:"
+            echo "  - name: go-vanity"
+            echo "    newName: ${IMAGE}"
+            echo "    digest: ${DIGEST}"
+            echo '```'
+            echo
+            echo "Commit that, then re-render in the gitops repository:"
+            echo
+            echo '```sh'
+            echo "./scripts/render.sh --monorepo ../mindclade"
+            echo '```'
+            echo
+            echo "verify-attestation.yml checks the signature and the BinAuthz attestation on"
+            echo "every digest in rendered/, so a pin that lands before this run finishes fails"
+            echo "that job rather than reaching a cluster."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "${WEIGHTS_RESULT}" = "success" ]; then
+            {
+              echo
+              echo "### mindclade-fixture (weights)"
+              echo
+              echo "Mounted as an IMAGE VOLUME, not pulled by an init container, so the pin"
+              echo "goes in spec.volumes rather than spec.containers:"
+              echo
+              echo '```yaml'
+              echo "volumes:"
+              echo "  - name: weights"
+              echo "    image:"
+              echo "      reference: ${WEIGHTS_IMAGE}@${WEIGHTS_DIGEST}"
+              echo "      pullPolicy: IfNotPresent"
+              echo '```'
+              echo
+              echo "Binary Authorization CANNOT see this reference: it evaluates container"
+              echo "images, and an image volume presents none. The Gatekeeper constraints in"
+              echo "gitops/policy are what enforce the digest pin and the attestations here."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi

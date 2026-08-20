@@ -12,7 +12,7 @@ import (
 	"errors"
 	"testing"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 type stateError string

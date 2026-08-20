@@ -4,4 +4,28 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mindclade-remote-execution-contract
+  namespace: mindclade-system
+data:
+  activationState: blocked
+  protocol: bazel-remote-execution-v2
+  endpoint: unset
+  authentication: workload-identity-or-mtls-required
+  cacheConfidentiality: tenant-isolation-required
+  executionWorkers: disabled
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: block-unqualified-remote-execution
+  namespace: mindclade-system
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: remote-execution
+  policyTypes:
+    - Egress
+    - Ingress

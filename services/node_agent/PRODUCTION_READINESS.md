@@ -1,14 +1,13 @@
 # Node agent production readiness
 
-**Current status:** not promoted. The archive contains a target-state service
-scaffold and boundary documentation, not a qualified service binary.
+**Current status:** implemented core, not promoted or production-qualified.
 
 ## Required implementation evidence
 
-- [ ] All source modules contain real behavior rather than scaffold constants.
+- [x] Source modules contain real bounded behavior rather than scaffold tests/constants.
 - [ ] Protocol compatibility and cross-language golden vectors pass.
-- [ ] Every queue/task/process/resource allocation is bounded and owned.
-- [ ] Liveness, readiness, drain, cancellation, deadline, and shutdown tests pass.
+- [x] Local queue/cache/process/output/resource allocations have explicit bounds and ownership.
+- [x] Local liveness, drain, cancellation, deadline, process reaping, and shutdown tests pass on pinned Rust 1.97.1.
 - [ ] Fencing, replay, stale authority, and revocation behavior pass fault tests.
 - [ ] Security and tenant-isolation review is complete.
 - [ ] Performance, peak-memory, file-descriptor, queue, and recovery budgets pass.
@@ -19,8 +18,8 @@ scaffold and boundary documentation, not a qualified service binary.
 
 | Evidence | Status | Location |
 |---|---|---|
-| Unit/component tests | missing | — |
-| Integration/failure tests | missing | — |
+| Unit/component tests | passing locally | `tests/` |
+| Integration/failure tests | local deterministic cases pass; connected injection pending | `tests/` |
 | Performance qualification | missing | — |
 | Security review | missing | — |
 | Build/provenance/SBOM | missing | — |

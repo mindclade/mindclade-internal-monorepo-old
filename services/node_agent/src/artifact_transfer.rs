@@ -9,7 +9,7 @@ use mindclade_artifact_cas::ArtifactCas;
 use mindclade_content_digest::Digest;
 use mindclade_faults::FaultResult;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ArtifactTransfer {
     cas: ArtifactCas,
 }

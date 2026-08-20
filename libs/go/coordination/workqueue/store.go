@@ -7,7 +7,7 @@ package workqueue
 
 import (
 	"context"
-	"mindclade.internal/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/identifiers"
 	"time"
 )
 

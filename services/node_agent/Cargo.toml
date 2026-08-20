@@ -33,6 +33,7 @@ mindclade_identifiers = { path = "../../libs/rust/identifiers" }
 mindclade_ipc_os = { path = "../../libs/rust/ipc_os" }
 mindclade_manifests = { path = "../../libs/rust/manifests" }
 mindclade_object_store = { path = "../../libs/rust/object_store" }
+mindclade_process_os = { path = "../../libs/rust/process_os" }
 mindclade_runtime_core = { path = "../../libs/rust/runtime_core" }
 mindclade_servicekit = { path = "../../libs/rust/servicekit" }
 mindclade_telemetry = { path = "../../libs/rust/telemetry" }

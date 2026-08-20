@@ -9,7 +9,7 @@ import (
 	"strings"
 	"unicode"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 const MaximumKeyLength = 256

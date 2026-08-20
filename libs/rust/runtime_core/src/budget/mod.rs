@@ -95,6 +95,7 @@ impl Budget {
         name: impl Into<Arc<str>>,
         limits: ResourceVector,
     ) -> Arc<Self> {
+        let parent_children = parent.children.clone();
         let child = Arc::new(Self {
             name: name.into(),
             state: Arc::new(Mutex::new(State {
@@ -103,11 +104,10 @@ impl Budget {
                 corrupted: false,
                 rejections: 0,
             })),
-            parent: Some(parent.clone()),
+            parent: Some(parent),
             children: Arc::new(Mutex::new(Vec::new())),
         });
-        parent
-            .children
+        parent_children
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .push(Arc::downgrade(&child));
@@ -241,7 +241,6 @@ pub mod account;
 pub mod allocation;
 pub mod hierarchy;
 pub mod limits;
-pub mod reservation;
 pub mod snapshot;
 pub mod tracker;
 

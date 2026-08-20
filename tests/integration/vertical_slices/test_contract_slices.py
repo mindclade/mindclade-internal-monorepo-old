@@ -72,3 +72,37 @@ def test_training_to_release_slice() -> None:
     assert_contains("training/checkpointing/manager.py", "checkpoint")
     assert_contains("evaluation/harness/runner.py", "evaluation")
     assert_contains("control/registry/releases/model.go", "EvidenceGraph", "EvidenceRuntimeBundle")
+
+
+def test_inference_model_descriptor_slice() -> None:
+    """model.proto is consumed in all three languages, not just declared.
+
+    Go seals the descriptor, Rust admits requests against the classes it
+    declares, and Python verifies the seal before serving. Losing any one of
+    those makes the contract decorative.
+    """
+    assert_contains(
+        "protocols/proto/mindclade/inference/v1/model.proto",
+        "ModelDescriptor",
+        "CompatibilityClass",
+        "ModelResourceEnvelope",
+        "descriptor_digest",
+    )
+    assert_contains(
+        "protocols/rust/src/inference/v1.rs",
+        "ModelDescriptor",
+        "AdmissionRequest",
+        "fn admit",
+    )
+    assert_contains(
+        "control/registry/models/validation.go",
+        "inference-model-descriptor/v1",
+        "CanonicalBytes",
+        "SealDigest",
+    )
+    assert_contains(
+        "serving/contracts/model_descriptor.py",
+        "CANONICAL_DOCUMENT_TYPE",
+        "verify_digest",
+        "validate_batch_against_descriptor",
+    )

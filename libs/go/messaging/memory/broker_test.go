@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"mindclade.internal/libs/go/messaging"
-	"mindclade.internal/libs/go/messaging/memory"
-	"mindclade.internal/libs/go/messaging/messagingtest"
+	"go.mindclade.dev/libs/go/messaging"
+	"go.mindclade.dev/libs/go/messaging/memory"
+	"go.mindclade.dev/libs/go/messaging/messagingtest"
 )
 
 func TestBrokerRedeliversNackedMessage(t *testing.T) {

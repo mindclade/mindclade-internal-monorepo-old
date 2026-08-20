@@ -16,8 +16,8 @@ import (
 
 	redisapi "github.com/redis/go-redis/v9"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/storage/cache"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/storage/cache"
 )
 
 type Store struct {

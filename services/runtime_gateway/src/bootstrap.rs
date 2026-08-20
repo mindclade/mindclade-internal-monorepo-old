@@ -8,15 +8,18 @@
 //! The binary accepts only immutable signed policy artifacts and bounded local
 //! configuration. Global policy remains owned by the Go control plane.
 
+use crate::grpc;
 use crate::{
-    GatewayAuthority, GatewayConfig, GatewayCore, GatewayHealth,
+    GatewayAuthority, GatewayComponent, GatewayConfig, GatewayCore, GatewayHealth,
     network::{self, GatewayNetworkState},
     protocol,
 };
 use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_protocols::runtime::v1 as wire;
+use mindclade_servicekit::{Service, signals};
 use mindclade_worker_protocol::Ed25519VerificationKey;
 use prost::Message;
+use std::io::Read;
 use std::{env, fs, net::SocketAddr, path::PathBuf, sync::Arc, time::UNIX_EPOCH};
 use tokio::sync::watch;
 
@@ -25,6 +28,7 @@ const MAX_POLICY_FILE_BYTES: u64 = 16 * 1024 * 1024;
 #[derive(Clone, Debug)]
 pub struct BootstrapConfig {
     pub listen_address: SocketAddr,
+    pub grpc_listen_address: SocketAddr,
     pub key_id: String,
     pub public_key: [u8; 32],
     pub key_not_before_unix_millis: u64,
@@ -41,6 +45,17 @@ impl BootstrapConfig {
             .map_err(|error| {
                 Fault::invalid_argument("runtime gateway address is invalid").with_source(error)
             })?;
+        let grpc_listen_address = required("MINDCLADE_RUNTIME_GATEWAY_GRPC_ADDR")?
+            .parse::<SocketAddr>()
+            .map_err(|error| {
+                Fault::invalid_argument("runtime gateway gRPC address is invalid")
+                    .with_source(error)
+            })?;
+        if grpc_listen_address == listen_address {
+            return Err(Fault::invalid_argument(
+                "runtime gateway HTTP and gRPC addresses must differ",
+            ));
+        }
         let key_id = required("MINDCLADE_RUNTIME_KEY_ID")?;
         if key_id.len() > 256 {
             return Err(Fault::invalid_argument("runtime key id exceeds bound"));
@@ -55,10 +70,20 @@ impl BootstrapConfig {
         }
         let route_snapshot_path = absolute_path("MINDCLADE_RUNTIME_ROUTE_SNAPSHOT_FILE")?;
         let revocation_snapshot_path = absolute_path("MINDCLADE_RUNTIME_REVOCATION_SNAPSHOT_FILE")?;
-        let gateway = GatewayConfig::default();
+        let pod_memory_limit_bytes = parse_u64("MINDCLADE_POD_MEMORY_LIMIT_BYTES")?;
+        let mut gateway = GatewayConfig::default().with_memory_limit(pod_memory_limit_bytes)?;
+        if let Some(value) = optional_u64("MINDCLADE_RUNTIME_GATEWAY_REQUEST_BYTES")? {
+            gateway.request_buffer_budget_bytes = value;
+        }
+        if let Some(value) = optional_u64("MINDCLADE_RUNTIME_GATEWAY_RESPONSE_BYTES")? {
+            gateway.response_buffer_budget_bytes = value;
+        }
+        gateway.execution_enabled =
+            optional_bool("MINDCLADE_RUNTIME_EXECUTION_ENABLED")?.unwrap_or(false);
         gateway.validate()?;
         Ok(Self {
             listen_address,
+            grpc_listen_address,
             key_id,
             public_key,
             key_not_before_unix_millis,
@@ -92,37 +117,66 @@ pub async fn run(config: BootstrapConfig) -> FaultResult<()> {
     authority.install_route(route, now)?;
 
     let health = Arc::new(GatewayHealth::new());
+    let listen_address = config.listen_address;
+    let grpc_listen_address = config.grpc_listen_address;
+    let request_buffer_budget_bytes = config.gateway.request_buffer_budget_bytes;
+    let response_buffer_budget_bytes = config.gateway.response_buffer_budget_bytes;
+    let execution_enabled = config.gateway.execution_enabled;
     let core = Arc::new(GatewayCore::new(
         config.gateway,
         authority.policy(),
         health.clone(),
     )?);
-    health.set_policy_fresh(true);
-    health.set_accepting(true);
+
+    // servicekit owns start order, drain, and stop. Readiness is asserted by
+    // the component's start hook rather than inline here, so the process cannot
+    // advertise itself as accepting before the lifecycle says it started.
+    let mut service = Service::new();
+    service.register(Box::new(GatewayComponent::new(
+        core.clone(),
+        health.clone(),
+    )))?;
+    service.start()?;
 
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
     let signal = tokio::spawn(async move {
-        if tokio::signal::ctrl_c().await.is_ok() {
-            let _ = shutdown_tx.send(true);
-        }
+        signals::termination_requested().await;
+        let _ = shutdown_tx.send(true);
     });
-    let result = network::serve(
-        config.listen_address,
-        GatewayNetworkState::new(core.clone()),
-        shutdown_rx,
+    let state = GatewayNetworkState::new(
+        core.clone(),
+        request_buffer_budget_bytes,
+        response_buffer_budget_bytes,
+        execution_enabled,
+    )?;
+    let network_state = state.clone();
+    let network_shutdown = shutdown_rx.clone();
+    let result = tokio::try_join!(
+        async move {
+            network::serve(listen_address, network_state, network_shutdown)
+                .await
+                .map_err(|error| {
+                    Fault::new(Code::Unavailable, "runtime gateway network server failed")
+                        .with_source(error)
+                })
+        },
+        grpc::serve(grpc_listen_address, state, shutdown_rx),
     )
-    .await
-    .map_err(|error| {
-        Fault::new(Code::Unavailable, "runtime gateway network server failed").with_source(error)
-    });
-    core.begin_drain();
+    .map(|_| ());
     signal.abort();
-    result
+
+    // Drain and stop run in reverse registration order here. The serve error, if
+    // any, outranks a shutdown fault: it is the reason the process is ending.
+    let shutdown = service.stop();
+    result.and(shutdown)
 }
 
 fn read_message<M: Message + Default>(path: &PathBuf) -> FaultResult<M> {
-    let metadata = fs::metadata(path).map_err(|error| {
+    let file = fs::File::open(path).map_err(|error| {
         Fault::new(Code::NotFound, "runtime policy file is unavailable").with_source(error)
+    })?;
+    let metadata = file.metadata().map_err(|error| {
+        Fault::new(Code::Unavailable, "runtime policy file inspection failed").with_source(error)
     })?;
     if !metadata.is_file() || metadata.len() == 0 || metadata.len() > MAX_POLICY_FILE_BYTES {
         return Err(Fault::new(
@@ -130,9 +184,26 @@ fn read_message<M: Message + Default>(path: &PathBuf) -> FaultResult<M> {
             "runtime policy file size is invalid",
         ));
     }
-    let bytes = fs::read(path).map_err(|error| {
-        Fault::new(Code::Unavailable, "runtime policy file read failed").with_source(error)
+    let capacity = usize::try_from(metadata.len()).map_err(|_| {
+        Fault::new(
+            Code::ResourceExhausted,
+            "runtime policy file exceeds platform limits",
+        )
     })?;
+    let mut bytes = Vec::with_capacity(capacity);
+    file.take(MAX_POLICY_FILE_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| {
+            Fault::new(Code::Unavailable, "runtime policy file read failed").with_source(error)
+        })?;
+    if bytes.is_empty()
+        || u64::try_from(bytes.len()).map_or(true, |length| length > MAX_POLICY_FILE_BYTES)
+    {
+        return Err(Fault::new(
+            Code::ResourceExhausted,
+            "runtime policy file changed beyond its size bound while reading",
+        ));
+    }
     M::decode(bytes.as_slice()).map_err(|error| {
         Fault::invalid_argument("runtime policy protobuf is invalid").with_source(error)
     })
@@ -161,6 +232,41 @@ fn parse_u64(name: &'static str) -> FaultResult<u64> {
             .with_context("variable", name)
             .with_source(error)
     })
+}
+
+fn optional_u64(name: &'static str) -> FaultResult<Option<u64>> {
+    match env::var(name) {
+        Ok(value) => value.parse::<u64>().map(Some).map_err(|error| {
+            Fault::invalid_argument("runtime integer environment value is invalid")
+                .with_context("variable", name)
+                .with_source(error)
+        }),
+        Err(env::VarError::NotPresent) => Ok(None),
+        Err(error) => Err(Fault::invalid_argument(
+            "runtime environment value is not valid Unicode",
+        )
+        .with_context("variable", name)
+        .with_source(error)),
+    }
+}
+
+fn optional_bool(name: &'static str) -> FaultResult<Option<bool>> {
+    match env::var(name) {
+        Ok(value) => match value.as_str() {
+            "true" | "1" => Ok(Some(true)),
+            "false" | "0" => Ok(Some(false)),
+            _ => Err(
+                Fault::invalid_argument("runtime boolean environment value is invalid")
+                    .with_context("variable", name),
+            ),
+        },
+        Err(env::VarError::NotPresent) => Ok(None),
+        Err(error) => Err(Fault::invalid_argument(
+            "runtime environment value is not valid Unicode",
+        )
+        .with_context("variable", name)
+        .with_source(error)),
+    }
 }
 
 fn absolute_path(name: &'static str) -> FaultResult<PathBuf> {

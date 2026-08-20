@@ -55,7 +55,24 @@ HEADER_FILE = REPO_ROOT / "license-header.txt"
 
 # Extension to comment token. The canonical header on disk is written with `#`; the `//`
 # variant is derived from it so the two can never drift apart in wording.
-HASH_SUFFIXES = frozenset({".py", ".pyi", ".yaml", ".yml", ".toml", ".sh", ".bash", ".nix", ".bzl"})
+HASH_SUFFIXES = frozenset(
+    {
+        ".py",
+        ".pyi",
+        ".yaml",
+        ".yml",
+        ".toml",
+        ".sh",
+        ".bash",
+        ".nix",
+        ".bzl",
+        # Terraform and Terragrunt. Every infrastructure repository in the estate enforces the
+        # header on these; this tool omitted them, so 96 of the monorepo's 100 .tf files carried
+        # no header at all while the same files in bootstrap or github-config would fail CI.
+        ".tf",
+        ".hcl",
+    }
+)
 SLASH_SUFFIXES = frozenset({".go", ".rs", ".ts", ".tsx", ".proto"})
 
 # Bazel files carry no suffix that identifies them.
@@ -74,9 +91,14 @@ SKIP_DIR_PARTS = frozenset(
         ".ruff_cache",
         ".pytest_cache",
         ".mypy_cache",
+        "vendor",
     }
 )
-SKIP_NAMES = frozenset({"MODULE.bazel.lock"})
+# Generated lockfiles. `.terraform.lock.hcl` matches .hcl above but is written by
+# `terraform init` and rewritten wholesale on every provider change, so a header in it is
+# removed the next time anyone runs init. The infra repos' bash checker excludes it for the
+# same reason.
+SKIP_NAMES = frozenset({"MODULE.bazel.lock", ".terraform.lock.hcl", "argocd.lock.yaml"})
 
 
 def header_lines(token: str) -> list[str]:
@@ -89,7 +111,7 @@ def header_lines(token: str) -> list[str]:
 
 
 def comment_token(path: Path) -> str | None:
-    if path.name in SKIP_NAMES:
+    if path.name in SKIP_NAMES or path.name.endswith((".lock.hcl", ".lock.yaml")):
         return None
     if path.name in HASH_NAMES:
         return "#"

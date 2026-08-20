@@ -8,7 +8,7 @@ package migrate
 import (
 	"sort"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // Manifest validates and owns a deterministic migration sequence.

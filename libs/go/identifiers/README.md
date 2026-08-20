@@ -1,6 +1,6 @@
 # Mindclade Go Identifiers
 
-`mindclade.internal/libs/go/identifiers` provides the foundational identifier
+`go.mindclade.dev/libs/go/identifiers` provides the foundational identifier
 and content-digest types used across Mindclade Go code.
 
 It has no Mindclade-package or third-party dependencies.
