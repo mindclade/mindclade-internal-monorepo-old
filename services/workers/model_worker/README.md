@@ -1,7 +1,7 @@
 # Model worker
 
 **Language:** Python/PyTorch  
-**Status:** implemented adapter core; model-engine and hardware qualification remain separate.
+**Status:** executable reference adapter implemented; scientific model and GPU qualification remain separate.
 
 ## Role
 
@@ -11,7 +11,7 @@ process, and transports bounded control/bulk descriptors. Python remains the
 final authority for tensor compatibility, batch construction, model loading,
 sampling/diffusion/confidence, and GPU execution.
 
-## Implemented adapter core
+## Implemented adapter
 
 `executor.py` provides a bounded `ModelWorker` that:
 
@@ -24,9 +24,29 @@ sampling/diffusion/confidence, and GPU execution.
 - rejects new work while draining.
 
 `config.py` and `lifecycle.py` provide bounded configuration and explicit
-startup/readiness/drain/stop semantics. Package-local tests use deterministic
-fake planner/engine implementations to prove the adapter contract without
-pretending a scientific model is implemented.
+startup/readiness/drain/stop semantics. `ipc.py` is the production process
+boundary: it accepts only 1 MiB length-prefixed canonical runtime protobufs on
+a permission-restricted Unix socket, bounds pending and executing requests,
+checks monotonic command sequences, propagates deadlines/cancellation, and
+does not acknowledge cancellation until the execution thread has stopped.
+
+`serving/model_worker/reference.py` supplies the real PyTorch execution path
+used for integration and qualification. It verifies the canonical model-bundle
+manifest and every member digest, loads only safetensors, validates and hashes
+the admitted input range before creating a tensor, executes the deterministic
+`reference.affine.v1` operation, and atomically publishes a read-only output.
+This proves Rust-to-Python execution without representing the affine fixture as
+a scientific production model.
+
+The process is launched with exactly two environment variables:
+
+- `MINDCLADE_MODEL_WORKER_CONFIG`: absolute path to the versioned JSON config;
+- `MINDCLADE_MODEL_WORKER_SOCKET`: absolute path to the worker Unix socket.
+
+Schema version 1 requires immutable bundle identity/root, output and allowed
+input roots, `cpu` or `cuda`, pending/concurrent/input/output limits, I/O and
+cancellation bounds, and reference chunk/iteration bounds. Unknown, missing,
+relative, symlinked, or out-of-range configuration fails startup.
 
 ## Does not own
 
@@ -40,7 +60,9 @@ Those remain in Go control policy, Rust runtime/node services, `preprocessing/`,
 
 ## Production promotion
 
-Production use additionally requires a qualified model engine, generated/runtime
-protocol adapter, real GPU-memory calibration, cancellation/deadline propagation,
-Rust-host IPC integration, numerical qualification, and Bazel/Nix image/release
-evidence. See `PRODUCTION_READINESS.md`.
+The generated Python protobufs have Rust golden-wire parity, and the Bazel
+`//services/runtime_host:execution_transport` test supervises the executable
+worker through admission, UDS execution, and verified output. Production use
+still requires a qualified scientific model engine, real GPU-memory
+calibration, numerical qualification, and Bazel/Nix image/release evidence.
+See `PRODUCTION_READINESS.md`.

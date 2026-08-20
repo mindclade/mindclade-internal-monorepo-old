@@ -120,7 +120,19 @@ rust_test(
 rust_test(
     name = "execution_transport",
     srcs = ["tests/execution_transport.rs"],
+    data = [
+        "//models/reference/affine_worker:bundle/config.json",
+        "//models/reference/affine_worker:bundle/manifest.json",
+        "//models/reference/affine_worker:bundle/model.safetensors",
+        "//services/workers/model_worker:model_worker_bin",
+    ],
     edition = "2024",
+    env = {
+        "MINDCLADE_TEST_MODEL_CONFIG": "$(rootpath //models/reference/affine_worker:bundle/config.json)",
+        "MINDCLADE_TEST_MODEL_MANIFEST": "$(rootpath //models/reference/affine_worker:bundle/manifest.json)",
+        "MINDCLADE_TEST_MODEL_WEIGHTS": "$(rootpath //models/reference/affine_worker:bundle/model.safetensors)",
+        "MINDCLADE_TEST_MODEL_WORKER": "$(rootpath //services/workers/model_worker:model_worker_bin)",
+    },
     deps = [
         ":mindclade_runtime_host",
         "//libs/rust/content_digest:mindclade_content_digest",

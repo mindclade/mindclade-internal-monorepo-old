@@ -28,6 +28,15 @@ worker identities and fencing tokens, and fails closed by terminating an
 unresponsive or protocol-invalid worker. Integration, IPC, process-tree, and
 shutdown tests cover these contracts.
 
+An optional preloaded worker is enabled only when the complete launch contract
+is present: `MINDCLADE_RUNTIME_MODEL_BUNDLE_DIGEST`,
+`MINDCLADE_RUNTIME_MODEL_WORKER_EXECUTABLE`,
+`MINDCLADE_RUNTIME_MODEL_WORKER_SOCKET`, and
+`MINDCLADE_RUNTIME_MODEL_WORKER_CONFIG`. The host validates the bounded,
+absolute paths and starts the process with a cleared environment containing
+only the worker-facing socket and config variables. Partial configuration is a
+bootstrap error.
+
 ## Owns
 
 - worker process lifecycle and restart policy;

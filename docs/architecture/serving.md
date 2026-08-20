@@ -46,6 +46,14 @@ reports capabilities and memory estimates, accepts batch plans, executes,
 emits progress/status sequence numbers, stages artifacts, and supports bounded
 cancel/drain. It does not own global routing or durable job state.
 
+The checked-in `reference-affine-v1` safetensors bundle and Python engine are a
+real cross-language contract probe, not a scientific model. Bazel exercises a
+Rust runtime-host process supervising the Python worker, forwarding a signed
+ticket and bounded file descriptor, and validating the terminal output. This
+keeps the transport, cancellation, and safe-loading path executable while
+production model promotion remains gated on model-specific numerical and GPU
+qualification.
+
 ## Servable model descriptor
 
 `mindclade.inference.v1.ModelDescriptor` is the published catalog state for one

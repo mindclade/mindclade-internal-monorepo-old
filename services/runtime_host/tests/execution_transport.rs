@@ -9,15 +9,15 @@ use mindclade_faults::FaultResult;
 use mindclade_gpu_host::DeviceCapability;
 use mindclade_protocols::runtime::v1::worker_control_client::WorkerControlClient;
 use mindclade_protocols::runtime::v1::{
-    ArtifactGrant, CancelCommand, DetachedSignature as WireSignature, ExecutionBudget,
-    ExecutionTicket, ExecutionTicketClaims, StartCommand, WorkerCommand, WorkerState, WorkerStatus,
-    worker_command,
+    AccessMode, ArtifactGrant, BufferDescriptor, CancelCommand, DetachedSignature as WireSignature,
+    ExecutionBudget, ExecutionTicket, ExecutionTicketClaims, StartCommand, Transport,
+    WorkerCommand, WorkerState, WorkerStatus, worker_command,
 };
 use mindclade_runtime_core::{ResourceKind, ResourceVector};
 use mindclade_runtime_host::grpc::{WorkerControlService, serve_unix};
 use mindclade_runtime_host::{
     HostAuthority, HostConfig, HostCore, HostHealth, ModelSpec, ProcessHandle, ProcessLauncher,
-    ProcessSpec,
+    ProcessSpec, StdProcessLauncher,
 };
 use mindclade_worker_protocol::{
     DetachedSignature, RevocationSnapshot, RevocationSnapshotClaims, SignatureVerifier,
@@ -26,6 +26,7 @@ use prost::Message;
 use std::collections::{BTreeMap, BTreeSet};
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -256,7 +257,7 @@ fn host_with_model(control_socket: PathBuf, model_digest: Digest, name: &str) ->
 }
 
 async fn wait_for_socket(path: &Path) {
-    tokio::time::timeout(Duration::from_secs(2), async {
+    tokio::time::timeout(Duration::from_secs(15), async {
         while !path.exists() {
             tokio::task::yield_now().await;
         }
@@ -457,4 +458,218 @@ async fn grpc_cancellation_is_forwarded_and_waits_for_worker_acknowledgement() {
     shutdown_tx.send(true).expect("shutdown");
     server.await.expect("server task").expect("server shutdown");
     let _ = std::fs::remove_file(worker_socket);
+}
+
+fn required_bazel_data(name: &str) -> Option<PathBuf> {
+    let relative = std::env::var(name).ok()?;
+    Some(
+        std::env::current_dir()
+            .expect("test working directory")
+            .join(relative),
+    )
+}
+
+fn bundle_digest(manifest: &str) -> String {
+    let marker = "\"digest\": \"";
+    let start = manifest.find(marker).expect("manifest digest") + marker.len();
+    let end = manifest[start..].find('"').expect("manifest digest end") + start;
+    manifest[start..end].to_owned()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn rust_host_executes_the_real_python_reference_worker() {
+    let Some(worker_executable) = required_bazel_data("MINDCLADE_TEST_MODEL_WORKER") else {
+        eprintln!("Bazel-only Python worker integration test skipped under Cargo");
+        return;
+    };
+    let manifest_source =
+        required_bazel_data("MINDCLADE_TEST_MODEL_MANIFEST").expect("Bazel model manifest path");
+    let config_source =
+        required_bazel_data("MINDCLADE_TEST_MODEL_CONFIG").expect("Bazel model config path");
+    let weights_source =
+        required_bazel_data("MINDCLADE_TEST_MODEL_WEIGHTS").expect("Bazel model weights path");
+
+    let test_root = std::fs::canonicalize("/tmp")
+        .expect("canonical temporary root")
+        .join(format!(
+            "mc-python-worker-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos(),
+        ));
+    let bundle_root = test_root.join("bundle");
+    let input_root = test_root.join("inputs");
+    let output_root = test_root.join("outputs");
+    for directory in [&test_root, &bundle_root, &input_root, &output_root] {
+        std::fs::create_dir(directory).expect("test directory");
+        std::fs::set_permissions(directory, std::fs::Permissions::from_mode(0o700))
+            .expect("test directory permissions");
+    }
+    std::fs::copy(&manifest_source, bundle_root.join("manifest.json")).expect("copy manifest");
+    std::fs::copy(&config_source, bundle_root.join("config.json")).expect("copy model config");
+    std::fs::copy(&weights_source, bundle_root.join("model.safetensors")).expect("copy weights");
+    let manifest = std::fs::read_to_string(bundle_root.join("manifest.json")).expect("manifest");
+    let model_text = bundle_digest(&manifest);
+    let model = Digest::from_str(&model_text).expect("model digest");
+
+    let worker_socket = test_root.join("worker.sock");
+    let worker_config = test_root.join("worker.json");
+    std::fs::write(
+        &worker_config,
+        format!(
+            concat!(
+                "{{",
+                "\"schema_version\":1,",
+                "\"model_bundle_root\":\"{}\",",
+                "\"model_bundle_digest\":\"{}\",",
+                "\"output_root\":\"{}\",",
+                "\"allowed_input_roots\":[\"{}\"],",
+                "\"device\":\"cpu\",",
+                "\"maximum_pending_requests\":8,",
+                "\"maximum_concurrent_executions\":2,",
+                "\"maximum_input_bytes\":1048576,",
+                "\"maximum_output_bytes\":1048576,",
+                "\"io_timeout_millis\":5000,",
+                "\"cancellation_grace_millis\":2000,",
+                "\"reference_chunk_elements\":64,",
+                "\"reference_iterations\":1",
+                "}}"
+            ),
+            bundle_root.display(),
+            model_text,
+            output_root.display(),
+            input_root.display(),
+        ),
+    )
+    .expect("worker config");
+
+    let input_bytes = [1.0_f32.to_le_bytes(), (-1.0_f32).to_le_bytes()].concat();
+    let input_path = input_root.join("request.f32");
+    std::fs::write(&input_path, &input_bytes).expect("input data");
+    let worker_name = format!("python-model-worker-{}", std::process::id());
+    let host = Arc::new(
+        HostCore::new(
+            host_config(),
+            DeviceCapability {
+                vendor: "test".to_owned(),
+                architecture: "test".to_owned(),
+                total_memory_bytes: 1024 * 1024 * 1024,
+            },
+            Arc::new(StdProcessLauncher::default()),
+            Arc::new(HostHealth::new()),
+        )
+        .expect("host"),
+    );
+    host.models()
+        .load(ModelSpec {
+            model_digest: model,
+            minimum_gpu_memory_bytes: 1024,
+            pinned_memory_bytes: 0,
+            control_socket: worker_socket.clone(),
+            process: ProcessSpec {
+                name: worker_name,
+                executable: worker_executable.to_string_lossy().into_owned(),
+                arguments: Vec::new(),
+                environment: BTreeMap::from([
+                    (
+                        "MINDCLADE_MODEL_WORKER_CONFIG".to_owned(),
+                        worker_config.to_string_lossy().into_owned(),
+                    ),
+                    (
+                        "MINDCLADE_MODEL_WORKER_SOCKET".to_owned(),
+                        worker_socket.to_string_lossy().into_owned(),
+                    ),
+                ]),
+            },
+        })
+        .expect("load Python model worker");
+    wait_for_socket(&worker_socket).await;
+    host.resume_admission();
+
+    let now = now_millis();
+    let authority = Arc::new(
+        HostAuthority::with_verifier(Arc::new(AcceptAll), revocations(now), now)
+            .expect("authority"),
+    );
+    let host_socket = test_root.join("host.sock");
+    let (shutdown_tx, shutdown_rx) = watch::channel(false);
+    let server_path = host_socket.clone();
+    let service_host = host.clone();
+    let server = tokio::spawn(async move {
+        serve_unix(
+            server_path,
+            WorkerControlService::new(service_host, authority),
+            shutdown_rx,
+        )
+        .await
+    });
+    wait_for_socket(&host_socket).await;
+
+    let mut worker_ticket = ticket(now, &model_text);
+    let claims = worker_ticket.claims.as_mut().expect("claims");
+    claims
+        .artifacts
+        .as_mut()
+        .expect("artifacts")
+        .maximum_read_bytes = u64::try_from(input_bytes.len()).expect("input length");
+    claims.budget.as_mut().expect("budget").maximum_output_bytes =
+        u64::try_from(input_bytes.len()).expect("output length");
+    let descriptor = BufferDescriptor {
+        segment_id: "reference-input".to_owned(),
+        generation: 1,
+        offset_bytes: 0,
+        length_bytes: u64::try_from(input_bytes.len()).expect("input length"),
+        element_type: "f32".to_owned(),
+        shape: vec![2],
+        content_digest: hash_bytes(&input_bytes).to_string(),
+        owner_process: "runtime-host-test".to_owned(),
+        lease_expires_unix_millis: now + 20_000,
+        access_mode: AccessMode::ReadOnly as i32,
+        transport: Transport::LocalFile as i32,
+        locator: input_path.to_string_lossy().into_owned(),
+    };
+    let mut client = connect_client(&host_socket).await;
+    let (commands_tx, commands_rx) = mpsc::channel(4);
+    commands_tx
+        .send(WorkerCommand {
+            sequence: 1,
+            command: Some(worker_command::Command::Start(StartCommand {
+                ticket: Some(worker_ticket),
+                inputs: vec![descriptor],
+                operation: "reference.affine.v1".to_owned(),
+            })),
+        })
+        .await
+        .expect("start command");
+    let mut statuses = client
+        .execute(ReceiverStream::new(commands_rx))
+        .await
+        .expect("execute")
+        .into_inner();
+    let mut completed = None;
+    while let Some(status) = tokio::time::timeout(Duration::from_secs(10), statuses.message())
+        .await
+        .expect("Python worker status deadline")
+        .expect("status stream")
+    {
+        if status.state == WorkerState::Completed as i32 {
+            completed = Some(status);
+            break;
+        }
+    }
+    let completed = completed.expect("completed Python worker status");
+    assert_eq!(completed.outputs.len(), 1);
+    let output = std::fs::read(&completed.outputs[0].locator).expect("worker output");
+    assert_eq!(
+        output,
+        [2.5_f32.to_le_bytes(), (-1.5_f32).to_le_bytes()].concat()
+    );
+
+    drop(commands_tx);
+    shutdown_tx.send(true).expect("shutdown");
+    server.await.expect("server task").expect("server shutdown");
+    host.models().unload(&model).expect("unload model worker");
+    std::fs::remove_dir_all(&test_root).expect("remove isolated test root");
 }
