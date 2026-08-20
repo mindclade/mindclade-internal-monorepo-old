@@ -1,0 +1,14 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+misconfigurations:
+  - id: GCP-0078
+    statement: >-
+      Owner: Cloud Platform + Security. Reason: Trivy 0.74.0's embedded check reports an
+      unversioned bucket for the bazel_remote_execution module even though it creates only
+      bucket IAM grants; the separately owned bazel_remote_cache module pins versioning on.
+      Review with the annual build-platform threat model and remove when the embedded check
+      distinguishes IAM resources from buckets.
+    expired_at: 2027-08-20

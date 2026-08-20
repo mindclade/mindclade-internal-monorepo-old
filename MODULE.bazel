@@ -189,7 +189,8 @@ python.toolchain(
 # Third-party wheels, resolved from the SAME uv lock that `uv sync` and the Python CI lane
 # use. requirements.lock.txt is generated, never hand-edited:
 #
-#     uv lock && uv export --format requirements-txt --no-emit-project -o requirements.lock.txt
+#     uv lock && uv export --format requirements-txt --no-emit-project --emit-index-url \
+#       -o requirements.lock.txt
 #
 # uv.lock is the source of truth; rules_python cannot read it, so the export is the bridge.
 # Two resolvers over one lock is the point — Bazel and uv install the same versions, and the

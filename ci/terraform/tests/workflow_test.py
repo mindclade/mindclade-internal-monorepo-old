@@ -12,7 +12,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[3]
 PRESUBMIT = (ROOT / ".github/workflows/presubmit.yml").read_text(encoding="utf-8")
 SECURITY = (ROOT / ".github/workflows/security.yml").read_text(encoding="utf-8")
 CACHE_SHA = "55cc8345863c7cc4c66a329aec7e433d2d1c52a9"
-REUSABLE_SHA = "22cd42b4f5c08bcb579aed4b6a0bb8cd4696daa0"
+REUSABLE_SHA = "7e4b7a873fc9312c2985ed262b251455c71756fe"
 
 
 for job in ("architecture", "lint", "terraform"):
@@ -50,6 +50,9 @@ for workflow in (
 ):
     assert f"{workflow}@{REUSABLE_SHA}" in PRESUBMIT
 assert f"reusable-codeql.yml@{REUSABLE_SHA}" in SECURITY
+assert "mindclade-org/.github" not in PRESUBMIT
+assert "mindclade-org/.github" not in SECURITY
+assert "build-mode: autobuild" in SECURITY
 assert "@v1.1.0" not in PRESUBMIT
 assert "@v1.1.0" not in SECURITY
 

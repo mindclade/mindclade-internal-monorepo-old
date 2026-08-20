@@ -22,6 +22,10 @@ on:
     - cron: "17 4 * * 1"
 
 permissions:
+  # The reusable CodeQL workflow needs Actions metadata to report its analysis run. Reusable
+  # workflows may only retain or reduce caller permissions, so omitting this prevents the
+  # entire workflow from starting rather than merely failing the CodeQL job.
+  actions: read
   contents: read
   security-events: write
 
@@ -39,7 +43,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: actions/setup-python@a1753b4e69a5e676e6cf872127da34f79d0900eb  # v6.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
         with:
           python-version: "3.12"
 
@@ -96,15 +100,21 @@ jobs:
         working-directory: sdk/go
         run: '"${GOVULNCHECK}" -mode=source ./...'
 
-  codeql:
-    uses: mindclade-org/.github/.github/workflows/reusable-codeql.yml@22cd42b4f5c08bcb579aed4b6a0bb8cd4696daa0  # v1.1.0
+  codeql-go:
+    uses: mindclade/.github/.github/workflows/reusable-codeql.yml@7e4b7a873fc9312c2985ed262b251455c71756fe  # v3.0.0
     with:
       # Rust is omitted: CodeQL's Rust support is still maturing and the runtime data plane is
       # covered by clippy with -D warnings plus cargo-deny in the presubmit lane. Revisit when
       # Rust leaves beta in the CodeQL bundle.
-      languages: '["go","python","javascript-typescript"]'
+      languages: '["go"]'
       queries: security-extended
-      # `none` rather than autobuild. Autobuild would try to build the whole Bazel workspace
-      # to extract Go; build-mode none extracts from source instead, which is both faster and
-      # not dependent on the Bazel toolchain being fully wired.
+      # CodeQL requires a build for Go, so it cannot share a reusable-workflow invocation with
+      # the interpreted languages: the build-mode input applies to every matrix entry.
+      build-mode: autobuild
+
+  codeql-interpreted:
+    uses: mindclade/.github/.github/workflows/reusable-codeql.yml@7e4b7a873fc9312c2985ed262b251455c71756fe  # v3.0.0
+    with:
+      languages: '["python","javascript-typescript"]'
+      queries: security-extended
       build-mode: none

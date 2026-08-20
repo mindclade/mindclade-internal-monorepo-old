@@ -224,7 +224,7 @@ terraform -chdir=infra/terraform/modules/<module> validate -no-color
 terraform -chdir=infra/terraform/modules/<module> test -no-color
 tflint --chdir=infra/terraform/modules/<module>
 checkov -d infra/terraform/modules --framework terraform --skip-download
-nix develop .#ci --command trivy config --disable-telemetry --exit-code 1 --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL --skip-check-update --skip-dirs '**/.terraform' infra/terraform
+nix develop .#ci-terraform --command ci/terraform/check.sh security
 ci/terraform/check.sh contracts
 ci/terraform/check.sh compat
 infra/terraform/policy/test-policy.sh
@@ -234,4 +234,4 @@ yamllint --strict .github/workflows
 PYTHONDONTWRITEBYTECODE=1 python3 ci/presubmit/pipeline.py --static-only
 ```
 
-Observed local Terraform version: `1.15.8` on `darwin_arm64`. All 32 modules passed backendless provider-schema validation and 227 mock test runs; TFLint passed; Checkov reported 152 passed, 0 failed, and 8 documented skips; and Nix-pinned Trivy reported zero unsuppressed findings at every severity with three source-local exceptions expiring 2027-08-20. No `terraform apply`, import, refresh, state command, credential command, API enablement, IAM mutation, or other cloud-changing command was run. Live qualification remains governed by `infra/terraform/PRODUCTION_READINESS.md`.
+Observed local Terraform version: `1.15.8` on `darwin_arm64`. All 32 modules passed backendless provider-schema validation and 227 mock test runs; TFLint passed; Checkov reported 152 passed, 0 failed, and 8 documented skips; and Nix-pinned Trivy reported zero unsuppressed findings at every severity with three source-local exceptions and one module-scoped embedded-check exception, all expiring 2027-08-20. No `terraform apply`, import, refresh, state command, credential command, API enablement, IAM mutation, or other cloud-changing command was run. Live qualification remains governed by `infra/terraform/PRODUCTION_READINESS.md`.

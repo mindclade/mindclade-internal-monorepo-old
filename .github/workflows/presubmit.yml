@@ -79,6 +79,9 @@ jobs:
       # "go.mod requires go >= 1.26.0" and the gate that was supposed to catch it is the thing
       # that breaks.
       go-version: "1.26.6"
+      # The shared workflow's v2.6.2 default was compiled with Go 1.25 and refuses to analyze
+      # a module targeting Go 1.26. Pin the first validated release line built with Go 1.26.
+      golangci-lint-version: "v2.12.2"
       # The control plane is concurrent throughout — durable coordination, schedulers, event
       # dispatch. The race detector is the point of running tests here at all.
       race: true
@@ -177,7 +180,9 @@ jobs:
           version: "0.11.28"
           enable-cache: true
 
-      - run: uv run --frozen --only-group dev mypy libs/python
+      # Keep this lane narrow: libs/python imports NumPy but not the root project's heavyweight
+      # Torch runtime. The locked typecheck group supplies exactly the checker and import surface.
+      - run: uv run --frozen --only-group typecheck mypy libs/python
 
   # ---------------------------------------------------------------------------------------
   # Toolchain, workflow and YAML lint
@@ -191,7 +196,7 @@ jobs:
   # change this job fails.
   #
   # `nix flake check` runs HERE rather than in a job of its own, and the reason is cost rather
-  # than taste: installing Nix and realising `.#ci` is most of this job's wall clock, and a
+  # than taste: installing Nix and realising `.#ci-lint` is most of this job's wall clock, and a
   # separate job pays all of it a second time for checks that take seconds once the store is
   # warm. Two lanes' worth of signal, one nixpkgs evaluation.
   #
@@ -205,6 +210,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Prepare GitHub-hosted runner disk for Nix
+        run: ci/common/prepare_nix_runner.sh
 
       - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
         with:
@@ -233,13 +241,13 @@ jobs:
         run: nix fmt -- --ci
 
       - name: actionlint
-        run: nix develop .#ci --command actionlint -color
+        run: nix develop .#ci-lint --command actionlint -color
 
       - name: yamllint
-        run: nix develop .#ci --command yamllint --strict .
+        run: nix develop .#ci-lint --command yamllint --strict .
 
       - name: Strict documentation build
-        run: nix develop .#ci --command mkdocs build -f docs/mkdocs.yml --strict
+        run: nix develop .#ci-lint --command mkdocs build -f docs/mkdocs.yml --strict
 
   # ---------------------------------------------------------------------------------------
   # Terraform — infra/terraform
@@ -269,6 +277,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Prepare GitHub-hosted runner disk for Nix
+        run: ci/common/prepare_nix_runner.sh
+
       - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
         with:
           extra_nix_config: |
@@ -289,30 +300,30 @@ jobs:
       # Each phase enters Nix once. check.sh owns serial initialization and four-way bounded
       # execution, so adding a module no longer adds three more full dev-shell startups.
       - name: Terraform formatting
-        run: nix develop .#ci --command ci/terraform/check.sh fmt
+        run: nix develop .#ci-terraform --command ci/terraform/check.sh fmt
 
       - name: Terraform module and provider contracts
-        run: nix develop .#ci --command ci/terraform/check.sh contracts
+        run: nix develop .#ci-terraform --command ci/terraform/check.sh contracts
 
       - name: Backendless Terraform initialization and validation
-        run: nix develop .#ci --command ci/terraform/check.sh validate
+        run: nix develop .#ci-terraform --command ci/terraform/check.sh validate
 
       - name: TFLint
-        run: nix develop .#ci --command ci/terraform/check.sh lint
+        run: nix develop .#ci-terraform --command ci/terraform/check.sh lint
 
       - name: IaC security and policy fixtures
-        run: nix develop .#ci --command ci/terraform/check.sh security
+        run: nix develop .#ci-terraform --command ci/terraform/check.sh security
 
       - name: Mock-provider Terraform tests
-        run: nix develop .#ci --command ci/terraform/check.sh test
+        run: nix develop .#ci-terraform --command ci/terraform/check.sh test
 
       - name: Terraform documentation and public interfaces
         env:
           TERRAFORM_INTERFACE_BASE_REF: "${{ github.event.pull_request.base.sha || github.event.before }}"
-        run: nix develop .#ci --command ci/terraform/check.sh docs
+        run: nix develop .#ci-terraform --command ci/terraform/check.sh docs
 
       - name: Google provider compatibility matrix
-        run: nix develop .#ci --command ci/terraform/check.sh compat
+        run: nix develop .#ci-terraform --command ci/terraform/check.sh compat
 
       # Save only after every Terraform gate succeeds on the protected branch. Pull requests
       # never write the cache, which keeps their dependency bytes outside the trusted boundary.
@@ -335,7 +346,7 @@ jobs:
   # toolchain and configured target analyzes; test executes every non-manual test. A failure in
   # an earlier phase should not be buried under a later compiler traceback.
   #
-  # Every Bazel command runs inside .#ci. The shell exports the immutable C/C++ bundle and the
+  # Every Bazel command runs inside .#ci-bazel. The shell exports the immutable C/C++ bundle and
   # repository wrapper owns only launcher selection/root normalization. CI's lockfile_mode=error
   # makes committed Bzlmod extension state immutable during every configured phase.
   bazel:
@@ -346,6 +357,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Prepare GitHub-hosted runner disk for Nix
+        run: ci/common/prepare_nix_runner.sh
 
       # Reads .bazelversion, which tools/build/nix/versions.nix owns and
       # checks/bazel-version.nix asserts. Without the pin bazelisk picks a Bazel per machine,
@@ -373,36 +387,36 @@ jobs:
       # unrecognised name makes it exit 1 before reading a single file, with a message about
       # configuration rather than about code.
       - name: buildifier
-        run: nix develop .#ci --command buildifier --mode=check -r .
+        run: nix develop .#ci-bazel --command buildifier --mode=check -r .
 
       - name: Every BUILD file loads and every label resolves
         run: >-
-          nix develop .#ci --command
+          nix develop .#ci-bazel --command
           tools/dev/bazelw query '//...' --output=label --curses=no --color=no
           > /dev/null
 
       - name: Enforce Bazel dependency layers
-        run: nix develop .#ci --command python3 tools/analysis/check_bazel_layers.py
+        run: nix develop .#ci-bazel --command python3 tools/analysis/check_bazel_layers.py
 
       - name: Validate and resolve the registered C/C++ toolchain
         run: |
-          nix develop .#ci --command python3 tools/analysis/validate_cc_toolchain_bundle.py
-          nix develop .#ci --command tools/dev/bazelw test \
+          nix develop .#ci-bazel --command python3 tools/analysis/validate_cc_toolchain_bundle.py
+          nix develop .#ci-bazel --command tools/dev/bazelw test \
             //tools/build/bazel/toolchains/cc:smoke_test --test_output=errors
-          nix develop .#ci --command python3 tools/analysis/verify_cc_toolchain_selection.py
+          nix develop .#ci-bazel --command python3 tools/analysis/verify_cc_toolchain_selection.py
 
       - name: Analyze the complete configured graph
         run: |
           evidence="${RUNNER_TEMP}/bazel-evidence"
           mkdir -p "${evidence}"
           set +e
-          nix develop .#ci --command tools/dev/bazelw build //... --nobuild --config=ci \
+          nix develop .#ci-bazel --command tools/dev/bazelw build //... --nobuild --config=ci \
             --build_event_json_file="${evidence}/analysis.bep.json" \
             --profile="${evidence}/analysis.profile.json.gz"
           status=$?
           set -e
           if [[ -s "${evidence}/analysis.bep.json" ]]; then
-            nix develop .#ci --command python3 tools/analysis/summarize_bazel_bep.py \
+            nix develop .#ci-bazel --command python3 tools/analysis/summarize_bazel_bep.py \
               --bep "${evidence}/analysis.bep.json" \
               --label "full configured analysis" \
               --json-output "${evidence}/analysis.summary.json" \
@@ -417,13 +431,13 @@ jobs:
           evidence="${RUNNER_TEMP}/bazel-evidence"
           mkdir -p "${evidence}"
           set +e
-          nix develop .#ci --command tools/dev/bazelw test //... --config=ci \
+          nix develop .#ci-bazel --command tools/dev/bazelw test //... --config=ci \
             --build_event_json_file="${evidence}/test.bep.json" \
             --profile="${evidence}/test.profile.json.gz"
           status=$?
           set -e
           if [[ -s "${evidence}/test.bep.json" ]]; then
-            nix develop .#ci --command python3 tools/analysis/summarize_bazel_bep.py \
+            nix develop .#ci-bazel --command python3 tools/analysis/summarize_bazel_bep.py \
               --bep "${evidence}/test.bep.json" \
               --label "full test" \
               --json-output "${evidence}/test.summary.json" \
@@ -455,6 +469,9 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Prepare GitHub-hosted runner disk for Nix
+        run: ci/common/prepare_nix_runner.sh
+
       - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
         with:
           extra_nix_config: |
@@ -463,7 +480,7 @@ jobs:
 
       - name: Pinned Kubernetes and GitOps static validation
         run: >-
-          nix develop .#ci --command
+          nix develop .#ci-infra --command
           tools/dev/bazelw test --config=ci
           //infra/kubernetes:validate //infra/gitops:validate
           --test_output=errors
@@ -491,9 +508,9 @@ jobs:
         with:
           persist-credentials: false
 
+      # package.json is the single pnpm-version authority; duplicating it here caused the action
+      # to reject the v11 workspace when a stale workflow field still requested v10.
       - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda  # v4.1.0
-        with:
-          version: 10
 
       - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903  # v6
         with:

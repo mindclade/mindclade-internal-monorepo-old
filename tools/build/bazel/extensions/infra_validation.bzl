@@ -163,7 +163,10 @@ def _infra_validation_impl(_module_ctx):
     _validation_tools_repository(name = "mindclade_infra_validation_tools")
     _kubernetes_schemas_repository(name = "mindclade_kubernetes_schemas")
 
+# The extension always declares the same two repositories. The validation-tool repository is
+# local and PATH-sensitive, so Bazel refreshes its symlinks independently of the module lock;
+# marking the extension OS-dependent would instead require committing a lock entry generated
+# on every CI host OS even though the generated repository specifications are identical.
 infra_validation = module_extension(
     implementation = _infra_validation_impl,
-    os_dependent = True,
 )

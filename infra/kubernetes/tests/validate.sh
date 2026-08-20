@@ -89,6 +89,7 @@ require_tool kustomize "enter the repository's pinned Kubernetes validation envi
 require_tool mktemp "install POSIX temporary-file utilities"
 require_tool sed "install POSIX sed utilities"
 require_tool sort "install POSIX sort utilities"
+require_tool tr "install POSIX text utilities"
 require_tool promtool "enter the repository's pinned Kubernetes validation environment"
 require_tool python3 "enter the repository's pinned Kubernetes validation environment"
 require_tool yq "enter the repository's pinned Kubernetes validation environment"
@@ -503,7 +504,11 @@ while IFS= read -r custom_gvk; do
   [[ "${schema_match_count}" == "1" ]] ||
     fail "${custom_gvk}: expected exactly one schema in the pinned chart CRDs"
 
-  custom_schema_file="${custom_schema_dir}/${custom_kind}_${custom_group}_${custom_version}.json"
+  # Kubeconform normalizes ResourceKind to lowercase before expanding schema-location.
+  # macOS' usual case-insensitive filesystem can hide a mismatched filename; normalize here so
+  # the same generated registry is valid on Linux runners and case-sensitive developer volumes.
+  custom_kind_lower="$(printf '%s' "${custom_kind}" | LC_ALL=C tr '[:upper:]' '[:lower:]')"
+  custom_schema_file="${custom_schema_dir}/${custom_kind_lower}_${custom_group}_${custom_version}.json"
   MINDCLADE_SCHEMA_GROUP="${custom_group}" \
     MINDCLADE_SCHEMA_VERSION="${custom_version}" \
     MINDCLADE_SCHEMA_KIND="${custom_kind}" \
@@ -579,7 +584,8 @@ while IFS=$'\t' read -r custom_gvk schema_file; do
   [[ "${schema_match_count}" == "1" ]] ||
     fail "${custom_gvk}: pinned CRD must contain exactly one matching structural schema"
 
-  custom_schema_file="${custom_schema_dir}/${custom_kind}_${custom_group}_${custom_version}.json"
+  custom_kind_lower="$(printf '%s' "${custom_kind}" | LC_ALL=C tr '[:upper:]' '[:lower:]')"
+  custom_schema_file="${custom_schema_dir}/${custom_kind_lower}_${custom_group}_${custom_version}.json"
   MINDCLADE_SCHEMA_GROUP="${custom_group}" \
     MINDCLADE_SCHEMA_VERSION="${custom_version}" \
     MINDCLADE_SCHEMA_KIND="${custom_kind}" \

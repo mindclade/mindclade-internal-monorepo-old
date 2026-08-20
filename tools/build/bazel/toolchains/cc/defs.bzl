@@ -36,8 +36,9 @@ def _mindclade_cc_toolchain_config_impl(ctx):
         )
         for action_name in _LINK_ACTIONS
     ]
-    features = [
-        feature(
+    features = []
+    if ctx.attr.compile_flags:
+        features.append(feature(
             name = "mindclade_default_compile_flags",
             enabled = True,
             flag_sets = [
@@ -46,8 +47,9 @@ def _mindclade_cc_toolchain_config_impl(ctx):
                     flag_groups = [flag_group(flags = ctx.attr.compile_flags)],
                 ),
             ],
-        ),
-        feature(
+        ))
+    if ctx.attr.link_flags:
+        features.append(feature(
             name = "mindclade_default_link_flags",
             enabled = True,
             flag_sets = [
@@ -56,10 +58,11 @@ def _mindclade_cc_toolchain_config_impl(ctx):
                     flag_groups = [flag_group(flags = ctx.attr.link_flags)],
                 ),
             ],
-        ),
+        ))
+    features.extend([
         feature(name = "supports_dynamic_linker", enabled = True),
         feature(name = "supports_pic", enabled = True),
-    ]
+    ])
 
     return cc_common.create_cc_toolchain_config_info(
         ctx = ctx,
