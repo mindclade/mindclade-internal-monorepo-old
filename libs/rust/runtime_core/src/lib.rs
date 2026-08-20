@@ -6,6 +6,7 @@
 //! Execution-only primitives shared by Rust runtime/data-plane components.
 #![forbid(unsafe_code)]
 mod budget;
+mod byte_semaphore;
 mod cancellation;
 mod clock;
 mod deadline;
@@ -20,6 +21,7 @@ pub use budget::{
     Allocation, AllocationRequest, Budget, BudgetHierarchy, BudgetSnapshot, BudgetTreeSnapshot,
     Reservation, ResourceAccount, ResourceKind, ResourceLimits, ResourceTracker, ResourceVector,
 };
+pub use byte_semaphore::{BytePermit, ByteSemaphore, ByteSemaphoreSnapshot};
 pub use cancellation::CancellationToken;
 pub use clock::{Clock, ManualClock, SystemClock};
 pub use deadline::Deadline;
