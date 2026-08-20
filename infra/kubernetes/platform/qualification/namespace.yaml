@@ -1,0 +1,28 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mindclade-qualification
+  labels:
+    app.kubernetes.io/part-of: mindclade-platform
+    kubernetes.io/metadata.name: mindclade-qualification
+    mindclade.dev/admission: enforced
+    mindclade.dev/owner: platform-qualification
+    mindclade.dev/workload-activation: blocked
+    mindclade.dev/workload-class: foundation-qualification
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: v1.36
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.36
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: v1.36
+  annotations:
+    mindclade.dev/activation-blocker: external-gitops-signed-request-measured-quota-and-connected-run
+    mindclade.dev/deployment-status: qualification-foundation-only
+    mindclade.dev/environment: unbound
+    mindclade.dev/qualification-contract: gke-foundation-v1
