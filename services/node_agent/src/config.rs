@@ -18,6 +18,13 @@ pub struct NodeAgentConfig {
     pub tool_poll_interval: Duration,
 }
 impl NodeAgentConfig {
+    #[must_use]
+    pub fn maximum_retained_tool_output_bytes(&self) -> u64 {
+        self.node_resources
+            .get(ResourceKind::ResidentMemoryBytes)
+            .saturating_div(4)
+    }
+
     pub fn validate(&self) -> FaultResult<()> {
         if self.node_resources.get(ResourceKind::ResidentMemoryBytes) == 0
             || self.node_resources.get(ResourceKind::LocalDiskBytes) == 0
@@ -26,6 +33,8 @@ impl NodeAgentConfig {
             || self.maximum_reference_cache_bytes == 0
             || self.maximum_tool_output_bytes == 0
             || self.maximum_tool_output_bytes > MAXIMUM_TOOL_OUTPUT_BYTES
+            || self.maximum_retained_tool_output_bytes()
+                < self.maximum_tool_output_bytes.saturating_mul(2)
             || self.maximum_children == 0
             || self.tool_poll_interval.is_zero()
         {

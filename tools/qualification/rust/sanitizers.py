@@ -15,7 +15,12 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
-PACKAGES = ("mindclade_ipc_os", "mindclade-runtime-gateway", "mindclade-runtime-host")
+PACKAGES = (
+    "mindclade_ipc_os",
+    "mindclade_process_os",
+    "mindclade-runtime-gateway",
+    "mindclade-runtime-host",
+)
 
 
 def main() -> int:

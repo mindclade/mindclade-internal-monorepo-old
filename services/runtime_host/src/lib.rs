@@ -15,6 +15,7 @@ pub mod authority;
 pub mod bootstrap;
 pub mod bulk;
 pub mod config;
+pub mod grpc;
 pub mod health;
 pub mod ipc;
 pub mod lifecycle;

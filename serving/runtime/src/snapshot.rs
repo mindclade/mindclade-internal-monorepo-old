@@ -7,7 +7,7 @@
 
 use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_worker_protocol::{
-    AdmissionGrant, RevocationSnapshot, RouteSnapshot, SignatureVerifier,
+    AdmissionGrant, ExecutionTicket, RevocationSnapshot, RouteSnapshot, SignatureVerifier,
 };
 use std::sync::{Arc, RwLock};
 
@@ -141,6 +141,23 @@ impl PolicyCache {
         grant.validate(
             now_unix_millis,
             inner.minimum_policy_epoch,
+            &inner.revocations,
+            self.verifier.as_ref(),
+        )
+    }
+    pub fn validate_execution(
+        &self,
+        ticket: &ExecutionTicket,
+        now_unix_millis: u64,
+    ) -> FaultResult<()> {
+        let inner = self
+            .inner
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        ticket.validate(
+            now_unix_millis,
+            inner.minimum_policy_epoch,
+            inner.minimum_route_version,
             &inner.revocations,
             self.verifier.as_ref(),
         )

@@ -11,6 +11,7 @@
 //! this module owns only node-local execution state.
 
 use crate::async_ipc::{self, AsyncControlSession, AsyncControlSessionFactory};
+use crate::grpc::{self, WorkerControlService};
 use crate::protocol;
 use crate::{
     HostAuthority, HostComponent, HostConfig, HostCore, HostHealth, ModelSpec, ProcessSpec,
@@ -42,6 +43,7 @@ const MAX_SOCKET_PATH_BYTES: usize = 100;
 #[derive(Clone, Debug)]
 pub struct BootstrapConfig {
     pub socket_path: PathBuf,
+    pub grpc_socket_path: PathBuf,
     pub key_id: String,
     pub public_key: [u8; 32],
     pub key_not_before_unix_millis: u64,
@@ -61,6 +63,14 @@ impl BootstrapConfig {
         if socket_path.as_os_str().as_encoded_bytes().len() > MAX_SOCKET_PATH_BYTES {
             return Err(Fault::invalid_argument(
                 "runtime-host socket path exceeds platform bound",
+            ));
+        }
+        let grpc_socket_path = absolute_path("MINDCLADE_RUNTIME_HOST_GRPC_SOCKET")?;
+        if grpc_socket_path == socket_path
+            || grpc_socket_path.as_os_str().as_encoded_bytes().len() > MAX_SOCKET_PATH_BYTES
+        {
+            return Err(Fault::invalid_argument(
+                "runtime-host gRPC socket path is invalid",
             ));
         }
         let key_id = required("MINDCLADE_RUNTIME_KEY_ID")?;
@@ -102,6 +112,7 @@ impl BootstrapConfig {
         let preloaded_model = model_spec_from_env()?;
         Ok(Self {
             socket_path,
+            grpc_socket_path,
             key_id,
             public_key,
             key_not_before_unix_millis,
@@ -164,8 +175,9 @@ pub async fn run(config: BootstrapConfig) -> FaultResult<()> {
 
     let factory: Arc<dyn AsyncControlSessionFactory> = Arc::new(ControlFactory {
         host: core.clone(),
-        authority,
+        authority: authority.clone(),
     });
+    let grpc_service = WorkerControlService::new(core.clone(), authority);
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
     let drain_core = core.clone();
     let signal = tokio::spawn(async move {
@@ -178,8 +190,11 @@ pub async fn run(config: BootstrapConfig) -> FaultResult<()> {
         let _ = shutdown_tx.send(true);
     });
 
-    let serve_result =
-        async_ipc::serve_unix_sessions(config.socket_path, factory, shutdown_rx).await;
+    let serve_result = tokio::try_join!(
+        async_ipc::serve_unix_sessions(config.socket_path, factory, shutdown_rx.clone()),
+        grpc::serve_unix(config.grpc_socket_path, grpc_service, shutdown_rx),
+    )
+    .map(|_| ());
     signal.abort();
 
     // Drain and stop run in reverse registration order here. The serve error, if
@@ -195,17 +210,14 @@ struct ControlFactory {
 
 impl AsyncControlSessionFactory for ControlFactory {
     fn open(&self) -> FaultResult<Box<dyn AsyncControlSession>> {
-        Ok(Box::new(ControlSession {
-            host: self.host.clone(),
-            authority: self.authority.clone(),
-            active: None,
-            last_command_sequence: 0,
-            next_status_sequence: 1,
-        }))
+        Ok(Box::new(ControlSession::new(
+            self.host.clone(),
+            self.authority.clone(),
+        )))
     }
 }
 
-struct ControlSession {
+pub(crate) struct ControlSession {
     host: Arc<HostCore>,
     authority: Arc<HostAuthority>,
     active: Option<crate::ExecutionSession>,
@@ -234,10 +246,32 @@ impl AsyncControlSession for ControlSession {
 }
 
 impl ControlSession {
+    pub(crate) fn new(host: Arc<HostCore>, authority: Arc<HostAuthority>) -> Self {
+        Self {
+            host,
+            authority,
+            active: None,
+            last_command_sequence: 0,
+            next_status_sequence: 1,
+        }
+    }
+
     fn handle_message(&mut self, request: &[u8]) -> FaultResult<Vec<u8>> {
         let command = wire::WorkerCommand::decode(request).map_err(|error| {
             Fault::invalid_argument("worker control protobuf is invalid").with_source(error)
         })?;
+        let wire_status = self.handle_command(command)?;
+        let mut encoded = Vec::with_capacity(wire_status.encoded_len());
+        wire_status.encode(&mut encoded).map_err(|error| {
+            Fault::new(Code::Internal, "worker status encoding failed").with_source(error)
+        })?;
+        Ok(encoded)
+    }
+
+    pub(crate) fn handle_command(
+        &mut self,
+        command: wire::WorkerCommand,
+    ) -> FaultResult<wire::WorkerStatus> {
         self.validate_sequence(command.sequence)?;
         let now = unix_millis()?;
         let status = match command
@@ -251,12 +285,7 @@ impl ControlSession {
                 self.heartbeat(&heartbeat, now)?
             }
         };
-        let wire_status = protocol::worker_status(&status);
-        let mut encoded = Vec::with_capacity(wire_status.encoded_len());
-        wire_status.encode(&mut encoded).map_err(|error| {
-            Fault::new(Code::Internal, "worker status encoding failed").with_source(error)
-        })?;
-        Ok(encoded)
+        Ok(protocol::worker_status(&status))
     }
 
     fn start(&mut self, start: wire::StartCommand, now: u64) -> FaultResult<WorkerStatus> {

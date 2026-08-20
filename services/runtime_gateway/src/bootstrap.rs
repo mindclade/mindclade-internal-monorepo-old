@@ -8,6 +8,7 @@
 //! The binary accepts only immutable signed policy artifacts and bounded local
 //! configuration. Global policy remains owned by the Go control plane.
 
+use crate::grpc;
 use crate::{
     GatewayAuthority, GatewayComponent, GatewayConfig, GatewayCore, GatewayHealth,
     network::{self, GatewayNetworkState},
@@ -27,6 +28,7 @@ const MAX_POLICY_FILE_BYTES: u64 = 16 * 1024 * 1024;
 #[derive(Clone, Debug)]
 pub struct BootstrapConfig {
     pub listen_address: SocketAddr,
+    pub grpc_listen_address: SocketAddr,
     pub key_id: String,
     pub public_key: [u8; 32],
     pub key_not_before_unix_millis: u64,
@@ -43,6 +45,17 @@ impl BootstrapConfig {
             .map_err(|error| {
                 Fault::invalid_argument("runtime gateway address is invalid").with_source(error)
             })?;
+        let grpc_listen_address = required("MINDCLADE_RUNTIME_GATEWAY_GRPC_ADDR")?
+            .parse::<SocketAddr>()
+            .map_err(|error| {
+                Fault::invalid_argument("runtime gateway gRPC address is invalid")
+                    .with_source(error)
+            })?;
+        if grpc_listen_address == listen_address {
+            return Err(Fault::invalid_argument(
+                "runtime gateway HTTP and gRPC addresses must differ",
+            ));
+        }
         let key_id = required("MINDCLADE_RUNTIME_KEY_ID")?;
         if key_id.len() > 256 {
             return Err(Fault::invalid_argument("runtime key id exceeds bound"));
@@ -57,10 +70,20 @@ impl BootstrapConfig {
         }
         let route_snapshot_path = absolute_path("MINDCLADE_RUNTIME_ROUTE_SNAPSHOT_FILE")?;
         let revocation_snapshot_path = absolute_path("MINDCLADE_RUNTIME_REVOCATION_SNAPSHOT_FILE")?;
-        let gateway = GatewayConfig::default();
+        let pod_memory_limit_bytes = parse_u64("MINDCLADE_POD_MEMORY_LIMIT_BYTES")?;
+        let mut gateway = GatewayConfig::default().with_memory_limit(pod_memory_limit_bytes)?;
+        if let Some(value) = optional_u64("MINDCLADE_RUNTIME_GATEWAY_REQUEST_BYTES")? {
+            gateway.request_buffer_budget_bytes = value;
+        }
+        if let Some(value) = optional_u64("MINDCLADE_RUNTIME_GATEWAY_RESPONSE_BYTES")? {
+            gateway.response_buffer_budget_bytes = value;
+        }
+        gateway.execution_enabled =
+            optional_bool("MINDCLADE_RUNTIME_EXECUTION_ENABLED")?.unwrap_or(false);
         gateway.validate()?;
         Ok(Self {
             listen_address,
+            grpc_listen_address,
             key_id,
             public_key,
             key_not_before_unix_millis,
@@ -94,6 +117,11 @@ pub async fn run(config: BootstrapConfig) -> FaultResult<()> {
     authority.install_route(route, now)?;
 
     let health = Arc::new(GatewayHealth::new());
+    let listen_address = config.listen_address;
+    let grpc_listen_address = config.grpc_listen_address;
+    let request_buffer_budget_bytes = config.gateway.request_buffer_budget_bytes;
+    let response_buffer_budget_bytes = config.gateway.response_buffer_budget_bytes;
+    let execution_enabled = config.gateway.execution_enabled;
     let core = Arc::new(GatewayCore::new(
         config.gateway,
         authority.policy(),
@@ -115,15 +143,26 @@ pub async fn run(config: BootstrapConfig) -> FaultResult<()> {
         signals::termination_requested().await;
         let _ = shutdown_tx.send(true);
     });
-    let result = network::serve(
-        config.listen_address,
-        GatewayNetworkState::new(core.clone()),
-        shutdown_rx,
+    let state = GatewayNetworkState::new(
+        core.clone(),
+        request_buffer_budget_bytes,
+        response_buffer_budget_bytes,
+        execution_enabled,
+    )?;
+    let network_state = state.clone();
+    let network_shutdown = shutdown_rx.clone();
+    let result = tokio::try_join!(
+        async move {
+            network::serve(listen_address, network_state, network_shutdown)
+                .await
+                .map_err(|error| {
+                    Fault::new(Code::Unavailable, "runtime gateway network server failed")
+                        .with_source(error)
+                })
+        },
+        grpc::serve(grpc_listen_address, state, shutdown_rx),
     )
-    .await
-    .map_err(|error| {
-        Fault::new(Code::Unavailable, "runtime gateway network server failed").with_source(error)
-    });
+    .map(|_| ());
     signal.abort();
 
     // Drain and stop run in reverse registration order here. The serve error, if
@@ -193,6 +232,41 @@ fn parse_u64(name: &'static str) -> FaultResult<u64> {
             .with_context("variable", name)
             .with_source(error)
     })
+}
+
+fn optional_u64(name: &'static str) -> FaultResult<Option<u64>> {
+    match env::var(name) {
+        Ok(value) => value.parse::<u64>().map(Some).map_err(|error| {
+            Fault::invalid_argument("runtime integer environment value is invalid")
+                .with_context("variable", name)
+                .with_source(error)
+        }),
+        Err(env::VarError::NotPresent) => Ok(None),
+        Err(error) => Err(Fault::invalid_argument(
+            "runtime environment value is not valid Unicode",
+        )
+        .with_context("variable", name)
+        .with_source(error)),
+    }
+}
+
+fn optional_bool(name: &'static str) -> FaultResult<Option<bool>> {
+    match env::var(name) {
+        Ok(value) => match value.as_str() {
+            "true" | "1" => Ok(Some(true)),
+            "false" | "0" => Ok(Some(false)),
+            _ => Err(
+                Fault::invalid_argument("runtime boolean environment value is invalid")
+                    .with_context("variable", name),
+            ),
+        },
+        Err(env::VarError::NotPresent) => Ok(None),
+        Err(error) => Err(Fault::invalid_argument(
+            "runtime environment value is not valid Unicode",
+        )
+        .with_context("variable", name)
+        .with_source(error)),
+    }
 }
 
 fn absolute_path(name: &'static str) -> FaultResult<PathBuf> {

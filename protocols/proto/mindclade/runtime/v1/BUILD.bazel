@@ -13,6 +13,11 @@ proto_library(
     strip_import_prefix = "/protocols/proto",
 )
 
+filegroup(
+    name = "cargo_proto_sources",
+    srcs = glob(["*.proto"]),
+)
+
 proto_library(
     name = "execution_budget_proto",
     srcs = ["execution_budget.proto"],
@@ -67,6 +72,18 @@ proto_library(
         ":execution_ticket_proto",
         ":route_snapshot_proto",
         ":worker_command_proto",
+        ":worker_status_proto",
+    ],
+)
+
+proto_library(
+    name = "execution_service_proto",
+    srcs = ["execution_service.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = [
+        ":buffer_descriptor_proto",
+        ":execution_ticket_proto",
+        ":service_proto",
         ":worker_status_proto",
     ],
 )

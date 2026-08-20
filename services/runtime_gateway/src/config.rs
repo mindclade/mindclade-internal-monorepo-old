@@ -16,6 +16,10 @@ pub struct GatewayConfig {
     pub maximum_stream_output_bytes: u64,
     pub maximum_request_key_bytes: usize,
     pub require_fresh_route_snapshot: bool,
+    pub pod_memory_limit_bytes: u64,
+    pub request_buffer_budget_bytes: u64,
+    pub response_buffer_budget_bytes: u64,
+    pub execution_enabled: bool,
 }
 
 impl GatewayConfig {
@@ -30,12 +34,32 @@ impl GatewayConfig {
             || self.maximum_stream_output_bytes == 0
             || self.maximum_request_key_bytes == 0
             || self.maximum_request_key_bytes > 16 * 1024
+            || self.pod_memory_limit_bytes == 0
+            || self.request_buffer_budget_bytes == 0
+            || self.response_buffer_budget_bytes == 0
+            || self
+                .request_buffer_budget_bytes
+                .checked_add(self.response_buffer_budget_bytes)
+                .is_none_or(|managed| managed > self.pod_memory_limit_bytes / 2)
         {
             return Err(Fault::invalid_argument(
                 "runtime gateway limits are invalid",
             ));
         }
         Ok(())
+    }
+
+    pub fn with_memory_limit(mut self, pod_memory_limit_bytes: u64) -> FaultResult<Self> {
+        if pod_memory_limit_bytes < 64 * 1024 * 1024 {
+            return Err(Fault::invalid_argument(
+                "runtime gateway pod memory limit is too small",
+            ));
+        }
+        self.pod_memory_limit_bytes = pod_memory_limit_bytes;
+        self.request_buffer_budget_bytes = pod_memory_limit_bytes / 5;
+        self.response_buffer_budget_bytes = pod_memory_limit_bytes.saturating_mul(3) / 10;
+        self.validate()?;
+        Ok(self)
     }
 }
 
@@ -49,6 +73,10 @@ impl Default for GatewayConfig {
             maximum_stream_output_bytes: 64 * 1024 * 1024,
             maximum_request_key_bytes: 4 * 1024,
             require_fresh_route_snapshot: true,
+            pod_memory_limit_bytes: 1024 * 1024 * 1024,
+            request_buffer_budget_bytes: 1024 * 1024 * 1024 / 5,
+            response_buffer_budget_bytes: (1024 * 1024 * 1024 * 3) / 10,
+            execution_enabled: false,
         }
     }
 }

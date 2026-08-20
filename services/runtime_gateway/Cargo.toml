@@ -22,9 +22,12 @@ name = "mindclade-runtime-gateway"
 path = "src/main.rs"
 
 [dependencies]
+hyper-util.workspace = true
 mindclade_protocols = { path = "../../protocols/rust" }
 tower.workspace = true
 tokio.workspace = true
+tokio-stream.workspace = true
+tonic.workspace = true
 prost.workspace = true
 bytes.workspace = true
 axum.workspace = true

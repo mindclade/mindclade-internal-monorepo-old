@@ -25,6 +25,7 @@ mindclade_identifiers = { path = "../identifiers" }
 mindclade_bytes_io = { path = "../bytes_io" }
 mindclade_faults = { path = "../faults" }
 mindclade_runtime_core = { path = "../runtime_core" }
+tokio.workspace = true
 
 [lints]
 workspace = true

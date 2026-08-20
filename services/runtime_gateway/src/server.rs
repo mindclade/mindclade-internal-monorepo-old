@@ -12,7 +12,7 @@ use crate::{
 use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_identifiers::ResourceId;
 use mindclade_serving_runtime::InferenceRequest;
-use mindclade_worker_protocol::{AdmissionGrant, DeploymentRoute};
+use mindclade_worker_protocol::{AdmissionGrant, DeploymentRoute, ExecutionTicket};
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
@@ -70,6 +70,28 @@ impl GatewayCore {
             },
             now_unix_millis,
         )
+    }
+    pub fn admit_execution(
+        &self,
+        request: InferenceRequest,
+        ticket: &ExecutionTicket,
+        now_unix_millis: u64,
+    ) -> FaultResult<AdmittedRequest> {
+        let request_id = request.request_id.clone();
+        let tenant_id = request.grant.claims.tenant_id.clone();
+        let admitted = self.admit_request(request, now_unix_millis)?;
+        self.policy.validate_execution(ticket, now_unix_millis)?;
+        if ticket.claims.request_id.as_ref() != Some(&request_id)
+            || ticket.claims.tenant_id != tenant_id
+            || ticket.claims.model_bundle != Some(admitted.route.model_bundle)
+            || ticket.claims.engine_bundle != Some(admitted.route.engine_bundle)
+        {
+            return Err(Fault::new(
+                Code::PermissionDenied,
+                "execution ticket does not match the admitted route",
+            ));
+        }
+        Ok(admitted)
     }
     pub fn admit(
         &self,

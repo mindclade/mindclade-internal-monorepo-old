@@ -24,8 +24,11 @@ rust_library(
         "//serving/runtime:mindclade_serving_runtime",
         "@crates//:axum",
         "@crates//:bytes",
+        "@crates//:hyper-util",
         "@crates//:prost",
         "@crates//:tokio",
+        "@crates//:tokio-stream",
+        "@crates//:tonic",
         "@crates//:tower",
     ],
 )
@@ -48,8 +51,11 @@ rust_binary(
         "//serving/runtime:mindclade_serving_runtime",
         "@crates//:axum",
         "@crates//:bytes",
+        "@crates//:hyper-util",
         "@crates//:prost",
         "@crates//:tokio",
+        "@crates//:tokio-stream",
+        "@crates//:tonic",
         "@crates//:tower",
     ],
 )

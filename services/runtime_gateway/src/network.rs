@@ -11,13 +11,14 @@
 
 use crate::{GatewayCore, protocol};
 use axum::Router;
-use axum::body::Bytes;
-use axum::extract::{DefaultBodyLimit, State};
-use axum::http::{HeaderValue, StatusCode, header::CONTENT_TYPE};
+use axum::body::{Bytes, to_bytes};
+use axum::extract::{DefaultBodyLimit, FromRequest, Request, State};
+use axum::http::{HeaderValue, StatusCode, header::CONTENT_LENGTH, header::CONTENT_TYPE};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use mindclade_faults::{Code, Fault};
 use mindclade_protocols::runtime::v1::{RuntimeDispatchRequest, RuntimeDispatchResponse};
+use mindclade_runtime_core::{BytePermit, ByteSemaphore, ByteSemaphoreSnapshot};
 use prost::Message;
 use std::future::IntoFuture;
 use std::io;
@@ -33,16 +34,108 @@ const PROTOBUF_CONTENT_TYPE: &str = "application/x-protobuf";
 const MAX_DISPATCH_BYTES: usize = 1024 * 1024;
 const MAX_NETWORK_CONCURRENCY: usize = 8_192;
 const GATEWAY_DRAIN_TIMEOUT: Duration = Duration::from_secs(30);
+const BYTE_ADMISSION_GRANULARITY: u64 = 4 * 1024;
 
 #[derive(Clone, Debug)]
 pub struct GatewayNetworkState {
     core: Arc<GatewayCore>,
+    request_bytes: Arc<ByteSemaphore>,
+    response_bytes: Arc<ByteSemaphore>,
+    execution_enabled: bool,
 }
 
 impl GatewayNetworkState {
+    pub fn new(
+        core: Arc<GatewayCore>,
+        request_buffer_budget_bytes: u64,
+        response_buffer_budget_bytes: u64,
+        execution_enabled: bool,
+    ) -> Result<Self, Fault> {
+        Ok(Self {
+            core,
+            request_bytes: ByteSemaphore::new(request_buffer_budget_bytes)?,
+            response_bytes: ByteSemaphore::new(response_buffer_budget_bytes)?,
+            execution_enabled,
+        })
+    }
+
     #[must_use]
-    pub fn new(core: Arc<GatewayCore>) -> Self {
-        Self { core }
+    pub fn memory_snapshot(&self) -> (ByteSemaphoreSnapshot, ByteSemaphoreSnapshot) {
+        (
+            self.request_bytes.snapshot(),
+            self.response_bytes.snapshot(),
+        )
+    }
+
+    pub(crate) fn reserve_request_bytes(&self, bytes: u64) -> Result<BytePermit, Fault> {
+        self.request_bytes.try_acquire(bytes)
+    }
+
+    pub(crate) fn reserve_response_bytes(&self, bytes: u64) -> Result<BytePermit, Fault> {
+        self.response_bytes.try_acquire(bytes)
+    }
+
+    #[must_use]
+    pub(crate) const fn execution_enabled(&self) -> bool {
+        self.execution_enabled
+    }
+
+    pub(crate) fn core(&self) -> &Arc<GatewayCore> {
+        &self.core
+    }
+}
+
+#[derive(Debug)]
+struct AdmittedBody {
+    bytes: Bytes,
+    _memory: BytePermit,
+}
+
+impl FromRequest<GatewayNetworkState> for AdmittedBody {
+    type Rejection = Response;
+
+    async fn from_request(
+        request: Request,
+        state: &GatewayNetworkState,
+    ) -> Result<Self, Self::Rejection> {
+        let declared = match declared_body_bytes(&request) {
+            Ok(value) => value,
+            Err(error) => return Err(fault_response(&error)),
+        };
+        let reserved = round_admission_bytes(declared).map_err(|error| fault_response(&error))?;
+        let mut memory = state
+            .request_bytes
+            .try_acquire(reserved)
+            .map_err(|error| fault_response(&error))?;
+        let bytes = to_bytes(request.into_body(), MAX_DISPATCH_BYTES)
+            .await
+            .map_err(|error| {
+                fault_response(
+                    &Fault::new(
+                        Code::ResourceExhausted,
+                        "runtime request exceeds network framing bound",
+                    )
+                    .with_source(error),
+                )
+            })?;
+        let actual = u64::try_from(bytes.len()).map_err(|_| {
+            fault_response(&Fault::new(
+                Code::OutOfRange,
+                "runtime request length exceeds u64",
+            ))
+        })?;
+        if actual > declared && declared != u64::try_from(MAX_DISPATCH_BYTES).unwrap_or(u64::MAX) {
+            return Err(fault_response(&Fault::invalid_argument(
+                "runtime request exceeds declared content length",
+            )));
+        }
+        memory
+            .shrink_to(round_admission_bytes(actual).map_err(|error| fault_response(&error))?)
+            .map_err(|error| fault_response(&error))?;
+        Ok(Self {
+            bytes,
+            _memory: memory,
+        })
     }
 }
 
@@ -110,15 +203,8 @@ async fn readyz(State(state): State<GatewayNetworkState>) -> StatusCode {
     }
 }
 
-async fn dispatch(State(state): State<GatewayNetworkState>, body: Bytes) -> Response {
-    if body.len() > MAX_DISPATCH_BYTES {
-        return fault_response(&Fault::new(
-            Code::ResourceExhausted,
-            "runtime dispatch message exceeds network framing bound",
-        ));
-    }
-
-    let message = match RuntimeDispatchRequest::decode(body.as_ref()) {
+async fn dispatch(State(state): State<GatewayNetworkState>, body: AdmittedBody) -> Response {
+    let message = match RuntimeDispatchRequest::decode(body.bytes.as_ref()) {
         Ok(message) => message,
         Err(error) => {
             return fault_response(
@@ -151,6 +237,36 @@ async fn dispatch(State(state): State<GatewayNetworkState>, body: Bytes) -> Resp
     protobuf_response(StatusCode::ACCEPTED, response.encode_to_vec())
 }
 
+fn declared_body_bytes(request: &Request) -> Result<u64, Fault> {
+    let maximum = u64::try_from(MAX_DISPATCH_BYTES)
+        .map_err(|_| Fault::new(Code::OutOfRange, "body limit exceeds u64"))?;
+    let Some(value) = request.headers().get(CONTENT_LENGTH) else {
+        return Ok(maximum);
+    };
+    let value = value
+        .to_str()
+        .map_err(|error| Fault::invalid_argument("content length is invalid").with_source(error))?
+        .parse::<u64>()
+        .map_err(|error| Fault::invalid_argument("content length is invalid").with_source(error))?;
+    if value > maximum {
+        return Err(Fault::new(
+            Code::ResourceExhausted,
+            "runtime request exceeds network framing bound",
+        ));
+    }
+    Ok(value)
+}
+
+pub(crate) fn round_admission_bytes(bytes: u64) -> Result<u64, Fault> {
+    if bytes == 0 {
+        return Ok(0);
+    }
+    bytes
+        .checked_add(BYTE_ADMISSION_GRANULARITY - 1)
+        .map(|value| value / BYTE_ADMISSION_GRANULARITY * BYTE_ADMISSION_GRANULARITY)
+        .ok_or_else(|| Fault::new(Code::OutOfRange, "byte admission rounding overflow"))
+}
+
 fn protobuf_response(status: StatusCode, body: Vec<u8>) -> Response {
     let mut response = (status, body).into_response();
     response.headers_mut().insert(
@@ -177,7 +293,7 @@ fn fault_response(error: &Fault) -> Response {
     (status, body).into_response()
 }
 
-fn unix_millis() -> Result<u64, Fault> {
+pub(crate) fn unix_millis() -> Result<u64, Fault> {
     let elapsed = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_err(|_| {

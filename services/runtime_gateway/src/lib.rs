@@ -16,6 +16,7 @@ pub mod auth;
 pub mod authority;
 pub mod bootstrap;
 pub mod config;
+pub mod grpc;
 pub mod health;
 pub mod lifecycle;
 pub mod network;

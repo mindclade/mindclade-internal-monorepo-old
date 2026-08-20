@@ -14,7 +14,7 @@ pub mod resume;
 pub mod shuffle;
 use mindclade_bytes_io::ByteSize;
 use mindclade_content_digest::{Digest, hash_bytes};
-use mindclade_faults::{Code, Fault, FaultResult};
+use mindclade_faults::{Code, Fault, FaultResult, RetryHint};
 use mindclade_identifiers::Name;
 use mindclade_object_store::{ObjectPath, ObjectStore};
 use mindclade_record_io::{Decoder, Encoder};
@@ -22,6 +22,9 @@ use mindclade_runtime_core::{Policy, Sleeper, execute};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, mpsc};
 use std::thread::{self, JoinHandle};
+use std::time::Duration;
+use tokio::sync::{mpsc as async_mpsc, watch};
+use tokio::task::{JoinHandle as AsyncJoinHandle, JoinSet};
 
 pub const CURSOR_SCHEMA: u16 = 1;
 
@@ -154,6 +157,87 @@ pub struct PrefetchedShard {
     pub bytes: Vec<u8>,
 }
 
+pub struct AsyncPrefetcher {
+    receiver: async_mpsc::Receiver<FaultResult<PrefetchedShard>>,
+    cancellation: watch::Sender<bool>,
+    worker: Option<AsyncJoinHandle<()>>,
+}
+
+impl core::fmt::Debug for AsyncPrefetcher {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        formatter
+            .debug_struct("AsyncPrefetcher")
+            .field("receiver_closed", &self.receiver.is_closed())
+            .field("cancelled", &*self.cancellation.borrow())
+            .field("worker_active", &self.worker.is_some())
+            .finish()
+    }
+}
+
+impl AsyncPrefetcher {
+    pub fn start(
+        plan: StreamPlan,
+        store: Arc<dyn ObjectStore>,
+        config: prefetch::PrefetchConfig,
+        retry_policy: Policy,
+    ) -> FaultResult<Self> {
+        let config = config.validate()?;
+        retry_policy.validate()?;
+        let maximum_shard_bytes = ByteSize::new(config.maximum_shard_bytes);
+        let (sender, receiver) = async_mpsc::channel(config.buffer_capacity);
+        let (cancellation, cancelled) = watch::channel(false);
+        let worker = tokio::spawn(run_async_prefetch(
+            plan,
+            store,
+            maximum_shard_bytes,
+            config,
+            retry_policy,
+            sender,
+            cancelled,
+        ));
+        Ok(Self {
+            receiver,
+            cancellation,
+            worker: Some(worker),
+        })
+    }
+
+    pub async fn next(&mut self) -> Option<FaultResult<PrefetchedShard>> {
+        self.receiver.recv().await
+    }
+
+    pub async fn shutdown(&mut self, maximum_wait: Duration) -> FaultResult<()> {
+        let _ = self.cancellation.send(true);
+        self.receiver.close();
+        let Some(mut worker) = self.worker.take() else {
+            return Ok(());
+        };
+        match tokio::time::timeout(maximum_wait, &mut worker).await {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(error)) => {
+                Err(Fault::internal("async prefetch supervisor failed").with_source(error))
+            }
+            Err(_) => {
+                worker.abort();
+                Err(Fault::new(
+                    Code::DeadlineExceeded,
+                    "async prefetch shutdown exceeded its deadline",
+                ))
+            }
+        }
+    }
+}
+
+impl Drop for AsyncPrefetcher {
+    fn drop(&mut self) {
+        let _ = self.cancellation.send(true);
+        self.receiver.close();
+        if let Some(worker) = self.worker.take() {
+            worker.abort();
+        }
+    }
+}
+
 pub struct Prefetcher {
     receiver: Option<mpsc::Receiver<FaultResult<PrefetchedShard>>>,
     cancelled: Arc<AtomicBool>,
@@ -247,10 +331,180 @@ impl Drop for Prefetcher {
     fn drop(&mut self) {
         self.cancelled.store(true, Ordering::Release);
         self.receiver.take();
-        if let Some(worker) = self.worker.take() {
-            let _ = worker.join();
+        // A synchronous ObjectStore call cannot be interrupted safely. Drop
+        // therefore detaches the compatibility worker after signalling
+        // cancellation instead of waiting without a deadline.
+        self.worker.take();
+    }
+}
+
+async fn run_async_prefetch(
+    plan: StreamPlan,
+    store: Arc<dyn ObjectStore>,
+    maximum_shard_bytes: ByteSize,
+    config: prefetch::PrefetchConfig,
+    retry_policy: Policy,
+    sender: async_mpsc::Sender<FaultResult<PrefetchedShard>>,
+    mut cancelled: watch::Receiver<bool>,
+) {
+    let mut shards = plan.shards.into_iter().enumerate();
+    let mut fetches = JoinSet::new();
+    let mut completed = std::collections::BTreeMap::new();
+    let mut next_delivery = 0_usize;
+
+    loop {
+        while fetches.len() < config.concurrency {
+            let Some((index, shard)) = shards.next() else {
+                break;
+            };
+            let store = Arc::clone(&store);
+            let child_cancelled = cancelled.clone();
+            fetches.spawn(fetch_shard_async(
+                index,
+                shard,
+                store,
+                maximum_shard_bytes,
+                config.fetch_timeout,
+                retry_policy,
+                child_cancelled,
+            ));
+        }
+
+        if fetches.is_empty() {
+            break;
+        }
+
+        let joined = tokio::select! {
+            changed = cancelled.changed() => {
+                if changed.is_err() || *cancelled.borrow() {
+                    fetches.abort_all();
+                    return;
+                }
+                continue;
+            }
+            joined = fetches.join_next() => joined,
+        };
+        let Some(joined) = joined else {
+            break;
+        };
+        let result = match joined {
+            Ok((index, result)) => (index, result),
+            Err(error) => {
+                let fault = Fault::internal("async shard fetch task failed").with_source(error);
+                let _ = sender.send(Err(fault)).await;
+                fetches.abort_all();
+                return;
+            }
+        };
+        completed.insert(result.0, result.1);
+
+        while let Some(result) = completed.remove(&next_delivery) {
+            let failed = result.is_err();
+            let delivered = tokio::select! {
+                changed = cancelled.changed() => {
+                    changed.is_ok() && !*cancelled.borrow()
+                }
+                sent = sender.send(result) => sent.is_ok(),
+            };
+            if !delivered || failed {
+                fetches.abort_all();
+                return;
+            }
+            next_delivery = if let Some(value) = next_delivery.checked_add(1) {
+                value
+            } else {
+                let _ = sender
+                    .send(Err(Fault::new(
+                        Code::OutOfRange,
+                        "prefetch delivery index overflow",
+                    )))
+                    .await;
+                fetches.abort_all();
+                return;
+            };
         }
     }
+}
+
+async fn fetch_shard_async(
+    index: usize,
+    shard: Shard,
+    store: Arc<dyn ObjectStore>,
+    maximum_shard_bytes: ByteSize,
+    fetch_timeout: Duration,
+    retry_policy: Policy,
+    mut cancelled: watch::Receiver<bool>,
+) -> (usize, FaultResult<PrefetchedShard>) {
+    let result = async {
+        let retry_seed = u64::try_from(index)
+            .map_err(|_| Fault::new(Code::OutOfRange, "stream shard index exceeds u64"))?;
+        for attempt in 1..=retry_policy.max_attempts {
+            if *cancelled.borrow() {
+                return Err(Fault::new(Code::Cancelled, "shard prefetch was cancelled"));
+            }
+            let operation_store = Arc::clone(&store);
+            let path = shard.path.clone();
+            let fetched = tokio::time::timeout(
+                fetch_timeout,
+                tokio::task::spawn_blocking(move || {
+                    operation_store.get(&path, maximum_shard_bytes)
+                }),
+            )
+            .await;
+            let fetched = match fetched {
+                Ok(Ok(result)) => result,
+                Ok(Err(error)) => {
+                    return Err(Fault::internal("blocking shard fetch task failed")
+                        .with_source(error));
+                }
+                Err(_) => {
+                    return Err(Fault::new(
+                        Code::DeadlineExceeded,
+                        "individual shard fetch exceeded its deadline",
+                    ));
+                }
+            };
+            match fetched {
+                Ok(bytes) => {
+                    shard.digest.verify(&bytes)?;
+                    let actual_size = u64::try_from(bytes.len()).map_err(|_| {
+                        Fault::new(Code::OutOfRange, "stream shard size exceeds u64")
+                    })?;
+                    if actual_size != shard.size {
+                        return Err(Fault::data_loss("stream shard size mismatch"));
+                    }
+                    return Ok(PrefetchedShard {
+                        index,
+                        shard,
+                        bytes,
+                    });
+                }
+                Err(fault) => {
+                    if attempt == retry_policy.max_attempts
+                        || !fault.retry_hint().is_retryable()
+                    {
+                        return Err(fault.with_context("attempt", u64::from(attempt)));
+                    }
+                    let delay = match fault.retry_hint() {
+                        RetryHint::After(value) => value,
+                        RetryHint::Immediate => retry_policy.delay(attempt, retry_seed)?,
+                        RetryHint::Never => Duration::ZERO,
+                    };
+                    tokio::select! {
+                        changed = cancelled.changed() => {
+                            if changed.is_err() || *cancelled.borrow() {
+                                return Err(Fault::new(Code::Cancelled, "shard prefetch was cancelled"));
+                            }
+                        }
+                        () = tokio::time::sleep(delay) => {}
+                    }
+                }
+            }
+        }
+        Err(Fault::internal("async prefetch retry loop was exhausted"))
+    }
+    .await;
+    (index, result)
 }
 
 #[derive(Clone, Copy, Debug)]

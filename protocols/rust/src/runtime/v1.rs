@@ -412,3 +412,15 @@ pub struct RuntimeDispatchResponse {
     #[prost(string, tag = "3")]
     pub endpoint: String,
 }
+
+// The execution service is generated because Tonic's transport glue is not a
+// stable hand-written API. Imported runtime messages remain the committed
+// projections above, so Cargo and Bazel consumers retain their existing types.
+// Generated transport glue follows Tonic's lint policy rather than this
+// workspace's pedantic hand-written-code policy.
+#[allow(clippy::all, clippy::pedantic)]
+mod generated_execution_service {
+    include!(concat!(env!("OUT_DIR"), "/mindclade.runtime.v1.rs"));
+}
+
+pub use generated_execution_service::*;

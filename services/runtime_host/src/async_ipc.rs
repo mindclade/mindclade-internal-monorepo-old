@@ -27,7 +27,7 @@ const CONTROL_HANDLER_TIMEOUT: Duration = Duration::from_mins(5);
 const CONNECTION_DRAIN_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct SocketIdentity {
+pub(crate) struct SocketIdentity {
     device: u64,
     inode: u64,
 }
@@ -356,7 +356,7 @@ fn prepare_socket_path(path: &Path) -> FaultResult<()> {
     }
 }
 
-fn bind_secure_listener(path: &Path) -> FaultResult<(UnixListener, SocketIdentity)> {
+pub(crate) fn bind_secure_listener(path: &Path) -> FaultResult<(UnixListener, SocketIdentity)> {
     prepare_socket_path(path)?;
     let listener = UnixListener::bind(path).map_err(|error| {
         Fault::new(
@@ -390,7 +390,7 @@ fn bind_secure_listener(path: &Path) -> FaultResult<(UnixListener, SocketIdentit
     ))
 }
 
-fn remove_owned_socket(path: &Path, expected: SocketIdentity) -> FaultResult<()> {
+pub(crate) fn remove_owned_socket(path: &Path, expected: SocketIdentity) -> FaultResult<()> {
     let metadata = match std::fs::symlink_metadata(path) {
         Ok(metadata) => metadata,
         Err(error) if error.kind() == ErrorKind::NotFound => return Ok(()),

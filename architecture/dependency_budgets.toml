@@ -192,7 +192,7 @@ allowed_prefixes = ["mindclade_content_digest", "mindclade_faults", "mindclade_i
 [[budget]]
 path = "services/runtime_host"
 language = "rust"
-allowed_prefixes = ["mindclade_bytes_io", "mindclade_faults", "mindclade_gpu_host", "mindclade_ipc", "mindclade_ipc_os", "mindclade_protocols", "mindclade_runtime_core", "mindclade_servicekit", "mindclade_serving_runtime", "mindclade_telemetry", "mindclade_worker_protocol", "mindclade_worker_runtime"]
+allowed_prefixes = ["mindclade_bytes_io", "mindclade_faults", "mindclade_gpu_host", "mindclade_ipc", "mindclade_ipc_os", "mindclade_process_os", "mindclade_protocols", "mindclade_runtime_core", "mindclade_servicekit", "mindclade_serving_runtime", "mindclade_telemetry", "mindclade_worker_protocol", "mindclade_worker_runtime"]
 
 # ---------------------------------------------------------------------------
 # TypeScript

@@ -21,6 +21,7 @@ members = [
     "libs/rust/ipc_os",
     "libs/rust/manifests",
     "libs/rust/object_store",
+    "libs/rust/process_os",
     "libs/rust/python_bridge",
     "libs/rust/record_io",
     "libs/rust/runtime_core",
@@ -45,12 +46,13 @@ members = [
 axum = { version = "=0.8.9", default-features = false, features = ["http1", "http2", "tokio"] }
 bytes = "=1.12.1"
 ed25519-dalek = { version = "=3.0.0", default-features = false, features = ["alloc", "pkcs8"] }
+hyper-util = { version = "=0.1.20", features = ["tokio"] }
 libc = "=0.2.183"
 object_store = { version = "=0.14.1", default-features = false, features = ["aws", "gcp", "http"] }
 prost = "=0.14.4"
 sha2 = "=0.11.0"
 tokio = { version = "=1.53.1", features = ["fs", "io-util", "macros", "net", "process", "rt-multi-thread", "signal", "sync", "time"] }
-tokio-stream = "=0.1.17"
+tokio-stream = { version = "=0.1.17", features = ["net"] }
 tonic = { version = "=0.14.6", features = ["transport"] }
 tonic-prost = "=0.14.6"
 tonic-prost-build = "=0.14.6"

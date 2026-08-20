@@ -1,7 +1,7 @@
 # Unsafe-code safety case
 
-`ipc_os` is the only foundational Rust crate allowed to use unsafe code for
-OS-level bulk IPC.  The unsafe inventory is deliberately small:
+`ipc_os` is a named foundational Rust unsafe exception for OS-level bulk IPC.
+The unsafe inventory is deliberately small:
 
 - Linux `memfd_create`: creates the descriptor with `MFD_CLOEXEC` and sealing
   enabled, then converts one successful owned descriptor into `std::fs::File`
