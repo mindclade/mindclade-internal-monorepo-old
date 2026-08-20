@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_python//python:defs.bzl", "py_library")
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -14,5 +14,17 @@ py_library(
         exclude = ["tests/**"],
     ),
     imports = ["../../.."],
-    deps = ["//serving/contracts"],
+    deps = [
+        "//protocols/proto/mindclade/runtime/v1:runtime_worker_py_pb2",
+        "//serving/contracts",
+        "//serving/model_worker",
+    ],
+)
+
+py_binary(
+    name = "model_worker_bin",
+    srcs = ["main.py"],
+    legacy_create_init = False,
+    main = "main.py",
+    deps = [":model_worker"],
 )

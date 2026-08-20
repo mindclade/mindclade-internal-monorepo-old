@@ -13,3 +13,16 @@ pytest_test(
     imports = ["../../../.."],
     deps = ["//services/workers/model_worker"],
 )
+
+pytest_test(
+    name = "test_runtime",
+    srcs = ["test_runtime.py"],
+    imports = ["../../../.."],
+    legacy_create_init = False,
+    deps = [
+        "//models/reference/affine_worker:make_bundle_lib",
+        "//protocols/proto/mindclade/runtime/v1:runtime_worker_py_pb2",
+        "//services/workers/model_worker",
+        "//serving/model_worker",
+    ],
+)
