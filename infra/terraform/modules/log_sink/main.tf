@@ -37,6 +37,10 @@ resource "google_logging_project_bucket_config" "this" {
   }
 }
 
+# Owner: Cloud Platform + Security. Generic log exports may use Google-managed encryption;
+# regulated archive compositions require CMEK, which static analysis cannot resolve through
+# this dynamic block. Review against the Well-Architected assessment annually.
+#trivy:ignore:GCP-0066:exp:2027-08-20
 resource "google_storage_bucket" "this" {
   for_each = local.storage_sinks
 

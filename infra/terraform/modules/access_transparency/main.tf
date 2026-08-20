@@ -30,12 +30,8 @@ resource "google_storage_bucket" "access_transparency" {
     enabled = true
   }
 
-  dynamic "encryption" {
-    for_each = var.sink.bucket.encryption_key == null ? [] : [var.sink.bucket.encryption_key]
-
-    content {
-      default_kms_key_name = encryption.value
-    }
+  encryption {
+    default_kms_key_name = var.sink.bucket.encryption_key
   }
 
   # Retention, not lifecycle deletion. A retention policy stops an object being deleted

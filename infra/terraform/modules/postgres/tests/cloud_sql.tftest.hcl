@@ -89,6 +89,20 @@ run "private_ha_postgres_contract" {
     ], "cloudsql.iam_authentication=on")
     error_message = "Read replicas must explicitly enable the primary's IAM database-authentication flag."
   }
+
+  assert {
+    condition = alltrue([
+      contains([
+        for flag in google_sql_database_instance.primary.settings[0].database_flags :
+        "${flag.name}=${flag.value}"
+      ], "log_temp_files=0"),
+      contains([
+        for flag in google_sql_database_instance.replica["mindclade-control-plane-dr"].settings[0].database_flags :
+        "${flag.name}=${flag.value}"
+      ], "log_temp_files=0"),
+    ])
+    error_message = "Primary and replica instances must log every temporary file for auditability and tuning."
+  }
 }
 
 run "cmek_replica_contract" {

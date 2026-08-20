@@ -18,6 +18,10 @@ locals {
   )
 }
 
+# Owner: Cloud Platform + Security. Data Access audit policy is owned once at the hierarchy
+# IAM boundary; applying it from every project state would create competing authorities.
+# Promotion verifies inherited coverage. Review the Well-Architected assessment annually.
+#trivy:ignore:GCP-0079:exp:2027-08-20
 resource "google_project" "this" {
   name                = var.project_name
   project_id          = var.project_id

@@ -27,6 +27,10 @@ locals {
   )
 }
 
+# Owner: Cloud Platform + Security. This generic boundary supports Google-managed encryption
+# and approved CMEK; higher-assurance compositions require kms_key_name, but static analysis
+# cannot resolve this dynamic block. Review against the Well-Architected assessment annually.
+#trivy:ignore:GCP-0066:exp:2027-08-20
 resource "google_storage_bucket" "this" {
   name                        = var.name
   project                     = var.project_id

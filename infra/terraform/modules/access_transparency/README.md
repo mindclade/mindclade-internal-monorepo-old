@@ -23,6 +23,9 @@ happens to the logs once the entitlement exists.
 - **The archive cannot be force-destroyed.** Provider and Terraform deletion guards plus a
   90-day soft-delete window protect the container and recover accidentally deleted objects;
   the retention policy remains the stronger minimum-age control.
+- **The archive requires CMEK.** `encryption_key` is a full Cloud KMS CryptoKey resource name
+  in the bucket location; its owning state grants the Cloud Storage service agent
+  encrypter/decrypter access before this module is rolled out.
 - **Archive access is logged elsewhere.** `access_log_bucket_name` must identify a distinct,
   separately governed bucket. `required_access_log_writer_grant` reports the additive
   Storage analytics group grant its owning state must apply; keep both buckets in compatible

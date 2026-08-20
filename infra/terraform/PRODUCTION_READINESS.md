@@ -2,8 +2,8 @@
 
 **Current decision:** Not ready for production apply.  
 **Implementation status:** All 32 reusable modules are materialized and pass local
-formatting, provider-schema validation, mock tests, TFLint, and Checkov; environment
-topology and live evidence remain external and unknown.
+formatting, provider-schema validation, mock tests, TFLint, Checkov, and the Nix-pinned
+Trivy CI policy; environment topology and live evidence remain external and unknown.
 **Last repository review:** 2026-08-20.
 
 ## Promotion evidence
@@ -11,10 +11,10 @@ topology and live evidence remain external and unknown.
 | Gate | Status | Required evidence |
 |---|---|---|
 | Stable module contracts and owners | PARTIAL | Module READMEs/tests plus infrastructure entries in `components.toml` and approved reviewers |
-| Formatting and static repository checks | PASS | Terraform formatting, diff check, Actionlint, strict YAML lint, and repository static presubmit passed locally on 2026-08-20 |
-| Backendless init/validate/mock tests | PASS | 32/32 modules initialized with no backend, schema-valid, and 226/226 mock runs passed using committed locks |
+| Formatting and static repository checks | PARTIAL | Terraform formatting, diff check, Actionlint, strict YAML lint, and Nix flake evaluation pass. The static repository presubmit passed during the Terraform baseline but a final shared-worktree rerun is blocked by unrelated concurrent Rust/Bazel alignment changes |
+| Backendless init/validate/mock tests | PASS | 32/32 modules initialized with no backend, schema-valid, and 227/227 mock runs passed using committed locks |
 | Provider-connected non-production plan | MISSING | Saved plan, plan JSON, provider versions, project/region, and expiration |
-| IaC security and policy checks | PARTIAL | Local TFLint passed and Checkov 3.3.0 reported 152 passed, 0 failed, 8 documented skips; CI pinning, policy-as-code, and retained reports remain missing |
+| IaC security and policy checks | PARTIAL | CI pins TFLint 0.64.0 and Trivy 0.74.0; the all-severity Trivy scan has zero unsuppressed findings and three resource-local exceptions expiring 2027-08-20. Local Checkov 3.3.0 reported 152 passed, 0 failed, 8 documented skips. Saved-plan policy, cost analysis, and retained reports remain missing |
 | IAM and public-access review | MISSING | Effective inherited IAM; WIF allow/deny; no keys/basic/public grants |
 | Destructive/replacement review | MISSING | Explicit zero/unapproved-action statement or signed approvals |
 | Cost review | MISSING | Estimate, budgets, allocation tags/labels, quota and capacity assumptions |
@@ -38,11 +38,17 @@ GCP, apply, import, state mutation, or cloud API operation was used.
 
 - `terraform fmt -check -recursive infra/terraform`: pass.
 - Backendless `terraform init -lockfile=readonly` and `terraform validate`: 32/32 pass.
-- `terraform test` with `mock_provider`: 226/226 runs pass across 32/32 modules.
+- `terraform test` with `mock_provider`: 227/227 runs pass across 32/32 modules.
 - TFLint 0.63.1 default Terraform rules: pass across 32/32 modules.
 - Checkov 3.3.0 Terraform scan: 152 passed, 0 failed, 8 documented skips.
+- Nix-pinned TFLint 0.64.0 passed on the changed modules. Nix-pinned Trivy 0.74.0
+  scanned every severity with zero unsuppressed misconfigurations; the three source-local
+  exceptions document generic encryption or audit-policy ownership and expire 2027-08-20.
 - Actionlint, strict workflow YAML lint, `git diff --check`, and
-  `python3 ci/presubmit/pipeline.py --static-only`: pass.
+  `nix flake check --no-build`: pass.
+- `python3 ci/presubmit/pipeline.py --static-only` passed during the Terraform baseline.
+  A final shared-worktree rerun is currently blocked only by unrelated concurrent
+  Rust/Cargo-to-Bazel dependency alignment changes; the Terraform checks remain green.
 
 ## Required decisions before live-root materialization
 

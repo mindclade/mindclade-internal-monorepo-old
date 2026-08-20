@@ -18,8 +18,10 @@ rather than a missing role — a much harder thing to diagnose than a denied
 permission.
 
 The module does not create a Google Cloud organization, folders, tag keys or tag
-values, billing accounts, notification channels, or IAM grants. Those are
-separate lifecycle and privilege boundaries.
+values, billing accounts, notification channels, IAM grants, or authoritative
+Data Access audit-log configuration. Those are separate lifecycle and privilege
+boundaries. The hierarchy IAM state owns audit configuration once; project promotion
+must verify that the inherited policy covers every required service and log type.
 
 Every project is protected by both `deletion_policy = "PREVENT"` and Terraform
 `prevent_destroy`. API services remain enabled during destroy. A project must be

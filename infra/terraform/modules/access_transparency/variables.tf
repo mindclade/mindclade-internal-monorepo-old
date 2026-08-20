@@ -40,7 +40,7 @@ variable "sink" {
       location                 = string
       access_log_bucket_name   = string
       access_log_object_prefix = optional(string, "access-transparency/")
-      encryption_key           = optional(string)
+      encryption_key           = string
       retention_days           = optional(number, 2555)
     })
   })
@@ -66,6 +66,17 @@ variable "sink" {
   validation {
     condition     = var.sink.bucket.retention_days == null || var.sink.bucket.retention_days >= 365
     error_message = "Access records are kept for at least a year; a shorter window defeats the point of the export."
+  }
+
+  validation {
+    condition = (
+      can(regex(
+        "^projects/[a-z][a-z0-9-]{4,28}[a-z0-9]/locations/[a-z0-9-]+/keyRings/[A-Za-z0-9_-]{1,63}/cryptoKeys/[A-Za-z0-9_-]{1,63}$",
+        var.sink.bucket.encryption_key,
+      )) &&
+      try(lower(split("/", var.sink.bucket.encryption_key)[3]), "") == lower(var.sink.bucket.location)
+    )
+    error_message = "The Access Transparency archive requires a full Cloud KMS CryptoKey resource name in the bucket location."
   }
 
   validation {

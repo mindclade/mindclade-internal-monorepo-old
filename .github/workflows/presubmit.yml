@@ -325,14 +325,33 @@ jobs:
           exit "$failed"
 
       - name: IaC security policy
-        run: >-
-          nix develop .#ci --command trivy config
-          --disable-telemetry
-          --exit-code 1
-          --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
-          --skip-check-update
-          --skip-dirs '**/.terraform'
-          infra/terraform
+        run: |
+          set -euo pipefail
+          exceptions="$(git grep -n '#trivy:ignore:' -- infra/terraform || true)"
+          invalid="$(printf '%s\n' "$exceptions" | grep -Ev '#trivy:ignore:(AVD-)?GCP-[0-9]{4}:exp:[0-9]{4}-[0-9]{2}-[0-9]{2}$' || true)"
+          if [[ -n "$invalid" ]]; then
+            echo "::error::Trivy exceptions require one exact GCP check ID and an expiry date"
+            printf '%s\n' "$invalid"
+            exit 1
+          fi
+
+          maximum_expiry="$(date -u -d '+366 days' +%s)"
+          while IFS= read -r exception; do
+            [[ -z "$exception" ]] && continue
+            expiry="${exception##*:exp:}"
+            if (( $(date -u -d "$expiry" +%s) > maximum_expiry )); then
+              echo "::error::Trivy exception exceeds the 366-day review horizon: $exception"
+              exit 1
+            fi
+          done <<< "$exceptions"
+
+          nix develop .#ci --command trivy config \
+            --disable-telemetry \
+            --exit-code 1 \
+            --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL \
+            --skip-check-update \
+            --skip-dirs '**/.terraform' \
+            infra/terraform
 
       - name: test
         # -var-file=terraform.tfvars.example where one exists. Real terraform.tfvars is

@@ -265,6 +265,7 @@ variable "database_flags" {
       "log_hostname",
       "log_lock_waits",
       "log_min_error_statement",
+      "log_temp_files",
       "log_statement",
     ]))) == 0
     error_message = "database_flags cannot override the module's mandatory PostgreSQL audit flags."

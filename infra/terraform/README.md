@@ -93,6 +93,11 @@ terraform -chdir=infra/terraform/modules/<module> init \
   -backend=false -input=false -lockfile=readonly
 terraform -chdir=infra/terraform/modules/<module> validate -no-color
 terraform -chdir=infra/terraform/modules/<module> test -no-color
+
+nix develop .#ci --command tflint --chdir=infra/terraform/modules/<module>
+nix develop .#ci --command trivy config --disable-telemetry --exit-code 1 \
+  --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL --skip-check-update \
+  --skip-dirs '**/.terraform' infra/terraform
 ```
 
 These checks may download provider plugins but do not access a backend or cloud API.

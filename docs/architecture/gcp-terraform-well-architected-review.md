@@ -60,7 +60,7 @@ The review uses the Google Cloud Well-Architected Framework's six pillars and AI
 | E-001 | `infra/terraform/modules/**` | 32 module directories | 2026-08-20 | None | 22 substantive modules and 10 blueprint-named scaffolds at review start |
 | E-002 | `infra/terraform/environments/**` | Four roots | 2026-08-20 | None | Only `dns_hub` is materialized; development/staging/production remain non-deployable |
 | E-003 | `docs/blueprint/production-monorepo-blueprint.md` and `docs/architecture/**` | Workload and repository laws | 2026-08-20 | None | Bazel owns build/release; Nix owns toolchains; GKE is the documented AI execution substrate |
-| E-004 | `.github/workflows/presubmit.yml`, `security.yml`, `release.yml` | CI and release | 2026-08-20 | None | Static/mock Terraform checks exist; connected, plan-policy, cost, nightly, and GPU evidence are incomplete |
+| E-004 | `.github/workflows/presubmit.yml`, `security.yml`, `release.yml` | CI and release | 2026-08-20 | None | Terraform contracts, lock-preserving validation/tests, TFLint, and Trivy are enforced; connected-plan policy, cost, nightly, and GPU evidence are incomplete |
 | E-005 | `components.toml`, `maturity.toml`, `SCAFFOLD_STATUS.md` | Maturity governance | 2026-08-20 | None | Infrastructure lacks component registration and promotion evidence |
 | E-006 | `terraform fmt -check -recursive infra/terraform` | Static formatting baseline | 2026-08-20 | None | Passed before implementation |
 | E-007 | `actionlint` and `yamllint --strict .github/workflows` | Workflow syntax baseline | 2026-08-20 | None | Passed before implementation |
@@ -69,9 +69,9 @@ The review uses the Google Cloud Well-Architected Framework's six pillars and AI
 | E-010 | [Cloud Monitoring metrics scopes](https://docs.cloud.google.com/monitoring/settings) | Multi-project observability | 2026-08-20 | N/A | Scoping projects can observe monitored projects without duplicating service SLO logic |
 | E-011 | [Cloud Audit Logs best practices](https://docs.cloud.google.com/logging/docs/audit/best-practices) | Audit/evidence | 2026-08-20 | N/A | Centralized routing and protected retention are required beyond default logs |
 | E-012 | [Pub/Sub exactly-once delivery](https://docs.cloud.google.com/pubsub/docs/exactly-once-delivery) and [retry policy](https://docs.cloud.google.com/pubsub/docs/subscription-retry-policy) | Event delivery | 2026-08-20 | N/A | Delivery semantics do not replace consumer idempotence and replay testing |
-| E-013 | Backendless Terraform initialization, provider-schema validation, and mock tests | All 32 modules | 2026-08-20 | None | 32/32 modules valid; 226/226 mock test runs passed with committed provider locks |
-| E-014 | TFLint 0.63.1 and Checkov 3.3.0 | Terraform static/security policy | 2026-08-20 | None | TFLint passed all modules; Checkov reported 152 passed, 0 failed, 8 documented skips |
-| E-015 | Actionlint, strict workflow YAML lint, diff check, and repository static presubmit | CI/repository integration | 2026-08-20 | None | Passed; CodeQL and release reusable-job token permissions were corrected |
+| E-013 | Backendless Terraform initialization, provider-schema validation, and mock tests | All 32 modules | 2026-08-20 | None | 32/32 modules valid; 227/227 mock test runs passed with committed provider locks |
+| E-014 | TFLint 0.63.1/0.64.0, Checkov 3.3.0, and Trivy 0.74.0 | Terraform static/security policy | 2026-08-20 | None | Full TFLint baseline passed; Checkov reported 152 passed, 0 failed, 8 documented skips; all-severity Trivy reported zero unsuppressed findings with three expiring resource-local exceptions |
+| E-015 | Actionlint, strict workflow YAML lint, diff check, Nix flake evaluation, and repository static presubmit | CI/repository integration | 2026-08-20 | None | Terraform/workflow checks pass and gates were strengthened; a final shared-worktree static rerun is blocked by unrelated concurrent Rust/Bazel dependency alignment changes |
 
 ## 4. Architecture and control assessment
 
@@ -172,8 +172,8 @@ Data paths keep source/artifact identity separate from location. Raw, canonical,
 1. Run `terraform fmt -check -recursive infra/terraform` and `git diff --check`.
 2. For every module, run backendless `terraform init -lockfile=readonly`, `terraform validate`, and mock-provider `terraform test`; lock updates are reviewed separately.
 3. Run `actionlint`, strict YAML lint, repository static checks, and the relevant Bazel filegroup/query checks.
-4. Add an invariant that every materialized module has constraints, README, outputs, positive tests, and negative policy tests; do not silently skip directories without tests.
-5. Add TFLint, a pinned IaC scanner, policy-as-code, documentation drift, saved-plan JSON, replacement/destruction review, and cost evidence in controlled CI.
+4. Keep the enforced invariant that every materialized module has constraints, README, outputs, a committed provider lock, and mock tests; do not silently skip directories without tests.
+5. Keep Nix-pinned TFLint and all-severity Trivy blocking. Add saved-plan policy-as-code, documentation drift, replacement/destruction review, cost evidence, and retained reports in controlled CI.
 
 ### Connected non-production gate
 
@@ -222,9 +222,10 @@ terraform -chdir=infra/terraform/modules/<module> validate -no-color
 terraform -chdir=infra/terraform/modules/<module> test -no-color
 tflint --chdir=infra/terraform/modules/<module>
 checkov -d infra/terraform/modules --framework terraform --skip-download
+nix develop .#ci --command trivy config --disable-telemetry --exit-code 1 --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL --skip-check-update --skip-dirs '**/.terraform' infra/terraform
 NO_COLOR=1 actionlint
 yamllint --strict .github/workflows
 PYTHONDONTWRITEBYTECODE=1 python3 ci/presubmit/pipeline.py --static-only
 ```
 
-Observed local Terraform version: `1.15.8` on `darwin_arm64`. All 32 modules passed backendless provider-schema validation and 226 mock test runs; TFLint passed, and Checkov reported 152 passed, 0 failed, and 8 documented skips. No `terraform apply`, import, refresh, state command, credential command, API enablement, IAM mutation, or other cloud-changing command was run. Live qualification remains governed by `infra/terraform/PRODUCTION_READINESS.md`.
+Observed local Terraform version: `1.15.8` on `darwin_arm64`. All 32 modules passed backendless provider-schema validation and 227 mock test runs; TFLint passed; Checkov reported 152 passed, 0 failed, and 8 documented skips; and Nix-pinned Trivy reported zero unsuppressed findings at every severity with three source-local exceptions expiring 2027-08-20. No `terraform apply`, import, refresh, state command, credential command, API enablement, IAM mutation, or other cloud-changing command was run. Live qualification remains governed by `infra/terraform/PRODUCTION_READINESS.md`.

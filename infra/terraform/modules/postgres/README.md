@@ -26,7 +26,10 @@ runbook operations. Primary disk size is ignored after service-side autoresize g
 so a later plan cannot attempt an unsupported shrink.
 
 Mandatory database flags log connections, disconnections, hostnames, checkpoints,
-lock waits, error statements, and DDL, and enable the Cloud SQL pgAudit integration.
+lock waits, temporary files, error statements, and DDL, and enable the Cloud SQL pgAudit
+integration. Temporary-file logging is set to zero so every spill is recorded; size and
+retention controls belong in the central logging boundary because these entries can expose
+query and workload characteristics.
 Create and configure the `pgaudit` extension through a reviewed database migration;
 the instance flag alone does not install it inside each database. Route database logs
 to the approved central log project with access controls and retention appropriate for

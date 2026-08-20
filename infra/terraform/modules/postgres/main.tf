@@ -113,6 +113,11 @@ resource "google_sql_database_instance" "primary" {
     }
 
     database_flags {
+      name  = "log_temp_files"
+      value = "0"
+    }
+
+    database_flags {
       name  = "log_statement"
       value = "ddl"
     }
@@ -248,6 +253,11 @@ resource "google_sql_database_instance" "replica" {
     database_flags {
       name  = "log_min_error_statement"
       value = "error"
+    }
+
+    database_flags {
+      name  = "log_temp_files"
+      value = "0"
     }
 
     database_flags {
