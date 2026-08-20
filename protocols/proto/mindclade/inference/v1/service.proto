@@ -1,12 +1,21 @@
 // Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 // Mindclade Proprietary and Confidential.
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-//
 
 syntax = "proto3";
 
 package mindclade.inference.v1;
 
+import "mindclade/inference/v1/request.proto";
+import "mindclade/inference/v1/response.proto";
+import "mindclade/inference/v1/stream.proto";
+
 message ServiceScaffold {
+  option deprecated = true;
   string reserved = 1;
+}
+
+service InferenceService {
+  rpc Predict(InferenceRequest) returns (InferenceResponse);
+  rpc StreamPredict(InferenceRequest) returns (stream InferenceStreamEvent);
 }

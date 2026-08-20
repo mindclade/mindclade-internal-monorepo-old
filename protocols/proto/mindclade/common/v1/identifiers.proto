@@ -1,12 +1,24 @@
 // Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 // Mindclade Proprietary and Confidential.
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-//
 
 syntax = "proto3";
 
 package mindclade.common.v1;
 
-message IdentifiersScaffold {
-  string reserved = 1;
+// ResourceId is a tenant-scoped opaque identifier. Consumers must not infer
+// storage location, tenancy, or lifecycle from its textual representation.
+message ResourceId {
+  string value = 1;
+}
+
+// ContentDigest identifies immutable bytes using an explicit algorithm.
+message ContentDigest {
+  string algorithm = 1;
+  bytes value = 2;
+}
+
+// ResourceVersion supports optimistic concurrency without exposing database versions.
+message ResourceVersion {
+  string value = 1;
 }

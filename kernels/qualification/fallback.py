@@ -1,14 +1,19 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
-
-"""Scaffold boundary for kernels/qualification/fallback.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "kernels/qualification/fallback.py"
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True, slots=True)
+class FallbackEvent:
+    operation: str
+    request_digest: str
+    rejected_implementation: str
+    reason: str
+
+    def __post_init__(self) -> None:
+        if not all((self.operation, self.request_digest, self.rejected_implementation, self.reason)):
+            raise ValueError("fallback telemetry fields must be non-empty")

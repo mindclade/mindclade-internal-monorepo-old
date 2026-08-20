@@ -29,11 +29,7 @@ def triangle_multiplication_reference(
     """Mask-aware Pairformer triangle multiplication with FP32 reduction."""
 
     validate_triangle(left, right, mask)
-    if orientation == "outgoing":
-        result = torch.einsum("bikc,bjkc->bijc", left.float(), right.float())
-    elif orientation == "incoming":
-        result = torch.einsum("bkic,bkjc->bijc", left.float(), right.float())
-    else:
+    if orientation not in {"incoming", "outgoing"}:
         raise ValueError("orientation must be incoming or outgoing")
     pair_mask = mask[:, :, None] & mask[:, None, :]
     reduction_mask = mask.to(left.dtype)

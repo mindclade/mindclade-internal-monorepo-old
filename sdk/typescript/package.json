@@ -20,8 +20,8 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "generate": "buf generate protocols --template protocols/buf.gen.yaml && openapi-typescript protocols/openapi/public.openapi.yaml -o sdk/typescript/src/generated/api.ts",
-    "generate:check": "python3 tools/codegen/generate_typescript_sdk.py --check",
+    "generate": "cd ../.. && buf generate protocols --template protocols/buf.gen.yaml && openapi-typescript protocols/openapi/public.openapi.yaml -o sdk/typescript/src/generated/api.ts",
+    "generate:check": "cd ../.. && python3 tools/codegen/generate_typescript_sdk.py --check",
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "tsx --test tests/**/*.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"

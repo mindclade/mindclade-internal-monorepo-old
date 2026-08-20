@@ -1,12 +1,36 @@
 // Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 // Mindclade Proprietary and Confidential.
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-//
 
 syntax = "proto3";
 
 package mindclade.registry.v1;
 
+import "google/protobuf/timestamp.proto";
+import "mindclade/common/v1/identifiers.proto";
+
 message ModelBundleScaffold {
+  option deprecated = true;
   string reserved = 1;
+}
+
+enum ModelStatus {
+  MODEL_STATUS_UNSPECIFIED = 0;
+  MODEL_STATUS_CANDIDATE = 1;
+  MODEL_STATUS_QUALIFIED = 2;
+  MODEL_STATUS_DEPLOYED = 3;
+  MODEL_STATUS_RETIRED = 4;
+  MODEL_STATUS_REVOKED = 5;
+}
+
+message ModelBundle {
+  mindclade.common.v1.ResourceId id = 1;
+  string name = 2;
+  string version = 3;
+  string family = 4;
+  mindclade.common.v1.ContentDigest bundle_digest = 5;
+  ModelStatus status = 6;
+  google.protobuf.Timestamp created_at = 7;
+  repeated string capabilities = 8;
+  uint64 parameter_count = 9;
 }

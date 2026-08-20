@@ -41,9 +41,9 @@ def attention_reference(
         device=q.device,
     )
     if causal:
-        causal_mask = torch.ones(
-            (query_length, key_length), dtype=torch.bool, device=q.device
-        ).tril(diagonal=key_length - query_length)
+        query_positions = torch.arange(query_length, device=q.device)[:, None]
+        key_positions = torch.arange(key_length, device=q.device)[None, :]
+        causal_mask = key_positions <= query_positions
         allowed = causal_mask if allowed is None else allowed & causal_mask
 
     effective_scale = math.sqrt(1.0 / head_dim) if scale is None else float(scale)

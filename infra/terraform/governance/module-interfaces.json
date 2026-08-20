@@ -244,6 +244,17 @@
             "sha256:83b46a16051a0cec8a3033c07a3bf81031079883e37b0efb6bf930392a7f7c9d"
           ]
         },
+        "project_number": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:ec395b6568575cb226c173d0f828f53859a99d67fc2b84148500c09f835a2f8a"
+          ]
+        },
         "repository_id": {
           "default": null,
           "ephemeral": false,
@@ -268,7 +279,8 @@
         }
       },
       "managed_resource_addresses": [
-        "google_artifact_registry_repository.this"
+        "google_artifact_registry_repository.this",
+        "google_kms_crypto_key_iam_member.artifact_registry"
       ],
       "module_calls": {},
       "moved": [],
@@ -1409,6 +1421,56 @@
         "terraform": ">= 1.9.0, < 2.0.0"
       }
     },
+    "cloud_nat": {
+      "inputs": {
+        "nats": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "map(object({ project_id = string network = string region = string router_name = string nat_name = string nat_ip_allocate_option = optional(string, \"MANUAL_ONLY\") static_ip_count = optional(number, 2) source_subnetwork_ip_ranges_to_nat = optional(string, \"ALL_SUBNETWORKS_ALL_IP_RANGES\") min_ports_per_vm = optional(number, 64) enable_dynamic_port_allocation = optional(bool, true) max_ports_per_vm = optional(number, 512) tcp_established_idle_timeout_sec = optional(number, 1200) tcp_transitory_idle_timeout_sec = optional(number, 30) udp_idle_timeout_sec = optional(number, 30) icmp_idle_timeout_sec = optional(number, 30) log_config = optional(object({ enable = optional(bool, true) filter = optional(string, \"ERRORS_ONLY\") }), {}) }))",
+          "validation_fingerprints": [
+            "sha256:7ad16ef2fe7dae42953bfbc264c8471329cafa004b2d90abc52bf4cb3fae7be6"
+          ]
+        }
+      },
+      "managed_resource_addresses": [
+        "google_compute_address.nat",
+        "google_compute_router.nat",
+        "google_compute_router_nat.nat"
+      ],
+      "module_calls": {},
+      "moved": [],
+      "outputs": {
+        "external_addresses": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:cafee741a6c41e28fbb0cbe7397f497985264ca382865adc97f047bb0c6855d7"
+        },
+        "nat_names": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:f09cd04a4d8fdf8cc1b9f29c39b8ef29e9d1cb95d6cf3e4981e54628d595bb1a"
+        },
+        "router_names": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:01ee1fd4eed7016f7204f1c7aa7fdda0f49998bf2f7e15d28da825c2f4f163cc"
+        }
+      },
+      "path": "infra/terraform/modules/cloud_nat",
+      "provider_contracts": {
+        "google": {
+          "configuration_aliases": [],
+          "source": "registry.terraform.io/hashicorp/google"
+        }
+      },
+      "requirements": {
+        "google": ">= 7.41.0, < 8.0.0",
+        "terraform": ">= 1.9.0, < 2.0.0"
+      }
+    },
     "cpu_node_pool": {
       "inputs": {
         "additional_taints": {
@@ -2128,6 +2190,50 @@
         "terraform": ">= 1.9.0, < 2.0.0"
       }
     },
+    "firewall": {
+      "inputs": {
+        "firewalls": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "map(object({ project_id = string network = string enable_logging_on_deny_only = optional(bool, true) rules = map(object({ direction = string priority = number action = string description = optional(string, \"Managed VPC firewall rule.\") disabled = optional(bool, false) source_ranges = optional(set(string), []) destination_ranges = optional(set(string), []) source_tags = optional(set(string), []) target_tags = optional(set(string), []) allow = optional(list(object({ protocol = string ports = optional(set(string), []) })), []) deny = optional(list(object({ protocol = string ports = optional(set(string), []) })), []) log_config = optional(object({ metadata = optional(string, \"INCLUDE_ALL_METADATA\") })) })) }))",
+          "validation_fingerprints": [
+            "sha256:16f34e81737496694048135452fe3697f6f138d418d4b2fa8b05d82fe0a10976",
+            "sha256:26ee4b18d05662689a1a219b53b332550f6214c8bb5066fef0de295e78963f9a"
+          ]
+        }
+      },
+      "managed_resource_addresses": [
+        "google_compute_firewall.rule"
+      ],
+      "module_calls": {},
+      "moved": [],
+      "outputs": {
+        "rule_ids": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:0dbbafbd022afe708b3ba75379c998bf83e8a848459923e1d348d3a9d03ce326"
+        },
+        "rule_names": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:b43fc1e79e450c0114f18c1bcb11270836203943bf6d27909be3da959c53aeed"
+        }
+      },
+      "path": "infra/terraform/modules/firewall",
+      "provider_contracts": {
+        "google": {
+          "configuration_aliases": [],
+          "source": "registry.terraform.io/hashicorp/google"
+        }
+      },
+      "requirements": {
+        "google": ">= 7.41.0, < 8.0.0",
+        "terraform": ">= 1.9.0, < 2.0.0"
+      }
+    },
     "folder_factory": {
       "inputs": {
         "billing_account": {
@@ -2253,6 +2359,17 @@
     },
     "gke": {
       "inputs": {
+        "channel_policy": {
+          "default": "QUALIFIED",
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:4634970b323dfb21e14d6df743ecb505574d0b2a6764552d1cede8582a3dc136"
+          ]
+        },
         "data_classification": {
           "default": "internal",
           "ephemeral": false,
@@ -2285,6 +2402,15 @@
           "validation_fingerprints": []
         },
         "enable_gcs_fuse_csi_driver": {
+          "default": false,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "bool",
+          "validation_fingerprints": []
+        },
+        "enable_secret_sync": {
           "default": false,
           "ephemeral": false,
           "nullable": true,
@@ -2437,7 +2563,7 @@
           "sensitive": false,
           "type": "string",
           "validation_fingerprints": [
-            "sha256:fbf03151cb977db236c7b5247a90e2f02eb9b90fc20535bf2ba99073af1052a7"
+            "sha256:4a45fbac49aa63a932e9c6961d0d900d8a114c62a48ff0a0544c920f7339c42e"
           ]
         },
         "resource_labels": {
@@ -2449,6 +2575,17 @@
           "type": "map(string)",
           "validation_fingerprints": [
             "sha256:4ee434cc52dfe71686452c5a459a470f8a34bac06d6ce86fdf39f38af9a440d5"
+          ]
+        },
+        "secret_sync_rotation_interval": {
+          "default": "120s",
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:fe82da51e77928e748b036d6fda78519df437b8e812fc27079fec1bf74174798"
           ]
         },
         "service_secondary_range_name": {

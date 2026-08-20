@@ -45,6 +45,13 @@ def attention_shape(request: KernelRequest) -> str | None:
         return "attention_shape"
     if q.shape[-1] not in {32, 64, 128, 256}:
         return "head_dimension"
+    semantics = dict(request.semantics)
+    if semantics.get("mask", "none") != "none":
+        return "attention_mask"
+    if semantics.get("scale", "default") != "default":
+        return "attention_scale"
+    if semantics.get("causal", "false") != "false":
+        return "attention_causal_variant"
     return None
 
 

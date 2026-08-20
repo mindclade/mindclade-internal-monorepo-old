@@ -4,4 +4,11 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+version: v2
+clean: true
+plugins:
+  - local: protoc-gen-es
+    out: sdk/typescript/src/generated/proto
+    opt:
+      - target=ts
+      - import_extension=js

@@ -1,14 +1,13 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
-"""Scaffold boundary for kernels/qualification/maturity.py.
+from enum import StrEnum
 
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
 
-from __future__ import annotations
-
-SCAFFOLD_PATH: str = "kernels/qualification/maturity.py"
+class KernelMaturity(StrEnum):
+    SOURCE = "source"
+    LOCALLY_TESTED = "locally_tested"
+    HARDWARE_QUALIFIED = "hardware_qualified"
+    PROMOTED = "promoted"
+    REVOKED = "revoked"

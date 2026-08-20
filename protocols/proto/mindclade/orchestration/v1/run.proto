@@ -1,12 +1,62 @@
 // Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 // Mindclade Proprietary and Confidential.
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-//
 
 syntax = "proto3";
 
 package mindclade.orchestration.v1;
 
+import "google/protobuf/timestamp.proto";
+import "mindclade/common/v1/errors.proto";
+import "mindclade/common/v1/identifiers.proto";
+
 message RunScaffold {
+  option deprecated = true;
   string reserved = 1;
+}
+
+enum RunKind {
+  RUN_KIND_UNSPECIFIED = 0;
+  RUN_KIND_PREPROCESSING = 1;
+  RUN_KIND_TRAINING = 2;
+  RUN_KIND_EVALUATION = 3;
+  RUN_KIND_BATCH_INFERENCE = 4;
+  RUN_KIND_ONLINE_INFERENCE = 5;
+  RUN_KIND_CURATION = 6;
+}
+
+enum RunState {
+  RUN_STATE_UNSPECIFIED = 0;
+  RUN_STATE_QUEUED = 1;
+  RUN_STATE_PREPARING = 2;
+  RUN_STATE_RUNNING = 3;
+  RUN_STATE_SUCCEEDED = 4;
+  RUN_STATE_FAILED = 5;
+  RUN_STATE_CANCELLING = 6;
+  RUN_STATE_CANCELLED = 7;
+}
+
+message Run {
+  mindclade.common.v1.ResourceId id = 1;
+  string name = 2;
+  RunKind kind = 3;
+  RunState state = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+  double progress = 7;
+  string current_stage = 8;
+  string owner = 9;
+  optional mindclade.common.v1.ResourceId model_id = 10;
+  repeated mindclade.common.v1.ContentDigest output_artifacts = 11;
+  mindclade.common.v1.ResourceVersion resource_version = 12;
+  optional mindclade.common.v1.ErrorDetail failure = 13;
+}
+
+message CreateRunSpec {
+  string name = 1;
+  RunKind kind = 2;
+  mindclade.common.v1.ContentDigest configuration_digest = 3;
+  optional mindclade.common.v1.ResourceId model_id = 4;
+  optional mindclade.common.v1.ResourceId dataset_id = 5;
+  map<string, string> labels = 6;
 }

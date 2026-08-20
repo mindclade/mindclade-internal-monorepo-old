@@ -1,14 +1,15 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
-
-"""Scaffold boundary for kernels/providers/pytorch/capabilities.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "kernels/providers/pytorch/capabilities.py"
+import torch
+
+from kernels.api.capabilities import DeviceCapabilities, PORTABLE_CPU
+from kernels.providers.tilelang.capabilities import detect_capabilities
+
+
+def pytorch_capabilities(device: torch.device | str) -> DeviceCapabilities:
+    selected = torch.device(device)
+    return PORTABLE_CPU if selected.type == "cpu" else detect_capabilities(selected)

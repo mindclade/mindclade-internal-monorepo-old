@@ -61,10 +61,12 @@ and cost attribution. Offline tests do not create or exercise a cluster.
 
 | Name | Description | Type | Default | Required |
 | ---- | ----------- | ---- | ------- | :------: |
+| <a name="input_channel_policy"></a> [channel\_policy](#input\_channel\_policy) | Upgrade cohort paired with release\_channel: CANARY is development-only RAPID; QUALIFIED is REGULAR | `string` | `"QUALIFIED"` | no |
 | <a name="input_data_classification"></a> [data\_classification](#input\_data\_classification) | Data-classification label applied to cluster and node resources | `string` | `"internal"` | no |
 | <a name="input_database_encryption_key_name"></a> [database\_encryption\_key\_name](#input\_database\_encryption\_key\_name) | Optional regional CryptoKey for application-layer Kubernetes Secrets encryption; required for restricted data | `string` | `null` | no |
 | <a name="input_enable_backup_agent"></a> [enable\_backup\_agent](#input\_enable\_backup\_agent) | Enable the Backup for GKE agent; backup plans, IAM, retention, and restore tests remain separate resources | `bool` | `true` | no |
 | <a name="input_enable_gcs_fuse_csi_driver"></a> [enable\_gcs\_fuse\_csi\_driver](#input\_enable\_gcs\_fuse\_csi\_driver) | Enable the managed Cloud Storage FUSE CSI driver; NOVA training requires this to remain false and uses generation-bound object APIs | `bool` | `false` | no |
+| <a name="input_enable_secret_sync"></a> [enable\_secret\_sync](#input\_enable\_secret\_sync) | Enable the GKE Secret Manager SecretSync controller for workloads that require native Kubernetes Secret objects | `bool` | `false` | no |
 | <a name="input_environment"></a> [environment](#input\_environment) | Environment label applied to cluster and node resources | `string` | n/a | yes |
 | <a name="input_kubernetes_version"></a> [kubernetes\_version](#input\_kubernetes\_version) | Pinned minimum control-plane and initial system node version for the NOVA v1 training qualification tuple | `string` | `"1.36.2-gke.2064000"` | no |
 | <a name="input_maintenance_window"></a> [maintenance\_window](#input\_maintenance\_window) | Recurring UTC maintenance window in RFC3339/RFC5545 form | <pre>object({<br/>    start_time = string<br/>    end_time   = string<br/>    recurrence = string<br/>  })</pre> | <pre>{<br/>  "end_time": "2025-01-05T10:00:00Z",<br/>  "recurrence": "FREQ=WEEKLY;BYDAY=SU",<br/>  "start_time": "2025-01-05T02:00:00Z"<br/>}</pre> | no |
@@ -77,8 +79,9 @@ and cost attribution. Offline tests do not create or exercise a cluster.
 | <a name="input_project_id"></a> [project\_id](#input\_project\_id) | GCP project ID that owns the cluster | `string` | n/a | yes |
 | <a name="input_rbac_security_group"></a> [rbac\_security\_group](#input\_rbac\_security\_group) | Google Group configured as the GKE security-groups parent for group-based Kubernetes RBAC | `string` | n/a | yes |
 | <a name="input_region"></a> [region](#input\_region) | GCP region for the regional control plane, for example us-central1 | `string` | n/a | yes |
-| <a name="input_release_channel"></a> [release\_channel](#input\_release\_channel) | Pinned GKE release channel for the NOVA v1 training substrate | `string` | `"REGULAR"` | no |
+| <a name="input_release_channel"></a> [release\_channel](#input\_release\_channel) | GKE release channel: RAPID for the development canary or REGULAR for qualified staging, production, and control clusters | `string` | `"REGULAR"` | no |
 | <a name="input_resource_labels"></a> [resource\_labels](#input\_resource\_labels) | Additional GCP resource labels; module governance labels take precedence | `map(string)` | `{}` | no |
+| <a name="input_secret_sync_rotation_interval"></a> [secret\_sync\_rotation\_interval](#input\_secret\_sync\_rotation\_interval) | Rotation interval for GKE SecretSync; used only when enable\_secret\_sync is true | `string` | `"120s"` | no |
 | <a name="input_service_secondary_range_name"></a> [service\_secondary\_range\_name](#input\_service\_secondary\_range\_name) | Existing subnetwork secondary range used for Service addresses | `string` | n/a | yes |
 | <a name="input_subnetwork"></a> [subnetwork](#input\_subnetwork) | Existing regional subnetwork name or self-link | `string` | n/a | yes |
 | <a name="input_system_node_pool_boot_disk_size_gb"></a> [system\_node\_pool\_boot\_disk\_size\_gb](#input\_system\_node\_pool\_boot\_disk\_size\_gb) | Boot-disk size for system nodes | `number` | `100` | no |
