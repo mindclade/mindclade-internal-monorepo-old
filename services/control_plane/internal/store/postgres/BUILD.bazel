@@ -35,7 +35,7 @@ go_test(
     srcs = [
         "ddl_test.go",
         "descriptors_test.go",
-		"live_postgres_test.go",
+        "live_postgres_test.go",
         "releases_test.go",
     ],
     embed = [":postgres"],
@@ -46,10 +46,10 @@ go_test(
         "//libs/go/clock",
         "//libs/go/faults",
         "//libs/go/identifiers",
-		"//libs/go/storage/lease",
-		"//libs/go/storage/lease/postgres",
+        "//libs/go/storage/lease",
+        "//libs/go/storage/lease/postgres",
         "//libs/go/storage/sql/sqltest",
-		"//libs/go/storage/sql/transaction",
-		"@com_github_lib_pq//:pq",
+        "//libs/go/storage/sql/transaction",
+        "@com_github_lib_pq//:pq",
     ],
 )

@@ -269,6 +269,19 @@
         }
       }
     },
+    "//tools/build/bazel/extensions:nix_toolchains.bzl%nix_toolchains": {
+      "general": {
+        "bzlTransitiveDigest": "QV/ILn9vjdFg91iG+YWytgrWm4bcXRVcDxab+8UYdZo=",
+        "usagesDigest": "zt0aWoS6RYh796JEL5PTldxGAJVTTL7uhXHPc9453ZQ=",
+        "recordedInputs": [],
+        "generatedRepoSpecs": {
+          "mindclade_nix_cc": {
+            "repoRuleId": "@@//tools/build/bazel/extensions:nix_toolchains.bzl%_nix_cc_repository",
+            "attributes": {}
+          }
+        }
+      }
+    },
     "@@pybind11_bazel+//:internal_configure.bzl%internal_configure_extension": {
       "general": {
         "bzlTransitiveDigest": "b+RP7Sgl8KN0VHamrgTqzGLuYPcQ/Mo4ptNkkHUIIlA=",

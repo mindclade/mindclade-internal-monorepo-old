@@ -5,7 +5,7 @@
   "description": "Release evidence for the Nix-owned toolchain closure (ADR-0002). Rendered by tools/build/nix/manifest.nix, committed at tools/build/nix/toolchain-manifest.json, and asserted by the flake check of the same name. Records resolved versions and the nixpkgs revision rather than store paths: a store path moves on any rebuild of any dependency, so a path-keyed manifest churns without carrying more information.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema", "nixpkgs", "pins", "tools", "ciTools"],
+  "required": ["schema", "nixpkgs", "pins", "cxx", "tools", "ciTools"],
   "properties": {
     "schema": {
       "description": "Manifest format version. Bumped only when a consumer would break.",
@@ -20,14 +20,32 @@
       "description": "The declared pins from tools/build/nix/versions.nix, so a versions.nix edit that no compatibility file mirrors also shows up as manifest drift.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["bazel", "rust", "go", "python", "nodeMajor", "pnpmMajor"],
+      "required": ["bazel", "rust", "go", "python", "nodeMajor", "pnpmMajor", "darwinDeploymentTarget"],
       "properties": {
         "bazel": { "$ref": "#/$defs/exactVersion" },
         "rust": { "$ref": "#/$defs/exactVersion" },
         "go": { "$ref": "#/$defs/languageLevel" },
         "python": { "$ref": "#/$defs/languageLevel" },
         "nodeMajor": { "$ref": "#/$defs/major" },
-        "pnpmMajor": { "$ref": "#/$defs/major" }
+        "pnpmMajor": { "$ref": "#/$defs/major" },
+        "darwinDeploymentTarget": { "$ref": "#/$defs/languageLevel" }
+      }
+    },
+    "cxx": {
+      "description": "Stable configuration evidence for the registered Nix C/C++ toolchain. Host-specific store paths remain in the per-system bundle manifest.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["compiler", "darwinDeploymentTarget", "darwinSystemLibraries"],
+      "properties": {
+        "compiler": { "const": "clang" },
+        "darwinDeploymentTarget": { "$ref": "#/$defs/languageLevel" },
+        "darwinSystemLibraries": {
+          "description": "SDK-adjacent Darwin libraries supplied by pinned nixpkgs derivations to strict Bazel link actions.",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        }
       }
     },
     "tools": {

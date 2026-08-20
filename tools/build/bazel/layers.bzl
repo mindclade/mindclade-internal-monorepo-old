@@ -2,34 +2,32 @@
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
-"""Repository-wide Bazel dependency-layer declarations.
+"""Fail-closed repository dependency-layer policy.
 
-Keep this file data-only above the macro. tools/analysis/check_bazel_layers.py reads the
-literal assignments so the package groups used by BUILD files and the CI graph policy have
-one source of truth.
+Keep the assignments literal. tools/analysis/check_bazel_layers.py reads this file with the
+Python AST so BUILD visibility declarations and CI graph governance share one source of truth.
 """
 
-BAZEL_PACKAGE_GROUPS = {
-    "boundary_apps": ["//apps/..."],
-    "boundary_infra": ["//infra/..."],
-    "boundary_research_experiments": ["//research/experiments/..."],
-    "boundary_services": ["//services/..."],
-    "boundary_training": ["//training/..."],
-    "layer_foundation": [
+# Every internal Bazel package must match exactly one layer. Support layers are deliberately
+# narrow: production code may use root metadata and build/test/release helpers without gaining
+# access to deployment, CI, architecture, or arbitrary developer tooling.
+BAZEL_LAYERS = {
+    "apps": ["//apps/..."],
+    "build_support": ["//tools/build/..."],
+    "foundation": [
         "//configs/...",
         "//libs/...",
         "//protocols/...",
         "//sdk/...",
     ],
-    "layer_offline": [
+    "offline": [
         "//data/...",
         "//evaluation/...",
         "//kernels/...",
         "//models/...",
         "//preprocessing/...",
-        "//training/...",
     ],
-    "layer_platform": [
+    "platform": [
         "//architecture/...",
         "//ci/...",
         "//docs/...",
@@ -37,94 +35,172 @@ BAZEL_PACKAGE_GROUPS = {
         "//infra/...",
         "//qualification/...",
         "//security/...",
-        "//tests/...",
-        "//tools/...",
+        "//tools",
+        "//tools/analysis/...",
+        "//tools/codegen/...",
+        "//tools/dev/...",
+        "//tools/license/...",
+        "//tools/qualification/...",
     ],
-    "layer_research": ["//research/..."],
-    "layer_serving": [
-        "//apps/...",
+    "release_support": ["//tools/release/..."],
+    "research": ["//research/..."],
+    "root_support": ["//"],
+    "runtime": [
         "//control/...",
-        "//services/...",
         "//serving/...",
     ],
-    "non_research": [
-        "//apps/...",
-        "//architecture/...",
-        "//ci/...",
-        "//configs/...",
-        "//control/...",
-        "//data/...",
-        "//docs/...",
-        "//evaluation/...",
-        "//examples/...",
-        "//infra/...",
-        "//kernels/...",
-        "//libs/...",
-        "//models/...",
-        "//preprocessing/...",
-        "//protocols/...",
-        "//qualification/...",
-        "//sdk/...",
-        "//security/...",
-        "//services/...",
-        "//serving/...",
-        "//tests/...",
-        "//tools/...",
-        "//training/...",
+    "services": ["//services/..."],
+    "test_support": ["//tests/..."],
+    "training": ["//training/..."],
+}
+
+# Explicit source -> allowed destination matrix. New dependency directions are denied until
+# reviewed here; there is no implicit "not forbidden means allowed" path.
+BAZEL_LAYER_ALLOW_MATRIX = {
+    "apps": [
+        "apps",
+        "build_support",
+        "foundation",
+        "release_support",
+        "root_support",
+        "test_support",
     ],
-    "production": [
-        "//apps/...",
-        "//configs/...",
-        "//control/...",
-        "//data/...",
-        "//evaluation/...",
-        "//kernels/...",
-        "//libs/...",
-        "//models/...",
-        "//preprocessing/...",
-        "//protocols/...",
-        "//sdk/...",
-        "//services/...",
-        "//serving/...",
-        "//training/...",
+    "build_support": [
+        "apps",
+        "build_support",
+        "foundation",
+        "offline",
+        "platform",
+        "release_support",
+        "research",
+        "root_support",
+        "runtime",
+        "services",
+        "test_support",
+        "training",
     ],
-    "source": [
-        "//apps/...",
-        "//configs/...",
-        "//control/...",
-        "//data/...",
-        "//evaluation/...",
-        "//kernels/...",
-        "//libs/...",
-        "//models/...",
-        "//preprocessing/...",
-        "//protocols/...",
-        "//research/...",
-        "//sdk/...",
-        "//services/...",
-        "//serving/...",
-        "//training/...",
+    "foundation": [
+        "build_support",
+        "foundation",
+        "root_support",
+        "test_support",
+    ],
+    "offline": [
+        "build_support",
+        "foundation",
+        "offline",
+        "release_support",
+        "root_support",
+        "test_support",
+    ],
+    "platform": [
+        "apps",
+        "build_support",
+        "foundation",
+        "offline",
+        "platform",
+        "release_support",
+        "research",
+        "root_support",
+        "runtime",
+        "services",
+        "test_support",
+        "training",
+    ],
+    "release_support": [
+        "apps",
+        "build_support",
+        "foundation",
+        "offline",
+        "platform",
+        "release_support",
+        "research",
+        "root_support",
+        "runtime",
+        "services",
+        "test_support",
+        "training",
+    ],
+    "research": [
+        "apps",
+        "build_support",
+        "foundation",
+        "offline",
+        "platform",
+        "release_support",
+        "research",
+        "root_support",
+        "runtime",
+        "services",
+        "test_support",
+        "training",
+    ],
+    "root_support": [
+        "apps",
+        "build_support",
+        "foundation",
+        "offline",
+        "platform",
+        "release_support",
+        "research",
+        "root_support",
+        "runtime",
+        "services",
+        "test_support",
+        "training",
+    ],
+    "runtime": [
+        "build_support",
+        "foundation",
+        "offline",
+        "release_support",
+        "root_support",
+        "runtime",
+        "test_support",
+    ],
+    "services": [
+        "build_support",
+        "foundation",
+        "offline",
+        "release_support",
+        "root_support",
+        "runtime",
+        "services",
+        "test_support",
+    ],
+    "test_support": [
+        "apps",
+        "build_support",
+        "foundation",
+        "offline",
+        "platform",
+        "release_support",
+        "research",
+        "root_support",
+        "runtime",
+        "services",
+        "test_support",
+        "training",
+    ],
+    "training": [
+        "build_support",
+        "foundation",
+        "offline",
+        "release_support",
+        "root_support",
+        "test_support",
+        "training",
     ],
 }
 
-# Ordered most-specific first. The graph checker reports the first matching policy for a
-# direct edge, so one dependency produces one actionable diagnostic.
-BAZEL_FORBIDDEN_EDGES = [
-    ["non_research", "boundary_research_experiments", "only research may consume experiments"],
-    ["layer_serving", "boundary_training", "serving must consume published model contracts, not training internals"],
-    ["boundary_apps", "boundary_services", "apps consume generated SDKs and contracts, not service implementations"],
-    ["source", "boundary_infra", "source packages must not depend on deployment infrastructure"],
-    ["production", "layer_research", "production packages must not depend on research"],
-]
-
-# Exact edge -> accepted ADR and rationale. The checker rejects malformed and stale entries;
-# an exception cannot be a package-wide wildcard or an undocumented permanent bypass.
+# Exact live edge -> temporary exception metadata. Exceptions are capped at 90 days and the
+# checker validates the owner, accepted ADR, rationale, expiry, and edge liveness.
 BAZEL_LAYER_EXCEPTIONS = {}
 
 def declare_bazel_layer_package_groups():
-    """Declare the centrally named groups in the calling package."""
-    for name, packages in BAZEL_PACKAGE_GROUPS.items():
+    """Declare visibility groups mirroring the classifier."""
+    for name, packages in BAZEL_LAYERS.items():
         native.package_group(
-            name = name,
+            name = "layer_{}".format(name),
             packages = packages,
         )

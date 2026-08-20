@@ -12,6 +12,8 @@ bazel_dep(name = "rules_go", version = "0.63.0")
 bazel_dep(name = "gazelle", version = "0.51.3")
 bazel_dep(name = "rules_python", version = "1.7.0")
 bazel_dep(name = "rules_rust", version = "0.73.0")
+bazel_dep(name = "rules_cc", version = "0.2.17")
+bazel_dep(name = "platforms", version = "1.1.0")
 
 # No JavaScript ruleset is declared here yet. The TypeScript packages under
 # libs/ts and apps carry scaffold filegroups only, and nothing loads JS rules.
@@ -36,6 +38,17 @@ bazel_dep(name = "rules_pkg", version = "1.0.1")
 # is what makes the load() legal: a transitive module is not addressable as @rules_shell from
 # this repository's own BUILD files.
 bazel_dep(name = "rules_shell", version = "0.6.1")
+
+# Nix owns the compiler closure. This extension turns the bundle exported by every development
+# shell into a registered C/C++ toolchain, so Bazel never probes /usr/bin, Xcode Command Line
+# Tools, or Homebrew to discover build semantics.
+nix_toolchains = use_extension(
+    "//tools/build/bazel/extensions:nix_toolchains.bzl",
+    "nix_toolchains",
+)
+use_repo(nix_toolchains, "mindclade_nix_cc")
+
+register_toolchains("@mindclade_nix_cc//:registered_toolchain")
 
 # Static infrastructure validation consumes fixed-hash Kubernetes schemas and captures the
 # Nix-owned CLI closure as declared runfiles. The latter is a documented transition bridge:

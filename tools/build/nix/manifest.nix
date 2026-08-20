@@ -91,6 +91,16 @@ let
     schema = 1;
     nixpkgs = nixpkgsRev;
     pins = versions;
+    cxx = {
+      compiler = "clang";
+      darwinDeploymentTarget = versions.darwinDeploymentTarget;
+      darwinSystemLibraries = [
+        "iconv"
+        "resolv"
+        "sbuf"
+        "util"
+      ];
+    };
     inherit tools;
     ciTools = ciTools;
   };

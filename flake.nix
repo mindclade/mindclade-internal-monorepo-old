@@ -102,8 +102,18 @@
               config.cudaSupport = system == "x86_64-linux";
             };
             rust = import ./tools/build/nix/toolchains/rust.nix { inherit pkgs versions; };
+            ccToolchain = import ./tools/build/nix/toolchains/cc.nix {
+              inherit pkgs versions system;
+            };
           in
-          fn { inherit pkgs rust system; }
+          fn {
+            inherit
+              ccToolchain
+              pkgs
+              rust
+              system
+              ;
+          }
         );
     in
     {
@@ -111,13 +121,42 @@
         {
           pkgs,
           rust,
+          ccToolchain,
           system,
           ...
         }:
         let
+          # rules_python asks xcode-select for a CommandLineTools-shaped SDK path while
+          # materializing wheel repositories. Nix's xcbuild implementation instead reports
+          # the bare SDK derivation, which rules_python mistakes for full Xcode and follows
+          # with an unavailable xcodebuild call. Keep this compatibility adapter in the Nix
+          # closure (not the Bazel launcher) and point it at the pinned Nix SDK.
+          xcodeSelectCompat =
+            if pkgs.stdenv.hostPlatform.isDarwin then
+              pkgs.runCommand "mindclade-nix-xcode-select" { } ''
+                mkdir -p "$out/bin" "$out/CommandLineTools/SDKs"
+                ln -s ${pkgs.apple-sdk}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk \
+                  "$out/CommandLineTools/SDKs/MacOSX.sdk"
+                printf '%s\n' \
+                  '#!/usr/bin/env bash' \
+                  'set -euo pipefail' \
+                  'if [[ "''${1:-}" != "--print-path" && "''${1:-}" != "-p" ]]; then' \
+                  '  echo "xcode-select: the Nix compatibility adapter supports --print-path only" >&2' \
+                  '  exit 2' \
+                  'fi' \
+                  'echo "${placeholder "out"}/CommandLineTools"' \
+                  > "$out/bin/xcode-select"
+                chmod +x "$out/bin/xcode-select"
+              ''
+            else
+              null;
           standardShellHook = ''
             export MINDCLADE_REPO_ROOT="$PWD"
+            export MINDCLADE_CC_TOOLCHAIN_ROOT="${ccToolchain}"
             export PYTHONNOUSERSITE=1
+          ''
+          + nixpkgs.lib.optionalString pkgs.stdenv.hostPlatform.isDarwin ''
+            export PATH="${xcodeSelectCompat}/bin:$PATH"
           '';
           defaultPackages =
             (with pkgs; [
@@ -267,7 +306,7 @@
       # Exposed as a package rather than hidden inside the check so the evidence the ADR calls
       # for is buildable on its own, without running the whole check set.
       packages = forAllSystems (
-        { pkgs, ... }:
+        { ccToolchain, pkgs, ... }:
         let
           manifest = import ./tools/build/nix/manifest.nix {
             inherit pkgs versions;
@@ -275,6 +314,7 @@
           };
         in
         {
+          cc-toolchain-bundle = ccToolchain;
           toolchain-manifest = manifest.file;
         }
       );

@@ -13,9 +13,13 @@ exclude_docs: |
   /README.md
   BUILD.bazel
   blueprint/production-monorepo-blueprint.md
+validation:
+  nav:
+    omitted_files: warn
 nav:
   - Home: index.md
   - Architecture:
+      - Overview: architecture/README.md
       - Canonical system design: architecture/system-design-reference.md
       - Design traceability: architecture/system-design-traceability.md
       - System overview: architecture/system-overview.md
@@ -23,7 +27,10 @@ nav:
       - Dependency rules: architecture/dependency-rules.md
       - Service boundaries: architecture/service-boundaries.md
       - Build and toolchains: architecture/build-and-toolchains.md
+      - Foundation hardening: architecture/foundation-hardening.md
       - Go foundation: architecture/go-foundation.md
+      - Rust production hardening: architecture/rust-production-hardening.md
+      - Rust production wave status: architecture/rust-production-wave-status.md
       - Control plane: architecture/control-plane.md
       - Runtime authority and stages: architecture/runtime-authority-and-stage-execution.md
       - Runtime data plane: architecture/runtime-data-plane.md
@@ -40,6 +47,9 @@ nav:
       - Artifact lifecycle: architecture/artifact-lifecycle.md
       - Release evidence: architecture/release-evidence.md
       - Eighteen optimizations: architecture/optimization-18-implementation.md
+      - Workload envelope: architecture/workload-envelope.md
+      - Node diagnostics: architecture/node-diagnostics.md
+      - GCP Terraform review: architecture/gcp-terraform-well-architected-review.md
   - Guides:
       - Go foundation adoption: guides/go-foundation-adoption.md
       - Go module reference: guides/libs-go-module-reference.md
@@ -51,7 +61,9 @@ nav:
       - Resolved configuration: guides/config-resolution.md
       - Maturity and dependency budgets: guides/component-maturity-and-dependency-budgets.md
   - Decisions:
+      - Overview: design/README.md
       - Decision register: design/decision-register.md
+      - RFC template: design/rfc-template.md
       - ADR-0001 Bazel/Bzlmod: design/adr-0001-bazel-bzlmod.md
       - ADR-0002 Nix toolchains: design/adr-0002-nix-owned-toolchains.md
       - ADR-0003 Polyglot boundaries: design/adr-0003-polyglot-boundaries.md
@@ -90,6 +102,35 @@ nav:
       - Training stalled: runbooks/training-stalled.md
       - Ticket key rotation: runbooks/ticket-key-rotation.md
       - Release rollback: runbooks/release-rollback.md
+      - Control ingestion: runbooks/control-ingestion.md
+      - Control model registry: runbooks/control-model-registry.md
+      - Control reference databases: runbooks/control-reference-databases.md
+      - Control release evidence: runbooks/control-release-evidence.md
+      - Control routing: runbooks/control-routing.md
+      - Control runtime authority: runbooks/control-runtime-authority.md
+      - Go libraries: runbooks/libs-go.md
+      - Rust libraries: runbooks/libs-rust.md
+      - Runtime host degraded: runbooks/runtime-host-degraded.md
+      - Runtime ingestion worker: runbooks/runtime-ingestion-worker.md
+      - Runtime model worker: runbooks/runtime-model-worker.md
+      - Runtime serving core: runbooks/runtime-serving-core.md
+  - Service objectives:
+      - Artifact control: slo/artifact-control.md
+      - Artifact proxy: slo/artifact-proxy.md
+      - Control ingestion: slo/control-ingestion.md
+      - Control model registry: slo/control-model-registry.md
+      - Control reference databases: slo/control-reference-databases.md
+      - Control release evidence: slo/control-release-evidence.md
+      - Control routing: slo/control-routing.md
+      - Control runtime authority: slo/control-runtime-authority.md
+      - Go libraries: slo/libs-go.md
+      - Rust libraries: slo/libs-rust.md
+      - Node agent: slo/node-agent.md
+      - Runtime gateway: slo/runtime-gateway.md
+      - Runtime host: slo/runtime-host.md
+      - Runtime ingestion worker: slo/runtime-ingestion-worker.md
+      - Runtime model worker: slo/runtime-model-worker.md
+      - Runtime serving core: slo/runtime-serving-core.md
   - Security:
       - Threat model: security/threat-model.md
       - Tenant isolation: security/tenant-isolation.md
@@ -98,6 +139,16 @@ nav:
       - Supply chain: security/supply-chain.md
   - Qualification:
       - Overview: qualification/README.md
+      - Foundation freeze: qualification/foundation-freeze.md
+      - Go qualification: qualification/go/README.md
+      - Control-plane registry: qualification/go/control-plane-registry.md
+  - Examples:
+      - Control-plane API: examples/control-plane-api.md
+      - Ingestion coordinator: examples/ingestion-coordinator.md
+  - Migrations:
+      - Rust compatibility crates: migrations/rust-compatibility-crates.md
+  - Blueprint:
+      - Overview: blueprint/README.md
   - Roadmap:
       - Overview: roadmap/README.md
       - Decomposition triggers: roadmap/decomposition-triggers.md

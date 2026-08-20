@@ -14,9 +14,20 @@
     "yamllint": "1.37.1",
     "yq": "4.53.3"
   },
+  "cxx": {
+    "compiler": "clang",
+    "darwinDeploymentTarget": "14.0",
+    "darwinSystemLibraries": [
+      "iconv",
+      "resolv",
+      "sbuf",
+      "util"
+    ]
+  },
   "nixpkgs": "ffb3c9b700e759be2ef13237c9d8f953b32a1e46",
   "pins": {
     "bazel": "9.1.1",
+    "darwinDeploymentTarget": "14.0",
     "go": "1.26",
     "nodeMajor": 22,
     "pnpmMajor": 11,

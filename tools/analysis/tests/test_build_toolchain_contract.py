@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""The host-tool scan has one exemption; these tests hold both of its edges.
+"""The host-tool scan has narrow enforcement-file exemptions; these tests hold both edges.
 
-CONTRACT_IMPLEMENTATIONS exists because a check that forbids a string cannot avoid
-containing it. Two failure modes follow, and each has a test here:
+CONTRACT_IMPLEMENTATIONS exists because checks that forbid host strings cannot avoid
+containing them. Two failure modes follow, and each has a test here:
 
   * too narrow — the Nix mirror of this check spells out the same host paths and
     package-manager invocations as pattern literals, so leaving it out of the allowlist makes

@@ -46,4 +46,8 @@
   # WAS absent while package.json said pnpm@10 and the devShell shipped 11.21.0 — so a developer
   # inside `nix develop` ran pnpm 11 and corepack outside it ran pnpm 10, against one lockfile.
   pnpmMajor = 11;
+
+  # The oldest macOS version produced binaries may require. This belongs beside the compiler
+  # pin because it changes object and linker semantics, not application behavior.
+  darwinDeploymentTarget = "14.0";
 }

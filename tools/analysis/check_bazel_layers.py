@@ -3,22 +3,27 @@
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
-"""Enforce repository architecture against Bazel's direct target graph."""
+"""Enforce the explicit repository architecture against Bazel's direct target graph."""
 
 from __future__ import annotations
 
 import argparse
 import ast
+import datetime as dt
 import os
 import re
 import subprocess
 import sys
+import tomllib
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 
 POLICY_FILE = Path("tools/build/bazel/layers.bzl")
-_ADR_REASON = re.compile(r"^ADR-\d{4}:\s+\S")
+OWNERS_FILE = Path("OWNERS.toml")
+ADR_DIRECTORY = Path("docs/design")
+MAX_EXCEPTION_DAYS = 90
+_ADR_ID = re.compile(r"^ADR-\d{4}$")
 
 
 class PolicyError(ValueError):
@@ -26,17 +31,24 @@ class PolicyError(ValueError):
 
 
 @dataclass(frozen=True)
-class ForbiddenEdge:
-    source_group: str
-    target_group: str
+class LayerException:
+    owner: str
+    adr: str
     reason: str
+    expires_on: dt.date
 
 
 @dataclass(frozen=True)
 class Policy:
-    groups: dict[str, tuple[str, ...]]
-    forbidden_edges: tuple[ForbiddenEdge, ...]
-    exceptions: dict[str, str]
+    layers: dict[str, tuple[str, ...]]
+    allow_matrix: dict[str, frozenset[str]]
+    exceptions: dict[str, LayerException]
+
+
+@dataclass(frozen=True)
+class RuleGraph:
+    rules: frozenset[str]
+    edges: frozenset[tuple[str, str]]
 
 
 @dataclass(frozen=True, order=True)
@@ -55,8 +67,8 @@ def _literal_assignments(path: Path) -> dict[str, object]:
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     assignments: dict[str, object] = {}
     wanted = {
-        "BAZEL_PACKAGE_GROUPS",
-        "BAZEL_FORBIDDEN_EDGES",
+        "BAZEL_LAYERS",
+        "BAZEL_LAYER_ALLOW_MATRIX",
         "BAZEL_LAYER_EXCEPTIONS",
     }
     for node in tree.body:
@@ -74,62 +86,132 @@ def _literal_assignments(path: Path) -> dict[str, object]:
     return assignments
 
 
-def load_policy(path: Path) -> Policy:
-    """Load and validate the Starlark data shared with the root package groups."""
-    values = _literal_assignments(path)
-    raw_groups = values["BAZEL_PACKAGE_GROUPS"]
-    if not isinstance(raw_groups, dict) or not raw_groups:
-        raise PolicyError(f"{path}: BAZEL_PACKAGE_GROUPS must be a non-empty dict")
+def _repository_root(policy_path: Path) -> Path:
+    try:
+        return policy_path.resolve().parents[3]
+    except IndexError as error:
+        raise PolicyError(f"cannot derive repository root from {policy_path}") from error
 
-    groups: dict[str, tuple[str, ...]] = {}
-    for name, raw_patterns in raw_groups.items():
+
+def _owner_teams(repo: Path) -> set[str]:
+    owners_path = repo / OWNERS_FILE
+    try:
+        raw = tomllib.loads(owners_path.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError) as error:
+        raise PolicyError(f"cannot read {owners_path}: {error}") from error
+    teams = {
+        entry.get("team")
+        for entry in raw.get("owners", [])
+        if isinstance(entry, dict) and isinstance(entry.get("team"), str)
+    }
+    if not teams:
+        raise PolicyError(f"{owners_path}: no owner teams declared")
+    return teams
+
+
+def _accepted_adrs(repo: Path) -> set[str]:
+    accepted: set[str] = set()
+    for path in (repo / ADR_DIRECTORY).glob("adr-*.md"):
+        identifier = path.name[:8].upper()
+        text = path.read_text(encoding="utf-8")
+        if re.search(r"(?mi)^- \*\*Status:\*\* Accepted\s*$", text):
+            accepted.add(identifier)
+    return accepted
+
+
+def load_policy(path: Path, *, today: dt.date | None = None) -> Policy:
+    """Load and validate the literal Starlark policy plus exception governance."""
+    values = _literal_assignments(path)
+    raw_layers = values["BAZEL_LAYERS"]
+    if not isinstance(raw_layers, dict) or not raw_layers:
+        raise PolicyError(f"{path}: BAZEL_LAYERS must be a non-empty dict")
+
+    layers: dict[str, tuple[str, ...]] = {}
+    for name, raw_patterns in raw_layers.items():
         if not isinstance(name, str) or not isinstance(raw_patterns, list) or not raw_patterns:
-            raise PolicyError(f"{path}: every package group needs a name and package patterns")
+            raise PolicyError(f"{path}: every layer needs a name and package patterns")
         patterns: list[str] = []
         for pattern in raw_patterns:
             if not isinstance(pattern, str) or not pattern.startswith("//"):
                 raise PolicyError(f"{path}: invalid package pattern {pattern!r} in {name}")
             patterns.append(pattern)
-        groups[name] = tuple(patterns)
+        layers[name] = tuple(patterns)
 
-    raw_edges = values["BAZEL_FORBIDDEN_EDGES"]
-    if not isinstance(raw_edges, list) or not raw_edges:
-        raise PolicyError(f"{path}: BAZEL_FORBIDDEN_EDGES must be a non-empty list")
-    forbidden_edges: list[ForbiddenEdge] = []
-    for raw_edge in raw_edges:
-        if (
-            not isinstance(raw_edge, list)
-            or len(raw_edge) != 3
-            or not all(isinstance(value, str) and value for value in raw_edge)
-        ):
-            raise PolicyError(f"{path}: invalid forbidden edge {raw_edge!r}")
-        source_group, target_group, reason = raw_edge
-        unknown = {source_group, target_group} - groups.keys()
+    raw_matrix = values["BAZEL_LAYER_ALLOW_MATRIX"]
+    if not isinstance(raw_matrix, dict):
+        raise PolicyError(f"{path}: BAZEL_LAYER_ALLOW_MATRIX must be a dict")
+    layer_names = set(layers)
+    matrix_names = set(raw_matrix) if all(isinstance(key, str) for key in raw_matrix) else set()
+    if matrix_names != layer_names:
+        missing = layer_names - matrix_names
+        extra = matrix_names - layer_names
+        raise PolicyError(
+            f"{path}: allow matrix must declare every layer exactly once "
+            f"(missing={sorted(missing)}, unknown={sorted(extra)})"
+        )
+    allow_matrix: dict[str, frozenset[str]] = {}
+    for source, raw_destinations in raw_matrix.items():
+        if not isinstance(raw_destinations, list) or not raw_destinations:
+            raise PolicyError(f"{path}: allow matrix entry {source!r} must be a non-empty list")
+        if not all(isinstance(destination, str) for destination in raw_destinations):
+            raise PolicyError(f"{path}: allow matrix entry {source!r} contains a non-string")
+        unknown = set(raw_destinations) - layer_names
         if unknown:
             raise PolicyError(
-                f"{path}: forbidden edge references unknown group(s): {', '.join(sorted(unknown))}"
+                f"{path}: allow matrix entry {source!r} references unknown layers: {sorted(unknown)}"
             )
-        forbidden_edges.append(ForbiddenEdge(source_group, target_group, reason))
+        if len(set(raw_destinations)) != len(raw_destinations):
+            raise PolicyError(f"{path}: allow matrix entry {source!r} contains duplicates")
+        allow_matrix[source] = frozenset(raw_destinations)
 
     raw_exceptions = values["BAZEL_LAYER_EXCEPTIONS"]
     if not isinstance(raw_exceptions, dict):
         raise PolicyError(f"{path}: BAZEL_LAYER_EXCEPTIONS must be a dict")
-    exceptions: dict[str, str] = {}
-    for edge, reason in raw_exceptions.items():
+    repo = _repository_root(path)
+    owner_teams = _owner_teams(repo)
+    accepted_adrs = _accepted_adrs(repo)
+    current_date = today or dt.date.today()
+    exceptions: dict[str, LayerException] = {}
+    for edge, metadata in raw_exceptions.items():
         if (
             not isinstance(edge, str)
             or edge.count(" -> ") != 1
             or not all(label.startswith("//") for label in edge.split(" -> "))
-            or not isinstance(reason, str)
-            or not _ADR_REASON.match(reason)
+            or not isinstance(metadata, dict)
         ):
+            raise PolicyError(f"{path}: exception {edge!r} must identify one exact internal edge")
+        expected_keys = {"owner", "adr", "reason", "expires_on"}
+        if set(metadata) != expected_keys:
             raise PolicyError(
-                f"{path}: exception {edge!r} must be an exact '//source -> //target' edge "
-                "with an 'ADR-NNNN: rationale' value"
+                f"{path}: exception {edge!r} must contain exactly {sorted(expected_keys)}"
             )
-        exceptions[edge] = reason
+        owner = metadata["owner"]
+        adr = metadata["adr"]
+        reason = metadata["reason"]
+        expires_raw = metadata["expires_on"]
+        if not isinstance(owner, str) or owner not in owner_teams:
+            raise PolicyError(f"{path}: exception {edge!r} has unknown owner {owner!r}")
+        if not isinstance(adr, str) or not _ADR_ID.fullmatch(adr) or adr not in accepted_adrs:
+            raise PolicyError(f"{path}: exception {edge!r} must cite an existing accepted ADR")
+        if not isinstance(reason, str) or not reason.strip():
+            raise PolicyError(f"{path}: exception {edge!r} needs a non-empty reason")
+        if not isinstance(expires_raw, str):
+            raise PolicyError(f"{path}: exception {edge!r} expires_on must be YYYY-MM-DD")
+        try:
+            expires_on = dt.date.fromisoformat(expires_raw)
+        except ValueError as error:
+            raise PolicyError(
+                f"{path}: exception {edge!r} expires_on must be YYYY-MM-DD"
+            ) from error
+        if expires_on < current_date:
+            raise PolicyError(f"{path}: exception {edge!r} expired on {expires_on}")
+        if expires_on > current_date + dt.timedelta(days=MAX_EXCEPTION_DAYS):
+            raise PolicyError(
+                f"{path}: exception {edge!r} exceeds the {MAX_EXCEPTION_DAYS}-day maximum"
+            )
+        exceptions[edge] = LayerException(owner, adr, reason.strip(), expires_on)
 
-    return Policy(groups, tuple(forbidden_edges), exceptions)
+    return Policy(layers, allow_matrix, exceptions)
 
 
 def _package(label: str) -> str | None:
@@ -146,62 +228,93 @@ def _matches_pattern(package: str, pattern: str) -> bool:
     return package == body.split(":", 1)[0].strip("/")
 
 
-def _in_group(label: str, patterns: tuple[str, ...]) -> bool:
+def classify(label: str, policy: Policy) -> tuple[str, ...]:
     package = _package(label)
-    return package is not None and any(_matches_pattern(package, pattern) for pattern in patterns)
+    if package is None:
+        return ()
+    return tuple(
+        name
+        for name, patterns in policy.layers.items()
+        if any(_matches_pattern(package, pattern) for pattern in patterns)
+    )
 
 
-def direct_rule_edges(xml: str) -> set[tuple[str, str]]:
-    """Return direct internal rule-input edges from Bazel query XML."""
+def direct_rule_graph(xml: str) -> RuleGraph:
+    """Return internal rules and their direct rule-to-rule input edges."""
     try:
         root = ET.fromstring(xml)
     except ET.ParseError as error:
         raise PolicyError(f"invalid Bazel query XML: {error}") from error
 
-    edges: set[tuple[str, str]] = set()
-    rules = root.findall("rule")
+    rule_elements = root.findall("rule")
+    rules = frozenset(
+        name for rule in rule_elements if (name := rule.get("name", "")).startswith("//")
+    )
     if not rules:
-        raise PolicyError("Bazel query returned no rules; refusing to pass an empty graph")
-    for rule in rules:
-        source = rule.get("name", "")
-        if not source.startswith("//"):
-            continue
-        for rule_input in rule.findall("rule-input"):
-            target = rule_input.get("name", "")
-            if target.startswith("//") and target != source:
-                edges.add((source, target))
-    return edges
+        raise PolicyError("Bazel query returned no internal rules; refusing to pass an empty graph")
+    edges = frozenset(
+        (source, target)
+        for rule in rule_elements
+        if (source := rule.get("name", "")) in rules
+        for rule_input in rule.findall("rule-input")
+        if (target := rule_input.get("name", "")) in rules and target != source
+    )
+    return RuleGraph(rules, edges)
 
 
-def check_edges(edges: set[tuple[str, str]], policy: Policy) -> list[Violation]:
-    """Check direct graph edges and reject undocumented or stale exceptions."""
+def direct_rule_edges(xml: str) -> set[tuple[str, str]]:
+    """Compatibility helper for callers interested only in edges."""
+    return set(direct_rule_graph(xml).edges)
+
+
+def check_graph(graph: RuleGraph, policy: Policy) -> list[Violation]:
+    """Check classification, allowed directions, and exact exception liveness."""
     violations: list[Violation] = []
+    classification: dict[str, str] = {}
+    for label in sorted(graph.rules):
+        matches = classify(label, policy)
+        if not matches:
+            violations.append(Violation(label, "", "unclassified Bazel package"))
+        elif len(matches) > 1:
+            violations.append(
+                Violation(label, "", f"package matches multiple Bazel layers: {', '.join(matches)}")
+            )
+        else:
+            classification[label] = matches[0]
+
     used_exceptions: set[str] = set()
-    for source, target in sorted(edges):
-        for forbidden in policy.forbidden_edges:
-            if not _in_group(source, policy.groups[forbidden.source_group]):
-                continue
-            if not _in_group(target, policy.groups[forbidden.target_group]):
-                continue
-            exception_key = f"{source} -> {target}"
-            if exception_key in policy.exceptions:
-                used_exceptions.add(exception_key)
-            else:
-                violations.append(
-                    Violation(
-                        source,
-                        target,
-                        f"forbidden Bazel dependency: {forbidden.reason} "
-                        f"({forbidden.source_group} -> {forbidden.target_group})",
-                    )
-                )
-            break
+    for source, target in sorted(graph.edges):
+        source_layer = classification.get(source)
+        target_layer = classification.get(target)
+        if source_layer is None or target_layer is None:
+            continue
+        if target_layer in policy.allow_matrix[source_layer]:
+            continue
+        exception_key = f"{source} -> {target}"
+        if exception_key in policy.exceptions:
+            used_exceptions.add(exception_key)
+            continue
+        violations.append(
+            Violation(
+                source,
+                target,
+                f"undeclared Bazel dependency direction ({source_layer} -> {target_layer})",
+            )
+        )
 
     for stale in sorted(policy.exceptions.keys() - used_exceptions):
         violations.append(
             Violation(stale, "", "stale layer exception; remove it or restore its exact edge")
         )
     return sorted(violations)
+
+
+def check_edges(edges: set[tuple[str, str]], policy: Policy) -> list[Violation]:
+    """Check a synthetic edge set; production callers should use check_graph."""
+    rules = frozenset(label for edge in edges for label in edge)
+    if not rules and policy.exceptions:
+        rules = frozenset(label for edge in policy.exceptions for label in edge.split(" -> "))
+    return check_graph(RuleGraph(rules, frozenset(edges)), policy)
 
 
 def query_graph(repo: Path, bazel: Path) -> str:
@@ -215,13 +328,7 @@ def query_graph(repo: Path, bazel: Path) -> str:
         "--curses=no",
         "--color=no",
     ]
-    completed = subprocess.run(
-        command,
-        cwd=repo,
-        capture_output=True,
-        check=False,
-        text=True,
-    )
+    completed = subprocess.run(command, cwd=repo, capture_output=True, check=False, text=True)
     if completed.returncode:
         detail = completed.stderr.strip() or "no diagnostic output"
         raise PolicyError(f"Bazel query failed with exit {completed.returncode}:\n{detail}")
@@ -246,7 +353,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             bazel = args.bazel or repo / "tools/dev/bazelw"
             xml = query_graph(repo, bazel)
-        violations = check_edges(direct_rule_edges(xml), policy)
+        violations = check_graph(direct_rule_graph(xml), policy)
     except (OSError, PolicyError) as error:
         print(f"bazel layer check could not run: {error}", file=sys.stderr)
         return 2

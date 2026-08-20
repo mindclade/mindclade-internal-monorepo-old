@@ -7,17 +7,24 @@ repository-wide Bazel package membership. The root `BUILD.bazel` materializes
 its entries as named `package_group` targets, so BUILD visibility declarations
 may reuse the same vocabulary enforced in CI.
 
-| Layer | Top-level packages | May depend on |
+| Source layer | Top-level packages | Allowed internal destinations |
 | --- | --- | --- |
-| foundation | `configs`, `libs`, `protocols`, `sdk` | foundation and external dependencies |
-| offline | `data`, `evaluation`, `kernels`, `models`, `preprocessing`, `training` | foundation and narrower offline contracts |
-| serving | `apps`, `control`, `services`, `serving` | foundation, published model/data contracts, and serving internals |
-| research | `research` | production packages and research |
-| platform | `architecture`, `ci`, `docs`, `examples`, `infra`, `qualification`, `security`, `tests`, `tools` | the packages needed to build, validate, qualify, and deploy the repository |
+| foundation | `configs`, `libs`, `protocols`, `sdk` | foundation plus root/build/test support |
+| offline | `data`, `evaluation`, `kernels`, `models`, `preprocessing` | foundation, offline, and root/build/test/release support |
+| training | `training` | foundation, offline, training, and support |
+| runtime | `control`, `serving` | foundation, offline, runtime, and support |
+| services | `services` | foundation, offline, runtime, services, and support |
+| apps | `apps` | foundation, apps, and support |
+| research | `research` | every production layer, research, and support |
+| platform/support | architecture, CI, docs, examples, infra, qualification, security, and narrowly classified tools | every layer |
 
-The file also defines smaller `boundary_*` groups for rules that are more
-precise than an entire layer. A new top-level code package is incomplete until
-it is classified there and assigned in both `OWNERS.toml` and
+Root metadata, `tools/build`, `tests`, and `tools/release` are separate support
+domains so production access to a test runner or release helper does not imply
+access to arbitrary CI, infrastructure, or developer tooling. Every internal
+Bazel package must match exactly one domain. An unclassified or multiply
+classified package fails immediately, as does a matrix key or destination that
+does not name a declared domain. A new top-level code package is incomplete
+until it is classified here and assigned in both `OWNERS.toml` and
 `.github/CODEOWNERS`.
 
 ## Top-level flow
@@ -43,20 +50,10 @@ apps -> services                      forbidden
 model family -> sibling family        forbidden
 ```
 
-The Bazel graph additionally makes these direct boundary crossings explicit:
-
-```text
-serving -> training                    forbidden
-serving -> research                    forbidden
-outside research -> research/experiments
-                                        forbidden
-apps -> services                       forbidden
-source -> infra                        forbidden
-```
-
-The broader `production -> research` rule subsumes the serving/research case.
-Research may depend on production so experiments can evaluate real components;
-production must consume only promoted contracts and implementations.
+The allow matrix is fail-closed: a direction not listed is forbidden even if no
+past incident named it. Research may depend on production so experiments can
+evaluate real components; production must consume only promoted contracts and
+implementations.
 
 ## Go layers
 
@@ -109,17 +106,20 @@ The query check is language-independent: Go, Rust, Python, generated targets,
 and filegroups are governed by the same graph. Source-level checks remain in
 place for language semantics that BUILD metadata cannot express.
 
-Exceptions require an accepted ADR and an exact source-target entry in
-`BAZEL_LAYER_EXCEPTIONS`. Values use `ADR-NNNN: rationale`; wildcards are not
-accepted, and CI rejects an exception after its edge disappears. A permanent
-new dependency direction is a policy change, not an exception, and requires an
-ADR plus updates to the central groups, documentation, and ownership routes.
+Exceptions require an exact live source-target entry in
+`BAZEL_LAYER_EXCEPTIONS` with `owner`, `adr`, `reason`, and `expires_on` fields.
+The owner must be declared in `OWNERS.toml`, the ADR must exist and be accepted,
+the rationale must be non-empty, and expiry may be at most 90 days from the
+validation date. Wildcards, expired entries, and stale entries whose edge no
+longer exists fail CI. A permanent new dependency direction is a policy change,
+not an exception, and requires an ADR plus updates to the central matrix,
+documentation, and ownership routes.
 
 Run the same gates locally with:
 
 ```bash
-python3 tools/analysis/check_bazel_layers.py
-tools/dev/bazelw build //... --nobuild --config=ci
+nix develop .#ci --command python3 tools/analysis/check_bazel_layers.py
+nix develop .#ci --command tools/dev/bazelw build //... --nobuild --config=ci
 ```
 
 ## Deprecated Rust compatibility paths

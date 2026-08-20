@@ -36,7 +36,12 @@ SCAN = {".bzl", ".bazel", ".sh", ".py", ".yml", ".yaml", ".nix"}
 # have no business naming a host path, and skipping all of them to fix one would be trading a
 # false positive for a blind spot. What is safe to exempt is a file that DEFINES patterns and
 # runs no build action; a new one has to be added here deliberately.
-CONTRACT_IMPLEMENTATIONS = frozenset({"tools/build/nix/checks/no-host-tools.nix"})
+CONTRACT_IMPLEMENTATIONS = frozenset(
+    {
+        "tools/analysis/verify_cc_toolchain_selection.py",
+        "tools/build/nix/checks/no-host-tools.nix",
+    }
+)
 
 
 def rust_version_contract(root: Path) -> list[str]:

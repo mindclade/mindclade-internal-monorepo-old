@@ -26,6 +26,28 @@ py_binary(
 )
 
 py_binary(
+    name = "validate_cc_toolchain_bundle",
+    srcs = ["validate_cc_toolchain_bundle.py"],
+    main = "validate_cc_toolchain_bundle.py",
+    visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "verify_cc_toolchain_selection",
+    srcs = ["verify_cc_toolchain_selection.py"],
+    data = ["//tools/dev:dev_sources"],
+    main = "verify_cc_toolchain_selection.py",
+    visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "summarize_bazel_bep",
+    srcs = ["summarize_bazel_bep.py"],
+    main = "summarize_bazel_bep.py",
+    visibility = ["//visibility:public"],
+)
+
+py_binary(
     name = "check_blueprint_scaffold",
     srcs = ["check_blueprint_scaffold.py"],
     main = "check_blueprint_scaffold.py",
@@ -56,6 +78,24 @@ pytest_test(
         "check_bazel_layers.py",
         "//tools/build/bazel:layers.bzl",
     ],
+)
+
+pytest_test(
+    name = "bazel_wrapper_test",
+    srcs = ["tests/test_bazelw.py"],
+    data = ["//tools/dev:dev_sources"],
+)
+
+pytest_test(
+    name = "cc_toolchain_bundle_test",
+    srcs = ["tests/test_cc_toolchain_bundle.py"],
+    data = ["validate_cc_toolchain_bundle.py"],
+)
+
+pytest_test(
+    name = "summarize_bazel_bep_test",
+    srcs = ["tests/test_summarize_bazel_bep.py"],
+    data = ["summarize_bazel_bep.py"],
 )
 
 pytest_test(
