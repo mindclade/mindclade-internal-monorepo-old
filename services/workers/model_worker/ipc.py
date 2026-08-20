@@ -334,7 +334,8 @@ def _reference_request(
         not claims.ticket_id
         or claims.fencing_token == 0
         or claims.deadline_unix_millis <= now
-        or claims.expires_unix_millis < claims.deadline_unix_millis
+        or claims.expires_unix_millis <= now
+        or claims.expires_unix_millis > claims.deadline_unix_millis
     ):
         raise ProtocolError("execution ticket identity or deadline is invalid")
     if claims.model_bundle_digest != config.model_bundle_digest:

@@ -599,54 +599,86 @@ fn model_spec_from_env() -> FaultResult<Option<ModelSpec>> {
     let digest = env::var("MINDCLADE_RUNTIME_MODEL_BUNDLE_DIGEST").ok();
     let executable = env::var("MINDCLADE_RUNTIME_MODEL_WORKER_EXECUTABLE").ok();
     let control_socket = env::var("MINDCLADE_RUNTIME_MODEL_WORKER_SOCKET").ok();
-    match (digest, executable, control_socket) {
-        (None, None, None) => Ok(None),
-        (Some(digest), Some(executable), Some(control_socket)) => {
-            let model_digest = Digest::from_str(&digest).map_err(|error| {
-                Fault::invalid_argument("preloaded model digest is invalid").with_source(error)
-            })?;
-            let control_socket = PathBuf::from(control_socket);
-            if !control_socket.is_absolute() {
-                return Err(Fault::invalid_argument(
-                    "model-worker socket path must be absolute",
-                ));
-            }
-            let host_socket = env::var("MINDCLADE_RUNTIME_HOST_SOCKET").unwrap_or_default();
-            let host_grpc_socket =
-                env::var("MINDCLADE_RUNTIME_HOST_GRPC_SOCKET").unwrap_or_default();
-            if control_socket == host_socket || control_socket == host_grpc_socket {
-                return Err(Fault::invalid_argument(
-                    "model-worker socket must differ from runtime-host sockets",
-                ));
-            }
-            let mut environment = BTreeMap::new();
-            environment.insert(
-                "MINDCLADE_MODEL_WORKER_SOCKET".to_owned(),
-                control_socket.to_string_lossy().into_owned(),
-            );
-            let spec = ModelSpec {
-                model_digest,
-                minimum_gpu_memory_bytes: parse_positive_u64(
-                    "MINDCLADE_RUNTIME_MODEL_GPU_MEMORY_BYTES",
-                )?,
-                pinned_memory_bytes: parse_optional_u64(
-                    "MINDCLADE_RUNTIME_MODEL_PINNED_MEMORY_BYTES",
-                )?,
+    let config_path = env::var("MINDCLADE_RUNTIME_MODEL_WORKER_CONFIG").ok();
+    match (digest, executable, control_socket, config_path) {
+        (None, None, None, None) => Ok(None),
+        (Some(digest), Some(executable), Some(control_socket), Some(config_path)) => {
+            build_model_spec(
+                digest,
+                executable,
                 control_socket,
-                process: ProcessSpec {
-                    name: "model-worker".to_owned(),
-                    executable,
-                    arguments: Vec::new(),
-                    environment,
-                },
-            };
-            spec.validate()?;
-            Ok(Some(spec))
+                config_path,
+                env::var("MINDCLADE_RUNTIME_HOST_SOCKET").unwrap_or_default(),
+                env::var("MINDCLADE_RUNTIME_HOST_GRPC_SOCKET").unwrap_or_default(),
+                parse_positive_u64("MINDCLADE_RUNTIME_MODEL_GPU_MEMORY_BYTES")?,
+                parse_optional_u64("MINDCLADE_RUNTIME_MODEL_PINNED_MEMORY_BYTES")?,
+            )
+            .map(Some)
         }
         _ => Err(Fault::invalid_argument(
-            "preloaded model digest, worker executable, and worker socket must be configured together",
+            "preloaded model digest, worker executable, worker socket, and worker config must be configured together",
         )),
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn build_model_spec(
+    digest: String,
+    executable: String,
+    control_socket: String,
+    config_path: String,
+    host_socket: String,
+    host_grpc_socket: String,
+    minimum_gpu_memory_bytes: u64,
+    pinned_memory_bytes: u64,
+) -> FaultResult<ModelSpec> {
+    let model_digest = Digest::from_str(&digest).map_err(|error| {
+        Fault::invalid_argument("preloaded model digest is invalid").with_source(error)
+    })?;
+    let control_socket = PathBuf::from(control_socket);
+    if !control_socket.is_absolute()
+        || control_socket.as_os_str().as_encoded_bytes().len() > MAX_SOCKET_PATH_BYTES
+    {
+        return Err(Fault::invalid_argument(
+            "model-worker socket path must be bounded and absolute",
+        ));
+    }
+    if control_socket == PathBuf::from(host_socket)
+        || control_socket == PathBuf::from(host_grpc_socket)
+    {
+        return Err(Fault::invalid_argument(
+            "model-worker socket must differ from runtime-host sockets",
+        ));
+    }
+    let config_path = PathBuf::from(config_path);
+    if !config_path.is_absolute() {
+        return Err(Fault::invalid_argument(
+            "model-worker config path must be absolute",
+        ));
+    }
+    let mut environment = BTreeMap::new();
+    environment.insert(
+        "MINDCLADE_MODEL_WORKER_CONFIG".to_owned(),
+        config_path.to_string_lossy().into_owned(),
+    );
+    environment.insert(
+        "MINDCLADE_MODEL_WORKER_SOCKET".to_owned(),
+        control_socket.to_string_lossy().into_owned(),
+    );
+    let spec = ModelSpec {
+        model_digest,
+        minimum_gpu_memory_bytes,
+        pinned_memory_bytes,
+        control_socket,
+        process: ProcessSpec {
+            name: "model-worker".to_owned(),
+            executable,
+            arguments: Vec::new(),
+            environment,
+        },
+    };
+    spec.validate()?;
+    Ok(spec)
 }
 
 fn read_message<M: Message + Default>(path: &PathBuf) -> FaultResult<M> {
@@ -808,5 +840,65 @@ mod tests {
         let key = decode_32_byte_hex(&"ab".repeat(32)).expect("valid key");
         assert_eq!(key, [0xab; 32]);
         assert!(decode_32_byte_hex("ab").is_err());
+    }
+
+    #[test]
+    fn model_spec_forwards_only_the_bounded_worker_contract() {
+        let spec = build_model_spec(
+            format!("sha256:{}", "ab".repeat(32)),
+            "/opt/mindclade/model-worker".to_owned(),
+            "/run/mindclade/model-worker.sock".to_owned(),
+            "/etc/mindclade/model-worker.json".to_owned(),
+            "/run/mindclade/runtime-host.sock".to_owned(),
+            "/run/mindclade/runtime-host-grpc.sock".to_owned(),
+            80 * 1024 * 1024 * 1024,
+            1024,
+        )
+        .expect("valid model spec");
+        assert_eq!(
+            spec.process.environment,
+            BTreeMap::from([
+                (
+                    "MINDCLADE_MODEL_WORKER_CONFIG".to_owned(),
+                    "/etc/mindclade/model-worker.json".to_owned(),
+                ),
+                (
+                    "MINDCLADE_MODEL_WORKER_SOCKET".to_owned(),
+                    "/run/mindclade/model-worker.sock".to_owned(),
+                ),
+            ])
+        );
+        assert!(spec.process.arguments.is_empty());
+    }
+
+    #[test]
+    fn model_spec_rejects_relative_config_and_socket_collisions() {
+        let digest = format!("sha256:{}", "ab".repeat(32));
+        assert!(
+            build_model_spec(
+                digest.clone(),
+                "/opt/mindclade/model-worker".to_owned(),
+                "/run/mindclade/model-worker.sock".to_owned(),
+                "relative.json".to_owned(),
+                "/run/mindclade/runtime-host.sock".to_owned(),
+                "/run/mindclade/runtime-host-grpc.sock".to_owned(),
+                1,
+                0,
+            )
+            .is_err()
+        );
+        assert!(
+            build_model_spec(
+                digest,
+                "/opt/mindclade/model-worker".to_owned(),
+                "/run/mindclade/runtime-host.sock".to_owned(),
+                "/etc/mindclade/model-worker.json".to_owned(),
+                "/run/mindclade/runtime-host.sock".to_owned(),
+                "/run/mindclade/runtime-host-grpc.sock".to_owned(),
+                1,
+                0,
+            )
+            .is_err()
+        );
     }
 }
