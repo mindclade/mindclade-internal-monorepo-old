@@ -17,6 +17,12 @@ copy while preserving the same input immutability and no-alias contract as `deep
 resolver uses this path for source and overlay composition. Identity-bearing resolved documents
 do not accept floating-point values; domains use reviewed integer/fixed-point or string forms.
 
+The batched path was added only after a representative Python 3.12 benchmark justified it: a
+1,000-section tree (each section containing a scalar, a nested mapping, and a 20-item list) with
+ten sparse overlays took 67.1 ms through repeated `deep_merge` calls and 6.63 ms through
+`deep_merge_many` (minimum of five runs of five iterations, about 10.1x faster). This is workload
+evidence rather than an SLO; consumers should remeasure with their real configuration shapes.
+
 The returned value is a recursive read-only snapshot. Its digest is checked even when a caller
 constructs `ResolvedConfig` directly, so value and identity cannot drift apart after
 publication. Domain packages own semantic schemas through `RequiredField` or their own
