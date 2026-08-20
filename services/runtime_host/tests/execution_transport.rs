@@ -206,15 +206,23 @@ async fn write_message(stream: &mut UnixStream, status: &WorkerStatus) {
 }
 
 async fn connect_client(path: &Path) -> WorkerControlClient<tonic::transport::Channel> {
-    let path = path.to_path_buf();
-    let channel = Endpoint::from_static("http://[::]:50051")
-        .connect_with_connector(service_fn(move |_| {
-            let path = path.clone();
-            async move { UnixStream::connect(path).await.map(TokioIo::new) }
-        }))
-        .await
-        .expect("runtime-host channel");
-    WorkerControlClient::new(channel)
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(15);
+    loop {
+        let socket_path = path.to_path_buf();
+        match Endpoint::from_static("http://[::]:50051")
+            .connect_with_connector(service_fn(move |_| {
+                let path = socket_path.clone();
+                async move { UnixStream::connect(path).await.map(TokioIo::new) }
+            }))
+            .await
+        {
+            Ok(channel) => return WorkerControlClient::new(channel),
+            Err(_) if tokio::time::Instant::now() < deadline => {
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+            Err(error) => panic!("runtime-host channel did not become ready: {error}"),
+        }
+    }
 }
 
 fn bind_worker(path: &Path) -> UnixListener {
