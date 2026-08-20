@@ -138,6 +138,29 @@ pkgs.runCommand "mindclade-no-host-tools"
         except UnicodeDecodeError:
             continue
 
+        # Tests are actions too.  env_inherit = ["PATH"] bypasses strict_action_env at the
+        # test-rule boundary, while the local/no-sandbox tags disable the isolation that is
+        # supposed to make undeclared reads fail.  These were previously invisible because the
+        # command-attribute scan below only examines strings executed by genrules.
+        if re.search(r'env_inherit\s*=\s*\[[^\]]*["\']PATH["\']', source, re.DOTALL):
+            failures.append(
+                f"{rel}\n"
+                "    forbidden: env_inherit includes PATH\n"
+                "    validation tools must be declared runfiles or toolchain inputs."
+            )
+
+        for forbidden_tag in ("local", "no-sandbox"):
+            if re.search(
+                rf'tags\s*=\s*\[[^\]]*["\']{re.escape(forbidden_tag)}["\']',
+                source,
+                re.DOTALL,
+            ):
+                failures.append(
+                    f"{rel}\n"
+                    f"    forbidden test tag: {forbidden_tag}\n"
+                    "    repository tests must preserve Bazel sandbox isolation."
+                )
+
         for match in re.finditer(VALUE, source, re.MULTILINE | re.DOTALL):
             command = match.group("triple") or match.group("single") or ""
             line_no = source[: match.start()].count("\n") + 1

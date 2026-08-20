@@ -22,3 +22,84 @@ data:
   MINDCLADE_DEPLOYMENT_MODE: foundation-only
   MINDCLADE_PLATFORM_CONTRACT_VERSION: "1"
   MINDCLADE_WORKLOAD_ACTIVATION: blocked
+---
+# Immutable schema/example only: it intentionally contains no CPU, memory, Pod, or GPU capacity.
+# An active overlay must create a new digest-addressed immutable ConfigMap from measured evidence;
+# it must never mutate this blocked contract or treat these strings as allocatable capacity.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mindclade-capacity-contract-schema-v1
+  namespace: mindclade-batch-cpu
+  labels:
+    app.kubernetes.io/component: capacity-contract
+    mindclade.dev/workload-class: batch-cpu
+  annotations:
+    mindclade.dev/activation-blocker: measured-capacity-contract-absent
+    mindclade.dev/contains-secrets: "false"
+immutable: true
+data:
+  activationState: blocked
+  activeContractNamePattern: mindclade-capacity-contract-sha256-<64-lowercase-hex>
+  capacityValues: absent-until-measured
+  contractObject: immutable-configmap
+  contractSchema: mindclade.dev/capacity-activation/v1
+  digestCanonicalization: sha256-of-utf8-jq-sort-keys-compact-json-data
+  queueName: mindclade-batch-cpu
+  repositoryBasePolicy: blocked-zero-hold
+  requiredEvidence: activation-bundle-digest,capacity-evidence-digest,release-evidence-digest
+  requiredQuotaFields: pods,cpu,memory,ephemeral-storage
+  secretMaterial: forbidden
+  workloadClass: batch-cpu
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mindclade-capacity-contract-schema-v1
+  namespace: mindclade-training-h100
+  labels:
+    app.kubernetes.io/component: capacity-contract
+    mindclade.dev/workload-class: training-h100
+  annotations:
+    mindclade.dev/activation-blocker: measured-capacity-contract-absent
+    mindclade.dev/contains-secrets: "false"
+immutable: true
+data:
+  activationState: blocked
+  activeContractNamePattern: mindclade-capacity-contract-sha256-<64-lowercase-hex>
+  capacityValues: absent-until-measured
+  contractObject: immutable-configmap
+  contractSchema: mindclade.dev/capacity-activation/v1
+  digestCanonicalization: sha256-of-utf8-jq-sort-keys-compact-json-data
+  queueName: mindclade-training-h100
+  repositoryBasePolicy: blocked-zero-hold
+  requiredEvidence: activation-bundle-digest,capacity-evidence-digest,release-evidence-digest
+  requiredQuotaFields: pods,cpu,memory,ephemeral-storage,nvidia.com/gpu
+  secretMaterial: forbidden
+  workloadClass: training-h100
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mindclade-capacity-contract-schema-v1
+  namespace: mindclade-training-h200
+  labels:
+    app.kubernetes.io/component: capacity-contract
+    mindclade.dev/workload-class: training-h200
+  annotations:
+    mindclade.dev/activation-blocker: measured-capacity-contract-absent
+    mindclade.dev/contains-secrets: "false"
+immutable: true
+data:
+  activationState: blocked
+  activeContractNamePattern: mindclade-capacity-contract-sha256-<64-lowercase-hex>
+  capacityValues: absent-until-measured
+  contractObject: immutable-configmap
+  contractSchema: mindclade.dev/capacity-activation/v1
+  digestCanonicalization: sha256-of-utf8-jq-sort-keys-compact-json-data
+  queueName: mindclade-training-h200
+  repositoryBasePolicy: blocked-zero-hold
+  requiredEvidence: activation-bundle-digest,capacity-evidence-digest,release-evidence-digest
+  requiredQuotaFields: pods,cpu,memory,ephemeral-storage,nvidia.com/gpu
+  secretMaterial: forbidden
+  workloadClass: training-h200

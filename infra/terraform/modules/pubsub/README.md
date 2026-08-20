@@ -95,3 +95,41 @@ Run formatting, initialization with the repository lock policy, validation, and
 `terraform test` before reviewing a saved plan. Mock-provider tests prove Terraform
 contracts only; they do not prove API enablement, service-agent creation, KMS IAM,
 quota, metrics, delivery, replay, or regional exactly-once behavior.
+
+<!-- BEGIN_TF_DOCS -->
+## Requirements
+
+| Name | Version |
+| ---- | ------- |
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.9.0, < 2.0.0 |
+| <a name="requirement_google"></a> [google](#requirement\_google) | >= 7.41.0, < 8.0.0 |
+
+## Providers
+
+| Name | Version |
+| ---- | ------- |
+| <a name="provider_google"></a> [google](#provider\_google) | >= 7.41.0, < 8.0.0 |
+
+## Inputs
+
+| Name | Description | Type | Default | Required |
+| ---- | ----------- | ---- | ------- | :------: |
+| <a name="input_environment"></a> [environment](#input\_environment) | Environment governance label. | `string` | n/a | yes |
+| <a name="input_labels"></a> [labels](#input\_labels) | Additional labels; baseline environment, owner, and managed-by labels take precedence. | `map(string)` | `{}` | no |
+| <a name="input_owner"></a> [owner](#input\_owner) | Accountable team governance label. | `string` | n/a | yes |
+| <a name="input_project_id"></a> [project\_id](#input\_project\_id) | Project that owns the Pub/Sub resources. | `string` | n/a | yes |
+| <a name="input_pubsub_service_agent_email"></a> [pubsub\_service\_agent\_email](#input\_pubsub\_service\_agent\_email) | Google-managed Pub/Sub service-agent email for project\_id, used for CMEK and dead-letter contracts. | `string` | n/a | yes |
+| <a name="input_schemas"></a> [schemas](#input\_schemas) | Schemas keyed by stable Terraform identity. Topics can pin the managed revision. | <pre>map(object({<br/>    name       = string<br/>    type       = string<br/>    definition = string<br/>    viewers    = optional(set(string), [])<br/>  }))</pre> | `{}` | no |
+| <a name="input_subscriptions"></a> [subscriptions](#input\_subscriptions) | Durable pull subscriptions keyed by stable Terraform identity. | <pre>map(object({<br/>    name                          = string<br/>    topic_key                     = string<br/>    ack_deadline_seconds          = optional(number, 30)<br/>    message_retention_seconds     = optional(number, 604800)<br/>    retain_acked_messages         = optional(bool, false)<br/>    expiration_ttl_seconds        = optional(number)<br/>    retry_minimum_backoff_seconds = optional(number, 10)<br/>    retry_maximum_backoff_seconds = optional(number, 600)<br/>    enable_message_ordering       = optional(bool, false)<br/>    enable_exactly_once_delivery  = optional(bool, false)<br/>    filter                        = optional(string, "")<br/>    labels                        = optional(map(string), {})<br/>    subscribers                   = optional(set(string), [])<br/>    viewers                       = optional(set(string), [])<br/>    dead_letter = optional(object({<br/>      topic_key             = string<br/>      max_delivery_attempts = optional(number, 10)<br/>    }))<br/>  }))</pre> | `{}` | no |
+| <a name="input_topics"></a> [topics](#input\_topics) | CMEK-encrypted topics with bounded retention, residency, optional schema enforcement, and additive IAM. | <pre>map(object({<br/>    name                        = string<br/>    kms_key_name                = string<br/>    message_retention_seconds   = optional(number, 604800)<br/>    allowed_persistence_regions = set(string)<br/>    labels                      = optional(map(string), {})<br/>    publishers                  = optional(set(string), [])<br/>    viewers                     = optional(set(string), [])<br/>    schema = optional(object({<br/>      managed_schema_key   = optional(string)<br/>      schema_resource_name = optional(string)<br/>      encoding             = optional(string, "JSON")<br/>      first_revision_id    = optional(string)<br/>      last_revision_id     = optional(string)<br/>    }))<br/>  }))</pre> | `{}` | no |
+
+## Outputs
+
+| Name | Description |
+| ---- | ----------- |
+| <a name="output_dead_letter_contracts"></a> [dead\_letter\_contracts](#output\_dead\_letter\_contracts) | Dead-letter routes and service-agent permissions configured by this module. |
+| <a name="output_required_kms_grants"></a> [required\_kms\_grants](#output\_required\_kms\_grants) | Additive grants the KMS-owning state must apply; this module does not own CryptoKey IAM. |
+| <a name="output_schemas"></a> [schemas](#output\_schemas) | Managed schema identities and current revisions keyed by stable caller key. |
+| <a name="output_subscriptions"></a> [subscriptions](#output\_subscriptions) | Subscription identities and delivery settings keyed by stable caller key. |
+| <a name="output_topics"></a> [topics](#output\_topics) | Topic identities keyed by stable caller key. |
+<!-- END_TF_DOCS -->

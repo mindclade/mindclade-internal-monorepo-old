@@ -8,7 +8,8 @@ local admission, byte movement, node resources, and process supervision.
 ```text
 runtime_gateway
   authentication boundary, signed-grant validation, route snapshot cache,
-  local admission, request framing, SSE/streaming, deadlines, cancellation,
+  bounded resolver API, local admission, request framing, gRPC streaming,
+  deadlines, cancellation,
   load shedding, response multiplexing
 
 runtime_host
@@ -31,6 +32,13 @@ Rust validates signature, key validity, policy/revocation epoch, route version,
 model/runtime bundle digests, tenant/artifact scope, deadline, resource budget,
 and fencing token without a synchronous policy lookup.
 
+Route resolution and execution are separate contracts. HTTP
+`POST /v1/runtime/resolve` consumes only the bounded resolver admission and
+returns a selected endpoint. gRPC `RuntimeExecution.Execute` is the execution
+lifecycle: the gateway retains admission until a terminal worker status and
+propagates cancellation, client disconnect, and the signed ticket deadline
+through the host to the process-isolated worker.
+
 ## Node-wide budget
 
 The hierarchy is node -> service -> worker -> request -> operation, plus shared
@@ -38,6 +46,10 @@ caches/background tasks. Reservations cover resident and pinned memory, shared
 memory, buffer pools, local disk, file descriptors, object-store requests,
 queued requests, processes, CPU threads, GPU estimate, checkpoint staging, and
 telemetry spool.
+
+Network bodies and retained output streams additionally acquire weighted byte
+permits derived from the pod memory budget. Request-count limits protect task
+and connection overhead; byte permits protect aggregate resident buffering.
 
 ## IPC
 

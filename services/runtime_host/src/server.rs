@@ -47,6 +47,9 @@ impl ExecutionSession {
     pub fn commit(&self) -> FaultResult<()> {
         self.worker.commit()
     }
+    pub fn fail(&self, message: impl Into<String>) -> FaultResult<()> {
+        self.worker.fail(message)
+    }
 }
 
 #[derive(Debug)]
@@ -89,6 +92,10 @@ impl HostCore {
     #[must_use]
     pub fn models(&self) -> Arc<ModelRegistry> {
         self.models.clone()
+    }
+    #[must_use]
+    pub(crate) const fn config(&self) -> &HostConfig {
+        &self.config
     }
     #[must_use]
     pub fn processes(&self) -> Arc<ProcessSupervisor> {

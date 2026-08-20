@@ -4,18 +4,22 @@
 //
 
 use mindclade_bytes_io::{ByteRange, ByteSize};
+use mindclade_content_digest::hash_bytes;
 use mindclade_object_store::{LocalStore, MemoryStore, ObjectPath, ObjectStore, PutCondition};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Barrier};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn temporary_root() -> std::path::PathBuf {
+    static NEXT_ROOT: AtomicU64 = AtomicU64::new(1);
     std::env::temp_dir().join(format!(
-        "mindclade-local-store-{}-{}",
+        "mindclade-local-store-{}-{}-{}",
         std::process::id(),
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("clock should be after epoch")
-            .as_nanos()
+            .as_nanos(),
+        NEXT_ROOT.fetch_add(1, Ordering::Relaxed),
     ))
 }
 
@@ -86,5 +90,73 @@ fn local_store_verifies_ranges_and_reserves_internal_namespace() {
 
     let reserved = ObjectPath::new(".mindclade-object-metadata/injected").expect("object path");
     assert!(store.put(&reserved, b"bad", PutCondition::Any).is_err());
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn local_range_verification_reads_only_touched_chunks() {
+    const CHUNK_BYTES: usize = 4 * 1024 * 1024;
+    let root = temporary_root();
+    let store = LocalStore::new(&root).expect("local store");
+    let path = ObjectPath::new("objects/chunked").expect("object path");
+    let bytes = vec![0x5a; CHUNK_BYTES * 2 + 17];
+    store
+        .put(&path, &bytes, PutCondition::CreateOnly)
+        .expect("object publish");
+
+    let object_path = root.join(path.as_str());
+    let mut tampered = std::fs::read(&object_path).expect("fixture object");
+    tampered[CHUNK_BYTES + 8] ^= 0xff;
+    std::fs::write(&object_path, tampered).expect("tamper second chunk");
+
+    assert_eq!(
+        store
+            .get_range(&path, ByteRange::new(0, 4096).expect("first range"))
+            .expect("untouched chunk should verify"),
+        bytes[..4096]
+    );
+    assert!(
+        store
+            .get_range(
+                &path,
+                ByteRange::new(u64::try_from(CHUNK_BYTES).expect("offset"), 4096)
+                    .expect("second range"),
+            )
+            .is_err()
+    );
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn local_store_reads_legacy_metadata_with_full_verification() {
+    let root = temporary_root();
+    let store = LocalStore::new(&root).expect("local store");
+    let path = ObjectPath::new("objects/legacy").expect("object path");
+    let result = store
+        .put(&path, b"legacy-object", PutCondition::CreateOnly)
+        .expect("object publish");
+    let modified = result
+        .meta
+        .modified
+        .duration_since(UNIX_EPOCH)
+        .expect("timestamp")
+        .as_millis();
+    let metadata_name = format!("{}.meta", hash_bytes(path.as_str().as_bytes()).to_hex());
+    std::fs::write(
+        root.join(".mindclade-object-metadata").join(metadata_name),
+        format!(
+            "{}\n{}\n{}\n",
+            result.meta.version.generation(),
+            result.meta.digest,
+            modified,
+        ),
+    )
+    .expect("legacy metadata");
+    assert_eq!(
+        store
+            .get_range(&path, ByteRange::new(1, 6).expect("range"))
+            .expect("legacy verified range"),
+        b"egacy-"
+    );
     let _ = std::fs::remove_dir_all(root);
 }

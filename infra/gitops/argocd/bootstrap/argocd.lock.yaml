@@ -3,9 +3,9 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 
 ---
-# Byte-level lock for remote bootstrap content. This standard ConfigMap is intentionally data,
-# not a custom resource with no controller. Offline validation checks its shape; a connected,
-# controlled bootstrap must fetch the URL, compare bytes and SHA-256, and fail on any mismatch.
+# Provenance lock for remote promotion input and checked-in generated deployment content. This
+# standard ConfigMap is intentionally data, not an unimplemented custom resource. A connected
+# promotion must reproduce the cert-manager split from the exact URL/bytes/SHA before activation.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -15,13 +15,27 @@ metadata:
     argocd.argoproj.io/sync-wave: "-29"
     mindclade.dev/activation-state: blocked
 data:
-  schema.version: "1"
+  schema.version: "2"
   cert-manager.name: cert-manager
   cert-manager.version: v1.19.1
   cert-manager.url: https://github.com/cert-manager/cert-manager/releases/download/v1.19.1/cert-manager.yaml
   cert-manager.sha256: 876a41a57e36b85619f4124b24b3deb80912b5ffed515f90e2f160b6e6338e81
   cert-manager.bytes: "1007958"
-  cert-manager.sync-wave: "-30"
+  cert-manager.objects: "49"
+  cert-manager.normalized-sha256: bfed2738c90092d611ddbad9ba4ae5e1a4af3a291c45f1fd3cddfe9f5914f677
+  cert-manager.crds.path: infra/gitops/vendor/cert-manager/v1.19.1/crds/upstream.yaml
+  cert-manager.crds.sha256: 1c3d0aa45351c8480a6ce7d4e7d01a1d84cf8d59e0475fd92a8b00f2428e7b1a
+  cert-manager.crds.bytes: "969489"
+  cert-manager.crds.objects: "6"
+  cert-manager.crds.sync-wave: "-70"
+  cert-manager.controllers.path: infra/gitops/vendor/cert-manager/v1.19.1/controllers/upstream.yaml
+  cert-manager.controllers.sha256: d2b2b330f1975b205bbbc44338dce91293b0171d2cf2d5759b196033dc15b78e
+  cert-manager.controllers.bytes: "36125"
+  cert-manager.controllers.objects: "43"
+  cert-manager.controllers.sync-wave: "-60"
+  cert-manager.controller.image: sha256:cd49e769e18ada1fd7b9a9bacc87c90db24c65cbfd4bf71694dda7ed40e91187
+  cert-manager.cainjector.image: sha256:c7898aece8fb08102fca0b37683e37cb94e0a77c0d15b8e3c9128f6c04c868e0
+  cert-manager.webhook.image: sha256:f5bfe77541e38978aec53cc6eb924d190e1fe923c98b2582e6ccf5edf6c02cce
   argocd.installation-state: blocked-until-live-repository-supplies-exact-chart-lock
   jobset.chart-lock: infra/kubernetes/platform/jobset/chart/Chart.lock
   kueue.chart-lock: infra/kubernetes/platform/kueue/chart/Chart.lock

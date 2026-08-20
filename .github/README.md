@@ -21,6 +21,11 @@ yet, and an empty workflow that reports success is worse than an absent one.
 Go lane's job **must** stay `ci`. Renaming it produces a required check that is
 never satisfied, and a default branch nothing can merge into.
 
+`github-config` also declares the stable `architecture` context. The `lint` and
+`terraform` jobs now use stable ids and display names, but remain staged until a
+real pull request confirms their exact emitted contexts; the separate ruleset
+change then makes them merge-blocking without risking an unsatisfiable branch.
+
 ## Relationship to `ci/`
 
 Workflows decide *when*; `ci/{presubmit,gpu,nightly,release,security}/` decide

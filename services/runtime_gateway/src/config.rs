@@ -5,7 +5,7 @@
 
 //! Bounded runtime-gateway configuration.
 
-use mindclade_faults::{Fault, FaultResult};
+use mindclade_faults::{Code, Fault, FaultResult};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GatewayConfig {
@@ -57,7 +57,10 @@ impl GatewayConfig {
         }
         self.pod_memory_limit_bytes = pod_memory_limit_bytes;
         self.request_buffer_budget_bytes = pod_memory_limit_bytes / 5;
-        self.response_buffer_budget_bytes = pod_memory_limit_bytes.saturating_mul(3) / 10;
+        self.response_buffer_budget_bytes = pod_memory_limit_bytes
+            .checked_div(10)
+            .and_then(|tenth| tenth.checked_mul(3))
+            .ok_or_else(|| Fault::new(Code::OutOfRange, "memory budget overflow"))?;
         self.validate()?;
         Ok(self)
     }

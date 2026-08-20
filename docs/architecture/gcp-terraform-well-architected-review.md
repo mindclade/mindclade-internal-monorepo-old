@@ -31,7 +31,9 @@ The review uses the Google Cloud Well-Architected Framework's six pillars and AI
 ### Out of scope
 
 - Terraform apply, import, state mutation, drift remediation, IAM changes, API enablement, bucket creation, or any other cloud mutation.
-- The external `infrastructure-live` and `github-config` repositories, organization policies/rulesets, billing data, quotas, and actual deployed resources.
+- The external `infrastructure-live` contents, active organization policy/ruleset state,
+  billing data, quotas, and actual deployed resources. A locally available `github-config`
+  declaration was prepared separately in evaluate mode but was not planned or applied.
 - Speculative Vertex AI, BigQuery lakehouse, Dataflow, BigLake, Dataplex, VPC Service Controls, hybrid connectivity, or Shared VPC implementation without an approved requirement.
 
 ### Constraints
@@ -50,7 +52,7 @@ The review uses the Google Cloud Well-Architected Framework's six pillars and AI
 | A-004 | Regional GKE Standard remains the approved mode, and Terraform owns CPU pools while each environment chooses Terraform or `ComputeClass` for GPU pools. | Proposed | ADR plus connected GKE qualification | AI Platform |
 | A-005 | Organization/folder/project taxonomy, state buckets, principals, CIDRs, regions, data residency, and compliance requirements are not discoverable here. | Unknown | Supply approved decision records and live inputs | Cloud Platform / Security |
 | A-006 | 99.9% component objectives are provisional and do not establish workload RTO/RPO. | Observed | Business-impact analysis and restore tests | Service Owners |
-| A-007 | Reusable GitHub workflows referenced by mutable semantic tags implement the documented signing/SBOM behavior. | Unknown | Pin reviewed commit SHAs and inspect their source | Release Engineering |
+| A-007 | Reusable presubmit and CodeQL workflows are SHA-pinned; external ruleset activation and release canary evidence remain unavailable locally. | Observed / Unknown | Inspect the reviewed workflow source, observe real check runs, and qualify the external ruleset/release path | Release Engineering |
 | A-008 | Current GKE version, accelerator availability, provider behavior, quotas, and support entitlements will remain available in selected regions. | Unknown | Connected qualification immediately before rollout | AI Platform |
 
 ## 3. Current-state evidence
@@ -60,8 +62,8 @@ The review uses the Google Cloud Well-Architected Framework's six pillars and AI
 | E-001 | `infra/terraform/modules/**` | 32 module directories | 2026-08-20 | None | 22 substantive modules and 10 blueprint-named scaffolds at review start |
 | E-002 | `infra/terraform/environments/**` | Four roots | 2026-08-20 | None | Only `dns_hub` is materialized; development/staging/production remain non-deployable |
 | E-003 | `docs/blueprint/production-monorepo-blueprint.md` and `docs/architecture/**` | Workload and repository laws | 2026-08-20 | None | Bazel owns build/release; Nix owns toolchains; GKE is the documented AI execution substrate |
-| E-004 | `.github/workflows/presubmit.yml`, `security.yml`, `release.yml` | CI and release | 2026-08-20 | None | Terraform contracts, lock-preserving validation/tests, TFLint, and Trivy are enforced; connected-plan policy, cost, nightly, and GPU evidence are incomplete |
-| E-005 | `components.toml`, `maturity.toml`, `SCAFFOLD_STATUS.md` | Maturity governance | 2026-08-20 | None | Infrastructure lacks component registration and promotion evidence |
+| E-004 | `.github/workflows/presubmit.yml`, `security.yml`, `release.yml` | CI and release | 2026-08-20 | None | Terraform contracts, two-version compatibility, TFLint, Trivy, plan-policy fixtures, and interface drift run in CI; connected-plan, cost, nightly, and GPU evidence are incomplete |
+| E-005 | `components.toml`, `architecture/component_ownership.toml`, `maturity.toml` | Maturity governance | 2026-08-20 | None | Terraform modules and `dns_hub` are registered with tier-2 ownership and executable governance tests; deployment promotion evidence remains absent |
 | E-006 | `terraform fmt -check -recursive infra/terraform` | Static formatting baseline | 2026-08-20 | None | Passed before implementation |
 | E-007 | `actionlint` and `yamllint --strict .github/workflows` | Workflow syntax baseline | 2026-08-20 | None | Passed before implementation |
 | E-008 | [Google Cloud WIF deployment guidance](https://docs.cloud.google.com/iam/docs/workload-identity-federation-with-deployment-pipelines) | CI identity design | 2026-08-20 | N/A | Subject mapping and attribute conditions are required trust controls |
@@ -69,8 +71,8 @@ The review uses the Google Cloud Well-Architected Framework's six pillars and AI
 | E-010 | [Cloud Monitoring metrics scopes](https://docs.cloud.google.com/monitoring/settings) | Multi-project observability | 2026-08-20 | N/A | Scoping projects can observe monitored projects without duplicating service SLO logic |
 | E-011 | [Cloud Audit Logs best practices](https://docs.cloud.google.com/logging/docs/audit/best-practices) | Audit/evidence | 2026-08-20 | N/A | Centralized routing and protected retention are required beyond default logs |
 | E-012 | [Pub/Sub exactly-once delivery](https://docs.cloud.google.com/pubsub/docs/exactly-once-delivery) and [retry policy](https://docs.cloud.google.com/pubsub/docs/subscription-retry-policy) | Event delivery | 2026-08-20 | N/A | Delivery semantics do not replace consumer idempotence and replay testing |
-| E-013 | Backendless Terraform initialization, provider-schema validation, and mock tests | All 32 modules | 2026-08-20 | None | 32/32 modules valid; 227/227 mock test runs passed with committed provider locks |
-| E-014 | TFLint 0.63.1/0.64.0, Checkov 3.3.0, and Trivy 0.74.0 | Terraform static/security policy | 2026-08-20 | None | Full TFLint baseline passed; Checkov reported 152 passed, 0 failed, 8 documented skips; all-severity Trivy reported zero unsuppressed findings with three expiring resource-local exceptions |
+| E-013 | Backendless Terraform initialization, provider-schema validation, and mock tests | 36 configurations / 33 suites | 2026-08-20 | None | 36/36 configurations validate; 237/237 mock runs pass; all 33 suites pass at Google 7.41.0 and 7.45.0 |
+| E-014 | TFLint 0.64.0, Checkov 3.3.0, Trivy 0.74.0, and Conftest 0.63.0 | Terraform static/security policy | 2026-08-20 | None | TFLint passed 36/36; Checkov reported 152 passed, 0 failed, 8 documented skips; Trivy reported zero unsuppressed findings with three expiring exceptions; 22/22 OPA tests and integration fixtures pass |
 | E-015 | Actionlint, strict workflow YAML lint, diff check, Nix flake evaluation, and repository static presubmit | CI/repository integration | 2026-08-20 | None | Terraform/workflow checks pass and gates were strengthened; a final shared-worktree static rerun is blocked by unrelated concurrent Rust/Bazel dependency alignment changes |
 
 ## 4. Architecture and control assessment
@@ -163,7 +165,7 @@ Data paths keep source/artifact identity separate from location. Raw, canonical,
 | P1 | Qualify Pub/Sub replay, DLQ/redrive, duplicate handling, ordering, and backpressure | F-008 | Data Platform | Consumer implementation | Failure injection and bounded backlog tests | Stop publishers; replay retained data | Retention/egress cost |
 | P1 | Qualify CPU/GPU separation, autoscaling, spot interruption, cache corruption/miss, and immutable worker image | F-009, F-013 | AI Platform/Release | Cluster/quota/images | Connected nightly/GPU evidence | Scale pool to zero; use local execution | Compute/cache cost |
 | P2 | Add billing export, allocation taxonomy, unit metrics, commitment review, and telemetry budgets | F-012 | FinOps | Billing/project taxonomy | Reconciled showback and anomaly test | Disable export consumers | Export/query cost |
-| P2 | Pin reusable workflows to reviewed immutable commits and make every mandatory lane merge-blocking | F-013 | Release Engineering | External workflow/ruleset access | Ruleset negative test and release canary | Roll back pins/ruleset | CI minutes |
+| P2 | Activate the SHA-pinned workflow checks after the staged ruleset observes exact `lint`/`terraform` contexts | F-013 | Release Engineering | External workflow/ruleset access | Ruleset positive/negative test and release canary | Return the new ruleset to evaluate before workflow rollback | CI minutes |
 
 ## 7. Validation plan
 
@@ -173,7 +175,7 @@ Data paths keep source/artifact identity separate from location. Raw, canonical,
 2. For every module, run backendless `terraform init -lockfile=readonly`, `terraform validate`, and mock-provider `terraform test`; lock updates are reviewed separately.
 3. Run `actionlint`, strict YAML lint, repository static checks, and the relevant Bazel filegroup/query checks.
 4. Keep the enforced invariant that every materialized module has constraints, README, outputs, a committed provider lock, and mock tests; do not silently skip directories without tests.
-5. Keep Nix-pinned TFLint and all-severity Trivy blocking. Add saved-plan policy-as-code, documentation drift, replacement/destruction review, cost evidence, and retained reports in controlled CI.
+5. Keep Nix-pinned TFLint, Trivy, Conftest fixtures, provider compatibility, and interface drift blocking. Run the saved-plan policy against an approved live profile, then retain replacement/destruction, cost, and policy reports in controlled CI.
 
 ### Connected non-production gate
 
@@ -223,6 +225,10 @@ terraform -chdir=infra/terraform/modules/<module> test -no-color
 tflint --chdir=infra/terraform/modules/<module>
 checkov -d infra/terraform/modules --framework terraform --skip-download
 nix develop .#ci --command trivy config --disable-telemetry --exit-code 1 --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL --skip-check-update --skip-dirs '**/.terraform' infra/terraform
+ci/terraform/check.sh contracts
+ci/terraform/check.sh compat
+infra/terraform/policy/test-policy.sh
+infra/terraform/governance/check.sh
 NO_COLOR=1 actionlint
 yamllint --strict .github/workflows
 PYTHONDONTWRITEBYTECODE=1 python3 ci/presubmit/pipeline.py --static-only

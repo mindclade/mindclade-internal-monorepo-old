@@ -6,6 +6,7 @@
 //! Tokio Unix-socket control edge for local model-worker supervision.
 
 use mindclade_faults::{Code, Fault, FaultResult};
+use mindclade_process_os::current_user_id;
 use std::future::Future;
 use std::io::ErrorKind;
 use std::os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt};
@@ -333,6 +334,12 @@ fn prepare_socket_path(path: &Path) -> FaultResult<()> {
         return Err(Fault::new(
             Code::AlreadyExists,
             "runtime-host socket path exists and is not a socket",
+        ));
+    }
+    if metadata.uid() != current_user_id() {
+        return Err(Fault::new(
+            Code::PermissionDenied,
+            "runtime-host socket path belongs to a different user",
         ));
     }
     match StdUnixStream::connect(path) {

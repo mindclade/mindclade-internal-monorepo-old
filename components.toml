@@ -158,6 +158,22 @@ tests = [
 ]
 qualification = "docs/qualification/go/control-plane-registry.md"
 
+[[component]]
+name = "infra.terraform.modules"
+path = "infra/terraform/modules"
+status = "implemented"
+owner = "platform-control"
+tests = ["infra/terraform/modules/interface_governance_test.py"]
+qualification = "infra/terraform/PRODUCTION_READINESS.md"
+
+[[component]]
+name = "infra.terraform.dns_hub"
+path = "infra/terraform/environments/dns_hub"
+status = "implemented"
+owner = "platform-control"
+tests = ["infra/terraform/environments/dns_hub/interface_governance_test.py"]
+qualification = "infra/terraform/PRODUCTION_READINESS.md"
+
 # ---------------------------------------------------------------------------------------
 # Reserved-but-unimplemented domains
 # ---------------------------------------------------------------------------------------

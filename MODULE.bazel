@@ -37,6 +37,19 @@ bazel_dep(name = "rules_pkg", version = "1.0.1")
 # this repository's own BUILD files.
 bazel_dep(name = "rules_shell", version = "0.6.1")
 
+# Static infrastructure validation consumes fixed-hash Kubernetes schemas and captures the
+# Nix-owned CLI closure as declared runfiles. The latter is a documented transition bridge:
+# actions do not inherit PATH and remain sandboxed, while Nix remains the version authority.
+infra_validation = use_extension(
+    "//tools/build/bazel/extensions:infra_validation.bzl",
+    "infra_validation",
+)
+use_repo(
+    infra_validation,
+    "mindclade_infra_validation_tools",
+    "mindclade_kubernetes_schemas",
+)
+
 # Rust third-party dependencies are derived from the canonical Cargo workspace.
 #
 # EVERY MEMBER MANIFEST IS LISTED, not just the root. cargo-bazel splices the workspace from

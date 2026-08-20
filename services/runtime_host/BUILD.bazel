@@ -117,6 +117,27 @@ rust_test(
     ],
 )
 
+rust_test(
+    name = "execution_transport",
+    srcs = ["tests/execution_transport.rs"],
+    edition = "2024",
+    deps = [
+        ":mindclade_runtime_host",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/gpu_host:mindclade_gpu_host",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        "//protocols/rust:mindclade_protocols",
+        "@crates//:hyper-util",
+        "@crates//:prost",
+        "@crates//:tokio",
+        "@crates//:tokio-stream",
+        "@crates//:tonic",
+        "@crates//:tower",
+    ],
+)
+
 filegroup(
     name = "package_sources",
     srcs = glob(

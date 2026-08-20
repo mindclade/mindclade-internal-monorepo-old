@@ -1,21 +1,21 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
 ---
-# Single-node torchrun qualification template. Multi-node execution uses the suspended JobSet
-# template after rendezvous and transport behavior are qualified.
+# One-GPU work uses unconstrained TAS so Kueue can fill free slots on eight-GPU nodes. This
+# component is intentionally unbound; a hardware overlay must supply its namespace and contract.
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: mindclade-torchrun-template
-  namespace: mindclade-system
+  name: mindclade-1g-packed-template
   labels:
     app.kubernetes.io/component: training
     app.kubernetes.io/name: torchrun
     app.kubernetes.io/part-of: mindclade-platform
-    kueue.x-k8s.io/queue-name: mindclade-batch
+    kueue.x-k8s.io/queue-name: blocked-unbound
+    mindclade.dev/gpu-class: 1g-packed
+    mindclade.dev/workload-class: unbound
     mindclade.dev/workload-state: blocked
   annotations:
     mindclade.dev/activation-requirements: image-ticket-checkpoint-and-numerical-qualification
@@ -29,6 +29,10 @@ spec:
       labels:
         app.kubernetes.io/component: training
         app.kubernetes.io/name: torchrun
+        mindclade.dev/gpu-class: 1g-packed
+        mindclade.dev/workload-class: unbound
+      annotations:
+        kueue.x-k8s.io/podset-unconstrained-topology: "true"
     spec:
       automountServiceAccountToken: false
       containers:
@@ -62,7 +66,7 @@ spec:
             - name: scratch
               mountPath: /tmp
       nodeSelector:
-        mindclade.dev/gpu-profile: gke-h100-a3-megagpu-8g
+        mindclade.dev/gpu-profile: unbound
         mindclade.dev/node-pool: gpu
       priorityClassName: mindclade-batch
       restartPolicy: Never
@@ -70,7 +74,7 @@ spec:
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
-      serviceAccountName: mindclade-workload
+      serviceAccountName: mindclade-training-unbound
       terminationGracePeriodSeconds: 120
       tolerations:
         - effect: NoSchedule

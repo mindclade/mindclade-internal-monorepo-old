@@ -15,6 +15,8 @@
 # The workload stays at zero replicas because the production bootstrap never
 # marks runtime_host_ready, so /readyz cannot currently succeed. The invalid
 # digest is a second activation interlock until an attested image is published.
+# The required execution gRPC listener remains loopback-only and explicitly
+# disabled; exposing it requires the co-scheduled runtime-host bundle.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -70,6 +72,12 @@ spec:
           env:
             - name: MINDCLADE_RUNTIME_GATEWAY_ADDR
               value: 0.0.0.0:8080
+            - name: MINDCLADE_RUNTIME_GATEWAY_GRPC_ADDR
+              value: 127.0.0.1:8081
+            - name: MINDCLADE_POD_MEMORY_LIMIT_BYTES
+              value: "1073741824"
+            - name: MINDCLADE_RUNTIME_EXECUTION_ENABLED
+              value: "false"
             - name: MINDCLADE_RUNTIME_KEY_ID
               valueFrom:
                 configMapKeyRef:

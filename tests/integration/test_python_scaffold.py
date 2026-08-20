@@ -81,7 +81,7 @@ import pytest
 # LOWERED 222 -> 220 by materializing config's loader and merge coverage.
 # LOWERED 220 -> 214 by materializing all six placeholder tests under artifacts, distributed,
 # geometry, observability, and testing.
-SCAFFOLD_BASELINE = 214
+SCAFFOLD_BASELINE = 213
 
 # Gitignored tool directories. Every entry is something that can hold a copy of the tree
 # without being part of it, which this scan would otherwise count.

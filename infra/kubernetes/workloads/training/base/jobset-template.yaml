@@ -1,19 +1,21 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
 ---
+# Each replica consumes a complete eight-GPU node. Required zone TAS keeps the two-node PodSet in
+# one qualified failure domain; hostname spread prevents both replicas targeting the same node.
 apiVersion: jobset.x-k8s.io/v1alpha2
 kind: JobSet
 metadata:
-  name: mindclade-distributed-training-template
-  namespace: mindclade-system
+  name: mindclade-8g-full-template
   labels:
     app.kubernetes.io/component: training
     app.kubernetes.io/name: distributed-training
     app.kubernetes.io/part-of: mindclade-platform
-    kueue.x-k8s.io/queue-name: mindclade-batch
+    kueue.x-k8s.io/queue-name: blocked-unbound
+    mindclade.dev/gpu-class: 8g-full
+    mindclade.dev/workload-class: unbound
     mindclade.dev/workload-state: blocked
   annotations:
     mindclade.dev/activation-requirements: image-ticket-checkpoint-topology-and-numerical-qualification
@@ -40,6 +42,10 @@ spec:
                 app.kubernetes.io/component: training
                 app.kubernetes.io/name: distributed-training
                 mindclade.dev/distributed-transport: unqualified
+                mindclade.dev/gpu-class: 8g-full
+                mindclade.dev/workload-class: unbound
+              annotations:
+                kueue.x-k8s.io/podset-required-topology: topology.kubernetes.io/zone
             spec:
               automountServiceAccountToken: false
               containers:
@@ -55,12 +61,12 @@ spec:
                       cpu: "8"
                       memory: 64Gi
                       ephemeral-storage: 32Gi
-                      nvidia.com/gpu: "1"
+                      nvidia.com/gpu: "8"
                     limits:
                       cpu: "16"
                       memory: 128Gi
                       ephemeral-storage: 64Gi
-                      nvidia.com/gpu: "1"
+                      nvidia.com/gpu: "8"
                   securityContext:
                     allowPrivilegeEscalation: false
                     capabilities:
@@ -73,7 +79,7 @@ spec:
                     - name: scratch
                       mountPath: /tmp
               nodeSelector:
-                mindclade.dev/gpu-profile: gke-h100-a3-megagpu-8g
+                mindclade.dev/gpu-profile: unbound
                 mindclade.dev/node-pool: gpu
               priorityClassName: mindclade-batch
               restartPolicy: Never
@@ -81,7 +87,7 @@ spec:
                 runAsNonRoot: true
                 seccompProfile:
                   type: RuntimeDefault
-              serviceAccountName: mindclade-workload
+              serviceAccountName: mindclade-training-unbound
               terminationGracePeriodSeconds: 120
               tolerations:
                 - effect: NoSchedule

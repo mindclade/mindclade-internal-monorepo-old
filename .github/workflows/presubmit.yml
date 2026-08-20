@@ -10,11 +10,11 @@
 # that run on ordinary hardware; gpu/nightly/release remain unmaterialized because they need
 # self-hosted runners and a release process that do not exist yet.
 #
-# JOB IDS ARE LOAD-BEARING. github-config's `required-checks-go` ruleset requires the status
-# check context "ci / build". For a called reusable workflow GitHub composes that context as
+# JOB IDS ARE LOAD-BEARING. github-config already declares "ci / build" and "architecture";
+# lint and terraform are staged to join them after their exact contexts are observed on a PR.
+# For a called reusable workflow GitHub composes the Go context as
 # "<caller job id> / <called job id>", and reusable-go-ci's job is `build` — so the Go lane's
-# job MUST stay `ci`. Renaming it produces a required check that is never satisfied and a
-# default branch nothing can merge into.
+# job MUST stay `ci`. Renaming it produces a required check that is never satisfied.
 name: Presubmit
 
 on:
@@ -45,6 +45,7 @@ jobs:
   # workflow does not provision yet. Named here rather than left implicit: the affected-target
   # lane is the missing half, not something this file pretends to cover.
   architecture:
+    name: architecture
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -66,7 +67,7 @@ jobs:
   #
   # Do not rename this job. See the note above.
   ci:
-    uses: mindclade-org/.github/.github/workflows/reusable-go-ci.yml@v1.1.0
+    uses: mindclade-org/.github/.github/workflows/reusable-go-ci.yml@22cd42b4f5c08bcb579aed4b6a0bb8cd4696daa0  # v1.1.0
     with:
       # The toolchain the devShell resolves, which is also what tools/build/nix/versions.nix
       # pins the language level to (go = "1.26") and what tools/build/nix/toolchain-manifest.json
@@ -130,7 +131,7 @@ jobs:
 
   # Rust — the online/runtime data plane and node execution.
   rust:
-    uses: mindclade-org/.github/.github/workflows/reusable-rust-ci.yml@v1.1.0
+    uses: mindclade-org/.github/.github/workflows/reusable-rust-ci.yml@22cd42b4f5c08bcb579aed4b6a0bb8cd4696daa0  # v1.1.0
     with:
       # Explicit rather than empty. reusable-rust-ci resolves `inputs.toolchain || 'stable'`,
       # so leaving this blank silently pins to whatever stable is that week — it never reads
@@ -143,7 +144,7 @@ jobs:
 
   # Python — scientific, model, training, inference, and evaluation numerics.
   python:
-    uses: mindclade-org/.github/.github/workflows/reusable-uv-ci.yml@v1.1.0
+    uses: mindclade-org/.github/.github/workflows/reusable-uv-ci.yml@22cd42b4f5c08bcb579aed4b6a0bb8cd4696daa0  # v1.1.0
     with:
       python-version: "3.12.12"
       # Empty, not "--all-packages". pyproject sets `[tool.uv] package = false` and declares no
@@ -194,10 +195,10 @@ jobs:
   # separate job pays all of it a second time for checks that take seconds once the store is
   # warm. Two lanes' worth of signal, one nixpkgs evaluation.
   #
-  # The job id stays `lint`. Only "ci / build" is a required status check (see the header note),
-  # so the display name below is free to change, but the id is what a future ruleset would name.
+  # The job id and display name stay `lint`. Its exact PR context will be observed before the
+  # staged github-config ruleset update makes it merge-blocking.
   lint:
-    name: nix flake check + actionlint + yamllint
+    name: lint
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -256,12 +257,16 @@ jobs:
   # delegation for every domain the company owns — the blast radius of it being wrong is the
   # whole estate, not one module's callers.
   terraform:
-    name: terraform contracts + validate + test + security
+    name: terraform
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
+    env:
+      MINDCLADE_TF_JOBS: "4"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
+          # Interface governance compares generated evidence to the pull request's real base.
+          fetch-depth: 0
           persist-credentials: false
 
       - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
@@ -270,114 +275,57 @@ jobs:
             experimental-features = nix-command flakes
             accept-flake-config = false
 
-      - name: fmt
-        run: nix develop .#ci --command terraform fmt -check -recursive infra/terraform
+      # The exact key has no restore prefix. Untrusted pull requests can consume only a cache
+      # created from the same toolchain and lock evidence, and cannot publish a cache that a
+      # trusted main-branch run will later consume. Terraform still verifies every provider
+      # package against the committed lock checksums.
+      - name: Restore exact Terraform provider cache
+        id: terraform-provider-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ${{ runner.temp }}/mindclade-terraform-plugin-cache
+          key: tf-google-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'tools/build/nix/toolchain-manifest.json', 'infra/terraform/provider-compatibility.toml', 'infra/terraform/locks/*.hcl', 'infra/terraform/**/.terraform.lock.hcl') }}
 
-      - name: module contract
-        run: |
-          set -euo pipefail
-          failed=0
-          for dir in infra/terraform/modules/*/; do
-            for file in README.md main.tf outputs.tf variables.tf versions.tf .terraform.lock.hcl; do
-              if [ ! -f "${dir}${file}" ]; then
-                echo "::error file=${dir}${file}::required Terraform module contract file is missing"
-                failed=1
-              fi
-            done
-            if [ ! -d "${dir}tests" ] || ! compgen -G "${dir}tests/*.tftest.hcl" >/dev/null; then
-              echo "::error file=${dir}::materialized Terraform modules require a mock test suite"
-              failed=1
-            fi
-          done
-          exit "$failed"
+      # Each phase enters Nix once. check.sh owns serial initialization and four-way bounded
+      # execution, so adding a module no longer adds three more full dev-shell startups.
+      - name: Terraform formatting
+        run: nix develop .#ci --command ci/terraform/check.sh fmt
 
-      # Per directory, because `terraform validate` needs an initialised one.
-      # -backend=false so nothing looks for a state bucket — environments/* declare a real
-      # GCS backend and would otherwise demand credentials to validate.
-      - name: validate
-        run: |
-          set -euo pipefail
-          failed=0
-          for dir in infra/terraform/modules/*/ infra/terraform/environments/*/; do
-            # environments/* still holds empty scaffolds; a directory with no .tf is not a
-            # failure, it is a root nobody has written yet.
-            ls "${dir}"*.tf >/dev/null 2>&1 || continue
-            if ! out=$(nix develop .#ci --command bash -c "cd '$dir' && terraform init -backend=false -input=false -lockfile=readonly >/dev/null && terraform validate -no-color" 2>&1); then
-              echo "::error file=${dir}::terraform validate failed"
-              printf '%s\n' "$out"
-              failed=1
-            fi
-          done
-          exit "$failed"
+      - name: Terraform module and provider contracts
+        run: nix develop .#ci --command ci/terraform/check.sh contracts
 
-      - name: tflint
-        run: |
-          set -euo pipefail
-          failed=0
-          for dir in infra/terraform/modules/*/ infra/terraform/environments/*/; do
-            ls "${dir}"*.tf >/dev/null 2>&1 || continue
-            if ! out=$(nix develop .#ci --command tflint --chdir="$dir" --format=compact 2>&1); then
-              echo "::error file=${dir}::tflint failed"
-              printf '%s\n' "$out"
-              failed=1
-            fi
-          done
-          exit "$failed"
+      - name: Backendless Terraform initialization and validation
+        run: nix develop .#ci --command ci/terraform/check.sh validate
 
-      - name: IaC security policy
-        run: |
-          set -euo pipefail
-          exceptions="$(git grep -n '#trivy:ignore:' -- infra/terraform || true)"
-          invalid="$(printf '%s\n' "$exceptions" | grep -Ev '#trivy:ignore:(AVD-)?GCP-[0-9]{4}:exp:[0-9]{4}-[0-9]{2}-[0-9]{2}$' || true)"
-          if [[ -n "$invalid" ]]; then
-            echo "::error::Trivy exceptions require one exact GCP check ID and an expiry date"
-            printf '%s\n' "$invalid"
-            exit 1
-          fi
+      - name: TFLint
+        run: nix develop .#ci --command ci/terraform/check.sh lint
 
-          maximum_expiry="$(date -u -d '+366 days' +%s)"
-          while IFS= read -r exception; do
-            [[ -z "$exception" ]] && continue
-            expiry="${exception##*:exp:}"
-            if (( $(date -u -d "$expiry" +%s) > maximum_expiry )); then
-              echo "::error::Trivy exception exceeds the 366-day review horizon: $exception"
-              exit 1
-            fi
-          done <<< "$exceptions"
+      - name: IaC security and policy fixtures
+        run: nix develop .#ci --command ci/terraform/check.sh security
 
-          nix develop .#ci --command trivy config \
-            --disable-telemetry \
-            --exit-code 1 \
-            --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL \
-            --skip-check-update \
-            --skip-dirs '**/.terraform' \
-            infra/terraform
+      - name: Mock-provider Terraform tests
+        run: nix develop .#ci --command ci/terraform/check.sh test
 
-      - name: test
-        # -var-file=terraform.tfvars.example where one exists. Real terraform.tfvars is
-        # gitignored, so the committed example is the only copy of a root's inputs anyone ever
-        # reads, and nothing else loads it. A run block that declares no `variables` picks it
-        # up and executes it; without this the example can rot into something that does not
-        # even parse, and the first person to find out is whoever is standing up the estate.
-        run: |
-          set -euo pipefail
-          failed=0
-          ran=0
-          for dir in infra/terraform/modules/*/ infra/terraform/environments/*/; do
-            [ -d "${dir}tests" ] || continue
-            ran=$((ran + 1))
-            args=""
-            if [ -f "${dir}terraform.tfvars.example" ]; then
-              args="-var-file=terraform.tfvars.example"
-            fi
-            if ! out=$(nix develop .#ci --command bash -c "cd '$dir' && terraform init -backend=false -input=false -lockfile=readonly >/dev/null && terraform test -no-color $args" 2>&1); then
-              echo "::error file=${dir}::terraform test failed"
-              printf '%s\n' "$out"
-              failed=1
-            fi
-          done
-          echo "Ran ${ran} terraform test suite(s)."
-          exit "$failed"
+      - name: Terraform documentation and public interfaces
+        env:
+          TERRAFORM_INTERFACE_BASE_REF: "${{ github.event.pull_request.base.sha || github.event.before }}"
+        run: nix develop .#ci --command ci/terraform/check.sh docs
+
+      - name: Google provider compatibility matrix
+        run: nix develop .#ci --command ci/terraform/check.sh compat
+
+      # Save only after every Terraform gate succeeds on the protected branch. Pull requests
+      # never write the cache, which keeps their dependency bytes outside the trusted boundary.
+      - name: Save trusted Terraform provider cache
+        if: >-
+          success() &&
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/main' &&
+          steps.terraform-provider-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ${{ runner.temp }}/mindclade-terraform-plugin-cache
+          key: tf-google-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock', 'tools/build/nix/toolchain-manifest.json', 'infra/terraform/provider-compatibility.toml', 'infra/terraform/locks/*.hcl', 'infra/terraform/**/.terraform.lock.hcl') }}
 
   # ---------------------------------------------------------------------------------------
   # Bazel — formatting, loading, architecture, configured analysis, and tests
@@ -428,16 +376,45 @@ jobs:
         run: nix develop .#ci --command buildifier --mode=check -r .
 
       - name: Every BUILD file loads and every label resolves
-        run: tools/dev/bazelw query '//...' --output=label --curses=no --color=no > /dev/null
+        run: >-
+          nix develop .#ci --command
+          tools/dev/bazelw query '//...' --output=label --curses=no --color=no
+          > /dev/null
 
       - name: Enforce Bazel dependency layers
         run: python3 tools/analysis/check_bazel_layers.py
 
       - name: Analyze the complete configured graph
-        run: tools/dev/bazelw build //... --nobuild --config=ci
+        run: nix develop .#ci --command tools/dev/bazelw build //... --nobuild --config=ci
 
       - name: Run every non-manual Bazel test
-        run: tools/dev/bazelw test //... --config=ci
+        run: nix develop .#ci --command tools/dev/bazelw test //... --config=ci
+
+  # Stable, always-reported infrastructure context. Do not add path filters or rename the job:
+  # branch protection can require `infra-static` without creating a check that disappears on
+  # documentation-only pull requests. Nix owns CLI versions; Bazel owns declared inputs, local
+  # schemas, rendering, policy, relational validation, and test result reporting.
+  infra-static:
+    name: infra-static
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = false
+
+      - name: Pinned Kubernetes and GitOps static validation
+        run: >-
+          nix develop .#ci --command
+          tools/dev/bazelw test --config=ci
+          //infra/kubernetes:validate //infra/gitops:validate
+          --test_output=errors
 
 
   # ---------------------------------------------------------------------------------------

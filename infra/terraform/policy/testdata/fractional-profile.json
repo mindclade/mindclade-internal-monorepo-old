@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "profile_id": "synthetic-fractional-profile",
+  "approved_locations": ["us-central1"],
+  "required_labels": ["data-classification"],
+  "data_resource_types": [
+    "google_artifact_registry_repository",
+    "google_pubsub_topic",
+    "google_redis_instance",
+    "google_secret_manager_secret",
+    "google_sql_database_instance",
+    "google_storage_bucket"
+  ],
+  "classifications": {
+    "public": {
+      "allowed_locations": ["us-central1"],
+      "require_cmek": false,
+      "retention": {
+        "google_artifact_registry_repository": {"minimum_seconds": 1},
+        "google_pubsub_topic": {"minimum_seconds": 1},
+        "google_redis_instance": {"maximum_snapshot_interval_seconds": 1},
+        "google_secret_manager_secret": {"minimum_seconds": 1},
+        "google_sql_database_instance": {
+          "minimum_final_backup_days": 1,
+          "minimum_retained_backups": 1
+        },
+        "google_storage_bucket": {"minimum_seconds": 1}
+      }
+    },
+    "internal": {
+      "allowed_locations": ["us-central1"],
+      "require_cmek": false,
+      "retention": {
+        "google_artifact_registry_repository": {"minimum_seconds": 1},
+        "google_pubsub_topic": {"minimum_seconds": 1},
+        "google_redis_instance": {"maximum_snapshot_interval_seconds": 1},
+        "google_secret_manager_secret": {"minimum_seconds": 1},
+        "google_sql_database_instance": {
+          "minimum_final_backup_days": 1,
+          "minimum_retained_backups": 1
+        },
+        "google_storage_bucket": {"minimum_seconds": 0.001}
+      }
+    },
+    "confidential": {
+      "allowed_locations": ["us-central1"],
+      "require_cmek": true,
+      "retention": {
+        "google_artifact_registry_repository": {"minimum_seconds": 1},
+        "google_pubsub_topic": {"minimum_seconds": 1},
+        "google_redis_instance": {"maximum_snapshot_interval_seconds": 1},
+        "google_secret_manager_secret": {"minimum_seconds": 1},
+        "google_sql_database_instance": {
+          "minimum_final_backup_days": 1,
+          "minimum_retained_backups": 1
+        },
+        "google_storage_bucket": {"minimum_seconds": 1}
+      }
+    },
+    "restricted": {
+      "allowed_locations": ["us-central1"],
+      "require_cmek": true,
+      "retention": {
+        "google_artifact_registry_repository": {"minimum_seconds": 1},
+        "google_pubsub_topic": {"minimum_seconds": 1},
+        "google_redis_instance": {"maximum_snapshot_interval_seconds": 1},
+        "google_secret_manager_secret": {"minimum_seconds": 1},
+        "google_sql_database_instance": {
+          "minimum_final_backup_days": 1,
+          "minimum_retained_backups": 1
+        },
+        "google_storage_bucket": {"minimum_seconds": 1}
+      }
+    }
+  }
+}

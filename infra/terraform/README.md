@@ -81,26 +81,41 @@ Every materialized module must have:
 - an explicit migration plan for breaking addresses or destructive changes.
 
 Root modules pin provider selections in committed lock files. Reusable child modules
-declare compatible ranges and do not configure providers. Provider upgrades are
-reviewed centrally and qualified before a live plan.
+declare compatible ranges and do not configure providers. The repository records the
+minimum and reviewed Google provider versions in `provider-compatibility.toml`, keeps
+canonical three-platform lock fixtures under `locks/`, and qualifies both selections.
 
 ## Safe local validation
 
 ```bash
-terraform fmt -check -recursive infra/terraform
-
-terraform -chdir=infra/terraform/modules/<module> init \
-  -backend=false -input=false -lockfile=readonly
-terraform -chdir=infra/terraform/modules/<module> validate -no-color
-terraform -chdir=infra/terraform/modules/<module> test -no-color
-
-nix develop .#ci --command tflint --chdir=infra/terraform/modules/<module>
-nix develop .#ci --command trivy config --disable-telemetry --exit-code 1 \
-  --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL --skip-check-update \
-  --skip-dirs '**/.terraform' infra/terraform
+nix develop .#ci --command ci/terraform/check.sh all
 ```
 
-These checks may download provider plugins but do not access a backend or cloud API.
+The driver exposes narrower `fmt`, `contracts`, `validate`, `lint`, `security`, `test`,
+`docs`, and `compat` phases. It initializes serially, executes bounded workers, preserves
+committed locks, and may download checksum-verified provider plugins; it does not access a
+backend or cloud API.
+
+Generate documentation only for an intentional interface change:
+
+```bash
+nix develop .#ci --command infra/terraform/governance/generate.sh
+```
+
+Evaluate JSON derived from one saved plan against an approved environment profile with:
+
+```bash
+infra/terraform/policy/check-plan.sh \
+  --plan plan.json \
+  --profile approved-policy-profile.json \
+  --approval exact-expiring-approval.json
+```
+
+Omit `--approval` when the plan has no approval-gated action. The repository contains only
+synthetic policy profiles. The controlled live pipeline must
+authenticate approval provenance and bind apply authorization to the same immutable commit,
+binary saved-plan digest, and reviewed JSON evidence.
+
 A production change additionally requires a saved plan and JSON review, policy and
 security scans, cost evidence, explicit destructive/IAM/public-access review, a
 separate protected apply identity, post-apply drift, and service-level qualification.

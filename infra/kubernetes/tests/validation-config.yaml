@@ -9,7 +9,7 @@ kind: KubernetesValidationPolicy
 spec:
   # kubeconform uses upstream Kubernetes schemas, not the provider build suffix. The matching GKE
   # platform lock is 1.36.2-gke.2064000 in infra/terraform/modules/gke/variables.tf.
-  kubernetesVersion: 1.36.0
+  kubernetesVersion: 1.36.2
 
   # This is an inventory, not a discovery convenience. A new Kustomization must be classified in
   # review so a newly empty module cannot enter the tree and receive a vacuous green check.
@@ -42,6 +42,7 @@ spec:
     - platform/jobset
     - platform/kueue
     - platform/nccl
+    - platform/observability
     - platform/rdma
     - platform/remote-execution
     - platform/security
@@ -59,11 +60,29 @@ spec:
     - services/training-workers
     - workloads/ingestion
     - workloads/preprocessing
-    - workloads/training
+    - workloads/training/overlays/h100
+    - workloads/training/overlays/h200
 
   # There are no intentionally empty roots. Keep this list explicit so adding a future
   # activation-gated module requires an inventory review instead of receiving a vacuous pass.
   activationGatedEmptyRoots: []
+
+  # These five routes are intentional activation contracts for services that have not been
+  # materialized. The relational gate rejects any other missing backend and also rejects a stale
+  # exception once its Service appears.
+  activationGatedUnresolvedServiceRefs:
+    - ai/model-registry:8080
+    - ai/serving-api:8080
+    - ai/training-api:8080
+    - dev/docs:8080
+    - dev/sdk:8080
+
+  # Quarantine policies deliberately predate the workloads they will isolate. The relational
+  # gate rejects a stale exception as soon as a matching Pod template is materialized.
+  activationGatedUnmatchedNetworkPolicies:
+    - mindclade-system/block-unqualified-nccl
+    - mindclade-system/block-unqualified-rdma
+    - mindclade-system/block-unqualified-remote-execution
 
   # Helm release identity and supply-chain inputs are part of the rendered contract. The archive
   # and controller digest variables are read from versions.env without sourcing executable text.
@@ -99,7 +118,10 @@ spec:
     - kueue.x-k8s.io/v1beta2/ClusterQueue
     - kueue.x-k8s.io/v1beta2/LocalQueue
     - kueue.x-k8s.io/v1beta2/ResourceFlavor
+    - kueue.x-k8s.io/v1beta2/Topology
     - networking.gke.io/v1/GCPBackendPolicy
+    - monitoring.googleapis.com/v1/PodMonitoring
+    - monitoring.googleapis.com/v1/Rules
 
   # These APIs ship in the pinned operator archives above, so their live instances can be checked
   # offline against the exact structural schemas rendered from those archives.
@@ -108,6 +130,27 @@ spec:
     - kueue.x-k8s.io/v1beta2/ClusterQueue
     - kueue.x-k8s.io/v1beta2/LocalQueue
     - kueue.x-k8s.io/v1beta2/ResourceFlavor
+    - kueue.x-k8s.io/v1beta2/Topology
+
+  # GKE's managed Prometheus APIs are validated against CRDs fetched by Bazel from this exact,
+  # SHA-256-locked upstream revision. They never fall back to a live cluster or remote schema URL.
+  pinnedExternalCustomSchemas:
+    - gvk: cert-manager.io/v1/Certificate
+      file: cert-manager-v1.19.1.yaml
+    - gvk: cert-manager.io/v1/ClusterIssuer
+      file: cert-manager-v1.19.1.yaml
+    - gvk: cert-manager.io/v1/Issuer
+      file: cert-manager-v1.19.1.yaml
+    - gvk: gateway.networking.k8s.io/v1/Gateway
+      file: gateway.networking.k8s.io_gateways.yaml
+    - gvk: gateway.networking.k8s.io/v1/HTTPRoute
+      file: gateway.networking.k8s.io_httproutes.yaml
+    - gvk: networking.gke.io/v1/GCPBackendPolicy
+      file: networking.gke.io_gcpbackendpolicies.yaml
+    - gvk: monitoring.googleapis.com/v1/PodMonitoring
+      file: monitoring.googleapis.com_podmonitorings.yaml
+    - gvk: monitoring.googleapis.com/v1/Rules
+      file: monitoring.googleapis.com_rules.yaml
 
   # Everything not enumerated here is namespaced and must render metadata.namespace explicitly.
   # Exact GVKs avoid kind-name collisions between unrelated API groups.
@@ -128,6 +171,7 @@ spec:
     - gateway.networking.k8s.io/v1/GatewayClass
     - kueue.x-k8s.io/v1beta2/ClusterQueue
     - kueue.x-k8s.io/v1beta2/ResourceFlavor
+    - kueue.x-k8s.io/v1beta2/Topology
     - networking.k8s.io/v1/IngressClass
     - node.k8s.io/v1/RuntimeClass
     - rbac.authorization.k8s.io/v1/ClusterRole
@@ -172,7 +216,8 @@ spec:
     - services/training-workers
     - workloads/ingestion
     - workloads/preprocessing
-    - workloads/training
+    - workloads/training/overlays/h100
+    - workloads/training/overlays/h200
 
   # Standalone workload templates inherit the namespace-wide policies above when instantiated.
   # These roots must carry a local ingress-and-egress default deny because they are deployable
@@ -200,3 +245,19 @@ spec:
     - services/runtime-gateway
     - services/runtime-host
     - services/training-workers
+
+  # Complete namespace compositions must carry a namespace-wide deny. Standalone service modules
+  # may use a selector-scoped ingress-and-egress deny for exactly their rendered Pod templates;
+  # cross_resource.py proves those selectors resolve.
+  namespaceWideDefaultDenyRoots:
+    - overlays/development
+    - overlays/production
+    - overlays/staging
+    - planes/dev/base
+    - planes/dev/overlays/development
+    - planes/dev/overlays/production
+    - planes/dev/overlays/staging
+    - planes/studio/base
+    - planes/studio/overlays/development
+    - planes/studio/overlays/production
+    - planes/studio/overlays/staging

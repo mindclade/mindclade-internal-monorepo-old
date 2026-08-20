@@ -28,5 +28,4 @@ metadata:
   namespace: mindclade-system
 spec:
   hard:
-    limits.nvidia.com/gpu: "0"
     requests.nvidia.com/gpu: "0"

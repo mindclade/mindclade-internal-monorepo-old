@@ -13,7 +13,9 @@ rust_binary(
     crate_name = "mindclade_rust_perf_probe",
     edition = "2024",
     deps = [
+        "//libs/rust/bytes_io:mindclade_bytes_io",
         "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/object_store:mindclade_object_store",
         "//libs/rust/runtime_core:mindclade_runtime_core",
     ],
 )

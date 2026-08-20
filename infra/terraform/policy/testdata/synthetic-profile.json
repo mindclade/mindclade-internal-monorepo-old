@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "profile_id": "synthetic-ci-only",
+  "approved_locations": [
+    "global",
+    "us-central1",
+    "us-east1"
+  ],
+  "required_labels": [
+    "data-classification",
+    "environment",
+    "managed-by",
+    "owner"
+  ],
+  "data_resource_types": [
+    "google_artifact_registry_repository",
+    "google_pubsub_topic",
+    "google_redis_instance",
+    "google_secret_manager_secret",
+    "google_sql_database_instance",
+    "google_storage_bucket"
+  ],
+  "classifications": {
+    "public": {
+      "allowed_locations": [
+        "global",
+        "us-central1",
+        "us-east1"
+      ],
+      "require_cmek": false,
+      "retention": {
+        "google_artifact_registry_repository": {"minimum_seconds": 604800},
+        "google_pubsub_topic": {"minimum_seconds": 600},
+        "google_redis_instance": {"maximum_snapshot_interval_seconds": 86400},
+        "google_secret_manager_secret": {"minimum_seconds": 86400},
+        "google_sql_database_instance": {
+          "minimum_final_backup_days": 7,
+          "minimum_retained_backups": 7
+        },
+        "google_storage_bucket": {"minimum_seconds": 86400}
+      }
+    },
+    "internal": {
+      "allowed_locations": [
+        "global",
+        "us-central1",
+        "us-east1"
+      ],
+      "require_cmek": false,
+      "retention": {
+        "google_artifact_registry_repository": {"minimum_seconds": 2592000},
+        "google_pubsub_topic": {"minimum_seconds": 86400},
+        "google_redis_instance": {"maximum_snapshot_interval_seconds": 43200},
+        "google_secret_manager_secret": {"minimum_seconds": 604800},
+        "google_sql_database_instance": {
+          "minimum_final_backup_days": 14,
+          "minimum_retained_backups": 14
+        },
+        "google_storage_bucket": {"minimum_seconds": 604800}
+      }
+    },
+    "confidential": {
+      "allowed_locations": [
+        "us-central1",
+        "us-east1"
+      ],
+      "require_cmek": true,
+      "retention": {
+        "google_artifact_registry_repository": {"minimum_seconds": 7776000},
+        "google_pubsub_topic": {"minimum_seconds": 604800},
+        "google_redis_instance": {"maximum_snapshot_interval_seconds": 43200},
+        "google_secret_manager_secret": {"minimum_seconds": 2592000},
+        "google_sql_database_instance": {
+          "minimum_final_backup_days": 30,
+          "minimum_retained_backups": 30
+        },
+        "google_storage_bucket": {"minimum_seconds": 2592000}
+      }
+    },
+    "restricted": {
+      "allowed_locations": [
+        "us-central1"
+      ],
+      "require_cmek": true,
+      "retention": {
+        "google_artifact_registry_repository": {"minimum_seconds": 15552000},
+        "google_pubsub_topic": {"minimum_seconds": 2592000},
+        "google_redis_instance": {"maximum_snapshot_interval_seconds": 21600},
+        "google_secret_manager_secret": {"minimum_seconds": 7776000},
+        "google_sql_database_instance": {
+          "minimum_final_backup_days": 90,
+          "minimum_retained_backups": 90
+        },
+        "google_storage_bucket": {"minimum_seconds": 7776000}
+      }
+    }
+  }
+}

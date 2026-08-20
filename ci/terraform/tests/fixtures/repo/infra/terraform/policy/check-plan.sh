@@ -1,11 +1,7 @@
+#!/usr/bin/env bash
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 
----
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-resources:
-  - checkpoint-sidecar.yaml
-  - jobset-template.yaml
-  - torchrun-template.yaml
+set -euo pipefail
+printf '%s\n' "$*"

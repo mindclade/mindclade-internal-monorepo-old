@@ -37,3 +37,13 @@ A ratchet may only move in one direction, and the change that moves it says why.
 - [ ] Nothing in production depends on `research/`.
 - [ ] Every queue, parser, buffer pool, retry loop, and spool this adds is bounded.
 - [ ] No gate was weakened, skipped, or allowlisted to make this pass.
+
+## Terraform contracts
+
+Delete this section when the change does not touch `infra/terraform`.
+
+- [ ] Generated README/interface evidence is current (`ci/terraform/check.sh docs`).
+- [ ] The minimum and reviewed provider matrix passes (`ci/terraform/check.sh compat`).
+- [ ] A breaking interface/address change has a SemVer increment, migration record, consumer
+      steps, rollback, and qualification evidence; otherwise no breaking change was detected.
+- [ ] No plan/apply/state or live IAM mutation is implied by repository-only test evidence.

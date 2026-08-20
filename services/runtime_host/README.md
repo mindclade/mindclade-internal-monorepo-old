@@ -18,10 +18,15 @@ The current source implements model-independent host mechanisms for:
 - GPU/model-slot reservation and compatibility envelopes;
 - control-message versus bulk-buffer descriptor separation;
 - cancellation, deadlines, readiness, drain, and shutdown;
+- bounded length-delimited Protobuf IPC to the process-isolated model worker;
 - diagnostics and telemetry seams.
 
 The host deliberately does not embed Python and does not implement model or
-tensor semantics. Integration and shutdown tests cover the core contracts.
+tensor semantics. Its streaming execution service revalidates the ticket,
+forwards start/cancel commands to the selected worker, validates monotonic
+worker identities and fencing tokens, and fails closed by terminating an
+unresponsive or protocol-invalid worker. Integration, IPC, process-tree, and
+shutdown tests cover these contracts.
 
 ## Owns
 

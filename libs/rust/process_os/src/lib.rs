@@ -15,6 +15,21 @@ pub const MAXIMUM_TERMINATION_GRACE: Duration = Duration::from_secs(30);
 const TERMINATION_POLL_INTERVAL: Duration = Duration::from_millis(10);
 const KILL_REAP_TIMEOUT: Duration = Duration::from_secs(1);
 
+/// Effective Unix user identity used to validate local IPC ownership.
+#[cfg(unix)]
+#[must_use]
+pub fn current_user_id() -> u32 {
+    // SAFETY: `geteuid` takes no arguments, returns a scalar value, and does
+    // not borrow or mutate Rust-owned memory.
+    unsafe { libc::geteuid() }
+}
+
+#[cfg(not(unix))]
+#[must_use]
+pub fn current_user_id() -> u32 {
+    0
+}
+
 #[cfg(unix)]
 pub fn configure_process_group(command: &mut Command) -> FaultResult<()> {
     use std::os::unix::process::CommandExt;

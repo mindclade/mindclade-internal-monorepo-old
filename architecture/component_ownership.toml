@@ -164,6 +164,18 @@ slo = "docs/slo/control-model-registry.md"
 runbook = "docs/runbooks/control-model-registry.md"
 security_review = true
 
+[component."infra.terraform.modules"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "hcl"
+security_review = true
+
+[component."infra.terraform.dns_hub"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "hcl"
+security_review = true
+
 # ---------------------------------------------------------------------------------------
 # Newly declared components
 # ---------------------------------------------------------------------------------------

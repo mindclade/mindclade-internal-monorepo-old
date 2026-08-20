@@ -10,6 +10,7 @@ package(default_visibility = ["//libs/rust:repo_consumers"])
 rust_library(
     name = "mindclade_object_store",
     srcs = glob(["src/**/*.rs"]),
+    crate_features = ["provider-adapters"],
     crate_name = "mindclade_object_store",
     edition = "2024",
     deps = [

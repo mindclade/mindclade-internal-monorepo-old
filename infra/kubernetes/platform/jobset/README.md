@@ -18,10 +18,17 @@ helm template jobset infra/kubernetes/platform/jobset/chart \
 The wrapper locks JobSet `0.12.0`, vendors the dependency archive, and pins the controller
 image digest in `values.yaml`. `versions.env` records both the upstream OCI artifact digest and
 the vendored archive digest; `Chart.lock` locks the dependency graph. Two controller replicas
-use leader election, hard container security defaults, bounded resources, topology
+use leader election, hard container security defaults, CPU/memory/ephemeral-storage bounds, topology
 anti-affinity, and a PDB.
 
-Install or upgrade the CRDs and controller before reconciling any JobSet. Validate stored
+The JobSet controller requires a Kubernetes API token to reconcile JobSets, Jobs, and webhook
+state. Its namespace therefore uses the explicit `platform-operator` admission class instead of
+the standard workload token prohibition. This is not a general workload exemption: before
+activation, audit the rendered ServiceAccount and exact upstream RBAC rules, token rotation and
+audience, observed API calls, and isolation by the operator namespace default-deny policy.
+
+Install CRDs with `jobset.controller.enabled=false`, wait for `Established`, then install the
+controller with `--skip-crds` and `jobset.controller.enabled=true`. Validate stored
 versions and conversion compatibility before changing the API version. Rollback never deletes
 the CRD: suspend JobSets, allow child Jobs to checkpoint or terminate, and roll back only to a
 controller compatible with the stored resources.

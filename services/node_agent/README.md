@@ -48,7 +48,11 @@ The service contains ticketed stage execution, bounded artifact/checkpoint and
 dataset transfer adapters, reference-cache authorization, subprocess/tool
 supervision, diagnostics, hierarchical budgets, cancellation, and fail-closed
 drain behavior. Tool invocations require absolute executables and enforce hard
-timeout/output limits; rejected children are terminated and reaped.
+timeout/output limits. Each invocation starts a Unix process group; timeout,
+registration rejection, normal completion with surviving descendants, and
+shutdown send TERM to the group, wait a bounded grace interval, then send KILL
+and reap the direct child. Retained stdout/stderr acquire aggregate byte permits
+before process creation and keep those permits until `ToolOutput` is dropped.
 
 ## Limitations
 

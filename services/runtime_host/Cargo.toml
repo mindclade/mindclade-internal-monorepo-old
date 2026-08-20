@@ -53,3 +53,5 @@ workspace = true
 # allowed to construct fixtures the production path gets handed.
 mindclade_content_digest = { path = "../../libs/rust/content_digest" }
 mindclade_identifiers = { path = "../../libs/rust/identifiers" }
+hyper-util.workspace = true
+tower.workspace = true

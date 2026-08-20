@@ -136,6 +136,102 @@ fn tool_runner_truncates_output_and_reaps_timed_out_children() {
     assert_eq!(supervisor.active(), 0);
 }
 
+#[cfg(unix)]
+#[test]
+fn tool_runner_enforces_aggregate_retained_output_budget() {
+    use mindclade_faults::Code;
+    use mindclade_node_agent::{ProcessSupervisor, ToolRequest, ToolRunner};
+    use std::collections::BTreeMap;
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    let supervisor = Arc::new(ProcessSupervisor::new(2).expect("supervisor"));
+    let runner =
+        ToolRunner::with_output_budget(supervisor, Duration::from_millis(1), 8).expect("runner");
+    let first = runner
+        .run(&ToolRequest {
+            executable: "/bin/sh".to_owned(),
+            arguments: vec!["-c".to_owned(), "printf 12345".to_owned()],
+            environment: BTreeMap::new(),
+            timeout: Duration::from_secs(1),
+            maximum_output_bytes: 4,
+        })
+        .expect("first output");
+    assert_eq!(first.stdout, b"1234");
+
+    let rejected = runner
+        .run(&ToolRequest {
+            executable: "/usr/bin/true".to_owned(),
+            arguments: Vec::new(),
+            environment: BTreeMap::new(),
+            timeout: Duration::from_secs(1),
+            maximum_output_bytes: 4,
+        })
+        .expect_err("retained output must consume aggregate budget");
+    assert_eq!(rejected.code(), Code::ResourceExhausted);
+    drop(first);
+    let after_release = runner.run(&ToolRequest {
+        executable: "/usr/bin/true".to_owned(),
+        arguments: Vec::new(),
+        environment: BTreeMap::new(),
+        timeout: Duration::from_secs(1),
+        maximum_output_bytes: 4,
+    });
+    assert!(after_release.is_ok(), "after release: {after_release:?}");
+}
+
+#[cfg(unix)]
+#[test]
+fn tool_timeout_terminates_grandchildren_in_the_process_group() {
+    use mindclade_node_agent::{ProcessSupervisor, ToolRequest, ToolRunner};
+    use std::collections::BTreeMap;
+    use std::sync::Arc;
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+    let pid_file = std::env::temp_dir().join(format!(
+        "mindclade-tool-grandchild-{}-{}",
+        std::process::id(),
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos(),
+    ));
+    let supervisor = Arc::new(
+        ProcessSupervisor::with_termination_grace(2, Duration::from_millis(100))
+            .expect("supervisor"),
+    );
+    let runner = ToolRunner::new(supervisor.clone(), Duration::from_millis(1)).expect("runner");
+    let output = runner
+        .run(&ToolRequest {
+            executable: "/bin/sh".to_owned(),
+            arguments: vec![
+                "-c".to_owned(),
+                "/bin/sleep 60 & echo $! > \"$1\"; wait".to_owned(),
+                "mindclade-tool".to_owned(),
+                pid_file.to_string_lossy().into_owned(),
+            ],
+            environment: BTreeMap::new(),
+            timeout: Duration::from_millis(100),
+            maximum_output_bytes: 1024,
+        })
+        .expect("timeout should be supervised");
+    assert!(output.timed_out);
+    let grandchild = std::fs::read_to_string(&pid_file)
+        .expect("grandchild pid")
+        .trim()
+        .to_owned();
+    let alive = std::process::Command::new("/bin/kill")
+        .args(["-0", &grandchild])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .expect("process existence check")
+        .success();
+    assert!(!alive, "grandchild {grandchild} survived tool timeout");
+    assert_eq!(supervisor.active(), 0);
+    let _ = std::fs::remove_file(pid_file);
+}
+
 #[test]
 fn stage_context_is_cooperatively_cancellable_and_bounded() {
     use mindclade_node_agent::StageContext;

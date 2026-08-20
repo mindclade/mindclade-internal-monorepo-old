@@ -17,8 +17,9 @@
         },
         "controller": {
           "type": "object",
-          "required": ["replicas", "leaderElection", "resources"],
+          "required": ["enabled", "replicas", "leaderElection", "resources"],
           "properties": {
+            "enabled": {"type": "boolean"},
             "replicas": {"type": "integer", "minimum": 2},
             "leaderElection": {
               "type": "object",

@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mindclade.example/schemas/terraform-policy-profile-v1.json",
+  "title": "Mindclade Terraform policy profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile_id",
+    "approved_locations",
+    "required_labels",
+    "data_resource_types",
+    "classifications"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "profile_id": {"$ref": "#/$defs/exactString"},
+    "approved_locations": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/location"}
+    },
+    "required_labels": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "contains": {"const": "data-classification"},
+      "items": {"$ref": "#/$defs/exactString"}
+    },
+    "data_resource_types": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/dataResourceType"}
+    },
+    "classifications": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["public", "internal", "confidential", "restricted"],
+      "properties": {
+        "public": {"$ref": "#/$defs/classification"},
+        "internal": {"$ref": "#/$defs/classification"},
+        "confidential": {"$ref": "#/$defs/classification"},
+        "restricted": {"$ref": "#/$defs/classification"}
+      }
+    }
+  },
+  "$defs": {
+    "exactString": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^*?\\[\\]]+$"
+    },
+    "location": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "dataResourceType": {
+      "enum": [
+        "google_artifact_registry_repository",
+        "google_pubsub_topic",
+        "google_redis_instance",
+        "google_secret_manager_secret",
+        "google_sql_database_instance",
+        "google_storage_bucket"
+      ]
+    },
+    "classification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowed_locations", "require_cmek", "retention"],
+      "properties": {
+        "allowed_locations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/location"}
+        },
+        "require_cmek": {"type": "boolean"},
+        "retention": {"$ref": "#/$defs/retention"}
+      }
+    },
+    "retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "google_artifact_registry_repository",
+        "google_pubsub_topic",
+        "google_redis_instance",
+        "google_secret_manager_secret",
+        "google_sql_database_instance",
+        "google_storage_bucket"
+      ],
+      "properties": {
+        "google_artifact_registry_repository": {"$ref": "#/$defs/minimumSeconds"},
+        "google_pubsub_topic": {"$ref": "#/$defs/minimumSeconds"},
+        "google_redis_instance": {"$ref": "#/$defs/redisRetention"},
+        "google_secret_manager_secret": {"$ref": "#/$defs/minimumSeconds"},
+        "google_sql_database_instance": {"$ref": "#/$defs/sqlRetention"},
+        "google_storage_bucket": {"$ref": "#/$defs/minimumSeconds"}
+      }
+    },
+    "minimumSeconds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimum_seconds"],
+      "properties": {
+        "minimum_seconds": {"type": "integer", "minimum": 1}
+      }
+    },
+    "sqlRetention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimum_final_backup_days", "minimum_retained_backups"],
+      "properties": {
+        "minimum_final_backup_days": {"type": "integer", "minimum": 1},
+        "minimum_retained_backups": {"type": "integer", "minimum": 1}
+      }
+    },
+    "redisRetention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maximum_snapshot_interval_seconds"],
+      "properties": {
+        "maximum_snapshot_interval_seconds": {"type": "integer", "minimum": 1}
+      }
+    }
+  }
+}

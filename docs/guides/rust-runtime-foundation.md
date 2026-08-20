@@ -53,7 +53,8 @@ mature cryptography, async runtime, or provider infrastructure.
 
 The 2026-08-20 canonical Rust presubmit passes with the pinned Rust 1.97.1
 toolchain: locked tests, formatting, strict Clippy, rustdoc, cargo-deny,
-compatibility, six local failure scenarios, and two portable performance probes.
+compatibility, six local failure scenarios, and portable digest, reservation,
+Unix IPC, process-start, verified-range, contention, RSS, and FD probes.
 Production promotion still requires connected Linux unsafe-code evidence,
 fuzzing, Miri/sanitizers, Bazel/Nix release hermeticity, provider qualification,
-the remaining six hardware/provider performance budgets, and deployment evidence.
+deployed gateway and hardware/provider performance budgets, and deployment evidence.

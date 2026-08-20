@@ -4,6 +4,10 @@
 
 ---
 kueue:
+  controller:
+    enabled: true
+  crds:
+    enabled: true
   enableCertManager: true
   enablePrometheus: false
   enableVisibilityAPF: false
@@ -31,9 +35,11 @@ kueue:
       resources:
         requests:
           cpu: 500m
+          ephemeral-storage: 256Mi
           memory: 512Mi
         limits:
           cpu: "2"
+          ephemeral-storage: 1Gi
           memory: 512Mi
       podSecurityContext:
         runAsNonRoot: true

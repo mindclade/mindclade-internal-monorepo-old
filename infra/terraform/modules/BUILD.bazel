@@ -1,0 +1,58 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+load("@rules_python//python:defs.bzl", "py_test")
+
+package(default_visibility = ["//visibility:private"])
+
+# Each child module is a Bazel package, so a parent glob cannot cross those boundaries.
+# Depend on their existing exported filegroups to make the governance test's checkout view
+# complete and hermetic rather than reaching into BUILD_WORKSPACE_DIRECTORY.
+filegroup(
+    name = "module_sources",
+    srcs = [
+        "//infra/terraform/modules/access_transparency:scaffold_files",
+        "//infra/terraform/modules/artifact_registry:scaffold_files",
+        "//infra/terraform/modules/audit_archive:scaffold_files",
+        "//infra/terraform/modules/bazel_remote_cache:scaffold_files",
+        "//infra/terraform/modules/bazel_remote_execution:scaffold_files",
+        "//infra/terraform/modules/binauthz:scaffold_files",
+        "//infra/terraform/modules/cpu_node_pool:scaffold_files",
+        "//infra/terraform/modules/dns:scaffold_files",
+        "//infra/terraform/modules/essential_contacts:scaffold_files",
+        "//infra/terraform/modules/folder_factory:scaffold_files",
+        "//infra/terraform/modules/gke:scaffold_files",
+        "//infra/terraform/modules/gpu_node_pool:scaffold_files",
+        "//infra/terraform/modules/iap_access:scaffold_files",
+        "//infra/terraform/modules/internal_address:scaffold_files",
+        "//infra/terraform/modules/kms:scaffold_files",
+        "//infra/terraform/modules/log_sink:scaffold_files",
+        "//infra/terraform/modules/monitoring:scaffold_files",
+        "//infra/terraform/modules/network:scaffold_files",
+        "//infra/terraform/modules/nix_binary_cache:scaffold_files",
+        "//infra/terraform/modules/object_storage:scaffold_files",
+        "//infra/terraform/modules/observability:scaffold_files",
+        "//infra/terraform/modules/org_policy:scaffold_files",
+        "//infra/terraform/modules/organization:scaffold_files",
+        "//infra/terraform/modules/postgres:scaffold_files",
+        "//infra/terraform/modules/private_service_access:scaffold_files",
+        "//infra/terraform/modules/project:scaffold_files",
+        "//infra/terraform/modules/pubsub:scaffold_files",
+        "//infra/terraform/modules/redis:scaffold_files",
+        "//infra/terraform/modules/scc:scaffold_files",
+        "//infra/terraform/modules/secret_manager:scaffold_files",
+        "//infra/terraform/modules/storage:scaffold_files",
+        "//infra/terraform/modules/workload_identity:scaffold_files",
+    ],
+)
+
+py_test(
+    name = "interface_governance_test",
+    srcs = ["interface_governance_test.py"],
+    data = [
+        ":module_sources",
+        "//infra/terraform/governance:governance_data",
+    ],
+    deps = ["//infra/terraform/governance:interface_governance"],
+)

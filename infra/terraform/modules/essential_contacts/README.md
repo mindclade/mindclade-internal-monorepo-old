@@ -40,3 +40,32 @@ module "contacts" {
   }
 }
 ```
+
+<!-- BEGIN_TF_DOCS -->
+## Requirements
+
+| Name | Version |
+| ---- | ------- |
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.9.0, < 2.0.0 |
+| <a name="requirement_google"></a> [google](#requirement\_google) | >= 7.41.0, < 8.0.0 |
+
+## Providers
+
+| Name | Version |
+| ---- | ------- |
+| <a name="provider_google"></a> [google](#provider\_google) | >= 7.41.0, < 8.0.0 |
+
+## Inputs
+
+| Name | Description | Type | Default | Required |
+| ---- | ----------- | ---- | ------- | :------: |
+| <a name="input_contacts"></a> [contacts](#input\_contacts) | Contacts to subscribe, keyed by the parent they attach to (organizations/<id>,<br/>folders/<id>, or projects/<id>). Each parent carries a list of addresses and the<br/>notification categories each one receives. | <pre>map(list(object({<br/>    email         = string<br/>    subscriptions = list(string)<br/>    language_tag  = optional(string, "en")<br/>  })))</pre> | n/a | yes |
+
+## Outputs
+
+| Name | Description |
+| ---- | ----------- |
+| <a name="output_contact_count"></a> [contact\_count](#output\_contact\_count) | Number of contacts managed by this module. A drop here between plans is the signal that a parent lost its routing. |
+| <a name="output_contact_ids"></a> [contact\_ids](#output\_contact\_ids) | Essential Contacts resource ids keyed by <parent>:<email>. |
+| <a name="output_parents"></a> [parents](#output\_parents) | Distinct parents that carry at least one contact. |
+<!-- END_TF_DOCS -->

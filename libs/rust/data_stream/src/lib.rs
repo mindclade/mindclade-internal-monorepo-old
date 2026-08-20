@@ -23,7 +23,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, mpsc};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
-use tokio::sync::{mpsc as async_mpsc, watch};
+use tokio::sync::{Semaphore, mpsc as async_mpsc, watch};
 use tokio::task::{JoinHandle as AsyncJoinHandle, JoinSet};
 
 pub const CURSOR_SCHEMA: u16 = 1;
@@ -183,13 +183,11 @@ impl AsyncPrefetcher {
     ) -> FaultResult<Self> {
         let config = config.validate()?;
         retry_policy.validate()?;
-        let maximum_shard_bytes = ByteSize::new(config.maximum_shard_bytes);
         let (sender, receiver) = async_mpsc::channel(config.buffer_capacity);
         let (cancellation, cancelled) = watch::channel(false);
         let worker = tokio::spawn(run_async_prefetch(
             plan,
             store,
-            maximum_shard_bytes,
             config,
             retry_policy,
             sender,
@@ -341,7 +339,6 @@ impl Drop for Prefetcher {
 async fn run_async_prefetch(
     plan: StreamPlan,
     store: Arc<dyn ObjectStore>,
-    maximum_shard_bytes: ByteSize,
     config: prefetch::PrefetchConfig,
     retry_policy: Policy,
     sender: async_mpsc::Sender<FaultResult<PrefetchedShard>>,
@@ -351,22 +348,29 @@ async fn run_async_prefetch(
     let mut fetches = JoinSet::new();
     let mut completed = std::collections::BTreeMap::new();
     let mut next_delivery = 0_usize;
+    let blocking_slots = Arc::new(Semaphore::new(config.concurrency));
 
     loop {
-        while fetches.len() < config.concurrency {
+        while fetches.len() < config.concurrency
+            && fetches
+                .len()
+                .checked_add(completed.len())
+                .is_some_and(|buffered| buffered < config.buffer_capacity)
+        {
             let Some((index, shard)) = shards.next() else {
                 break;
             };
             let store = Arc::clone(&store);
+            let blocking_slots = Arc::clone(&blocking_slots);
             let child_cancelled = cancelled.clone();
             fetches.spawn(fetch_shard_async(
                 index,
                 shard,
                 store,
-                maximum_shard_bytes,
-                config.fetch_timeout,
+                config,
                 retry_policy,
                 child_cancelled,
+                blocking_slots,
             ));
         }
 
@@ -430,10 +434,10 @@ async fn fetch_shard_async(
     index: usize,
     shard: Shard,
     store: Arc<dyn ObjectStore>,
-    maximum_shard_bytes: ByteSize,
-    fetch_timeout: Duration,
+    config: prefetch::PrefetchConfig,
     retry_policy: Policy,
     mut cancelled: watch::Receiver<bool>,
+    blocking_slots: Arc<Semaphore>,
 ) -> (usize, FaultResult<PrefetchedShard>) {
     let result = async {
         let retry_seed = u64::try_from(index)
@@ -444,10 +448,27 @@ async fn fetch_shard_async(
             }
             let operation_store = Arc::clone(&store);
             let path = shard.path.clone();
+            let permit = tokio::select! {
+                changed = cancelled.changed() => {
+                    if changed.is_err() || *cancelled.borrow() {
+                        return Err(Fault::new(Code::Cancelled, "shard prefetch was cancelled"));
+                    }
+                    continue;
+                }
+                permit = Arc::clone(&blocking_slots).acquire_owned() => {
+                    permit.map_err(|_| {
+                        Fault::new(Code::Cancelled, "shard prefetch blocking pool closed")
+                    })?
+                }
+            };
             let fetched = tokio::time::timeout(
-                fetch_timeout,
+                config.fetch_timeout,
                 tokio::task::spawn_blocking(move || {
-                    operation_store.get(&path, maximum_shard_bytes)
+                    // A timed-out synchronous read cannot be interrupted. Keep
+                    // this permit inside the blocking closure so retries never
+                    // create more abandoned calls than configured concurrency.
+                    let _permit = permit;
+                    operation_store.get(&path, ByteSize::new(config.maximum_shard_bytes))
                 }),
             )
             .await;

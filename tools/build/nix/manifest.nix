@@ -78,8 +78,10 @@ let
     helm = pkgs.kubernetes-helm.version;
     kubeconform = pkgs.kubeconform.version;
     kustomize = pkgs.kustomize.version;
+    promtool = pkgs.prometheus.version;
     shellcheck = pkgs.shellcheck.version;
     terraform = pkgs.terraform.version;
+    terraform-docs = pkgs.terraform-docs.version;
     trivy = pkgs.trivy.version;
     yamllint = pkgs.yamllint.version;
     yq = pkgs.yq-go.version;

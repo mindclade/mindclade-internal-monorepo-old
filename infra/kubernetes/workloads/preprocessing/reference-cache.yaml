@@ -11,7 +11,9 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: mindclade-reference-cache-contract
-  namespace: mindclade-system
+  namespace: mindclade-batch-cpu
+  labels:
+    mindclade.dev/workload-class: batch-cpu
 data:
   activationState: blocked
   addressing: sha256-content-digest

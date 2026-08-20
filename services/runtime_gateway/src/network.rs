@@ -154,7 +154,8 @@ pub async fn serve(
     let app = Router::new()
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))
-        .route("/v1/runtime/dispatch", post(dispatch))
+        .route("/v1/runtime/resolve", post(resolve))
+        .route("/v1/runtime/dispatch", post(dispatch_compat))
         .layer(DefaultBodyLimit::max(MAX_DISPATCH_BYTES))
         .layer(ConcurrencyLimitLayer::new(MAX_NETWORK_CONCURRENCY))
         .with_state(state);
@@ -203,7 +204,27 @@ async fn readyz(State(state): State<GatewayNetworkState>) -> StatusCode {
     }
 }
 
-async fn dispatch(State(state): State<GatewayNetworkState>, body: AdmittedBody) -> Response {
+async fn resolve(State(state): State<GatewayNetworkState>, body: AdmittedBody) -> Response {
+    resolve_request(&state, &body, StatusCode::OK)
+}
+
+async fn dispatch_compat(State(state): State<GatewayNetworkState>, body: AdmittedBody) -> Response {
+    let mut response = resolve_request(&state, &body, StatusCode::ACCEPTED);
+    response
+        .headers_mut()
+        .insert("deprecation", HeaderValue::from_static("true"));
+    response.headers_mut().insert(
+        "link",
+        HeaderValue::from_static("</v1/runtime/resolve>; rel=\"successor-version\""),
+    );
+    response
+}
+
+fn resolve_request(
+    state: &GatewayNetworkState,
+    body: &AdmittedBody,
+    success_status: StatusCode,
+) -> Response {
     let message = match RuntimeDispatchRequest::decode(body.bytes.as_ref()) {
         Ok(message) => message,
         Err(error) => {
@@ -234,7 +255,7 @@ async fn dispatch(State(state): State<GatewayNetworkState>, body: AdmittedBody) 
     // The edge admission permit is released after route selection. Runtime-host
     // execution acquires a separate node resource reservation for the request.
     admitted.permit.release();
-    protobuf_response(StatusCode::ACCEPTED, response.encode_to_vec())
+    protobuf_response(success_status, response.encode_to_vec())
 }
 
 fn declared_body_bytes(request: &Request) -> Result<u64, Fault> {

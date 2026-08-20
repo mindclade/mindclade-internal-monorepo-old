@@ -20,12 +20,11 @@ pub struct NodeAgentConfig {
 impl NodeAgentConfig {
     #[must_use]
     pub fn maximum_retained_tool_output_bytes(&self) -> u64 {
-        self.node_resources
-            .get(ResourceKind::ResidentMemoryBytes)
-            .saturating_div(4)
+        self.node_resources.get(ResourceKind::ResidentMemoryBytes) / 4
     }
 
     pub fn validate(&self) -> FaultResult<()> {
+        let required_output_memory = self.maximum_tool_output_bytes.checked_mul(2);
         if self.node_resources.get(ResourceKind::ResidentMemoryBytes) == 0
             || self.node_resources.get(ResourceKind::LocalDiskBytes) == 0
             || self.node_resources.get(ResourceKind::OpenFileDescriptors) == 0
@@ -33,8 +32,8 @@ impl NodeAgentConfig {
             || self.maximum_reference_cache_bytes == 0
             || self.maximum_tool_output_bytes == 0
             || self.maximum_tool_output_bytes > MAXIMUM_TOOL_OUTPUT_BYTES
-            || self.maximum_retained_tool_output_bytes()
-                < self.maximum_tool_output_bytes.saturating_mul(2)
+            || required_output_memory
+                .is_none_or(|required| self.maximum_retained_tool_output_bytes() < required)
             || self.maximum_children == 0
             || self.tool_poll_interval.is_zero()
         {

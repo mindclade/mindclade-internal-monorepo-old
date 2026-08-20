@@ -99,3 +99,36 @@ not require that sequence.
 Mock-provider contract tests live in `tests/`; they validate graph shape and
 guardrails but do not prove API permissions, quotas, CEL semantics, or behavior
 against a live organization.
+
+<!-- BEGIN_TF_DOCS -->
+## Requirements
+
+| Name | Version |
+| ---- | ------- |
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.9.0, < 2.0.0 |
+| <a name="requirement_google"></a> [google](#requirement\_google) | >= 7.41.0, < 8.0.0 |
+
+## Providers
+
+| Name | Version |
+| ---- | ------- |
+| <a name="provider_google"></a> [google](#provider\_google) | >= 7.41.0, < 8.0.0 |
+
+## Inputs
+
+| Name | Description | Type | Default | Required |
+| ---- | ----------- | ---- | ------- | :------: |
+| <a name="input_iam_grants"></a> [iam\_grants](#input\_iam\_grants) | Additive organization IAM grants keyed by stable aliases. Only groups, service<br/>accounts, workforce/workload principals, and principal sets are accepted.<br/>Basic roles, administrator roles, service-account impersonation roles, public<br/>principals, domains, deleted principals, and direct users are deliberately<br/>rejected at organization scope. | <pre>map(object({<br/>    role   = string<br/>    member = string<br/>    condition = optional(object({<br/>      title       = string<br/>      description = optional(string, "")<br/>      expression  = string<br/>    }))<br/>  }))</pre> | `{}` | no |
+| <a name="input_organization_id"></a> [organization\_id](#input\_organization\_id) | Numeric Google Cloud organization ID. | `string` | n/a | yes |
+| <a name="input_tag_bindings"></a> [tag\_bindings](#input\_tag\_bindings) | Protected tag bindings keyed by stable aliases. parent must be a full numeric<br/>Cloud Resource Manager resource name. tag\_value references a value declared in<br/>tag\_keys using the form "<tag-key-alias>/<tag-value-alias>". | <pre>map(object({<br/>    parent    = string<br/>    tag_value = string<br/>  }))</pre> | `{}` | no |
+| <a name="input_tag_keys"></a> [tag\_keys](#input\_tag\_keys) | Organization-scoped tag taxonomy keyed by stable Terraform aliases. Each key<br/>contains an optional map of tag values, also keyed by stable aliases. Aliases<br/>are state addresses and must not be renamed without an explicit moved block. | <pre>map(object({<br/>    short_name  = string<br/>    description = optional(string, "")<br/>    values = optional(map(object({<br/>      short_name  = string<br/>      description = optional(string, "")<br/>    })), {})<br/>  }))</pre> | `{}` | no |
+
+## Outputs
+
+| Name | Description |
+| ---- | ----------- |
+| <a name="output_iam_grants"></a> [iam\_grants](#output\_iam\_grants) | Additive organization IAM grants keyed by the caller-provided stable alias. |
+| <a name="output_tag_bindings"></a> [tag\_bindings](#output\_tag\_bindings) | Protected tag bindings keyed by the caller-provided stable alias. |
+| <a name="output_tag_keys"></a> [tag\_keys](#output\_tag\_keys) | Created tag keys keyed by the caller-provided stable alias. |
+| <a name="output_tag_values"></a> [tag\_values](#output\_tag\_values) | Created tag values keyed by <tag-key-alias>/<tag-value-alias>. |
+<!-- END_TF_DOCS -->

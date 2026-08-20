@@ -7,7 +7,10 @@ use mindclade_atomic_fs::{AtomicFileStore, RelativePath};
 use mindclade_content_digest::hash_bytes;
 use mindclade_faults::Code;
 use std::fs;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+static TEMPORARY_ROOT_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 fn temporary_root() -> std::path::PathBuf {
     let nanos = SystemTime::now()
@@ -15,8 +18,9 @@ fn temporary_root() -> std::path::PathBuf {
         .unwrap_or_default()
         .as_nanos();
     std::env::temp_dir().join(format!(
-        "mindclade-atomic-fs-{}-{nanos}",
-        std::process::id()
+        "mindclade-atomic-fs-{}-{nanos}-{}",
+        std::process::id(),
+        TEMPORARY_ROOT_SEQUENCE.fetch_add(1, Ordering::Relaxed),
     ))
 }
 

@@ -1,86 +1,100 @@
 # GitOps deployment contracts
 
-This directory is a production-oriented, fail-closed Argo CD source contract. It is not
-evidence that Argo CD, a repository credential, or any Mindclade workload is installed in a
-cluster. All `Application` objects are committed with reconciliation paused, automatic sync
-disabled, pruning disabled, and an invalid revision placeholder.
+This directory is a production-oriented, fail-closed Argo CD source contract. It is not evidence
+that Argo CD, a repository credential, an operator, or a Mindclade workload is installed. Every
+`Application` is paused with `argocd.argoproj.io/skip-reconcile: "true"`, uses the invalid
+`SET_EXACT_40_CHAR_COMMIT_SHA` revision, and disables automatic sync, prune, and self-heal.
 
-The only permitted source repository is
-`https://github.com/mindclade-org/mindclade.git`. Repository authentication is deliberately
-absent: Argo CD stores repository connections in `Secret` objects, and credentials belong in
-the controlled live-cluster secret system rather than this source repository.
+The only source repository is `https://github.com/mindclade-org/mindclade.git`. Repository
+credentials and runtime TLS Secrets are intentionally absent and remain owned by controlled
+live-cluster systems.
 
-## Layout
+## Ownership and layout
 
-- `argocd/projects.yaml` declares separate bootstrap, foundation, operator, and ML-resource
-  projects. Each project has exact sources, destinations, and resource-kind allowlists. Projects
-  are applied as a separate governance step and cannot be rewritten by the root application.
-- `argocd/app-of-apps.yaml` is the manually bootstrapped, paused root application template.
-- `bootstrap/<environment>` renders the bootstrap objects for exactly one cluster
-  environment. There is intentionally no root that combines all environments.
-- `environments/<environment>` renders the Kubernetes foundation for that environment and
-  declares its paused child applications.
-- `argocd/bootstrap/argocd.lock.yaml` records byte-level upstream content locks. It is a normal
-  `ConfigMap`, not an unimplemented custom resource.
-- `argocd/repositories.yaml` records the non-secret repository contract. It does not register a
-  repository with Argo CD.
+- `argocd/projects.yaml` separates bootstrap, workload foundation, operator namespaces,
+  operator CRDs, each controller, operator observability, and ML resources into nine exact
+  AppProjects. The root Application cannot manage AppProjects.
+- `bootstrap/<environment>` selects exactly one cluster environment and renders eleven paused
+  child Applications. There is no all-environment root.
+- `environments/<environment>` composes the corresponding Kubernetes overlay without a
+  top-level namespace transformer.
+- `vendor/cert-manager/v1.19.1` is the deployment source for the locked cert-manager static
+  release. Its raw CRD and controller inventories are generated, disjoint, and together normalize
+  to all 49 upstream objects. The final controller overlay removes shared Namespace ownership,
+  pins three images by digest, and adds HA/resource/PDB controls.
+- `platform/{jobset,kueue}/chart` contains repository-locked wrapper charts. Deterministic
+  downstream archives add explicit CRD/controller phase controls and protect every CRD from
+  Argo prune/delete.
+- `argocd/bootstrap/argocd.lock.yaml` records upstream and generated cert-manager bytes,
+  normalized inventory, paths, and image digests. `argocd/repositories.yaml` is a non-operative,
+  non-secret repository contract.
 
-## Activation gates
+## Intended transaction graph
 
-`SET_EXACT_40_CHAR_COMMIT_SHA` and `SET_ENVIRONMENT` are deliberate invalid values. A controlled
-live configuration must replace them without weakening any project allowlist. Before removing
-`argocd.argoproj.io/skip-reconcile: "true"`, the release owner must provide all of the following:
-
-1. a reviewed, immutable 40-character Git commit SHA containing the rendered paths;
-2. exactly one environment selected for the cluster;
-3. an externally provisioned Argo CD repository credential, if the repository is private;
-4. a pinned and qualified Argo CD installation plus the locked cert-manager prerequisite;
-5. successful offline render, schema, Helm, and policy validation for that same commit;
-6. destination-cluster identity, scope, capacity, admission, monitoring, rollback, and owner
-   evidence in the controlled live repository.
-
-Do not replace the SHA with `HEAD`, a branch, a mutable tag, or a semver range. Do not remove the
-pause annotation from every application at once. Follow [RUNBOOK.md](RUNBOOK.md).
-
-## Reconciliation order
-
-The ordering contract is explicit even while every application is paused:
-
-| Wave | Content | Gate |
+| Wave | Paused Application | Required manual health gate |
 | ---: | --- | --- |
-| `-30` | externally bootstrapped cert-manager CRDs and controller | locked bytes verified; webhook healthy |
-| `-20` | Kueue and JobSet CRDs/controllers from local locked wrapper charts | controller deployments and webhooks healthy |
-| `0` | namespace, quotas, service accounts, default-deny networking | foundation health and `pods: "0"` confirmed |
-| `10`/`11` | native validating admission policies and bindings | policy conformance tests pass |
-| `20`-`22` | held Kueue resources and suspended JobSet API canary | CRDs established; queues remain held at zero |
+| `-80` | operator namespace foundation | three PSS-restricted operator namespaces, default deny, and reviewed provider-specific network allowances |
+| `-70` | cert-manager CRDs | all six CRDs `Established`; stored-version review complete |
+| `-60` | cert-manager controller | three deployments available; webhook endpoints and CA injection healthy |
+| `-50` | JobSet CRD | JobSet CRD `Established` |
+| `-40` | JobSet controller | deployment, certificate, and exact webhook endpoints healthy |
+| `-30` | Kueue CRDs | all eleven CRDs `Established`; conversion CA populated |
+| `-20` | Kueue controller | deployment, webhooks, and visibility APIServices healthy |
+| `-10` | operator observability | external collector auth/trust/RBAC/network qualified; PodMonitoring/Rules accepted and producing expected targets/signals |
+| `0` | workload foundation | namespace/admission/quota policy healthy; workload activation remains blocked |
+| `20` / `22` | Kueue resources / JobSet canary | queues remain held at zero; canary remains suspended |
 
-The chart applications override their wrapper defaults to use cert-manager objects. The rendered
-Helm manifests therefore contain no repository-authored TLS private-key `Secret`. cert-manager
-creates and rotates runtime TLS material after activation.
+These waves record the required operator sequence; they are not a cross-Application transaction
+engine. This repository does not assume an Argo CD version, Application health customization, or
+ApplicationSet progressive-sync capability. A release operator must remove one pause, manually
+sync only that child, capture the connected health gate, and then proceed. A wave annotation alone
+does not authorize or prove the next phase.
 
-## Argo CD and cert-manager bootstrap
+CRD Applications use server-side apply and disable client-side migration. CRDs carry
+`Prune=false,Delete=false`, all applications keep automated prune disabled, and CA drift ignores
+name one exact object and one exact CA field. No `Force`, `Replace`, or missing-CRD dry-run
+bypass is permitted.
 
-Argo CD is itself outside Argo CD's reconciliation boundary. The controlled live repository must
-pin an exact Argo CD Helm chart version and chart artifact digest, render it with CRDs, validate
-the render, install CRDs before controllers, and record the resulting evidence. This repository
-does not invent that deployment-specific pin.
+## Activation and adoption gates
 
-cert-manager is separately locked by URL, byte count, and SHA-256 in
-`argocd/bootstrap/argocd.lock.yaml`. Verify those bytes before installing its CRDs and controller;
-then wait for the webhook to become healthy before activating either operator application. The
-operator wrapper charts and their vendored dependencies are locked by their `Chart.lock` files,
-and controller images are digest-pinned in their values.
+A controlled live overlay must select one environment and one reviewed lowercase 40-character
+commit. Never substitute `HEAD`, a branch, mutable tag, or semver range. Before any child is
+unpaused, qualify the destination context, exact AppProjects, external repository credential,
+operator-network allowances, rollback commit, alerts, and owners described in
+[RUNBOOK.md](RUNBOOK.md) and [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md).
+
+Operator namespaces use the distinct `platform-operator` admission class. They retain restricted
+PSS but do not select workload policies that forbid Kubernetes API tokens: cert-manager, JobSet,
+and Kueue require narrowly scoped controller credentials. Connected qualification must audit the
+rendered upstream RBAC, token audience/rotation, actual API calls, and default-deny exceptions.
+This is not permission to schedule user workloads in operator namespaces.
+
+Operator observability is also an external-identity gate. Before wave `-10`, a controlled
+environment must supply rotating TokenRequest bearer credentials, CA-only trust material, the
+JobSet client certificate, exact collector Secret-read and `*/metrics` reader bindings, and the
+reviewed NetworkPolicy allowance. The paused source owns none of those Secrets or bindings.
+
+Canonical Helm release identities are `jobset` and `kueue`. If any target cluster already has
+`mindclade-jobset`, `mindclade-kueue`, or another release owning the rendered resources, stop.
+Adoption requires an explicit inventory, ownership-transfer, rollback, and outage plan; GitOps
+must never silently rename or take over a live Helm release.
+
+Argo CD itself remains outside its reconciliation boundary. The controlled live repository must
+supply an exact Argo CD chart/archive/provenance lock, install its CRDs before controllers, and
+qualify its HA, backup, health, and security configuration. This repository does not guess that
+deployment-specific pin.
 
 ## Offline validation
 
 Run from the repository root in the pinned tool environment:
 
 ```bash
-nix develop .#ci --command bash infra/gitops/tests/validate.sh
-tools/dev/bazelw test //infra/gitops:validate --test_output=errors
+nix develop .#ci --command tools/dev/bazelw test \
+  //infra/gitops:validate --test_output=errors
 ```
 
-The validator invokes no cluster API and does not fetch locked release artifacts. It renders every
-selectable GitOps root, checks the paused/exact-revision contract, validates all environment
-Kustomize roots, and renders the local operator charts with cert-manager enabled to prove they do
-not author `Secret` objects. The pinned tool environment owns kubeconform schema availability.
+The validator invokes no cluster API and fetches no release artifact. It renders every GitOps
+Kustomize root, checks paused/exact-revision and exact project/phase contracts, verifies the
+cert-manager generated locks and normalized union, asserts operator namespaces cannot select
+standard workload VAPs, and proves JobSet/Kueue CRD/controller disjointness plus full-render
+parity.

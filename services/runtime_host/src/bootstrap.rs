@@ -223,6 +223,7 @@ pub(crate) struct ControlSession {
     active: Option<crate::ExecutionSession>,
     last_command_sequence: u64,
     next_status_sequence: u64,
+    last_worker_status_sequence: u64,
 }
 
 impl core::fmt::Debug for ControlSession {
@@ -253,6 +254,7 @@ impl ControlSession {
             active: None,
             last_command_sequence: 0,
             next_status_sequence: 1,
+            last_worker_status_sequence: 0,
         }
     }
 
@@ -357,6 +359,16 @@ impl ControlSession {
     }
 
     fn status(&mut self, now: u64, message: &str) -> FaultResult<WorkerStatus> {
+        self.status_with(now, message, Vec::new(), None)
+    }
+
+    fn status_with(
+        &mut self,
+        now: u64,
+        message: &str,
+        outputs: Vec<mindclade_worker_protocol::BufferDescriptor>,
+        diagnostic_artifact: Option<Digest>,
+    ) -> FaultResult<WorkerStatus> {
         let active = self.active.as_ref().ok_or_else(|| {
             Fault::new(
                 Code::FailedPrecondition,
@@ -374,9 +386,119 @@ impl ControlSession {
             state: active.state(),
             observed_unix_millis: now,
             message: message.to_owned(),
-            outputs: Vec::new(),
-            diagnostic_artifact: None,
+            outputs,
+            diagnostic_artifact,
         })
+    }
+
+    pub(crate) fn observe_worker_status(
+        &mut self,
+        message: wire::WorkerStatus,
+        maximum_output_bytes: u64,
+        now: u64,
+    ) -> FaultResult<wire::WorkerStatus> {
+        let status = protocol::worker_status_domain(message)?;
+        mindclade_worker_protocol::status::validate(
+            &status,
+            now,
+            self.host.config().maximum_input_buffers,
+        )?;
+        let active = self.active.as_ref().ok_or_else(|| {
+            Fault::new(
+                Code::FailedPrecondition,
+                "worker control connection has no active execution",
+            )
+        })?;
+        if status.sequence <= self.last_worker_status_sequence
+            || status.ticket_id != active.ticket_id()
+            || status.fencing_token != active.fencing_token()
+        {
+            return Err(Fault::new(
+                Code::Conflict,
+                "model-worker status sequence or execution identity is invalid",
+            ));
+        }
+        let output_bytes = status.outputs.iter().try_fold(0_u64, |total, output| {
+            total.checked_add(output.range.length()).ok_or_else(|| {
+                Fault::new(Code::ResourceExhausted, "model-worker output size overflow")
+            })
+        })?;
+        if output_bytes > maximum_output_bytes {
+            return Err(Fault::new(
+                Code::ResourceExhausted,
+                "model-worker outputs exceed the signed execution budget",
+            ));
+        }
+        self.last_worker_status_sequence = status.sequence;
+        match status.state {
+            WorkerState::Running => {}
+            WorkerState::Draining => self.active_mut()?.drain("model worker is draining")?,
+            WorkerState::Completed => self.active_mut()?.commit()?,
+            WorkerState::Cancelled => self
+                .active_mut()?
+                .cancel("model worker acknowledged cancellation")?,
+            WorkerState::Failed => self.active_mut()?.fail("model worker reported failure")?,
+            _ => {
+                return Err(Fault::new(
+                    Code::FailedPrecondition,
+                    "model-worker reported an invalid execution state",
+                ));
+            }
+        }
+        let message_text = if status.message.is_empty() {
+            "model-worker status"
+        } else {
+            &status.message
+        };
+        self.status_with(
+            now,
+            message_text,
+            status.outputs,
+            status.diagnostic_artifact,
+        )
+        .map(|status| protocol::worker_status(&status))
+    }
+
+    pub(crate) fn fail_execution(
+        &mut self,
+        reason: &str,
+        now: u64,
+    ) -> FaultResult<wire::WorkerStatus> {
+        self.active_mut()?.fail(reason)?;
+        self.status(now, reason)
+            .map(|status| protocol::worker_status(&status))
+    }
+
+    pub(crate) fn force_cancel(
+        &mut self,
+        reason: &str,
+        now: u64,
+    ) -> FaultResult<wire::WorkerStatus> {
+        self.active_mut()?.cancel(reason)?;
+        self.status(now, reason)
+            .map(|status| protocol::worker_status(&status))
+    }
+
+    pub(crate) fn validate_cancel_command(
+        &mut self,
+        command: &wire::WorkerCommand,
+        now: u64,
+    ) -> FaultResult<()> {
+        self.validate_sequence(command.sequence)?;
+        match command.command.as_ref() {
+            Some(wire::worker_command::Command::Cancel(cancel)) => {
+                validate_reason_deadline(&cancel.reason, cancel.deadline_unix_millis, now)
+            }
+            _ => Err(Fault::invalid_argument(
+                "expected a worker cancellation command",
+            )),
+        }
+    }
+
+    pub(crate) fn next_command_sequence(&self) -> FaultResult<u64> {
+        self.last_command_sequence
+            .checked_add(1)
+            .ok_or_else(|| Fault::new(Code::OutOfRange, "worker command sequence exhausted"))
     }
 
     fn validate_sequence(&mut self, sequence: u64) -> FaultResult<()> {
@@ -476,12 +598,32 @@ fn node_resources_from_env() -> FaultResult<ResourceVector> {
 fn model_spec_from_env() -> FaultResult<Option<ModelSpec>> {
     let digest = env::var("MINDCLADE_RUNTIME_MODEL_BUNDLE_DIGEST").ok();
     let executable = env::var("MINDCLADE_RUNTIME_MODEL_WORKER_EXECUTABLE").ok();
-    match (digest, executable) {
-        (None, None) => Ok(None),
-        (Some(digest), Some(executable)) => {
+    let control_socket = env::var("MINDCLADE_RUNTIME_MODEL_WORKER_SOCKET").ok();
+    match (digest, executable, control_socket) {
+        (None, None, None) => Ok(None),
+        (Some(digest), Some(executable), Some(control_socket)) => {
             let model_digest = Digest::from_str(&digest).map_err(|error| {
                 Fault::invalid_argument("preloaded model digest is invalid").with_source(error)
             })?;
+            let control_socket = PathBuf::from(control_socket);
+            if !control_socket.is_absolute() {
+                return Err(Fault::invalid_argument(
+                    "model-worker socket path must be absolute",
+                ));
+            }
+            let host_socket = env::var("MINDCLADE_RUNTIME_HOST_SOCKET").unwrap_or_default();
+            let host_grpc_socket =
+                env::var("MINDCLADE_RUNTIME_HOST_GRPC_SOCKET").unwrap_or_default();
+            if control_socket == host_socket || control_socket == host_grpc_socket {
+                return Err(Fault::invalid_argument(
+                    "model-worker socket must differ from runtime-host sockets",
+                ));
+            }
+            let mut environment = BTreeMap::new();
+            environment.insert(
+                "MINDCLADE_MODEL_WORKER_SOCKET".to_owned(),
+                control_socket.to_string_lossy().into_owned(),
+            );
             let spec = ModelSpec {
                 model_digest,
                 minimum_gpu_memory_bytes: parse_positive_u64(
@@ -490,18 +632,19 @@ fn model_spec_from_env() -> FaultResult<Option<ModelSpec>> {
                 pinned_memory_bytes: parse_optional_u64(
                     "MINDCLADE_RUNTIME_MODEL_PINNED_MEMORY_BYTES",
                 )?,
+                control_socket,
                 process: ProcessSpec {
                     name: "model-worker".to_owned(),
                     executable,
                     arguments: Vec::new(),
-                    environment: BTreeMap::new(),
+                    environment,
                 },
             };
             spec.validate()?;
             Ok(Some(spec))
         }
         _ => Err(Fault::invalid_argument(
-            "preloaded model digest and worker executable must be configured together",
+            "preloaded model digest, worker executable, and worker socket must be configured together",
         )),
     }
 }

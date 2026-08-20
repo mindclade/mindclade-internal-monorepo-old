@@ -1,16 +1,16 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
 ---
-# Sidecar injection is intentionally not enabled. The training process must first expose a
-# safe-point protocol and a qualified image; a generic file copier could publish torn state.
+# This is a non-runnable contract. A generic file-copy sidecar could publish torn state, so
+# injection remains absent until the trainer exposes and qualifies a safe-point protocol.
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: mindclade-checkpoint-sidecar-contract
-  namespace: mindclade-system
+  labels:
+    mindclade.dev/workload-class: unbound
 data:
   activationState: blocked
   commitProtocol: write-verify-atomic-publish

@@ -67,6 +67,8 @@ spec:
           env:
             - name: MINDCLADE_RUNTIME_HOST_SOCKET
               value: /run/mindclade/runtime-host.sock
+            - name: MINDCLADE_RUNTIME_HOST_GRPC_SOCKET
+              value: /run/mindclade/runtime-host-grpc.sock
             - name: MINDCLADE_RUNTIME_KEY_ID
               valueFrom:
                 configMapKeyRef:

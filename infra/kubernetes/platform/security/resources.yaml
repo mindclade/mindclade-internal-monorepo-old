@@ -47,12 +47,14 @@ spec:
       message: Pod security context must require non-root execution and RuntimeDefault seccomp.
     - expression: >-
         object.spec.containers.all(c,
-          c.image.matches('^[^@]+@sha256:[0-9a-f]{64}$'))
-      message: Every container image must use an immutable sha256 digest.
+          c.image.matches('^[^@]+@sha256:[0-9a-f]{64}$') &&
+          !c.image.endsWith('@sha256:0000000000000000000000000000000000000000000000000000000000000000'))
+      message: Every container image must use a non-placeholder immutable sha256 digest.
     - expression: >-
         !has(object.spec.initContainers) || object.spec.initContainers.all(c,
-          c.image.matches('^[^@]+@sha256:[0-9a-f]{64}$'))
-      message: Every init container image must use an immutable sha256 digest.
+          c.image.matches('^[^@]+@sha256:[0-9a-f]{64}$') &&
+          !c.image.endsWith('@sha256:0000000000000000000000000000000000000000000000000000000000000000'))
+      message: Every init container image must use a non-placeholder immutable sha256 digest.
     - expression: >-
         object.spec.containers.all(c,
           has(c.securityContext) &&
@@ -236,3 +238,249 @@ spec:
     namespaceSelector:
       matchLabels:
         mindclade.dev/workload-activation: blocked
+---
+# Queue identity is part of the namespace capacity contract. A Job cannot escape to another
+# hardware or capacity domain by selecting a LocalQueue with a similar name.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: mindclade-capacity-queue-contract
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups:
+          - batch
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - jobs
+      - apiGroups:
+          - jobset.x-k8s.io
+        apiVersions:
+          - v1alpha2
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - jobsets
+  validations:
+    - expression: >-
+        has(object.metadata.labels) &&
+        'kueue.x-k8s.io/queue-name' in object.metadata.labels &&
+        'mindclade.dev/workload-class' in object.metadata.labels &&
+        ((object.metadata.namespace == 'mindclade-batch-cpu' &&
+          object.metadata.labels['kueue.x-k8s.io/queue-name'] == 'mindclade-batch-cpu' &&
+          object.metadata.labels['mindclade.dev/workload-class'] == 'batch-cpu') ||
+         (object.metadata.namespace == 'mindclade-training-h100' &&
+          object.metadata.labels['kueue.x-k8s.io/queue-name'] == 'mindclade-training-h100' &&
+          object.metadata.labels['mindclade.dev/workload-class'] == 'training-h100') ||
+         (object.metadata.namespace == 'mindclade-training-h200' &&
+          object.metadata.labels['kueue.x-k8s.io/queue-name'] == 'mindclade-training-h200' &&
+          object.metadata.labels['mindclade.dev/workload-class'] == 'training-h200'))
+      message: A capacity workload must use its namespace-local queue and exact workload class.
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: mindclade-capacity-queue-contract
+  annotations:
+    argocd.argoproj.io/sync-wave: "11"
+spec:
+  policyName: mindclade-capacity-queue-contract
+  validationActions:
+    - Audit
+    - Deny
+  matchResources:
+    namespaceSelector:
+      matchLabels:
+        mindclade.dev/queue-enforcement: enforced
+---
+# A future active contract is created while the namespace is still blocked, then referenced by
+# the atomic Namespace activation update. Kubernetes enforces immutable=true after creation; this
+# policy enforces the content-addressed object interface without inventing quota values.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: mindclade-capacity-contract-object
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups:
+          - ""
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - configmaps
+  validations:
+    - expression: >-
+        !object.metadata.name.startsWith('mindclade-capacity-contract-sha256-') ||
+        (object.metadata.name.matches(
+           '^mindclade-capacity-contract-sha256-[0-9a-f]{64}$') &&
+         has(object.immutable) && object.immutable == true &&
+         has(object.data) &&
+         'contractSchema' in object.data &&
+         object.data['contractSchema'] == 'mindclade.dev/capacity-activation/v1' &&
+         'digestCanonicalization' in object.data &&
+         object.data['digestCanonicalization'] ==
+           'sha256-of-utf8-jq-sort-keys-compact-json-data' &&
+         'activationState' in object.data && object.data['activationState'] == 'active' &&
+         'queueName' in object.data && 'workloadClass' in object.data &&
+         ((object.metadata.namespace == 'mindclade-batch-cpu' &&
+           object.data['queueName'] == 'mindclade-batch-cpu' &&
+           object.data['workloadClass'] == 'batch-cpu') ||
+          (object.metadata.namespace == 'mindclade-training-h100' &&
+           object.data['queueName'] == 'mindclade-training-h100' &&
+           object.data['workloadClass'] == 'training-h100') ||
+          (object.metadata.namespace == 'mindclade-training-h200' &&
+           object.data['queueName'] == 'mindclade-training-h200' &&
+           object.data['workloadClass'] == 'training-h200')) &&
+         'activationBundleDigest' in object.data &&
+         object.data['activationBundleDigest'].matches('^sha256:[0-9a-f]{64}$') &&
+         object.data['activationBundleDigest'] !=
+           'sha256:0000000000000000000000000000000000000000000000000000000000000000' &&
+         'capacityEvidenceDigest' in object.data &&
+         object.data['capacityEvidenceDigest'].matches('^sha256:[0-9a-f]{64}$') &&
+         object.data['capacityEvidenceDigest'] !=
+           'sha256:0000000000000000000000000000000000000000000000000000000000000000' &&
+         'releaseEvidenceDigest' in object.data &&
+         object.data['releaseEvidenceDigest'].matches('^sha256:[0-9a-f]{64}$') &&
+         object.data['releaseEvidenceDigest'] !=
+           'sha256:0000000000000000000000000000000000000000000000000000000000000000' &&
+         'quotaManifestDigest' in object.data &&
+         object.data['quotaManifestDigest'].matches('^sha256:[0-9a-f]{64}$') &&
+         object.data['quotaManifestDigest'] !=
+           'sha256:0000000000000000000000000000000000000000000000000000000000000000')
+      message: Digest-addressed capacity contracts must be immutable, active, complete, and namespace-bound.
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: mindclade-capacity-contract-object
+  annotations:
+    argocd.argoproj.io/sync-wave: "11"
+spec:
+  policyName: mindclade-capacity-contract-object
+  validationActions:
+    - Audit
+    - Deny
+  matchResources:
+    namespaceSelector:
+      matchLabels:
+        mindclade.dev/queue-enforcement: enforced
+---
+# Evidence annotations are content-addressed interfaces to external release records; they do not
+# embed tickets, credentials, or mutable URLs. Only the three exact capacity namespaces are in
+# scope, and their public workload-class label is immutable across blocked/active transitions.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: mindclade-capacity-namespace-activation
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups:
+          - ""
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - namespaces
+  validations:
+    - expression: >-
+        object.metadata.name != 'mindclade-system' ||
+        (has(object.metadata.labels) &&
+         object.metadata.labels['app.kubernetes.io/part-of'] == 'mindclade-platform' &&
+         object.metadata.labels['kubernetes.io/metadata.name'] == 'mindclade-system' &&
+         object.metadata.labels['mindclade.dev/admission'] == 'enforced' &&
+         object.metadata.labels['mindclade.dev/owner'] == 'security-and-operations' &&
+         object.metadata.labels['mindclade.dev/workload-activation'] == 'blocked' &&
+         object.metadata.labels['pod-security.kubernetes.io/audit'] == 'restricted' &&
+         object.metadata.labels['pod-security.kubernetes.io/audit-version'] == 'v1.36' &&
+         object.metadata.labels['pod-security.kubernetes.io/enforce'] == 'restricted' &&
+         object.metadata.labels['pod-security.kubernetes.io/enforce-version'] == 'v1.36' &&
+         object.metadata.labels['pod-security.kubernetes.io/warn'] == 'restricted' &&
+         object.metadata.labels['pod-security.kubernetes.io/warn-version'] == 'v1.36')
+      message: The mindclade-system namespace must retain its foundation-only admission, activation, ownership, and Pod Security labels.
+    - expression: >-
+        !(object.metadata.name in
+          ['mindclade-batch-cpu', 'mindclade-training-h100', 'mindclade-training-h200']) ||
+        (has(object.metadata.labels) &&
+         'mindclade.dev/admission' in object.metadata.labels &&
+         object.metadata.labels['mindclade.dev/admission'] == 'enforced' &&
+         'mindclade.dev/queue-enforcement' in object.metadata.labels &&
+         object.metadata.labels['mindclade.dev/queue-enforcement'] == 'enforced' &&
+         'pod-security.kubernetes.io/enforce' in object.metadata.labels &&
+         object.metadata.labels['pod-security.kubernetes.io/enforce'] == 'restricted' &&
+         'pod-security.kubernetes.io/enforce-version' in object.metadata.labels &&
+         object.metadata.labels['pod-security.kubernetes.io/enforce-version'] == 'v1.36' &&
+         'mindclade.dev/workload-class' in object.metadata.labels &&
+         ((object.metadata.name == 'mindclade-batch-cpu' &&
+           object.metadata.labels['mindclade.dev/workload-class'] == 'batch-cpu') ||
+          (object.metadata.name == 'mindclade-training-h100' &&
+           object.metadata.labels['mindclade.dev/workload-class'] == 'training-h100') ||
+          (object.metadata.name == 'mindclade-training-h200' &&
+           object.metadata.labels['mindclade.dev/workload-class'] == 'training-h200')))
+      message: Capacity namespace names and workload-class labels must retain their exact mapping.
+    - expression: >-
+        !(object.metadata.name in
+          ['mindclade-batch-cpu', 'mindclade-training-h100', 'mindclade-training-h200']) ||
+        (has(object.metadata.labels) &&
+         'mindclade.dev/workload-activation' in object.metadata.labels &&
+         'mindclade.dev/kueue-enabled' in object.metadata.labels &&
+         ((object.metadata.labels['mindclade.dev/workload-activation'] == 'blocked' &&
+           object.metadata.labels['mindclade.dev/kueue-enabled'] == 'false') ||
+          (object.metadata.labels['mindclade.dev/workload-activation'] == 'active' &&
+           object.metadata.labels['mindclade.dev/kueue-enabled'] == 'true' &&
+           'mindclade.dev/environment' in object.metadata.labels &&
+           object.metadata.labels['mindclade.dev/environment'] in
+             ['development', 'staging', 'production'] &&
+           has(object.metadata.annotations) &&
+           'mindclade.dev/capacity-contract-name' in object.metadata.annotations &&
+           object.metadata.annotations['mindclade.dev/capacity-contract-name'].matches(
+             '^mindclade-capacity-contract-sha256-[0-9a-f]{64}$') &&
+           'mindclade.dev/activation-bundle-digest' in object.metadata.annotations &&
+           object.metadata.annotations['mindclade.dev/activation-bundle-digest'].matches(
+             '^sha256:[0-9a-f]{64}$') &&
+           object.metadata.annotations['mindclade.dev/activation-bundle-digest'] !=
+             'sha256:0000000000000000000000000000000000000000000000000000000000000000' &&
+           'mindclade.dev/capacity-evidence-digest' in object.metadata.annotations &&
+           object.metadata.annotations['mindclade.dev/capacity-evidence-digest'].matches(
+             '^sha256:[0-9a-f]{64}$') &&
+           object.metadata.annotations['mindclade.dev/capacity-evidence-digest'] !=
+             'sha256:0000000000000000000000000000000000000000000000000000000000000000' &&
+           'mindclade.dev/release-evidence-digest' in object.metadata.annotations &&
+           object.metadata.annotations['mindclade.dev/release-evidence-digest'].matches(
+             '^sha256:[0-9a-f]{64}$') &&
+           object.metadata.annotations['mindclade.dev/release-evidence-digest'] !=
+             'sha256:0000000000000000000000000000000000000000000000000000000000000000' &&
+           !('mindclade.dev/activation-blocker' in object.metadata.annotations))))
+      message: Active capacity requires Kueue enablement and non-placeholder immutable evidence digests.
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: mindclade-capacity-namespace-activation
+  annotations:
+    argocd.argoproj.io/sync-wave: "11"
+spec:
+  policyName: mindclade-capacity-namespace-activation
+  validationActions:
+    - Audit
+    - Deny

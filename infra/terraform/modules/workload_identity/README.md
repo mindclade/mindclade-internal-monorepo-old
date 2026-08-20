@@ -146,3 +146,41 @@ deletion protection.
 Mock-provider tests in `tests/` cover contracts and graph shape. They do not test
 live OIDC exchange, IAM propagation, provider eventual consistency, or external
 issuer discovery; run a controlled integration test before production rollout.
+
+<!-- BEGIN_TF_DOCS -->
+## Requirements
+
+| Name | Version |
+| ---- | ------- |
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.9.0, < 2.0.0 |
+| <a name="requirement_google"></a> [google](#requirement\_google) | >= 7.41.0, < 8.0.0 |
+
+## Providers
+
+| Name | Version |
+| ---- | ------- |
+| <a name="provider_google"></a> [google](#provider\_google) | >= 7.41.0, < 8.0.0 |
+
+## Inputs
+
+| Name | Description | Type | Default | Required |
+| ---- | ----------- | ---- | ------- | :------: |
+| <a name="input_federated_principal_sets"></a> [federated\_principal\_sets](#input\_federated\_principal\_sets) | Additive roles/iam.workloadIdentityUser grants from constrained external<br/>principalSets to dedicated service accounts. attribute omits the "attribute."<br/>prefix and must be mapped by the referenced provider. | <pre>map(object({<br/>    service_account_key = string<br/>    provider_key        = string<br/>    attribute           = string<br/>    value               = string<br/>  }))</pre> | `{}` | no |
+| <a name="input_gke_ksa_bindings"></a> [gke\_ksa\_bindings](#input\_gke\_ksa\_bindings) | Additive GKE KSA-to-dedicated-GSA Workload Identity bindings keyed by stable aliases. | <pre>map(object({<br/>    service_account_key = string<br/>    namespace           = string<br/>    ksa_name            = string<br/>    gke_project_id      = optional(string)<br/>  }))</pre> | `{}` | no |
+| <a name="input_oidc_providers"></a> [oidc\_providers](#input\_oidc\_providers) | OIDC providers keyed by stable aliases. Every provider requires explicit<br/>audiences, a google.subject mapping, at least one custom attribute mapping,<br/>and a condition that constrains a mapped custom attribute. | <pre>map(object({<br/>    provider_id         = string<br/>    display_name        = optional(string, "")<br/>    description         = optional(string, "")<br/>    disabled            = optional(bool, false)<br/>    issuer_uri          = string<br/>    allowed_audiences   = set(string)<br/>    attribute_mapping   = map(string)<br/>    attribute_condition = string<br/>  }))</pre> | `{}` | no |
+| <a name="input_pool"></a> [pool](#input\_pool) | External workload identity pool. Set to null only when this module is used<br/>exclusively for GKE KSA bindings. One module instance intentionally manages<br/>one federation trust boundary. | <pre>object({<br/>    pool_id      = string<br/>    display_name = optional(string, "")<br/>    description  = optional(string, "")<br/>    disabled     = optional(bool, false)<br/>  })</pre> | `null` | no |
+| <a name="input_project_id"></a> [project\_id](#input\_project\_id) | Project ID that owns the workload identity pool and dedicated Google service accounts. | `string` | n/a | yes |
+| <a name="input_project_number"></a> [project\_number](#input\_project\_number) | Numeric project number used in principalSet identifiers. Do not pass the project ID. | `string` | n/a | yes |
+| <a name="input_service_accounts"></a> [service\_accounts](#input\_service\_accounts) | Dedicated Google service accounts keyed by stable aliases. project\_roles are<br/>granted additively to the generated service-account member in project\_id. | <pre>map(object({<br/>    account_id    = string<br/>    display_name  = optional(string, "")<br/>    description   = optional(string, "")<br/>    disabled      = optional(bool, false)<br/>    project_roles = optional(set(string), [])<br/>  }))</pre> | `{}` | no |
+
+## Outputs
+
+| Name | Description |
+| ---- | ----------- |
+| <a name="output_federated_principal_sets"></a> [federated\_principal\_sets](#output\_federated\_principal\_sets) | External principalSet members authorized to impersonate dedicated service accounts. |
+| <a name="output_gke_ksa_members"></a> [gke\_ksa\_members](#output\_gke\_ksa\_members) | Canonical GKE KSA members authorized to impersonate dedicated service accounts. |
+| <a name="output_oidc_providers"></a> [oidc\_providers](#output\_oidc\_providers) | OIDC provider details keyed by the caller-provided stable alias. |
+| <a name="output_project_role_grants"></a> [project\_role\_grants](#output\_project\_role\_grants) | Additive project role grants keyed by <service-account-alias>/<role>. |
+| <a name="output_service_accounts"></a> [service\_accounts](#output\_service\_accounts) | Dedicated keyless Google service accounts keyed by stable alias. |
+| <a name="output_workload_identity_pool"></a> [workload\_identity\_pool](#output\_workload\_identity\_pool) | External workload identity pool details, or null for GKE-only module instances. |
+<!-- END_TF_DOCS -->

@@ -5,8 +5,22 @@
   "properties": {
     "kueue": {
       "type": "object",
-      "required": ["enableCertManager", "controllerManager", "managerConfig"],
+      "required": ["controller", "crds", "enableCertManager", "controllerManager", "managerConfig"],
       "properties": {
+        "controller": {
+          "type": "object",
+          "required": ["enabled"],
+          "properties": {
+            "enabled": {"type": "boolean"}
+          }
+        },
+        "crds": {
+          "type": "object",
+          "required": ["enabled"],
+          "properties": {
+            "enabled": {"type": "boolean"}
+          }
+        },
         "enableCertManager": {"const": true},
         "controllerManager": {
           "type": "object",

@@ -47,3 +47,40 @@ procedures.
 Provider-mock tests validate Terraform wiring and failure contracts only. They do
 not contact Cloud Monitoring, validate metric filters against real descriptors, or
 prove telemetry continuity and responder readiness.
+
+<!-- BEGIN_TF_DOCS -->
+## Requirements
+
+| Name | Version |
+| ---- | ------- |
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.9.0, < 2.0.0 |
+| <a name="requirement_google"></a> [google](#requirement\_google) | >= 7.41.0, < 8.0.0 |
+
+## Providers
+
+| Name | Version |
+| ---- | ------- |
+| <a name="provider_google"></a> [google](#provider\_google) | >= 7.41.0, < 8.0.0 |
+
+## Inputs
+
+| Name | Description | Type | Default | Required |
+| ---- | ----------- | ---- | ------- | :------: |
+| <a name="input_metrics_scope_project_id"></a> [metrics\_scope\_project\_id](#input\_metrics\_scope\_project\_id) | Existing scoping project that owns the metrics scope and composed Monitoring resources | `string` | n/a | yes |
+| <a name="input_monitored_project_ids"></a> [monitored\_project\_ids](#input\_monitored\_project\_ids) | Additional existing projects attached to the scoping project's metrics scope | `set(string)` | `[]` | no |
+| <a name="input_services"></a> [services](#input\_services) | Service-monitoring compositions keyed by stable custom-service ID; SLO semantics are implemented by ../monitoring | <pre>map(object({<br/>    environment           = string<br/>    owner                 = string<br/>    service_display_name  = string<br/>    runbook_url           = string<br/>    notification_channels = set(string)<br/>    slos = map(object({<br/>      display_name         = string<br/>      goal                 = number<br/>      rolling_period_days  = optional(number, 28)<br/>      good_service_filter  = string<br/>      total_service_filter = string<br/>      fast_burn = optional(object({<br/>        threshold      = optional(number, 14.4)<br/>        short_lookback = optional(string, "300s")<br/>        long_lookback  = optional(string, "3600s")<br/>      }), {})<br/>      slow_burn = optional(object({<br/>        threshold      = optional(number, 6)<br/>        short_lookback = optional(string, "1800s")<br/>        long_lookback  = optional(string, "21600s")<br/>      }), {})<br/>    }))<br/>    labels                   = optional(map(string), {})<br/>    alert_auto_close_seconds = optional(number, 604800)<br/>  }))</pre> | n/a | yes |
+
+## Outputs
+
+| Name | Description |
+| ---- | ----------- |
+| <a name="output_dashboard_names"></a> [dashboard\_names](#output\_dashboard\_names) | Protected Monitoring dashboard names keyed by service ID |
+| <a name="output_fast_burn_alert_policy_names"></a> [fast\_burn\_alert\_policy\_names](#output\_fast\_burn\_alert\_policy\_names) | Fast-burn alert-policy names keyed first by service ID and then objective ID |
+| <a name="output_metrics_scope_name"></a> [metrics\_scope\_name](#output\_metrics\_scope\_name) | Fully qualified metrics-scope resource name |
+| <a name="output_monitored_projects"></a> [monitored\_projects](#output\_monitored\_projects) | Protected metrics-scope memberships keyed by monitored project ID |
+| <a name="output_runbook_urls"></a> [runbook\_urls](#output\_runbook\_urls) | Responder runbooks keyed by service ID |
+| <a name="output_service_names"></a> [service\_names](#output\_service\_names) | Fully qualified custom-service resource names keyed by service ID |
+| <a name="output_slo_contracts"></a> [slo\_contracts](#output\_slo\_contracts) | Reviewable goals, windows, and burn thresholds keyed by service and objective |
+| <a name="output_slo_names"></a> [slo\_names](#output\_slo\_names) | SLO resource names keyed first by service ID and then objective ID |
+| <a name="output_slow_burn_alert_policy_names"></a> [slow\_burn\_alert\_policy\_names](#output\_slow\_burn\_alert\_policy\_names) | Sustained-burn alert-policy names keyed first by service ID and then objective ID |
+<!-- END_TF_DOCS -->

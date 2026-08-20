@@ -18,6 +18,19 @@ evaluation workloads may raise the zero-workload quota.
 Kueue, JobSet, GPU, RDMA, and NCCL manifests remain blocked until their
 controllers, CRDs, versions, hardware tuple, and rollback are qualified.
 
+The static capacity classes are deliberately explicit:
+
+- CPU ingestion and preprocessing use only `mindclade-batch-cpu`;
+- H100 and H200 training use distinct namespaces, queues, node flavors, and
+  quotas so capacity cannot cross hardware generations;
+- `1g-packed` requests one accelerator and permits Kueue topology-aware packing;
+- `8g-full` requests one complete eight-GPU A3 node per replica and requires a
+  common zone while spreading replicas by hostname.
+
+These are scheduling contracts, not performance evidence. Quota remains zero
+until a qualification run establishes GPU memory headroom, NCCL/RDMA behavior,
+checkpoint time, topology, fragmentation, and cost.
+
 ## Data and feature quality
 
 Every pipeline boundary must publish a versioned contract covering:
@@ -34,6 +47,11 @@ Every pipeline boundary must publish a versioned contract covering:
 Validation runs at ingestion, transformation, training input, model packaging,
 and serving input. A failed contract quarantines the candidate artifact; it does
 not silently coerce, drop, retrain, or promote.
+
+The current workload YAML records this interface but does not yet implement the
+signed envelope verifier, atomic output publisher, quarantine writer, or
+safe-point checkpoint helper. Those missing executables and their evidence are
+activation blockers; annotations are never treated as a completed quality gate.
 
 ## Model-serving contract
 
@@ -96,6 +114,17 @@ drift alone without enough evidence to act. Dashboards and alerts must use
 bounded-cardinality identifiers; raw prompts, sequences, tensors, features,
 labels, signed URLs, credentials, and model weights are not telemetry.
 
+GKE Managed Service for Prometheus is the collection plane. Namespaced
+`PodMonitoring` and `Rules` resources are co-owned with each observed platform
+component; Prometheus Operator, `ServiceMonitor`, in-cluster Prometheus, and
+Alertmanager are not installed. Cloud Monitoring/Terraform owns paging,
+channels, and SLO burn alerts. A cluster feature flag alone is not scrape
+evidence: target health, TLS, collector NetworkPolicy reachability, recording
+rule evaluation, query results, and synthetic fire/recovery must all be proven
+before capacity is enabled. JobSet capacity additionally requires a durable
+condition/event-derived completion and failure signal; the upstream per-name
+terminal counters are not treated as reliable windowed outcome events.
+
 ## Feedback and retraining
 
 Labels and feedback are immutable, access-controlled inputs with event time,
@@ -111,4 +140,3 @@ Before quota activation, name owners for the data contract, feature logic,
 model, serving runtime, Kubernetes release, SLO/alerts, security/privacy review,
 cost/capacity, incident response, and rollback decision. Attach the resulting
 evidence to `PRODUCTION_READINESS.md` and the component maturity record.
-

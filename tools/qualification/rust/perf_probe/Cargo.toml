@@ -18,7 +18,9 @@ name = "mindclade-rust-perf-probe"
 path = "src/main.rs"
 
 [dependencies]
+mindclade_bytes_io = { path = "../../../../libs/rust/bytes_io" }
 mindclade_content_digest = { path = "../../../../libs/rust/content_digest" }
+mindclade_object_store = { path = "../../../../libs/rust/object_store", default-features = false }
 mindclade_runtime_core = { path = "../../../../libs/rust/runtime_core" }
 
 [lints]

@@ -284,8 +284,12 @@ async fn cancel_host(
     reason: &str,
 ) {
     let now = unix_millis().unwrap_or(0);
-    let deadline =
-        now.saturating_add(u64::try_from(CANCELLATION_GRACE.as_millis()).unwrap_or(u64::MAX));
+    let Ok(grace_millis) = u64::try_from(CANCELLATION_GRACE.as_millis()) else {
+        return;
+    };
+    let Some(deadline) = now.checked_add(grace_millis) else {
+        return;
+    };
     if command_sender
         .send(WorkerCommand {
             sequence: 2,

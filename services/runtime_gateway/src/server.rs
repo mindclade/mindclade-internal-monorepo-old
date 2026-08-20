@@ -79,25 +79,45 @@ impl GatewayCore {
     ) -> FaultResult<AdmittedRequest> {
         let request_id = request.request_id.clone();
         let tenant_id = request.grant.claims.tenant_id.clone();
-        let admitted = self.admit_request(request, now_unix_millis)?;
         self.policy.validate_execution(ticket, now_unix_millis)?;
         if ticket.claims.request_id.as_ref() != Some(&request_id)
             || ticket.claims.tenant_id != tenant_id
-            || ticket.claims.model_bundle != Some(admitted.route.model_bundle)
-            || ticket.claims.engine_bundle != Some(admitted.route.engine_bundle)
         {
             return Err(Fault::new(
                 Code::PermissionDenied,
-                "execution ticket does not match the admitted route",
+                "execution ticket does not match the inference request",
             ));
         }
-        Ok(admitted)
+        let envelope = InferenceEnvelope {
+            request_id: request.request_id,
+            grant: request.grant,
+            admission: request.admission,
+        };
+        let route = self.select_admissible_route(&envelope, now_unix_millis)?;
+        if ticket.claims.model_bundle != Some(route.model_bundle)
+            || ticket.claims.engine_bundle != Some(route.engine_bundle)
+        {
+            return Err(Fault::new(
+                Code::PermissionDenied,
+                "execution ticket does not match the selected route",
+            ));
+        }
+        self.reserve_admission(envelope, route)
     }
     pub fn admit(
         &self,
         envelope: InferenceEnvelope,
         now_unix_millis: u64,
     ) -> FaultResult<AdmittedRequest> {
+        let route = self.select_admissible_route(&envelope, now_unix_millis)?;
+        self.reserve_admission(envelope, route)
+    }
+
+    fn select_admissible_route(
+        &self,
+        envelope: &InferenceEnvelope,
+        now_unix_millis: u64,
+    ) -> FaultResult<DeploymentRoute> {
         if envelope.request_id.kind() != "request" {
             return Err(Fault::invalid_argument(
                 "online inference request id has the wrong kind",
@@ -122,13 +142,20 @@ impl GatewayCore {
             }
         };
         self.health.set_policy_fresh(true);
-        let route = select_route(&RouteRequest {
+        select_route(&RouteRequest {
             admission: &envelope.admission,
             grant: &envelope.grant.claims,
             snapshot: &policy.route,
             revocations: &policy.revocations,
             now_unix_millis,
-        })?;
+        })
+    }
+
+    fn reserve_admission(
+        &self,
+        envelope: InferenceEnvelope,
+        route: DeploymentRoute,
+    ) -> FaultResult<AdmittedRequest> {
         let permit = self
             .admission
             .reserve(&envelope.grant.claims, &envelope.admission)?;

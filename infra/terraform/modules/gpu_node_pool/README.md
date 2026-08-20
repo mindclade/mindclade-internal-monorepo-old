@@ -53,3 +53,67 @@ reserve quota/capacity, inspect a saved plan, and qualify each exact image/drive
 machine/fabric combination with CUDA, collective, topology, interruption, drain,
 checkpoint/restart, and cost tests. Terraform plan tests validate configuration only;
 the profile outputs are expectations, not measured performance or availability.
+
+<!-- BEGIN_TF_DOCS -->
+## Requirements
+
+| Name | Version |
+| ---- | ------- |
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.9.0, < 2.0.0 |
+| <a name="requirement_google"></a> [google](#requirement\_google) | >= 7.41.0, < 8.0.0 |
+
+## Providers
+
+| Name | Version |
+| ---- | ------- |
+| <a name="provider_google"></a> [google](#provider\_google) | >= 7.41.0, < 8.0.0 |
+
+## Inputs
+
+| Name | Description | Type | Default | Required |
+| ---- | ----------- | ---- | ------- | :------: |
+| <a name="input_additional_taints"></a> [additional\_taints](#input\_additional\_taints) | Additional Kubernetes taints; nvidia.com/gpu is managed by this module | <pre>list(object({<br/>    key    = string<br/>    value  = string<br/>    effect = string<br/>  }))</pre> | `[]` | no |
+| <a name="input_boot_disk_kms_key"></a> [boot\_disk\_kms\_key](#input\_boot\_disk\_kms\_key) | Optional regional Cloud KMS CryptoKey for H100 pd-ssd boot disks; unsupported for the H200 Hyperdisk profile | `string` | `null` | no |
+| <a name="input_boot_disk_size_gb"></a> [boot\_disk\_size\_gb](#input\_boot\_disk\_size\_gb) | Boot-disk size for each accelerator node | `number` | `250` | no |
+| <a name="input_capacity_mode"></a> [capacity\_mode](#input\_capacity\_mode) | Capacity acquisition mode; quota, reservation, and Dynamic Workload Scheduler policy remain environment responsibilities | `string` | `"ON_DEMAND"` | no |
+| <a name="input_cluster_name"></a> [cluster\_name](#input\_cluster\_name) | Existing regional GKE cluster name | `string` | n/a | yes |
+| <a name="input_data_classification"></a> [data\_classification](#input\_data\_classification) | Data-classification label applied to node resources | `string` | `"internal"` | no |
+| <a name="input_enable_compact_placement"></a> [enable\_compact\_placement](#input\_enable\_compact\_placement) | Use a compact placement policy for lower-latency multi-node collectives | `bool` | `true` | no |
+| <a name="input_enable_preview_flex_start"></a> [enable\_preview\_flex\_start](#input\_enable\_preview\_flex\_start) | Explicitly approve the standalone FLEX\_START preview after environment qualification; ignored for the GA queued-provisioning combination | `bool` | `false` | no |
+| <a name="input_environment"></a> [environment](#input\_environment) | Environment label applied to node resources | `string` | n/a | yes |
+| <a name="input_gpu_driver_version"></a> [gpu\_driver\_version](#input\_gpu\_driver\_version) | GKE-managed NVIDIA driver channel | `string` | `"DEFAULT"` | no |
+| <a name="input_max_pods_per_node"></a> [max\_pods\_per\_node](#input\_max\_pods\_per\_node) | Maximum Pods per accelerator node | `number` | `16` | no |
+| <a name="input_max_run_duration"></a> [max\_run\_duration](#input\_max\_run\_duration) | Maximum Flex Start or queued-provisioning node lifetime, bounded to seven days | `string` | `"86400s"` | no |
+| <a name="input_name"></a> [name](#input\_name) | GPU node-pool name | `string` | n/a | yes |
+| <a name="input_node_drain_grace_period"></a> [node\_drain\_grace\_period](#input\_node\_drain\_grace\_period) | Grace period used when draining an accelerator node | `string` | `"3600s"` | no |
+| <a name="input_node_drain_pdb_timeout"></a> [node\_drain\_pdb\_timeout](#input\_node\_drain\_pdb\_timeout) | Maximum time to honor PodDisruptionBudgets during an accelerator-node drain | `string` | `"3600s"` | no |
+| <a name="input_node_labels"></a> [node\_labels](#input\_node\_labels) | Additional Kubernetes node labels; module identity labels take precedence | `map(string)` | `{}` | no |
+| <a name="input_node_service_account_email"></a> [node\_service\_account\_email](#input\_node\_service\_account\_email) | Dedicated user-managed service account for GPU node VMs; grant permissions outside this module | `string` | n/a | yes |
+| <a name="input_owner"></a> [owner](#input\_owner) | Accountable team label applied to node resources | `string` | n/a | yes |
+| <a name="input_pod_secondary_range_name"></a> [pod\_secondary\_range\_name](#input\_pod\_secondary\_range\_name) | Existing cluster Pod secondary-range name | `string` | n/a | yes |
+| <a name="input_profile"></a> [profile](#input\_profile) | Fixed accelerator profile admitted by the NOVA execution-plan v2 contract | `string` | n/a | yes |
+| <a name="input_project_id"></a> [project\_id](#input\_project\_id) | GCP project ID that owns the GKE cluster | `string` | n/a | yes |
+| <a name="input_region"></a> [region](#input\_region) | Regional GKE control-plane location | `string` | n/a | yes |
+| <a name="input_reservation_name"></a> [reservation\_name](#input\_reservation\_name) | Specific same-region Compute Engine reservation consumed in RESERVATION mode | `string` | `null` | no |
+| <a name="input_resource_labels"></a> [resource\_labels](#input\_resource\_labels) | Additional GCP resource labels; module governance labels take precedence | `map(string)` | `{}` | no |
+| <a name="input_total_max_nodes"></a> [total\_max\_nodes](#input\_total\_max\_nodes) | Maximum total nodes; defaults to one two-node NOVA training slice | `number` | `2` | no |
+| <a name="input_total_min_nodes"></a> [total\_min\_nodes](#input\_total\_min\_nodes) | Minimum total nodes in this single-zone pool | `number` | `0` | no |
+| <a name="input_upgrade_max_surge"></a> [upgrade\_max\_surge](#input\_upgrade\_max\_surge) | Extra accelerator nodes allowed during a surge upgrade; requires quota/capacity | `number` | `0` | no |
+| <a name="input_upgrade_max_unavailable"></a> [upgrade\_max\_unavailable](#input\_upgrade\_max\_unavailable) | Accelerator nodes allowed to be unavailable during an upgrade | `number` | `1` | no |
+| <a name="input_zone"></a> [zone](#input\_zone) | Single approved GPU zone; automated accelerator networking does not support multi-zone node pools | `string` | n/a | yes |
+
+## Outputs
+
+| Name | Description |
+| ---- | ----------- |
+| <a name="output_accelerator_count_per_node"></a> [accelerator\_count\_per\_node](#output\_accelerator\_count\_per\_node) | Number of accelerators attached to each node |
+| <a name="output_accelerator_type"></a> [accelerator\_type](#output\_accelerator\_type) | GKE accelerator type |
+| <a name="output_capacity_mode"></a> [capacity\_mode](#output\_capacity\_mode) | Configured accelerator capacity acquisition mode |
+| <a name="output_fabric"></a> [fabric](#output\_fabric) | Expected accelerator fabric; live qualification remains required |
+| <a name="output_machine_type"></a> [machine\_type](#output\_machine\_type) | Compute Engine accelerator-optimized machine type |
+| <a name="output_managed_instance_group_urls"></a> [managed\_instance\_group\_urls](#output\_managed\_instance\_group\_urls) | Managed instance groups backing the node pool |
+| <a name="output_node_pool_id"></a> [node\_pool\_id](#output\_node\_pool\_id) | Fully qualified GKE node-pool identifier |
+| <a name="output_node_pool_name"></a> [node\_pool\_name](#output\_node\_pool\_name) | GKE GPU node-pool name |
+| <a name="output_profile"></a> [profile](#output\_profile) | NOVA accelerator profile configured by this node pool |
+| <a name="output_zone"></a> [zone](#output\_zone) | Single zone configured for the accelerator node pool |
+<!-- END_TF_DOCS -->

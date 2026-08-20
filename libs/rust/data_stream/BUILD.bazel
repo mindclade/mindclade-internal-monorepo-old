@@ -37,6 +37,7 @@ rust_test(
         "//libs/rust/object_store:mindclade_object_store",
         "//libs/rust/record_io:mindclade_record_io",
         "//libs/rust/runtime_core:mindclade_runtime_core",
+        "@crates//:tokio",
     ],
 )
 
@@ -53,6 +54,23 @@ rust_test(
         "//libs/rust/object_store:mindclade_object_store",
         "//libs/rust/record_io:mindclade_record_io",
         "//libs/rust/runtime_core:mindclade_runtime_core",
+        "@crates//:tokio",
+    ],
+)
+
+rust_test(
+    name = "async_prefetch",
+    srcs = ["tests/async_prefetch.rs"],
+    edition = "2024",
+    deps = [
+        ":mindclade_data_stream",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/object_store:mindclade_object_store",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "@crates//:tokio",
     ],
 )
 

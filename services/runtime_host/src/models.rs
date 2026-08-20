@@ -9,13 +9,17 @@ use crate::{ProcessHandle, ProcessSpec, ProcessSupervisor};
 use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_gpu_host::{Digest, GpuHost, ModelSlot, ModelSlotRequest};
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+
+const MAX_SOCKET_PATH_BYTES: usize = 100;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ModelSpec {
     pub model_digest: Digest,
     pub minimum_gpu_memory_bytes: u64,
     pub pinned_memory_bytes: u64,
+    pub control_socket: PathBuf,
     pub process: ProcessSpec,
 }
 impl ModelSpec {
@@ -25,8 +29,21 @@ impl ModelSpec {
                 "model slot specification is invalid",
             ));
         }
+        validate_control_socket(&self.control_socket)?;
         self.process.validate()
     }
+}
+
+fn validate_control_socket(path: &Path) -> FaultResult<()> {
+    if !path.is_absolute()
+        || path.as_os_str().is_empty()
+        || path.as_os_str().as_encoded_bytes().len() > MAX_SOCKET_PATH_BYTES
+    {
+        return Err(Fault::invalid_argument(
+            "model-worker control socket path is invalid",
+        ));
+    }
+    Ok(())
 }
 
 pub struct LoadedModel {
@@ -191,6 +208,28 @@ impl ModelRegistry {
             .models
             .remove(digest);
         Ok(false)
+    }
+
+    /// Return the control socket only after rechecking process liveness.
+    pub fn control_socket(&self, digest: &Digest) -> FaultResult<PathBuf> {
+        if !self.contains_running(digest)? {
+            return Err(Fault::new(
+                Code::FailedPrecondition,
+                "required model worker is not running",
+            ));
+        }
+        self.state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .models
+            .get(digest)
+            .map(|loaded| loaded.spec.control_socket.clone())
+            .ok_or_else(|| Fault::internal("model worker disappeared during lookup"))
+    }
+
+    /// Fail closed when a worker does not acknowledge cancellation.
+    pub fn terminate_worker(&self, digest: &Digest) -> FaultResult<()> {
+        self.unload(digest)
     }
     #[must_use]
     pub fn len(&self) -> usize {

@@ -6,8 +6,10 @@
     "helm": "4.2.4",
     "kubeconform": "0.8.0",
     "kustomize": "5.8.1",
+    "promtool": "3.13.2",
     "shellcheck": "0.11.0",
     "terraform": "1.15.8",
+    "terraform-docs": "0.24.0",
     "trivy": "0.74.0",
     "yamllint": "1.37.1",
     "yq": "4.53.3"

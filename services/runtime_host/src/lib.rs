@@ -26,6 +26,7 @@ pub mod resources;
 pub mod server;
 pub mod supervision;
 pub mod telemetry;
+pub mod worker_ipc;
 pub use authority::HostAuthority;
 pub use bulk::{BulkBackend, BulkBufferBroker};
 pub use config::HostConfig;

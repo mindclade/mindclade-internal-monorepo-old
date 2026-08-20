@@ -134,6 +134,44 @@ pub fn worker_status(message: &WorkerStatus) -> wire::WorkerStatus {
     }
 }
 
+pub fn worker_status_domain(message: wire::WorkerStatus) -> FaultResult<WorkerStatus> {
+    let state = match wire::WorkerState::try_from(message.state).ok() {
+        Some(wire::WorkerState::Created) => WorkerState::Created,
+        Some(wire::WorkerState::Starting) => WorkerState::Starting,
+        Some(wire::WorkerState::Ready) => WorkerState::Ready,
+        Some(wire::WorkerState::Leased) => WorkerState::Leased,
+        Some(wire::WorkerState::Running) => WorkerState::Running,
+        Some(wire::WorkerState::Draining) => WorkerState::Draining,
+        Some(wire::WorkerState::Committing) => WorkerState::Committing,
+        Some(wire::WorkerState::Completed) => WorkerState::Completed,
+        Some(wire::WorkerState::Recovering) => WorkerState::Recovering,
+        Some(wire::WorkerState::Cancelling) => WorkerState::Cancelling,
+        Some(wire::WorkerState::Cancelled) => WorkerState::Cancelled,
+        Some(wire::WorkerState::Failed) => WorkerState::Failed,
+        _ => return Err(Fault::invalid_argument("worker status state is invalid")),
+    };
+    let outputs = message
+        .outputs
+        .into_iter()
+        .map(buffer_descriptor)
+        .collect::<FaultResult<Vec<_>>>()?;
+    let diagnostic_artifact = if message.diagnostic_artifact_digest.is_empty() {
+        None
+    } else {
+        Some(parse_digest(&message.diagnostic_artifact_digest)?)
+    };
+    Ok(WorkerStatus {
+        sequence: message.sequence,
+        ticket_id: message.ticket_id,
+        fencing_token: FencingToken::new(message.fencing_token)?,
+        state,
+        observed_unix_millis: message.observed_unix_millis,
+        message: message.message,
+        outputs,
+        diagnostic_artifact,
+    })
+}
+
 fn buffer_descriptor_wire(message: &BufferDescriptor) -> wire::BufferDescriptor {
     wire::BufferDescriptor {
         segment_id: message.segment_id.clone(),

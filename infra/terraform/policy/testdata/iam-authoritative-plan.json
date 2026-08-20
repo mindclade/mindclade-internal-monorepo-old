@@ -1,0 +1,46 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.9.8",
+  "resource_changes": [
+    {
+      "address": "google_project_iam_binding.forbidden",
+      "mode": "managed",
+      "type": "google_project_iam_binding",
+      "name": "forbidden",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "members": [
+            "group:readers@example.test",
+            "serviceAccount:reader@synthetic-project.iam.gserviceaccount.com"
+          ],
+          "project": "synthetic-project",
+          "role": "roles/logging.viewer"
+        },
+        "after_unknown": {
+          "members": [false, false],
+          "role": false
+        }
+      }
+    },
+    {
+      "address": "google_project_iam_policy.forbidden",
+      "mode": "managed",
+      "type": "google_project_iam_policy",
+      "name": "forbidden",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "policy_data": "{\"bindings\":[{\"members\":[\"group:auditors@example.test\"],\"role\":\"roles/logging.viewer\"}]}",
+          "project": "synthetic-project"
+        },
+        "after_unknown": {
+          "policy_data": false,
+          "project": false
+        }
+      }
+    }
+  ]
+}

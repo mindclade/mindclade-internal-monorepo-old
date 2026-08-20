@@ -145,7 +145,13 @@
           # without charging every default shell for it.
           go-tools = pkgs.mkShell {
             packages = defaultPackages ++ [ pkgs.gotools ];
-            shellHook = standardShellHook;
+            # gotools carries the nixpkgs Go compiler as a propagated input. During a
+            # security point-release overlay that compiler can otherwise precede the
+            # repository's patched Go on PATH and silently build scanners against the
+            # vulnerable standard library.
+            shellHook = standardShellHook + ''
+              export PATH="${pkgs.go}/bin:$PATH"
+            '';
           };
           ci = pkgs.mkShell {
             # actionlint/shellcheck/yamllint feed the `lint` lane, terraform the `terraform`
@@ -170,11 +176,13 @@
                 nodejs_22
                 pnpm
                 protobuf
+                prometheus.cli
                 python312
                 python312Packages.mkdocs
                 ruff
                 shellcheck
                 terraform
+                terraform-docs
                 tflint
                 trivy
                 uv
@@ -211,6 +219,7 @@
                 buildifier
                 go
                 protobuf
+                prometheus.cli
                 python312
                 ruff
                 uv

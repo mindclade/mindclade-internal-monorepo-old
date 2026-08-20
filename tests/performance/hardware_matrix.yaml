@@ -4,4 +4,28 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+schema_version: 1
+profiles:
+  portable-presubmit:
+    required: true
+    runner: pinned-rust-1.97.1
+    command: python tools/qualification/rust/performance.py --measure
+    purpose: deterministic CPU, filesystem, process, and Unix-socket regression signal
+  runtime-gateway-release:
+    required: true
+    runner: production-equivalent Linux node
+    requirements:
+      - signed RuntimeDispatchRequest fixture
+      - declared gateway PID and pod memory limit
+      - warm connections and forced connection churn
+      - cancellation and client-disconnect probe
+  provider-gpu-release:
+    required: true
+    runner: declared production GPU and object-store provider
+    requirements:
+      - checkpoint staging throughput
+      - data-stream copy count
+      - parser allocation ratio
+      - worker cancellation and startup
+      - IPC and verified range-read throughput
+      - peak RSS, file descriptors, and process count

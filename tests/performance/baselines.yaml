@@ -4,4 +4,31 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+schema_version: 1
+policy: configs/qualification/rust_performance.toml
+percentile_method: nearest-rank
+benchmarks:
+  runtime_gateway:
+    harness: tools/qualification/rust/runtime_gateway_benchmark.py
+    endpoint: /v1/runtime/resolve
+    measurements:
+      - runtime_gateway_request_overhead_us
+      - runtime_gateway_latency_p50_ms
+      - runtime_gateway_latency_p95_ms
+      - runtime_gateway_latency_p99_ms
+      - runtime_gateway_connection_churn_p50_ms
+      - runtime_gateway_connection_churn_p95_ms
+      - runtime_gateway_connection_churn_p99_ms
+      - runtime_gateway_rss_bytes
+      - runtime_gateway_fd_count
+  portable_rust:
+    harness: tools/qualification/rust/perf_probe
+    measurements:
+      - artifact_verify_mib_per_s
+      - runtime_host_invocation_overhead_us
+      - unix_ipc_mib_per_s
+      - node_stage_start_ms
+      - verified_range_4k_ops_per_s
+      - local_store_contended_4k_ops_per_s
+      - perf_probe_rss_bytes
+      - perf_probe_fd_count

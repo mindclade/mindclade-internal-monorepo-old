@@ -6,10 +6,17 @@
 package(default_visibility = ["//visibility:private"])
 
 filegroup(
-    name = "scaffold_files",
+    name = "contracts",
     srcs = glob(
         ["**"],
         exclude = ["BUILD.bazel"],
     ),
+    visibility = ["//visibility:public"],
+)
+
+# Compatibility alias for callers that consumed the original scaffold target.
+filegroup(
+    name = "scaffold_files",
+    srcs = [":contracts"],
     visibility = ["//visibility:public"],
 )

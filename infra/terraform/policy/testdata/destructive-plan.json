@@ -1,0 +1,27 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.9.8",
+  "resource_changes": [
+    {
+      "address": "google_pubsub_topic.synthetic",
+      "mode": "managed",
+      "type": "google_pubsub_topic",
+      "name": "synthetic",
+      "change": {
+        "actions": ["delete"],
+        "before": {
+          "id": "projects/synthetic-project/topics/synthetic-topic",
+          "labels": {
+            "data-classification": "restricted",
+            "environment": "test",
+            "managed-by": "terraform",
+            "owner": "platform"
+          },
+          "name": "synthetic-topic"
+        },
+        "after": null,
+        "after_unknown": {}
+      }
+    }
+  ]
+}

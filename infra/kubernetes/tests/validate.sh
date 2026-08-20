@@ -19,6 +19,14 @@ fi
 validation_config="${script_dir}/validation-config.yaml"
 policy_dir="${script_dir}/policy"
 version_lock="${kubernetes_root}/versions.env"
+repository_root="$(cd -- "${kubernetes_root}/../.." && pwd)"
+
+# Keep the direct command useful while the action-hermetic bridge is transitional: Nix supplies
+# the pinned CLI closure and Bazel remains the one canonical validation implementation.
+if [[ "${MINDCLADE_VALIDATION_INTERNAL:-}" != "1" ]]; then
+  exec nix develop "${repository_root}#ci" --command "${repository_root}/tools/dev/bazelw" test \
+    //infra/kubernetes:validate --test_output=errors
+fi
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -81,11 +89,19 @@ require_tool kustomize "enter the repository's pinned Kubernetes validation envi
 require_tool mktemp "install POSIX temporary-file utilities"
 require_tool sed "install POSIX sed utilities"
 require_tool sort "install POSIX sort utilities"
+require_tool promtool "enter the repository's pinned Kubernetes validation environment"
+require_tool python3 "enter the repository's pinned Kubernetes validation environment"
 require_tool yq "enter the repository's pinned Kubernetes validation environment"
 
 [[ -f "${validation_config}" ]] || fail "validation configuration is missing: ${validation_config}"
 [[ -d "${policy_dir}" ]] || fail "Conftest policy directory is missing: ${policy_dir}"
 [[ -f "${version_lock}" ]] || fail "Kubernetes version lock is missing: ${version_lock}"
+[[ -d "${MINDCLADE_KUBERNETES_SCHEMA_DIR:-}" ]] ||
+  fail "declared local Kubernetes schema directory is missing"
+[[ -d "${MINDCLADE_CUSTOM_CRD_SCHEMA_DIR:-}" ]] ||
+  fail "declared custom CRD schema directory is missing"
+[[ -f "${MINDCLADE_TOOLCHAIN_MANIFEST:-}" ]] ||
+  fail "declared Nix toolchain manifest is missing"
 
 # The validator uses mikefarah/yq syntax. Python yq accepts many of these expressions but gives
 # different exit semantics, which can turn an empty selection into a false success.
@@ -93,9 +109,34 @@ yq_version="$(yq --version 2>&1)"
 [[ "${yq_version}" == *"mikefarah/yq"* ]] ||
   fail "unsupported yq implementation (${yq_version}); mikefarah/yq v4 is required"
 
+verify_tool_version() {
+  local tool_name="$1"
+  local manifest_path="$2"
+  local actual_version="$3"
+  local expected_version
+
+  expected_version="$(yq eval -r "${manifest_path}" "${MINDCLADE_TOOLCHAIN_MANIFEST}")"
+  [[ -n "${expected_version}" && "${expected_version}" != "null" ]] ||
+    fail "toolchain manifest has no version for ${tool_name}"
+  [[ "${actual_version}" == *"${expected_version}"* ]] ||
+    fail "${tool_name} version drift: expected ${expected_version}, found ${actual_version}"
+}
+
+verify_tool_version conftest '.ciTools.conftest' "$(conftest --version 2>&1)"
+verify_tool_version helm '.ciTools.helm' "$(helm version --short 2>&1)"
+verify_tool_version kubeconform '.ciTools.kubeconform' "$(kubeconform -v 2>&1)"
+verify_tool_version kustomize '.ciTools.kustomize' "$(kustomize version 2>&1)"
+verify_tool_version promtool '.ciTools.promtool' "$(promtool --version 2>&1)"
+verify_tool_version python3 '.tools.python' "$(python3 --version 2>&1)"
+verify_tool_version yq '.ciTools.yq' "${yq_version}"
+
 kubernetes_version="$(yq eval -r '.spec.kubernetesVersion' "${validation_config}")"
 [[ "${kubernetes_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] ||
   fail "spec.kubernetesVersion must be an explicit major.minor.patch value"
+locked_kubernetes_version="$(version_value MINDCLADE_KUBERNETES_VERSION)"
+locked_kubernetes_version="${locked_kubernetes_version%%-gke.*}"
+[[ "${kubernetes_version}" == "${locked_kubernetes_version}" ]] ||
+  fail "schema version ${kubernetes_version} does not match versions.env ${locked_kubernetes_version}"
 
 validation_tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/mindclade-kubernetes-validation.XXXXXX")"
 cleanup() {
@@ -103,17 +144,6 @@ cleanup() {
   rm -rf -- "${validation_tmp_dir}"
 }
 trap cleanup EXIT
-
-# Kustomize deliberately refuses symlinked kustomization files. Bazel runfiles are symlink trees,
-# so a local Bazel test dereferences its declared data into the test-owned temporary directory.
-# The no-sandbox/local tags keep the Nix-provided host tools available; this copy keeps source
-# discovery identical between direct and Bazel execution without reading undeclared workspace data.
-if [[ -n "${TEST_SRCDIR:-}" && -n "${TEST_WORKSPACE:-}" ]]; then
-  require_tool cp "install POSIX file utilities"
-  staged_kubernetes_root="${validation_tmp_dir}/kubernetes"
-  cp -RL "${kubernetes_root}" "${staged_kubernetes_root}"
-  kubernetes_root="${staged_kubernetes_root}"
-fi
 
 actual_roots="${validation_tmp_dir}/actual-roots.txt"
 expected_roots="${validation_tmp_dir}/expected-roots.txt"
@@ -123,18 +153,27 @@ allowed_custom_gvks="${validation_tmp_dir}/allowed-custom-gvks.txt"
 cluster_scoped_gvks="${validation_tmp_dir}/cluster-scoped-gvks.txt"
 policy_roots="${validation_tmp_dir}/policy-roots.txt"
 network_policy_roots="${validation_tmp_dir}/network-policy-roots.txt"
+namespace_wide_deny_roots="${validation_tmp_dir}/namespace-wide-deny-roots.txt"
 helm_policy_outputs="${validation_tmp_dir}/helm-policy-outputs.txt"
 all_rendered="${validation_tmp_dir}/all-rendered.yaml"
 core_rendered="${validation_tmp_dir}/core-rendered.yaml"
 crd_rendered="${validation_tmp_dir}/crd-rendered.yaml"
 chart_custom_rendered="${validation_tmp_dir}/chart-custom-rendered.yaml"
 custom_schema_dir="${validation_tmp_dir}/custom-schemas"
+external_custom_rendered="${validation_tmp_dir}/external-custom-rendered.yaml"
 : >"${all_rendered}"
 : >"${helm_policy_outputs}"
 : >"${chart_custom_rendered}"
+: >"${external_custom_rendered}"
 
 note "checking the declared Kustomize inventory"
 while IFS= read -r kustomization_file; do
+  kustomization_kind="$(yq eval -r '.kind // ""' "${kustomization_file}")"
+  [[ "${kustomization_kind}" == "Component" ]] && continue
+  [[ "${kustomization_kind}" == "Kustomization" ]] || {
+    printf '__INVALID__/%s\n' "${kustomization_file#"${kubernetes_root}/"}"
+    continue
+  }
   relative_file="${kustomization_file#"${kubernetes_root}/"}"
   printf '%s\n' "${relative_file%/kustomization.yaml}"
 done < <(
@@ -158,18 +197,36 @@ yq eval -r '.spec.clusterScopedGVKs[]' "${validation_config}" | LC_ALL=C sort -u
 yq eval -r '.spec.policyRoots[]' "${validation_config}" | LC_ALL=C sort -u >"${policy_roots}"
 yq eval -r '.spec.networkPolicyRoots[]' "${validation_config}" | LC_ALL=C sort -u \
   >"${network_policy_roots}"
+yq eval -r '.spec.namespaceWideDefaultDenyRoots[]' "${validation_config}" | LC_ALL=C sort -u \
+  >"${namespace_wide_deny_roots}"
+cross_resource_args=()
+while IFS= read -r unresolved_service_ref; do
+  [[ -n "${unresolved_service_ref}" ]] || continue
+  cross_resource_args+=(--allow-unresolved-service-ref "${unresolved_service_ref}")
+done < <(yq eval -r '.spec.activationGatedUnresolvedServiceRefs[]' "${validation_config}")
+while IFS= read -r unmatched_network_policy; do
+  [[ -n "${unmatched_network_policy}" ]] || continue
+  cross_resource_args+=(--allow-unmatched-network-policy "${unmatched_network_policy}")
+done < <(yq eval -r '.spec.activationGatedUnmatchedNetworkPolicies[]' "${validation_config}")
 while IFS= read -r root_name; do
   grep -Fqx -- "${root_name}" "${policy_roots}" ||
     fail "network-policy root is not also a policy root: ${root_name}"
 done <"${network_policy_roots}"
+while IFS= read -r root_name; do
+  grep -Fqx -- "${root_name}" "${network_policy_roots}" ||
+    fail "namespace-wide default-deny root is not a network-policy root: ${root_name}"
+done <"${namespace_wide_deny_roots}"
 
 check_local_resources() {
   local root_name="$1"
   local kustomization_file="${kubernetes_root}/${root_name}/kustomization.yaml"
   local remote_reference_count
 
+  # Scan every scalar, not only resources: components, generators, transformers,
+  # configurations, CRD configuration and Helm repositories are all fetch-capable inputs.
   remote_reference_count="$(
-    yq eval '[.resources[]? | select(test("^(https?://|git::|git@|github\\.com/)|[?&]ref="))] | length' \
+    yq eval '[.. | select(tag == "!!str") |
+      select(test("^(https?://|git::|git@|oci://|s3://|github\\.com/)|[?&]ref="))] | length' \
       "${kustomization_file}"
   )"
   [[ "${remote_reference_count}" == "0" ]] ||
@@ -493,6 +550,82 @@ kubeconform \
   -summary \
   "${chart_custom_rendered}"
 
+note "validating managed custom resources against fixed-output CRD schemas"
+while IFS=$'\t' read -r custom_gvk schema_file; do
+  [[ -n "${custom_gvk}" && -n "${schema_file}" ]] || continue
+  custom_kind="${custom_gvk##*/}"
+  custom_api_version="${custom_gvk%/*}"
+  custom_version="${custom_api_version##*/}"
+  custom_group="${custom_api_version%/*}"
+  source_crd="${MINDCLADE_CUSTOM_CRD_SCHEMA_DIR}/${schema_file}"
+  [[ -f "${source_crd}" ]] || fail "${custom_gvk}: pinned CRD file is missing: ${schema_file}"
+  grep -Fqx -- "${custom_gvk}" "${allowed_custom_gvks}" ||
+    fail "${custom_gvk}: pinned schema is not in the reviewed custom allowlist"
+
+  schema_match_count="$(
+    MINDCLADE_SCHEMA_GROUP="${custom_group}" \
+      MINDCLADE_SCHEMA_VERSION="${custom_version}" \
+      MINDCLADE_SCHEMA_KIND="${custom_kind}" \
+      yq eval-all '[.] | flatten |
+        map(select(
+          .kind == "CustomResourceDefinition" and
+          .spec.group == strenv(MINDCLADE_SCHEMA_GROUP) and
+          .spec.names.kind == strenv(MINDCLADE_SCHEMA_KIND)
+        )) |
+        map(.spec.versions[] | select(.name == strenv(MINDCLADE_SCHEMA_VERSION))) |
+        length' \
+        "${source_crd}"
+  )"
+  [[ "${schema_match_count}" == "1" ]] ||
+    fail "${custom_gvk}: pinned CRD must contain exactly one matching structural schema"
+
+  custom_schema_file="${custom_schema_dir}/${custom_kind}_${custom_group}_${custom_version}.json"
+  MINDCLADE_SCHEMA_GROUP="${custom_group}" \
+    MINDCLADE_SCHEMA_VERSION="${custom_version}" \
+    MINDCLADE_SCHEMA_KIND="${custom_kind}" \
+    yq eval-all -o=json -I=2 \
+    '[.] | flatten |
+      map(select(
+        .kind == "CustomResourceDefinition" and
+        .spec.group == strenv(MINDCLADE_SCHEMA_GROUP) and
+        .spec.names.kind == strenv(MINDCLADE_SCHEMA_KIND)
+      )) |
+      map(.spec.versions[] | select(.name == strenv(MINDCLADE_SCHEMA_VERSION))) |
+      .[0].schema.openAPIV3Schema' \
+    "${source_crd}" >"${custom_schema_file}"
+
+  printf -- '---\n' >>"${external_custom_rendered}"
+  MINDCLADE_CUSTOM_API_VERSION="${custom_api_version}" \
+    MINDCLADE_CUSTOM_KIND="${custom_kind}" \
+    yq eval 'select(
+      .apiVersion == strenv(MINDCLADE_CUSTOM_API_VERSION) and
+      .kind == strenv(MINDCLADE_CUSTOM_KIND)
+    )' "${all_rendered}" >>"${external_custom_rendered}"
+done < <(yq eval -r '.spec.pinnedExternalCustomSchemas[] | [.gvk, .file] | @tsv' \
+  "${validation_config}")
+
+reviewed_schema_gvks="${validation_tmp_dir}/reviewed-schema-gvks.txt"
+{
+  yq eval -r '.spec.chartBackedCustomGVKs[]' "${validation_config}"
+  yq eval -r '.spec.pinnedExternalCustomSchemas[].gvk' "${validation_config}"
+} | LC_ALL=C sort -u >"${reviewed_schema_gvks}"
+if ! diff -u "${allowed_custom_gvks}" "${reviewed_schema_gvks}"; then
+  fail "every allowed custom GVK must have an exact chart-backed or fixed-output schema"
+fi
+
+external_custom_count="$(
+  yq eval-all '[.] | flatten | map(select(.kind != null and .apiVersion != null)) | length' \
+    "${external_custom_rendered}"
+)"
+[[ "${external_custom_count}" != "0" ]] ||
+  fail "fixed-output custom schema validation selected zero resources"
+kubeconform \
+  -exit-on-error \
+  -schema-location "${custom_schema_dir}/{{.ResourceKind}}_{{.Group}}_{{.ResourceAPIVersion}}.json" \
+  -strict \
+  -summary \
+  "${external_custom_rendered}"
+
 note "checking cluster and namespace scope invariants"
 while IFS=$'\t' read -r api_version resource_kind resource_name resource_namespace; do
   [[ -n "${api_version}${resource_kind}${resource_name}${resource_namespace}" ]] || continue
@@ -512,6 +645,76 @@ done < <(
     [.apiVersion, .kind, (.metadata.name // ""), (.metadata.namespace // "")] | @tsv
   ' "${all_rendered}"
 )
+
+note "checking exact admission-policy and protected-namespace contracts"
+security_render="${validation_tmp_dir}/platform__security.yaml"
+[[ -s "${security_render}" ]] || fail "platform/security did not produce a render"
+vap_count="$(yq eval-all '[.] | flatten | map(select(.kind == "ValidatingAdmissionPolicy")) | length' \
+  "${security_render}")"
+binding_count="$(yq eval-all '[.] | flatten | map(select(.kind == "ValidatingAdmissionPolicyBinding")) | length' \
+  "${security_render}")"
+[[ "${vap_count}" == "7" && "${binding_count}" == "7" ]] ||
+  fail "platform/security must render exactly seven reviewed VAPs and seven bindings"
+
+expected_vap_matrix='[{"name":"mindclade-block-deployment-activation","failure":"Fail","groups":[["apps"]],"resources":[["deployments","statefulsets"]],"operations":[["CREATE","UPDATE"]]},{"name":"mindclade-block-job-activation","failure":"Fail","groups":[["batch"],["jobset.x-k8s.io"]],"resources":[["jobs"],["jobsets"]],"operations":[["CREATE","UPDATE"],["CREATE","UPDATE"]]},{"name":"mindclade-capacity-contract-object","failure":"Fail","groups":[[""]],"resources":[["configmaps"]],"operations":[["CREATE","UPDATE"]]},{"name":"mindclade-capacity-namespace-activation","failure":"Fail","groups":[[""]],"resources":[["namespaces"]],"operations":[["CREATE","UPDATE"]]},{"name":"mindclade-capacity-queue-contract","failure":"Fail","groups":[["batch"],["jobset.x-k8s.io"]],"resources":[["jobs"],["jobsets"]],"operations":[["CREATE","UPDATE"],["CREATE","UPDATE"]]},{"name":"mindclade-internal-services","failure":"Fail","groups":[[""]],"resources":[["services"]],"operations":[["CREATE","UPDATE"]]},{"name":"mindclade-restricted-pods","failure":"Fail","groups":[[""]],"resources":[["pods"]],"operations":[["CREATE","UPDATE"]]}]'
+actual_vap_matrix="$(yq eval-all -o=json -I=0 '
+  [.] | flatten | map(select(.kind == "ValidatingAdmissionPolicy")) |
+  map({
+    "name": .metadata.name,
+    "failure": .spec.failurePolicy,
+    "groups": [.spec.matchConstraints.resourceRules[].apiGroups],
+    "resources": [.spec.matchConstraints.resourceRules[].resources],
+    "operations": [.spec.matchConstraints.resourceRules[].operations]
+  }) | sort_by(.name)
+' "${security_render}")"
+[[ "${actual_vap_matrix}" == "${expected_vap_matrix}" ]] ||
+  fail "ValidatingAdmissionPolicy name, failure policy, operations, API group, or resource matrix drifted"
+
+expected_binding_matrix='[{"name":"mindclade-block-deployment-activation","policy":"mindclade-block-deployment-activation","actions":["Audit","Deny"],"labels":{"mindclade.dev/workload-activation":"blocked"},"expressions":[]},{"name":"mindclade-block-job-activation","policy":"mindclade-block-job-activation","actions":["Audit","Deny"],"labels":{"mindclade.dev/workload-activation":"blocked"},"expressions":[]},{"name":"mindclade-capacity-contract-object","policy":"mindclade-capacity-contract-object","actions":["Audit","Deny"],"labels":{"mindclade.dev/queue-enforcement":"enforced"},"expressions":[]},{"name":"mindclade-capacity-namespace-activation","policy":"mindclade-capacity-namespace-activation","actions":["Audit","Deny"],"labels":{},"expressions":[]},{"name":"mindclade-capacity-queue-contract","policy":"mindclade-capacity-queue-contract","actions":["Audit","Deny"],"labels":{"mindclade.dev/queue-enforcement":"enforced"},"expressions":[]},{"name":"mindclade-internal-services","policy":"mindclade-internal-services","actions":["Audit","Deny"],"labels":{"mindclade.dev/admission":"enforced"},"expressions":[]},{"name":"mindclade-restricted-pods","policy":"mindclade-restricted-pods","actions":["Audit","Deny"],"labels":{"mindclade.dev/admission":"enforced"},"expressions":[]}]'
+actual_binding_matrix="$(yq eval-all -o=json -I=0 '
+  [.] | flatten | map(select(.kind == "ValidatingAdmissionPolicyBinding")) |
+  map({
+    "name": .metadata.name,
+    "policy": .spec.policyName,
+    "actions": (.spec.validationActions | sort),
+    "labels": (.spec.matchResources.namespaceSelector.matchLabels // {}),
+    "expressions": (.spec.matchResources.namespaceSelector.matchExpressions // [])
+  }) | sort_by(.name)
+' "${security_render}")"
+[[ "${actual_binding_matrix}" == "${expected_binding_matrix}" ]] ||
+  fail "ValidatingAdmissionPolicyBinding name, policy, action, or selector matrix drifted"
+
+vap_violation_count="$(yq eval-all '
+  [.] | flatten |
+  map(select(.kind == "ValidatingAdmissionPolicy")) |
+  map(select(
+    .spec.failurePolicy != "Fail" or
+    ([.spec.matchConstraints.resourceRules[]?.operations[]? | select(. != "CREATE" and . != "UPDATE")] | length) != 0 or
+    ([.spec.matchConstraints.resourceRules[]? | select((.operations | contains(["CREATE", "UPDATE"])) == false)] | length) != 0 or
+    ((.spec.validations // []) | length) == 0
+  )) | length
+' "${security_render}")"
+[[ "${vap_violation_count}" == "0" ]] ||
+  fail "every VAP must fail closed, cover CREATE+UPDATE, and contain validations"
+
+protected_namespace_violation_count="$(yq eval-all '
+  [.] | flatten |
+  map(select(
+    .kind == "Namespace" and
+    .metadata.labels."mindclade.dev/admission" == "enforced"
+  )) |
+  map(select(
+    .metadata.labels."mindclade.dev/workload-activation" != "blocked" or
+    .metadata.labels."pod-security.kubernetes.io/enforce" != "restricted" or
+    .metadata.labels."pod-security.kubernetes.io/enforce-version" != "v1.36" or
+    .metadata.labels."pod-security.kubernetes.io/audit" != "restricted" or
+    .metadata.labels."pod-security.kubernetes.io/audit-version" != "v1.36" or
+    .metadata.labels."pod-security.kubernetes.io/warn" != "restricted" or
+    .metadata.labels."pod-security.kubernetes.io/warn-version" != "v1.36"
+  )) | length
+' "${all_rendered}")"
+[[ "${protected_namespace_violation_count}" == "0" ]] ||
+  fail "protected namespaces must stay activation-blocked with exact restricted/v1.36 PSS labels"
 
 note "validating built-in Kubernetes resources against ${kubernetes_version} schemas"
 yq eval-all '
@@ -536,6 +739,7 @@ core_resource_count="$(
 kubeconform \
   -exit-on-error \
   -kubernetes-version "${kubernetes_version}" \
+  -schema-location "${MINDCLADE_KUBERNETES_SCHEMA_DIR}/{{.ResourceKind}}{{.KindSuffix}}.json" \
   -strict \
   -summary \
   "${core_rendered}"
@@ -559,6 +763,10 @@ if conftest test \
 fi
 grep -Fq 'must use an immutable sha256 digest' "${negative_policy_output}" ||
   fail "negative policy fixture failed for an unexpected reason"
+grep -Fq 'must not set externalIPs' "${negative_policy_output}" ||
+  fail "negative policy fixture did not exercise Service externalIPs parity"
+grep -Fq 'must not define ephemeral containers' "${negative_policy_output}" ||
+  fail "negative policy fixture did not exercise ephemeral-container parity"
 
 note "applying workload and security policy to deployable roots"
 while IFS=$'\t' read -r chart_name chart_output; do
@@ -578,6 +786,11 @@ while IFS=$'\t' read -r chart_name chart_output; do
   )"
   [[ "${duplicate_identity_count}" == "0" ]] ||
     fail "${chart_name}: rendered Helm output contains duplicate resource identities"
+  normalized_chart_output="${chart_output%.yaml}.json"
+  yq eval-all -o=json -I=0 '[.] | flatten | map(select(.kind != null and .apiVersion != null))' \
+    "${chart_output}" >"${normalized_chart_output}"
+  python3 "${script_dir}/cross_resource.py" "${normalized_chart_output}" \
+    --label "${chart_name}" "${cross_resource_args[@]}"
   printf 'POLICY-HELM       %s\n' "${chart_name}"
 done <"${helm_policy_outputs}"
 
@@ -597,15 +810,21 @@ while IFS= read -r root_name; do
     yq eval-all '[.] | flatten | map(select(.kind == "Deployment" or .kind == "StatefulSet" or .kind == "DaemonSet" or .kind == "Job" or .kind == "CronJob" or .kind == "Pod" or .kind == "JobSet")) | length' \
       "${output_file}"
   )"
-  if [[ "${workload_count}" != "0" ]] && grep -Fqx -- "${root_name}" "${network_policy_roots}"; then
+  if { [[ "${workload_count}" != "0" ]] || grep -Fqx -- "${root_name}" "${namespace_wide_deny_roots}"; } &&
+    grep -Fqx -- "${root_name}" "${network_policy_roots}"; then
+    require_namespace_wide=false
+    if grep -Fqx -- "${root_name}" "${namespace_wide_deny_roots}"; then
+      require_namespace_wide=true
+    fi
     default_deny_count="$(
-      yq eval-all '[.] | flatten | map(select(
+      MINDCLADE_REQUIRE_NAMESPACE_WIDE="${require_namespace_wide}" yq eval-all '[.] | flatten | map(select(
         .kind == "NetworkPolicy" and
-        .spec.podSelector != null and
-        (.spec.policyTypes | contains(["Ingress"])) and
-        (.spec.policyTypes | contains(["Egress"])) and
+        ([.spec.policyTypes[]? | select(. == "Ingress")] | length) == 1 and
+        ([.spec.policyTypes[]? | select(. == "Egress")] | length) == 1 and
         ((.spec.ingress // []) | length) == 0 and
-        ((.spec.egress // []) | length) == 0
+        ((.spec.egress // []) | length) == 0 and
+        (strenv(MINDCLADE_REQUIRE_NAMESPACE_WIDE) != "true" or
+          ((.spec.podSelector | type) == "!!map" and (.spec.podSelector | length) == 0))
       )) | length' "${output_file}"
     )"
     [[ "${default_deny_count}" != "0" ]] ||
@@ -621,8 +840,137 @@ while IFS= read -r root_name; do
   [[ "${duplicate_identity_count}" == "0" ]] ||
     fail "${root_name}: rendered output contains duplicate resource identities"
 
+  normalized_output="${validation_tmp_dir}/${output_name}.json"
+  yq eval-all -o=json -I=0 '[.] | flatten | map(select(.kind != null and .apiVersion != null))' \
+    "${output_file}" >"${normalized_output}"
+  python3 "${script_dir}/cross_resource.py" "${normalized_output}" --label "${root_name}" \
+    "${cross_resource_args[@]}"
+
   printf 'POLICY            %s\n' "${root_name}"
 done <"${policy_roots}"
+
+note "checking global references and fail-closed capacity contracts"
+combined_json="${validation_tmp_dir}/all-rendered.json"
+yq eval-all -o=json -I=0 '[.] | flatten | map(select(.kind != null and .apiVersion != null))' \
+  "${all_rendered}" >"${combined_json}"
+python3 "${script_dir}/cross_resource.py" "${combined_json}" \
+  --label "combined inventory" "${cross_resource_args[@]}"
+
+capacity_args=()
+for capacity_workload_root in \
+  workloads/ingestion \
+  workloads/preprocessing \
+  workloads/training/overlays/h100 \
+  workloads/training/overlays/h200; do
+  capacity_workload_name="${capacity_workload_root//\//__}"
+  capacity_workload_json="${validation_tmp_dir}/${capacity_workload_name}.json"
+  yq eval-all -o=json -I=0 '[.] | flatten | map(select(.kind != null and .apiVersion != null))' \
+    "${validation_tmp_dir}/${capacity_workload_name}.yaml" >"${capacity_workload_json}"
+  capacity_args+=(--workloads "${capacity_workload_json}")
+done
+for capacity_root in base policies platform/kueue; do
+  capacity_name="${capacity_root//\//__}"
+  yq eval-all -o=json -I=0 '[.] | flatten | map(select(.kind != null and .apiVersion != null))' \
+    "${validation_tmp_dir}/${capacity_name}.yaml" >"${validation_tmp_dir}/${capacity_name}.json"
+done
+python3 "${script_dir}/capacity_contract.py" \
+  --base "${validation_tmp_dir}/base.json" \
+  --policies "${validation_tmp_dir}/policies.json" \
+  --queues "${validation_tmp_dir}/platform__kueue.json" \
+  --all "${combined_json}" \
+  "${capacity_args[@]}"
+
+note "checking GMP selectors, ports, and Prometheus recording rules"
+
+observability_render="${validation_tmp_dir}/platform__observability.yaml"
+prometheus_rules="${validation_tmp_dir}/gmp-recording-rules.yaml"
+prometheus_tests="${validation_tmp_dir}/promtool-tests.yaml"
+[[ -s "${observability_render}" ]] || fail "platform/observability did not produce a render"
+
+pod_monitor_count="$(yq eval-all '[.] | flatten | map(select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "PodMonitoring")) | length' \
+  "${observability_render}")"
+[[ "${pod_monitor_count}" == "2" ]] || fail "expected exactly two operator PodMonitoring resources"
+
+pod_monitor_endpoint_value() {
+  local monitor_name="$1"
+  local value_path="$2"
+  yq eval-all -r \
+    "select(.apiVersion == \"monitoring.googleapis.com/v1\" and
+      .kind == \"PodMonitoring\" and .metadata.name == \"${monitor_name}\") |
+      .spec.endpoints[0].${value_path}" \
+    "${observability_render}"
+}
+
+for monitor_name in kueue-controller jobset-controller; do
+  endpoint_count="$(yq eval-all "[select(
+    .apiVersion == \"monitoring.googleapis.com/v1\" and .kind == \"PodMonitoring\" and
+    .metadata.name == \"${monitor_name}\") | .spec.endpoints[]] | length" \
+    "${observability_render}")"
+  [[ "${endpoint_count}" == "1" ]] || fail "${monitor_name} must define exactly one scrape endpoint"
+  [[ "$(pod_monitor_endpoint_value "${monitor_name}" authorization.type)" == "Bearer" ]] ||
+    fail "${monitor_name} must use bearer authorization"
+  [[ "$(pod_monitor_endpoint_value "${monitor_name}" authorization.credentials.secret.key)" == "token" ]] ||
+    fail "${monitor_name} must obtain its bearer credential from the token Secret key"
+  [[ "$(pod_monitor_endpoint_value "${monitor_name}" tls.minVersion)" == "TLS12" ]] ||
+    fail "${monitor_name} must require TLS 1.2 or newer"
+  [[ "$(pod_monitor_endpoint_value "${monitor_name}" tls.ca.secret.key)" == "ca.crt" ]] ||
+    fail "${monitor_name} must use a CA-only trust contract"
+  [[ "$(pod_monitor_endpoint_value "${monitor_name}" tls.insecureSkipVerify)" != "true" ]] ||
+    fail "${monitor_name} may not disable TLS verification"
+done
+
+[[ "$(pod_monitor_endpoint_value kueue-controller authorization.credentials.secret.name)" == "mindclade-gmp-kueue-auth" ]] ||
+  fail "Kueue bearer-token contract drifted"
+[[ "$(pod_monitor_endpoint_value kueue-controller tls.ca.secret.name)" == "mindclade-gmp-kueue-trust" ]] ||
+  fail "Kueue CA-only trust contract drifted"
+[[ "$(pod_monitor_endpoint_value kueue-controller tls.cert.secret.name)" == "null" &&
+  "$(pod_monitor_endpoint_value kueue-controller tls.key.secret.name)" == "null" ]] ||
+  fail "Kueue must not receive an unnecessary client private key"
+
+[[ "$(pod_monitor_endpoint_value jobset-controller authorization.credentials.secret.name)" == "mindclade-gmp-jobset-auth" ]] ||
+  fail "JobSet bearer-token contract drifted"
+[[ "$(pod_monitor_endpoint_value jobset-controller tls.ca.secret.name)" == "mindclade-gmp-jobset-trust" ]] ||
+  fail "JobSet CA-only trust contract drifted"
+[[ "$(pod_monitor_endpoint_value jobset-controller tls.cert.secret.name)" == "mindclade-gmp-jobset-client" &&
+  "$(pod_monitor_endpoint_value jobset-controller tls.cert.secret.key)" == "tls.crt" &&
+  "$(pod_monitor_endpoint_value jobset-controller tls.key.secret.name)" == "mindclade-gmp-jobset-client" &&
+  "$(pod_monitor_endpoint_value jobset-controller tls.key.secret.key)" == "tls.key" ]] ||
+  fail "JobSet client-auth certificate contract drifted"
+
+serving_secret_reference_count="$(yq eval-all '[select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "PodMonitoring") |
+  .spec.endpoints[] | .. | select(tag == "!!str" and
+    (. == "kueue-metrics-server-cert" or . == "jobset-metrics-server-cert"))] | length' \
+  "${observability_render}")"
+[[ "${serving_secret_reference_count}" == "0" ]] ||
+  fail "collectors may not read controller serving Secrets that contain private keys"
+
+jobset_labeldrop_count="$(yq eval-all '[select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "PodMonitoring" and
+  .metadata.name == "jobset-controller") | .spec.endpoints[].metricRelabeling[]? |
+  select(.action == "labeldrop")] | length' "${observability_render}")"
+[[ "${jobset_labeldrop_count}" == "0" ]] ||
+  fail "JobSet labels may be removed only after aggregation; scrape-time labeldrop corrupts counters"
+
+jobset_metric_keep_regex="$(pod_monitor_endpoint_value jobset-controller \
+  'metricRelabeling[] | select(.action == "keep") | .regex')"
+[[ "${jobset_metric_keep_regex}" != *"jobset_failed"* &&
+  "${jobset_metric_keep_regex}" != *"jobset_completed"* ]] ||
+  fail "unreliable per-name JobSet terminal counters may not drive windowed outcome alerts"
+
+yq eval-all -o=yaml -I=2 \
+  '[.] | flatten |
+  map(select(.apiVersion == "monitoring.googleapis.com/v1" and .kind == "Rules")) |
+  map(.spec.groups[]) | {"groups": .}' "${observability_render}" >"${prometheus_rules}"
+rules_document_count="$(yq eval-all '[.] | flatten | map(select(.kind == "Rules")) | length' \
+  "${observability_render}")"
+rules_group_count="$(yq eval '.groups | length' "${prometheus_rules}")"
+[[ "${rules_document_count}" == "2" && "${rules_group_count}" == "2" ]] ||
+  fail "expected both GMP Rules documents to contribute exactly one Prometheus group"
+promtool check rules "${prometheus_rules}"
+sed "s|__RULE_FILE__|${prometheus_rules}|g" "${script_dir}/promtool-tests.yaml" >"${prometheus_tests}"
+promtool test rules "${prometheus_tests}"
 
 note "Kubernetes validation passed"
 printf 'Validated %s built-in rendered resources, %s Helm chart(s), and every declared Kustomize root.\n' \

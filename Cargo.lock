@@ -1113,6 +1113,7 @@ name = "mindclade-runtime-host"
 version = "0.0.0"
 dependencies = [
  "bytes",
+ "hyper-util",
  "mindclade-serving-runtime",
  "mindclade_bytes_io",
  "mindclade_content_digest",
@@ -1132,13 +1133,16 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tonic",
+ "tower",
 ]
 
 [[package]]
 name = "mindclade-rust-perf-probe"
 version = "0.0.0"
 dependencies = [
+ "mindclade_bytes_io",
  "mindclade_content_digest",
+ "mindclade_object_store",
  "mindclade_runtime_core",
 ]
 

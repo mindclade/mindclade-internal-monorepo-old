@@ -97,7 +97,7 @@ jobs:
         run: '"${GOVULNCHECK}" -mode=source ./...'
 
   codeql:
-    uses: mindclade-org/.github/.github/workflows/reusable-codeql.yml@v1.1.0
+    uses: mindclade-org/.github/.github/workflows/reusable-codeql.yml@22cd42b4f5c08bcb579aed4b6a0bb8cd4696daa0  # v1.1.0
     with:
       # Rust is omitted: CodeQL's Rust support is still maturing and the runtime data plane is
       # covered by clippy with -D warnings plus cargo-deny in the presubmit lane. Revisit when

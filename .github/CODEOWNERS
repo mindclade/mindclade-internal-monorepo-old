@@ -51,6 +51,7 @@
 /protocols/                         @mindclade-org/platform
 /configs/                           @mindclade-org/platform
 /infra/                             @mindclade-org/platform
+/infra/terraform/                   @mindclade-org/platform @mindclade-org/security
 /tools/                             @mindclade-org/platform
 /architecture/                      @mindclade-org/platform
 

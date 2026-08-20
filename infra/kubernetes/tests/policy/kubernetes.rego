@@ -121,6 +121,13 @@ deny contains msg if {
 }
 
 deny contains msg if {
+	input.kind == "Service"
+	external_ips := object.get(input.spec, "externalIPs", [])
+	count(external_ips) != 0
+	msg := sprintf("Service/%s must not set externalIPs", [resource_name])
+}
+
+deny contains msg if {
 	some pod_spec in pod_specs
 	object.get(pod_spec, "hostNetwork", false)
 	msg := sprintf("%s/%s must not use hostNetwork", [input.kind, resource_name])
@@ -143,6 +150,12 @@ deny contains msg if {
 	some volume in object.get(pod_spec, "volumes", [])
 	object.get(volume, "hostPath", null) != null
 	msg := sprintf("%s/%s must not mount hostPath volume %s", [input.kind, resource_name, volume.name])
+}
+
+deny contains msg if {
+	some pod_spec in pod_specs
+	count(object.get(pod_spec, "ephemeralContainers", [])) != 0
+	msg := sprintf("%s/%s must not define ephemeral containers", [input.kind, resource_name])
 }
 
 deny contains msg if {

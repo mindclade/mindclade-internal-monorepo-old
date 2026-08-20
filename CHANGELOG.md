@@ -4,6 +4,23 @@ All notable changes to the repository architecture and released implementation
 surfaces are recorded here. Individual model, dataset, runtime, and service
 releases also carry immutable release manifests and evidence bundles.
 
+## 2026-08-20 — Terraform v0.2.0 candidate
+
+- materialized and documented all 32 reusable Google Cloud modules plus the lifetime-scoped
+  `dns_hub` root without creating deployable environment values or cloud state;
+- added generated API documentation, an immutable v0.1.1 interface baseline, breaking-change
+  classification, and a machine-checked 0.1.1-to-0.2.0 migration record;
+- normalized reviewed Google provider locks to 7.45.0 and added backendless compatibility
+  qualification at the declared minimum 7.41.0 and reviewed 7.45.0;
+- added bounded Terraform CI, exact trusted provider caching, Trivy and Conftest gates, and a
+  digest-bound saved-plan policy interface;
+- SHA-pinned shared presubmit/security workflows and prepared `lint`/`terraform` required
+  checks in an external ruleset that remains in evaluate mode pending real PR evidence.
+
+This entry describes a release candidate, not a published tag or production deployment.
+Live roots, connected plans, apply authorization, recovery, cost, and operational evidence
+remain promotion blockers.
+
 
 ## 2026-08-19 — Estate audit remediation
 
