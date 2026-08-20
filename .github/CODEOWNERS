@@ -16,79 +16,79 @@
 # security + research so the code still gets a second pair of eyes in the PR.
 
 # Everyone, by default.
-*                                   @mindclade-org/engineering
+*                                   @mindclade/engineering
 
 # ---------------------------------------------------------------------------------------
 # Go — fleet control plane and durable policy
 # ---------------------------------------------------------------------------------------
-/control/                           @mindclade-org/platform
-/libs/go/                           @mindclade-org/platform
-/services/                          @mindclade-org/platform
+/control/                           @mindclade/platform
+/libs/go/                           @mindclade/platform
+/services/                          @mindclade/platform
 
 # ---------------------------------------------------------------------------------------
 # Rust — online/runtime data plane and node execution
 # ---------------------------------------------------------------------------------------
-/libs/rust/                         @mindclade-org/platform
-/serving/                           @mindclade-org/platform
+/libs/rust/                         @mindclade/platform
+/serving/                           @mindclade/platform
 
 # ---------------------------------------------------------------------------------------
 # Python — scientific, model, training, inference, and evaluation numerics
 # ---------------------------------------------------------------------------------------
-/models/                            @mindclade-org/research
-/training/                          @mindclade-org/research
-/evaluation/                        @mindclade-org/research
-/research/                          @mindclade-org/research
-/kernels/                           @mindclade-org/research
+/models/                            @mindclade/research
+/training/                          @mindclade/research
+/evaluation/                        @mindclade/research
+/research/                          @mindclade/research
+/kernels/                           @mindclade/research
 
-/data/                              @mindclade-org/data
-/preprocessing/                     @mindclade-org/data @mindclade-org/research
+/data/                              @mindclade/data-platform
+/preprocessing/                     @mindclade/data-platform @mindclade/research
 
 # ---------------------------------------------------------------------------------------
 # Cross-cutting
 # ---------------------------------------------------------------------------------------
 # Wire contracts between the three languages. A change here is a change to every runtime at
 # once, which is why it is platform-owned rather than owned by whichever language noticed.
-/protocols/                         @mindclade-org/platform
-/configs/                           @mindclade-org/platform
-/infra/                             @mindclade-org/platform
-/infra/terraform/                   @mindclade-org/platform @mindclade-org/security
-/tools/                             @mindclade-org/platform
-/architecture/                      @mindclade-org/platform
+/protocols/                         @mindclade/platform
+/configs/                           @mindclade/platform
+/infra/                             @mindclade/platform
+/infra/terraform/                   @mindclade/platform @mindclade/security
+/tools/                             @mindclade/platform
+/architecture/                      @mindclade/platform
 
 # Bazel graph and dependency policy. Root files need explicit routes because the directory
 # patterns above cannot match them; lock and rc changes also affect the supply-chain gate.
-/BUILD.bazel                        @mindclade-org/platform
-/.bazelrc                           @mindclade-org/platform @mindclade-org/security
-/.bazelversion                      @mindclade-org/platform
-/.buildifier.json                   @mindclade-org/platform
-/flake.lock                         @mindclade-org/platform @mindclade-org/security
-/flake.nix                          @mindclade-org/platform @mindclade-org/security
-/MODULE.bazel                       @mindclade-org/platform @mindclade-org/security
-/MODULE.bazel.lock                  @mindclade-org/platform @mindclade-org/security
-/docs/architecture/build-and-toolchains.md @mindclade-org/platform
-/docs/architecture/dependency-rules.md      @mindclade-org/platform
-/tools/dev/bazel-repo-bin/         @mindclade-org/platform
-/tools/dev/bazelw                  @mindclade-org/platform
+/BUILD.bazel                        @mindclade/platform
+/.bazelrc                           @mindclade/platform @mindclade/security
+/.bazelversion                      @mindclade/platform
+/.buildifier.json                   @mindclade/platform
+/flake.lock                         @mindclade/platform @mindclade/security
+/flake.nix                          @mindclade/platform @mindclade/security
+/MODULE.bazel                       @mindclade/platform @mindclade/security
+/MODULE.bazel.lock                  @mindclade/platform @mindclade/security
+/docs/architecture/build-and-toolchains.md @mindclade/platform
+/docs/architecture/dependency-rules.md      @mindclade/platform
+/tools/dev/bazel-repo-bin/         @mindclade/platform
+/tools/dev/bazelw                  @mindclade/platform
 
 # Release evidence. These files are the record that a component was allowed to ship.
-/qualification/                     @mindclade-org/platform @mindclade-org/security
-/QUALIFICATION.md                   @mindclade-org/platform @mindclade-org/security
-/VALIDATION.md                      @mindclade-org/platform @mindclade-org/security
-/components.toml                    @mindclade-org/platform @mindclade-org/security
-/maturity.toml                      @mindclade-org/platform @mindclade-org/security
+/qualification/                     @mindclade/platform @mindclade/security
+/QUALIFICATION.md                   @mindclade/platform @mindclade/security
+/VALIDATION.md                      @mindclade/platform @mindclade/security
+/components.toml                    @mindclade/platform @mindclade/security
+/maturity.toml                      @mindclade/platform @mindclade/security
 
 # ---------------------------------------------------------------------------------------
 # Security — last, so these win over any broader pattern above
 # ---------------------------------------------------------------------------------------
-/security/                          @mindclade-org/security
-/ci/security/                       @mindclade-org/security
-/deny.toml                          @mindclade-org/security
-/SECURITY.md                        @mindclade-org/security
+/security/                          @mindclade/security
+/ci/security/                       @mindclade/security
+/deny.toml                          @mindclade/security
+/SECURITY.md                        @mindclade/security
 
 # The pipeline that gates everything else, and the ownership map itself.
-/.github/                           @mindclade-org/platform @mindclade-org/security
+/.github/                           @mindclade/platform @mindclade/security
 
 # Screening and dual-use surfaces. See the note at the top about biosecurity attestation.
-/data/curation/safety_screening.py  @mindclade-org/security @mindclade-org/research
-/evaluation/biological_risk/        @mindclade-org/security @mindclade-org/research
-/serving/safety/                    @mindclade-org/security @mindclade-org/research
+/data/curation/safety_screening.py  @mindclade/security @mindclade/research
+/evaluation/biological_risk/        @mindclade/security @mindclade/research
+/serving/safety/                    @mindclade/security @mindclade/research

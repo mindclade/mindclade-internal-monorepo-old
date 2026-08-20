@@ -50,7 +50,7 @@ data:
       # Confirm with an actual private-module fetch after any change here, not by reading
       # the pod spec.
 
-      # GOPRIVATE matches MODULE PATHS, not VCS hosts. `github.com/mindclade-org/*` would do
+      # GOPRIVATE matches MODULE PATHS, not VCS hosts. `github.com/mindclade/*` would do
       # nothing here: that string never appears in a require line — the require lines say
       # `go.mindclade.dev`. The pattern also covers every subpath, so one entry covers the
       # whole namespace.

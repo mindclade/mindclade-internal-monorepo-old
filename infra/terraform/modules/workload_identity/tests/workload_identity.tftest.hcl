@@ -24,7 +24,7 @@ variables {
         "google.subject"       = "assertion.sub"
         "attribute.repository" = "assertion.repository"
       }
-      attribute_condition = "attribute.repository == 'mindclade/mindclade'"
+      attribute_condition = "attribute.repository == 'mindclade/mindclade-internal-monorepo'"
     }
   }
 
@@ -45,7 +45,7 @@ variables {
       service_account_key = "release"
       provider_key        = "github"
       attribute           = "repository"
-      value               = "mindclade/mindclade"
+      value               = "mindclade/mindclade-internal-monorepo"
     }
   }
 
@@ -85,7 +85,7 @@ run "keyless_federation_and_gke_contract" {
   assert {
     condition = (
       google_service_account_iam_member.federated["repository_release"].role == "roles/iam.workloadIdentityUser" &&
-      google_service_account_iam_member.federated["repository_release"].member == "principalSet://iam.googleapis.com/projects/123456789012/locations/global/workloadIdentityPools/github-actions/attribute.repository/mindclade/mindclade" &&
+      google_service_account_iam_member.federated["repository_release"].member == "principalSet://iam.googleapis.com/projects/123456789012/locations/global/workloadIdentityPools/github-actions/attribute.repository/mindclade/mindclade-internal-monorepo" &&
       google_service_account_iam_member.gke["api"].role == "roles/iam.workloadIdentityUser" &&
       google_service_account_iam_member.gke["api"].member == "serviceAccount:identity-prod-1234.svc.id.goog[api/api]"
     )
@@ -134,7 +134,7 @@ run "rejects_missing_subject_mapping" {
         attribute_mapping = {
           "attribute.repository" = "assertion.repository"
         }
-        attribute_condition = "attribute.repository == 'mindclade/mindclade'"
+        attribute_condition = "attribute.repository == 'mindclade/mindclade-internal-monorepo'"
       }
     }
   }
@@ -152,7 +152,7 @@ run "rejects_missing_custom_attribute_mapping" {
         issuer_uri          = "https://token.actions.githubusercontent.com"
         allowed_audiences   = ["https://github.com/mindclade"]
         attribute_mapping   = { "google.subject" = "assertion.sub" }
-        attribute_condition = "assertion.repository == 'mindclade/mindclade'"
+        attribute_condition = "assertion.repository == 'mindclade/mindclade-internal-monorepo'"
       }
     }
   }
@@ -173,7 +173,7 @@ run "rejects_empty_allowed_audiences" {
           "google.subject"       = "assertion.sub"
           "attribute.repository" = "assertion.repository"
         }
-        attribute_condition = "attribute.repository == 'mindclade/mindclade'"
+        attribute_condition = "attribute.repository == 'mindclade/mindclade-internal-monorepo'"
       }
     }
   }
@@ -262,7 +262,7 @@ run "rejects_unknown_federated_service_account" {
         service_account_key = "missing"
         provider_key        = "github"
         attribute           = "repository"
-        value               = "mindclade/mindclade"
+        value               = "mindclade/mindclade-internal-monorepo"
       }
     }
   }
@@ -279,7 +279,7 @@ run "rejects_unknown_oidc_provider" {
         service_account_key = "release"
         provider_key        = "missing"
         attribute           = "repository"
-        value               = "mindclade/mindclade"
+        value               = "mindclade/mindclade-internal-monorepo"
       }
     }
   }

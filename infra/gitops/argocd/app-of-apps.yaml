@@ -19,7 +19,7 @@ metadata:
 spec:
   project: mindclade-bootstrap
   source:
-    repoURL: https://github.com/mindclade-org/mindclade.git
+    repoURL: https://github.com/mindclade/mindclade-internal-monorepo.git
     targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
     path: infra/gitops/bootstrap/SET_ENVIRONMENT
   destination:

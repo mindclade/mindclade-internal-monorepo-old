@@ -5,7 +5,7 @@ that Argo CD, a repository credential, an operator, or a Mindclade workload is i
 `Application` is paused with `argocd.argoproj.io/skip-reconcile: "true"`, uses the invalid
 `SET_EXACT_40_CHAR_COMMIT_SHA` revision, and disables automatic sync, prune, and self-heal.
 
-The only source repository is `https://github.com/mindclade-org/mindclade.git`. Repository
+The only source repository is `https://github.com/mindclade/mindclade-internal-monorepo.git`. Repository
 credentials and runtime TLS Secrets are intentionally absent and remain owned by controlled
 live-cluster systems.
 

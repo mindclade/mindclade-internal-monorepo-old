@@ -27,6 +27,14 @@
 # Nothing here runs on a pull request. A PR from a fork must not be able to push to the
 # registry or reach the attestor key, and `push: false` on a PR would still hand the job a
 # WIF token — so the trigger is a tag and a manual dispatch, both of which only exist on main.
+#
+# ACTIVATION IS FAIL-CLOSED. The legacy release jobs below depend on the pre-v3 shared
+# workflow contract in `mindclade-org/.github`. The renamed `mindclade/.github` v3 contract
+# deliberately separates build, qualification, and Binary Authorization signing and does
+# not expose drop-in replacements for the legacy provenance workflow or WIF action. The two
+# root build jobs therefore remain unconditionally disabled until a separate reviewed change
+# migrates the whole chain; changing only their repository owner or commit would make this
+# workflow invalid or, worse, misrepresent the signing authority.
 name: Release
 
 on:
@@ -91,8 +99,10 @@ jobs:
   # digest cannot be routed through an artifact before it is consumed. Two explicit jobs cost
   # a duplicated `with:` block and make each digest unambiguous. That trade is not close.
   image-go-vanity:
-    if: github.event_name == 'push' || inputs.push
-    uses: mindclade-org/.github/.github/workflows/reusable-oci-build.yml@55b37943ab048f13bee88c2e6acb7284cc0d8e2d  # v1.2.0
+    if: >-
+      github.repository == 'mindclade/RELEASE_ACTIVATION_BLOCKED' &&
+      (github.event_name == 'push' || inputs.push)
+    uses: mindclade-org/.github/.github/workflows/reusable-oci-build.yml@55b37943ab048f13bee88c2e6acb7284cc0d8e2d  # legacy v1.2.0
     permissions:
       contents: read
       id-token: write
@@ -131,8 +141,10 @@ jobs:
   # different retention, different size profiles and different readers, and a cleanup policy
   # written for images must not be able to delete a model.
   image-weights:
-    if: github.event_name == 'push' || inputs.push
-    uses: mindclade-org/.github/.github/workflows/reusable-oci-build.yml@55b37943ab048f13bee88c2e6acb7284cc0d8e2d  # v1.2.0
+    if: >-
+      github.repository == 'mindclade/RELEASE_ACTIVATION_BLOCKED' &&
+      (github.event_name == 'push' || inputs.push)
+    uses: mindclade-org/.github/.github/workflows/reusable-oci-build.yml@55b37943ab048f13bee88c2e6acb7284cc0d8e2d  # legacy v1.2.0
     permissions:
       contents: read
       id-token: write
@@ -167,7 +179,7 @@ jobs:
   provenance:
     needs: image-go-vanity
     if: github.event_name == 'push' || inputs.push
-    uses: mindclade-org/.github/.github/workflows/reusable-slsa-provenance.yml@22cd42b4f5c08bcb579aed4b6a0bb8cd4696daa0  # v1.1.0
+    uses: mindclade-org/.github/.github/workflows/reusable-slsa-provenance.yml@22cd42b4f5c08bcb579aed4b6a0bb8cd4696daa0  # legacy v1.1.0
     permissions:
       actions: read
       id-token: write
@@ -182,7 +194,7 @@ jobs:
   provenance-weights:
     needs: image-weights
     if: github.event_name == 'push' || inputs.push
-    uses: mindclade-org/.github/.github/workflows/reusable-slsa-provenance.yml@22cd42b4f5c08bcb579aed4b6a0bb8cd4696daa0  # v1.1.0
+    uses: mindclade-org/.github/.github/workflows/reusable-slsa-provenance.yml@22cd42b4f5c08bcb579aed4b6a0bb8cd4696daa0  # legacy v1.1.0
     permissions:
       actions: read
       id-token: write
@@ -206,7 +218,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: mindclade-org/.github/.github/actions/wif-auth@b72b0d8f9bd854d9f398fea7d78b43e2c2942e04  # b72b0d8
+      - uses: mindclade-org/.github/.github/actions/wif-auth@b72b0d8f9bd854d9f398fea7d78b43e2c2942e04  # legacy b72b0d8
         with:
           workload-identity-provider: ${{ vars.WIF_PROVIDER }}
           service-account: ${{ vars.SA_ATTESTOR }}
@@ -238,7 +250,7 @@ jobs:
 
           registry="${IMAGE%%/*}"
           gcloud auth configure-docker "$registry" --quiet
-          identity='^https://github\.com/mindclade-org/mindclade/\.github/workflows/release\.yml@(refs/tags/v[0-9]+\.[0-9]+\.[0-9]+|refs/heads/main)$'
+          identity='^https://github\.com/mindclade/mindclade-internal-monorepo/\.github/workflows/release\.yml@(refs/tags/v[0-9]+\.[0-9]+\.[0-9]+|refs/heads/main)$'
           cosign verify \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
             --certificate-identity-regexp "$identity" \

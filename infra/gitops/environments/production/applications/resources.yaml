@@ -17,7 +17,7 @@ metadata:
 spec:
   project: mindclade-operator-foundation
   source:
-    repoURL: https://github.com/mindclade-org/mindclade.git
+    repoURL: https://github.com/mindclade/mindclade-internal-monorepo.git
     targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
     path: infra/kubernetes/platform/operator-system/foundation
     directory:
@@ -50,7 +50,7 @@ metadata:
 spec:
   project: mindclade-operator-crds
   source:
-    repoURL: https://github.com/mindclade-org/mindclade.git
+    repoURL: https://github.com/mindclade/mindclade-internal-monorepo.git
     targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
     path: infra/gitops/vendor/cert-manager/v1.19.1/crds
   destination:
@@ -83,7 +83,7 @@ metadata:
 spec:
   project: mindclade-cert-manager-controller
   source:
-    repoURL: https://github.com/mindclade-org/mindclade.git
+    repoURL: https://github.com/mindclade/mindclade-internal-monorepo.git
     targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
     path: infra/gitops/vendor/cert-manager/v1.19.1/controllers
   destination:
@@ -126,7 +126,7 @@ metadata:
 spec:
   project: mindclade-operator-crds
   source:
-    repoURL: https://github.com/mindclade-org/mindclade.git
+    repoURL: https://github.com/mindclade/mindclade-internal-monorepo.git
     targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
     path: infra/kubernetes/platform/jobset/chart
     helm:
@@ -166,7 +166,7 @@ metadata:
 spec:
   project: mindclade-jobset-controller
   source:
-    repoURL: https://github.com/mindclade-org/mindclade.git
+    repoURL: https://github.com/mindclade/mindclade-internal-monorepo.git
     targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
     path: infra/kubernetes/platform/jobset/chart
     helm:
@@ -218,7 +218,7 @@ metadata:
 spec:
   project: mindclade-operator-crds
   source:
-    repoURL: https://github.com/mindclade-org/mindclade.git
+    repoURL: https://github.com/mindclade/mindclade-internal-monorepo.git
     targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
     path: infra/kubernetes/platform/kueue/chart
     helm:
@@ -316,7 +316,7 @@ metadata:
 spec:
   project: mindclade-kueue-controller
   source:
-    repoURL: https://github.com/mindclade-org/mindclade.git
+    repoURL: https://github.com/mindclade/mindclade-internal-monorepo.git
     targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
     path: infra/kubernetes/platform/kueue/chart
     helm:
@@ -378,7 +378,7 @@ metadata:
 spec:
   project: mindclade-operator-observability
   source:
-    repoURL: https://github.com/mindclade-org/mindclade.git
+    repoURL: https://github.com/mindclade/mindclade-internal-monorepo.git
     targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
     path: infra/kubernetes/platform/observability
   destination:
@@ -409,7 +409,7 @@ metadata:
 spec:
   project: mindclade-foundation
   source:
-    repoURL: https://github.com/mindclade-org/mindclade.git
+    repoURL: https://github.com/mindclade/mindclade-internal-monorepo.git
     targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
     path: infra/gitops/environments/production
   destination:
@@ -440,7 +440,7 @@ metadata:
 spec:
   project: mindclade-ml-resources
   source:
-    repoURL: https://github.com/mindclade-org/mindclade.git
+    repoURL: https://github.com/mindclade/mindclade-internal-monorepo.git
     targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
     path: infra/kubernetes/platform/kueue
   destination:
@@ -471,7 +471,7 @@ metadata:
 spec:
   project: mindclade-ml-resources
   source:
-    repoURL: https://github.com/mindclade-org/mindclade.git
+    repoURL: https://github.com/mindclade/mindclade-internal-monorepo.git
     targetRevision: SET_EXACT_40_CHAR_COMMIT_SHA
     path: infra/kubernetes/platform/jobset
   destination:
