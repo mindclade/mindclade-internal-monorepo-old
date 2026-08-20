@@ -1,11 +1,11 @@
-# Training / Distributed
+# Training / Distributed / Planning
 
 - **Status:** Target-state scaffold; no production capability is claimed by this file.
 - **Primary implementation ownership:** Python/PyTorch
 
 ## Purpose
 
-Authoritative training contracts, core state machine, engine adapters, distributed plans, checkpoint orchestration, optimizers, runtime mechanisms, and task objectives. This path specializes that domain for **distributed**.
+Compiling a declared parallelism into an executable plan: `plan.py`, `compiler.py`, `fingerprint.py`, `collective_schedule.py`, `transformation_order.py` and `compatibility.py`. The per-architecture plans live in `plans/`. The fingerprint is the checkpoint-compatibility identity, so topology changes are detectable across a resume.
 
 ## Boundary
 

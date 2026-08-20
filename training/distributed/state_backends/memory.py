@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for training/distributed/world.py.
+"""Scaffold boundary for training/distributed/state_backends/memory.py.
 
 Scientific and numerical behavior must be implemented in the owning Python
 domain and qualified before this module is promoted.

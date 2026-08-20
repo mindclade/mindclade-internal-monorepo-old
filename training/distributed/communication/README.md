@@ -1,11 +1,11 @@
-# Training / Distributed
+# Training / Distributed / Communication
 
 - **Status:** Target-state scaffold; no production capability is claimed by this file.
 - **Primary implementation ownership:** Python/PyTorch
 
 ## Purpose
 
-Authoritative training contracts, core state machine, engine adapters, distributed plans, checkpoint orchestration, optimizers, runtime mechanisms, and task objectives. This path specializes that domain for **distributed**.
+Collective operations and the gradient/metric reduction path: `collectives.py`, `comm_hooks.py`, `gradient_sync.py`, `loss_reduction.py`, `metric_reduction.py`, plus the `transport.py` seam and `diagnostics.py`. This package owns how ranks exchange tensors, not how they are arranged -- that is `topology/` -- and not which parallelism applies them, which is `parallelism/`.
 
 ## Boundary
 

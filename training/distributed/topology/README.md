@@ -1,11 +1,11 @@
-# Training / Distributed
+# Training / Distributed / Topology
 
 - **Status:** Target-state scaffold; no production capability is claimed by this file.
 - **Primary implementation ownership:** Python/PyTorch
 
 ## Purpose
 
-Authoritative training contracts, core state machine, engine adapters, distributed plans, checkpoint orchestration, optimizers, runtime mechanisms, and task objectives. This path specializes that domain for **distributed**.
+The rank arrangement a run executes on: `mesh.py`, `groups.py`, `ranks.py`, `placements.py`, `parallel_dims.py`, `replica_groups.py`, `world.py`, `execution_scope.py` and `topology.py`, with `validation.py` guarding the shapes. This package describes where a rank sits; `communication/` owns what it sends.
 
 ## Boundary
 

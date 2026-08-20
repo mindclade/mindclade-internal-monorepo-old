@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for training/distributed/execution_scope.py.
+"""Scaffold boundary for training/distributed/topology/execution_scope.py.
 
 Scientific and numerical behavior must be implemented in the owning Python
 domain and qualified before this module is promoted.

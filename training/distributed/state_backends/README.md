@@ -1,11 +1,11 @@
-# Training / Distributed
+# Training / Distributed / State backends
 
 - **Status:** Target-state scaffold; no production capability is claimed by this file.
 - **Primary implementation ownership:** Python/PyTorch
 
 ## Purpose
 
-Authoritative training contracts, core state machine, engine adapters, distributed plans, checkpoint orchestration, optimizers, runtime mechanisms, and task objectives. This path specializes that domain for **distributed**.
+Where distributed state is persisted and read back: `base.py` defines the contract, with `memory.py`, `filesystem.py` and `object_store.py` implementing it. Conformance is asserted once, in `tests/test_conformance.py`, against every backend rather than per implementation.
 
 ## Boundary
 
