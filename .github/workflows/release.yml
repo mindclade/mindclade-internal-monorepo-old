@@ -89,8 +89,6 @@ jobs:
       bazel-image-target: //services/go_vanity:image
       bazel-push-target: //services/go_vanity:push
       builder: bazel
-      bazel-image-target: ${{ matrix.image-target }}
-      bazel-push-target: ${{ matrix.push-target }}
       # This repository's release configuration, from .bazelrc — chiefly --lockfile_mode=error,
       # so a MODULE.bazel.lock that no longer matches MODULE.bazel fails the release instead of
       # being silently regenerated inside it.
@@ -127,8 +125,6 @@ jobs:
       bazel-image-target: //models/reference/weights_fixture:fixture_image
       bazel-push-target: //models/reference/weights_fixture:fixture_push
       builder: bazel
-      bazel-image-target: ${{ matrix.image-target }}
-      bazel-push-target: ${{ matrix.push-target }}
       # This repository's release configuration, from .bazelrc — chiefly --lockfile_mode=error,
       # so a MODULE.bazel.lock that no longer matches MODULE.bazel fails the release instead of
       # being silently regenerated inside it.
@@ -212,3 +208,25 @@ jobs:
             echo "every digest in rendered/, so a pin that lands before this run finishes fails"
             echo "that job rather than reaching a cluster."
           } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "${WEIGHTS_RESULT}" = "success" ]; then
+            {
+              echo
+              echo "### mindclade-fixture (weights)"
+              echo
+              echo "Mounted as an IMAGE VOLUME, not pulled by an init container, so the pin"
+              echo "goes in spec.volumes rather than spec.containers:"
+              echo
+              echo '```yaml'
+              echo "volumes:"
+              echo "  - name: weights"
+              echo "    image:"
+              echo "      reference: ${WEIGHTS_IMAGE}@${WEIGHTS_DIGEST}"
+              echo "      pullPolicy: IfNotPresent"
+              echo '```'
+              echo
+              echo "Binary Authorization CANNOT see this reference: it evaluates container"
+              echo "images, and an image volume presents none. The Gatekeeper constraints in"
+              echo "gitops/policy are what enforce the digest pin and the attestations here."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi

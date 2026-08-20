@@ -56,6 +56,15 @@ pytest_test(
     ],
 )
 
+pytest_test(
+    name = "build_toolchain_contract_test",
+    srcs = ["tests/test_build_toolchain_contract.py"],
+    data = [
+        "check_build_toolchain_contract.py",
+        "//tools/build/nix:scaffold_files",
+    ],
+)
+
 py_binary(
     name = "check_rust_workspace",
     srcs = ["check_rust_workspace.py"],
