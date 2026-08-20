@@ -55,34 +55,48 @@ mail_domain = "com"
 security_contact = "security@mindclade.com"
 
 # ---------------------------------------------------------------------------
-# Mail. Left unset on purpose.
+# Mail: Google Workspace.
 #
-# While EVERY field here is empty, the com zone gets the same null-MX +
-# reject-all SPF + p=reject DMARC as the other three. That is a safe and correct
-# posture for a domain that does not yet receive mail -- but it means
-# security@mindclade.com bounces, so fill this in before requesting the first
-# production certificate.
+# security@mindclade.com is the ACME account address in
+# cert-manager/base/issuer.yaml, so this MX has to be LIVE before the first
+# production certificate is requested. Let's Encrypt sends expiry warnings
+# there, and the account address is awkward to change afterwards.
 #
-# Setting any one of mx / spf_include / dkim switches the zone out of that
-# posture. A send-only domain is expressible: give it spf_include and dkim but
-# no mx, and it keeps the null-MX (it still receives nothing) while publishing
-# the SPF and DKIM its provider needs to be trusted.
-#
-# Google Workspace:
-#
-# mail = {
-#   mx           = ["1 smtp.google.com."]
-#   spf_include  = ["_spf.google.com"]
-#   dmarc_policy = "none"                        # tighten after reports are clean
-#   dmarc_rua    = "dmarc-reports@mindclade.com"
-#   dkim = {
-#     google = {
-#       selector = "google"
-#       value    = "v=DKIM1; k=rsa; p=<paste from Workspace admin console>"
-#     }
-#   }
-# }
+# One MX host, not the five-host preference list Google used to publish. The
+# single smtp.google.com. record is current Workspace guidance and the old list
+# is still all over the internet; either works, but mixing them does not.
 # ---------------------------------------------------------------------------
+mail = {
+  mx          = ["1 smtp.google.com."]
+  spf_include = ["_spf.google.com"]
+
+  # Start at none and watch the reports before tightening to quarantine and then
+  # reject. Going straight to reject is how a missed sending source -- a billing
+  # system, a CI notifier, anything that sends as @mindclade.com without going
+  # through Workspace -- silently stops being delivered, with the evidence only
+  # in reports nobody is reading yet.
+  dmarc_policy = "none"
+  dmarc_rua    = "dmarc-reports@mindclade.com"
+
+  # DKIM IS DELIBERATELY ABSENT until the key exists.
+  #
+  # The value is generated per domain in Admin console -> Apps -> Google
+  # Workspace -> Gmail -> Authenticate email, and there is no way to predict it.
+  # A placeholder here would not be harmless: it publishes a syntactically valid
+  # record at selector `google` that fails verification, which is worse than no
+  # record at all -- receivers treat a broken signature as a signal, absence as
+  # nothing. Uncomment once you have the real key:
+  #
+  # dkim = {
+  #   google = {
+  #     selector = "google"
+  #     value    = "v=DKIM1; k=rsa; p=<paste the key from the admin console>"
+  #   }
+  # }
+  #
+  # SPF alone still passes DMARC alignment for mail sent through Workspace, so
+  # this ordering is safe.
+}
 
 enable_logging = false
 owner          = "platform"

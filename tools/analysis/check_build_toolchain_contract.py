@@ -84,6 +84,10 @@ def check(root: Path):
                 for x in (
                     ".git",
                     "node_modules",
+                    # Agent worktrees: full COPIES of this repository, so every checker that
+                    # rglobs the tree finds a second (third, twelfth) set of every file and
+                    # reports each one. They are ephemeral and not part of the source.
+                    ".claude",
                     "__pycache__",
                     ".venv",
                     "target",

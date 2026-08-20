@@ -9,6 +9,7 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - priority-classes.yaml
+  - rbac.yaml
   - service-accounts.yaml
 
 labels:

@@ -264,4 +264,36 @@ run "committed_example_evaluates" {
     ])
     error_message = "Every zone must publish CAA; without it any public CA may issue for the domain."
   }
+
+  # The ACME account address in cert-manager/base/issuer.yaml is
+  # security@mindclade.com. If this MX is ever dropped or reverted to the null
+  # MX, that address stops receiving Let's Encrypt expiry warnings and nothing
+  # else reports it -- the failure surfaces as an expired certificate.
+  assert {
+    condition = (
+      output.zone_records["com"]["mx"].rrdatas == tolist(["1 smtp.google.com."]) &&
+      output.zone_records["com"]["spf"].rrdatas == tolist(["v=spf1 include:_spf.google.com -all"])
+    )
+    error_message = "mindclade.com must carry live Google Workspace MX and SPF; the ACME account address depends on it."
+  }
+
+  # crt.sh must show mindclade.studio and never *.mindclade.studio. CAA is what
+  # makes that a rule Let's Encrypt enforces.
+  assert {
+    condition = contains(
+      output.zone_records["studio"]["caa"].rrdatas,
+      "0 issuewild \";\"",
+    )
+    error_message = "mindclade.studio must forbid wildcard issuance via CAA."
+  }
+
+  # The three domains that receive no mail must still say so. Absent records
+  # read as "unconfigured" to a receiver, not as "sends no mail".
+  assert {
+    condition = alltrue([
+      for key in ["studio", "ai", "dev"] :
+      output.zone_records[key]["null_mx"].rrdatas == tolist(["0 ."])
+    ])
+    error_message = "Every non-mail domain must publish a null MX so it cannot be used for spoofing."
+  }
 }

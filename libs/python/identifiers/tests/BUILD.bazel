@@ -1,0 +1,50 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+# The test targets live here rather than in the parent package because this
+# directory carries its own BUILD.bazel and is therefore its own Bazel package —
+# the parent cannot claim `tests/*.py` as srcs across that boundary.
+load("//tools/build:pytest.bzl", "pytest_test")
+
+package(default_visibility = ["//visibility:private"])
+
+pytest_test(
+    name = "test_digest",
+    srcs = ["test_digest.py"],
+    imports = ["../../../.."],
+    deps = ["//libs/python/identifiers"],
+)
+
+pytest_test(
+    name = "test_resource",
+    srcs = ["test_resource.py"],
+    imports = ["../../../.."],
+    deps = ["//libs/python/identifiers"],
+)
+
+pytest_test(
+    name = "test_version",
+    srcs = ["test_version.py"],
+    imports = ["../../../.."],
+    deps = ["//libs/python/identifiers"],
+)
+
+pytest_test(
+    name = "test_artifact",
+    srcs = ["test_artifact.py"],
+    imports = ["../../../.."],
+    deps = ["//libs/python/identifiers"],
+)
+
+# Binds this package to the shared vectors. The cross-language suite checks the
+# fixture is well formed; this checks Python reproduces it byte for byte, which
+# is the assertion that fails when the Python types drift away from Go.
+pytest_test(
+    name = "test_golden_vectors",
+    srcs = ["test_golden_vectors.py"],
+    data = ["//tests/integration/cross_language:golden_fixtures"],
+    imports = ["../../../.."],
+    deps = ["//libs/python/identifiers"],
+)

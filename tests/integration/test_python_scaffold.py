@@ -65,9 +65,30 @@ import pytest
 # This raise is bounded to that migration. It is not licence to add placeholders elsewhere:
 # any further increase has to name its own cause the way this one does, and the honest way to
 # lower it is to implement training/distributed and write the 40 tests.
-SCAFFOLD_BASELINE = 225
+# LOWERED 225 -> 222 by the libs/python Layer 0/1 foundation, which implemented three packages
+# and wrote real tests for each:
+#
+#   libs/python/errors/tests/test_codes.py           -> test_codes, test_retry, test_base
+#   libs/python/identifiers/tests/test_digest.py     -> test_digest, test_resource, test_version,
+#                                                       test_artifact, test_golden_vectors
+#   libs/python/serialization/tests/test_canonical.py -> test_canonical
+#
+# Three placeholders removed, twelve real test modules added. The remaining libs/python
+# scaffolds are deliberate: artifacts, distributed, geometry, observability and testing have no
+# consumer in this tree — there is no torch code yet — and libs/python/ADMISSION.md records the
+# bar each has to clear. config's two placeholders are the next thing to close.
+SCAFFOLD_BASELINE = 222
 
+# Gitignored tool directories. Every entry is something that can hold a copy of the tree
+# without being part of it, which this scan would otherwise count.
+#
+# `.claude` joined the list because it holds agent worktrees — full checkouts of this
+# repository. Two concurrent sessions put 3110 test files under it, and the ratchet counted
+# every one, reporting 2910 scaffolds against a baseline of 225. The gate was not wrong about
+# the tree; it was reading three copies of it. CI never saw this because CI has no worktrees,
+# which is the worst shape for a gate to fail in: unrunnable locally, green remotely.
 _SKIP_DIRS = {
+    ".claude",
     ".git",
     ".mypy_cache",
     ".pytest_cache",

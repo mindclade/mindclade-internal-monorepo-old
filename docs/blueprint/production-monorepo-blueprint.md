@@ -2,7 +2,7 @@
 
 **Status:** Final optimized target architecture  
 **Date:** 2026-08-13  
-**Build graph:** Bazel 9.2.0 with Bzlmod  
+**Build graph:** Bazel 9.1.1 with Bzlmod  
 **Toolchains:** Nix flake pinned by `flake.lock`  
 **Primary numerical runtime:** Python + PyTorch  
 **Accelerator kernel DSL:** TileLang behind qualification gates  

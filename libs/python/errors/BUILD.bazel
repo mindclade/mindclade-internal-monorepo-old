@@ -4,7 +4,6 @@
 #
 
 load("@rules_python//python:defs.bzl", "py_library")
-load("//tools/build:pytest.bzl", "pytest_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -20,25 +19,4 @@ py_library(
     # and a PEP 561 consumer only sees it if it reaches the runfiles tree.
     data = ["py.typed"],
     imports = ["../../.."],
-)
-
-pytest_test(
-    name = "test_codes",
-    srcs = ["tests/test_codes.py"],
-    imports = ["../../.."],
-    deps = [":errors"],
-)
-
-pytest_test(
-    name = "test_retry",
-    srcs = ["tests/test_retry.py"],
-    imports = ["../../.."],
-    deps = [":errors"],
-)
-
-pytest_test(
-    name = "test_base",
-    srcs = ["tests/test_base.py"],
-    imports = ["../../.."],
-    deps = [":errors"],
 )

@@ -68,27 +68,64 @@ jobs:
   # THE WIF IDENTITY IS UNCHANGED. bootstrap binds the attestor service account to
   # `.github/workflows/release.yml` in this repository via a principalSet on the WIF provider,
   # and that binding is on this file's path rather than on what it calls.
-  image:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: go-vanity
-            image-target: //services/go_vanity:image
-            push-target: //services/go_vanity:push
+  # NO MATRIX, and this replaced one — the reason is worth stating because the file used to
+  # say "adding one is an entry in `matrix.include`, not a new workflow", and that stopped
+  # being true the moment there were two.
+  #
+  # GitHub Actions gives a matrix job ONE set of outputs. Every leg writes the same
+  # `outputs.digest` key, and the value the downstream job reads is whichever leg happened to
+  # finish last. With a single entry that is invisible; with two it means the SLSA provenance
+  # job can attest the weights digest under the go-vanity name, or the reverse, and the
+  # resulting attestation is wrong in a way nothing downstream can detect — it is a valid
+  # signature over the wrong subject.
+  #
+  # There is no clean workaround: a reusable-workflow call cannot run a step first, so the
+  # digest cannot be routed through an artifact before it is consumed. Two explicit jobs cost
+  # a duplicated `with:` block and make each digest unambiguous. That trade is not close.
+  image-go-vanity:
     uses: mindclade-org/.github/.github/workflows/reusable-oci-build.yml@v1.2.0
     with:
-      # No tag and no digest — the reusable workflow appends both. The path matches the
-      # `containers` repository that 5-workloads/<env>/artifact-registry creates, and the
-      # variables are declared by github-config's catalogue.
-      #
-      # THE DEVELOPMENT REGISTRY, and only that one. There is one registry per environment by
-      # design (see that unit's header: promotion should be a question about which repository
-      # holds a digest, not about a mutable tag), which means promoting an image to staging or
-      # production is a digest COPY between registries. Nothing does that copy yet — the
-      # gitops repo promotes rendered manifests, not images — so this pushes where the image
-      # is built and the gap is named rather than papered over.
-      image: ${{ vars.ARTIFACT_REGISTRY_HOST }}/${{ vars.DEV_PLATFORM_PROJECT_ID }}/containers/${{ matrix.name }}
+      image: ${{ vars.ARTIFACT_REGISTRY_HOST }}/${{ vars.DEV_PLATFORM_PROJECT_ID }}/containers/go-vanity
+      bazel-image-target: //services/go_vanity:image
+      bazel-push-target: //services/go_vanity:push
+      builder: bazel
+      bazel-image-target: ${{ matrix.image-target }}
+      bazel-push-target: ${{ matrix.push-target }}
+      # This repository's release configuration, from .bazelrc — chiefly --lockfile_mode=error,
+      # so a MODULE.bazel.lock that no longer matches MODULE.bazel fails the release instead of
+      # being silently regenerated inside it.
+      bazel-args: --config=ci
+      # NO `platforms:` INPUT. That one is buildx's. Under the bazel builder the target platform
+      # is a property of the artifact — goos/goarch on the go_binary and the
+      # @distroless_static_linux_amd64 base, both in //services/go_vanity — so setting it here
+      # would be a second declaration of the same fact, unread and free to drift from the real
+      # one.
+      push: ${{ github.event_name == 'push' || inputs.push }}
+      workload-identity-provider: ${{ vars.WIF_PROVIDER }}
+      service-account: ${{ vars.SA_ATTESTOR }}
+      attestor: ${{ vars.ATTESTOR }}
+      attestor-project: ${{ vars.ATTESTOR_PROJECT }}
+      attestor-key: ${{ vars.ATTESTOR_KEY }}
+
+
+  # Model weights as an OCI artifact, mounted by the serving pod as a Kubernetes image volume.
+  # See tools/build/bazel/rules/release.bzl for why a volume rather than an `oras` pull in an
+  # init container: Binary Authorization does not enforce init containers.
+  #
+  # A SYNTHETIC FIXTURE, and its own manifest says so. There are no trained weights in this
+  # repository yet; the distribution and admission machinery is independent of the model and
+  # has to exist before the first real checkpoint does. A real model gets its own job here
+  # with the same shape.
+  #
+  # A DIFFERENT REPOSITORY — `weights`, not `containers`. Weights and container images have
+  # different retention, different size profiles and different readers, and a cleanup policy
+  # written for images must not be able to delete a model.
+  image-weights:
+    uses: mindclade-org/.github/.github/workflows/reusable-oci-build.yml@v1.2.0
+    with:
+      image: ${{ vars.ARTIFACT_REGISTRY_HOST }}/${{ vars.DEV_PLATFORM_PROJECT_ID }}/weights/mindclade-fixture
+      bazel-image-target: //models/reference/weights_fixture:fixture_image
+      bazel-push-target: //models/reference/weights_fixture:fixture_push
       builder: bazel
       bazel-image-target: ${{ matrix.image-target }}
       bazel-push-target: ${{ matrix.push-target }}
@@ -116,7 +153,7 @@ jobs:
   # revision, the builder, the parameters — and is what makes "was this built from the commit
   # it claims" answerable months later.
   provenance:
-    needs: image
+    needs: image-go-vanity
     if: github.event_name == 'push' || inputs.push
     uses: mindclade-org/.github/.github/workflows/reusable-slsa-provenance.yml@v1.1.0
     permissions:
@@ -126,7 +163,7 @@ jobs:
       contents: write
     with:
       image: ${{ vars.ARTIFACT_REGISTRY_HOST }}/${{ vars.DEV_PLATFORM_PROJECT_ID }}/containers/go-vanity
-      digest: ${{ needs.image.outputs.digest }}
+      digest: ${{ needs.image-go-vanity.outputs.digest }}
       workload-identity-provider: ${{ vars.WIF_PROVIDER }}
       service-account: ${{ vars.SA_ATTESTOR }}
 
@@ -140,15 +177,18 @@ jobs:
   #
   # So this step publishes the exact line to change, and stops.
   digest:
-    needs: [image, provenance]
-    if: always() && needs.image.result == 'success'
+    needs: [image-go-vanity, image-weights, provenance]
+    if: always() && needs.image-go-vanity.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Publish the digest to pin
         env:
           IMAGE: ${{ vars.ARTIFACT_REGISTRY_HOST }}/${{ vars.DEV_PLATFORM_PROJECT_ID }}/containers/go-vanity
-          DIGEST: ${{ needs.image.outputs.digest }}
+          DIGEST: ${{ needs.image-go-vanity.outputs.digest }}
+          WEIGHTS_IMAGE: ${{ vars.ARTIFACT_REGISTRY_HOST }}/${{ vars.DEV_PLATFORM_PROJECT_ID }}/weights/mindclade-fixture
+          WEIGHTS_DIGEST: ${{ needs.image-weights.outputs.digest }}
+          WEIGHTS_RESULT: ${{ needs.image-weights.result }}
         run: |
           set -euo pipefail
           {

@@ -15,6 +15,8 @@ infra/terraform/environments/dns_hub/
 ├── terraform.tfvars.example   the filled-in form for mindclade.*
 ├── versions.tf                provider pins, matching modules/dns
 ├── backend.tf                 partial GCS backend (bucket supplied at init)
+├── bootstrap.sh               project, state bucket, and Terraform SA
+├── tests/                     terraform test suite (mock provider, no credentials)
 └── outputs.tf                 name servers + ready-to-paste dig commands
 ```
 
@@ -129,12 +131,26 @@ Use a bucket with **object versioning enabled**. This state holds the delegation
 for every domain the company owns; recovering from a bad apply is a restore.
 
 The project must already exist — neither this root nor `modules/dns` creates
-one, so that losing a delegation cannot be a side effect of a project refactor:
+one, so that losing a delegation cannot be a side effect of a project refactor.
+Nor can Terraform create the bucket its own state lives in, or the service
+account it runs as. `bootstrap.sh` does all three, idempotently:
 
 ```bash
-gcloud projects create mc-common-dns --name="Mindclade DNS"
-gcloud services enable dns.googleapis.com --project=mc-common-dns
+BILLING_ACCOUNT=XXXXXX-XXXXXX-XXXXXX ./bootstrap.sh
 ```
+
+It is safe to re-run: every step checks for the resource first, nothing is
+deleted, and a partial failure can be fixed and the script run again. Set
+`ORGANIZATION_ID` or `FOLDER_ID` to place the project under a parent, and
+`PROJECT_ID` / `STATE_BUCKET` to use different names. It stops rather than
+continuing if no billing account is linked, because Cloud DNS cannot be enabled
+without one and a project that looks bootstrapped but is not is worse than a
+failure.
+
+It creates no service account **key**. The grant is
+`roles/iam.serviceAccountTokenCreator` to your own account, so applies mint a
+short-lived token rather than relying on a private key that lives until someone
+remembers to rotate it.
 
 `project_id` must match `solvers[].dns01.cloudDNS.project` in
 `infra/kubernetes/platform/cert-manager/base/issuer.yaml`. cert-manager looks
@@ -196,13 +212,47 @@ Mail posture on a non-mail domain — should be exactly `0 .`:
 dig +short MX mindclade.ai @1.1.1.1
 ```
 
-DNSSEC is enabled on all four zones. The DS record has to be published **at the
-registrar** to have any effect, and Squarespace may not support it; an unsigned
-delegation is not an error, just an unrealised control. Check with:
+## DNSSEC
 
-```bash
-dig +short DS mindclade.studio @1.1.1.1
-```
+DNSSEC is enabled on all four zones, but a signed zone does nothing until the
+**DS record is published at the registrar** — that is the link that ties the
+zone's key to the parent TLD. Until then the zone is signed and no resolver
+validates it.
+
+Squarespace supports this. Switching a domain to custom nameservers
+automatically disables Squarespace's own DNSSEC (their signing is for their
+nameservers, which are no longer answering), after which you can add up to eight
+DS or DNSKEY records from a third-party provider.
+
+**Order matters, and getting it wrong takes the domain down.** A DS record that
+does not match the zone's actual key makes every validating resolver return
+SERVFAIL for the entire domain — not a degraded answer, no answer. So:
+
+1. Delegate first and confirm `dig NS` answers with the Google name servers.
+2. Only then read the DS data out of Cloud DNS:
+
+   ```bash
+   gcloud dns dns-keys list --zone=studio --project=mc-common-dns \
+     --filter="type=keySigning" --format="value(ds_record())"
+   ```
+
+3. Paste it into **Domains → \<domain\> → DNS → DNSSEC** in Squarespace.
+4. Verify the chain actually validates — `dig` alone will not tell you:
+
+   ```bash
+   dig +short DS mindclade.studio @1.1.1.1        # the record exists
+   dig +dnssec +cd mindclade.studio @1.1.1.1      # signatures are present
+   ```
+
+   For a real chain-of-trust check use <https://dnsviz.net/> or
+   <https://dnssec-analyzer.verisignlabs.com/>, which walk the delegation from
+   the root and report a broken link explicitly.
+
+**Before ever deleting a zone or migrating a domain away, remove the DS record
+first** and wait for its TTL to expire. Deleting a signed zone while the parent
+still advertises its DS is the same outage as publishing a wrong one, and the
+zone carries `prevent_destroy` precisely because that mistake is unrecoverable
+in the time anyone would like.
 
 ## Next
 

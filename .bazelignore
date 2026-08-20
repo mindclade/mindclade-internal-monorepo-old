@@ -35,3 +35,13 @@ result
 # them, but .bazel-cache is a plain directory that .gitignore creates room for and Bazel would
 # otherwise walk.
 .bazel-cache
+
+# Agent scratch worktrees. Each is a full `git worktree` checkout of this repository, so a
+# package inside one duplicates every label in the real tree.
+#
+# Bazel skips them TODAY only by accident: each worktree happens to contain its own
+# MODULE.bazel, which makes it a nested workspace boundary. A worktree created without one --
+# a partial or sparse checkout -- would be walked, and `//...` would fail on duplicate
+# packages rather than on anything a developer changed. Naming the directory makes the skip
+# intentional instead of incidental.
+.claude/worktrees

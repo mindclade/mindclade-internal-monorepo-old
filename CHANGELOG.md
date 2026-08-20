@@ -24,8 +24,11 @@ actually fixing rather than by date.
   BUILD file already carried `@org_golang_*`-style labels that resolved to nothing, so no Go
   target could be built — invisible because `go test` was doing the work and nothing asked
   Bazel;
-- pinned `.bazelversion` to 8.4.2: rules_go 0.51 does not load under Bazel 9, so an unpinned
-  launcher failed analysis with a Starlark error naming a file nobody here wrote;
+- pinned `.bazelversion`, which did not exist, so bazelisk stopped choosing a Bazel per
+  machine. It went to 8.4.2 first — rules_go 0.51 does not load under Bazel 9, `cross.bzl`
+  using APIs it removed — and then to 9.1.1 once the rules_go 0.63.0 bump below removed that
+  constraint. 9.1.1 is what `tools/build/nix/versions.nix` declares, and
+  `checks/bazel-version.nix` now fails the build when the two disagree;
 - added `.pre-commit-config.yaml`, the licence-header hook every other repository in the
   estate had carried since it was created and this one — the one with the most source in it —
   did not;

@@ -1,0 +1,87 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+# No Role, ClusterRole, RoleBinding, or ClusterRoleBinding is declared here yet, and for this
+# namespace that is the least-privilege result rather than an omission.
+#
+# RBAC is additive: it has no deny rule, so every object this file could hold would be a
+# grant, and a grant is least-privilege only when a named subject is bound to verbs derived
+# from calls that subject actually makes. Neither half of that pair is available yet.
+#
+# There is no subject to bind. `base/service-accounts.yaml` declares only the namespace
+# `default` ServiceAccount, deliberately pinned to `automountServiceAccountToken: false`.
+# Every `services/*/service-account.yaml` is still an unmaterialized scaffold, so no
+# control-plane, worker, node-agent, gateway, or proxy identity exists to name in a
+# roleRef's subject list. Binding the rules to `default` instead is not a way around this;
+# see the first requirement below.
+#
+# Nothing can exercise a grant. `policies/resource-quotas.yaml` pins `pods: "0"`, and
+# `base/namespace.yaml` carries
+# `mindclade.dev/workload-activation: blocked-pending-release-evidence`.
+
+# What the code actually asks the API server for, as of this revision. The control plane does
+# hold real client wiring — `services/control_plane/internal/providers/cluster/` builds a REST
+# config, a controller-runtime client, and a discovery client — so the question is not whether
+# Kubernetes access exists but how narrow the reachable surface currently is.
+#
+#   - Discovery only, for readiness. `Readiness` calls `kubeclient.Probe`, which is
+#     `ServerVersion()` against `/version`. The cluster's own bootstrap
+#     `system:public-info-viewer` binding already covers `system:authenticated` for that
+#     endpoint, and it is a non-resource URL, so no namespaced rule here would apply to it.
+#   - Event writes, once a role opts in. `Cluster.Recorder` sinks through
+#     `typed.CoreV1().Events("")`, so a role that records reconcile outcomes needs `create`
+#     and `patch` on `events` in the core API group. This is the grant to expect first, and
+#     it is reachable only after a workload runs.
+#   - No object reads or writes beyond that. No controller is registered against any manager
+#     anywhere in the tree — there is no `SetupWithManager`, `For(...)`, `Owns(...)`, or
+#     `Watches(...)` call — so the manager's cache watches nothing and no type's
+#     get/list/watch can be justified. `newManager` in
+#     `services/control_plane/internal/providers/controller/manager.go` also sets
+#     `LeaderElection: false`, and leadership is a storage lease taken through
+#     `libs/go/storage/lease`, not a Kubernetes object. `coordination.k8s.io` appears nowhere
+#     in the Go tree, so the `leases` rule that controller-runtime scaffolds normally carry
+#     would be dead permission here. Do not add it back by reflex.
+#   - Kueue and JobSet cannot be sized at all. `control/orchestration/adapters/kubernetes/`
+#     and `control/scheduling/adapters/{jobset,kueue}/` are scaffold stubs that construct no
+#     client and issue no request, and `platform/kueue/` and `platform/jobset/` are scaffolds
+#     too, so the `kueue.x-k8s.io` and `jobset.x-k8s.io` CRDs are not installed. Their verbs
+#     could only be copied from upstream bundles, which describe those projects' needs and
+#     not ours.
+#
+# So the file stays declaration-free until a grant follows from observed behaviour, matching
+# the stance `configmaps.yaml` and `runtime-classes.yaml` take in this directory. An
+# over-broad binding that lands ahead of its workload is also harder to withdraw than to add,
+# because by the time the workload arrives the binding reads as an existing dependency.
+#
+# It is still listed in `kustomization.yaml`. The file renders to nothing today, so the base
+# output is unchanged; wiring it up front means the first real grant takes effect when it is
+# added here rather than silently never deploying because the resources list went unedited.
+
+# Adding the first grant. Each entry is a requirement, not a suggestion.
+#
+#   - Materialize the owning `services/<name>/service-account.yaml` first and bind that named
+#     ServiceAccount. Never grant to `default`: it is the identity a pod receives when it
+#     names none, so a grant there is inherited by anything later deployed without a
+#     ServiceAccount, including workloads never reviewed for it.
+#   - Derive rules from observed API traffic — an audit-log or `kubectl auth can-i --list`
+#     capture from a real run — and cite that evidence in review.
+#   - Enumerate apiGroups, resources, and verbs explicitly. No `*` in any of the three, and
+#     no `escalate`, `bind`, or `impersonate`, which let a holder mint authority beyond the
+#     grant that was reviewed. Prefer `get`/`list`/`watch`, add mutating verbs per resource
+#     only where a write path is demonstrated, and scope to `resourceNames` where the object
+#     set is known and fixed.
+#   - Default to a namespaced Role plus RoleBinding in `mindclade-system`. Reach for a
+#     ClusterRole only when the resource is genuinely cluster-scoped — nodes, namespaces,
+#     storageclasses, CRDs themselves — or when one definition is bound into several
+#     namespaces, and record which case applies in a comment on the object. Even then, a
+#     ClusterRole bound by a RoleBinding is the narrower pairing whenever the access is
+#     confined to one namespace: a ClusterRoleBinding grants across every namespace in the
+#     cluster, including ones created later.
+#   - Keep the subresource split honest. `.../status` and `.../finalizers` are separate
+#     resources, and a controller that only reports progress needs the status write without
+#     the spec write.
+#   - Confirm the owning release has lifted the namespace's `pods: "0"` quota and its
+#     activation annotation. A grant that precedes its workload cannot have been exercised,
+#     and so cannot have been verified.

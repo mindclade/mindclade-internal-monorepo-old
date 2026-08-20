@@ -152,3 +152,114 @@ path = "control/registry/models"
 status = "implemented"
 owner = "platform-control"
 tests = ["control/registry/models/service_test.go"]
+
+# ---------------------------------------------------------------------------------------
+# Reserved-but-unimplemented domains
+# ---------------------------------------------------------------------------------------
+# Registered so the maturity gate can see them. An unregistered path is neither pass nor
+# fail — it is invisible, which is the one state ADR-0021 has no answer for. Each entry
+# below is `scaffolded` because its non-test sources declare zero functions or classes and
+# its BUILD.bazel is the scaffold `filegroup`; that is materialized space, not capability.
+
+[[component]]
+name = "evaluation"
+path = "evaluation"
+status = "scaffolded"
+owner = "training-platform"
+
+[[component]]
+name = "kernels"
+path = "kernels"
+status = "scaffolded"
+owner = "biology-ml"
+
+# The `data` umbrella, not `data/curation`. Curation is the one implemented package in this
+# tree and stays declared separately above as `data.curation`; everything else under `data/`
+# — connectors, contracts, datasets, ingestion, loaders, quality, reference, tokenizers and
+# the root modules — is reserved space.
+[[component]]
+name = "data"
+path = "data"
+status = "scaffolded"
+owner = "data-platform"
+
+# ---------------------------------------------------------------------------------------
+# libs/python
+# ---------------------------------------------------------------------------------------
+# Registered per subpackage rather than as one `libs/python` umbrella. The tree is mixed —
+# three packages are real and seven are scaffold — so a single umbrella entry would have to
+# lie in one direction or the other whatever status it claimed.
+
+[[component]]
+name = "libs.python.errors"
+path = "libs/python/errors"
+status = "implemented"
+owner = "platform-control"
+tests = [
+    "libs/python/errors/tests/test_base.py",
+    "libs/python/errors/tests/test_codes.py",
+    "libs/python/errors/tests/test_retry.py",
+]
+
+[[component]]
+name = "libs.python.worker_runtime"
+path = "libs/python/worker_runtime"
+status = "implemented"
+owner = "platform-control"
+tests = [
+    "libs/python/worker_runtime/tests/test_executor.py",
+    "libs/python/worker_runtime/tests/test_workload.py",
+]
+
+# `experimental`, not `implemented`, and the gap is the point. The loader, merge, override,
+# fingerprint and validation modules are real code with a real digest-stability test, but
+# the package's BUILD.bazel is still the scaffold `filegroup` and two of its three test
+# modules are `@pytest.mark.scaffold` placeholders. ADR-0018 wants a Bazel target before
+# `implemented`, so this is where it honestly sits until one exists.
+[[component]]
+name = "libs.python.config"
+path = "libs/python/config"
+status = "experimental"
+owner = "platform-control"
+
+# ---------------------------------------------------------------------------------------
+# serving
+# ---------------------------------------------------------------------------------------
+# Also per subpackage. `serving/runtime` (Rust) and `serving/contracts` are declared above
+# as `runtime.serving_core` and `serving.contracts`; these are the remaining packages.
+
+[[component]]
+name = "serving.model_worker"
+path = "serving/model_worker"
+status = "implemented"
+owner = "runtime-platform"
+tests = [
+    "serving/model_worker/tests/test_batching.py",
+    "serving/model_worker/tests/test_model_loader.py",
+    "serving/model_worker/tests/test_training_parity.py",
+    "serving/model_worker/tests/test_worker.py",
+]
+
+[[component]]
+name = "serving.batch"
+path = "serving/batch"
+status = "scaffolded"
+owner = "runtime-platform"
+
+[[component]]
+name = "serving.rollouts"
+path = "serving/rollouts"
+status = "scaffolded"
+owner = "runtime-platform"
+
+[[component]]
+name = "serving.safety"
+path = "serving/safety"
+status = "scaffolded"
+owner = "runtime-platform"
+
+[[component]]
+name = "serving.testing"
+path = "serving/testing"
+status = "scaffolded"
+owner = "runtime-platform"

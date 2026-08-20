@@ -300,9 +300,13 @@ jobs:
         with:
           persist-credentials: false
 
-      # Reads .bazelversion. rules_go 0.51 does not load under Bazel 9 — `cross.bzl` uses
-      # APIs it removed — so an unpinned launcher fails at analysis with an error about a
-      # Starlark file nobody in this repository wrote.
+      # Reads .bazelversion, which tools/build/nix/versions.nix owns and
+      # checks/bazel-version.nix asserts. Without the pin bazelisk picks a Bazel per machine,
+      # and the version that gates a PR stops being the version anyone runs locally.
+      #
+      # It was briefly held at 8.4.2 because rules_go 0.51 does not load under Bazel 9 —
+      # `cross.bzl` uses APIs it removed. rules_go 0.63.0 lifted that, and the tree now loads
+      # all 967 targets under 9.1.1.
       - uses: bazel-contrib/setup-bazel@4fd964a13a440a8aeb0be47350db2fc640f19ca8  # v0.15.0
         with:
           bazelisk-cache: true

@@ -60,9 +60,9 @@ import pytest
 # LOWERED 49 -> 46 by the release-engineering sweep, which materialized three of the reserved
 # root and workflow paths with real content rather than stubs:
 #
-#   .bazelversion                        rules_go 0.51 does not load under Bazel 9, so an
-#                                        unpinned launcher fails analysis with a Starlark
-#                                        error naming a file nobody here wrote.
+#   .bazelversion                        an unpinned launcher lets bazelisk pick a Bazel per
+#                                        machine. Pinned to 9.1.1, the version
+#                                        tools/build/nix/versions.nix declares.
 #   .github/workflows/release.yml        the image build, sign and attest chain. The filename
 #                                        is load-bearing: bootstrap binds the attestor
 #                                        identity to this exact path.
@@ -97,7 +97,7 @@ import pytest
 #        of an unrelated pull request can act on, which is the exact failure mode this file's
 #        opening comment exists to prevent.
 #
-# LOWERED 114 -> 20 by the manifest reconciliation in 1a3b46c, which is the edit the note
+# LOWERED 114 -> 17 by the manifest reconciliation in 1a3b46c, which is the edit the note
 # directly above was waiting for. It did not materialize anything; it corrected the manifest to
 # the layout that shipped, so the two migrations named above stopped being counted as missing
 # work:
@@ -116,14 +116,14 @@ import pytest
 #   workflows/{gpu,nightly} (2)   waiting on self-hosted runners, per presubmit.yml.
 #   base/network-policies.yaml    relocated to policies/network-policies.yaml.
 #
-# The 20 that remain are real, and split two ways: 12 files nobody has written
+# The 17 that remain are real, and split two ways: 12 files nobody has written
 # (.github/ISSUE_TEMPLATE/* and four .github metadata files, infra/kubernetes/base/rbac.yaml),
 # and the rest gone missing under the in-flight libs/python restructuring, which belongs to
 # whoever owns that work -- that group is still moving, so re-measure before trusting a split.
 # This number is now a tight floor rather than 90 counts of slack. The assertion below is
 # two-sided on purpose: lower it as these close, and do not raise it without saying which
 # movement raised it.
-MATERIALIZATION_BASELINE = 20
+MATERIALIZATION_BASELINE = 17
 
 
 def _load_checker(root: Path):

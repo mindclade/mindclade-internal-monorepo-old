@@ -55,7 +55,7 @@ class MindcladeError(Exception):
     code that understood the failure has published it.
     """
 
-    __slots__ = ("_code", "_message", "_reason", "_operation", "_fields", "_retry", "_cause")
+    __slots__ = ("_cause", "_code", "_fields", "_message", "_operation", "_reason", "_retry")
 
     def __init__(
         self,
@@ -142,6 +142,14 @@ class FailedPrecondition(MindcladeError, ValueError):
     def __init__(self, message: str = "", **kwargs: object) -> None:
         kwargs.pop("code", None)
         super().__init__(Code.FAILED_PRECONDITION, message, **kwargs)  # type: ignore[arg-type]
+
+
+class ResourceExhausted(MindcladeError):
+    """A bounded resource — quota, counter space, buffer — has no room left."""
+
+    def __init__(self, message: str = "", **kwargs: object) -> None:
+        kwargs.pop("code", None)
+        super().__init__(Code.RESOURCE_EXHAUSTED, message, **kwargs)  # type: ignore[arg-type]
 
 
 class DeadlineExceeded(MindcladeError):

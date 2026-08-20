@@ -48,5 +48,29 @@ pkgs.runCommand "mindclade-bazel-version" { } ''
     exit 1
   fi
 
+  # The blueprint states the Bazel version in its header, and prose drifts in a way a pin
+  # file does not: nothing loads a Markdown heading, so nothing objects when it goes stale.
+  # It said 9.2.0 while versions.nix said 9.1.1, which is how a reader ends up reasoning
+  # about a Bazel this repository has never run.
+  blueprint="${root}/docs/blueprint/production-monorepo-blueprint.md"
+
+  if [ -f "$blueprint" ]; then
+    stated="$(sed -n 's/^\*\*Build graph:\*\* Bazel \([0-9.]*\) .*/\1/p' "$blueprint" | head -1)"
+
+    test -n "$stated" || {
+      echo "bazel-version: could not read the Bazel version from $blueprint." >&2
+      echo "Expected a line like: **Build graph:** Bazel $declared with Bzlmod" >&2
+      exit 1
+    }
+
+    if [ "$stated" != "$declared" ]; then
+      echo "bazel-version: the blueprint states a Bazel version nothing else in the tree uses." >&2
+      echo "  tools/build/nix/versions.nix  bazel = \"$declared\"" >&2
+      echo "  $blueprint  Bazel $stated" >&2
+      echo "versions.nix is the source (ADR-0002); update the blueprint header to match it." >&2
+      exit 1
+    fi
+  fi
+
   touch "$out"
 ''

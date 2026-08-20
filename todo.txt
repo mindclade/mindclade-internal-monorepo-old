@@ -1,16 +1,14 @@
 What's left
 
-1. cloud.google.com/go/pubsub in go.mod (needs a connected environment) — then the memory branch goes back to tests; it's a one-function swap.
-2. rules_go supporting Go 1.26 — until then Bazel compiles against 1.22.7 while go.mod pins 1.26.0, which is why httpx/middleware is the last failing target. Analysis is in MODULE.bazel.
-3. Done. All twelve roles are materialized and every command links a real
-   factory. admin reuses the api factory and operator reuses the controller's;
-   ingestion-controller and maintenance are their own. cmd/maintenance did not
-   exist and was created.
-   Shared providers live in sibling packages (durable, broker, cluster, apikeys,
-   objects) so a role links only what it uses.
-   UNCONSUMED.toml is down to four entries: cursortest, workqueuetest,
-   messaging/pubsub, and obstest.
-   Open questions:
+1. cloud.google.com/go/pubsub in go.mod (needs a connected environment) — then the memory branch goes back to tests; it's a one-function swap. libs/go/messaging/pubsub stays waived in UNCONSUMED.toml until then.
+
+2. Control-plane roles are done: all twelve are materialized and every command
+   links a real factory. admin reuses the api factory and operator reuses the
+   controller's; ingestion-controller and maintenance are their own. Shared
+   providers live in sibling packages (durable, broker, cluster, apikeys,
+   objects) so a role links only what it uses. UNCONSUMED.toml is down to four
+   entries: cursortest, workqueuetest, messaging/pubsub, obstest.
+   Open questions, unchanged:
    - CONSUMPTION.md names maintenance as the migration process, but registry
      owns the manifest. Moving it is a deployment change; nothing runs two
      runners today.
@@ -19,4 +17,57 @@ What's left
    - Every domain seam is still a fail-closed default: placement (scheduler),
      projection source and handler (event-projector), delivery (webhook),
      staging (ingestion), housekeeping (maintenance).
-4. services/go_vanity/Dockerfile — the only failing architecture check, from the other session's commit b8a77af. Needs MINDCLADE_DEV_ONLY=1 or an OCI target. I left it alone.
+
+3. libs/python/identifiers is mid-write and is the only thing failing Bazel.
+   Three targets in its BUILD name test files that do not exist yet
+   (test_version, test_artifact, test_golden_vectors); test_resource.py's
+   test_a_same_millisecond_burst_is_monotonic_and_unique fails on an assertion;
+   and it references //tests/integration/cross_language/fixtures:primitives_v1.json,
+   a label whose package does not exist — the fixtures live in
+   //tests/integration/cross_language. Everything outside this package is green
+   at 230/230. Left alone deliberately: the files were appearing while the run
+   was in progress, so editing it would collide with whoever owns it.
+
+4. The scaffold tests/BUILD.bazel pattern is repo-wide, not a libs/python quirk:
+   ~130 files across data, evaluation, kernels, models, preprocessing, serving,
+   training and services/workers. A BUILD.bazel under tests/ makes it a
+   subpackage, so the parent's `srcs = ["tests/test_x.py"]` becomes an invalid
+   label the moment a package is promoted from scaffold to real targets — which
+   is what broke libs/python/errors and libs/python/identifiers in succession.
+   The nine under libs/python are removed. The remaining ~120 are a pending
+   decision, not an oversight: they sit in directories under active edit, and
+   deleting them is only worth doing as one deliberate sweep. Nothing references
+   the scaffold_files filegroups, and no gate requires the files —
+   check_component_maturity looks for building rules and filegroup is not one.
+
+5. Presubmit does not catch missing Bazel deps, which is how the repo-wide build
+   came to be broken in four separate places at once. Specifically:
+   - check_cargo_bazel_alignment.py has no notion of dev-dependencies or
+     rust_test, so three Rust test targets were missing deps that Cargo.toml
+     declared (bio_formats, ipc, artifact_proxy).
+   - Nothing compares Go imports against go_library/go_test deps; two targets
+     were missing them (transport, providers/api).
+   - Nothing compares proto imports against proto_library deps, and no
+     proto_library had strip_import_prefix at all, so every cross-file proto
+     import was unresolvable.
+   - Nothing checks that a Go package directory has a BUILD.bazel; two did not
+     (providers/ingestion, providers/maintenance).
+   Each was found by a throwaway script comparing sources against declared deps.
+   Turning those three sweeps into real checks is the durable fix; they are
+   cheap and they each caught real breakage on the first run.
+
+6. run_architecture_checks.py still fails, and only on .claude/worktrees/* —
+   agent scratch checkouts of the whole repository that the checkers walk.
+   8f4bd0d addressed part of this ("stop the repository validator walking
+   vendored trees") but check_build_toolchain_contract.py and check_go_modules.py
+   still descend into them. The repository's own tree is clean: 17 PASS with the
+   worktree lines filtered out. Bazel itself is safe here — .claude/worktrees is
+   in .bazelignore now, rather than relying on each worktree happening to carry
+   its own MODULE.bazel.
+
+7. services/go_vanity deliberately does not consume libs/go. Its doc comment
+   claims no dependencies beyond the standard library because every build in the
+   organization resolves through it, so it hand-rolls the lifecycle, signal
+   handling and env reading that servicekit, httpx and config own. That is a
+   stated design decision, not drift — left alone rather than "fixed", but worth
+   revisiting if the stdlib-only claim ever stops being load-bearing.

@@ -3,6 +3,9 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
+load("//tools/build:pytest.bzl", "pytest_test")
+
 package(default_visibility = ["//visibility:private"])
 
 filegroup(
@@ -12,4 +15,41 @@ filegroup(
         exclude = ["BUILD.bazel"],
     ),
     visibility = ["//visibility:public"],
+)
+
+# The one materialized tool in this directory; the other eighteen are still SCAFFOLD_PATH
+# stubs. Kept as its own py_binary rather than folded into a glob over the package, so that
+# building it does not depend on nineteen files of which eighteen do nothing.
+#
+# NO DEPS. It parses the safetensors header directly rather than importing safetensors, and
+# never imports torch — see the module docstring. A tool whose purpose is to avoid
+# deserializing untrusted tensors should not pull in the library that deserializes them, and
+# depending on torch here would put a multi-gigabyte CUDA closure in the release path.
+# A library as well as a binary, because the fixture generator in
+# //models/reference/weights_fixture stages through build() rather than reimplementing it.
+# `imports` makes this directory a sys.path root, so that consumer writes a plain
+# `from build_model_bundle import build` instead of reaching for the source file by path.
+py_library(
+    name = "build_model_bundle_lib",
+    srcs = ["build_model_bundle.py"],
+    imports = ["."],
+    visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "build_model_bundle",
+    srcs = ["build_model_bundle.py"],
+    visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "emit_annotations",
+    srcs = ["emit_annotations.py"],
+    visibility = ["//visibility:public"],
+)
+
+pytest_test(
+    name = "build_model_bundle_test",
+    srcs = ["tests/test_build_model_bundle.py"],
+    deps = [":build_model_bundle_lib"],
 )
