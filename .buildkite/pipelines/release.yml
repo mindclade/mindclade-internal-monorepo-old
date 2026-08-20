@@ -1,0 +1,36 @@
+---
+steps:
+  - label: ":package: release build gate"
+    key: artifact-build
+    command: >-
+      nix develop .#release --command tools/dev/bazelw test
+      //tools/release/... //tools/qualification/...
+    timeout_in_minutes: 180
+    agents:
+      queue: cpu
+
+  - label: ":test_tube: release qualification gate"
+    key: artifact-qualify
+    depends_on: artifact-build
+    command: >-
+      nix develop .#release --command tools/dev/bazelw test
+      //qualification/... //tests/integration/...
+    timeout_in_minutes: 240
+    agents:
+      queue: cpu
+
+  - block: ":lock: promotion implementation required"
+    key: artifact-promote-approval
+    depends_on: artifact-qualify
+    prompt: >-
+      Promotion remains fail-closed until tools/release/promote.py creates a reviewed
+      digest-only pull request in mindclade/gitops.
+
+  - label: ":no_entry: fail-closed promotion"
+    key: artifact-promote
+    depends_on: artifact-promote-approval
+    command: >-
+      sh -c 'echo "artifact promotion is not implemented; refusing direct deployment" >&2;
+      exit 1'
+    agents:
+      queue: cpu

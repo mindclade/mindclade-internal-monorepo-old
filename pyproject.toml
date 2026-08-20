@@ -8,18 +8,38 @@ name = "mindclade-internal"
 version = "0.0.0"
 description = "Mindclade internal monorepo for biomolecular data, training, evaluation, and inference"
 requires-python = ">=3.12"
-dependencies = []
+
+# Runtime dependencies. This list was empty until the model work started, and the comment here
+# used to say the tree was stdlib-only "by design ... and must stay that way". That was a
+# scaffold-phase convenience, not an architectural decision, and it contradicted ADR-0007, which
+# assigns Python the numerical authority and names TorchTitan and Fabric as adapters behind
+# Mindclade-owned contracts. You cannot have either without torch.
+#
+# Deliberately small. Every entry is load-bearing for a slice that exists or is being built;
+# nothing is here to reserve a name. Add on demand, not in anticipation — ADR-0018 treats
+# empty horizontal creation as a false implementation claim, and a dependency nothing imports
+# is exactly that.
+#
+# safetensors rather than torch's native `.pt`: `torch.load` unpickles, and unpickling is
+# arbitrary code execution. Weights cross an admission boundary as OCI artifacts and are
+# mounted read-only into serving pods, so the deserializer has to be one that cannot execute
+# what it reads. This matters more here than in most places — the biosecurity attestor is
+# meaningless if loading an attested artifact can run code.
+dependencies = [
+    "torch>=2.9",
+    "numpy>=2.1",
+    "safetensors>=0.6",
+]
 
 # The lint and test tooling CI runs. Pinned exactly: an unpinned linter turns an unrelated
 # release into a red build on a PR that changed nothing, and `ruff format` output is only
 # stable within a version.
-#
-# Nothing here is a runtime dependency — the Python in this repo is stdlib-only by design,
-# which is why `dependencies` above is empty and must stay that way.
 [dependency-groups]
 dev = [
+    "hypothesis==6.161.6",
+    "mypy==2.3.1",
     "ruff==0.14.6",
-    "pytest==9.0.1",
+    "pytest==9.0.3",
 ]
 
 [tool.uv]
@@ -30,20 +50,65 @@ package = false
 # (models/.../tests/test_attention.py and serving/.../tests/test_worker.py style). Under the
 # default prepend mode pytest imports them by basename and collection dies on the collision;
 # importlib mode imports by path and does not require __init__.py in every tests/ directory.
-addopts = "-ra --strict-config --strict-markers --import-mode=importlib"
+# -m 'not nightly' so the default run is the one a pull request gates on. Tests marked nightly
+# measure the distance to a target state rather than asserting correctness; they are meant to
+# report, not to block. The nightly lane selects them with `pytest -m nightly`, which overrides
+# this because pytest takes the last -m it is given.
+addopts = "-ra --strict-config --strict-markers --import-mode=importlib -m 'not nightly'"
+
+# --strict-markers is on, so every marker has to be declared here or using it is an error.
+markers = [
+    "nightly: measures progress toward a target state; reported nightly, not gated per PR",
+    "scaffold: placeholder for code that does not exist yet; always skipped, counted by a ratchet",
+]
 # The repo is not installed as a package (`[tool.uv] package = false`), so tests that import
 # across the tree — `from serving.model_worker import ...` — need the root on sys.path.
 pythonpath = ["."]
 # `serving/` and friends have no __init__.py; only their leaves do. Without this, the
 # namespace parent is not traversed and those imports fail even with the root on the path.
 consider_namespace_packages = true
-testpaths = ["tests", "data", "evaluation", "kernels", "models", "preprocessing", "serving", "training"]
+# `tools` and `ci` carry the tests for the architecture checkers and the affected-target
+# selector. They were absent, so tools/analysis/tests/ and ci/common/tests/ were never collected
+# — which is how the module-path cutover left test_higher_layer_import_is_rejected red without
+# any lane reporting it.
+testpaths = ["tests", "ci", "tools", "data", "evaluation", "kernels", "libs", "models", "preprocessing", "serving", "training"]
 python_files = ["test_*.py", "*_test.py"]
 
 [tool.ruff]
 target-version = "py312"
 line-length = 100
 exclude = ["research/notebooks"]
+
+# Untyped third-party modules, under a global `strict = true`.
+#
+# All three DIRECT dependencies — torch, numpy, safetensors — ship a py.typed marker, so none
+# of them needs an entry here. What does is part of torch's transitive closure: mypy follows
+# imports out of a PEP 561 package, and torch imports sympy, networkx and fsspec, none of which
+# declares itself typed. Without these entries every file that imports torch fails on a missing
+# stub for a module it never named.
+#
+# `ignore_missing_imports`, NOT `follow_imports = "skip"`. Skipping would make torch's own
+# annotations resolve to Any and silently erase the type checking that pulling torch in was
+# supposed to preserve — the failure would be invisible rather than loud.
+#
+# This list is the shortest one that works. An entry here suppresses real errors as well as
+# spurious ones, so a module joins it when its absence breaks the build, not in anticipation.
+[[tool.mypy.overrides]]
+module = [
+    "fsspec.*",
+    "networkx.*",
+    "sympy.*",
+]
+ignore_missing_imports = true
+
+# uv WORKSPACE, deliberately absent.
+#
+# The two candidate members — sdk/python and libs/rust/python_bridge — carry a
+# [tool.mindclade.scaffold] table and no [project] table at all. uv requires every workspace
+# member to declare one, so a workspace pointing at them does not resolve; and writing the
+# [project] tables purely to satisfy the declaration would create two distributions that
+# package nothing, which ADR-0018 treats as a false implementation claim. The workspace goes in
+# when one of them has something to distribute.
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
@@ -73,3 +138,34 @@ strict = true
 warn_unreachable = true
 show_error_codes = true
 exclude = ["research/notebooks"]
+
+# Untyped third-party modules, under a global `strict = true`.
+#
+# All three DIRECT dependencies — torch, numpy, safetensors — ship a py.typed marker, so none
+# of them needs an entry here. What does is part of torch's transitive closure: mypy follows
+# imports out of a PEP 561 package, and torch imports sympy, networkx and fsspec, none of which
+# declares itself typed. Without these entries every file that imports torch fails on a missing
+# stub for a module it never named.
+#
+# `ignore_missing_imports`, NOT `follow_imports = "skip"`. Skipping would make torch's own
+# annotations resolve to Any and silently erase the type checking that pulling torch in was
+# supposed to preserve — the failure would be invisible rather than loud.
+#
+# This list is the shortest one that works. An entry here suppresses real errors as well as
+# spurious ones, so a module joins it when its absence breaks the build, not in anticipation.
+[[tool.mypy.overrides]]
+module = [
+    "fsspec.*",
+    "networkx.*",
+    "sympy.*",
+]
+ignore_missing_imports = true
+
+# uv WORKSPACE, deliberately absent.
+#
+# The two candidate members — sdk/python and libs/rust/python_bridge — carry a
+# [tool.mindclade.scaffold] table and no [project] table at all. uv requires every workspace
+# member to declare one, so a workspace pointing at them does not resolve; and writing the
+# [project] tables purely to satisfy the declaration would create two distributions that
+# package nothing, which ADR-0018 treats as a false implementation claim. The workspace goes in
+# when one of them has something to distribute.

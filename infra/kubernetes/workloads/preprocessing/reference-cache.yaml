@@ -4,4 +4,21 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# This is a machine-readable contract, not a cache server. Reference bytes remain immutable
+# artifacts addressed by digest; node-local materialization belongs to the node agent after its
+# composition seam is implemented and qualified.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mindclade-reference-cache-contract
+  namespace: mindclade-batch-cpu
+  labels:
+    mindclade.dev/workload-class: batch-cpu
+data:
+  activationState: blocked
+  addressing: sha256-content-digest
+  eviction: bounded-lru-with-pinned-active-references
+  integrity: verify-before-publish-and-before-use
+  mutation: forbidden
+  sourceAuthority: artifact-registry
+  staleReadPolicy: fail-closed

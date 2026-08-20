@@ -10,8 +10,8 @@ import (
 	"errors"
 	"sync"
 
-	"mindclade.internal/libs/go/coordination/cursor"
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/coordination/cursor"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 type Store struct {

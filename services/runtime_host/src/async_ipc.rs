@@ -6,7 +6,11 @@
 //! Tokio Unix-socket control edge for local model-worker supervision.
 
 use mindclade_faults::{Code, Fault, FaultResult};
+use mindclade_process_os::current_user_id;
 use std::future::Future;
+use std::io::ErrorKind;
+use std::os::unix::fs::{FileTypeExt, MetadataExt, PermissionsExt};
+use std::os::unix::net::UnixStream as StdUnixStream;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -18,7 +22,16 @@ use tokio::task::JoinSet;
 use tokio::time::{Instant, timeout};
 
 const MAX_FRAME_BYTES: usize = 1024 * 1024;
+const MAX_CONTROL_CONNECTIONS: usize = 128;
+const CONTROL_IO_TIMEOUT: Duration = Duration::from_secs(30);
+const CONTROL_HANDLER_TIMEOUT: Duration = Duration::from_mins(5);
 const CONNECTION_DRAIN_TIMEOUT: Duration = Duration::from_secs(30);
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct SocketIdentity {
+    device: u64,
+    inode: u64,
+}
 
 pub trait AsyncControlHandler: Send + Sync + 'static {
     fn handle<'a>(
@@ -47,14 +60,7 @@ pub async fn serve_unix(
     handler: Arc<dyn AsyncControlHandler>,
     mut shutdown: watch::Receiver<bool>,
 ) -> FaultResult<()> {
-    prepare_socket_path(&path)?;
-    let listener = UnixListener::bind(&path).map_err(|error| {
-        Fault::new(
-            Code::Unavailable,
-            "failed to bind runtime-host control socket",
-        )
-        .with_source(error)
-    })?;
+    let (listener, socket_identity) = bind_secure_listener(&path)?;
     let mut connections = JoinSet::new();
 
     loop {
@@ -64,7 +70,7 @@ pub async fn serve_unix(
                     break;
                 }
             }
-            accepted = listener.accept() => {
+            accepted = listener.accept(), if connections.len() < MAX_CONTROL_CONNECTIONS => {
                 let (stream, _) = accepted.map_err(|error| {
                     Fault::new(Code::Unavailable, "runtime-host control accept failed")
                         .with_source(error)
@@ -95,15 +101,7 @@ pub async fn serve_unix(
     }
 
     drain_connections(&mut connections).await?;
-    match std::fs::remove_file(&path) {
-        Ok(()) => Ok(()),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(error) => Err(Fault::new(
-            Code::Unavailable,
-            "failed to remove runtime-host control socket during shutdown",
-        )
-        .with_source(error)),
-    }
+    remove_owned_socket(&path, socket_identity)
 }
 
 pub async fn serve_unix_sessions(
@@ -111,14 +109,7 @@ pub async fn serve_unix_sessions(
     factory: Arc<dyn AsyncControlSessionFactory>,
     mut shutdown: watch::Receiver<bool>,
 ) -> FaultResult<()> {
-    prepare_socket_path(&path)?;
-    let listener = UnixListener::bind(&path).map_err(|error| {
-        Fault::new(
-            Code::Unavailable,
-            "failed to bind runtime-host control socket",
-        )
-        .with_source(error)
-    })?;
+    let (listener, socket_identity) = bind_secure_listener(&path)?;
     let mut connections = JoinSet::new();
 
     loop {
@@ -128,13 +119,16 @@ pub async fn serve_unix_sessions(
                     break;
                 }
             }
-            accepted = listener.accept() => {
+            accepted = listener.accept(), if connections.len() < MAX_CONTROL_CONNECTIONS => {
                 let (stream, _) = accepted.map_err(|error| {
                     Fault::new(Code::Unavailable, "runtime-host control accept failed")
                         .with_source(error)
                 })?;
-                let mut session = factory.open()?;
-                connections.spawn(async move { handle_session_connection(stream, session.as_mut()).await });
+                let factory = Arc::clone(&factory);
+                connections.spawn(async move {
+                    let mut session = factory.open()?;
+                    handle_session_connection(stream, session.as_mut()).await
+                });
             }
             completed = connections.join_next(), if !connections.is_empty() => {
                 if let Some(result) = completed {
@@ -156,15 +150,7 @@ pub async fn serve_unix_sessions(
     }
 
     drain_connections(&mut connections).await?;
-    match std::fs::remove_file(&path) {
-        Ok(()) => Ok(()),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(error) => Err(Fault::new(
-            Code::Unavailable,
-            "failed to remove runtime-host control socket during shutdown",
-        )
-        .with_source(error)),
-    }
+    remove_owned_socket(&path, socket_identity)
 }
 
 async fn handle_session_connection(
@@ -172,11 +158,17 @@ async fn handle_session_connection(
     session: &mut dyn AsyncControlSession,
 ) -> FaultResult<()> {
     loop {
-        let length = match stream.read_u32().await {
-            Ok(length) => usize::try_from(length)
+        let length = match timeout(CONTROL_IO_TIMEOUT, stream.read_u32()).await {
+            Err(_) => {
+                return Err(Fault::new(
+                    Code::DeadlineExceeded,
+                    "control frame header read timed out",
+                ));
+            }
+            Ok(Ok(length)) => usize::try_from(length)
                 .map_err(|_| Fault::new(Code::OutOfRange, "control frame length exceeds usize"))?,
-            Err(error) if error.kind() == std::io::ErrorKind::UnexpectedEof => return Ok(()),
-            Err(error) => {
+            Ok(Err(error)) if error.kind() == ErrorKind::UnexpectedEof => return Ok(()),
+            Ok(Err(error)) => {
                 return Err(
                     Fault::new(Code::Unavailable, "control frame header read failed")
                         .with_source(error),
@@ -190,10 +182,15 @@ async fn handle_session_connection(
             ));
         }
         let mut request = vec![0_u8; length];
-        stream.read_exact(&mut request).await.map_err(|error| {
-            Fault::new(Code::Unavailable, "control frame body read failed").with_source(error)
-        })?;
-        let response = session.handle(request).await?;
+        timeout(CONTROL_IO_TIMEOUT, stream.read_exact(&mut request))
+            .await
+            .map_err(|_| Fault::new(Code::DeadlineExceeded, "control frame body read timed out"))?
+            .map_err(|error| {
+                Fault::new(Code::Unavailable, "control frame body read failed").with_source(error)
+            })?;
+        let response = timeout(CONTROL_HANDLER_TIMEOUT, session.handle(request))
+            .await
+            .map_err(|_| Fault::new(Code::DeadlineExceeded, "control handler timed out"))??;
         write_response(&mut stream, response).await?;
     }
 }
@@ -207,12 +204,18 @@ async fn write_response(stream: &mut UnixStream, response: Vec<u8>) -> FaultResu
     }
     let response_len = u32::try_from(response.len())
         .map_err(|_| Fault::new(Code::OutOfRange, "control response length exceeds u32"))?;
-    stream.write_u32(response_len).await.map_err(|error| {
-        Fault::new(Code::Unavailable, "control response header write failed").with_source(error)
-    })?;
-    stream.write_all(&response).await.map_err(|error| {
-        Fault::new(Code::Unavailable, "control response body write failed").with_source(error)
-    })?;
+    timeout(CONTROL_IO_TIMEOUT, stream.write_u32(response_len))
+        .await
+        .map_err(|_| Fault::new(Code::DeadlineExceeded, "control response write timed out"))?
+        .map_err(|error| {
+            Fault::new(Code::Unavailable, "control response header write failed").with_source(error)
+        })?;
+    timeout(CONTROL_IO_TIMEOUT, stream.write_all(&response))
+        .await
+        .map_err(|_| Fault::new(Code::DeadlineExceeded, "control response write timed out"))?
+        .map_err(|error| {
+            Fault::new(Code::Unavailable, "control response body write failed").with_source(error)
+        })?;
     Ok(())
 }
 
@@ -259,11 +262,17 @@ async fn handle_connection(
     handler: Arc<dyn AsyncControlHandler>,
 ) -> FaultResult<()> {
     loop {
-        let length = match stream.read_u32().await {
-            Ok(length) => usize::try_from(length)
+        let length = match timeout(CONTROL_IO_TIMEOUT, stream.read_u32()).await {
+            Err(_) => {
+                return Err(Fault::new(
+                    Code::DeadlineExceeded,
+                    "control frame header read timed out",
+                ));
+            }
+            Ok(Ok(length)) => usize::try_from(length)
                 .map_err(|_| Fault::new(Code::OutOfRange, "control frame length exceeds usize"))?,
-            Err(error) if error.kind() == std::io::ErrorKind::UnexpectedEof => return Ok(()),
-            Err(error) => {
+            Ok(Err(error)) if error.kind() == ErrorKind::UnexpectedEof => return Ok(()),
+            Ok(Err(error)) => {
                 return Err(
                     Fault::new(Code::Unavailable, "control frame header read failed")
                         .with_source(error),
@@ -277,10 +286,15 @@ async fn handle_connection(
             ));
         }
         let mut request = vec![0_u8; length];
-        stream.read_exact(&mut request).await.map_err(|error| {
-            Fault::new(Code::Unavailable, "control frame body read failed").with_source(error)
-        })?;
-        let response = handler.handle(request).await?;
+        timeout(CONTROL_IO_TIMEOUT, stream.read_exact(&mut request))
+            .await
+            .map_err(|_| Fault::new(Code::DeadlineExceeded, "control frame body read timed out"))?
+            .map_err(|error| {
+                Fault::new(Code::Unavailable, "control frame body read failed").with_source(error)
+            })?;
+        let response = timeout(CONTROL_HANDLER_TIMEOUT, handler.handle(request))
+            .await
+            .map_err(|_| Fault::new(Code::DeadlineExceeded, "control handler timed out"))??;
         write_response(&mut stream, response).await?;
     }
 }
@@ -305,13 +319,153 @@ fn prepare_socket_path(path: &Path) -> FaultResult<()> {
             .with_source(error)
         })?;
     }
-    match std::fs::remove_file(path) {
-        Ok(()) => Ok(()),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+    let metadata = match std::fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(()),
+        Err(error) => {
+            return Err(Fault::new(
+                Code::Unavailable,
+                "failed to inspect runtime-host socket path",
+            )
+            .with_source(error));
+        }
+    };
+    if !metadata.file_type().is_socket() {
+        return Err(Fault::new(
+            Code::AlreadyExists,
+            "runtime-host socket path exists and is not a socket",
+        ));
+    }
+    if metadata.uid() != current_user_id() {
+        return Err(Fault::new(
+            Code::PermissionDenied,
+            "runtime-host socket path belongs to a different user",
+        ));
+    }
+    match StdUnixStream::connect(path) {
+        Ok(_) => Err(Fault::new(
+            Code::AlreadyExists,
+            "runtime-host control socket is already active",
+        )),
+        Err(error) if error.kind() == ErrorKind::ConnectionRefused => std::fs::remove_file(path)
+            .map_err(|error| {
+                Fault::new(
+                    Code::Unavailable,
+                    "failed to remove stale runtime-host socket",
+                )
+                .with_source(error)
+            }),
         Err(error) => Err(Fault::new(
             Code::Unavailable,
-            "failed to remove stale runtime-host socket",
+            "failed to determine whether runtime-host socket is active",
         )
         .with_source(error)),
+    }
+}
+
+pub(crate) fn bind_secure_listener(path: &Path) -> FaultResult<(UnixListener, SocketIdentity)> {
+    prepare_socket_path(path)?;
+    let listener = UnixListener::bind(path).map_err(|error| {
+        Fault::new(
+            Code::Unavailable,
+            "failed to bind runtime-host control socket",
+        )
+        .with_source(error)
+    })?;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).map_err(|error| {
+        let _ = std::fs::remove_file(path);
+        Fault::new(
+            Code::Unavailable,
+            "failed to secure runtime-host control socket",
+        )
+        .with_source(error)
+    })?;
+    let metadata = std::fs::symlink_metadata(path).map_err(|error| {
+        let _ = std::fs::remove_file(path);
+        Fault::new(
+            Code::Unavailable,
+            "failed to inspect bound runtime-host control socket",
+        )
+        .with_source(error)
+    })?;
+    Ok((
+        listener,
+        SocketIdentity {
+            device: metadata.dev(),
+            inode: metadata.ino(),
+        },
+    ))
+}
+
+pub(crate) fn remove_owned_socket(path: &Path, expected: SocketIdentity) -> FaultResult<()> {
+    let metadata = match std::fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(()),
+        Err(error) => {
+            return Err(Fault::new(
+                Code::Unavailable,
+                "failed to inspect runtime-host control socket during shutdown",
+            )
+            .with_source(error));
+        }
+    };
+    let actual = SocketIdentity {
+        device: metadata.dev(),
+        inode: metadata.ino(),
+    };
+    if !metadata.file_type().is_socket() || actual != expected {
+        return Err(Fault::new(
+            Code::FailedPrecondition,
+            "runtime-host socket path ownership changed during shutdown",
+        ));
+    }
+    std::fs::remove_file(path).map_err(|error| {
+        Fault::new(
+            Code::Unavailable,
+            "failed to remove runtime-host control socket during shutdown",
+        )
+        .with_source(error)
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::prepare_socket_path;
+    use std::fs;
+    #[cfg(target_os = "linux")]
+    use std::os::unix::net::UnixListener;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temporary_path(name: &str) -> std::path::PathBuf {
+        std::path::PathBuf::from("/tmp").join(format!(
+            "mc-rh-{name}-{}-{}.sock",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("clock should be after epoch")
+                .as_nanos()
+        ))
+    }
+
+    #[test]
+    fn socket_preparation_never_removes_a_regular_file() {
+        let path = temporary_path("regular");
+        fs::write(&path, b"preserve").expect("fixture should be created");
+        assert!(prepare_socket_path(&path).is_err());
+        assert_eq!(fs::read(&path).expect("fixture should remain"), b"preserve");
+        fs::remove_file(path).expect("fixture should be removed");
+    }
+
+    // The macOS workspace sandbox prohibits creating Unix-domain listeners;
+    // Linux CI exercises the active-socket probe used in production.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn socket_preparation_rejects_an_active_listener() {
+        let path = temporary_path("active");
+        let listener = UnixListener::bind(&path).expect("fixture listener should bind");
+        assert!(prepare_socket_path(&path).is_err());
+        assert!(path.exists());
+        drop(listener);
+        fs::remove_file(path).expect("fixture socket should be removed");
     }
 }

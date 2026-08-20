@@ -23,14 +23,81 @@ on:
 
 permissions:
   contents: read
+  security-events: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  python-dependency-audit:
+    name: pip-audit / locked Python dependencies
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a1753b4e69a5e676e6cf872127da34f79d0900eb  # v6.0.0
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@e92bafb6253dcd438e0484186d7669ea7a8ca1cc  # v7.6.0
+        with:
+          version: "0.10.4"
+          enable-cache: false
+
+      # The exported lock carries hashes for every selected artifact. pip-audit
+      # is isolated from application dependencies and independently pinned so a
+      # scanner release cannot silently change the lane on an unrelated PR.
+      - name: Audit the hash-locked Python environment
+        run: >-
+          uvx --from pip-audit==2.10.1 pip-audit
+          --disable-pip
+          --require-hashes
+          --requirement requirements.lock.txt
+
+  go-vulnerability:
+    name: govulncheck / pinned source scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5  # v6.2.0
+        with:
+          go-version: "1.26.6"
+          cache-dependency-path: |
+            go.sum
+            sdk/go/go.sum
+
+      # Pin the scanner independently of the application module. Adding it to
+      # go.mod would make a release binary's dependency graph own a CI tool;
+      # an unversioned `go install` would make findings change with the network.
+      - name: Install pinned govulncheck
+        env:
+          GOBIN: ${{ runner.temp }}/govulncheck-v1.7.0
+          GOTOOLCHAIN: local
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
+
+      - name: Scan the root Go module
+        env:
+          GOVULNCHECK: ${{ runner.temp }}/govulncheck-v1.7.0/govulncheck
+          GOTOOLCHAIN: local
+        run: '"${GOVULNCHECK}" -mode=source ./...'
+
+      - name: Scan the public Go SDK module
+        env:
+          GOVULNCHECK: ${{ runner.temp }}/govulncheck-v1.7.0/govulncheck
+          GOTOOLCHAIN: local
+        working-directory: sdk/go
+        run: '"${GOVULNCHECK}" -mode=source ./...'
+
   codeql:
-    uses: mindclade-org/.github/.github/workflows/reusable-codeql.yml@v1.0.0
+    uses: mindclade/.github/.github/workflows/reusable-codeql.yml@22cd42b4f5c08bcb579aed4b6a0bb8cd4696daa0  # v1.1.0
     with:
       # Rust is omitted: CodeQL's Rust support is still maturing and the runtime data plane is
       # covered by clippy with -D warnings plus cargo-deny in the presubmit lane. Revisit when

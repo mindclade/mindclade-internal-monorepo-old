@@ -3,13 +3,24 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-// Command webhook-dispatcher is the production composition root for its
-// control-plane process role. Provider construction remains service-owned; all
-// lifecycle behavior flows through servicekit/production via bootstrap.
+// Command webhook_dispatcher is the production composition root for the
+// control-plane webhook-dispatcher role. Provider construction remains
+// service-owned; all lifecycle behavior flows through servicekit/production
+// via bootstrap.
+//
+// The PostgreSQL driver is linked here, in the only package that may decide
+// which drivers this binary carries. The provider factory resolves the
+// configured driver name against the registered set and fails closed when it
+// is absent.
 package main
 
-import "mindclade.internal/services/control_plane/internal/bootstrap"
+import (
+	_ "github.com/lib/pq"
+
+	"go.mindclade.dev/services/control_plane/internal/bootstrap"
+	"go.mindclade.dev/services/control_plane/internal/providers/webhook"
+)
 
 func main() {
-	bootstrap.Main(bootstrap.RoleWebhookDispatcher, bootstrap.UnconfiguredFactory("webhook-dispatcher"))
+	bootstrap.Main(bootstrap.RoleWebhookDispatcher, webhook.NewWebhookFactory())
 }

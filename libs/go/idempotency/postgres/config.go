@@ -10,9 +10,9 @@ import (
 	"reflect"
 	"strings"
 
-	"mindclade.internal/libs/go/clock"
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/clock"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/identifiers"
 )
 
 const DefaultTable = "mindclade_idempotency_records"

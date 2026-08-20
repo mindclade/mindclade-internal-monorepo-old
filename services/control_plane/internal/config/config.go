@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	foundationconfig "mindclade.internal/libs/go/config"
-	"mindclade.internal/libs/go/faults"
+	foundationconfig "go.mindclade.dev/libs/go/config"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // Environment identifies the operational qualification boundary for a
@@ -66,9 +66,44 @@ type Settings struct {
 	MessagingTopic        string
 	MessagingSubscription string
 
+	// Blob and cache settings are provider-required rather than
+	// process-required: only roles whose production profile demands
+	// CapabilityBlobStore or CapabilityCache read them, and those factories
+	// fail closed when a value is absent.
+	BlobBucket    string
+	BlobPrefix    string
+	CacheAddress  string
+	CachePassword string
+	CachePrefix   string
+
+	// Kubernetes settings are provider-required in the same sense: only the
+	// scheduler, controller, operator, and ingestion-coordinator profiles
+	// demand CapabilityKubernetes. The default source discovers an in-cluster
+	// configuration and falls back to a kubeconfig, so a deployed pod needs no
+	// setting at all and a developer needs only a path.
+	KubernetesSource     string
+	KubernetesKubeconfig string
+	KubernetesContext    string
+	KubernetesTimeout    time.Duration
+
+	// gRPC transport security. When a certificate and key are configured the
+	// server terminates TLS itself; when they are absent it serves plaintext
+	// and the deployment is expected to terminate TLS ahead of the process.
+	// A client CA turns on mutual TLS and is only meaningful with the pair.
+	GRPCTLSCertificate string
+	GRPCTLSKey         string
+	GRPCTLSClientCA    string
+
 	SigningKeyID   string
 	SigningHMACKey string
-	PaginationTTL  time.Duration
+
+	// AuthAPIKeys carries the service-to-service credential registry in the
+	// form "subject:sha256hex:permission[,permission]" with entries separated
+	// by ";". Only roles whose production profile demands
+	// CapabilityAuthentication read it, and those factories fail closed when
+	// it is empty.
+	AuthAPIKeys   string
+	PaginationTTL time.Duration
 
 	OutboundAllowedHosts []string
 }
@@ -93,7 +128,7 @@ func Schema(serviceName string) []foundationconfig.Field {
 		{Key: "log.level", Default: foundationconfig.String("info"), Reloadable: true, Validate: oneOf("log.level", "debug", "info", "warn", "error")},
 		{Key: "shutdown.timeout", Default: foundationconfig.String("30s"), Validate: positiveDuration("shutdown.timeout")},
 		{Key: "drain.timeout", Default: foundationconfig.String("20s"), Validate: positiveDuration("drain.timeout")},
-		{Key: "database.driver", Default: foundationconfig.String("pgx"), Validate: nonEmpty("database.driver")},
+		{Key: "database.driver", Default: foundationconfig.String("postgres"), Validate: nonEmpty("database.driver")},
 		{Key: "database.dsn", Secret: true},
 		{Key: "database.max_open", Default: foundationconfig.String("32"), Validate: nonNegativeInteger("database.max_open")},
 		{Key: "database.max_idle", Default: foundationconfig.String("8"), Validate: nonNegativeInteger("database.max_idle")},
@@ -101,8 +136,21 @@ func Schema(serviceName string) []foundationconfig.Field {
 		{Key: "messaging.provider", Default: foundationconfig.String("memory"), Validate: oneOf("messaging.provider", "memory", "pubsub")},
 		{Key: "messaging.topic", Default: foundationconfig.String("mindclade.control.events"), Validate: nonEmpty("messaging.topic")},
 		{Key: "messaging.subscription"},
+		{Key: "blob.bucket"},
+		{Key: "blob.prefix"},
+		{Key: "cache.address"},
+		{Key: "cache.password", Secret: true},
+		{Key: "cache.prefix"},
+		{Key: "kubernetes.source", Default: foundationconfig.String("auto"), Validate: oneOf("kubernetes.source", "auto", "in_cluster", "kubeconfig")},
+		{Key: "kubernetes.kubeconfig"},
+		{Key: "kubernetes.context"},
+		{Key: "kubernetes.timeout", Default: foundationconfig.String("30s"), Validate: positiveDuration("kubernetes.timeout")},
+		{Key: "grpc.tls.certificate"},
+		{Key: "grpc.tls.key", Secret: true},
+		{Key: "grpc.tls.client_ca"},
 		{Key: "signing.key_id", Default: foundationconfig.String("development/control-plane")},
 		{Key: "signing.hmac_key", Secret: true},
+		{Key: "auth.api_keys", Secret: true},
 		{Key: "pagination.ttl", Default: foundationconfig.String("15m"), Validate: positiveDuration("pagination.ttl")},
 		{Key: "outbound.allowed_hosts", Default: foundationconfig.String("")},
 	}
@@ -128,8 +176,21 @@ func EnvironmentSource() foundationconfig.EnvSource {
 		"messaging.provider":     "MINDCLADE_MESSAGING_PROVIDER",
 		"messaging.topic":        "MINDCLADE_MESSAGING_TOPIC",
 		"messaging.subscription": "MINDCLADE_MESSAGING_SUBSCRIPTION",
+		"blob.bucket":            "MINDCLADE_BLOB_BUCKET",
+		"blob.prefix":            "MINDCLADE_BLOB_PREFIX",
+		"cache.address":          "MINDCLADE_CACHE_ADDRESS",
+		"cache.password":         "MINDCLADE_CACHE_PASSWORD",
+		"cache.prefix":           "MINDCLADE_CACHE_PREFIX",
+		"kubernetes.source":      "MINDCLADE_KUBERNETES_SOURCE",
+		"kubernetes.kubeconfig":  "MINDCLADE_KUBERNETES_KUBECONFIG",
+		"kubernetes.context":     "MINDCLADE_KUBERNETES_CONTEXT",
+		"kubernetes.timeout":     "MINDCLADE_KUBERNETES_TIMEOUT",
+		"grpc.tls.certificate":   "MINDCLADE_GRPC_TLS_CERTIFICATE",
+		"grpc.tls.key":           "MINDCLADE_GRPC_TLS_KEY",
+		"grpc.tls.client_ca":     "MINDCLADE_GRPC_TLS_CLIENT_CA",
 		"signing.key_id":         "MINDCLADE_SIGNING_KEY_ID",
 		"signing.hmac_key":       "MINDCLADE_SIGNING_HMAC_KEY",
+		"auth.api_keys":          "MINDCLADE_AUTH_API_KEYS",
 		"pagination.ttl":         "MINDCLADE_PAGINATION_TTL",
 		"outbound.allowed_hosts": "MINDCLADE_OUTBOUND_ALLOWED_HOSTS",
 	}}
@@ -177,13 +238,28 @@ func Decode(snapshot foundationconfig.Snapshot) (Settings, error) {
 		MessagingProvider:     snapshot.MustGet("messaging.provider"),
 		MessagingTopic:        snapshot.MustGet("messaging.topic"),
 		MessagingSubscription: value(snapshot, "messaging.subscription"),
+		BlobBucket:            value(snapshot, "blob.bucket"),
+		BlobPrefix:            value(snapshot, "blob.prefix"),
+		CacheAddress:          value(snapshot, "cache.address"),
+		CachePassword:         value(snapshot, "cache.password"),
+		CachePrefix:           value(snapshot, "cache.prefix"),
+		KubernetesSource:      snapshot.MustGet("kubernetes.source"),
+		KubernetesKubeconfig:  value(snapshot, "kubernetes.kubeconfig"),
+		KubernetesContext:     value(snapshot, "kubernetes.context"),
+		GRPCTLSCertificate:    value(snapshot, "grpc.tls.certificate"),
+		GRPCTLSKey:            value(snapshot, "grpc.tls.key"),
+		GRPCTLSClientCA:       value(snapshot, "grpc.tls.client_ca"),
 		SigningKeyID:          snapshot.MustGet("signing.key_id"),
 		SigningHMACKey:        value(snapshot, "signing.hmac_key"),
+		AuthAPIKeys:           value(snapshot, "auth.api_keys"),
 		OutboundAllowedHosts:  splitCSV(value(snapshot, "outbound.allowed_hosts")),
 	}
 	var err error
 	if settings.ShutdownTimeout, err = time.ParseDuration(snapshot.MustGet("shutdown.timeout")); err != nil {
 		return Settings{}, invalid("invalid_shutdown_timeout", "controlplane.config.Decode", faults.Fields{"cause": err.Error()})
+	}
+	if settings.KubernetesTimeout, err = time.ParseDuration(snapshot.MustGet("kubernetes.timeout")); err != nil {
+		return Settings{}, invalid("invalid_kubernetes_timeout", "controlplane.config.Decode", faults.Fields{"cause": err.Error()})
 	}
 	if settings.DrainTimeout, err = time.ParseDuration(snapshot.MustGet("drain.timeout")); err != nil {
 		return Settings{}, invalid("invalid_drain_timeout", "controlplane.config.Decode", faults.Fields{"cause": err.Error()})

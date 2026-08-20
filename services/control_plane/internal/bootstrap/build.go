@@ -8,15 +8,33 @@ package bootstrap
 import (
 	"context"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/servicekit/production"
-	"mindclade.internal/services/control_plane/internal/foundation"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/servicekit"
+	"go.mindclade.dev/libs/go/servicekit/production"
 )
+
+// Aggregate is one group of shared mechanisms a process composes. Splitting the
+// substrate into aggregates is what keeps a command's import graph honest: this
+// package names no concrete mechanism, so a binary links only the aggregates
+// its own factory constructs rather than every subsystem some other role uses.
+type Aggregate interface {
+	Capabilities() []production.Capability
+	ServiceOptions() []servicekit.Option
+	Register(*production.Builder) error
+}
 
 // Runtime is a complete process composition returned by a provider factory.
 type Runtime struct {
-	Dependencies foundation.Dependencies
+	Dependencies []Aggregate
 	Components   Components
+
+	// Bind, when set, receives the assembled production runtime after Build
+	// and before Run. It exists for components that must observe process
+	// health but are constructed before the service exists, such as the
+	// liveness and readiness handler mounted into the HTTP transport. It must
+	// not start work, register components, or retain the runtime beyond the
+	// process lifetime.
+	Bind func(*production.Runtime) error
 }
 
 // Factory creates concrete providers, repositories, domain engines, and
@@ -47,12 +65,23 @@ func Build(profile Profile, runtime Runtime) (*production.Runtime, error) {
 	if err := profile.Validate(); err != nil {
 		return nil, err
 	}
-	builder, err := production.NewBuilder(profile.Name, profile.ProductionRole, runtime.Dependencies.ServiceOptions()...)
+	options := make([]servicekit.Option, 0)
+	for _, aggregate := range runtime.Dependencies {
+		if aggregate != nil {
+			options = append(options, aggregate.ServiceOptions()...)
+		}
+	}
+	builder, err := production.NewBuilder(profile.Name, profile.ProductionRole, options...)
 	if err != nil {
 		return nil, err
 	}
-	if err := runtime.Dependencies.Register(builder); err != nil {
-		return nil, err
+	for _, aggregate := range runtime.Dependencies {
+		if aggregate == nil {
+			continue
+		}
+		if err := aggregate.Register(builder); err != nil {
+			return nil, err
+		}
 	}
 	if err := runtime.Components.Register(builder); err != nil {
 		return nil, err
@@ -84,6 +113,11 @@ func Execute(ctx context.Context, role Role, factory Factory) error {
 	service, err := Build(profile, runtime)
 	if err != nil {
 		return err
+	}
+	if runtime.Bind != nil {
+		if err := runtime.Bind(service); err != nil {
+			return err
+		}
 	}
 	return service.RunWithSignals(ctx)
 }

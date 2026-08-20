@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "profile_id": "synthetic-empty-profile",
+  "approved_locations": [],
+  "required_labels": [],
+  "data_resource_types": [],
+  "classifications": {}
+}

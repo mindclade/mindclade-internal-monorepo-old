@@ -10,7 +10,7 @@ import (
 	"errors"
 	"testing"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 
 	k8swatch "k8s.io/apimachinery/pkg/watch"
 )

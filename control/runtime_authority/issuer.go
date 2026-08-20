@@ -7,8 +7,8 @@ package runtime_authority
 
 import (
 	"context"
-	"mindclade.internal/libs/go/clock"
-	"mindclade.internal/libs/go/signing"
+	"go.mindclade.dev/libs/go/clock"
+	"go.mindclade.dev/libs/go/signing"
 )
 
 type Issuer struct {

@@ -1,0 +1,43 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//services/control_plane:__subpackages__"])
+
+go_library(
+    name = "maintenance",
+    srcs = ["maintenance.go"],
+    importpath = "go.mindclade.dev/services/control_plane/internal/providers/maintenance",
+    deps = [
+        "//libs/go/config",
+        "//libs/go/coordination/leadership",
+        "//libs/go/coordination/workqueue",
+        "//libs/go/faults",
+        "//libs/go/storage/lease",
+        "//services/control_plane/internal/bootstrap",
+        "//services/control_plane/internal/config",
+        "//services/control_plane/internal/foundation",
+        "//services/control_plane/internal/foundation/governance",
+        "//services/control_plane/internal/foundation/leasing",
+        "//services/control_plane/internal/foundation/persistence",
+        "//services/control_plane/internal/foundation/tasks",
+        "//services/control_plane/internal/providers",
+        "//services/control_plane/internal/providers/durable",
+    ],
+)
+
+go_test(
+    name = "maintenance_test",
+    srcs = ["maintenance_test.go"],
+    embed = [":maintenance"],
+    deps = [
+        "//libs/go/config",
+        "//libs/go/coordination/workqueue",
+        "//libs/go/faults",
+        "//services/control_plane/internal/bootstrap",
+        "@com_github_lib_pq//:pq",
+    ],
+)

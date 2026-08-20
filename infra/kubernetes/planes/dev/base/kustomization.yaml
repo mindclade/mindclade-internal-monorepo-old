@@ -11,6 +11,7 @@ resources:
   - httproute.yaml
   - go-vanity.yaml
   - goproxy.yaml
+  - networkpolicy.yaml
 
 labels:
   - includeSelectors: false

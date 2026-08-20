@@ -9,14 +9,14 @@ package(default_visibility = ["//visibility:public"])
 
 go_library(
     name = "leasetest",
+    testonly = True,
     srcs = [
         "conformance.go",
         "doc.go",
     ],
-    importpath = "mindclade.internal/libs/go/storage/lease/leasetest",
+    importpath = "go.mindclade.dev/libs/go/storage/lease/leasetest",
     deps = [
         "//libs/go/faults",
         "//libs/go/storage/lease",
     ],
-    testonly = True,
 )

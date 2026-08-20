@@ -4,17 +4,21 @@
 #
 
 load("@rules_go//go:def.bzl", "go_library")
+
 package(default_visibility = ["//visibility:public"])
 
 go_library(
     name = "outboxtest",
-    srcs = ["conformance.go", "doc.go"],
-    importpath = "mindclade.internal/libs/go/coordination/outbox/outboxtest",
+    testonly = True,
+    srcs = [
+        "conformance.go",
+        "doc.go",
+    ],
+    importpath = "go.mindclade.dev/libs/go/coordination/outbox/outboxtest",
     deps = [
         "//libs/go/coordination/outbox",
         "//libs/go/faults",
         "//libs/go/identifiers",
         "//libs/go/requestmeta",
     ],
-    testonly = True,
 )

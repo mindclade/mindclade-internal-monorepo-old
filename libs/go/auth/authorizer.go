@@ -8,7 +8,7 @@ package auth
 import (
 	"context"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 type AuthorizationRequest struct {

@@ -1,0 +1,99 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+---
+rule_files:
+  - __RULE_FILE__
+
+evaluation_interval: 1m
+
+tests:
+  - name: kueue controller, reconcile, queue, wait, and admission recordings
+    interval: 1m
+    input_series:
+      - series: up{operator="kueue",cluster="test",location="us-central1",namespace="kueue-system"}
+        values: 1x20
+      - series: controller_runtime_reconcile_errors_total{operator="kueue",cluster="test",location="us-central1",namespace="kueue-system"}
+        values: 0+1x20
+      - series: controller_runtime_reconcile_total{operator="kueue",cluster="test",location="us-central1",namespace="kueue-system"}
+        values: 0+10x20
+      - series: kueue_pending_workloads{cluster="test",location="us-central1",namespace="kueue-system",cluster_queue="training",status="active"}
+        values: 3x20
+      - series: kueue_admission_wait_time_seconds_bucket{cluster="test",location="us-central1",namespace="kueue-system",cluster_queue="training",le="1"}
+        values: 0+60x20
+      - series: kueue_admission_wait_time_seconds_bucket{cluster="test",location="us-central1",namespace="kueue-system",cluster_queue="training",le="2"}
+        values: 0+120x20
+      - series: kueue_admission_wait_time_seconds_bucket{cluster="test",location="us-central1",namespace="kueue-system",cluster_queue="training",le="+Inf"}
+        values: 0+120x20
+      - series: kueue_admission_attempts_total{cluster="test",location="us-central1",namespace="kueue-system",result="success"}
+        values: 0+60x20
+    promql_expr_test:
+      - expr: mindclade:kueue_controller_up:max
+        eval_time: 10m
+        exp_samples:
+          - labels: mindclade:kueue_controller_up:max{cluster="test",location="us-central1",namespace="kueue-system"}
+            value: 1
+      - expr: mindclade:kueue_reconcile_error_ratio:ratio5m
+        eval_time: 10m
+        exp_samples:
+          - labels: mindclade:kueue_reconcile_error_ratio:ratio5m{cluster="test",location="us-central1",namespace="kueue-system"}
+            value: 0.1
+      - expr: mindclade:kueue_reconciles:increase5m
+        eval_time: 10m
+        exp_samples:
+          - labels: mindclade:kueue_reconciles:increase5m{cluster="test",location="us-central1",namespace="kueue-system"}
+            value: 50
+      - expr: mindclade:kueue_pending_workloads:sum
+        eval_time: 10m
+        exp_samples:
+          - labels: mindclade:kueue_pending_workloads:sum{cluster="test",cluster_queue="training",location="us-central1",namespace="kueue-system",status="active"}
+            value: 3
+      - expr: mindclade:kueue_admission_wait_seconds:p95_rate5m
+        eval_time: 10m
+        exp_samples:
+          - labels: mindclade:kueue_admission_wait_seconds:p95_rate5m{cluster="test",cluster_queue="training",location="us-central1",namespace="kueue-system"}
+            value: 1.9
+      - expr: mindclade:kueue_admission_attempts:rate5m
+        eval_time: 10m
+        exp_samples:
+          - labels: mindclade:kueue_admission_attempts:rate5m{cluster="test",location="us-central1",namespace="kueue-system",result="success"}
+            value: 1
+
+  - name: jobset controller recordings with low-volume ratio accuracy
+    interval: 1m
+    input_series:
+      - series: up{operator="jobset",cluster="test",location="us-central1",namespace="jobset-system"}
+        values: 1x20
+      - series: controller_runtime_reconcile_errors_total{operator="jobset",cluster="test",location="us-central1",namespace="jobset-system"}
+        values: 0+1x20
+      - series: controller_runtime_reconcile_total{operator="jobset",cluster="test",location="us-central1",namespace="jobset-system"}
+        values: 0+20x20
+    promql_expr_test:
+      - expr: mindclade:jobset_controller_up:max
+        eval_time: 15m
+        exp_samples:
+          - labels: mindclade:jobset_controller_up:max{cluster="test",location="us-central1",namespace="jobset-system"}
+            value: 1
+      - expr: mindclade:jobset_reconcile_error_ratio:ratio5m
+        eval_time: 15m
+        exp_samples:
+          - labels: mindclade:jobset_reconcile_error_ratio:ratio5m{cluster="test",location="us-central1",namespace="jobset-system"}
+            value: 0.05
+      - expr: mindclade:jobset_reconciles:increase5m
+        eval_time: 15m
+        exp_samples:
+          - labels: mindclade:jobset_reconciles:increase5m{cluster="test",location="us-central1",namespace="jobset-system"}
+            value: 100
+
+  - name: jobset reconcile ratio stays defined when no error series exists
+    interval: 1m
+    input_series:
+      - series: controller_runtime_reconcile_total{operator="jobset",cluster="test",location="us-central1",namespace="jobset-system"}
+        values: 0+4x20
+    promql_expr_test:
+      - expr: mindclade:jobset_reconcile_error_ratio:ratio5m
+        eval_time: 10m
+        exp_samples:
+          - labels: mindclade:jobset_reconcile_error_ratio:ratio5m{cluster="test",location="us-central1",namespace="jobset-system"}
+            value: 0

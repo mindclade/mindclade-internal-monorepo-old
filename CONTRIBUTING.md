@@ -12,9 +12,13 @@ Start in the repository development shell and invoke repository targets rather
 than installing tools into the host environment:
 
 ```bash
-nix develop .#default
+tools/dev/nixw develop .#default
 bazel test //...
 ```
+
+The default shell omits the large interactive `golang.org/x/tools` command suite because
+repository automation does not use it. Developers who need `goimports`, `stringer`, or the
+other helper binaries can enter the opt-in shell with `tools/dev/nixw develop .#go-tools`.
 
 For the implemented Go foundation, the offline lane is:
 

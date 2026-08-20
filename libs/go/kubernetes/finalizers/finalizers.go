@@ -14,8 +14,8 @@ import (
 	crclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/kubernetes"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/kubernetes"
 )
 
 // Name is a validated domain-qualified finalizer name.

@@ -1,35 +1,32 @@
-# Infra / Kubernetes
+# Environment-neutral Kubernetes packages
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Terraform, Kubernetes, GitOps, and policy configuration
+This directory owns reusable, environment-neutral Kustomize and Helm package source shipped
+with monorepo releases. It does not own a development, staging, or production cluster view.
 
-## Purpose
+The authoritative `mindclade/gitops` repository selects immutable monorepo releases, supplies
+environment overlays and image digests, renders desired state, and promotes it between
+environments. Nothing in this directory is applied directly to a cluster.
 
-Deployment and cloud foundations. Infrastructure declares environments, workload identity, storage, databases, queues, clusters, security policy, observability, and GitOps composition. This path specializes that domain for **kubernetes**.
+## Package boundaries
 
-## Boundary
+| Path | Responsibility |
+|---|---|
+| `base/` | Environment-neutral namespace and safe-default primitives |
+| `policies/` | Reusable fail-closed network and resource policy templates |
+| `services/` | Deployable workload package templates without production image selection |
+| `workloads/` | Durable Job/JobSet templates without environment activation |
+| `platform/` | Versioned operator and platform package definitions |
+| `planes/*/base/` | Plane-specific routing and service package templates |
+| `tests/` | Offline render, schema, policy, and relational validation |
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+Production image references, cluster destinations, Argo CD Applications/AppProjects, and
+environment capacity decisions are forbidden here.
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+## Validation
 
-## Materialization requirements
+```bash
+nix develop .#ci --command tools/dev/bazelw test \
+  //infra/kubernetes:validate --test_output=errors
+```
 
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Validation is offline and must not require a kubeconfig or cluster credential.

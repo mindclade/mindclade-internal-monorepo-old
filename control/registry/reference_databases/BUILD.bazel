@@ -3,7 +3,30 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_go//go:def.bzl","go_library","go_test")
-package(default_visibility=["//visibility:private"])
-go_library(name="reference_databases",srcs=glob(["*.go"],exclude=["*_test.go"]),importpath="mindclade.internal/control/registry/reference_databases",visibility=["//control:__subpackages__","//services:__subpackages__"],deps=["//control/artifacts","//libs/go/faults","//libs/go/identifiers"])
-go_test(name="reference_databases_test",srcs=glob(["*_test.go"]),embed=[":reference_databases"])
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:private"])
+
+go_library(
+    name = "reference_databases",
+    srcs = glob(
+        ["*.go"],
+        exclude = ["*_test.go"],
+    ),
+    importpath = "go.mindclade.dev/control/registry/reference_databases",
+    visibility = [
+        "//control:__subpackages__",
+        "//services:__subpackages__",
+    ],
+    deps = [
+        "//control/artifacts",
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+    ],
+)
+
+go_test(
+    name = "reference_databases_test",
+    srcs = glob(["*_test.go"]),
+    embed = [":reference_databases"],
+)

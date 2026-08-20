@@ -13,7 +13,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"mindclade.internal/libs/go/requestmeta"
+	"go.mindclade.dev/libs/go/requestmeta"
 )
 
 type AccessEvent struct {

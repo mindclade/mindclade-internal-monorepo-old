@@ -8,6 +8,7 @@ It deliberately does not define a universal `Store` abstraction.
 - `lease` models fenced ownership with renewable expirations.
 - `sql/transaction` provides context-aware `database/sql` transaction helpers.
 - `sql/postgres` classifies PostgreSQL SQLSTATE failures and configures pools.
+- `sql/migrate` runs checksummed forward migrations against a declared manifest.
 
 Provider implementations live beneath the contract they implement. Service-specific
 repositories and business schemas remain with their owning service.

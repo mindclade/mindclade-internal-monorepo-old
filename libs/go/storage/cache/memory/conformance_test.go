@@ -8,8 +8,8 @@ package memory
 import (
 	"testing"
 
-	"mindclade.internal/libs/go/storage/cache"
-	"mindclade.internal/libs/go/storage/cache/cachetest"
+	"go.mindclade.dev/libs/go/storage/cache"
+	"go.mindclade.dev/libs/go/storage/cache/cachetest"
 )
 
 func TestConformance(t *testing.T) {

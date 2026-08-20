@@ -3,10 +3,30 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+# The test targets live here rather than in the parent package because this
+# directory carries its own BUILD.bazel and is therefore its own Bazel package —
+# the parent cannot claim `tests/*.py` as srcs across that boundary.
+load("//tools/build:pytest.bzl", "pytest_test")
+
 package(default_visibility = ["//visibility:private"])
 
-filegroup(
-    name = "scaffold_files",
-    srcs = glob(["**"], exclude = ["BUILD.bazel"]),
-    visibility = ["//visibility:public"],
+pytest_test(
+    name = "test_codes",
+    srcs = ["test_codes.py"],
+    imports = ["../../../.."],
+    deps = ["//libs/python/errors"],
+)
+
+pytest_test(
+    name = "test_retry",
+    srcs = ["test_retry.py"],
+    imports = ["../../../.."],
+    deps = ["//libs/python/errors"],
+)
+
+pytest_test(
+    name = "test_base",
+    srcs = ["test_base.py"],
+    imports = ["../../../.."],
+    deps = ["//libs/python/errors"],
 )

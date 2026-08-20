@@ -70,6 +70,11 @@ be duplicated incorrectly:
 
 See [`LAYERS.md`](LAYERS.md) for dependency law and
 [`CONSUMPTION.md`](CONSUMPTION.md) for the process-by-process adoption matrix.
+Adoption the matrix describes is the target; what processes actually link is
+generated from the import graph into
+`services/control_plane/internal/bootstrap/consumption.json`, and packages that
+nothing imports are recorded with their reason in
+[`UNCONSUMED.toml`](UNCONSUMED.toml).
 
 See [`USAGE.md`](USAGE.md) for package selection, code patterns, provider composition, durable coordination recipes, and testing guidance.
 

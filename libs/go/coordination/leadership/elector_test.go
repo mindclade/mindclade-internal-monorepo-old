@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"mindclade.internal/libs/go/storage/lease"
-	leasememory "mindclade.internal/libs/go/storage/lease/memory"
+	"go.mindclade.dev/libs/go/storage/lease"
+	leasememory "go.mindclade.dev/libs/go/storage/lease/memory"
 )
 
 func TestElectorAcquiresAndStopsHandler(t *testing.T) {

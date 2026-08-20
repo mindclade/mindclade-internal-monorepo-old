@@ -9,8 +9,8 @@ import (
 	"context"
 	"testing"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/storage/cache"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/storage/cache"
 )
 
 type Factory func(testing.TB) cache.Store

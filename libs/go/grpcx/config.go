@@ -16,7 +16,7 @@ import (
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/stats"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 const (

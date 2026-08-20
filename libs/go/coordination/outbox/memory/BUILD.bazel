@@ -4,12 +4,16 @@
 #
 
 load("@rules_go//go:def.bzl", "go_library", "go_test")
+
 package(default_visibility = ["//visibility:public"])
 
 go_library(
     name = "memory",
-    srcs = ["doc.go", "store.go"],
-    importpath = "mindclade.internal/libs/go/coordination/outbox/memory",
+    srcs = [
+        "doc.go",
+        "store.go",
+    ],
+    importpath = "go.mindclade.dev/libs/go/coordination/outbox/memory",
     deps = [
         "//libs/go/clock",
         "//libs/go/coordination/outbox",

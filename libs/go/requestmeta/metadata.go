@@ -8,7 +8,7 @@ package requestmeta
 import (
 	"errors"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // Metadata is the transport-neutral request correlation envelope. All fields

@@ -8,7 +8,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 # The issuers and the three certificates. cert-manager ITSELF — CRDs, controller, webhook,
-# cainjector — is the locked remote base in infra/gitops/argocd/bootstrap/argocd.lock.yaml and
+# cainjector — is owned and locked in the authoritative mindclade/gitops repository and
 # is installed separately, because CRDs must exist before these resources can be admitted.
 #
 # Applying this package against a cluster without cert-manager installed fails on an unknown

@@ -58,9 +58,54 @@ lower-level APIs directly.
 | `httpx` / `connectx` / `grpcx` | required transport boundary | optional admin | optional metrics/admin | optional admin | optional admin | optional admin | optional admin |
 | `httpx/outbound` | policy-bound integrations | optional | optional | source-specific | optional | required for webhooks | maintenance-specific |
 
-The table expresses intended repository consumption, not permission for every
-package to import every other package. Bazel visibility and Go import checks
-still enforce the layering in `LAYERS.md`.
+The table expresses **intended** repository consumption, not permission for
+every package to import every other package, and not a record of what any
+binary links today. Layering is enforced by
+`tools/analysis/check_go_layers.py`; Bazel visibility does not currently
+constrain it, because nearly every package under `libs/go` declares
+`//visibility:public`.
+
+## What is actually consumed
+
+The table above is a target. The record of what each process really links is
+generated from the Go import graph and cannot be written by hand:
+
+| Artifact | Meaning |
+|---|---|
+| `services/control_plane/internal/bootstrap/consumption.json` | Per-role transitive `libs/go` inventory, generated from imports and embedded so `--describe-profile` reports what the binary links |
+| `libs/go/UNCONSUMED.toml` | Every `libs/go` package with no in-module importer, with the reason it is still here |
+| `tools/analysis/check_foundation_consumption.py` | Presubmit check that regenerates both views and fails on drift |
+
+Regenerate after changing what a command imports:
+
+```bash
+python3 tools/analysis/check_foundation_consumption.py --write
+```
+
+A package that appears in the table above but not in `consumption.json` is not
+consumed yet — the role that would consume it has no materialized provider
+factory. All twelve roles are materialized. `bootstrap.UnconfiguredFactory` is retained
+for a role added before its providers exist, and fails closed when reached.
+
+Materializing a role is what validates the foundation it links, so the order
+matters. `scheduler` was taken first because it lights up the largest unlinked
+block — the Kubernetes tree, the leased work queue, singleton leadership, and
+the PostgreSQL lease adapter. `controller` followed because it adds no new packages
+and instead gives that block its second independent consumer, which is what
+`ADMISSION.md` actually asks for. The Kubernetes tree, the leased work queue,
+and singleton leadership are now admitted rather than merely linked.
+
+`event-projector` followed, lighting the last large unlinked block: the
+projector loop, the idempotent inbox, and compare-and-advance cursors. It is
+the sole intended consumer of `coordination/projector`, which is why that
+package cannot reach the two-consumer bar and is a permanent single-consumer
+exemption rather than ordinary debt.
+
+`api` followed, retiring the whole Connect and gRPC waiver block, and
+`webhook-dispatcher` claimed `httpx/outbound`, its only required consumer.
+`operator` reuses the controller factory and `admin` reuses the api factory,
+which is what gives the Kubernetes and transport trees further consumers at no
+new package cost. `ingestion-controller` and `maintenance` closed the fleet.
 
 ## Canonical mechanisms
 

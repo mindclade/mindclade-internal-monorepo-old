@@ -11,8 +11,8 @@ import (
 	"net/http"
 	"runtime/debug"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/httpx"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/httpx"
 )
 
 // PanicEvent contains trusted diagnostic information. Stack must never be

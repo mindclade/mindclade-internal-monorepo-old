@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 
 package(default_visibility = ["//libs/rust:repo_consumers"])
 
@@ -24,10 +24,10 @@ rust_test(
     srcs = ["tests/frame.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_record_io",
         "//libs/rust/bytes_io:mindclade_bytes_io",
         "//libs/rust/content_digest:mindclade_content_digest",
         "//libs/rust/faults:mindclade_faults",
-        ":mindclade_record_io",
     ],
 )
 
@@ -36,10 +36,10 @@ rust_test(
     srcs = ["tests/integration.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_record_io",
         "//libs/rust/bytes_io:mindclade_bytes_io",
         "//libs/rust/content_digest:mindclade_content_digest",
         "//libs/rust/faults:mindclade_faults",
-        ":mindclade_record_io",
     ],
 )
 
@@ -48,15 +48,18 @@ rust_test(
     srcs = ["tests/recovery.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_record_io",
         "//libs/rust/bytes_io:mindclade_bytes_io",
         "//libs/rust/content_digest:mindclade_content_digest",
         "//libs/rust/faults:mindclade_faults",
-        ":mindclade_record_io",
     ],
 )
 
 filegroup(
     name = "package_sources",
-    srcs = glob(["**"], exclude = ["target/**"]),
+    srcs = glob(
+        ["**"],
+        exclude = ["target/**"],
+    ),
     visibility = ["//libs/rust:repo_consumers"],
 )

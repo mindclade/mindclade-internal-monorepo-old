@@ -21,6 +21,7 @@ pub struct Record {
     pub digest: Digest,
 }
 
+#[derive(Debug)]
 pub struct RecordWriter<W> {
     inner: W,
     bytes_written: u64,
@@ -79,6 +80,7 @@ impl<W: Write> RecordWriter<W> {
     }
 }
 
+#[derive(Debug)]
 pub struct RecordReader<R> {
     inner: R,
     maximum_payload: ByteSize,

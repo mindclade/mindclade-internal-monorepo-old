@@ -1,19 +1,93 @@
 # Control plane production readiness
 
-The reusable Go foundation and role contracts are implemented. The service is
-not promoted merely because the scaffold compiles; each role must replace its
-fail-closed `UnconfiguredFactory` with a qualified provider factory.
+Readiness is evaluated per deployable role. The registry role is no longer
+blocked on a composition decision: its model and release engines are wired to
+the production PostgreSQL store and qualified against live PostgreSQL. Other
+roles with explicit fail-closed domain seams remain unavailable and must not be
+promoted merely because the registry is ready.
 
-## Required for each role
+## Registry role
 
-- [ ] Real PostgreSQL pool and migrations wired through `storage/sql/postgres`
-- [ ] Transactional audit, idempotency, and outbox adapters qualified
-- [ ] Role-specific coordination loops use fenced claims and bounded queues
-- [ ] Domain engines and repositories implemented outside `libs/go`
-- [ ] Authentication and authorization provider qualified where required
-- [ ] Kubernetes, blob, cache, and transport adapters wired as required
-- [ ] Readiness, liveness, drain, cancellation, and shutdown tests pass
-- [ ] Failure injection covers database loss, lease loss, duplicate events, and retry exhaustion
-- [ ] SLOs, dashboards, alerts, and runbooks linked
-- [ ] Bazel build, SBOM, provenance, image signature, and rollback evidence attached
-- [ ] `bootstrap.UnconfiguredFactory` absent from the promoted command
+- [x] **Production composition boundary decided and enforced.** The shared
+      `internal/providers` package remains mechanism-only. A role package under
+      `internal/providers/<role>` is a Layer-5 process composition root and may
+      bind reusable `control/` services to concrete repositories and transports.
+      `internal/providers/registry` owns that binding for the registry.
+
+- [x] **Model and release domain engines wired.** `RegistryFactory.Create`
+      constructs `internal/store/postgres.Store`, `models.Service` with its
+      production publication policy, and `releases.Service` with its production
+      promotion policy. Evidence graph and release persistence share one
+      serializable transaction.
+
+- [x] **Registry HTTP surface is authenticated and fail-closed authorized.**
+      Publication, resolution, and promotion have explicit permissions. The
+      middleware requires a mapping, so an added route is denied until its
+      authorization target is declared.
+
+- [x] **Production DDL is migration-owned and append-only.** Registry descriptor,
+      release, and evidence-graph migrations follow the shared durable adapter
+      migrations. Only the registry role runs the global manifest.
+
+- [x] **Live PostgreSQL and failure injection are qualified.** The connected
+      suite covers JSONB round trips, idempotent content-addressed publication,
+      atomic release promotion, rollback after an injected mid-transaction
+      failure, retry classification after database loss, and stale-owner lease
+      rejection. The CI service image is pinned by digest. See
+      `docs/qualification/go/control-plane-registry.md`.
+
+- [x] **SLO and runbook contracts exist.** Availability, latency, RPO/RTO, burn
+      response, rollback, and database-loss procedures are defined in
+      `docs/slo/control-model-registry.md` and
+      `docs/runbooks/control-model-registry.md`.
+
+- [x] **Repository-wide Bazel passes and is a required gate.** The 2026-08-20
+      local qualification analyzed 1,023 targets and all 264 tests passed with
+      lockfile drift rejected. Presubmit runs the same complete repository
+      graph through `tools/dev/bazelw test //... --config=ci`; scoped Go results
+      are not a substitute.
+
+- [x] **Release supply-chain controls are materialized.** The release workflow
+      uses commit-pinned reusable workflows to build both images, emit SPDX SBOMs
+      and SLSA provenance, sign and attest images, and verify signatures before
+      accepting rollback evidence. A dry workflow dispatch publishes nothing.
+      Actual signatures and attestations are release artifacts and therefore
+      exist only after an authorized tagged or push-enabled release succeeds.
+
+The registry role may advance through the normal presubmit and release gates.
+Promotion still requires the release run's SBOM, provenance, signature, and
+rollback artifacts; repository code does not manufacture evidence for a release
+that did not happen.
+
+## Roles still held fail-closed
+
+| Role | Remaining domain or provider gate |
+|---|---|
+| `api`, `admin` | Business API handlers are not yet mounted. |
+| `scheduler` | Placement handler is not configured. |
+| `controller`, `operator` | Domain reconcilers are not registered. |
+| `event-projector` | Projection source and handler are not configured. |
+| `event-dispatcher` | A production Pub/Sub adapter is not present. |
+| `webhook-dispatcher` | Delivery handler is not configured. |
+| `ingestion-controller` | Staging handler is not configured. |
+| `maintenance` | Housekeeping handler is not configured. |
+
+These are independent promotion units, not hidden registry dependencies. Each
+must gain a concrete domain composition, connected qualification, SLO, and
+runbook before its deployment is enabled. Their default handlers continue to
+return stable `*_not_configured` faults so incomplete roles cannot report
+successful work.
+
+## Cross-role enforcement
+
+- `internal/bootstrap/promotion_test.go` requires every command to enter through
+  `bootstrap.Main` and forbids `bootstrap.UnconfiguredFactory` in promoted
+  commands.
+- `internal/bootstrap/profile_test.go` rejects provider capabilities that a
+  role's declared profile does not justify.
+- `tools/analysis/check_foundation_consumption.py` and
+  `tools/analysis/check_go_layers.py` enforce foundation consumption and the Go
+  dependency law.
+- The control-plane failure matrix names database loss, transaction rollback,
+  lease loss, duplicate replay, and retry exhaustion explicitly; CI executes
+  the control-plane subset rather than accepting placeholder scenarios.

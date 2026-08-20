@@ -8,8 +8,8 @@ package memory
 import (
 	"testing"
 
-	"mindclade.internal/libs/go/storage/blob"
-	"mindclade.internal/libs/go/storage/blob/blobtest"
+	"go.mindclade.dev/libs/go/storage/blob"
+	"go.mindclade.dev/libs/go/storage/blob/blobtest"
 )
 
 func TestConformance(t *testing.T) {

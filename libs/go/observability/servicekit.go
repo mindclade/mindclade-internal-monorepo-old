@@ -10,8 +10,8 @@ import (
 	"errors"
 	"log/slog"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/servicekit"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/servicekit"
 )
 
 // ServiceObserver adapts servicekit lifecycle events to the process-local

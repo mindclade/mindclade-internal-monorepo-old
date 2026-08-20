@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/identifiers"
 )
 
 func TestClaimFencing(t *testing.T) {

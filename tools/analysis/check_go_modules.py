@@ -10,7 +10,12 @@ from pathlib import Path
 
 def check(root: Path):
     modules = sorted(
-        p.relative_to(root).as_posix() for p in root.rglob("go.mod") if ".git" not in p.parts
+        # `.claude` alongside `.git`: agent worktrees are full COPIES of this repository, so
+        # rglob finds a second go.mod for every real one and reports each as an unexpected
+        # module boundary. They are ephemeral working directories, not source.
+        p.relative_to(root).as_posix()
+        for p in root.rglob("go.mod")
+        if not {".git", ".claude"} & set(p.parts)
     )
     allowed = {"go.mod", "sdk/go/go.mod"}
     return [f"unexpected Go module boundary: {m}" for m in modules if m not in allowed] + (

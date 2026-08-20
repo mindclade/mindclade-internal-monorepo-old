@@ -11,7 +11,7 @@ import (
 
 	gcsapi "cloud.google.com/go/storage"
 
-	"mindclade.internal/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/identifiers"
 )
 
 func TestConvertAttributes(t *testing.T) {

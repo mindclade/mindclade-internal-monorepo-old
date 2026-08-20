@@ -4,4 +4,43 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: runtime-gateway-default-deny
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: runtime-gateway
+    app.kubernetes.io/part-of: mindclade-platform
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: runtime-gateway
+  policyTypes:
+    - Ingress
+    - Egress
+---
+# Callers must opt in with a workload label; no broad namespace ingress is
+# granted. Kubelet-originated probes are not pod-to-pod traffic.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: runtime-gateway-allow-labeled-clients
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: runtime-gateway
+    app.kubernetes.io/part-of: mindclade-platform
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: runtime-gateway
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              networking.mindclade.dev/runtime-client: "true"
+      ports:
+        - protocol: TCP
+          port: 8080

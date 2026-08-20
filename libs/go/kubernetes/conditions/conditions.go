@@ -15,7 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	validation "k8s.io/apimachinery/pkg/util/validation"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 var reasonPattern = regexp.MustCompile(`^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$`)

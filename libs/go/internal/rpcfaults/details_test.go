@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/requestmeta"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/requestmeta"
 )
 
 func TestFromErrorSanitizesCauseAndFields(t *testing.T) {

@@ -13,8 +13,8 @@ import (
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/httpx"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/httpx"
 )
 
 const maximumOperationLength = 256

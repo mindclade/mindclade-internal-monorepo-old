@@ -14,8 +14,8 @@ until the connected/runtime evidence below is present.
 
 ## Required qualification evidence
 
-- [ ] `cargo test --workspace` and service-target tests pass under the pinned toolchain.
-- [ ] Clippy and Rust workspace/layer policies pass.
+- [x] `cargo test --workspace --all-targets --all-features --locked` passes under pinned Rust 1.97.1 (2026-08-20 local evidence).
+- [x] Clippy with warnings denied and Rust workspace static policies pass (2026-08-20 local evidence).
 - [ ] Cross-language golden vectors pass with compiled Rust consumers.
 - [ ] Tonic/Tokio transport integration is exercised under cancellation and backpressure.
 - [ ] Fuzz/concurrency tests cover ticket, route, stream, and framing inputs.
@@ -29,8 +29,8 @@ until the connected/runtime evidence below is present.
 | Evidence | Current state | Location |
 |---|---|---|
 | Source/core contracts | implemented | `src/` |
-| Unit/component test source | implemented, not executed here | `tests/` |
-| Compiled Rust qualification | pending | Rust connected CI |
+| Unit/component tests | passing locally on pinned toolchain | `tests/` |
+| Compiled Rust qualification | local Cargo gates pass; connected release lane pending | `tools/qualification/rust/` |
 | Cross-language compiled conformance | pending | `tests/integration/cross_language/` |
 | Performance qualification | pending | runtime qualification lane |
 | Security review | pending | security evidence bundle |

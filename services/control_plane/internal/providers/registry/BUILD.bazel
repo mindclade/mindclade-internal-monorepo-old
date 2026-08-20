@@ -1,0 +1,77 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//services/control_plane:__subpackages__"])
+
+go_library(
+    name = "registry",
+    srcs = [
+		"domain.go",
+		"handler.go",
+        "migrations.go",
+        "registry.go",
+        "serving.go",
+    ],
+    importpath = "go.mindclade.dev/services/control_plane/internal/providers/registry",
+    deps = [
+		"//control/registry/models",
+		"//control/registry/releases",
+        "//libs/go/audit",
+        "//libs/go/audit/postgres",
+        "//libs/go/auth",
+        "//libs/go/clock",
+        "//libs/go/config",
+        "//libs/go/coordination/cursor/postgres",
+        "//libs/go/coordination/outbox/postgres",
+        "//libs/go/coordination/workqueue/postgres",
+        "//libs/go/faults",
+        "//libs/go/httpx",
+        "//libs/go/httpx/health",
+        "//libs/go/httpx/middleware",
+        "//libs/go/idempotency",
+        "//libs/go/idempotency/postgres",
+        "//libs/go/identifiers",
+        "//libs/go/observability",
+        "//libs/go/requestmeta",
+        "//libs/go/servicekit",
+        "//libs/go/servicekit/production",
+        "//libs/go/storage/lease/postgres",
+        "//libs/go/storage/sql/migrate",
+		"//libs/go/storage/sql/transaction",
+        "//services/control_plane/internal/bootstrap",
+        "//services/control_plane/internal/config",
+        "//services/control_plane/internal/foundation",
+        "//services/control_plane/internal/foundation/eventing",
+        "//services/control_plane/internal/foundation/governance",
+        "//services/control_plane/internal/foundation/identity",
+        "//services/control_plane/internal/foundation/objects",
+        "//services/control_plane/internal/foundation/persistence",
+        "//services/control_plane/internal/providers",
+        "//services/control_plane/internal/providers/apikeys",
+        "//services/control_plane/internal/providers/durable",
+        "//services/control_plane/internal/providers/objects",
+		"//services/control_plane/internal/store/postgres",
+        "//services/control_plane/internal/transport",
+    ],
+)
+
+go_test(
+    name = "registry_test",
+	srcs = [
+		"domain_test.go",
+		"handler_test.go",
+		"providers_test.go",
+	],
+    embed = [":registry"],
+    deps = [
+		"//control/registry/models",
+		"//control/registry/releases",
+		"//libs/go/identifiers",
+		"//libs/go/storage/sql/sqltest",
+        "@com_github_lib_pq//:pq",
+    ],
+)

@@ -17,6 +17,7 @@ metadata:
   name: goproxy
   namespace: dev
 spec:
+  type: ClusterIP
   selector:
     app.kubernetes.io/name: goproxy
   ports:
@@ -31,6 +32,9 @@ kind: ConfigMap
 metadata:
   name: goproxy-config
   namespace: dev
+  annotations:
+    mindclade.dev/deployment-status: disabled
+immutable: true
 data:
   config.toml: |
     GoBinaryEnvVars = [
@@ -46,7 +50,7 @@ data:
       # Confirm with an actual private-module fetch after any change here, not by reading
       # the pod spec.
 
-      # GOPRIVATE matches MODULE PATHS, not VCS hosts. `github.com/mindclade-org/*` would do
+      # GOPRIVATE matches MODULE PATHS, not VCS hosts. `github.com/mindclade/*` would do
       # nothing here: that string never appears in a require line — the require lines say
       # `go.mindclade.dev`. The pattern also covers every subpath, so one entry covers the
       # whole namespace.
@@ -84,8 +88,12 @@ kind: Deployment
 metadata:
   name: goproxy
   namespace: dev
+  annotations:
+    mindclade.dev/deployment-status: disabled
+    mindclade.dev/activation-blocker: credential-egress-cache-durability-and-rollout-evidence-missing
 spec:
-  replicas: 2
+  replicas: 0
+  revisionHistoryLimit: 3
   selector:
     matchLabels:
       app.kubernetes.io/name: goproxy
@@ -95,14 +103,32 @@ spec:
         app.kubernetes.io/name: goproxy
         app.kubernetes.io/part-of: mindclade
     spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
       serviceAccountName: goproxy
+      terminationGracePeriodSeconds: 30
       securityContext:
         runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
         seccompProfile:
           type: RuntimeDefault
       containers:
         - name: athens
-          image: gomods/athens:v0.16.0
+          # PINNED BY DIGEST, like everything else that reaches a cluster. A tag is mutable,
+          # so `v0.16.0` can point at different bytes tomorrow — which is the gap Binary
+          # Authorization and gitops/.github/workflows/verify-attestation.yml exist to close,
+          # and the check there rejects any reference that is not a digest.
+          #
+          # THIRD-PARTY, so it carries no Mindclade signature and no BinAuthz attestation. It
+          # is exempted by name in verify-attestation.yml alongside registry.k8s.io/*, which
+          # is the only reason a digest alone is enough here. Bumping the version means
+          # resolving the new digest and moving the exemption's recorded version with it:
+          #
+          #   crane digest gomods/athens:<version>
+          image: gomods/athens:v0.16.0@sha256:c92d4d9ef305f0cb22555f7b0b0758621de08d107f28ec89664ee8f398ff260d
           ports:
             - name: http
               containerPort: 3000
@@ -126,25 +152,44 @@ spec:
               readOnly: true
             - name: cache
               mountPath: /var/lib/athens
+            - name: tmp
+              mountPath: /tmp
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
+            runAsNonRoot: true
             capabilities:
               drop: ["ALL"]
           resources:
             requests:
               cpu: 100m
+              ephemeral-storage: 2Gi
               memory: 256Mi
             limits:
+              cpu: "1"
+              ephemeral-storage: 20Gi
               memory: 1Gi
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
+            timeoutSeconds: 1
           livenessProbe:
             httpGet:
               path: /healthz
               port: http
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 2
           readinessProbe:
             httpGet:
               path: /healthz
               port: http
+            periodSeconds: 5
+            failureThreshold: 2
+            timeoutSeconds: 2
       volumes:
         - name: config
           configMap:
@@ -152,9 +197,16 @@ spec:
         - name: netrc
           secret:
             secretName: goproxy-netrc
+            defaultMode: 0400
+            items:
+              - key: netrc
+                path: netrc
         - name: cache
           emptyDir:
-            sizeLimit: 20Gi
+            sizeLimit: 18Gi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
 
 ---
 apiVersion: v1
@@ -162,3 +214,4 @@ kind: ServiceAccount
 metadata:
   name: goproxy
   namespace: dev
+automountServiceAccountToken: false

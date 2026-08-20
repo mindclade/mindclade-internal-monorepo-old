@@ -3,13 +3,28 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-// Command operator is the production composition root for its
-// control-plane process role. Provider construction remains service-owned; all
-// lifecycle behavior flows through servicekit/production via bootstrap.
+// Command operator is the production composition root for the control-plane
+// operator role. Provider construction remains service-owned; all lifecycle
+// behavior flows through servicekit/production via bootstrap.
+//
+// The factory comes from the controller package because the operator and
+// controller roles have identical capability profiles: they are the same
+// composition claiming a different lease and reporting events under a
+// different source, not two implementations of the same thing.
+//
+// The PostgreSQL driver is linked here, in the only package that may decide
+// which drivers this binary carries. The provider factory resolves the
+// configured driver name against the registered set and fails closed when it
+// is absent.
 package main
 
-import "mindclade.internal/services/control_plane/internal/bootstrap"
+import (
+	_ "github.com/lib/pq"
+
+	"go.mindclade.dev/services/control_plane/internal/bootstrap"
+	"go.mindclade.dev/services/control_plane/internal/providers/controller"
+)
 
 func main() {
-	bootstrap.Main(bootstrap.RoleOperator, bootstrap.UnconfiguredFactory("operator"))
+	bootstrap.Main(bootstrap.RoleOperator, controller.NewOperatorFactory())
 }

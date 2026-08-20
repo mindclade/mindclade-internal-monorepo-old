@@ -19,6 +19,16 @@ pub struct Client {
     config: ClientConfig,
     metrics: Arc<StoreMetrics>,
 }
+impl core::fmt::Debug for Client {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        formatter
+            .debug_struct("Client")
+            .field("namespace", &self.namespace)
+            .field("config", &self.config)
+            .field("metrics", &self.metrics)
+            .finish_non_exhaustive()
+    }
+}
 impl Client {
     pub fn new(
         store: Arc<dyn ObjectStore>,

@@ -8,7 +8,7 @@ package blob
 import (
 	"testing"
 
-	"mindclade.internal/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/identifiers"
 )
 
 func TestAttributesClone(t *testing.T) {

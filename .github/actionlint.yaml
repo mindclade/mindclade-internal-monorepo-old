@@ -1,0 +1,33 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+# The canonical config. `.github/.github/actionlint.yaml` in the org's `.github` repository is
+# a copy of this file.
+self-hosted-runner:
+  labels:
+    - gpu
+
+# Two shellcheck INFO codes are suppressed, and only these two.
+#
+# Nothing here weakens the check that matters: SC1072/SC1073 (shell syntax errors) and every
+# warning- and error-level code still fail the build.
+#
+# SC2016 — "expressions don't expand in single quotes". Every hit is a literal `$` that
+#   belongs to the text being built rather than to the shell: a markdown issue body, or a jq
+#   program (`$ENV.MARKER`). Expanding them is exactly what must NOT happen.
+#
+# SC1003 — "want to escape a single quote?". `'\''` is the correct idiom for embedding a
+#   quote inside a single-quoted string.
+#
+# NOT suppressed, deliberately: SC2153 and SC2015. Both fire only under shellcheck 0.10.x,
+# which is what the flake pins, and both marked real smells when the estate's gates were first
+# wired — an env var aliased into a near-identical lowercase local, and an `A && B || C` whose
+# `|| C` also swallowed a failure from B.
+paths:
+  .github/workflows/**/*.yml:
+    ignore:
+      - 'shellcheck reported issue in this script: SC2016:'
+      - 'shellcheck reported issue in this script: SC1003:'

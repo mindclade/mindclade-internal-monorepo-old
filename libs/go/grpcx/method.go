@@ -8,8 +8,8 @@ package grpcx
 import (
 	"strings"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/requestmeta"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/requestmeta"
 )
 
 const maximumMethodLength = 1024

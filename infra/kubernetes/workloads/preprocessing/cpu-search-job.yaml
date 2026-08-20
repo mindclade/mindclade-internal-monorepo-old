@@ -4,4 +4,72 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mindclade-cpu-search-template
+  namespace: mindclade-batch-cpu
+  labels:
+    app.kubernetes.io/component: preprocessing
+    app.kubernetes.io/name: cpu-search
+    app.kubernetes.io/part-of: mindclade-platform
+    kueue.x-k8s.io/queue-name: mindclade-batch-cpu
+    mindclade.dev/workload-class: batch-cpu
+    mindclade.dev/workload-state: blocked
+  annotations:
+    mindclade.dev/activation-requirements: immutable-reference-ticket-and-image
+    mindclade.dev/data-failure-policy: fail-closed
+spec:
+  activeDeadlineSeconds: 14400
+  backoffLimit: 0
+  suspend: true
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: preprocessing
+        app.kubernetes.io/name: cpu-search
+        app.kubernetes.io/part-of: mindclade-platform
+        mindclade.dev/workload-class: batch-cpu
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: preprocessing-worker
+          image: registry.invalid/mindclade/preprocessing-worker@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          env:
+            - name: MINDCLADE_WORKLOAD_ACTIVATION
+              value: blocked
+            - name: MINDCLADE_REFERENCE_POLICY
+              value: immutable-digest-required
+          resources:
+            requests:
+              cpu: "4"
+              memory: 8Gi
+              ephemeral-storage: 8Gi
+            limits:
+              cpu: "16"
+              memory: 32Gi
+              ephemeral-storage: 32Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+          volumeMounts:
+            - name: scratch
+              mountPath: /tmp
+      priorityClassName: mindclade-batch
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: mindclade-batch-cpu
+      terminationGracePeriodSeconds: 60
+      volumes:
+        - name: scratch
+          emptyDir:
+            sizeLimit: 32Gi

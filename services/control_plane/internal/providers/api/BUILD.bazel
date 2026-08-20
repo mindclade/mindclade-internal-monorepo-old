@@ -1,0 +1,66 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//services/control_plane:__subpackages__"])
+
+go_library(
+    name = "api",
+    srcs = [
+        "api.go",
+        "serving.go",
+    ],
+    importpath = "go.mindclade.dev/services/control_plane/internal/providers/api",
+    deps = [
+        "//libs/go/auth",
+        "//libs/go/config",
+        "//libs/go/connectx",
+        "//libs/go/connectx/health",
+        "//libs/go/connectx/interceptors",
+        "//libs/go/connectx/otel",
+        "//libs/go/connectx/reflection",
+        "//libs/go/faults",
+        "//libs/go/grpcx",
+        "//libs/go/grpcx/credentials",
+        "//libs/go/grpcx/health",
+        "//libs/go/grpcx/interceptors",
+        "//libs/go/grpcx/otel",
+        "//libs/go/grpcx/reflection",
+        "//libs/go/httpx",
+        "//libs/go/httpx/health",
+        "//libs/go/httpx/middleware",
+        "//libs/go/observability",
+        "//libs/go/requestmeta",
+        "//libs/go/servicekit/production",
+        "//services/control_plane/internal/bootstrap",
+        "//services/control_plane/internal/config",
+        "//services/control_plane/internal/foundation",
+        "//services/control_plane/internal/foundation/eventing",
+        "//services/control_plane/internal/foundation/governance",
+        "//services/control_plane/internal/foundation/identity",
+        "//services/control_plane/internal/foundation/persistence",
+        "//services/control_plane/internal/providers",
+        "//services/control_plane/internal/providers/apikeys",
+        "//services/control_plane/internal/providers/durable",
+        "//services/control_plane/internal/transport",
+        "@com_connectrpc_connect//:connect",
+        "@org_golang_google_grpc//:grpc",
+        "@org_golang_google_grpc//credentials",
+    ],
+)
+
+go_test(
+    name = "api_test",
+    srcs = ["api_test.go"],
+    embed = [":api"],
+    deps = [
+        "//libs/go/config",
+        "//libs/go/faults",
+        "//services/control_plane/internal/bootstrap",
+        "//services/control_plane/internal/config",
+        "@com_github_lib_pq//:pq",
+    ],
+)

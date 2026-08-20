@@ -7,6 +7,7 @@ use mindclade_artifact_proxy::{LocalCache, ProxyConfig, ProxyHealth};
 
 #[test]
 fn config_and_cache_are_bounded() {
+    assert!(LocalCache::new(0, 2).is_err());
     let config = ProxyConfig {
         maximum_read_bytes: 1024,
         maximum_write_bytes: 1024,

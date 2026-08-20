@@ -1,0 +1,20 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - pod-monitoring.yaml
+  - recording-rules.yaml
+
+commonAnnotations:
+  mindclade.dev/activation-state: blocked
+
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/part-of: mindclade-platform
+      mindclade.dev/owner: platform-observability

@@ -4,4 +4,45 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+schema_version: 1
+profiles:
+  portable-presubmit:
+    required: true
+    runner: pinned-rust-1.97.1
+    command: python tools/qualification/rust/performance.py --measure
+    purpose: deterministic CPU, filesystem, process, and Unix-socket regression signal
+  runtime-gateway-release:
+    required: true
+    runner: production-equivalent Linux node
+    command: python tools/qualification/rust/release_performance.py
+    requirements:
+      - signed RuntimeDispatchRequest fixture
+      - declared gateway PID and pod memory limit
+      - warm connections and forced connection churn
+      - dedicated live cancellation and client-disconnect probe
+  gke-h100-release:
+    required: true
+    runner: GKE node labeled mindclade.dev/hardware-profile=h100
+    requirements:
+      - explicit kubectl context and authorized credentials
+      - active H100 capacity contract and unheld Kueue quota
+      - release qualification image pinned by nonzero sha256 digest
+      - checkpoint staging throughput
+      - data-stream copy count
+      - parser allocation ratio
+      - worker startup
+      - IPC and verified range-read throughput
+      - GPU memory and matmul p50/p95/p99
+  gke-h200-release:
+    required: true
+    runner: GKE node labeled mindclade.dev/hardware-profile=h200
+    requirements:
+      - explicit kubectl context and authorized credentials
+      - active H200 capacity contract and unheld Kueue quota
+      - release qualification image pinned by nonzero sha256 digest
+      - checkpoint staging throughput
+      - data-stream copy count
+      - parser allocation ratio
+      - worker startup
+      - IPC and verified range-read throughput
+      - GPU memory and matmul p50/p95/p99

@@ -11,10 +11,10 @@ import (
 	"errors"
 	"fmt"
 
-	"mindclade.internal/libs/go/coordination/cursor"
-	"mindclade.internal/libs/go/faults"
-	sqlpostgres "mindclade.internal/libs/go/storage/sql/postgres"
-	"mindclade.internal/libs/go/storage/sql/transaction"
+	"go.mindclade.dev/libs/go/coordination/cursor"
+	"go.mindclade.dev/libs/go/faults"
+	sqlpostgres "go.mindclade.dev/libs/go/storage/sql/postgres"
+	"go.mindclade.dev/libs/go/storage/sql/transaction"
 )
 
 type Store struct {
@@ -98,7 +98,10 @@ func (store *Store) Advance(ctx context.Context, request cursor.AdvanceRequest) 
 		if err != nil {
 			return cursor.Cursor{}, provider(ctx, err, "cursor.postgres.Advance.insert")
 		}
-		affected, _ := result.RowsAffected()
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return cursor.Cursor{}, provider(ctx, err, "cursor.postgres.Advance.insert")
+		}
 		if affected != 1 {
 			return cursor.Cursor{}, conflict(ctx, request.Key, "cursor.postgres.Advance.insert")
 		}
@@ -109,7 +112,10 @@ func (store *Store) Advance(ctx context.Context, request cursor.AdvanceRequest) 
 	if err != nil {
 		return cursor.Cursor{}, provider(ctx, err, "cursor.postgres.Advance.update")
 	}
-	affected, _ := result.RowsAffected()
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return cursor.Cursor{}, provider(ctx, err, "cursor.postgres.Advance.update")
+	}
 	if affected != 1 {
 		current, loadErr := store.Load(ctx, request.Key)
 		if loadErr == nil {
@@ -133,7 +139,10 @@ func (store *Store) Delete(ctx context.Context, key cursor.Key, expected uint64)
 	if err != nil {
 		return provider(ctx, err, "cursor.postgres.Delete")
 	}
-	affected, _ := result.RowsAffected()
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return provider(ctx, err, "cursor.postgres.Delete")
+	}
 	if affected != 1 {
 		return conflict(ctx, key, "cursor.postgres.Delete")
 	}

@@ -4,18 +4,31 @@
 #
 
 load("@rules_go//go:def.bzl", "go_library", "go_test")
+
 package(default_visibility = ["//visibility:public"])
 
 go_library(
     name = "health",
-    srcs = ["checker.go", "doc.go", "handler.go"],
-    importpath = "mindclade.internal/libs/go/connectx/health",
-    deps = ["//libs/go/faults", "//libs/go/servicekit", "@com_connectrpc_connect//:connect", "@com_connectrpc_grpchealth//:grpchealth"],
+    srcs = [
+        "checker.go",
+        "doc.go",
+        "handler.go",
+    ],
+    importpath = "go.mindclade.dev/libs/go/connectx/health",
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/servicekit",
+        "@com_connectrpc_connect//:connect",
+        "@com_connectrpc_grpchealth//:grpchealth",
+    ],
 )
 
 go_test(
     name = "health_test",
     srcs = ["checker_test.go"],
     embed = [":health"],
-    deps = ["//libs/go/servicekit", "@com_connectrpc_grpchealth//:grpchealth"],
+    deps = [
+        "//libs/go/servicekit",
+        "@com_connectrpc_grpchealth//:grpchealth",
+    ],
 )

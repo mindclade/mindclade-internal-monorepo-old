@@ -1,0 +1,121 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+---
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: kueue-controller
+  namespace: kueue-system
+  annotations:
+    mindclade.dev/activation-blocker: external-gmp-auth-trust-rbac-and-network-unqualified
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: kueue
+      app.kubernetes.io/name: kueue
+      control-plane: controller-manager
+  endpoints:
+    - port: metrics
+      scheme: https
+      path: /metrics
+      interval: 30s
+      timeout: 10s
+      authorization:
+        type: Bearer
+        credentials:
+          secret:
+            name: mindclade-gmp-kueue-auth
+            key: token
+      tls:
+        serverName: kueue-controller-manager-metrics-service.kueue-system.svc
+        minVersion: TLS12
+        ca:
+          secret:
+            name: mindclade-gmp-kueue-trust
+            key: ca.crt
+      metricRelabeling:
+        - sourceLabels:
+            - __name__
+          regex: >-
+            ^(up|process_.*|go_.*|controller_runtime_.*|workqueue_.*|kueue_build_info|kueue_pending_workloads|kueue_admitted_active_workloads|kueue_cluster_queue_status|kueue_admission_attempts_total|kueue_admission_attempt_duration_seconds_(bucket|count|sum)|kueue_admission_wait_time_seconds_(bucket|count|sum))$
+          action: keep
+  targetLabels:
+    metadata:
+      - container
+      - pod
+      - top_level_controller_name
+      - top_level_controller_type
+    fromPod:
+      - from: app.kubernetes.io/name
+        to: operator
+  limits:
+    samples: 20000
+    labels: 40
+    labelNameLength: 128
+    labelValueLength: 2048
+  filterRunning: true
+
+---
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: jobset-controller
+  namespace: jobset-system
+  annotations:
+    mindclade.dev/activation-blocker: external-gmp-auth-trust-client-cert-rbac-and-network-unqualified
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: controller
+      app.kubernetes.io/instance: jobset
+      app.kubernetes.io/name: jobset
+  endpoints:
+    - port: metrics
+      scheme: https
+      path: /metrics
+      interval: 30s
+      timeout: 10s
+      authorization:
+        type: Bearer
+        credentials:
+          secret:
+            name: mindclade-gmp-jobset-auth
+            key: token
+      tls:
+        serverName: jobset-metrics-service.jobset-system.svc
+        minVersion: TLS12
+        ca:
+          secret:
+            name: mindclade-gmp-jobset-trust
+            key: ca.crt
+        cert:
+          secret:
+            name: mindclade-gmp-jobset-client
+            key: tls.crt
+        key:
+          secret:
+            name: mindclade-gmp-jobset-client
+            key: tls.key
+      metricRelabeling:
+        - sourceLabels:
+            - __name__
+          regex: >-
+            ^(up|process_.*|go_.*|controller_runtime_.*|workqueue_.*)$
+          action: keep
+  targetLabels:
+    metadata:
+      - container
+      - pod
+      - top_level_controller_name
+      - top_level_controller_type
+    fromPod:
+      - from: app.kubernetes.io/name
+        to: operator
+  limits:
+    samples: 10000
+    labels: 40
+    labelNameLength: 128
+    labelValueLength: 2048
+  filterRunning: true

@@ -7,7 +7,7 @@
 use mindclade_content_digest::Digest;
 use mindclade_faults::{Code, Fault, FaultResult};
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::RwLock;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -20,7 +20,7 @@ pub struct ReferenceSnapshot {
 
 impl ReferenceSnapshot {
     pub fn validate(&self) -> FaultResult<()> {
-        if self.bytes == 0 || !self.root.is_absolute() {
+        if self.bytes == 0 || !is_normalized_absolute(&self.root) || self.root.parent().is_none() {
             return Err(Fault::invalid_argument(
                 "reference snapshot cache entry is invalid",
             ));
@@ -89,10 +89,20 @@ impl ReferenceCache {
             .ok_or_else(|| Fault::new(Code::NotFound, "reference snapshot is not active on node"))
     }
     pub fn contains_path(&self, digest: Digest, path: &Path) -> bool {
+        if !is_normalized_absolute(path) {
+            return false;
+        }
         self.entries
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .get(&digest)
             .is_some_and(|entry| path.starts_with(&entry.root))
     }
+}
+
+fn is_normalized_absolute(path: &Path) -> bool {
+    path.is_absolute()
+        && path
+            .components()
+            .all(|component| !matches!(component, Component::ParentDir | Component::CurDir))
 }

@@ -11,9 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	"mindclade.internal/libs/go/audit"
-	"mindclade.internal/libs/go/identifiers"
-	"mindclade.internal/libs/go/storage/sql/sqltest"
+	"go.mindclade.dev/libs/go/audit"
+	"go.mindclade.dev/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/storage/sql/sqltest"
 )
 
 func testEvent(t *testing.T) audit.Event {

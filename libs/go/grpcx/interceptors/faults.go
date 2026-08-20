@@ -7,9 +7,9 @@ package interceptors
 
 import (
 	"context"
+	"go.mindclade.dev/libs/go/grpcx"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	"mindclade.internal/libs/go/grpcx"
 )
 
 func UnaryFaultTranslation() grpc.UnaryServerInterceptor {

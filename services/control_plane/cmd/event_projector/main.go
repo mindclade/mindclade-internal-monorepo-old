@@ -3,13 +3,24 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-// Command event-projector is the production composition root for its
-// control-plane process role. Provider construction remains service-owned; all
-// lifecycle behavior flows through servicekit/production via bootstrap.
+// Command event_projector is the production composition root for the
+// control-plane event-projector role. Provider construction remains
+// service-owned; all lifecycle behavior flows through servicekit/production
+// via bootstrap.
+//
+// The PostgreSQL driver is linked here, in the only package that may decide
+// which drivers this binary carries. The provider factory resolves the
+// configured driver name against the registered set and fails closed when it
+// is absent.
 package main
 
-import "mindclade.internal/services/control_plane/internal/bootstrap"
+import (
+	_ "github.com/lib/pq"
+
+	"go.mindclade.dev/services/control_plane/internal/bootstrap"
+	"go.mindclade.dev/services/control_plane/internal/providers/projector"
+)
 
 func main() {
-	bootstrap.Main(bootstrap.RoleEventProjector, bootstrap.UnconfiguredFactory("event-projector"))
+	bootstrap.Main(bootstrap.RoleEventProjector, projector.NewProjectorFactory())
 }

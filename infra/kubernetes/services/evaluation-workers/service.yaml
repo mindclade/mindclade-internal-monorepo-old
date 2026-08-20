@@ -4,4 +4,5 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# Intentionally no Service. Evaluation runs as suspended batch work and has no
+# implemented network listener.

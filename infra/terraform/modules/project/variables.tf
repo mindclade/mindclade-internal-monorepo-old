@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 variable "project_id" {
   description = "Globally unique GCP project ID"
   type        = string
@@ -155,4 +160,21 @@ variable "tag_value_names" {
     condition     = alltrue([for tag_value in var.tag_value_names : can(regex("^tagValues/[0-9]+$", tag_value))])
     error_message = "Every tag_value_names entry must use the form tagValues/123456789012."
   }
+}
+
+variable "shared_vpc_host_project_id" {
+  description = "Shared VPC host project to attach this project to as a service project; null leaves it unattached"
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.shared_vpc_host_project_id == null ? true : can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.shared_vpc_host_project_id))
+    error_message = "shared_vpc_host_project_id must be null or a valid project ID."
+  }
+}
+
+variable "remove_default_service_account" {
+  description = "Deprivilege the default compute service account by removing its automatic project IAM grants; the account itself is retained"
+  type        = bool
+  default     = false
 }

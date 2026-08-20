@@ -9,8 +9,8 @@ import (
 	"sort"
 	"strings"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/servicekit/production"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/servicekit/production"
 )
 
 // Role identifies one deployable Go process. Roles share a production

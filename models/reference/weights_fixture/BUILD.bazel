@@ -1,0 +1,79 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# The synthetic weights bundle, and the first consumer of mindclade_model_bundle.
+#
+# This exists so the weights distribution path can be proven end to end before any real
+# checkpoint exists — build, push, sign, attest, admit, mount. See make_fixture.py for why a
+# fixture rather than a model.
+#
+# When a real model arrives it gets its own package with the same three targets, and the only
+# thing that differs is the `weights` map.
+
+load("@rules_python//python:defs.bzl", "py_binary")
+load("//tools/build/bazel/rules:release.bzl", "mindclade_model_bundle")
+
+package(default_visibility = ["//visibility:private"])
+
+py_binary(
+    name = "make_fixture",
+    srcs = ["make_fixture.py"],
+    deps = ["//tools/release:build_model_bundle_lib"],
+)
+
+# The bundle files are GENERATED rather than checked in.
+#
+# Checking in a .safetensors would put four kilobytes of binary in git that no reviewer can
+# read and no diff can explain, and it would rot silently the moment the bundle format
+# changed. Generating it means the fixture is always what the current tool produces — and
+# because make_fixture.py stages through build_model_bundle.build(), tightening the format
+# rules breaks this build instead of leaving a fixture that no longer represents anything.
+genrule(
+    name = "bundle",
+    outs = [
+        "bundle/model.safetensors",
+        "bundle/config.json",
+        "bundle/manifest.json",
+    ],
+    cmd = "$(execpath :make_fixture) --out $(RULEDIR)/bundle >/dev/null",
+    tools = [":make_fixture"],
+)
+
+# The S8 provenance tuple, as OCI manifest annotations.
+#
+# A generated file rather than a Starlark dict, because that is rules_oci's signature and
+# because half the tuple is not knowable at analysis time. What is static lives here; the
+# volatile half — mono commit SHA, dataset manifest digest, eval report digest — needs
+# `--stamp` with a workspace_status_command, which this repository does not configure yet.
+# Those keys are deliberately ABSENT rather than filled with placeholders: an annotation
+# reading "unknown" is worse than a missing one, because a consumer cannot tell it apart from
+# a real value.
+#
+# Per ADR-0022 these annotations are a PROJECTION. The authoritative identity is the platform
+# manifest, which travels inside the artifact as manifest.json.
+genrule(
+    name = "annotations",
+    srcs = ["bundle/manifest.json"],
+    outs = ["annotations.txt"],
+    cmd = "$(execpath //tools/release:emit_annotations) " +
+          "--manifest $(location bundle/manifest.json) --out $@",
+    tools = ["//tools/release:emit_annotations"],
+)
+
+mindclade_model_bundle(
+    name = "fixture",
+    annotations = ":annotations",
+    visibility = ["//visibility:public"],
+    weights = {
+        ":bundle/config.json": "config.json",
+        # The platform manifest travels INSIDE the artifact, not only as OCI annotations.
+        #
+        # Per ADR-0004/ADR-0022 the platform manifest is authoritative for identity and the
+        # annotations are a projection carried for admission and portability. If only the
+        # projection shipped, a consumer that had the bytes but not the registry metadata
+        # would have no way to check what it was holding.
+        ":bundle/manifest.json": "manifest.json",
+        ":bundle/model.safetensors": "model.safetensors",
+    },
+)

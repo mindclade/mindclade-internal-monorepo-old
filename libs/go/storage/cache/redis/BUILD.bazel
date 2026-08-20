@@ -15,11 +15,11 @@ go_library(
         "scripts.go",
         "store.go",
     ],
-    importpath = "mindclade.internal/libs/go/storage/cache/redis",
+    importpath = "go.mindclade.dev/libs/go/storage/cache/redis",
     deps = [
         "//libs/go/faults",
         "//libs/go/storage/cache",
-        "@com_github_redis_go_redis_v9//:redis",
+        "@com_github_redis_go_redis_v9//:go-redis",
     ],
 )
 
@@ -33,6 +33,6 @@ go_test(
     deps = [
         "//libs/go/faults",
         "//libs/go/storage/cache",
-        "@com_github_redis_go_redis_v9//:redis",
+        "@com_github_redis_go_redis_v9//:go-redis",
     ],
 )

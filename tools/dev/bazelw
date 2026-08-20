@@ -1,1 +1,123 @@
-# Scaffold file: tools/dev/bazelw
+#!/usr/bin/env bash
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# The repository's Bazel entry point.
+#
+# WHAT THIS REPLACED. A 34-byte file reading `# Scaffold file: tools/dev/bazelw`, without an
+# executable bit, which ci/presubmit/pipeline.py invokes as a program:
+#
+#     return run([str(REPO / "tools/dev/bazelw"), "test", *targets])
+#
+# That call raises PermissionError. Nothing had noticed because presubmit.yml runs
+# `pipeline.py --static-only`, which returns before reaching that line, and because until the
+# rules_go/Go 1.26 fix no Go target could be built by Bazel at all — so the lane that would
+# have hit it was not worth turning on. Both of those are now false.
+#
+# WHY A WRAPPER RATHER THAN CALLING bazel DIRECTLY. Three reasons, and none is style:
+#
+#   1. .bazelversion pins 9.1.1. bazelisk reads the pin and fetches the right launcher; this
+#      script prefers it, so an unrelated host Bazel cannot silently own the build graph.
+#   2. Bazel resolves the workspace from the working directory. `pipeline.py` already passes
+#      cwd=REPO, but a person running this from a subdirectory should get the same build, so
+#      the cd here is not redundant with that.
+#   3. On Darwin, rules_cc auto-configuration otherwise finds /usr/bin/clang before the Nix
+#      compiler and mixes Apple SDK headers with Nix's libc++. The strict sandbox then rejects
+#      undeclared CommandLineTools headers. Normalizing Bazel's repository environment here
+#      keeps every caller on the compiler and deployment target selected by the Nix shell.
+#
+# WHAT THIS DELIBERATELY DOES NOT DO: choose a build mode or target set. No --config=ci and no
+# implicit //... . The caller still owns build semantics; the flags below only translate the
+# already-selected Nix environment into Bazel's repository/toolchain configuration.
+
+set -euo pipefail
+
+repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd -- "${repo_root}"
+
+# Bazelisk first: it reads .bazelversion and downloads that exact launcher.
+if command -v bazelisk >/dev/null 2>&1; then
+  bazel_launcher="$(command -v bazelisk)"
+elif command -v bazel >/dev/null 2>&1; then
+  # Plain `bazel` cannot read .bazelversion or fetch the pin, so verify it before accepting the
+  # fallback. A mismatched launcher is worse than no launcher because its failures implicate
+  # repository Starlark while actually coming from a host installation.
+  bazel_launcher="$(command -v bazel)"
+  pinned_version="$(tr -d '[:space:]' < .bazelversion)"
+  actual_version="$("${bazel_launcher}" --version)"
+  if [[ -z "${pinned_version}" || "${actual_version}" != "bazel ${pinned_version}" ]]; then
+    echo "error: ${bazel_launcher} reports '${actual_version}'; this repository requires 'bazel ${pinned_version:-<non-empty .bazelversion>}'" >&2
+    echo "install bazelisk or enter the Nix development shell" >&2
+    exit 2
+  fi
+else
+  cat >&2 <<'ERROR'
+error: neither bazelisk nor bazel is on PATH.
+
+The development shells in flake.nix provide bazelisk:
+
+    tools/dev/nixw develop          # or: tools/dev/nixw develop .#ci
+    direnv allow                    # to load it automatically in this tree
+
+CI installs it with bazel-contrib/setup-bazel, which reads .bazelversion the same way.
+ERROR
+  exit 127
+fi
+
+# rules_cc's Darwin probe is a repository rule, so action environment settings alone cannot
+# select the compiler. Apply the bridge only to commands that configure/build targets, and
+# only when the Nix shell exposes the complete tuple. Query/mod/help remain launcher-only.
+case "${1:-}" in
+  aquery | build | coverage | cquery | run | test)
+    if [[ "$(uname -s)" == "Darwin" && -n "${NIX_CC:-}" && -n "${MACOSX_DEPLOYMENT_TARGET:-}" ]]; then
+      nix_clang="${NIX_CC}/bin/clang"
+      if [[ ! -x "${nix_clang}" ]]; then
+        echo "error: NIX_CC does not provide an executable clang: ${nix_clang}" >&2
+        exit 2
+      fi
+      resource_dir="$("${nix_clang}" -print-resource-dir)"
+      if [[ ! -d "${resource_dir}/include" ]]; then
+        echo "error: Nix clang resource include directory is missing: ${resource_dir}/include" >&2
+        exit 2
+      fi
+      # The resource include is a Nix symlink. rules_cc's module-map generator does not walk
+      # directory symlinks, so pass the physical path or arm_acle.h/arm_neon.h disappear.
+      resource_include="$(cd -P -- "${resource_dir}/include" && pwd)"
+      cplus_include_path="${resource_include}${CPLUS_INCLUDE_PATH:+:${CPLUS_INCLUDE_PATH}}"
+
+      darwin_flags=(
+        "--repo_env=CC=${nix_clang}"
+        "--repo_env=CPLUS_INCLUDE_PATH=${cplus_include_path}"
+        "--repo_env=PATH=${repo_root}/tools/dev/bazel-repo-bin:${PATH}"
+        "--macos_minimum_os=${MACOSX_DEPLOYMENT_TARGET}"
+        "--host_macos_minimum_os=${MACOSX_DEPLOYMENT_TARGET}"
+      )
+
+      # Nix's Apple SDK splits several Darwin libc compatibility libraries into separate
+      # outputs selected through NIX_LDFLAGS. strict_action_env correctly strips that broad
+      # shell variable, so carry only the standard Darwin shims required by Go/Rust/C++ links.
+      for runtime_package in libiconv libresolv libsbuf libutil; do
+        runtime_lib=""
+        for flag in ${NIX_LDFLAGS:-}; do
+          if [[ "${flag}" == -L/nix/store/*-"${runtime_package}"-*/lib ]]; then
+            runtime_lib="${flag#-L}"
+            break
+          fi
+        done
+        if [[ -n "${runtime_lib}" ]]; then
+          darwin_flags+=(
+            "--linkopt=-L${runtime_lib}"
+            "--host_linkopt=-L${runtime_lib}"
+          )
+        fi
+      done
+
+      command_name="$1"
+      shift
+      set -- "${command_name}" "${darwin_flags[@]}" "$@"
+    fi
+    ;;
+esac
+
+exec "${bazel_launcher}" "$@"

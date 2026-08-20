@@ -1,6 +1,8 @@
 # Rust Foundation Security
 
-- `unsafe_code = "deny"` is the workspace default; `ipc_os` is the single current audited leaf exception and is governed by `UNSAFE_POLICY.md` and `ipc_os/SAFETY.md`.
+- `unsafe_code = "deny"` is the workspace default; the audited `ipc_os` and `process_os`
+  leaf exceptions are governed by `UNSAFE_POLICY.md` and their package-local `SAFETY.md`
+  cases.
 - Every persisted, parsed, provider, or IPC payload is bounded before material allocation.
 - Paths reject absolute roots, traversal, empty components, and platform prefixes at namespace boundaries.
 - SHA-256 is verified at object, artifact, checkpoint, record, stream, and bulk-IPC trust boundaries.

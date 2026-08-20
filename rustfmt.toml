@@ -2,5 +2,40 @@
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
+# rustfmt is the authoritative Rust formatter for the workspace. Until the pinned 1.97.1
+# toolchain is available in CI, tools/analysis/check_rust_format_conventions.py stands in for
+# it with a much weaker check — a 160-byte line ceiling and a compressed-declaration pattern.
+# That stand-in is a floor, not a style: it passes on code rustfmt would rewrite heavily.
+#
+# STABLE OPTIONS ONLY. rustfmt silently ignores unstable keys on a stable toolchain and prints
+# a warning that nothing in CI reads, so a config written against the nightly option set looks
+# applied and is not. imports_granularity, group_imports, wrap_comments and
+# format_code_in_doc_comments are all wanted here and all unstable as of 1.97; they are left
+# out deliberately rather than set and ignored.
 
-# Scaffold configuration; promotion requires schema validation.
+# Matches the workspace `edition` in Cargo.toml. `cargo fmt` passes the edition from the
+# manifest and does not need this; a bare `rustfmt src/lib.rs` does, and gets 2015 without it
+# — which parses `async` and `dyn` as identifiers and reformats accordingly.
+edition = "2024"
+
+# rustfmt's default. Stated explicitly because the convention check's 160-byte ceiling reads
+# like the intended width and is not: it is the point at which an unformatted line becomes a
+# gate failure, chosen so the check does not fail on the whole tree before rustfmt has run.
+max_width = 100
+
+hard_tabs = false
+tab_spaces = 4
+newline_style = "Unix"
+
+# Import and module order is deterministic, so a merge conflict in a use block is a real
+# conflict rather than two people sorting differently.
+reorder_imports = true
+reorder_modules = true
+
+merge_derives = true
+remove_nested_parens = true
+use_field_init_shorthand = true
+
+# NOT set: use_try_shorthand. The workspace already writes `?` everywhere and `try!` does not
+# exist in edition 2024, so the option would rewrite nothing; leaving it unset keeps the file
+# to options that change something.

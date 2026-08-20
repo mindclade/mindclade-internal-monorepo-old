@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 locals {
   # network_key/subnet_key → the pair, flattened so one resource block covers every subnet in
   # every network. The composite key has to be stable across plans, so it is built from the
@@ -81,6 +86,7 @@ resource "google_compute_route" "default_internet" {
 }
 
 resource "google_compute_subnetwork" "this" {
+  #checkov:skip=CKV_GCP_74: PRIVATE subnets force Private Google Access; proxy-only subnets reject that API field.
   for_each = local.subnets
 
   project       = each.value.project_id

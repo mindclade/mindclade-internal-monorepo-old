@@ -8,9 +8,9 @@ package messagingtest
 import (
 	"time"
 
-	"mindclade.internal/libs/go/identifiers"
-	"mindclade.internal/libs/go/messaging"
-	"mindclade.internal/libs/go/requestmeta"
+	"go.mindclade.dev/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/messaging"
+	"go.mindclade.dev/libs/go/requestmeta"
 )
 
 // Message returns a deterministic valid fixture.

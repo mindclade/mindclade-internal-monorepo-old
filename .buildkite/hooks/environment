@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+export CI=true
+export NIX_CONFIG="experimental-features = nix-command flakes"

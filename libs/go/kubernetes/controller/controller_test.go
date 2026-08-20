@@ -14,9 +14,9 @@ import (
 	runtimecontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"mindclade.internal/libs/go/clock"
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/requestmeta"
+	"go.mindclade.dev/libs/go/clock"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/requestmeta"
 )
 
 func TestChainOrder(t *testing.T) {

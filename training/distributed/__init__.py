@@ -4,3 +4,9 @@
 #
 
 """Mindclade scaffold package for training/distributed."""
+
+from __future__ import annotations
+
+from .lifecycle import initialize, teardown
+
+__all__ = ["initialize", "teardown"]

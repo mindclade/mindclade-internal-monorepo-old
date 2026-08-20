@@ -6,17 +6,6 @@
 package(default_visibility = ["//visibility:private"])
 
 filegroup(
-    name = "go_foundation_sources",
-    srcs = glob([
-        "cmd/*/BUILD.bazel",
-        "cmd/*/main.go",
-        "internal/bootstrap/*.go",
-        "internal/foundation/*.go",
-    ]),
-    visibility = ["//tests/integration/go_foundation:__pkg__"],
-)
-
-filegroup(
     name = "docs",
     srcs = [
         "GO_FOUNDATION_CONSUMPTION.md",

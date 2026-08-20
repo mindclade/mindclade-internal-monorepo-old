@@ -1,0 +1,55 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+name: Numerical regression
+description: A parity, determinism, or tolerance gate that used to hold and no longer does.
+labels: ["numerical-regression", "blocks-release"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Blueprint §12 makes eager/reference parity a release gate. File this when a
+        numerical property regressed, not when a new one is merely unproven.
+  - type: dropdown
+    id: gate
+    attributes:
+      label: Which gate
+      options:
+        - Eager/reference parity
+        - Training resume determinism
+        - Training/serving parity
+        - Checkpoint topology change or partial load
+        - RNG determinism
+        - Kernel provider parity (TileLang vs PyTorch reference)
+    validations:
+      required: true
+  - type: input
+    id: family
+    attributes:
+      label: Model family
+      placeholder: models/families/biology/novafold
+    validations:
+      required: true
+  - type: dropdown
+    id: precision
+    attributes:
+      label: Precision
+      options: ["bf16", "fp16", "fp32", "fp8", "tf32"]
+    validations:
+      required: true
+  - type: textarea
+    id: tolerance
+    attributes:
+      label: Declared tolerance and observed deviation
+      description: The tolerance the gate declares, and the number actually seen.
+    validations:
+      required: true
+  - type: input
+    id: lastgood
+    attributes:
+      label: Last known-good revision
+    validations:
+      required: true

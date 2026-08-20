@@ -9,7 +9,7 @@ import (
 	"bytes"
 	"time"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 const MaximumOpaqueBytes = 64 * 1024

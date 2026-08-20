@@ -1,0 +1,54 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+# No dev-plane workload receives egress by default. Athens needs explicitly
+# reviewed DNS, public proxy, VCS, and credential-provider destinations before
+# activation; standard NetworkPolicy cannot express those FQDN contracts safely.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: dev
+  labels:
+    app.kubernetes.io/part-of: mindclade
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+  egress: []
+---
+# The internal Gateway proxies and health checkers are the only accepted
+# network ingress for the two implemented Services. The CIDR is patched by each
+# environment overlay and must remain aligned with its managed-proxy subnet.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-proxy-only-subnet
+  namespace: dev
+  labels:
+    app.kubernetes.io/part-of: mindclade
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: In
+        values:
+          - go-vanity
+          - goproxy
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - ipBlock:
+            # Development default; staging and production overlays replace it.
+            cidr: 10.16.32.0/24
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 3000

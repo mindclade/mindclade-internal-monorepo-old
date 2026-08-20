@@ -9,8 +9,8 @@ import (
 	"sort"
 	"strings"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/servicekit"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/servicekit"
 )
 
 // Manifest records the mechanisms a concrete process composition actually

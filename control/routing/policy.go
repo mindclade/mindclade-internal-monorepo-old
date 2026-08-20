@@ -5,7 +5,7 @@
 
 package routing
 
-import "mindclade.internal/libs/go/identifiers"
+import "go.mindclade.dev/libs/go/identifiers"
 
 type Policy struct {
 	PolicyEpoch           uint64

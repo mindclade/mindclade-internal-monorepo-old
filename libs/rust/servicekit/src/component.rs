@@ -37,6 +37,20 @@ where
     stop: T,
 }
 
+impl<S, D, T> core::fmt::Debug for FnComponent<S, D, T>
+where
+    S: FnMut() -> FaultResult<()> + Send,
+    D: FnMut() -> FaultResult<()> + Send,
+    T: FnMut() -> FaultResult<()> + Send,
+{
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        formatter
+            .debug_struct("FnComponent")
+            .field("name", &self.name)
+            .finish_non_exhaustive()
+    }
+}
+
 impl<S, D, T> FnComponent<S, D, T>
 where
     S: FnMut() -> FaultResult<()> + Send,

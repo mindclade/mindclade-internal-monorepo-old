@@ -9,7 +9,7 @@ service-owned factory:
 ```go
 package main
 
-import "mindclade.internal/services/control_plane/internal/bootstrap"
+import "go.mindclade.dev/services/control_plane/internal/bootstrap"
 
 func main() {
     bootstrap.Main(

@@ -1,0 +1,33 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
+
+package(default_visibility = ["//libs/rust:repo_consumers"])
+
+rust_library(
+    name = "mindclade_process_os",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "mindclade_process_os",
+    edition = "2024",
+    deps = [
+        "//libs/rust/faults:mindclade_faults",
+        "@crates//:libc",
+    ],
+)
+
+rust_test(
+    name = "process_group",
+    srcs = ["tests/process_group.rs"],
+    edition = "2024",
+    deps = [
+        ":mindclade_process_os",
+    ],
+)
+
+filegroup(
+    name = "package_sources",
+    srcs = glob(["**"]),
+    visibility = ["//libs/rust:repo_consumers"],
+)

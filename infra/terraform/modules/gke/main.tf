@@ -1,3 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
 locals {
   baseline_resource_labels = {
     data-classification = var.data_classification
@@ -206,8 +211,8 @@ resource "google_container_cluster" "this" {
     }
 
     precondition {
-      condition     = var.release_channel == "REGULAR" && var.kubernetes_version == "1.35.6-gke.1127000"
-      error_message = "The NOVA v1 training substrate is qualified only for GKE Regular 1.35.6-gke.1127000; update the immutable platform lock and qualification evidence before changing it."
+      condition     = var.release_channel == "REGULAR" && var.kubernetes_version == "1.36.2-gke.2064000"
+      error_message = "The NOVA v1 training substrate is qualified only for GKE Regular 1.36.2-gke.2064000; update the immutable platform lock and qualification evidence before changing it."
     }
   }
 

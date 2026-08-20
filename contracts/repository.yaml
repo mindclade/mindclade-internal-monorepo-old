@@ -1,0 +1,50 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+---
+schema_version: 1
+repository: mindclade-internal-monorepo
+repository_class: source-monorepo
+visibility: internal
+github:
+  enterprise_url: https://github.com/enterprises/mindclade
+  organization_url: https://github.com/mindclade
+  repository_index_url: https://github.com/orgs/mindclade/repositories
+  repository_url: https://github.com/mindclade/mindclade-internal-monorepo
+authority:
+  - application-source
+  - model-and-training-source
+  - build-graph
+  - deployable-packages
+  - reusable-terraform-modules
+  - environment-neutral-kubernetes-templates
+  - artifact-build-and-qualification
+forbidden_authority:
+  - live-google-cloud-desired-state
+  - kubernetes-environment-desired-state
+  - argocd-production-configuration
+  - github-enterprise-governance
+  - cluster-credentials
+required_paths:
+  - .buildkite
+  - .github/CODEOWNERS
+  - ci
+  - infra/terraform/modules
+  - tools/dev/bazelw
+  - flake.lock
+  - MODULE.bazel.lock
+forbidden_paths:
+  - infra/gitops
+  - infra/terraform/environments
+  - infra/kubernetes/overlays
+  - .terraform
+  - .terragrunt-cache
+default_branch: main
+change_model: pull-request
+production_controls:
+  required_reviews: true
+  codeowners: true
+  merge_queue: true
+  immutable_actions: true
+  oidc_only_cloud_authentication: true

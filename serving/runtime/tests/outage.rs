@@ -3,13 +3,26 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-#[test]
-fn scaffold_outage() {
-    assert!(true);
-}
+use mindclade_serving_runtime::bounded_stream;
+use std::time::Duration;
 
 #[test]
-fn admitted_work_survives_control_plane_outage() {
-    // Local admission state is independent of live control-plane availability.
-    assert!(true);
+fn established_local_stream_survives_control_plane_unavailability() {
+    let (sender, receiver) = bounded_stream(2, 16, 32).expect("bounded stream");
+    sender.send(b"cached-policy".to_vec()).expect("data chunk");
+    sender.finish(Vec::new()).expect("terminal chunk");
+
+    let first = receiver
+        .recv_timeout(Duration::from_millis(10))
+        .expect("stream read")
+        .expect("data chunk");
+    assert_eq!(first.sequence, 1);
+    assert_eq!(first.payload, b"cached-policy");
+    assert!(!first.terminal);
+    let terminal = receiver
+        .recv_timeout(Duration::from_millis(10))
+        .expect("stream read")
+        .expect("terminal chunk");
+    assert_eq!(terminal.sequence, 2);
+    assert!(terminal.terminal);
 }

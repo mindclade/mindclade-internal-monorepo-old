@@ -6,7 +6,7 @@
 package routing
 
 import (
-	"mindclade.internal/control/runtime_authority"
+	"go.mindclade.dev/control/runtime_authority"
 	"sort"
 )
 

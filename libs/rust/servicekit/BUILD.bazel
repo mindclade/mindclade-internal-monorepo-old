@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 
 package(default_visibility = ["//libs/rust:repo_consumers"])
 
@@ -17,6 +17,7 @@ rust_library(
         "//libs/rust/identifiers:mindclade_identifiers",
         "//libs/rust/runtime_core:mindclade_runtime_core",
         "//libs/rust/telemetry:mindclade_telemetry",
+        "@crates//:tokio",
     ],
 )
 
@@ -25,11 +26,25 @@ rust_test(
     srcs = ["tests/integration.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_servicekit",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/identifiers:mindclade_identifiers",
         "//libs/rust/runtime_core:mindclade_runtime_core",
         "//libs/rust/telemetry:mindclade_telemetry",
+    ],
+)
+
+rust_test(
+    name = "signals",
+    srcs = ["tests/signals.rs"],
+    edition = "2024",
+    deps = [
         ":mindclade_servicekit",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/telemetry:mindclade_telemetry",
+        "@crates//:tokio",
     ],
 )
 
@@ -38,16 +53,19 @@ rust_test(
     srcs = ["tests/lifecycle.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_servicekit",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/identifiers:mindclade_identifiers",
         "//libs/rust/runtime_core:mindclade_runtime_core",
         "//libs/rust/telemetry:mindclade_telemetry",
-        ":mindclade_servicekit",
     ],
 )
 
 filegroup(
     name = "package_sources",
-    srcs = glob(["**"], exclude = ["target/**"]),
+    srcs = glob(
+        ["**"],
+        exclude = ["target/**"],
+    ),
     visibility = ["//libs/rust:repo_consumers"],
 )

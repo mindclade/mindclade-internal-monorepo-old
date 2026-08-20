@@ -4,4 +4,18 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: node-agent-default-deny
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: node-agent
+    app.kubernetes.io/part-of: mindclade-platform
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: node-agent
+  policyTypes:
+    - Ingress
+    - Egress

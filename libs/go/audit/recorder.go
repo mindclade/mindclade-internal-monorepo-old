@@ -9,7 +9,7 @@ import (
 	"context"
 	"errors"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // Recorder persists or publishes one immutable event. Successful return means

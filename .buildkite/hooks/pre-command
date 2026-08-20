@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+test -f flake.lock
+test -s MODULE.bazel.lock
+test -x tools/dev/bazelw

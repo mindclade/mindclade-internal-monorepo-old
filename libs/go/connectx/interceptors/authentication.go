@@ -12,9 +12,9 @@ import (
 
 	"connectrpc.com/connect"
 
-	"mindclade.internal/libs/go/auth"
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/httpx"
+	"go.mindclade.dev/libs/go/auth"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/httpx"
 )
 
 type AuthenticationConfig struct {

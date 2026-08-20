@@ -18,6 +18,6 @@ go_library(
         "key.go",
         "store.go",
     ],
-    importpath = "mindclade.internal/libs/go/coordination/cursor",
+    importpath = "go.mindclade.dev/libs/go/coordination/cursor",
     deps = ["//libs/go/faults"],
 )

@@ -1,0 +1,43 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//services/control_plane:__subpackages__"])
+
+exports_files(["README.md"])
+
+go_library(
+    name = "providers",
+    srcs = [
+        "database.go",
+        "doc.go",
+        "mechanisms.go",
+    ],
+    importpath = "go.mindclade.dev/services/control_plane/internal/providers",
+    deps = [
+        "//libs/go/clock",
+        "//libs/go/coordination/outbox",
+        "//libs/go/coordination/outbox/postgres",
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+        "//libs/go/observability",
+        "//libs/go/pagination",
+        "//libs/go/retry",
+        "//libs/go/signing",
+        "//libs/go/storage/sql/postgres",
+        "//libs/go/storage/sql/transaction",
+        "//services/control_plane/internal/config",
+    ],
+)
+
+go_test(
+    name = "providers_test",
+    srcs = ["database_test.go"],
+    embed = [":providers"],
+    deps = [
+        "@com_github_lib_pq//:pq",
+    ],
+)

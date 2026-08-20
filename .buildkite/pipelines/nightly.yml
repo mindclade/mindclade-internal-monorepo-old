@@ -1,0 +1,8 @@
+---
+steps:
+  - label: ":bazel: full repository"
+    key: nightly-full
+    command: nix develop .#ci --command tools/dev/bazelw test //...
+    timeout_in_minutes: 180
+    agents:
+      queue: cpu

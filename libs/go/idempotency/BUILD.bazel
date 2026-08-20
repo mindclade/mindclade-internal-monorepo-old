@@ -19,7 +19,7 @@ go_library(
         "result.go",
         "store.go",
     ],
-    importpath = "mindclade.internal/libs/go/idempotency",
+    importpath = "go.mindclade.dev/libs/go/idempotency",
     deps = [
         "//libs/go/clock",
         "//libs/go/faults",

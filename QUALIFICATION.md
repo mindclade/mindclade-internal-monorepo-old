@@ -13,6 +13,8 @@ connected-provider qualification, and production promotion.
 - Modular control-plane bootstrap/config/foundation/transport seams.
 - Representative Go durable-policy/domain contracts under `control/`.
 - Runnable control-plane API, event-dispatcher, and ingestion-coordinator vertical slices.
+- Bzlmod lock closure, full Bazel configured analysis, dependency-layer graph,
+  and all 243 non-manual Bazel tests in the pinned local macOS/Nix environment.
 - Complete target-state path materialization, accepted decision register, Go module cookbook, security documentation, and operating runbooks.
 - Structured validation of 87 JSON, 185 TOML, 195 YAML/YML, 548 Markdown files, and internal relative links.
 
@@ -22,11 +24,14 @@ race-enabled tests passed for all 111 entries.
 
 ## Go module closure
 
-The root `go.sum` now contains both module and `go.mod` checksums for all 18 direct
-public root requirements (36 checksum lines). The code/docs alignment gate checks
-this invariant against `go.mod`. The local sandbox cannot download the complete
-transitive module source graph, so full transitive closure remains a connected-lane
-gate rather than being fabricated from unrelated lockfiles. Connected CI runs
+The root `go.sum` contains both module and `go.mod` checksums for all 18 direct public root
+requirements, and now carries the transitive graph as well — 438 lines, up from the 36 that
+covered only the direct set. The code/docs alignment gate checks the direct-requirement
+invariant against `go.mod`; it deliberately does not assert a line count, because that number
+moves with any dependency change and a gate that fails on it teaches people to edit the
+number rather than look at the diff. Full transitive closure verification remains a
+connected-lane gate (`go mod download all`, `go mod verify`, `go mod tidy -diff`) rather than
+something inferred from the file's size. Connected CI runs
 `go mod download all`, `go mod verify`, and `go mod tidy -diff` before provider
 qualification.
 
@@ -59,12 +64,14 @@ Promotion additionally requires:
 
 ## Explicit non-claims
 
-The Rust foundation and the `runtime_gateway` / `runtime_host` cores now contain
-substantive source implementations for the optimization program, but they have
-not been compiled or runtime-qualified in this execution environment because the
-pinned Rust/Bazel/Nix toolchain is unavailable. Python configuration,
-preprocessing contracts, and cross-language fixtures are implemented and locally
-tested; broader Python numerical systems, TileLang kernels, TypeScript apps,
+The pinned Rust/Bazel/Nix toolchain is available and the local Cargo and Bazel
+suites pass, including the `runtime_gateway` / `runtime_host` cores. The Rust
+presubmit also passes cargo-deny, compatibility, six local failure-injection
+scenarios, and two portable performance measurements. This is not
+connected-provider, Linux unsafe-code, remote-execution, sanitizer, fuzz/Miri,
+or complete hardware/provider performance evidence. Python configuration, preprocessing
+contracts, and cross-language fixtures are implemented and locally tested;
+broader Python numerical systems, TileLang kernels, TypeScript apps,
 infrastructure, provider adapters, and product code remain scaffolded or
 partially implemented unless local evidence states otherwise. Source presence
 never implies numerical parity, security qualification, performance
@@ -74,5 +81,7 @@ qualification, or production readiness.
 
 All ten post-architecture hardening items are represented by executable source, policy, or qualification machinery: Rust lock/toolchain gating, supply-chain policy, rolling compatibility, failure injection, performance budgets, node diagnostics, resource-budget observability, finished artifact-GC semantics, canonical workload envelopes, and golden vertical release slices. Affected-test selection and component ownership/enforcement metadata are also active presubmit invariants.
 
-Offline qualification passes. `qualified` and `production` maturity still require connected evidence for the pinned Rust 1.97.1 toolchain, a Cargo-generated committed lockfile, real provider integrations, hardware performance measurements, and release/security evidence.
-
+The canonical Rust presubmit and offline qualification pass. `qualified` and
+`production` maturity still require connected Linux/Bazel/Nix release evidence,
+real provider integrations, the remaining hardware performance measurements,
+and release/security evidence.

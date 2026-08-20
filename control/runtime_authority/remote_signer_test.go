@@ -11,7 +11,7 @@ import (
 	"crypto/rand"
 	"testing"
 
-	"mindclade.internal/libs/go/signing"
+	"go.mindclade.dev/libs/go/signing"
 )
 
 type fakeAsymmetricSigner struct{ key ed25519.PrivateKey }

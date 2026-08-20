@@ -14,11 +14,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	mcclock "mindclade.internal/libs/go/clock"
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/retry"
-	"mindclade.internal/libs/go/servicekit"
-	"mindclade.internal/libs/go/storage/lease"
+	mcclock "go.mindclade.dev/libs/go/clock"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/retry"
+	"go.mindclade.dev/libs/go/servicekit"
+	"go.mindclade.dev/libs/go/storage/lease"
 )
 
 const (

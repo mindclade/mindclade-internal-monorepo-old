@@ -11,13 +11,106 @@ metadata:
   labels:
     app.kubernetes.io/part-of: mindclade-platform
     kubernetes.io/metadata.name: mindclade-system
+    mindclade.dev/admission: enforced
     mindclade.dev/owner: security-and-operations
+    mindclade.dev/workload-activation: blocked
     pod-security.kubernetes.io/audit: restricted
-    pod-security.kubernetes.io/audit-version: latest
+    pod-security.kubernetes.io/audit-version: v1.36
     pod-security.kubernetes.io/enforce: restricted
-    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/enforce-version: v1.36
     pod-security.kubernetes.io/warn: restricted
-    pod-security.kubernetes.io/warn-version: latest
+    pod-security.kubernetes.io/warn-version: v1.36
   annotations:
-    mindclade.dev/deployment-status: platform-contract-only
+    mindclade.dev/deployment-status: foundation-only
+    mindclade.dev/environment: unbound
+    mindclade.dev/platform-contract-version: "1"
     mindclade.dev/workload-activation: blocked-pending-release-evidence
+---
+# Batch capacity is isolated from serving and control-plane capacity. Kueue remains disabled
+# until a reviewed activation bundle changes this namespace label and both queue hold controls.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mindclade-batch-cpu
+  labels:
+    app.kubernetes.io/part-of: mindclade-platform
+    kubernetes.io/metadata.name: mindclade-batch-cpu
+    mindclade.dev/admission: enforced
+    mindclade.dev/capacity-domain: batch-cpu
+    mindclade.dev/kueue-enabled: "false"
+    mindclade.dev/owner: ml-platform
+    mindclade.dev/queue-enforcement: enforced
+    mindclade.dev/workload-activation: blocked
+    mindclade.dev/workload-class: batch-cpu
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: v1.36
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.36
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: v1.36
+  annotations:
+    mindclade.dev/activation-blocker: queue-held-zero-quota-and-unqualified-release
+    mindclade.dev/activation-bundle-digest: blocked
+    mindclade.dev/capacity-contract-name: blocked
+    mindclade.dev/capacity-evidence-digest: blocked
+    mindclade.dev/deployment-status: capacity-foundation-only
+    mindclade.dev/environment: unbound
+    mindclade.dev/release-evidence-digest: blocked
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mindclade-training-h100
+  labels:
+    app.kubernetes.io/part-of: mindclade-platform
+    kubernetes.io/metadata.name: mindclade-training-h100
+    mindclade.dev/admission: enforced
+    mindclade.dev/capacity-domain: training-h100
+    mindclade.dev/kueue-enabled: "false"
+    mindclade.dev/owner: ml-platform
+    mindclade.dev/queue-enforcement: enforced
+    mindclade.dev/workload-activation: blocked
+    mindclade.dev/workload-class: training-h100
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: v1.36
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.36
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: v1.36
+  annotations:
+    mindclade.dev/activation-blocker: queue-held-zero-quota-and-h100-unqualified
+    mindclade.dev/activation-bundle-digest: blocked
+    mindclade.dev/capacity-contract-name: blocked
+    mindclade.dev/capacity-evidence-digest: blocked
+    mindclade.dev/deployment-status: capacity-foundation-only
+    mindclade.dev/environment: unbound
+    mindclade.dev/release-evidence-digest: blocked
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mindclade-training-h200
+  labels:
+    app.kubernetes.io/part-of: mindclade-platform
+    kubernetes.io/metadata.name: mindclade-training-h200
+    mindclade.dev/admission: enforced
+    mindclade.dev/capacity-domain: training-h200
+    mindclade.dev/kueue-enabled: "false"
+    mindclade.dev/owner: ml-platform
+    mindclade.dev/queue-enforcement: enforced
+    mindclade.dev/workload-activation: blocked
+    mindclade.dev/workload-class: training-h200
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: v1.36
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.36
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: v1.36
+  annotations:
+    mindclade.dev/activation-blocker: queue-held-zero-quota-and-h200-unqualified
+    mindclade.dev/activation-bundle-digest: blocked
+    mindclade.dev/capacity-contract-name: blocked
+    mindclade.dev/capacity-evidence-digest: blocked
+    mindclade.dev/deployment-status: capacity-foundation-only
+    mindclade.dev/environment: unbound
+    mindclade.dev/release-evidence-digest: blocked

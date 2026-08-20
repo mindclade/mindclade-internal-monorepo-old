@@ -10,11 +10,11 @@
 //! resource decision is made.
 
 use mindclade_bytes_io::ByteRange;
-use mindclade_content_digest::Digest;
 use mindclade_faults::{Fault, FaultResult};
-use mindclade_identifiers::ResourceId;
 use mindclade_protocols::runtime::v1 as wire;
 use mindclade_runtime_core::{FencingToken, ResourceKind, ResourceVector};
+use mindclade_worker_protocol::Digest;
+use mindclade_worker_protocol::ResourceId;
 use mindclade_worker_protocol::{
     ArtifactGrant, BufferAccess, BufferDescriptor, BufferTransport, DetachedSignature,
     ExecutionBudget, ExecutionTicket, ExecutionTicketClaims, RevocationSnapshot,
@@ -54,7 +54,7 @@ pub fn execution_ticket(message: wire::ExecutionTicket) -> FaultResult<Execution
             resolved_config_digest: parse_digest(&claims.resolved_config_digest)?,
             reference_snapshot: parse_optional_digest(&claims.reference_snapshot_digest)?,
             artifacts: artifact_grant(artifacts)?,
-            budget: execution_budget(budget),
+            budget: execution_budget(&budget),
             execution_class: claims.execution_class,
             accelerator_capability: claims.accelerator_capability,
             not_before_unix_millis: claims.not_before_unix_millis,
@@ -134,6 +134,44 @@ pub fn worker_status(message: &WorkerStatus) -> wire::WorkerStatus {
     }
 }
 
+pub fn worker_status_domain(message: wire::WorkerStatus) -> FaultResult<WorkerStatus> {
+    let state = match wire::WorkerState::try_from(message.state).ok() {
+        Some(wire::WorkerState::Created) => WorkerState::Created,
+        Some(wire::WorkerState::Starting) => WorkerState::Starting,
+        Some(wire::WorkerState::Ready) => WorkerState::Ready,
+        Some(wire::WorkerState::Leased) => WorkerState::Leased,
+        Some(wire::WorkerState::Running) => WorkerState::Running,
+        Some(wire::WorkerState::Draining) => WorkerState::Draining,
+        Some(wire::WorkerState::Committing) => WorkerState::Committing,
+        Some(wire::WorkerState::Completed) => WorkerState::Completed,
+        Some(wire::WorkerState::Recovering) => WorkerState::Recovering,
+        Some(wire::WorkerState::Cancelling) => WorkerState::Cancelling,
+        Some(wire::WorkerState::Cancelled) => WorkerState::Cancelled,
+        Some(wire::WorkerState::Failed) => WorkerState::Failed,
+        _ => return Err(Fault::invalid_argument("worker status state is invalid")),
+    };
+    let outputs = message
+        .outputs
+        .into_iter()
+        .map(buffer_descriptor)
+        .collect::<FaultResult<Vec<_>>>()?;
+    let diagnostic_artifact = if message.diagnostic_artifact_digest.is_empty() {
+        None
+    } else {
+        Some(parse_digest(&message.diagnostic_artifact_digest)?)
+    };
+    Ok(WorkerStatus {
+        sequence: message.sequence,
+        ticket_id: message.ticket_id,
+        fencing_token: FencingToken::new(message.fencing_token)?,
+        state,
+        observed_unix_millis: message.observed_unix_millis,
+        message: message.message,
+        outputs,
+        diagnostic_artifact,
+    })
+}
+
 fn buffer_descriptor_wire(message: &BufferDescriptor) -> wire::BufferDescriptor {
     wire::BufferDescriptor {
         segment_id: message.segment_id.clone(),
@@ -159,7 +197,7 @@ fn buffer_descriptor_wire(message: &BufferDescriptor) -> wire::BufferDescriptor 
     }
 }
 
-fn execution_budget(message: wire::ExecutionBudget) -> ExecutionBudget {
+fn execution_budget(message: &wire::ExecutionBudget) -> ExecutionBudget {
     let resources = ResourceVector::new()
         .set(ResourceKind::CpuMillis, u64::from(message.cpu_millis))
         .set(

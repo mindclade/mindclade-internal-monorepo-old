@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/storage/lease"
-	"mindclade.internal/libs/go/storage/sql/sqltest"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/storage/lease"
+	"go.mindclade.dev/libs/go/storage/sql/sqltest"
 )
 
 var leaseColumns = []string{"lease_key", "token", "owner", "version", "acquired_at", "expires_at"}

@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 
 package(default_visibility = ["//libs/rust:repo_consumers"])
 
@@ -23,9 +23,9 @@ rust_test(
     srcs = ["tests/budget.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_runtime_core",
         "//libs/rust/content_digest:mindclade_content_digest",
         "//libs/rust/faults:mindclade_faults",
-        ":mindclade_runtime_core",
     ],
 )
 
@@ -34,9 +34,9 @@ rust_test(
     srcs = ["tests/budget_tree.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_runtime_core",
         "//libs/rust/content_digest:mindclade_content_digest",
         "//libs/rust/faults:mindclade_faults",
-        ":mindclade_runtime_core",
     ],
 )
 
@@ -45,9 +45,9 @@ rust_test(
     srcs = ["tests/cancellation.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_runtime_core",
         "//libs/rust/content_digest:mindclade_content_digest",
         "//libs/rust/faults:mindclade_faults",
-        ":mindclade_runtime_core",
     ],
 )
 
@@ -56,9 +56,9 @@ rust_test(
     srcs = ["tests/deadline.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_runtime_core",
         "//libs/rust/content_digest:mindclade_content_digest",
         "//libs/rust/faults:mindclade_faults",
-        ":mindclade_runtime_core",
     ],
 )
 
@@ -67,9 +67,9 @@ rust_test(
     srcs = ["tests/integration.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_runtime_core",
         "//libs/rust/content_digest:mindclade_content_digest",
         "//libs/rust/faults:mindclade_faults",
-        ":mindclade_runtime_core",
     ],
 )
 
@@ -78,14 +78,17 @@ rust_test(
     srcs = ["tests/task_group.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_runtime_core",
         "//libs/rust/content_digest:mindclade_content_digest",
         "//libs/rust/faults:mindclade_faults",
-        ":mindclade_runtime_core",
     ],
 )
 
 filegroup(
     name = "package_sources",
-    srcs = glob(["**"], exclude = ["target/**"]),
+    srcs = glob(
+        ["**"],
+        exclude = ["target/**"],
+    ),
     visibility = ["//libs/rust:repo_consumers"],
 )

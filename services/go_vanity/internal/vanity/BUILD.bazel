@@ -10,7 +10,7 @@ package(default_visibility = ["//visibility:private"])
 go_library(
     name = "vanity",
     srcs = ["vanity.go"],
-    importpath = "mindclade.internal/services/go_vanity/internal/vanity",
+    importpath = "go.mindclade.dev/services/go_vanity/internal/vanity",
     visibility = ["//services/go_vanity:__subpackages__"],
 )
 

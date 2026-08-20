@@ -13,11 +13,11 @@ import (
 
 	"connectrpc.com/connect"
 
-	"mindclade.internal/libs/go/auth"
-	"mindclade.internal/libs/go/connectx"
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/httpx"
-	"mindclade.internal/libs/go/requestmeta"
+	"go.mindclade.dev/libs/go/auth"
+	"go.mindclade.dev/libs/go/connectx"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/httpx"
+	"go.mindclade.dev/libs/go/requestmeta"
 )
 
 func TestEstablishMetadata(t *testing.T) {

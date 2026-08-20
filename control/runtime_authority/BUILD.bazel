@@ -4,12 +4,22 @@
 #
 
 load("@rules_go//go:def.bzl", "go_library", "go_test")
+
 package(default_visibility = ["//visibility:private"])
+
 go_library(
     name = "runtime_authority",
-    srcs = glob(["*.go"], exclude=["*_test.go"]),
-    importpath = "mindclade.internal/control/runtime_authority",
-    visibility = ["//control:__subpackages__", "//services:__subpackages__", "//examples:__subpackages__"],
+    srcs = glob(
+        ["*.go"],
+        exclude = ["*_test.go"],
+    ),
+    importpath = "go.mindclade.dev/control/runtime_authority",
+    visibility = [
+        "//control:__subpackages__",
+        "//examples:__subpackages__",
+        "//services:__subpackages__",
+        "//tests:__subpackages__",
+    ],
     deps = [
         "//libs/go/clock",
         "//libs/go/faults",
@@ -17,4 +27,9 @@ go_library(
         "//libs/go/signing",
     ],
 )
-go_test(name="runtime_authority_test", srcs=glob(["*_test.go"]), embed=[":runtime_authority"])
+
+go_test(
+    name = "runtime_authority_test",
+    srcs = glob(["*_test.go"]),
+    embed = [":runtime_authority"],
+)

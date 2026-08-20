@@ -1,0 +1,218 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+apiVersion: mindclade.dev/v1
+kind: KubernetesValidationPolicy
+spec:
+  # kubeconform uses upstream Kubernetes schemas, not the provider build suffix. The matching GKE
+  # platform lock is 1.36.2-gke.2064000 in infra/terraform/modules/gke/variables.tf.
+  kubernetesVersion: 1.36.2
+
+  # This is an inventory, not a discovery convenience. A new Kustomization must be classified in
+  # review so a newly empty module cannot enter the tree and receive a vacuous green check.
+  requiredNonEmptyRoots:
+    - base
+    - planes/ai/base
+    - planes/dev/base
+    - planes/studio/base
+    - platform/cert-manager/base
+    - platform/gateway/base
+    - platform/gpu
+    - platform/jobset
+    - platform/kueue
+    - platform/nccl
+    - platform/observability
+    - platform/rdma
+    - platform/remote-execution
+    - platform/security
+    - policies
+    - services/artifact-proxy
+    - services/control-plane
+    - services/curation-workers
+    - services/evaluation-workers
+    - services/ingestion-workers
+    - services/node-agent
+    - services/preprocessing-workers
+    - services/rollout-workers
+    - services/runtime-gateway
+    - services/runtime-host
+    - services/training-workers
+    - workloads/ingestion
+    - workloads/preprocessing
+    - workloads/training/overlays/h100
+    - workloads/training/overlays/h200
+
+  # There are no intentionally empty roots. Keep this list explicit so adding a future
+  # activation-gated module requires an inventory review instead of receiving a vacuous pass.
+  activationGatedEmptyRoots: []
+
+  # These five routes are intentional activation contracts for services that have not been
+  # materialized. The relational gate rejects any other missing backend and also rejects a stale
+  # exception once its Service appears.
+  activationGatedUnresolvedServiceRefs:
+    - ai/model-registry:8080
+    - ai/serving-api:8080
+    - ai/training-api:8080
+    - dev/docs:8080
+    - dev/sdk:8080
+
+  # Quarantine policies deliberately predate the workloads they will isolate. The relational
+  # gate rejects a stale exception as soon as a matching Pod template is materialized.
+  activationGatedUnmatchedNetworkPolicies:
+    - mindclade-system/block-unqualified-nccl
+    - mindclade-system/block-unqualified-rdma
+    - mindclade-system/block-unqualified-remote-execution
+
+  # Helm release identity and supply-chain inputs are part of the rendered contract. The archive
+  # and controller digest variables are read from versions.env without sourcing executable text.
+  helmReleases:
+    - chart: platform/jobset/chart
+      release: jobset
+      namespace: jobset-system
+      archive: platform/jobset/chart/charts/jobset-0.12.0.tgz
+      archiveDigestVariable: MINDCLADE_JOBSET_VENDORED_CHART_ARCHIVE_SHA256
+      controllerImageDigestVariable: MINDCLADE_JOBSET_IMAGE_DIGEST
+      controllerVersionVariable: MINDCLADE_JOBSET_VERSION
+      controllerImageRepository: registry.k8s.io/jobset/jobset
+      controllerName: jobset-controller
+    - chart: platform/kueue/chart
+      release: kueue
+      namespace: kueue-system
+      archive: platform/kueue/chart/charts/kueue-0.19.1.tgz
+      archiveDigestVariable: MINDCLADE_KUEUE_VENDORED_CHART_ARCHIVE_SHA256
+      controllerImageDigestVariable: MINDCLADE_KUEUE_IMAGE_DIGEST
+      controllerVersionVariable: MINDCLADE_KUEUE_VERSION
+      controllerImageRepository: registry.k8s.io/kueue/kueue
+      controllerName: kueue-controller-manager
+
+  # Custom resources are rendered but do not use a core schema. Enumerating exact GVKs prevents a
+  # typo or an unreviewed CRD dependency from being silently treated as "schema unavailable".
+  allowedCustomGVKs:
+    - cert-manager.io/v1/Certificate
+    - cert-manager.io/v1/ClusterIssuer
+    - cert-manager.io/v1/Issuer
+    - gateway.networking.k8s.io/v1/Gateway
+    - gateway.networking.k8s.io/v1/HTTPRoute
+    - jobset.x-k8s.io/v1alpha2/JobSet
+    - kueue.x-k8s.io/v1beta2/ClusterQueue
+    - kueue.x-k8s.io/v1beta2/LocalQueue
+    - kueue.x-k8s.io/v1beta2/ResourceFlavor
+    - kueue.x-k8s.io/v1beta2/Topology
+    - networking.gke.io/v1/GCPBackendPolicy
+    - monitoring.googleapis.com/v1/PodMonitoring
+    - monitoring.googleapis.com/v1/Rules
+
+  # These APIs ship in the pinned operator archives above, so their live instances can be checked
+  # offline against the exact structural schemas rendered from those archives.
+  chartBackedCustomGVKs:
+    - jobset.x-k8s.io/v1alpha2/JobSet
+    - kueue.x-k8s.io/v1beta2/ClusterQueue
+    - kueue.x-k8s.io/v1beta2/LocalQueue
+    - kueue.x-k8s.io/v1beta2/ResourceFlavor
+    - kueue.x-k8s.io/v1beta2/Topology
+
+  # GKE's managed Prometheus APIs are validated against CRDs fetched by Bazel from this exact,
+  # SHA-256-locked upstream revision. They never fall back to a live cluster or remote schema URL.
+  pinnedExternalCustomSchemas:
+    - gvk: cert-manager.io/v1/Certificate
+      file: cert-manager-v1.19.1.yaml
+    - gvk: cert-manager.io/v1/ClusterIssuer
+      file: cert-manager-v1.19.1.yaml
+    - gvk: cert-manager.io/v1/Issuer
+      file: cert-manager-v1.19.1.yaml
+    - gvk: gateway.networking.k8s.io/v1/Gateway
+      file: gateway.networking.k8s.io_gateways.yaml
+    - gvk: gateway.networking.k8s.io/v1/HTTPRoute
+      file: gateway.networking.k8s.io_httproutes.yaml
+    - gvk: networking.gke.io/v1/GCPBackendPolicy
+      file: networking.gke.io_gcpbackendpolicies.yaml
+    - gvk: monitoring.googleapis.com/v1/PodMonitoring
+      file: monitoring.googleapis.com_podmonitorings.yaml
+    - gvk: monitoring.googleapis.com/v1/Rules
+      file: monitoring.googleapis.com_rules.yaml
+
+  # Everything not enumerated here is namespaced and must render metadata.namespace explicitly.
+  # Exact GVKs avoid kind-name collisions between unrelated API groups.
+  clusterScopedGVKs:
+    - admissionregistration.k8s.io/v1/MutatingWebhookConfiguration
+    - admissionregistration.k8s.io/v1/ValidatingAdmissionPolicy
+    - admissionregistration.k8s.io/v1/ValidatingAdmissionPolicyBinding
+    - admissionregistration.k8s.io/v1/ValidatingWebhookConfiguration
+    - admissionregistration.k8s.io/v1alpha1/MutatingAdmissionPolicy
+    - admissionregistration.k8s.io/v1alpha1/MutatingAdmissionPolicyBinding
+    - apiregistration.k8s.io/v1/APIService
+    - apiextensions.k8s.io/v1/CustomResourceDefinition
+    - certificates.k8s.io/v1/CertificateSigningRequest
+    - certificates.k8s.io/v1beta1/ClusterTrustBundle
+    - cert-manager.io/v1/ClusterIssuer
+    - flowcontrol.apiserver.k8s.io/v1/FlowSchema
+    - flowcontrol.apiserver.k8s.io/v1/PriorityLevelConfiguration
+    - gateway.networking.k8s.io/v1/GatewayClass
+    - kueue.x-k8s.io/v1beta2/ClusterQueue
+    - kueue.x-k8s.io/v1beta2/ResourceFlavor
+    - kueue.x-k8s.io/v1beta2/Topology
+    - networking.k8s.io/v1/IngressClass
+    - node.k8s.io/v1/RuntimeClass
+    - rbac.authorization.k8s.io/v1/ClusterRole
+    - rbac.authorization.k8s.io/v1/ClusterRoleBinding
+    - resource.k8s.io/v1/DeviceClass
+    - resource.k8s.io/v1/ResourceSlice
+    - scheduling.k8s.io/v1/PriorityClass
+    - storage.k8s.io/v1/CSIDriver
+    - storage.k8s.io/v1/CSINode
+    - storage.k8s.io/v1/StorageClass
+    - storage.k8s.io/v1/VolumeAttachment
+    - storage.k8s.io/v1/VolumeAttributesClass
+    - v1/Namespace
+    - v1/Node
+    - v1/PersistentVolume
+
+  # These are deployment-capable roots, so they receive workload policy in addition to render and
+  # schema checks. Base-only routing/certificate packages remain schema-checked above.
+  policyRoots:
+    - planes/dev/base
+    - planes/studio/base
+    - platform/jobset
+    - services/artifact-proxy
+    - services/control-plane
+    - services/curation-workers
+    - services/evaluation-workers
+    - services/ingestion-workers
+    - services/node-agent
+    - services/preprocessing-workers
+    - services/rollout-workers
+    - services/runtime-gateway
+    - services/runtime-host
+    - services/training-workers
+    - workloads/ingestion
+    - workloads/preprocessing
+    - workloads/training/overlays/h100
+    - workloads/training/overlays/h200
+
+  # Standalone workload templates inherit the namespace-wide policies above when instantiated.
+  # These roots must carry a local ingress-and-egress default deny because they are deployable
+  # services or complete environment compositions.
+  networkPolicyRoots:
+    - planes/dev/base
+    - planes/studio/base
+    - services/artifact-proxy
+    - services/control-plane
+    - services/curation-workers
+    - services/evaluation-workers
+    - services/ingestion-workers
+    - services/node-agent
+    - services/preprocessing-workers
+    - services/rollout-workers
+    - services/runtime-gateway
+    - services/runtime-host
+    - services/training-workers
+
+  # Complete namespace compositions must carry a namespace-wide deny. Standalone service modules
+  # may use a selector-scoped ingress-and-egress deny for exactly their rendered Pod templates;
+  # cross_resource.py proves those selectors resolve.
+  namespaceWideDefaultDenyRoots:
+    - planes/dev/base
+    - planes/studio/base

@@ -1,0 +1,29 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_go//go:def.bzl", "go_test")
+
+package(default_visibility = ["//visibility:private"])
+
+# The transport test harnesses exist to be used by other packages' tests, so
+# no production code can import them and an in-package test is the package
+# rather than a caller of it. This suite is their external caller.
+go_test(
+    name = "transport_harness_test",
+    srcs = ["transport_harness_test.go"],
+    deps = [
+        "//libs/go/connectx/connecttest",
+        "//libs/go/connectx/health",
+        "//libs/go/faults",
+        "//libs/go/grpcx/grpctest",
+        "//libs/go/grpcx/health",
+        "//libs/go/httpx",
+        "//libs/go/httpx/httpxtest",
+        "//libs/go/servicekit",
+        "@com_connectrpc_connect//:connect",
+        "@org_golang_google_grpc//:grpc",
+        "@org_golang_google_grpc//health/grpc_health_v1",
+    ],
+)

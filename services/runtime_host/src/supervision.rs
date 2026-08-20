@@ -68,6 +68,9 @@ impl WorkerSession {
         self.runtime.begin_commit(self.fencing)?;
         self.runtime.complete(self.fencing)
     }
+    pub fn fail(&self, message: impl Into<String>) -> FaultResult<()> {
+        self.runtime.fail(message)
+    }
     pub fn require_fence(&self, token: FencingToken) -> FaultResult<()> {
         if token == self.fencing {
             Ok(())

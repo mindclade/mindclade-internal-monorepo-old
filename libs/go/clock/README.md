@@ -1,6 +1,6 @@
 # Mindclade Go Clock
 
-`mindclade.internal/libs/go/clock` provides a minimal injectable clock for
+`go.mindclade.dev/libs/go/clock` provides a minimal injectable clock for
 production code and a deterministic manually advanced clock for tests.
 
 ## Production use

@@ -21,7 +21,7 @@ go_library(
         "policy.go",
         "result.go",
     ],
-    importpath = "mindclade.internal/libs/go/retry",
+    importpath = "go.mindclade.dev/libs/go/retry",
     deps = [
         "//libs/go/clock",
         "//libs/go/faults",

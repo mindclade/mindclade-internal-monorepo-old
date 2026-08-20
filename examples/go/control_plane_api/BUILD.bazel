@@ -12,7 +12,7 @@ exports_files(["README.md"])
 go_library(
     name = "control_plane_api",
     srcs = ["app.go"],
-    importpath = "mindclade.internal/examples/go/control_plane_api",
+    importpath = "go.mindclade.dev/examples/go/control_plane_api",
     deps = [
         "//libs/go/audit",
         "//libs/go/coordination/outbox",

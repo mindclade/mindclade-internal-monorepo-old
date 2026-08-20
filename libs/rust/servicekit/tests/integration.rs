@@ -25,7 +25,7 @@ fn readiness_and_shutdown_are_explicit() {
     assert!(
         supervisor
             .spawn("worker", |shutdown| {
-                shutdown.wait_timeout(std::time::Duration::from_millis(1));
+                let _ = shutdown.wait_timeout(std::time::Duration::from_millis(1));
                 Ok(())
             })
             .is_ok()

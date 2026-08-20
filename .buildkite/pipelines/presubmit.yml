@@ -1,0 +1,11 @@
+---
+steps:
+  - label: ":bazel: affected tests"
+    key: affected-tests
+    command: >-
+      nix develop .#ci --command
+      python3 ci/presubmit/pipeline.py
+      --base "${BUILDKITE_PULL_REQUEST_BASE_BRANCH:-origin/main}"
+    timeout_in_minutes: 60
+    agents:
+      queue: cpu

@@ -9,7 +9,7 @@ import (
 	"sort"
 	"time"
 
-	"mindclade.internal/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/identifiers"
 )
 
 type Origin struct {

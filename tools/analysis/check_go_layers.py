@@ -20,7 +20,11 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-IMPORT_RE = re.compile(r'"(mindclade\.internal/[^"\n]+)"')
+# The repository's own module path, as declared by go.mod. It is spelled out in the prefixes
+# below as well; all of them have to move together. The module-path cutover updated those and
+# left this pattern on `mindclade.internal`, so it matched nothing and every rule downstream of
+# it passed vacuously — the failure mode a layering check cannot signal about itself.
+IMPORT_RE = re.compile(r'"(go\.mindclade\.dev/[^"\n]+)"')
 GO_STATEMENT_RE = re.compile(r"(?m)^\s*go\s+(?:func\s*\(|[A-Za-z_][A-Za-z0-9_./]*\s*\()")
 
 
@@ -96,7 +100,7 @@ def package_for_file(root: Path, path: Path) -> str | None:
 
 
 def target_lib_package(import_path: str) -> str | None:
-    prefix = "mindclade.internal/libs/go/"
+    prefix = "go.mindclade.dev/libs/go/"
     if not import_path.startswith(prefix):
         return None
     return import_path[len(prefix) :]
@@ -116,10 +120,10 @@ def import_violations(root: Path, files: Iterable[Path]) -> list[Violation]:
         for import_path in IMPORT_RE.findall(text):
             if import_path.startswith(
                 (
-                    "mindclade.internal/control/",
-                    "mindclade.internal/services/",
-                    "mindclade.internal/operators/",
-                    "mindclade.internal/workers/",
+                    "go.mindclade.dev/control/",
+                    "go.mindclade.dev/services/",
+                    "go.mindclade.dev/operators/",
+                    "go.mindclade.dev/workers/",
                 )
             ):
                 violations.append(
@@ -199,7 +203,7 @@ def paved_road_violations(root: Path) -> list[Violation]:
         for path in command_root.glob("*/main.go"):
             text = path.read_text(encoding="utf-8", errors="replace")
             required = [
-                '"mindclade.internal/services/control_plane/internal/bootstrap"',
+                '"go.mindclade.dev/services/control_plane/internal/bootstrap"',
                 "bootstrap.Main(",
             ]
             for token in required:
@@ -207,7 +211,7 @@ def paved_road_violations(root: Path) -> list[Violation]:
                     violations.append(
                         Violation(path, f"control-plane command must contain {token}")
                     )
-            if '"mindclade.internal/libs/go/servicekit"' in text or "servicekit.New(" in text:
+            if '"go.mindclade.dev/libs/go/servicekit"' in text or "servicekit.New(" in text:
                 violations.append(
                     Violation(path, "command bypasses servicekit/production bootstrap")
                 )

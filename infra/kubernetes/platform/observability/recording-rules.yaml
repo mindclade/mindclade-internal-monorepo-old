@@ -1,0 +1,84 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+---
+apiVersion: monitoring.googleapis.com/v1
+kind: Rules
+metadata:
+  name: kueue-platform-recording
+  namespace: kueue-system
+spec:
+  groups:
+    - name: mindclade.kueue.platform
+      interval: 30s
+      rules:
+        - record: mindclade:kueue_controller_up:max
+          expr: max by (cluster, location, namespace) (up{operator="kueue"})
+        - record: mindclade:kueue_reconciles:increase5m
+          expr: >-
+            sum by (cluster, location, namespace)
+            (increase(controller_runtime_reconcile_total{operator="kueue"}[5m]))
+        - record: mindclade:kueue_reconcile_error_ratio:ratio5m
+          expr: >-
+            (
+              sum by (cluster, location, namespace)
+              (increase(controller_runtime_reconcile_errors_total{operator="kueue"}[5m]))
+              or
+              0 * sum by (cluster, location, namespace)
+              (increase(controller_runtime_reconcile_total{operator="kueue"}[5m]))
+            )
+            /
+            clamp_min(
+              sum by (cluster, location, namespace)
+              (increase(controller_runtime_reconcile_total{operator="kueue"}[5m])),
+              1
+            )
+        - record: mindclade:kueue_pending_workloads:sum
+          expr: >-
+            sum by (cluster, location, namespace, cluster_queue, status)
+            (kueue_pending_workloads)
+        - record: mindclade:kueue_admission_wait_seconds:p95_rate5m
+          expr: >-
+            histogram_quantile(
+              0.95,
+              sum by (cluster, location, namespace, cluster_queue, le)
+              (rate(kueue_admission_wait_time_seconds_bucket[5m]))
+            )
+        - record: mindclade:kueue_admission_attempts:rate5m
+          expr: >-
+            sum by (cluster, location, namespace, result)
+            (rate(kueue_admission_attempts_total[5m]))
+
+---
+apiVersion: monitoring.googleapis.com/v1
+kind: Rules
+metadata:
+  name: jobset-platform-recording
+  namespace: jobset-system
+spec:
+  groups:
+    - name: mindclade.jobset.platform
+      interval: 30s
+      rules:
+        - record: mindclade:jobset_controller_up:max
+          expr: max by (cluster, location, namespace) (up{operator="jobset"})
+        - record: mindclade:jobset_reconciles:increase5m
+          expr: >-
+            sum by (cluster, location, namespace)
+            (increase(controller_runtime_reconcile_total{operator="jobset"}[5m]))
+        - record: mindclade:jobset_reconcile_error_ratio:ratio5m
+          expr: >-
+            (
+              sum by (cluster, location, namespace)
+              (increase(controller_runtime_reconcile_errors_total{operator="jobset"}[5m]))
+              or
+              0 * sum by (cluster, location, namespace)
+              (increase(controller_runtime_reconcile_total{operator="jobset"}[5m]))
+            )
+            /
+            clamp_min(
+              sum by (cluster, location, namespace)
+              (increase(controller_runtime_reconcile_total{operator="jobset"}[5m])),
+              1
+            )

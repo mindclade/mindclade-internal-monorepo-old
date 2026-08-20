@@ -1,0 +1,5 @@
+---
+steps:
+  - label: ":pipeline: affected presubmit"
+    key: presubmit
+    command: buildkite-agent pipeline upload .buildkite/pipelines/presubmit.yml

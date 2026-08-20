@@ -1,0 +1,25 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.9.8",
+  "resource_changes": [
+    {
+      "address": "google_project_iam_member.known",
+      "mode": "managed",
+      "type": "google_project_iam_member",
+      "name": "known",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "member": "group:readers@example.test",
+          "project": "synthetic-project",
+          "role": "roles/logging.viewer"
+        },
+        "after_unknown": {
+          "member": false,
+          "role": false
+        }
+      }
+    }
+  ]
+}

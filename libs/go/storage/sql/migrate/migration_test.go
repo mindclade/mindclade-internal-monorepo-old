@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"mindclade.internal/libs/go/storage/sql/migrate"
-	"mindclade.internal/libs/go/storage/sql/sqltest"
+	"go.mindclade.dev/libs/go/storage/sql/migrate"
+	"go.mindclade.dev/libs/go/storage/sql/sqltest"
 )
 
 func TestManifestSortsAndChecksums(t *testing.T) {

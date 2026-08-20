@@ -4,4 +4,5 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# Intentionally no Service. Preprocessing is ticket-scoped batch execution and
+# no warm queue listener is implemented.

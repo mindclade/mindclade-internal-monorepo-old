@@ -1,5 +1,25 @@
 # Dependency rules
 
+## Bazel layer authority
+
+`tools/build/bazel/layers.bzl` is the machine-readable source of truth for
+repository-wide Bazel package membership. The root `BUILD.bazel` materializes
+its entries as named `package_group` targets, so BUILD visibility declarations
+may reuse the same vocabulary enforced in CI.
+
+| Layer | Top-level packages | May depend on |
+| --- | --- | --- |
+| foundation | `configs`, `libs`, `protocols`, `sdk` | foundation and external dependencies |
+| offline | `data`, `evaluation`, `kernels`, `models`, `preprocessing`, `training` | foundation and narrower offline contracts |
+| serving | `apps`, `control`, `services`, `serving` | foundation, published model/data contracts, and serving internals |
+| research | `research` | production packages and research |
+| platform | `architecture`, `ci`, `docs`, `examples`, `infra`, `qualification`, `security`, `tests`, `tools` | the packages needed to build, validate, qualify, and deploy the repository |
+
+The file also defines smaller `boundary_*` groups for rules that are more
+precise than an entire layer. A new top-level code package is incomplete until
+it is classified there and assigned in both `OWNERS.toml` and
+`.github/CODEOWNERS`.
+
 ## Top-level flow
 
 ```text
@@ -22,6 +42,21 @@ apps -> generated SDKs/contracts      allowed
 apps -> services                      forbidden
 model family -> sibling family        forbidden
 ```
+
+The Bazel graph additionally makes these direct boundary crossings explicit:
+
+```text
+serving -> training                    forbidden
+serving -> research                    forbidden
+outside research -> research/experiments
+                                        forbidden
+apps -> services                       forbidden
+source -> infra                        forbidden
+```
+
+The broader `production -> research` rule subsumes the serving/research case.
+Research may depend on production so experiments can evaluate real components;
+production must consume only promoted contracts and implementations.
 
 ## Go layers
 
@@ -59,7 +94,9 @@ only after two real consumers share a stable mechanism and conformance suite.
 
 ## Enforcement
 
-- Bazel visibility and package groups;
+- root Bazel package groups declared from `tools/build/bazel/layers.bzl`;
+- `tools/analysis/check_bazel_layers.py`, which checks direct internal
+  `rule-input` edges from `bazel query //... --output=xml --noimplicit_deps`;
 - `tools/analysis/check_go_layers.py`;
 - promoted-foundation and paved-road checks;
 - `servicekit/production` role capability validation;
@@ -68,7 +105,22 @@ only after two real consumers share a stable mechanism and conformance suite.
 - repository checks forbidding `common`, `shared`, `helpers`, or `utils`
   dumping grounds.
 
-Exceptions require an accepted ADR and an explicit boundary update.
+The query check is language-independent: Go, Rust, Python, generated targets,
+and filegroups are governed by the same graph. Source-level checks remain in
+place for language semantics that BUILD metadata cannot express.
+
+Exceptions require an accepted ADR and an exact source-target entry in
+`BAZEL_LAYER_EXCEPTIONS`. Values use `ADR-NNNN: rationale`; wildcards are not
+accepted, and CI rejects an exception after its edge disappears. A permanent
+new dependency direction is a policy change, not an exception, and requires an
+ADR plus updates to the central groups, documentation, and ownership routes.
+
+Run the same gates locally with:
+
+```bash
+python3 tools/analysis/check_bazel_layers.py
+tools/dev/bazelw build //... --nobuild --config=ci
+```
 
 ## Deprecated Rust compatibility paths
 

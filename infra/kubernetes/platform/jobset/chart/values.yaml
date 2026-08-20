@@ -1,0 +1,55 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+---
+jobset:
+  commonLabels:
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/controller: jobset
+  image:
+    repository: registry.k8s.io/jobset/jobset
+    tag: v0.12.0@sha256:e75536f1135b7bb2f19f8c3b620782fbdd9091d73398e3a272f9a5fed322980d
+    pullPolicy: IfNotPresent
+  controller:
+    enabled: true
+    replicas: 2
+    leaderElection:
+      enable: true
+    nodeSelector:
+      mindclade.dev/node-pool: system
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  mindclade.dev/controller: jobset
+              topologyKey: topology.kubernetes.io/zone
+    podDisruptionBudget:
+      enabled: true
+      minAvailable: 1
+    podSecurityContext:
+      runAsNonRoot: true
+      seccompProfile:
+        type: RuntimeDefault
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+      readOnlyRootFilesystem: true
+    resources:
+      requests:
+        cpu: 500m
+        ephemeral-storage: 256Mi
+        memory: 256Mi
+      limits:
+        cpu: "2"
+        ephemeral-storage: 1Gi
+        memory: 1Gi
+  certManager:
+    enable: true
+  prometheus:
+    enable: false

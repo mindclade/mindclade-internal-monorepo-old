@@ -1,35 +1,16 @@
-# Libs / Python / Geometry
+# Python rigid geometry
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** the language indicated by the second path segment
+This package owns finite float64 three-dimensional rigid-geometry primitives: validated vectors,
+point arrays and right-handed rotation matrices; immutable rigid transforms; frame construction;
+axis-angle rotations; pairwise Euclidean distances; and RMSD. Inputs are copied into read-only
+NumPy arrays, so caller mutation cannot alter a validated transform.
 
-## Purpose
+Rotations must be orthonormal with determinant +1 within an explicit bounded tolerance. Degenerate
+axes and frames, non-finite coordinates, and incompatible shapes are rejected. Point operations
+accept at most 1,000,000 points, and pairwise distances at most 4,000,000 output elements, avoiding
+accidental quadratic allocation beyond that budget. Operations are deterministic for a fixed NumPy
+build and input; callers that require a cross-platform numerical tolerance must state it in tests.
 
-Reusable mechanisms for one language. Libraries contain stable, broadly consumed behavior and no product-domain policy or executable composition roots. This path specializes that domain for **geometry**.
-
-## Boundary
-
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
-
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
-
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+This package does not own molecular-domain semantics, coordinate-file formats, periodic boundary
+conditions, neighbor-list algorithms, GPU kernels, unit conversion, or distributed execution.
+Those belong to domain packages and accelerator adapters.

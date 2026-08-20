@@ -10,9 +10,9 @@ import (
 	"errors"
 	"strings"
 
-	"mindclade.internal/libs/go/auth"
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/auth"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/identifiers"
 )
 
 // Actor is the identity snapshot stored in an audit event.

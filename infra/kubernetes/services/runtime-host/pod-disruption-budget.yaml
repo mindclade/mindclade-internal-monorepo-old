@@ -4,4 +4,5 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# Intentionally no PodDisruptionBudget. This node-local GPU workload is disabled;
+# disruption behavior must be defined with model drain/checkpoint qualification.

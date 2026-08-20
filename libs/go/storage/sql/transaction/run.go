@@ -12,7 +12,7 @@ import (
 	"errors"
 	"reflect"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 type Beginner interface {

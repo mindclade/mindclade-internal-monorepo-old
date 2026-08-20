@@ -11,8 +11,8 @@ import (
 	"fmt"
 	"runtime/debug"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/requestmeta"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/requestmeta"
 )
 
 // TracePropagator adapts provider-owned distributed trace propagation. It

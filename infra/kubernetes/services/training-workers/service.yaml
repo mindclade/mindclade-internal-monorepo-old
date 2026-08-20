@@ -4,4 +4,5 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# Intentionally no Service. Distributed training networking belongs to the
+# qualified JobSet/NCCL topology and must not be guessed here.

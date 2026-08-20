@@ -4,4 +4,10 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# Recording rules are owned by their monitored workloads so selector, port, and rule lifecycles
+# remain atomic. Operator rules live at:
+#
+#   infra/kubernetes/platform/observability/recording-rules.yaml
+#
+# This file intentionally contains no deployable Kubernetes object. Cloud Monitoring owns alert
+# policies and notification routing through infra/terraform/modules/monitoring.

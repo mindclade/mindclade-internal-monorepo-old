@@ -8,7 +8,7 @@ package config
 import (
 	"sync"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // Atomic stores the last-known-good snapshot and accepts reloads only when all

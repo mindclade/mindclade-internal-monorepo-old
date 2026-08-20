@@ -4,4 +4,4 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# Intentionally no PodDisruptionBudget for ticket-scoped batch Jobs.

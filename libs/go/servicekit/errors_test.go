@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 func TestComponentErrorClassification(t *testing.T) {

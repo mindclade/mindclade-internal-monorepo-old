@@ -3,14 +3,49 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_go//go:def.bzl", "go_binary")
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
 
 package(default_visibility = ["//visibility:private"])
 
+# main.go is a library so that BOTH binaries below compile the same sources through the same
+# target, rather than two go_binary rules each listing srcs and deps and drifting apart. The
+# image ships the cross-compiled one; a mismatch between them would be a difference between
+# what was tested and what was released.
+go_library(
+    name = "go_vanity_lib",
+    srcs = ["main.go"],
+    importpath = "go.mindclade.dev/services/go_vanity/cmd/go_vanity",
+    deps = ["//services/go_vanity/internal/vanity"],
+)
+
+# Host build. `bazel run` it for local work.
 go_binary(
     name = "go_vanity",
-    srcs = ["main.go"],
-    importpath = "mindclade.internal/services/go_vanity/cmd/go_vanity",
+    embed = [":go_vanity_lib"],
     visibility = ["//visibility:public"],
-    deps = ["//services/go_vanity/internal/vanity"],
+)
+
+# What goes in the image.
+#
+# CROSS-COMPILED HERE rather than by a --platforms transition on the image, because the target
+# platform is a property of the artifact and belongs where the artifact is declared. goos/goarch
+# make it readable at the point someone asks what the image contains.
+#
+# pure = "on" sets CGO_ENABLED=0, and it is load-bearing rather than a default worth inheriting:
+# the base is distroless static, which has no libc, so a cgo-linked binary builds fine here and
+# fails at container start with a loader error naming a .so nobody referenced. This is the same
+# decision the Dockerfile made with `ENV CGO_ENABLED=0` and for the same reason.
+go_binary(
+    name = "go_vanity_linux_amd64",
+    embed = [":go_vanity_lib"],
+    # -s -w strip the symbol table and DWARF, matching the Dockerfile's ldflags. Nothing
+    # debugs this binary in-cluster; it is 8 lines of handler over the standard library.
+    gc_linkopts = [
+        "-s",
+        "-w",
+    ],
+    goarch = "amd64",
+    goos = "linux",
+    pure = "on",
+    visibility = ["//services/go_vanity:__pkg__"],
 )

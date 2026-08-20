@@ -62,11 +62,13 @@ impl ModelSlotRequest {
     }
 }
 
+#[derive(Debug)]
 pub struct ModelSlot {
     _reservation: Reservation,
     pub request: ModelSlotRequest,
 }
 
+#[derive(Debug)]
 pub struct GpuHost {
     capability: DeviceCapability,
     budget: Arc<Budget>,

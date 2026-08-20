@@ -8,7 +8,9 @@
 //! Bazel owns canonical protobuf code generation.  This crate keeps a checked-in
 //! projection for Cargo-native qualification and local runtime leaves.  The
 //! cross-language qualification lane proves these layouts stay compatible with
-//! `protocols/proto/mindclade/runtime/v1`.
+//! `protocols/proto/mindclade/runtime/v1` and
+//! `protocols/proto/mindclade/inference/v1`.
 #![forbid(unsafe_code)]
 
+pub mod inference;
 pub mod runtime;

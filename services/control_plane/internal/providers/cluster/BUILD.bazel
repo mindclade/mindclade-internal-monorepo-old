@@ -1,0 +1,42 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//services/control_plane:__subpackages__"])
+
+go_library(
+    name = "cluster",
+    srcs = ["cluster.go"],
+    importpath = "go.mindclade.dev/services/control_plane/internal/providers/cluster",
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/kubernetes/client",
+        "//libs/go/kubernetes/events",
+        "//libs/go/servicekit",
+        "//services/control_plane/internal/config",
+        "@io_k8s_api//core/v1:core",
+        "@io_k8s_client_go//discovery",
+        "@io_k8s_client_go//kubernetes/scheme",
+        "@io_k8s_client_go//kubernetes/typed/core/v1:core",
+        "@io_k8s_client_go//rest",
+        "@io_k8s_client_go//tools/record",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
+    ],
+)
+
+go_test(
+    name = "cluster_test",
+    srcs = ["cluster_test.go"],
+    embed = [":cluster"],
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/kubernetes/client",
+        "//services/control_plane/internal/config",
+        "@io_k8s_client_go//rest",
+        "@io_k8s_client_go//tools/record",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
+    ],
+)

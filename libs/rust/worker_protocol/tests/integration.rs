@@ -190,6 +190,64 @@ fn route_snapshot_survives_one_expired_member_route() {
 }
 
 #[test]
+fn signed_snapshots_are_rejected_before_their_activation_time() {
+    let now = 100;
+    let revocations = RevocationSnapshot {
+        claims: RevocationSnapshotClaims {
+            epoch: 1,
+            created_unix_millis: now + 1,
+            expires_unix_millis: 1_000,
+            revoked_grant_ids: BTreeSet::new(),
+            revoked_ticket_ids: BTreeSet::new(),
+            revoked_deployment_ids: BTreeSet::new(),
+            revoked_bundle_digests: BTreeSet::new(),
+        },
+        signature: fake_signature(),
+    };
+    assert!(revocations.validate(now, 1, &AcceptingVerifier).is_err());
+
+    let active_revocations = RevocationSnapshot {
+        claims: RevocationSnapshotClaims {
+            created_unix_millis: 1,
+            ..revocations.claims.clone()
+        },
+        signature: fake_signature(),
+    };
+    let route = DeploymentRoute {
+        deployment_id: id("deployment", 13),
+        model_bundle: hash_bytes(b"model"),
+        engine_bundle: hash_bytes(b"engine"),
+        endpoint: "unix:///runtime/model".into(),
+        region: "us".into(),
+        weight: 1,
+        capabilities: BTreeSet::new(),
+        lease_expires_unix_millis: 500,
+        safety_policy: None,
+    };
+    let mut claims = RouteSnapshotClaims {
+        snapshot_id: id("routesnap", 14),
+        snapshot_digest: Digest::ZERO,
+        version: 1,
+        policy_epoch: 1,
+        revocation_epoch: 1,
+        created_unix_millis: now + 1,
+        expires_unix_millis: 500,
+        routes: vec![route],
+        minimum_runtime_version: "1.0.0".into(),
+    };
+    claims.snapshot_digest = claims.computed_digest().expect("route digest");
+    let snapshot = RouteSnapshot {
+        claims,
+        signature: fake_signature(),
+    };
+    assert!(
+        snapshot
+            .validate(now, 1, 1, &active_revocations, &AcceptingVerifier)
+            .is_err()
+    );
+}
+
+#[test]
 fn worker_control_and_status_validation_are_bounded() {
     let claims = ExecutionTicketClaims {
         ticket_id: id("ticket", 21),
@@ -231,7 +289,7 @@ fn worker_control_and_status_validation_are_bounded() {
     };
     let command = WorkerCommand::Start {
         sequence: 1,
-        ticket,
+        ticket: Box::new(ticket),
         inputs: Vec::new(),
         operation: "preprocessing.msa".into(),
     };

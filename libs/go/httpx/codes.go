@@ -8,7 +8,7 @@ package httpx
 import (
 	"net/http"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // StatusFromCode maps transport-neutral fault codes to HTTP status codes.

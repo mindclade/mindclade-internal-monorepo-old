@@ -5,8 +5,13 @@
 
 package(default_visibility = ["//visibility:private"])
 
+exports_files(["infra_validation.bzl"])
+
 filegroup(
     name = "scaffold_files",
-    srcs = glob(["**"], exclude = ["BUILD.bazel"]),
+    srcs = glob(
+        ["**"],
+        exclude = ["BUILD.bazel"],
+    ),
     visibility = ["//visibility:public"],
 )

@@ -12,6 +12,7 @@ import argparse
 import hashlib
 import json
 import sys
+from collections import Counter
 from pathlib import Path
 
 _ALLOWED_EMPTY = {"Cargo.lock", "flake.lock", "MODULE.bazel.lock"}
@@ -26,7 +27,9 @@ def check(root: Path, manifest: Path) -> dict[str, object]:
     paths = [
         line.strip() for line in manifest.read_text(encoding="utf-8").splitlines() if line.strip()
     ]
-    duplicates = sorted({path for path in paths if paths.count(path) > 1})
+    # One pass. `paths.count(path)` inside the comprehension rescanned the whole list per entry,
+    # which is ~20M comparisons for a manifest this size.
+    duplicates = sorted(path for path, n in Counter(paths).items() if n > 1)
     missing = sorted(path for path in paths if not (root / path).is_file())
     unexpected_empty = sorted(
         path

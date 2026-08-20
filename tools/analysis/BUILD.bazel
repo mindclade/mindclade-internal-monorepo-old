@@ -3,9 +3,34 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_python//python:defs.bzl", "py_binary", "py_test")
+load("@rules_python//python:defs.bzl", "py_binary")
+load("//tools/build:pytest.bzl", "pytest_test")
 
 package(default_visibility = ["//visibility:private"])
+
+# No `data` for docs/blueprint/production-monorepo-paths.txt, and that is not an oversight. The
+# checker measures which blueprint paths exist in a real checkout; under `bazel run` its default
+# --root resolves into the runfiles tree, where only declared files are present, so declaring
+# the manifest would make it report against a tree containing the manifest and nothing else —
+# a confidently wrong coverage number instead of a missing-file error. Same shape as every
+# sibling checker here: run it against a checkout, or pass --root.
+py_binary(
+    name = "check_bazel_layers",
+    srcs = ["check_bazel_layers.py"],
+    data = [
+        "//tools/build/bazel:layers.bzl",
+        "//tools/dev:dev_sources",
+    ],
+    main = "check_bazel_layers.py",
+    visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "check_blueprint_scaffold",
+    srcs = ["check_blueprint_scaffold.py"],
+    main = "check_blueprint_scaffold.py",
+    visibility = ["//visibility:public"],
+)
 
 py_binary(
     name = "check_go_layers",
@@ -21,12 +46,42 @@ py_binary(
     visibility = ["//visibility:public"],
 )
 
-py_test(
+# pytest_test, not py_test: these are pytest modules, and a py_test would run them as scripts
+# and execute no test function. They also failed analysis outright — the src is in tests/, so
+# the default main "<name>.py" never appeared in srcs.
+pytest_test(
+    name = "bazel_layers_test",
+    srcs = ["tests/test_bazel_layers.py"],
+    data = [
+        "check_bazel_layers.py",
+        "//tools/build/bazel:layers.bzl",
+    ],
+)
+
+pytest_test(
     name = "go_architecture_checks_test",
     srcs = ["tests/test_go_checks.py"],
     data = [
         "check_go_layers.py",
         "check_placeholder_packages.py",
+    ],
+)
+
+pytest_test(
+    name = "foundation_consumption_test",
+    srcs = ["tests/test_foundation_consumption.py"],
+    data = [
+        "check_foundation_consumption.py",
+        "go_import_graph.py",
+    ],
+)
+
+pytest_test(
+    name = "build_toolchain_contract_test",
+    srcs = ["tests/test_build_toolchain_contract.py"],
+    data = [
+        "check_build_toolchain_contract.py",
+        "//tools/build/nix:scaffold_files",
     ],
 )
 
@@ -37,37 +92,44 @@ py_binary(
     visibility = ["//visibility:public"],
 )
 
-
 py_binary(
     name = "check_code_docs_alignment",
     srcs = ["check_code_docs_alignment.py"],
     main = "check_code_docs_alignment.py",
-        "check_enforced_decisions.py",
-        "check_component_ownership.py",
+    visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "check_foundation_consumption",
+    srcs = [
+        "check_foundation_consumption.py",
+        "go_import_graph.py",
+    ],
+    main = "check_foundation_consumption.py",
     visibility = ["//visibility:public"],
 )
 
 filegroup(
     name = "analysis_sources",
-    srcs = glob(["*.py"], exclude = ["**/__pycache__/**"]),
+    srcs = glob(
+        ["*.py"],
+        exclude = ["**/__pycache__/**"],
+    ),
     visibility = ["//visibility:public"],
 )
 
+# Globbed rather than listed. The hand-maintained list had drifted to 14 of the 18 modules
+# run_architecture_checks.py imports — check_affected_presubmit, check_artifact_gc_contract,
+# check_cargo_bazel_alignment, check_foundation_hardening, check_go_layers and
+# check_rust_implementation were all missing — so running this target died on ImportError
+# naming a checker nobody had touched. The checkers are stdlib-only single files in one
+# directory, so a glob cannot drift the way the list did.
 py_binary(
     name = "architecture_policy",
-    srcs = [
-        "run_architecture_checks.py",
-        "check_build_toolchain_contract.py",
-        "check_component_maturity.py",
-        "check_code_docs_alignment.py",
-        "check_enforced_decisions.py",
-        "check_component_ownership.py",
-        "check_dependency_budgets.py",
-        "check_dependency_layers.py",
-        "check_go_modules.py",
-        "check_libs_go_admission.py",
-        "check_rust_workspace.py",
-    ],
+    srcs = glob(
+        ["*.py"],
+        exclude = ["**/__pycache__/**"],
+    ),
     main = "run_architecture_checks.py",
     visibility = ["//visibility:public"],
 )

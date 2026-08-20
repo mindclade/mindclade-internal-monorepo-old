@@ -1,0 +1,23 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# THERE IS NO PRODUCTION DOCKER BUILD IN THIS REPOSITORY, and this file is here to keep it that
+# way cheaply.
+#
+# Images are built by Bazel — see //services/go_vanity:image for the reference target — because
+# tools/analysis/check_build_toolchain_contract.py forbids production Dockerfiles. Bazel never
+# sends a build context to a daemon, so nothing in the release path reads this file.
+#
+# What does read it is an ad-hoc `docker build .` typed by a person. Without this file that
+# command uploads the entire working tree as context: the .git directory, .venv, node_modules,
+# every model fixture, and any .env sitting in a service directory. Denying everything makes
+# that command fail immediately and obviously instead of quietly shipping a credential into a
+# layer.
+#
+# If you are adding a Dockerfile: don't, unless it is genuinely dev-only, in which case it needs
+# the MINDCLADE_DEV_ONLY=1 marker the contract check looks for. Production images are Bazel
+# oci_image targets. //services/go_vanity is the worked example — go_library, a cross-compiled
+# go_binary, pkg_tar, oci_image, oci_push.
+
+*

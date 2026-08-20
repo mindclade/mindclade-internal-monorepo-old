@@ -4,4 +4,5 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# Intentionally no Service. Ingestion workers are bounded batch Jobs and expose
+# no implemented listener.

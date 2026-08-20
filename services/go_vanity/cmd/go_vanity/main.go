@@ -20,14 +20,14 @@ import (
 	"syscall"
 	"time"
 
-	"mindclade.internal/services/go_vanity/internal/vanity"
+	"go.mindclade.dev/services/go_vanity/internal/vanity"
 )
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	addr := envOr("LISTEN_ADDRESS", ":8080")
-	repoURL := envOr("MODULE_REPO_URL", "https://github.com/mindclade-org/mindclade")
+	repoURL := envOr("MODULE_REPO_URL", "https://github.com/mindclade/mindclade-internal-monorepo")
 	modulePath := envOr("MODULE_PATH", "go.mindclade.dev")
 	docsURL := envOr("DOCS_URL", "https://docs.mindclade.dev")
 

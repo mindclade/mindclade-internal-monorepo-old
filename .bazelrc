@@ -1,0 +1,107 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# The repository had no .bazelrc at all. Every invocation therefore ran with Bazel's defaults,
+# which is why `bazel query //...` in presubmit.yml needs three explicit flags on the command
+# line to produce parseable output — they belong here, once, for every invocation including
+# the ones people type.
+#
+# Ordering note: Bazel applies rc lines in file order and later wins, so the common lines come
+# first and the --config blocks after them.
+
+# ---------------------------------------------------------------------------------------
+# Bzlmod
+# ---------------------------------------------------------------------------------------
+# The repository is Bzlmod-only, as README.md states. Bazel 8 defaults this on, but the flag
+# is explicit because the difference between the two dependency systems is silent: with
+# WORKSPACE enabled, a missing bazel_dep resolves through a legacy path and the build succeeds
+# against dependencies MODULE.bazel never declared.
+common --enable_bzlmod
+common --noenable_workspace
+
+# MODULE.bazel.lock is committed. Left at the default `update` locally and set to `error` under
+# --config=ci below, rather than `error` everywhere: a developer editing MODULE.bazel has a
+# stale lock by definition until the next command regenerates it, and making that state a hard
+# failure means the tool that fixes it refuses to run. CI is the place where a stale committed
+# lock is a defect, because there is nobody there to regenerate it.
+
+# ---------------------------------------------------------------------------------------
+# Output
+# ---------------------------------------------------------------------------------------
+# CI parses Bazel's output and terminals do not exist there. presubmit.yml's bazel job passes
+# --curses=no --color=no on the command line today; both move here so every lane gets them.
+common --curses=auto
+common --color=yes
+build --show_timestamps
+build --verbose_failures
+
+# A test that fails should print why in the same scroll, rather than naming a log file in a
+# sandbox that CI throws away when the step ends.
+test --test_output=errors
+test --test_summary=terse
+test --test_verbose_timeout_warnings
+
+# ---------------------------------------------------------------------------------------
+# Correctness and hermeticity
+# ---------------------------------------------------------------------------------------
+# The point of the Nix shells in flake.nix is that a build sees the pinned toolchain and
+# nothing else. These are the flags that stop the host leaking in around them.
+build --incompatible_strict_action_env
+build --sandbox_default_allow_network=false
+
+# A genrule or test that reads an undeclared file works locally and fails under remote
+# execution, months later, in someone else's change. Not the `experimental_` spelling: Bazel
+# 8.4.2 accepts it but warns on every single invocation that it is deprecated.
+build --guard_against_concurrent_changes
+
+# ---------------------------------------------------------------------------------------
+# Platform-specific defaults
+# ---------------------------------------------------------------------------------------
+build:linux --define=host_os=linux
+build:macos --define=host_os=macos
+
+# ---------------------------------------------------------------------------------------
+# --config=ci
+# ---------------------------------------------------------------------------------------
+# What the presubmit, nightly and release lanes add on top of the common lines.
+common:ci --announce_rc
+common:ci --noshow_progress
+build:ci --keep_going
+
+# A committed MODULE.bazel.lock that no longer matches MODULE.bazel is a defect in the change
+# that left it behind. See the note above for why this is not the default.
+common:ci --lockfile_mode=error
+test:ci --flaky_test_attempts=1
+test:ci --test_env=CI=true
+
+# Tests tagged `manual` are opt-in. A wildcard like `//...` already skips them, but a lane
+# that passes an explicit target list does not, and the Go test lane below builds exactly
+# such a list.
+#
+# WAS `--test_timeout_filters=-manual`, which is not a thing: that flag selects by timeout
+# CATEGORY (short/moderate/long/eternal) and rejects a tag name outright, so every
+# `bazel test --config=ci` died in option parsing before it looked at a target. Nothing
+# noticed because no lane ran `bazel test` at all.
+test:ci --test_tag_filters=-manual
+
+# Shared runners are slower than a laptop, and a test that times out on a loaded runner but
+# not locally is indistinguishable from a flake in the report.
+build:ci --experimental_scale_timeouts=2
+
+# ---------------------------------------------------------------------------------------
+# --config=hermetic
+# ---------------------------------------------------------------------------------------
+# Restricts every external fetch to the registries listed in bazel_downloader.cfg. NOT on by
+# default, and that is the whole design of it: the config file's rules are an allowlist, so
+# enabling this on a workspace whose mirror is not yet stood up turns every dependency fetch
+# into a hard failure. Turn it on per-lane once the mirror exists — the release lane first,
+# since that is the build whose inputs have to be attestable.
+common:hermetic --experimental_downloader_config=bazel_downloader.cfg
+
+# ---------------------------------------------------------------------------------------
+# Local overrides
+# ---------------------------------------------------------------------------------------
+# user.bazelrc is gitignored (see .gitignore, "--- Bazel ---"). try-import rather than import
+# so a checkout without one still works.
+try-import %workspace%/user.bazelrc

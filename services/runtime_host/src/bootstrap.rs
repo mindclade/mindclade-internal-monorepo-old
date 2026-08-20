@@ -11,21 +11,25 @@
 //! this module owns only node-local execution state.
 
 use crate::async_ipc::{self, AsyncControlSession, AsyncControlSessionFactory};
+use crate::grpc::{self, WorkerControlService};
 use crate::protocol;
 use crate::{
-    HostAuthority, HostConfig, HostCore, HostHealth, ModelSpec, ProcessSpec, StdProcessLauncher,
+    HostAuthority, HostComponent, HostConfig, HostCore, HostHealth, ModelSpec, ProcessSpec,
+    StdProcessLauncher,
 };
-use mindclade_content_digest::Digest;
 use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_gpu_host::DeviceCapability;
 use mindclade_protocols::runtime::v1 as wire;
 use mindclade_runtime_core::{ResourceKind, ResourceVector};
+use mindclade_servicekit::{Service, signals};
 use mindclade_serving_runtime::host::HostInvocation;
+use mindclade_worker_protocol::Digest;
 use mindclade_worker_protocol::{Ed25519VerificationKey, WorkerState, WorkerStatus};
 use prost::Message;
 use std::collections::BTreeMap;
 use std::env;
 use std::future::Future;
+use std::io::Read;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::str::FromStr;
@@ -39,6 +43,7 @@ const MAX_SOCKET_PATH_BYTES: usize = 100;
 #[derive(Clone, Debug)]
 pub struct BootstrapConfig {
     pub socket_path: PathBuf,
+    pub grpc_socket_path: PathBuf,
     pub key_id: String,
     pub public_key: [u8; 32],
     pub key_not_before_unix_millis: u64,
@@ -58,6 +63,14 @@ impl BootstrapConfig {
         if socket_path.as_os_str().as_encoded_bytes().len() > MAX_SOCKET_PATH_BYTES {
             return Err(Fault::invalid_argument(
                 "runtime-host socket path exceeds platform bound",
+            ));
+        }
+        let grpc_socket_path = absolute_path("MINDCLADE_RUNTIME_HOST_GRPC_SOCKET")?;
+        if grpc_socket_path == socket_path
+            || grpc_socket_path.as_os_str().as_encoded_bytes().len() > MAX_SOCKET_PATH_BYTES
+        {
+            return Err(Fault::invalid_argument(
+                "runtime-host gRPC socket path is invalid",
             ));
         }
         let key_id = required("MINDCLADE_RUNTIME_KEY_ID")?;
@@ -99,6 +112,7 @@ impl BootstrapConfig {
         let preloaded_model = model_spec_from_env()?;
         Ok(Self {
             socket_path,
+            grpc_socket_path,
             key_id,
             public_key,
             key_not_before_unix_millis,
@@ -152,26 +166,40 @@ pub async fn run(config: BootstrapConfig) -> FaultResult<()> {
     if let Some(model) = config.preloaded_model {
         core.models().load(model)?;
     }
-    health.set_accepting(true);
+
+    // servicekit owns start order, drain, and stop. Admission opens in the
+    // component's start hook so it cannot precede the lifecycle.
+    let mut service = Service::new();
+    service.register(Box::new(HostComponent::new(core.clone(), health.clone())))?;
+    service.start()?;
 
     let factory: Arc<dyn AsyncControlSessionFactory> = Arc::new(ControlFactory {
         host: core.clone(),
-        authority,
+        authority: authority.clone(),
     });
+    let grpc_service = WorkerControlService::new(core.clone(), authority);
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
     let drain_core = core.clone();
     let signal = tokio::spawn(async move {
-        if tokio::signal::ctrl_c().await.is_ok() {
-            drain_core.begin_drain();
-            let _ = shutdown_tx.send(true);
-        }
+        signals::termination_requested().await;
+        // Drain at signal time rather than waiting for the serve loop to
+        // unwind, so admission closes the moment termination is requested.
+        // Component::drain is required to be idempotent, so the reverse-order
+        // pass below repeating this is harmless.
+        drain_core.begin_drain();
+        let _ = shutdown_tx.send(true);
     });
 
-    let serve_result =
-        async_ipc::serve_unix_sessions(config.socket_path, factory, shutdown_rx).await;
-    core.begin_drain();
+    let serve_result = tokio::try_join!(
+        async_ipc::serve_unix_sessions(config.socket_path, factory, shutdown_rx.clone()),
+        grpc::serve_unix(config.grpc_socket_path, grpc_service, shutdown_rx),
+    )
+    .map(|_| ());
     signal.abort();
-    let shutdown_result = core.shutdown();
+
+    // Drain and stop run in reverse registration order here. The serve error, if
+    // any, outranks a shutdown fault: it is the reason the process is ending.
+    let shutdown_result = service.stop();
     serve_result.and(shutdown_result)
 }
 
@@ -182,22 +210,20 @@ struct ControlFactory {
 
 impl AsyncControlSessionFactory for ControlFactory {
     fn open(&self) -> FaultResult<Box<dyn AsyncControlSession>> {
-        Ok(Box::new(ControlSession {
-            host: self.host.clone(),
-            authority: self.authority.clone(),
-            active: None,
-            last_command_sequence: 0,
-            next_status_sequence: 1,
-        }))
+        Ok(Box::new(ControlSession::new(
+            self.host.clone(),
+            self.authority.clone(),
+        )))
     }
 }
 
-struct ControlSession {
+pub(crate) struct ControlSession {
     host: Arc<HostCore>,
     authority: Arc<HostAuthority>,
     active: Option<crate::ExecutionSession>,
     last_command_sequence: u64,
     next_status_sequence: u64,
+    last_worker_status_sequence: u64,
 }
 
 impl core::fmt::Debug for ControlSession {
@@ -216,15 +242,38 @@ impl AsyncControlSession for ControlSession {
         &'a mut self,
         request: Vec<u8>,
     ) -> Pin<Box<dyn Future<Output = FaultResult<Vec<u8>>> + Send + 'a>> {
-        Box::pin(async move { self.handle_message(request) })
+        Box::pin(async move { self.handle_message(&request) })
     }
 }
 
 impl ControlSession {
-    fn handle_message(&mut self, request: Vec<u8>) -> FaultResult<Vec<u8>> {
-        let command = wire::WorkerCommand::decode(request.as_slice()).map_err(|error| {
+    pub(crate) fn new(host: Arc<HostCore>, authority: Arc<HostAuthority>) -> Self {
+        Self {
+            host,
+            authority,
+            active: None,
+            last_command_sequence: 0,
+            next_status_sequence: 1,
+            last_worker_status_sequence: 0,
+        }
+    }
+
+    fn handle_message(&mut self, request: &[u8]) -> FaultResult<Vec<u8>> {
+        let command = wire::WorkerCommand::decode(request).map_err(|error| {
             Fault::invalid_argument("worker control protobuf is invalid").with_source(error)
         })?;
+        let wire_status = self.handle_command(command)?;
+        let mut encoded = Vec::with_capacity(wire_status.encoded_len());
+        wire_status.encode(&mut encoded).map_err(|error| {
+            Fault::new(Code::Internal, "worker status encoding failed").with_source(error)
+        })?;
+        Ok(encoded)
+    }
+
+    pub(crate) fn handle_command(
+        &mut self,
+        command: wire::WorkerCommand,
+    ) -> FaultResult<wire::WorkerStatus> {
         self.validate_sequence(command.sequence)?;
         let now = unix_millis()?;
         let status = match command
@@ -235,15 +284,10 @@ impl ControlSession {
             wire::worker_command::Command::Cancel(cancel) => self.cancel(cancel, now)?,
             wire::worker_command::Command::Drain(drain) => self.drain(drain, now)?,
             wire::worker_command::Command::Heartbeat(heartbeat) => {
-                self.heartbeat(heartbeat, now)?
+                self.heartbeat(&heartbeat, now)?
             }
         };
-        let wire_status = protocol::worker_status(&status);
-        let mut encoded = Vec::with_capacity(wire_status.encoded_len());
-        wire_status.encode(&mut encoded).map_err(|error| {
-            Fault::new(Code::Internal, "worker status encoding failed").with_source(error)
-        })?;
-        Ok(encoded)
+        Ok(protocol::worker_status(&status))
     }
 
     fn start(&mut self, start: wire::StartCommand, now: u64) -> FaultResult<WorkerStatus> {
@@ -294,7 +338,7 @@ impl ControlSession {
 
     fn heartbeat(
         &mut self,
-        heartbeat: wire::HeartbeatCommand,
+        heartbeat: &wire::HeartbeatCommand,
         now: u64,
     ) -> FaultResult<WorkerStatus> {
         if heartbeat.requested_at_unix_millis == 0 || heartbeat.requested_at_unix_millis > now {
@@ -315,6 +359,16 @@ impl ControlSession {
     }
 
     fn status(&mut self, now: u64, message: &str) -> FaultResult<WorkerStatus> {
+        self.status_with(now, message, Vec::new(), None)
+    }
+
+    fn status_with(
+        &mut self,
+        now: u64,
+        message: &str,
+        outputs: Vec<mindclade_worker_protocol::BufferDescriptor>,
+        diagnostic_artifact: Option<Digest>,
+    ) -> FaultResult<WorkerStatus> {
         let active = self.active.as_ref().ok_or_else(|| {
             Fault::new(
                 Code::FailedPrecondition,
@@ -332,9 +386,119 @@ impl ControlSession {
             state: active.state(),
             observed_unix_millis: now,
             message: message.to_owned(),
-            outputs: Vec::new(),
-            diagnostic_artifact: None,
+            outputs,
+            diagnostic_artifact,
         })
+    }
+
+    pub(crate) fn observe_worker_status(
+        &mut self,
+        message: wire::WorkerStatus,
+        maximum_output_bytes: u64,
+        now: u64,
+    ) -> FaultResult<wire::WorkerStatus> {
+        let status = protocol::worker_status_domain(message)?;
+        mindclade_worker_protocol::status::validate(
+            &status,
+            now,
+            self.host.config().maximum_input_buffers,
+        )?;
+        let active = self.active.as_ref().ok_or_else(|| {
+            Fault::new(
+                Code::FailedPrecondition,
+                "worker control connection has no active execution",
+            )
+        })?;
+        if status.sequence <= self.last_worker_status_sequence
+            || status.ticket_id != active.ticket_id()
+            || status.fencing_token != active.fencing_token()
+        {
+            return Err(Fault::new(
+                Code::Conflict,
+                "model-worker status sequence or execution identity is invalid",
+            ));
+        }
+        let output_bytes = status.outputs.iter().try_fold(0_u64, |total, output| {
+            total.checked_add(output.range.length()).ok_or_else(|| {
+                Fault::new(Code::ResourceExhausted, "model-worker output size overflow")
+            })
+        })?;
+        if output_bytes > maximum_output_bytes {
+            return Err(Fault::new(
+                Code::ResourceExhausted,
+                "model-worker outputs exceed the signed execution budget",
+            ));
+        }
+        self.last_worker_status_sequence = status.sequence;
+        match status.state {
+            WorkerState::Running => {}
+            WorkerState::Draining => self.active_mut()?.drain("model worker is draining")?,
+            WorkerState::Completed => self.active_mut()?.commit()?,
+            WorkerState::Cancelled => self
+                .active_mut()?
+                .cancel("model worker acknowledged cancellation")?,
+            WorkerState::Failed => self.active_mut()?.fail("model worker reported failure")?,
+            _ => {
+                return Err(Fault::new(
+                    Code::FailedPrecondition,
+                    "model-worker reported an invalid execution state",
+                ));
+            }
+        }
+        let message_text = if status.message.is_empty() {
+            "model-worker status"
+        } else {
+            &status.message
+        };
+        self.status_with(
+            now,
+            message_text,
+            status.outputs,
+            status.diagnostic_artifact,
+        )
+        .map(|status| protocol::worker_status(&status))
+    }
+
+    pub(crate) fn fail_execution(
+        &mut self,
+        reason: &str,
+        now: u64,
+    ) -> FaultResult<wire::WorkerStatus> {
+        self.active_mut()?.fail(reason)?;
+        self.status(now, reason)
+            .map(|status| protocol::worker_status(&status))
+    }
+
+    pub(crate) fn force_cancel(
+        &mut self,
+        reason: &str,
+        now: u64,
+    ) -> FaultResult<wire::WorkerStatus> {
+        self.active_mut()?.cancel(reason)?;
+        self.status(now, reason)
+            .map(|status| protocol::worker_status(&status))
+    }
+
+    pub(crate) fn validate_cancel_command(
+        &mut self,
+        command: &wire::WorkerCommand,
+        now: u64,
+    ) -> FaultResult<()> {
+        self.validate_sequence(command.sequence)?;
+        match command.command.as_ref() {
+            Some(wire::worker_command::Command::Cancel(cancel)) => {
+                validate_reason_deadline(&cancel.reason, cancel.deadline_unix_millis, now)
+            }
+            _ => Err(Fault::invalid_argument(
+                "expected a worker cancellation command",
+            )),
+        }
+    }
+
+    pub(crate) fn next_command_sequence(&self) -> FaultResult<u64> {
+        self.last_command_sequence
+            .checked_add(1)
+            .ok_or_else(|| Fault::new(Code::OutOfRange, "worker command sequence exhausted"))
     }
 
     fn validate_sequence(&mut self, sequence: u64) -> FaultResult<()> {
@@ -434,39 +598,95 @@ fn node_resources_from_env() -> FaultResult<ResourceVector> {
 fn model_spec_from_env() -> FaultResult<Option<ModelSpec>> {
     let digest = env::var("MINDCLADE_RUNTIME_MODEL_BUNDLE_DIGEST").ok();
     let executable = env::var("MINDCLADE_RUNTIME_MODEL_WORKER_EXECUTABLE").ok();
-    match (digest, executable) {
-        (None, None) => Ok(None),
-        (Some(digest), Some(executable)) => {
-            let model_digest = Digest::from_str(&digest).map_err(|error| {
-                Fault::invalid_argument("preloaded model digest is invalid").with_source(error)
-            })?;
-            let spec = ModelSpec {
-                model_digest,
-                minimum_gpu_memory_bytes: parse_positive_u64(
-                    "MINDCLADE_RUNTIME_MODEL_GPU_MEMORY_BYTES",
-                )?,
-                pinned_memory_bytes: parse_optional_u64(
-                    "MINDCLADE_RUNTIME_MODEL_PINNED_MEMORY_BYTES",
-                )?,
-                process: ProcessSpec {
-                    name: "model-worker".to_owned(),
-                    executable,
-                    arguments: Vec::new(),
-                    environment: BTreeMap::new(),
-                },
-            };
-            spec.validate()?;
-            Ok(Some(spec))
+    let control_socket = env::var("MINDCLADE_RUNTIME_MODEL_WORKER_SOCKET").ok();
+    let config_path = env::var("MINDCLADE_RUNTIME_MODEL_WORKER_CONFIG").ok();
+    match (digest, executable, control_socket, config_path) {
+        (None, None, None, None) => Ok(None),
+        (Some(digest), Some(executable), Some(control_socket), Some(config_path)) => {
+            build_model_spec(
+                digest,
+                executable,
+                control_socket,
+                config_path,
+                env::var("MINDCLADE_RUNTIME_HOST_SOCKET").unwrap_or_default(),
+                env::var("MINDCLADE_RUNTIME_HOST_GRPC_SOCKET").unwrap_or_default(),
+                parse_positive_u64("MINDCLADE_RUNTIME_MODEL_GPU_MEMORY_BYTES")?,
+                parse_optional_u64("MINDCLADE_RUNTIME_MODEL_PINNED_MEMORY_BYTES")?,
+            )
+            .map(Some)
         }
         _ => Err(Fault::invalid_argument(
-            "preloaded model digest and worker executable must be configured together",
+            "preloaded model digest, worker executable, worker socket, and worker config must be configured together",
         )),
     }
 }
 
+#[allow(clippy::too_many_arguments)]
+fn build_model_spec(
+    digest: String,
+    executable: String,
+    control_socket: String,
+    config_path: String,
+    host_socket: String,
+    host_grpc_socket: String,
+    minimum_gpu_memory_bytes: u64,
+    pinned_memory_bytes: u64,
+) -> FaultResult<ModelSpec> {
+    let model_digest = Digest::from_str(&digest).map_err(|error| {
+        Fault::invalid_argument("preloaded model digest is invalid").with_source(error)
+    })?;
+    let control_socket = PathBuf::from(control_socket);
+    if !control_socket.is_absolute()
+        || control_socket.as_os_str().as_encoded_bytes().len() > MAX_SOCKET_PATH_BYTES
+    {
+        return Err(Fault::invalid_argument(
+            "model-worker socket path must be bounded and absolute",
+        ));
+    }
+    if control_socket == PathBuf::from(host_socket)
+        || control_socket == PathBuf::from(host_grpc_socket)
+    {
+        return Err(Fault::invalid_argument(
+            "model-worker socket must differ from runtime-host sockets",
+        ));
+    }
+    let config_path = PathBuf::from(config_path);
+    if !config_path.is_absolute() {
+        return Err(Fault::invalid_argument(
+            "model-worker config path must be absolute",
+        ));
+    }
+    let mut environment = BTreeMap::new();
+    environment.insert(
+        "MINDCLADE_MODEL_WORKER_CONFIG".to_owned(),
+        config_path.to_string_lossy().into_owned(),
+    );
+    environment.insert(
+        "MINDCLADE_MODEL_WORKER_SOCKET".to_owned(),
+        control_socket.to_string_lossy().into_owned(),
+    );
+    let spec = ModelSpec {
+        model_digest,
+        minimum_gpu_memory_bytes,
+        pinned_memory_bytes,
+        control_socket,
+        process: ProcessSpec {
+            name: "model-worker".to_owned(),
+            executable,
+            arguments: Vec::new(),
+            environment,
+        },
+    };
+    spec.validate()?;
+    Ok(spec)
+}
+
 fn read_message<M: Message + Default>(path: &PathBuf) -> FaultResult<M> {
-    let metadata = std::fs::metadata(path).map_err(|error| {
+    let file = std::fs::File::open(path).map_err(|error| {
         Fault::new(Code::NotFound, "runtime policy file is unavailable").with_source(error)
+    })?;
+    let metadata = file.metadata().map_err(|error| {
+        Fault::new(Code::Unavailable, "runtime policy file inspection failed").with_source(error)
     })?;
     if !metadata.is_file() || metadata.len() == 0 || metadata.len() > MAX_POLICY_FILE_BYTES {
         return Err(Fault::new(
@@ -474,9 +694,26 @@ fn read_message<M: Message + Default>(path: &PathBuf) -> FaultResult<M> {
             "runtime policy file size is invalid",
         ));
     }
-    let bytes = std::fs::read(path).map_err(|error| {
-        Fault::new(Code::Unavailable, "runtime policy file read failed").with_source(error)
+    let capacity = usize::try_from(metadata.len()).map_err(|_| {
+        Fault::new(
+            Code::ResourceExhausted,
+            "runtime policy file exceeds platform limits",
+        )
     })?;
+    let mut bytes = Vec::with_capacity(capacity);
+    file.take(MAX_POLICY_FILE_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| {
+            Fault::new(Code::Unavailable, "runtime policy file read failed").with_source(error)
+        })?;
+    if bytes.is_empty()
+        || u64::try_from(bytes.len()).map_or(true, |length| length > MAX_POLICY_FILE_BYTES)
+    {
+        return Err(Fault::new(
+            Code::ResourceExhausted,
+            "runtime policy file changed beyond its size bound while reading",
+        ));
+    }
     M::decode(bytes.as_slice()).map_err(|error| {
         Fault::invalid_argument("runtime policy protobuf is invalid").with_source(error)
     })
@@ -603,5 +840,65 @@ mod tests {
         let key = decode_32_byte_hex(&"ab".repeat(32)).expect("valid key");
         assert_eq!(key, [0xab; 32]);
         assert!(decode_32_byte_hex("ab").is_err());
+    }
+
+    #[test]
+    fn model_spec_forwards_only_the_bounded_worker_contract() {
+        let spec = build_model_spec(
+            format!("sha256:{}", "ab".repeat(32)),
+            "/opt/mindclade/model-worker".to_owned(),
+            "/run/mindclade/model-worker.sock".to_owned(),
+            "/etc/mindclade/model-worker.json".to_owned(),
+            "/run/mindclade/runtime-host.sock".to_owned(),
+            "/run/mindclade/runtime-host-grpc.sock".to_owned(),
+            80 * 1024 * 1024 * 1024,
+            1024,
+        )
+        .expect("valid model spec");
+        assert_eq!(
+            spec.process.environment,
+            BTreeMap::from([
+                (
+                    "MINDCLADE_MODEL_WORKER_CONFIG".to_owned(),
+                    "/etc/mindclade/model-worker.json".to_owned(),
+                ),
+                (
+                    "MINDCLADE_MODEL_WORKER_SOCKET".to_owned(),
+                    "/run/mindclade/model-worker.sock".to_owned(),
+                ),
+            ])
+        );
+        assert!(spec.process.arguments.is_empty());
+    }
+
+    #[test]
+    fn model_spec_rejects_relative_config_and_socket_collisions() {
+        let digest = format!("sha256:{}", "ab".repeat(32));
+        assert!(
+            build_model_spec(
+                digest.clone(),
+                "/opt/mindclade/model-worker".to_owned(),
+                "/run/mindclade/model-worker.sock".to_owned(),
+                "relative.json".to_owned(),
+                "/run/mindclade/runtime-host.sock".to_owned(),
+                "/run/mindclade/runtime-host-grpc.sock".to_owned(),
+                1,
+                0,
+            )
+            .is_err()
+        );
+        assert!(
+            build_model_spec(
+                digest,
+                "/opt/mindclade/model-worker".to_owned(),
+                "/run/mindclade/runtime-host.sock".to_owned(),
+                "/etc/mindclade/model-worker.json".to_owned(),
+                "/run/mindclade/runtime-host.sock".to_owned(),
+                "/run/mindclade/runtime-host-grpc.sock".to_owned(),
+                1,
+                0,
+            )
+            .is_err()
+        );
     }
 }

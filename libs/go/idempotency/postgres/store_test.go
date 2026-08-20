@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	"mindclade.internal/libs/go/clock"
-	"mindclade.internal/libs/go/idempotency"
-	"mindclade.internal/libs/go/identifiers"
-	"mindclade.internal/libs/go/storage/sql/sqltest"
+	"go.mindclade.dev/libs/go/clock"
+	"go.mindclade.dev/libs/go/idempotency"
+	"go.mindclade.dev/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/storage/sql/sqltest"
 )
 
 func TestAcquireInsertsNewRecord(t *testing.T) {

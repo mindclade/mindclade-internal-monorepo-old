@@ -12,8 +12,8 @@ import (
 
 	"connectrpc.com/connect"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/internal/rpcfaults"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/internal/rpcfaults"
 )
 
 // EncodeError converts err into a client-safe Connect error. Existing Connect

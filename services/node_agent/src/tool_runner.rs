@@ -7,12 +7,24 @@
 //! draining, explicit environment, and a hard wall-clock deadline.
 use crate::ProcessSupervisor;
 use mindclade_faults::{Code, Fault, FaultResult};
+use mindclade_process_os::{
+    DEFAULT_TERMINATION_GRACE, configure_process_group, terminate_process_group,
+};
+use mindclade_runtime_core::{BytePermit, ByteSemaphore};
 use std::collections::BTreeMap;
 use std::io::Read;
+use std::path::Path;
 use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
+
+/// Hard per-stream retention ceiling for external tool output.
+pub const MAXIMUM_TOOL_OUTPUT_BYTES: u64 = 16 * 1024 * 1024;
+/// Hard wall-clock ceiling for one external tool invocation.
+pub const MAXIMUM_TOOL_TIMEOUT: Duration = Duration::from_hours(1);
+const MINIMUM_POLL_INTERVAL: Duration = Duration::from_millis(1);
+const MAXIMUM_POLL_INTERVAL: Duration = Duration::from_secs(1);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ToolRequest {
@@ -29,13 +41,24 @@ impl ToolRequest {
             || self.arguments.len() > 512
             || self.environment.len() > 256
             || self.timeout.is_zero()
+            || self.timeout > MAXIMUM_TOOL_TIMEOUT
             || self.maximum_output_bytes == 0
+            || self.maximum_output_bytes > MAXIMUM_TOOL_OUTPUT_BYTES
+            || !Path::new(&self.executable).is_absolute()
+            || self.executable.contains('\0')
         {
             return Err(Fault::invalid_argument("tool request is invalid"));
         }
-        if self.arguments.iter().any(|value| value.len() > 16 * 1024)
+        if self
+            .arguments
+            .iter()
+            .any(|value| value.len() > 16 * 1024 || value.contains('\0'))
             || self.environment.iter().any(|(key, value)| {
-                key.is_empty() || key.contains('=') || key.len() > 128 || value.len() > 16 * 1024
+                key.is_empty()
+                    || key.contains(['=', '\0'])
+                    || key.len() > 128
+                    || value.len() > 16 * 1024
+                    || value.contains('\0')
             })
         {
             return Err(Fault::invalid_argument(
@@ -46,7 +69,7 @@ impl ToolRequest {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub struct ToolOutput {
     pub exit_code: Option<i32>,
     pub stdout: Vec<u8>,
@@ -54,20 +77,49 @@ pub struct ToolOutput {
     pub stdout_truncated: bool,
     pub stderr_truncated: bool,
     pub timed_out: bool,
+    _stdout_memory: BytePermit,
+    _stderr_memory: BytePermit,
 }
+
+impl PartialEq for ToolOutput {
+    fn eq(&self, other: &Self) -> bool {
+        self.exit_code == other.exit_code
+            && self.stdout == other.stdout
+            && self.stderr == other.stderr
+            && self.stdout_truncated == other.stdout_truncated
+            && self.stderr_truncated == other.stderr_truncated
+            && self.timed_out == other.timed_out
+    }
+}
+
+impl Eq for ToolOutput {}
 
 #[derive(Clone, Debug)]
 pub struct ToolRunner {
     supervisor: Arc<ProcessSupervisor>,
     poll_interval: Duration,
+    output_memory: Arc<ByteSemaphore>,
 }
 impl ToolRunner {
-    #[must_use]
-    pub fn new(supervisor: Arc<ProcessSupervisor>, poll_interval: Duration) -> Self {
-        Self {
+    pub fn new(supervisor: Arc<ProcessSupervisor>, poll_interval: Duration) -> FaultResult<Self> {
+        Self::with_output_budget(supervisor, poll_interval, MAXIMUM_TOOL_OUTPUT_BYTES * 2)
+    }
+
+    pub fn with_output_budget(
+        supervisor: Arc<ProcessSupervisor>,
+        poll_interval: Duration,
+        aggregate_output_bytes: u64,
+    ) -> FaultResult<Self> {
+        if !(MINIMUM_POLL_INTERVAL..=MAXIMUM_POLL_INTERVAL).contains(&poll_interval) {
+            return Err(Fault::invalid_argument(
+                "tool poll interval is outside supported bounds",
+            ));
+        }
+        Ok(Self {
             supervisor,
             poll_interval,
-        }
+            output_memory: ByteSemaphore::new(aggregate_output_bytes)?,
+        })
     }
     pub fn run(&self, request: &ToolRequest) -> FaultResult<ToolOutput> {
         request.validate()?;
@@ -81,55 +133,82 @@ impl ToolRunner {
         for (key, value) in &request.environment {
             command.env(key, value);
         }
+        configure_process_group(&mut command)?;
+        let mut stdout_memory = self
+            .output_memory
+            .try_acquire(request.maximum_output_bytes)?;
+        let mut stderr_memory = match self.output_memory.try_acquire(request.maximum_output_bytes) {
+            Ok(permit) => permit,
+            Err(error) => {
+                drop(stdout_memory);
+                return Err(error);
+            }
+        };
         let mut child = command.spawn().map_err(|error| {
             Fault::new(Code::Unavailable, "failed to start external tool").with_source(error)
         })?;
-        let stdout = child
-            .stdout
-            .take()
-            .ok_or_else(|| Fault::internal("tool stdout pipe was not created"))?;
-        let stderr = child
-            .stderr
-            .take()
-            .ok_or_else(|| Fault::internal("tool stderr pipe was not created"))?;
-        let stdout_reader = spawn_pipe_reader("tool-stdout", stdout, request.maximum_output_bytes)?;
-        let stderr_reader = spawn_pipe_reader("tool-stderr", stderr, request.maximum_output_bytes)?;
+        let Some(stdout) = child.stdout.take() else {
+            terminate_unmanaged(&mut child);
+            return Err(Fault::internal("tool stdout pipe was not created"));
+        };
+        let Some(stderr) = child.stderr.take() else {
+            terminate_unmanaged(&mut child);
+            return Err(Fault::internal("tool stderr pipe was not created"));
+        };
+        let stdout_reader =
+            match spawn_pipe_reader("tool-stdout", stdout, request.maximum_output_bytes) {
+                Ok(reader) => reader,
+                Err(fault) => {
+                    terminate_unmanaged(&mut child);
+                    return Err(fault);
+                }
+            };
+        let stderr_reader =
+            match spawn_pipe_reader("tool-stderr", stderr, request.maximum_output_bytes) {
+                Ok(reader) => reader,
+                Err(fault) => {
+                    terminate_unmanaged(&mut child);
+                    let _ = join_pipe_reader(stdout_reader, "stdout");
+                    return Err(fault);
+                }
+            };
         let process = self.supervisor.register(child)?;
-        let deadline = Instant::now() + request.timeout;
+        let deadline = Instant::now()
+            .checked_add(request.timeout)
+            .ok_or_else(|| Fault::new(Code::OutOfRange, "tool deadline exceeds clock range"))?;
         let (status, timed_out) = loop {
-            let status = {
-                let mut children = self
-                    .supervisor
-                    .children
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-                let child = children
-                    .get_mut(&process.pid)
-                    .ok_or_else(|| Fault::internal("supervised child disappeared"))?;
-                child.try_wait().map_err(|error| {
-                    Fault::new(Code::Unavailable, "failed to poll external tool").with_source(error)
-                })?
+            let status = match self.supervisor.try_wait(process) {
+                Ok(status) => status,
+                Err(error) => {
+                    let _ = self.supervisor.terminate(process);
+                    let _ = join_pipe_reader(stdout_reader, "stdout");
+                    let _ = join_pipe_reader(stderr_reader, "stderr");
+                    return Err(error);
+                }
             };
             if let Some(status) = status {
                 break (Some(status), false);
             }
-            if Instant::now() >= deadline {
+            let now = Instant::now();
+            if now >= deadline {
                 self.supervisor.terminate(process)?;
                 break (None, true);
             }
-            thread::sleep(self.poll_interval);
+            thread::sleep(self.poll_interval.min(deadline.duration_since(now)));
         };
-        // If the process exited normally, remove its already-reaped handle from
-        // the registry. On timeout, terminate() already removed it.
         if !timed_out {
-            self.supervisor
-                .children
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .remove(&process.pid);
+            self.supervisor.finish(process)?;
         }
         let stdout = join_pipe_reader(stdout_reader, "stdout")?;
         let stderr = join_pipe_reader(stderr_reader, "stderr")?;
+        stdout_memory
+            .shrink_to(u64::try_from(stdout.bytes.len()).map_err(|_| {
+                Fault::new(Code::OutOfRange, "retained stdout length exceeds u64")
+            })?)?;
+        stderr_memory
+            .shrink_to(u64::try_from(stderr.bytes.len()).map_err(|_| {
+                Fault::new(Code::OutOfRange, "retained stderr length exceeds u64")
+            })?)?;
         Ok(ToolOutput {
             exit_code: status.and_then(|value| value.code()),
             stdout: stdout.bytes,
@@ -137,8 +216,14 @@ impl ToolRunner {
             stdout_truncated: stdout.truncated,
             stderr_truncated: stderr.truncated,
             timed_out,
+            _stdout_memory: stdout_memory,
+            _stderr_memory: stderr_memory,
         })
     }
+}
+
+fn terminate_unmanaged(child: &mut std::process::Child) {
+    let _ = terminate_process_group(child, DEFAULT_TERMINATION_GRACE);
 }
 
 #[derive(Debug)]

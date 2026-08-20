@@ -1,35 +1,17 @@
-# Libs / Python / Observability
+# Python observability values
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** the language indicated by the second path segment
+This package supplies provider-neutral, immutable values for structured logs, metric observations,
+and trace propagation. It validates canonical names and finite numeric values, bounds labels and
+attributes, redacts credential-like keys recursively, and strips user info, query strings, and
+fragments from HTTP URLs before they become telemetry. W3C version-00 `traceparent` values round
+trip through `TraceContext`.
 
-## Purpose
+Log events accept at most 64 fields and 2,048 message characters. Metrics accept at most 16 labels,
+finite values, and non-negative counter observations. Redaction accepts at most 4,096 nodes,
+16 levels, 128 fields per mapping, and 4,096 characters per string. Unknown objects are represented
+by type only, and bytes by type and length, so their payloads do not leak through `repr`.
 
-Reusable mechanisms for one language. Libraries contain stable, broadly consumed behavior and no product-domain policy or executable composition roots. This path specializes that domain for **observability**.
-
-## Boundary
-
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
-
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
-
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+This package does not configure Python logging, register global metric instruments, install an
+OpenTelemetry provider, export data, sample traces, or define platform-wide label vocabularies.
+Applications adapt these values to their selected backend and remain responsible for cardinality
+budgets across observations.

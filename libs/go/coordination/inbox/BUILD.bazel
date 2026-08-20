@@ -11,8 +11,13 @@ exports_files(["README.md"])
 
 go_library(
     name = "inbox",
-    srcs = ["doc.go", "errors.go", "processor.go", "runner.go"],
-    importpath = "mindclade.internal/libs/go/coordination/inbox",
+    srcs = [
+        "doc.go",
+        "errors.go",
+        "processor.go",
+        "runner.go",
+    ],
+    importpath = "go.mindclade.dev/libs/go/coordination/inbox",
     deps = [
         "//libs/go/faults",
         "//libs/go/idempotency",

@@ -4,4 +4,72 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mindclade-bulk-sync-template
+  namespace: mindclade-batch-cpu
+  labels:
+    app.kubernetes.io/component: ingestion
+    app.kubernetes.io/name: bulk-sync
+    app.kubernetes.io/part-of: mindclade-platform
+    kueue.x-k8s.io/queue-name: mindclade-batch-cpu
+    mindclade.dev/workload-class: batch-cpu
+    mindclade.dev/workload-state: blocked
+  annotations:
+    mindclade.dev/activation-requirements: ticket-bundle-image-and-data-contract
+    mindclade.dev/data-failure-policy: quarantine-and-fail-closed
+spec:
+  activeDeadlineSeconds: 3600
+  backoffLimit: 0
+  suspend: true
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: ingestion
+        app.kubernetes.io/name: bulk-sync
+        app.kubernetes.io/part-of: mindclade-platform
+        mindclade.dev/workload-class: batch-cpu
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: ingestion-worker
+          image: registry.invalid/mindclade/ingestion-worker@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          env:
+            - name: MINDCLADE_WORKLOAD_ACTIVATION
+              value: blocked
+            - name: MINDCLADE_DATA_FAILURE_POLICY
+              value: quarantine
+          resources:
+            requests:
+              cpu: "1"
+              memory: 2Gi
+              ephemeral-storage: 4Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+              ephemeral-storage: 8Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+          volumeMounts:
+            - name: scratch
+              mountPath: /tmp
+      priorityClassName: mindclade-batch
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccountName: mindclade-batch-cpu
+      terminationGracePeriodSeconds: 60
+      volumes:
+        - name: scratch
+          emptyDir:
+            sizeLimit: 8Gi

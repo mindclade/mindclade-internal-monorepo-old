@@ -10,7 +10,7 @@ import (
 	"errors"
 	"time"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // Stable field names used by lifecycle faults and events.

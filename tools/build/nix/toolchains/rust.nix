@@ -5,8 +5,16 @@
 
 { pkgs, versions, ... }:
 let
-  toolchain = pkgs.rust-bin.stable.${versions.rust}.default.override {
-    extensions = [ "clippy" "rust-src" "rustfmt" ];
+  # The default rustup profile includes the offline HTML documentation, which adds almost a
+  # gigabyte to every development closure. The repository needs the compiler, Cargo, standard
+  # library, formatter, linter, and sources for editor analysis; the minimal profile plus these
+  # explicit extensions is exactly that set.
+  toolchain = pkgs.rust-bin.stable.${versions.rust}.minimal.override {
+    extensions = [
+      "clippy"
+      "rust-src"
+      "rustfmt"
+    ];
   };
 in
 {

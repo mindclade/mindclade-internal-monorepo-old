@@ -9,15 +9,15 @@ package(default_visibility = ["//visibility:public"])
 
 go_library(
     name = "blobtest",
+    testonly = True,
     srcs = [
         "doc.go",
         "suite.go",
     ],
-    importpath = "mindclade.internal/libs/go/storage/blob/blobtest",
+    importpath = "go.mindclade.dev/libs/go/storage/blob/blobtest",
     deps = [
         "//libs/go/faults",
         "//libs/go/identifiers",
         "//libs/go/storage/blob",
     ],
-    testonly = True,
 )

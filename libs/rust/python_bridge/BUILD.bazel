@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 
 package(default_visibility = ["//libs/rust:repo_consumers"])
 
@@ -32,6 +32,7 @@ rust_test(
     srcs = ["tests/integration.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_python_bridge",
         "//libs/rust/artifact_cas:mindclade_artifact_cas",
         "//libs/rust/bio_formats:mindclade_bio_formats",
         "//libs/rust/bounded_parse:mindclade_bounded_parse",
@@ -43,7 +44,6 @@ rust_test(
         "//libs/rust/manifests:mindclade_manifests",
         "//libs/rust/tokenizer_runtime:mindclade_tokenizer_runtime",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
-        ":mindclade_python_bridge",
     ],
 )
 
@@ -52,6 +52,7 @@ rust_test(
     srcs = ["tests/python_api.rs"],
     edition = "2024",
     deps = [
+        ":mindclade_python_bridge",
         "//libs/rust/artifact_cas:mindclade_artifact_cas",
         "//libs/rust/bio_formats:mindclade_bio_formats",
         "//libs/rust/bounded_parse:mindclade_bounded_parse",
@@ -63,12 +64,14 @@ rust_test(
         "//libs/rust/manifests:mindclade_manifests",
         "//libs/rust/tokenizer_runtime:mindclade_tokenizer_runtime",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
-        ":mindclade_python_bridge",
     ],
 )
 
 filegroup(
     name = "package_sources",
-    srcs = glob(["**"], exclude = ["target/**"]),
+    srcs = glob(
+        ["**"],
+        exclude = ["target/**"],
+    ),
     visibility = ["//libs/rust:repo_consumers"],
 )

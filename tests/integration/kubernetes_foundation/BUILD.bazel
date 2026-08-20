@@ -1,0 +1,27 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_go//go:def.bzl", "go_test")
+
+package(default_visibility = ["//visibility:private"])
+
+# The reconciler-side halves of libs/go/kubernetes have no composition root to
+# import them, and an in-package test is the package rather than a caller of
+# it. This suite is their external caller.
+go_test(
+    name = "reconcile_helpers_test",
+    srcs = ["reconcile_helpers_test.go"],
+    deps = [
+        "//libs/go/kubernetes/finalizers",
+        "//libs/go/kubernetes/ownerrefs",
+        "//libs/go/kubernetes/status",
+        "//libs/go/kubernetes/watch",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_apimachinery//pkg/runtime",
+        "@io_k8s_apimachinery//pkg/runtime/schema",
+        "@io_k8s_apimachinery//pkg/types",
+        "@io_k8s_apimachinery//pkg/watch",
+    ],
+)

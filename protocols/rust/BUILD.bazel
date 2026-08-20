@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 
 package(default_visibility = ["//libs/rust:repo_consumers"])
 
@@ -13,9 +14,24 @@ rust_library(
     crate_name = "mindclade_protocols",
     edition = "2024",
     deps = [
+        ":build_script",
         "@crates//:prost",
         "@crates//:tonic",
+        "@crates//:tonic-prost",
     ],
+)
+
+cargo_build_script(
+    name = "build_script",
+    srcs = ["build.rs"],
+    build_script_env = {
+        "PROTOC": "$(execpath @protobuf//:protoc)",
+    },
+    crate_root = "build.rs",
+    data = ["//protocols/proto/mindclade/runtime/v1:cargo_proto_sources"],
+    edition = "2024",
+    tools = ["@protobuf//:protoc"],
+    deps = ["@crates//:tonic-prost-build"],
 )
 
 rust_test(
@@ -29,8 +45,22 @@ rust_test(
     ],
 )
 
+rust_test(
+    name = "inference_roundtrip",
+    srcs = ["tests/inference_roundtrip.rs"],
+    edition = "2024",
+    deps = [
+        ":mindclade_protocols",
+        "@crates//:prost",
+        "@crates//:tonic",
+    ],
+)
+
 filegroup(
     name = "package_sources",
-    srcs = glob(["**"], exclude = ["target/**"]),
+    srcs = glob(
+        ["**"],
+        exclude = ["target/**"],
+    ),
     visibility = ["//libs/rust:repo_consumers"],
 )

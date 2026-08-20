@@ -21,7 +21,7 @@ go_library(
         "mount.go",
         "procedure.go",
     ],
-    importpath = "mindclade.internal/libs/go/connectx",
+    importpath = "go.mindclade.dev/libs/go/connectx",
     deps = [
         "//libs/go/faults",
         "//libs/go/httpx",

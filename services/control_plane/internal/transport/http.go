@@ -9,10 +9,10 @@ import (
 	"net"
 	"net/http"
 
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/httpx"
-	"mindclade.internal/libs/go/servicekit/production"
-	"mindclade.internal/services/control_plane/internal/bootstrap"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/httpx"
+	"go.mindclade.dev/libs/go/servicekit/production"
+	"go.mindclade.dev/services/control_plane/internal/bootstrap"
 )
 
 // HTTP owns one pre-bound listener and the canonical httpx server lifecycle.

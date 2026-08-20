@@ -8,10 +8,26 @@ schema_version = 1
 maximum = 500
 [budget.runtime_gateway_cancellation_ms]
 maximum = 50
+[budget.runtime_gateway_latency_p95_ms]
+maximum = 2
+[budget.runtime_gateway_latency_p99_ms]
+maximum = 5
+[budget.runtime_gateway_connection_churn_p99_ms]
+maximum = 20
+[budget.runtime_gateway_rss_bytes]
+maximum = 805306368
+[budget.runtime_gateway_fd_count]
+maximum = 4096
 [budget.runtime_host_invocation_overhead_us]
 maximum = 750
 [budget.artifact_verify_mib_per_s]
 minimum = 500
+[budget.unix_ipc_mib_per_s]
+minimum = 500
+[budget.verified_range_4k_ops_per_s]
+minimum = 50
+[budget.local_store_contended_4k_ops_per_s]
+minimum = 100
 [budget.checkpoint_staging_mib_per_s]
 minimum = 1000
 [budget.data_stream_copy_bytes_per_byte]

@@ -1,0 +1,16 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+exports_files([
+    "CODEOWNERS",
+    "README.md",
+    "actionlint.yaml",
+    "pull_request_template.md",
+])
+
+# Not a filegroup of the workflows. Nothing in the build graph consumes them —
+# GitHub reads them from the checkout — and declaring them here would imply a
+# dependency Bazel does not have. exports_files covers the files another package
+# may legitimately reference.

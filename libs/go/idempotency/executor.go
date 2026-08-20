@@ -10,8 +10,8 @@ import (
 	"errors"
 	"time"
 
-	mcclock "mindclade.internal/libs/go/clock"
-	"mindclade.internal/libs/go/faults"
+	mcclock "go.mindclade.dev/libs/go/clock"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 const (

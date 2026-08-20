@@ -7,12 +7,15 @@
 
 use crate::ProviderSource;
 use mindclade_bytes_io::ByteSize;
-use mindclade_data_stream::{PrefetchedShard, Prefetcher, Shard, StreamPlan};
+use mindclade_data_stream::{
+    AsyncPrefetcher, PrefetchedShard, Prefetcher, Shard, StreamPlan, prefetch::PrefetchConfig,
+};
 use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_object_store::ObjectStore;
 use mindclade_runtime_core::{Policy, Sleeper};
 use mindclade_worker_protocol::ExecutionTicket;
 use std::sync::Arc;
+use std::time::Duration;
 
 #[derive(Clone, Debug)]
 pub struct StreamWorker {
@@ -50,6 +53,29 @@ impl StreamWorker {
             self.prefetch_depth,
             self.retry_policy,
             sleeper,
+        )
+    }
+
+    /// Start the production async prefetch path with independent fetch
+    /// parallelism and delivery capacity.
+    pub fn start_async(
+        &self,
+        plan: StreamPlan,
+        store: Arc<dyn ObjectStore>,
+        fetch_timeout: Duration,
+    ) -> FaultResult<AsyncPrefetcher> {
+        self.validate()?;
+        let concurrency = self.prefetch_depth.min(4);
+        AsyncPrefetcher::start(
+            plan,
+            store,
+            PrefetchConfig {
+                buffer_capacity: self.prefetch_depth,
+                concurrency,
+                maximum_shard_bytes: self.maximum_shard_bytes.get(),
+                fetch_timeout,
+            },
+            self.retry_policy,
         )
     }
 

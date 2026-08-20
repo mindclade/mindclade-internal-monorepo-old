@@ -7,7 +7,7 @@ package runtime_authority
 
 import (
 	"bytes"
-	"mindclade.internal/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/identifiers"
 	"testing"
 	"time"
 )

@@ -19,9 +19,15 @@ metadata:
   name: mindclade-gateway
   labels:
     app.kubernetes.io/part-of: mindclade
+    kubernetes.io/metadata.name: mindclade-gateway
+    mindclade.dev/admission: enforced
+    mindclade.dev/workload-activation: blocked
     pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.36
     pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: v1.36
     pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: v1.36
   annotations:
     mindclade.dev/description: >-
       The shared Gateway and the three TLS certificates. Deliberately carries NO `plane` label:
@@ -37,10 +43,16 @@ metadata:
   labels:
     plane: studio
     app.kubernetes.io/part-of: mindclade
+    kubernetes.io/metadata.name: studio
+    mindclade.dev/admission: enforced
+    mindclade.dev/workload-activation: blocked
     # Pod Security Admission. The browser plane runs first-party services only.
     pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.36
     pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: v1.36
     pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: v1.36
   annotations:
     mindclade.dev/description: >-
       Browser plane. The ONLY origin a browser ever contacts: the SPA, the canvas, and every
@@ -54,9 +66,15 @@ metadata:
   labels:
     plane: ai
     app.kubernetes.io/part-of: mindclade
+    kubernetes.io/metadata.name: ai
+    mindclade.dev/admission: enforced
+    mindclade.dev/workload-activation: blocked
     pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.36
     pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: v1.36
     pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: v1.36
   annotations:
     mindclade.dev/description: >-
       Machine plane. Bearer tokens in, JSON out. Never a cookie, never a CORS header — both
@@ -71,9 +89,15 @@ metadata:
   labels:
     plane: dev
     app.kubernetes.io/part-of: mindclade
+    kubernetes.io/metadata.name: dev
+    mindclade.dev/admission: enforced
+    mindclade.dev/workload-activation: blocked
     pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.36
     pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: v1.36
     pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: v1.36
   annotations:
     mindclade.dev/description: >-
       Developer plane. Docs, SDK portal, the Go vanity-import handler, and the Athens module

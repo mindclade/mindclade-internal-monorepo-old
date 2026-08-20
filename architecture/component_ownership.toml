@@ -155,3 +155,144 @@ language = "python"
 slo = "docs/slo/runtime-model-worker.md"
 runbook = "docs/runbooks/runtime-model-worker.md"
 security_review = true
+
+[component."control.model_registry"]
+owner = "platform-control"
+criticality = "tier-1"
+language = "go"
+slo = "docs/slo/control-model-registry.md"
+runbook = "docs/runbooks/control-model-registry.md"
+security_review = true
+
+[component."infra.terraform.modules"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "hcl"
+security_review = true
+
+# ---------------------------------------------------------------------------------------
+# Newly declared components
+# ---------------------------------------------------------------------------------------
+# check_component_ownership.py requires a 1:1 mapping with components.toml in both
+# directions, so every entry registered there needs its metadata here.
+#
+# All are tier-2. Tier-0 and tier-1 in this file mean a deployed surface with an SLO and a
+# runbook on it; these are libraries and reserved packages, and claiming a tier that
+# implies operational evidence they do not have would be the same dishonesty as inflating
+# a maturity status.
+
+# `evaluation/biological_risk/`, `evaluation/privacy/` and `evaluation/safety/` are inside
+# this boundary, and CODEOWNERS already pairs biological_risk with security. The scaffold is
+# empty today, but the review requirement is a property of the boundary, not of how much
+# code currently sits behind it.
+[component."evaluation"]
+owner = "training-platform"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."kernels"]
+owner = "biology-ml"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
+[component."data"]
+owner = "data-platform"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
+# security_review follows the libs.go / libs.rust precedent rather than the leaf-package
+# one: a shared error taxonomy and a shared worker executor are consumed broadly enough that
+# a change to either reaches callers that never reviewed it.
+[component."libs.python.errors"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."libs.python.worker_runtime"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."libs.python.config"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."libs.python.identifiers"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."libs.python.serialization"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."libs.python.artifacts"]
+owner = "runtime-platform"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."libs.python.distributed"]
+owner = "training-platform"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
+[component."libs.python.geometry"]
+owner = "biology-ml"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
+[component."libs.python.observability"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."libs.python.testing"]
+owner = "biology-ml"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
+[component."serving.model_worker"]
+owner = "runtime-platform"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
+[component."serving.batch"]
+owner = "runtime-platform"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
+[component."serving.rollouts"]
+owner = "runtime-platform"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
+# CODEOWNERS pairs /serving/safety/ with security, same reasoning as evaluation above.
+[component."serving.safety"]
+owner = "runtime-platform"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."serving.testing"]
+owner = "runtime-platform"
+criticality = "tier-2"
+language = "python"
+security_review = false

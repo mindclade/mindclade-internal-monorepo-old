@@ -51,7 +51,9 @@ impl MemfdSegment {
         // SAFETY: `c_name` is a live NUL-terminated C string.  A non-negative
         // descriptor returned by the kernel is transferred exactly once into
         // `File::from_raw_fd` below and thereafter owned by RAII.
-        let fd = unsafe { libc::memfd_create(c_name.as_ptr(), 0) };
+        let fd = unsafe {
+            libc::memfd_create(c_name.as_ptr(), libc::MFD_CLOEXEC | libc::MFD_ALLOW_SEALING)
+        };
         if fd < 0 {
             return Err(Fault::new(Code::Unavailable, "memfd_create failed")
                 .with_source(std::io::Error::last_os_error()));
@@ -65,6 +67,16 @@ impl MemfdSegment {
                 Fault::new(Code::Unavailable, "failed to initialize memfd segment")
                     .with_source(error)
             })?;
+        let seals =
+            libc::F_SEAL_WRITE | libc::F_SEAL_GROW | libc::F_SEAL_SHRINK | libc::F_SEAL_SEAL;
+        // SAFETY: `file` owns a live memfd created with `MFD_ALLOW_SEALING`;
+        // `seals` contains only Linux memfd seal flags.
+        if unsafe { libc::fcntl(file.as_raw_fd(), libc::F_ADD_SEALS, seals) } < 0 {
+            return Err(
+                Fault::new(Code::Unavailable, "failed to seal memfd segment")
+                    .with_source(std::io::Error::last_os_error()),
+            );
+        }
         let descriptor = BufferDescriptor {
             segment_id: format!("memfd:{name}:{generation}"),
             generation,

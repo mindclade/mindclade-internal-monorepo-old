@@ -1,0 +1,77 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+---
+kueue:
+  controller:
+    enabled: true
+  crds:
+    enabled: true
+  enableCertManager: true
+  enablePrometheus: false
+  enableVisibilityAPF: false
+  enableVisibilityAuthReaderRoleBinding: false
+  enableKueueViz: false
+  controllerManager:
+    replicas: 2
+    nodeSelector:
+      mindclade.dev/node-pool: system
+    topologySpreadConstraints:
+      - labelSelector:
+          matchLabels:
+            control-plane: controller-manager
+        maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
+    podDisruptionBudget:
+      enabled: true
+      minAvailable: 1
+    manager:
+      image:
+        repository: registry.k8s.io/kueue/kueue
+        tag: v0.19.1@sha256:7a2204a64388f51a0239f22df989b62390ec1b3d21424ee3a35be7bbc23f9f8f
+        pullPolicy: IfNotPresent
+      resources:
+        requests:
+          cpu: 500m
+          ephemeral-storage: 256Mi
+          memory: 512Mi
+        limits:
+          cpu: "2"
+          ephemeral-storage: 1Gi
+          memory: 512Mi
+      podSecurityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containerSecurityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        readOnlyRootFilesystem: true
+  managerConfig:
+    controllerManagerConfigYaml: |-
+      apiVersion: config.kueue.x-k8s.io/v1beta2
+      kind: Configuration
+      health:
+        healthProbeBindAddress: :8081
+      metrics:
+        bindAddress: :8443
+      webhook:
+        port: 9443
+      leaderElection:
+        leaderElect: true
+        resourceName: c1f6bfd2.kueue.x-k8s.io
+      clientConnection:
+        qps: 300
+        burst: 500
+      manageJobsWithoutQueueName: false
+      managedJobsNamespaceSelector:
+        matchLabels:
+          mindclade.dev/kueue-enabled: "true"
+      integrations:
+        frameworks:
+          - batch/job
+          - jobset.x-k8s.io/jobset

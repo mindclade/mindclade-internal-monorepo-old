@@ -1,6 +1,7 @@
 # Infra
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
+- **Status:** Foundation modules are materialized, but live production deployment remains gated
+  by each subsystem's production-readiness evidence.
 - **Primary implementation ownership:** Terraform, Kubernetes, GitOps, and policy configuration
 
 ## Purpose
@@ -18,9 +19,9 @@ This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
 ground. It may depend only in the direction documented by
 `docs/architecture/dependency-rules.md` and the accepted ADRs.
 
-## Materialization requirements
+## Promotion requirements
 
-Before this scaffold boundary is treated as implemented, add:
+Before an infrastructure subsystem is activated in a live environment, require:
 
 - a named owner and reviewed stable contract;
 - implementation with bounded resources, cancellation, and deterministic or
@@ -31,5 +32,7 @@ Before this scaffold boundary is treated as implemented, add:
 - documentation of limits and non-responsibilities;
 - `PRODUCTION_READINESS.md` evidence for deployment-facing code.
 
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
+Kubernetes and GitOps source contracts are documented in
+`kubernetes/PRODUCTION_READINESS.md` and `gitops/PRODUCTION_READINESS.md`. See
+the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
 artifact-wide implementation status.

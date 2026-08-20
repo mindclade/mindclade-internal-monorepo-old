@@ -12,7 +12,7 @@ use crate::{
 use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_identifiers::ResourceId;
 use mindclade_serving_runtime::InferenceRequest;
-use mindclade_worker_protocol::{AdmissionGrant, DeploymentRoute};
+use mindclade_worker_protocol::{AdmissionGrant, DeploymentRoute, ExecutionTicket};
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
@@ -22,6 +22,7 @@ pub struct InferenceEnvelope {
     pub admission: AdmissionRequest,
 }
 
+#[derive(Debug)]
 pub struct AdmittedRequest {
     pub request_id: ResourceId,
     pub route: DeploymentRoute,
@@ -30,6 +31,7 @@ pub struct AdmittedRequest {
     pub response_rx: crate::StreamReceiver,
 }
 
+#[derive(Debug)]
 pub struct GatewayCore {
     config: GatewayConfig,
     policy: Arc<PolicyCache>,
@@ -69,11 +71,53 @@ impl GatewayCore {
             now_unix_millis,
         )
     }
+    pub fn admit_execution(
+        &self,
+        request: InferenceRequest,
+        ticket: &ExecutionTicket,
+        now_unix_millis: u64,
+    ) -> FaultResult<AdmittedRequest> {
+        let request_id = request.request_id.clone();
+        let tenant_id = request.grant.claims.tenant_id.clone();
+        self.policy.validate_execution(ticket, now_unix_millis)?;
+        if ticket.claims.request_id.as_ref() != Some(&request_id)
+            || ticket.claims.tenant_id != tenant_id
+        {
+            return Err(Fault::new(
+                Code::PermissionDenied,
+                "execution ticket does not match the inference request",
+            ));
+        }
+        let envelope = InferenceEnvelope {
+            request_id: request.request_id,
+            grant: request.grant,
+            admission: request.admission,
+        };
+        let route = self.select_admissible_route(&envelope, now_unix_millis)?;
+        if ticket.claims.model_bundle != Some(route.model_bundle)
+            || ticket.claims.engine_bundle != Some(route.engine_bundle)
+        {
+            return Err(Fault::new(
+                Code::PermissionDenied,
+                "execution ticket does not match the selected route",
+            ));
+        }
+        self.reserve_admission(envelope, route)
+    }
     pub fn admit(
         &self,
         envelope: InferenceEnvelope,
         now_unix_millis: u64,
     ) -> FaultResult<AdmittedRequest> {
+        let route = self.select_admissible_route(&envelope, now_unix_millis)?;
+        self.reserve_admission(envelope, route)
+    }
+
+    fn select_admissible_route(
+        &self,
+        envelope: &InferenceEnvelope,
+        now_unix_millis: u64,
+    ) -> FaultResult<DeploymentRoute> {
         if envelope.request_id.kind() != "request" {
             return Err(Fault::invalid_argument(
                 "online inference request id has the wrong kind",
@@ -90,15 +134,28 @@ impl GatewayCore {
             .validate(self.config.maximum_request_key_bytes)?;
         self.policy
             .validate_grant(&envelope.grant, now_unix_millis)?;
-        let policy = self.policy.snapshot(now_unix_millis)?;
+        let policy = match self.policy.snapshot(now_unix_millis) {
+            Ok(policy) => policy,
+            Err(fault) => {
+                self.health.set_policy_fresh(false);
+                return Err(fault);
+            }
+        };
         self.health.set_policy_fresh(true);
-        let route = select_route(RouteRequest {
+        select_route(&RouteRequest {
             admission: &envelope.admission,
             grant: &envelope.grant.claims,
             snapshot: &policy.route,
             revocations: &policy.revocations,
             now_unix_millis,
-        })?;
+        })
+    }
+
+    fn reserve_admission(
+        &self,
+        envelope: InferenceEnvelope,
+        route: DeploymentRoute,
+    ) -> FaultResult<AdmittedRequest> {
         let permit = self
             .admission
             .reserve(&envelope.grant.claims, &envelope.admission)?;
@@ -123,9 +180,11 @@ impl GatewayCore {
         })
     }
     pub fn begin_drain(&self) {
+        self.admission.begin_drain();
         self.health.set_accepting(false);
     }
     pub fn resume_admission(&self) {
+        self.admission.resume();
         self.health.set_accepting(true);
     }
     #[must_use]

@@ -46,18 +46,11 @@ impl core::fmt::Debug for HostAuthority {
 }
 
 impl HostAuthority {
-    pub fn from_ed25519_keys<I>(
-        keys: I,
+    pub fn with_verifier(
+        verifier: Arc<dyn SignatureVerifier>,
         bootstrap_revocations: RevocationSnapshot,
         now_unix_millis: u64,
-    ) -> FaultResult<Self>
-    where
-        I: IntoIterator<Item = Ed25519VerificationKey>,
-    {
-        let verifier: Arc<dyn SignatureVerifier> = Arc::new(Ed25519KeySet::with_clock(
-            Arc::new(mindclade_runtime_core::SystemClock),
-            keys,
-        )?);
+    ) -> FaultResult<Self> {
         bootstrap_revocations.validate(
             now_unix_millis,
             bootstrap_revocations.claims.epoch,
@@ -73,6 +66,21 @@ impl HostAuthority {
                 minimum_revocation_epoch,
             }),
         })
+    }
+
+    pub fn from_ed25519_keys<I>(
+        keys: I,
+        bootstrap_revocations: RevocationSnapshot,
+        now_unix_millis: u64,
+    ) -> FaultResult<Self>
+    where
+        I: IntoIterator<Item = Ed25519VerificationKey>,
+    {
+        let verifier: Arc<dyn SignatureVerifier> = Arc::new(Ed25519KeySet::with_clock(
+            Arc::new(mindclade_runtime_core::SystemClock),
+            keys,
+        )?);
+        Self::with_verifier(verifier, bootstrap_revocations, now_unix_millis)
     }
     pub fn install_revocations(
         &self,

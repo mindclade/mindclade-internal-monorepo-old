@@ -3,10 +3,101 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_pkg//pkg:mappings.bzl", "pkg_files", "strip_prefix")
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("@rules_python//python:defs.bzl", "py_binary")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
 package(default_visibility = ["//visibility:private"])
 
 filegroup(
-    name = "scaffold_files",
-    srcs = glob(["**"], exclude = ["BUILD.bazel"]),
+    name = "validation_inputs",
+    srcs = glob(
+        ["**"],
+        exclude = [
+            "**/__pycache__/**",
+            "**/*.pyc",
+            "BUILD.bazel",
+        ],
+    ) + [
+        "//infra/kubernetes/platform/gpu:manifests",
+        "//infra/kubernetes/platform/jobset:manifests",
+        "//infra/kubernetes/platform/kueue:manifests",
+        "//infra/kubernetes/platform/nccl:manifests",
+        "//infra/kubernetes/platform/observability:manifests",
+        "//infra/kubernetes/platform/operator-system:manifests",
+        "//infra/kubernetes/platform/rdma:manifests",
+        "//infra/kubernetes/platform/remote-execution:manifests",
+        "//infra/kubernetes/platform/security:manifests",
+        "//infra/kubernetes/services/artifact-proxy:manifests",
+        "//infra/kubernetes/services/control-plane:manifests",
+        "//infra/kubernetes/services/curation-workers:manifests",
+        "//infra/kubernetes/services/evaluation-workers:manifests",
+        "//infra/kubernetes/services/ingestion-workers:manifests",
+        "//infra/kubernetes/services/node-agent:manifests",
+        "//infra/kubernetes/services/preprocessing-workers:manifests",
+        "//infra/kubernetes/services/rollout-workers:manifests",
+        "//infra/kubernetes/services/runtime-gateway:manifests",
+        "//infra/kubernetes/services/runtime-host:manifests",
+        "//infra/kubernetes/services/training-workers:manifests",
+        "//infra/kubernetes/workloads/ingestion:manifests",
+        "//infra/kubernetes/workloads/preprocessing:manifests",
+        "//infra/kubernetes/workloads/training:manifests",
+    ],
     visibility = ["//visibility:public"],
+)
+
+pkg_files(
+    name = "validation_tree",
+    srcs = [":validation_inputs"],
+    strip_prefix = strip_prefix.from_root(),
+)
+
+pkg_tar(
+    name = "validation_archive",
+    srcs = [":validation_tree"],
+)
+
+py_binary(
+    name = "extract_validation_archive",
+    srcs = ["tests/extract_archive.py"],
+    main = "tests/extract_archive.py",
+    python_version = "PY3",
+    visibility = ["//infra/kubernetes:__pkg__"],
+)
+
+# Compatibility target for callers that previously consumed the entire Kubernetes scaffold.
+filegroup(
+    name = "scaffold_files",
+    srcs = [":validation_inputs"],
+    visibility = ["//visibility:public"],
+)
+
+sh_test(
+    name = "validate",
+    size = "medium",
+    srcs = ["tests/bazel_validate.sh"],
+    data = [
+        ":extract_validation_archive",
+        ":validation_archive",
+        "//tools/build/nix:toolchain-manifest.json",
+        "@mindclade_infra_validation_tools//:bin/.tool-root",
+        "@mindclade_infra_validation_tools//:tools",
+        "@mindclade_kubernetes_schemas//:core_schemas",
+        "@mindclade_kubernetes_schemas//:crds/.crd-root",
+        "@mindclade_kubernetes_schemas//:custom_crds",
+        "@mindclade_kubernetes_schemas//:schemas/.schema-root",
+    ],
+    env = {
+        "MINDCLADE_CUSTOM_CRD_MARKER_RLOCATION": "$(rlocationpath @mindclade_kubernetes_schemas//:crds/.crd-root)",
+        "MINDCLADE_KUBERNETES_SCHEMA_MARKER_RLOCATION": "$(rlocationpath @mindclade_kubernetes_schemas//:schemas/.schema-root)",
+        "MINDCLADE_TOOLCHAIN_MANIFEST_RLOCATION": "$(rlocationpath //tools/build/nix:toolchain-manifest.json)",
+        "MINDCLADE_VALIDATION_ARCHIVE_RLOCATION": "$(rlocationpath :validation_archive)",
+        "MINDCLADE_VALIDATION_EXTRACTOR_RLOCATION": "$(rlocationpath :extract_validation_archive)",
+        "MINDCLADE_VALIDATION_TOOL_MARKER_RLOCATION": "$(rlocationpath @mindclade_infra_validation_tools//:bin/.tool-root)",
+    },
+    tags = [
+        "kubernetes",
+        "policy",
+    ],
 )

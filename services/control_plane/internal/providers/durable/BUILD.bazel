@@ -1,0 +1,29 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_go//go:def.bzl", "go_library")
+
+package(default_visibility = ["//services/control_plane:__subpackages__"])
+
+go_library(
+    name = "durable",
+    srcs = ["durable.go"],
+    importpath = "go.mindclade.dev/services/control_plane/internal/providers/durable",
+    deps = [
+        "//libs/go/audit",
+        "//libs/go/audit/postgres",
+        "//libs/go/clock",
+        "//libs/go/coordination/cursor",
+        "//libs/go/coordination/cursor/postgres",
+        "//libs/go/coordination/workqueue",
+        "//libs/go/coordination/workqueue/postgres",
+        "//libs/go/idempotency",
+        "//libs/go/idempotency/postgres",
+        "//libs/go/identifiers",
+        "//libs/go/storage/lease",
+        "//libs/go/storage/lease/postgres",
+        "//services/control_plane/internal/providers",
+    ],
+)

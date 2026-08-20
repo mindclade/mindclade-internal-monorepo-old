@@ -21,7 +21,7 @@ go_library(
         "method.go",
         "server.go",
     ],
-    importpath = "mindclade.internal/libs/go/grpcx",
+    importpath = "go.mindclade.dev/libs/go/grpcx",
     deps = [
         "//libs/go/faults",
         "//libs/go/internal/rpcfaults",
@@ -47,8 +47,8 @@ go_test(
         "config_test.go",
         "details_test.go",
         "metadata_test.go",
-        "server_test.go",
         "method_test.go",
+        "server_test.go",
     ],
     embed = [":grpcx"],
     deps = [

@@ -4,7 +4,7 @@
 #
 
 ---
-# Default-deny ingress for the browser plane.
+# Default-deny ingress and egress for the browser plane.
 #
 # ---------------------------------------------------------------------------------------
 # This is what makes IAP and the edge filters real rather than advisory
@@ -33,6 +33,12 @@ spec:
   podSelector: {}
   policyTypes:
     - Ingress
+    - Egress
+  ingress: []
+  # Database, Google API, metadata-server, DNS, and downstream service
+  # destinations are environment-owned. Keeping this empty prevents a missing
+  # identity or routing review from becoming broad outbound access.
+  egress: []
 
 ---
 # The one permitted ingress path: the load balancer's proxies.

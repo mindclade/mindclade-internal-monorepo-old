@@ -8,7 +8,7 @@ package production
 import (
 	"context"
 
-	"mindclade.internal/libs/go/servicekit"
+	"go.mindclade.dev/libs/go/servicekit"
 )
 
 // Runtime is the immutable result of production process composition. It keeps

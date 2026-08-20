@@ -7,17 +7,18 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from collections.abc import Mapping
 from typing import Any
 
+from libs.python.identifiers import Digest
+from libs.python.serialization import canonical_json_bytes
+
 
 def canonical_json(value: Mapping[str, Any]) -> bytes:
-    return json.dumps(
-        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
-    ).encode("utf-8")
+    """Compatibility name for the platform canonical JSON encoder."""
+    return canonical_json_bytes(value)
 
 
 def fingerprint(value: Mapping[str, Any]) -> str:
-    return "sha256:" + hashlib.sha256(canonical_json(value)).hexdigest()
+    """Return the canonical SHA-256 identity of a resolved document."""
+    return Digest.of(canonical_json(value)).text

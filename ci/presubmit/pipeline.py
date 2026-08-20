@@ -19,10 +19,14 @@ REPO = Path(__file__).resolve().parents[2]
 def load_affected():
     path = REPO / "ci/common/affected.py"
     spec = importlib.util.spec_from_file_location("mindclade_affected", path)
-    # Guard before the first dereference, and raise rather than assert. The previous shape did
-    # both the other way round: module_from_spec(spec) ran first, so a missing file surfaced as
-    # an AttributeError on None naming neither the path nor the reason, and the `assert` that
-    # was supposed to catch it disappears under `python -O`.
+    # spec_from_file_location returns None when the path has no extension Python knows how to
+    # load — a .md, a directory, anything that is not importable. That is the failure this
+    # guards: REPO is derived from parents[2], so an edit to this file's location silently
+    # repoints the path, and landing on a non-Python file is the plausible way that goes wrong.
+    # A merely missing .py still yields a spec and fails clearly at exec_module.
+    #
+    # Guarded before the first dereference rather than after, and raising rather than asserting:
+    # module_from_spec(spec) used to run first, and `assert` is removed entirely by `python -O`.
     if spec is None or spec.loader is None:
         raise RuntimeError(f"unable to load {path}")
     module = importlib.util.module_from_spec(spec)

@@ -10,7 +10,7 @@ package(default_visibility = ["//visibility:private"])
 go_binary(
     name = "control-plane-api",
     srcs = ["main.go"],
-    importpath = "mindclade.internal/examples/go/control_plane_api/cmd/control-plane-api",
+    importpath = "go.mindclade.dev/examples/go/control_plane_api/cmd/control-plane-api",
     visibility = ["//visibility:public"],
     deps = ["//examples/go/control_plane_api"],
 )

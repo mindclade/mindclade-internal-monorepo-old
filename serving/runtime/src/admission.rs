@@ -58,6 +58,7 @@ struct GrantUsage {
 
 #[derive(Debug)]
 struct LedgerState {
+    accepting: bool,
     active: u32,
     grants: BTreeMap<String, GrantUsage>,
 }
@@ -86,6 +87,7 @@ impl AdmissionLedger {
             maximum_active,
             maximum_active_per_grant,
             state: Mutex::new(LedgerState {
+                accepting: true,
                 active: 0,
                 grants: BTreeMap::new(),
             }),
@@ -102,6 +104,9 @@ impl AdmissionLedger {
             .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if !state.accepting {
+            return Err(Fault::new(Code::Unavailable, "local admission is draining"));
+        }
         let current = state.grants.get(&grant_id).copied().unwrap_or_default();
         let grant_concurrency = grant
             .maximum_concurrency
@@ -161,6 +166,24 @@ impl AdmissionLedger {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .active
+    }
+
+    /// Atomically closes admission before lifecycle readiness is withdrawn.
+    pub fn begin_drain(&self) {
+        self.0
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .accepting = false;
+    }
+
+    /// Reopens local admission after policy and downstream readiness recover.
+    pub fn resume(&self) {
+        self.0
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .accepting = true;
     }
 }
 

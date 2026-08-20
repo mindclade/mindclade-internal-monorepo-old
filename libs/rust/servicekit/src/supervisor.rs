@@ -25,6 +25,17 @@ pub struct Supervisor {
     tasks: Vec<(String, JoinHandle<FaultResult<()>>)>,
 }
 
+impl core::fmt::Debug for Supervisor {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let task_names: Vec<&str> = self.tasks.iter().map(|(name, _)| name.as_str()).collect();
+        formatter
+            .debug_struct("Supervisor")
+            .field("shutdown", &self.shutdown)
+            .field("tasks", &task_names)
+            .finish_non_exhaustive()
+    }
+}
+
 impl Supervisor {
     #[must_use]
     pub fn new(shutdown: ShutdownToken, clock: Arc<dyn Clock>, sink: Arc<dyn Sink>) -> Self {
@@ -59,11 +70,11 @@ impl Supervisor {
         Ok(())
     }
     pub fn shutdown(&self) {
-        self.shutdown.cancel();
+        let _ = self.shutdown.cancel();
     }
     #[must_use]
     pub fn join(mut self) -> Vec<TaskFailure> {
-        self.shutdown.cancel();
+        let _ = self.shutdown.cancel();
         let mut failures = Vec::new();
         for (name, handle) in self.tasks.drain(..) {
             let fault = match handle.join() {

@@ -5,7 +5,10 @@
 
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 
-package(default_visibility = ["//services:__subpackages__", "//control:__subpackages__"])
+package(default_visibility = [
+    "//control:__subpackages__",
+    "//services:__subpackages__",
+])
 
 go_library(
     name = "pubsub",
@@ -17,7 +20,7 @@ go_library(
         "publisher.go",
         "subscription.go",
     ],
-    importpath = "mindclade.internal/libs/go/messaging/pubsub",
+    importpath = "go.mindclade.dev/libs/go/messaging/pubsub",
     deps = [
         "//libs/go/faults",
         "//libs/go/identifiers",

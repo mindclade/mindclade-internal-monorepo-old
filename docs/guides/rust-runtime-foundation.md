@@ -10,7 +10,8 @@ execution concerns into cohesive production crates.
   versions, fencing, hierarchical resource budgets, task groups.
 - `bytes_io`: checked byte sizes/ranges/alignment, buffer pools and copy
   accounting.
-- `content_digest`: dependency-free SHA-256 and streaming verification.
+- `content_digest`: stable digest API over pinned RustCrypto SHA-256 and streaming
+  verification.
 - `bounded_parse`: parser budgets, strict/recovery modes and byte diagnostics.
 - `bio_formats`: bounded scientific format framing/parsing.
 - `manifests`: immutable artifact identity/location and manifest primitives.
@@ -43,15 +44,17 @@ canonical crates above.
 Foundation/runtime crates default to `#![forbid(unsafe_code)]`. An OS/GPU/Python
 adapter that genuinely requires unsafe Rust must be isolated, have `SAFETY.md`,
 owner approval, an unsafe inventory/invariants, and Miri/sanitizer/fuzz
-qualification. Curated runtime dependencies (Tokio/Tower/Tonic/Bytes/etc.) may
-be introduced in leaf/runtime adapters when the pinned build graph is available;
-zero third-party dependencies is not a goal if it would cause reimplementation
-of mature infrastructure.
+qualification. Curated dependencies are exactly pinned in the committed Cargo
+graph and checked for Cargo/Bazel alignment, licenses, advisories, and admitted
+sources. Zero third-party dependencies is not a goal when it would reimplement
+mature cryptography, async runtime, or provider infrastructure.
 
-## Qualification still required
+## Qualification boundary
 
-This source snapshot was produced in an environment without `rustc`, Cargo,
-Bazel or Nix. Rust status is therefore **implemented source, not compiled or
-qualified** here. Connected CI must run formatting, compile, Clippy, tests,
-fuzz targets, Miri/sanitizers where applicable, Bazel/Nix hermeticity, and the
-runtime latency/memory/cancellation/shutdown budgets before promotion.
+The 2026-08-20 canonical Rust presubmit passes with the pinned Rust 1.97.1
+toolchain: locked tests, formatting, strict Clippy, rustdoc, cargo-deny,
+compatibility, six local failure scenarios, and portable digest, reservation,
+Unix IPC, process-start, verified-range, contention, RSS, and FD probes.
+Production promotion still requires connected Linux unsafe-code evidence,
+fuzzing, Miri/sanitizers, Bazel/Nix release hermeticity, provider qualification,
+deployed gateway and hardware/provider performance budgets, and deployment evidence.

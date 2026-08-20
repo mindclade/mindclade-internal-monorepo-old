@@ -9,7 +9,6 @@ version.workspace=true
 edition.workspace=true
 publish=false
 [dependencies]
-mindclade_identifiers={path="../identifiers"}
 mindclade_worker_protocol={path="../worker_protocol"}
 mindclade_faults={path="../faults"}
 mindclade_runtime_core={path="../runtime_core"}

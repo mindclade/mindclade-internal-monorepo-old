@@ -4,4 +4,220 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# Zone and hostname are the only topology levels guaranteed by the current GKE contract. The
+# object is immutable after creation; adding a provider-specific rack/block label requires a new
+# Topology and a measured migration plan.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: Topology
+metadata:
+  name: mindclade-gpu-zone-host
+  annotations:
+    argocd.argoproj.io/sync-wave: "19"
+    mindclade.dev/activation-blocker: topology-capacity-unqualified
+spec:
+  levels:
+    - nodeLabel: topology.kubernetes.io/zone
+    - nodeLabel: kubernetes.io/hostname
+---
+# These flavors mirror labels and taints declared by the GKE Terraform module. They carry no
+# capacity by themselves; capacity is granted only through the held ClusterQueues below.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: mindclade-cpu-general-ondemand
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+spec:
+  nodeLabels:
+    mindclade.dev/capacity-type: on-demand
+    mindclade.dev/node-pool: cpu
+    mindclade.dev/workload-profile: general-purpose
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: mindclade-h100
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+spec:
+  nodeLabels:
+    mindclade.dev/gpu-profile: gke-h100-a3-megagpu-8g
+    mindclade.dev/node-pool: gpu
+  nodeTaints:
+    - effect: NoSchedule
+      key: nvidia.com/gpu
+      value: present
+  tolerations:
+    - effect: NoSchedule
+      key: nvidia.com/gpu
+      operator: Equal
+      value: present
+  topologyName: mindclade-gpu-zone-host
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: mindclade-h200
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+spec:
+  nodeLabels:
+    mindclade.dev/gpu-profile: gke-h200-a3-ultragpu-8g
+    mindclade.dev/node-pool: gpu
+  nodeTaints:
+    - effect: NoSchedule
+      key: nvidia.com/gpu
+      value: present
+  tolerations:
+    - effect: NoSchedule
+      key: nvidia.com/gpu
+      operator: Equal
+      value: present
+  topologyName: mindclade-gpu-zone-host
+---
+# Every node-associated resource is kept in one ResourceGroup so a workload cannot receive CPU
+# selectors from one flavor and GPU selectors from another. Queue activation is a reviewed
+# bundle: evidence-gated namespace activation, non-zero measured quotas, and both holds removed.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: mindclade-batch-cpu
+  annotations:
+    argocd.argoproj.io/sync-wave: "21"
+    mindclade.dev/activation-blocker: held-and-zero-quota
+spec:
+  namespaceSelector:
+    matchLabels:
+      mindclade.dev/kueue-enabled: "true"
+      mindclade.dev/workload-class: batch-cpu
+  preemption:
+    reclaimWithinCohort: Never
+    withinClusterQueue: Never
+  resourceGroups:
+    - coveredResources:
+        - cpu
+        - memory
+        - ephemeral-storage
+        - pods
+      flavors:
+        - name: mindclade-cpu-general-ondemand
+          resources:
+            - name: cpu
+              nominalQuota: "0"
+            - name: memory
+              nominalQuota: "0"
+            - name: ephemeral-storage
+              nominalQuota: "0"
+            - name: pods
+              nominalQuota: "0"
+  stopPolicy: Hold
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: mindclade-batch-cpu
+  namespace: mindclade-batch-cpu
+  annotations:
+    argocd.argoproj.io/sync-wave: "22"
+    mindclade.dev/activation-blocker: held-clusterqueue-and-localqueue
+spec:
+  clusterQueue: mindclade-batch-cpu
+  stopPolicy: Hold
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: mindclade-training-h100
+  annotations:
+    argocd.argoproj.io/sync-wave: "21"
+    mindclade.dev/activation-blocker: held-and-zero-h100-quota
+spec:
+  namespaceSelector:
+    matchLabels:
+      mindclade.dev/kueue-enabled: "true"
+      mindclade.dev/workload-class: training-h100
+  preemption:
+    reclaimWithinCohort: Never
+    withinClusterQueue: Never
+  resourceGroups:
+    - coveredResources:
+        - cpu
+        - memory
+        - ephemeral-storage
+        - nvidia.com/gpu
+        - pods
+      flavors:
+        - name: mindclade-h100
+          resources:
+            - name: cpu
+              nominalQuota: "0"
+            - name: memory
+              nominalQuota: "0"
+            - name: ephemeral-storage
+              nominalQuota: "0"
+            - name: nvidia.com/gpu
+              nominalQuota: "0"
+            - name: pods
+              nominalQuota: "0"
+  stopPolicy: Hold
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: mindclade-training-h100
+  namespace: mindclade-training-h100
+  annotations:
+    argocd.argoproj.io/sync-wave: "22"
+    mindclade.dev/activation-blocker: held-clusterqueue-and-localqueue
+spec:
+  clusterQueue: mindclade-training-h100
+  stopPolicy: Hold
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: mindclade-training-h200
+  annotations:
+    argocd.argoproj.io/sync-wave: "21"
+    mindclade.dev/activation-blocker: held-and-zero-h200-quota
+spec:
+  namespaceSelector:
+    matchLabels:
+      mindclade.dev/kueue-enabled: "true"
+      mindclade.dev/workload-class: training-h200
+  preemption:
+    reclaimWithinCohort: Never
+    withinClusterQueue: Never
+  resourceGroups:
+    - coveredResources:
+        - cpu
+        - memory
+        - ephemeral-storage
+        - nvidia.com/gpu
+        - pods
+      flavors:
+        - name: mindclade-h200
+          resources:
+            - name: cpu
+              nominalQuota: "0"
+            - name: memory
+              nominalQuota: "0"
+            - name: ephemeral-storage
+              nominalQuota: "0"
+            - name: nvidia.com/gpu
+              nominalQuota: "0"
+            - name: pods
+              nominalQuota: "0"
+  stopPolicy: Hold
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: mindclade-training-h200
+  namespace: mindclade-training-h200
+  annotations:
+    argocd.argoproj.io/sync-wave: "22"
+    mindclade.dev/activation-blocker: held-clusterqueue-and-localqueue
+spec:
+  clusterQueue: mindclade-training-h200
+  stopPolicy: Hold

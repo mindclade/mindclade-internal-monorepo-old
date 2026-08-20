@@ -4,4 +4,5 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# Intentionally no PodDisruptionBudget. Suspended batch Jobs recover through
+# durable orchestration and checkpoint/retry policy, not replica availability.

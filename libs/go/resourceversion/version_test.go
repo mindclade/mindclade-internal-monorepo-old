@@ -7,7 +7,7 @@ package resourceversion
 
 import (
 	"encoding/json"
-	"mindclade.internal/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/identifiers"
 	"testing"
 )
 

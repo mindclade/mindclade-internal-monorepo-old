@@ -33,6 +33,15 @@ pub struct CheckpointReader {
     store: Arc<dyn ObjectStore>,
 }
 
+impl core::fmt::Debug for CheckpointReader {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        formatter
+            .debug_struct("CheckpointReader")
+            .field("cas", &self.cas)
+            .finish_non_exhaustive()
+    }
+}
+
 impl CheckpointReader {
     #[must_use]
     pub fn new(cas: ArtifactCas, store: Arc<dyn ObjectStore>) -> Self {
@@ -73,9 +82,7 @@ impl CheckpointReader {
         for shard in manifest.shards {
             match self.cas.get_blob(shard.digest) {
                 Ok(bytes) => {
-                    let size = if let Ok(size) = u64::try_from(bytes.len()) {
-                        size
-                    } else {
+                    let Ok(size) = u64::try_from(bytes.len()) else {
                         report
                             .failures
                             .push(format!("{}: size exceeds u64", shard.name));

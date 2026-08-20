@@ -17,17 +17,12 @@ fn frames_and_codec_round_trip() {
     assert!(writer.write(1, 0, &payload).is_ok());
     let bytes = writer.into_inner();
     let mut reader = RecordReader::new(Cursor::new(bytes), ByteSize::new(1024));
-    let record = reader.read_next();
-    assert!(record.is_ok());
-    if let Ok(Some(record)) = record {
-        let mut decoder = if let Ok(value) = Decoder::new(&record.payload, 1024) {
-            value
-        } else {
-            assert!(false);
-            return;
-        };
-        assert_eq!(decoder.string().ok(), Some("checkpoint"));
-        assert_eq!(decoder.u64().ok(), Some(42));
-        assert!(decoder.finish().is_ok());
-    }
+    let record = reader
+        .read_next()
+        .expect("frame should decode")
+        .expect("frame should exist");
+    let mut decoder = Decoder::new(&record.payload, 1024).expect("payload decoder");
+    assert_eq!(decoder.string().ok(), Some("checkpoint"));
+    assert_eq!(decoder.u64().ok(), Some(42));
+    assert!(decoder.finish().is_ok());
 }

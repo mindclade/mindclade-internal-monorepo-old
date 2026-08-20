@@ -4,4 +4,5 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# Intentionally no Service. The artifact-proxy binary has no composed listener.
+# Add a Service only with an implemented, tested port and health contract.

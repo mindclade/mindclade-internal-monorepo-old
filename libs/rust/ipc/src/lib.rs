@@ -298,6 +298,7 @@ impl Message {
     }
 }
 
+#[derive(Debug)]
 pub struct Channel<R, W> {
     reader: RecordReader<R>,
     writer: RecordWriter<W>,

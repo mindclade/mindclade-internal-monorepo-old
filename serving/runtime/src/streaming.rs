@@ -142,8 +142,7 @@ impl StreamReceiver {
         }
         match self.rx.recv_timeout(timeout) {
             Ok(chunk) => Ok(Some(chunk)),
-            Err(RecvTimeoutError::Timeout) => Ok(None),
-            Err(RecvTimeoutError::Disconnected) => Ok(None),
+            Err(RecvTimeoutError::Timeout | RecvTimeoutError::Disconnected) => Ok(None),
         }
     }
     pub fn cancel(&self, reason: impl Into<String>) {

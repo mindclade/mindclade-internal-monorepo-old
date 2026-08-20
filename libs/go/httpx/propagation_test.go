@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"mindclade.internal/libs/go/requestmeta"
+	"go.mindclade.dev/libs/go/requestmeta"
 )
 
 func TestPrepareRequestGeneratesLineageWithoutMutatingCaller(t *testing.T) {

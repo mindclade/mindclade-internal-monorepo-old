@@ -19,13 +19,15 @@
 #
 # Only never reaching the terminal event is failure. That is what
 # stream-completion-rate measures and why it is the first entry.
-apiVersion: monitoring.googleapis.com/v1
-kind: AlertPolicySet
-metadata:
-  name: studio-browser-plane
-  namespace: mindclade-system
+schemaVersion: mindclade.dev/cloud-monitoring-alert-contract/v1alpha1
+name: studio-browser-plane
+owner: studio-platform
+deployment:
+  provider: google-cloud-monitoring
+  terraformModule: infra/terraform/modules/monitoring
+  deployableKubernetesResource: false
 
-spec:
+alerts:
   # -------------------------------------------------------------------------------------
   # PAGE — a user-visible failure, or a security control silently off
   # -------------------------------------------------------------------------------------

@@ -16,7 +16,7 @@ go_library(
         "fake.go",
         "real.go",
     ],
-    importpath = "mindclade.internal/libs/go/clock",
+    importpath = "go.mindclade.dev/libs/go/clock",
 )
 
 go_test(

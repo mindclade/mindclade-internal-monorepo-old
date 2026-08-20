@@ -10,8 +10,8 @@ import (
 	"errors"
 	"time"
 
-	"mindclade.internal/libs/go/identifiers"
-	"mindclade.internal/libs/go/requestmeta"
+	"go.mindclade.dev/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/requestmeta"
 )
 
 const RecordIDKind identifiers.Kind = "idempotency"

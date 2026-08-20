@@ -9,8 +9,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
+	"go.mindclade.dev/libs/go/faults"
 	grpccredentials "google.golang.org/grpc/credentials"
-	"mindclade.internal/libs/go/faults"
 	"os"
 	"strings"
 )

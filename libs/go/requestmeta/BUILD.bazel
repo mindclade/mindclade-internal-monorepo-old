@@ -19,7 +19,7 @@ go_library(
         "request_id.go",
         "token.go",
     ],
-    importpath = "mindclade.internal/libs/go/requestmeta",
+    importpath = "go.mindclade.dev/libs/go/requestmeta",
     deps = [
         "//libs/go/faults",
         "//libs/go/identifiers",

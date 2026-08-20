@@ -2,5 +2,106 @@
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
+# Root ownership, in the same schema as libs/rust/OWNERS.toml.
+#
+# THIS FILE IS NOT REVIEW ROUTING. GitHub reads .github/CODEOWNERS and nothing else; if the
+# two disagree, CODEOWNERS is what actually gates a pull request. What this file adds is the
+# part CODEOWNERS cannot express and CONTRIBUTING.md item 1 requires — a named owner for a
+# path, with the approval policy that owner is held to — and it is readable by the Bazel
+# graph and the analysis tools, which cannot parse CODEOWNERS' last-pattern-wins semantics.
+#
+# Teams are the estate's team slugs, matching architecture/component_ownership.toml's `owner`
+# field rather than CODEOWNERS' GitHub org teams. The mapping is deliberate and one-way:
+# several ownership teams route to one broader GitHub team for review.
 
-# Scaffold configuration; promotion requires schema validation.
+schema_version = 1
+
+# ---------------------------------------------------------------------------------------
+# Default
+# ---------------------------------------------------------------------------------------
+# Anything not claimed below. Listed first; unlike CODEOWNERS, entries here do not override
+# one another by order — a path may match several, and every matching team owns it.
+
+[[owners]]
+team = "platform-control"
+paths = ["**"]
+
+# ---------------------------------------------------------------------------------------
+# Language law, per REPOSITORY_STATUS.md
+# ---------------------------------------------------------------------------------------
+
+[[owners]]
+team = "platform-control"
+paths = ["control/**", "libs/go/**", "services/control_plane/**", "protocols/**", "configs/**"]
+
+[[owners]]
+team = "runtime-platform"
+paths = [
+    "libs/rust/**",
+    "serving/**",
+    "services/artifact_proxy/**",
+    "services/node_agent/**",
+    "services/runtime_gateway/**",
+    "services/runtime_host/**",
+    "services/workers/model_worker/**",
+]
+
+[[owners]]
+team = "biology-ml"
+paths = ["preprocessing/**", "models/**", "research/**", "kernels/**"]
+
+[[owners]]
+team = "training-platform"
+paths = ["training/**", "evaluation/**"]
+
+[[owners]]
+team = "data-platform"
+paths = ["data/**", "control/ingestion/**", "services/workers/ingestion/**"]
+
+[[owners]]
+team = "release-engineering"
+paths = [
+    ".bazelrc",
+    ".bazelversion",
+    ".buildifier.json",
+    "BUILD.bazel",
+    "flake.lock",
+    "flake.nix",
+    "MODULE.bazel",
+    "MODULE.bazel.lock",
+    "ci/**",
+    "control/registry/releases/**",
+    "docs/architecture/build-and-toolchains.md",
+    "docs/architecture/dependency-rules.md",
+    "infra/**",
+    "qualification/**",
+    "tools/analysis/check_bazel_layers.py",
+    "tools/build/**",
+    "tools/dev/bazel-repo-bin/**",
+    "tools/dev/bazelw",
+]
+
+# ---------------------------------------------------------------------------------------
+# Release evidence and security surfaces
+# ---------------------------------------------------------------------------------------
+# These are the files that record a component was allowed to ship. Two approvals with one of
+# them from security, matching the CODEOWNERS entries that pair platform with security on the
+# same paths.
+
+[[owners]]
+team = "security"
+paths = [
+    "security/**",
+    "ci/security/**",
+    "deny.toml",
+    "SECURITY.md",
+    "QUALIFICATION.md",
+    "VALIDATION.md",
+    "components.toml",
+    "maturity.toml",
+]
+
+[review]
+minimum_approvals = 2
+security_approvals = 1
+build_approvals = 1

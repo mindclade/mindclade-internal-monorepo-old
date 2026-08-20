@@ -4,4 +4,6 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# Intentionally no Service: runtime-host binds only a Unix-domain socket shared
+# inside its Pod. Publishing a TCP endpoint would invent a transport the binary
+# neither implements nor secures.

@@ -46,14 +46,33 @@ same Nix derivation
 ## Developer path
 
 ```bash
-nix develop .#default
-bazel test //...
+tools/dev/nixw develop .#default --command tools/dev/bazelw test //...
 
-nix develop .#cuda --command bazel test --config=cuda //tests/...
+tools/dev/nixw develop .#gpu --command tools/dev/bazelw test --config=cuda //tests/...
+
+tools/dev/nixw develop .#default --command mkdocs build -f docs/mkdocs.yml --strict
 ```
 
-This scaffold includes target files and checks; connected CI must populate and
-verify real locks/toolchains before a full build claim.
+`tools/dev/bazelw` is the repository entry point. It selects the version in
+`.bazelversion`, moves execution to the workspace root, and—on Darwin inside a
+Nix shell—passes Nix Clang, physical Clang resource headers, the split Darwin
+compatibility libraries, and the pinned deployment target into rules_cc. It
+also makes repository-rule Xcode discovery see the installed Command Line
+Tools rather than mistaking Nix's SDK bundle for full Xcode. It does not choose
+a configuration or target set.
+
+The committed Bzlmod lock is enforced read-only by `--config=ci`. After an
+intentional module or extension change, regenerate and verify it explicitly:
+
+```bash
+tools/dev/bazelw mod deps --lockfile_mode=update
+tools/dev/bazelw build //... --nobuild --config=ci
+```
+
+Presubmit loads every BUILD file, checks the language-independent dependency
+graph, performs full configured analysis, and runs all non-manual Bazel tests.
+Release and remote-execution claims still require their own platform evidence;
+passing the local/CI graph is not a claim about an unconfigured remote cluster.
 
 ## Go module checksum closure
 

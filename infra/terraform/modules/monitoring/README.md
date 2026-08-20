@@ -49,3 +49,46 @@ dashboard data, test deduplication/escalation, and confirm missing telemetry is
 detected independently. The default 14.4x/5m+1h and 6x/30m+6h burn windows are
 starting contracts, not substitutes for approved business objectives. This
 module is configuration, not evidence that telemetry or response is operational.
+
+<!-- BEGIN_TF_DOCS -->
+## Requirements
+
+| Name | Version |
+| ---- | ------- |
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.9.0, < 2.0.0 |
+| <a name="requirement_google"></a> [google](#requirement\_google) | >= 7.41.0, < 8.0.0 |
+
+## Providers
+
+| Name | Version |
+| ---- | ------- |
+| <a name="provider_google"></a> [google](#provider\_google) | >= 7.41.0, < 8.0.0 |
+
+## Inputs
+
+| Name | Description | Type | Default | Required |
+| ---- | ----------- | ---- | ------- | :------: |
+| <a name="input_alert_auto_close_seconds"></a> [alert\_auto\_close\_seconds](#input\_alert\_auto\_close\_seconds) | Time without data before Monitoring closes a stale incident | `number` | `604800` | no |
+| <a name="input_environment"></a> [environment](#input\_environment) | Deployment environment used in labels and notifications | `string` | n/a | yes |
+| <a name="input_labels"></a> [labels](#input\_labels) | Additional service labels; baseline governance and signal labels take precedence | `map(string)` | `{}` | no |
+| <a name="input_notification_channels"></a> [notification\_channels](#input\_notification\_channels) | Existing Monitoring notification-channel resource names used by every SLO burn alert | `set(string)` | n/a | yes |
+| <a name="input_owner"></a> [owner](#input\_owner) | Team accountable for responding to this service's alerts | `string` | n/a | yes |
+| <a name="input_project_id"></a> [project\_id](#input\_project\_id) | Google Cloud metrics-scope project that owns the service, SLOs, alerts, and dashboard | `string` | n/a | yes |
+| <a name="input_runbook_url"></a> [runbook\_url](#input\_runbook\_url) | HTTPS responder runbook linked from every alert and the service dashboard | `string` | n/a | yes |
+| <a name="input_service_display_name"></a> [service\_display\_name](#input\_service\_display\_name) | Human-readable service name used in Monitoring and notifications | `string` | n/a | yes |
+| <a name="input_service_id"></a> [service\_id](#input\_service\_id) | Stable Cloud Monitoring custom-service ID | `string` | n/a | yes |
+| <a name="input_slos"></a> [slos](#input\_slos) | Request-based SLO contracts and paired fast/slow error-budget burn windows | <pre>map(object({<br/>    display_name         = string<br/>    goal                 = number<br/>    rolling_period_days  = optional(number, 28)<br/>    good_service_filter  = string<br/>    total_service_filter = string<br/>    fast_burn = optional(object({<br/>      threshold      = optional(number, 14.4)<br/>      short_lookback = optional(string, "300s")<br/>      long_lookback  = optional(string, "3600s")<br/>    }), {})<br/>    slow_burn = optional(object({<br/>      threshold      = optional(number, 6)<br/>      short_lookback = optional(string, "1800s")<br/>      long_lookback  = optional(string, "21600s")<br/>    }), {})<br/>  }))</pre> | n/a | yes |
+
+## Outputs
+
+| Name | Description |
+| ---- | ----------- |
+| <a name="output_dashboard_name"></a> [dashboard\_name](#output\_dashboard\_name) | Cloud Monitoring dashboard resource name |
+| <a name="output_fast_burn_alert_policy_names"></a> [fast\_burn\_alert\_policy\_names](#output\_fast\_burn\_alert\_policy\_names) | Fast-burn alert-policy resource names by objective ID |
+| <a name="output_runbook_url"></a> [runbook\_url](#output\_runbook\_url) | Responder runbook linked from the module's alerts and dashboard |
+| <a name="output_service_id"></a> [service\_id](#output\_service\_id) | Cloud Monitoring custom-service ID |
+| <a name="output_service_name"></a> [service\_name](#output\_service\_name) | Fully qualified Cloud Monitoring custom-service resource name |
+| <a name="output_slo_contracts"></a> [slo\_contracts](#output\_slo\_contracts) | Reviewable goals, windows, and burn thresholds without metric-filter payloads |
+| <a name="output_slo_names"></a> [slo\_names](#output\_slo\_names) | Fully qualified Cloud Monitoring SLO resource names by objective ID |
+| <a name="output_slow_burn_alert_policy_names"></a> [slow\_burn\_alert\_policy\_names](#output\_slow\_burn\_alert\_policy\_names) | Sustained-burn alert-policy resource names by objective ID |
+<!-- END_TF_DOCS -->

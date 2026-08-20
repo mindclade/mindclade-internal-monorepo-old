@@ -1,0 +1,10 @@
+---
+steps:
+  - label: ":gpu: qualified GPU targets"
+    key: gpu-qualified
+    command: >-
+      nix develop .#gpu --command tools/dev/bazelw test //...
+      --build_tag_filters=gpu --test_tag_filters=gpu
+    timeout_in_minutes: 240
+    agents:
+      queue: gpu

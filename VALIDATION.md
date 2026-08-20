@@ -32,24 +32,84 @@ boundaries:
 
 A materialized scaffold path is not a production release claim.
 
+## Rust hardening validation (2026-08-20)
+
+The pinned Rust 1.97.1 toolchain, committed lockfile, and `cargo-deny` are
+available in this workspace. The canonical presubmit passes with all workspace
+features and targets enabled:
+
+```text
+cargo fmt --all -- --check                                      PASS
+cargo test --workspace --all-targets --all-features --locked    PASS
+cargo clippy ... -- -D warnings                                 PASS
+cargo test --workspace --doc / cargo doc                        PASS
+Rust format/arithmetic/implementation/Cargo-Bazel static checks PASS
+cargo-deny advisories/bans/licenses/sources                     PASS
+compatibility matrix and 6 executed failure-injection scenarios PASS
+Rust performance policy (8 budgets; 2 portable measurements)    PASS
+```
+
+This hardening pass also replaced placeholder Rust tests with behavioral cases
+and added regression coverage for bounded verified reads, local-store
+conditions and range integrity, gateway and host drain admission, early
+policy-snapshot rejection, IPC permissions/sealing, tool output/timeouts,
+reference-path escape, socket-path preservation, and dead-process cleanup.
+Connected Linux unsafe qualification, Miri/fuzz/sanitizers, provider-backed
+failure injection, the six hardware/provider performance budgets not covered by
+the portable probe, Bazel/Nix release builds, and deployment evidence remain
+promotion blockers.
+
 ## Current inventory
+
+Recounted 2026-08-19 against the working tree. The previous table was the 2026-08-13 snapshot
+and every row in it had drifted; the two rows that had drifted *misleadingly* are called out
+below the table, because a reader checking whether this document is current would have taken
+either as evidence that it was.
 
 | Metric | Count |
 |---|---:|
-| Repository files | 4,974 |
-| Blueprint paths materialized | 4,475 / 4,475 (100%) |
-| Files under `libs/go` | 785 |
-| Go source files under `libs/go` | 586 |
-| Go test files under `libs/go` | 171 |
-| `BUILD.bazel` files under `libs/go` | 92 |
-| Package READMEs under `libs/go` | 92 |
-| Go package directories under `libs/go` | 89 |
-| Files under `libs/rust` | 420 |
-| Rust source files under `libs/rust` | 284 |
-| Rust test sources under `libs/rust` | 66 |
-| Rust crates under `libs/rust` | 30 |
-| Root `go.sum` checksum lines | 36 |
-| Markdown files under `docs/` | 89 |
+| Repository files (tracked) | 5,331 |
+| Blueprint paths materialized | 4,361 / 4,475 (97.5%) |
+| Files under `libs/go` | 767 |
+| Go source files under `libs/go` | 573 |
+| Go test files under `libs/go` | 169 |
+| `BUILD.bazel` files under `libs/go` | 89 |
+| Package READMEs under `libs/go` | 89 |
+| Go package directories under `libs/go` | 86 |
+| Files under `libs/rust` | 407 |
+| Rust source files under `libs/rust` | 294 |
+| Rust crates under `libs/rust` | 24 |
+| Root `go.mod` direct requirements | 18 |
+| Root `go.sum` checksum lines | 438 |
+| Markdown files under `docs/` | 122 |
+| Markdown files, repository-wide | 586 |
+
+Two rows changed meaning rather than magnitude:
+
+- **Blueprint coverage was recorded as 4,475 / 4,475 (100%) and was never true after the Rust
+  consolidation.** It is 97.5%, and `tests/integration/test_blueprint_scaffold.py` has measured
+  the real number all along — the 100% claim came from `BLUEPRINT_COVERAGE.json`, a root
+  snapshot with no generator behind it, which is why that file has been deleted rather than
+  refreshed. Those 114 have since been reconciled in `1a3b46c`: the manifest now names the
+  layout that shipped, so the two in-flight migrations (`training/distributed`,
+  `libs/go/storage/outbox`) and the `.buildkite/` tree this estate does not use are no longer
+  counted as unwritten work. Coverage is above 99%, and what remains is genuinely unwritten --
+  `.github` templates and metadata, plus paths moving under the live `libs/python`
+  restructuring. The per-path breakdown is in that test's baseline comment.
+- **`libs/rust` crate count fell from 30 to 24, which is the consolidation succeeding, not
+  regression.** The seven retired compatibility crates listed in
+  `tools/analysis/check_code_docs_alignment.py` are gone, and that check now fails if any of
+  them reappears.
+
+The `libs/go` counts are lower for a different reason: the outbox package moved to
+`libs/go/coordination/outbox`, which is where `libs/go/LAYERS.md` places it -- Layer 2, beside
+`inbox`, `leadership` and `workqueue`. It imports `retry`, `servicekit` and `storage/lease`, and
+a Layer-1 `storage/` contract root may not, so the manifest had been naming a location the
+layering forbids. The manifest now agrees with the tree.
+
+Root `go.sum` has gone from 36 lines to 438: the transitive graph is now populated rather than
+just the 18 direct requirements. All 18 still carry both their module and `go.mod` checksums,
+which is the invariant `check_code_docs_alignment.py` enforces.
 
 The supplied Go archive was used as the base implementation. The expanded
 foundation adds strict configuration, signed keyset pagination, resource
@@ -72,6 +132,10 @@ Focused production-foundation qualification script                             P
 Runnable outbox-to-broker event dispatcher                                     PASS
 Runnable ingestion leadership/workqueue/cursor/outbox slice                    PASS
 Representative control-plane role manifests                                    PASS
+Bazel loading and language-independent layer graph                              PASS
+Bzlmod lock closure and full configured analysis (975 targets)                  PASS
+Bazel //... test suite (243 non-manual tests, pinned macOS/Nix shell)            PASS
+MkDocs strict site build (pinned Nix toolchain)                                 PASS
 ```
 
 The 111-package inventory is committed at
@@ -134,25 +198,25 @@ stack. Therefore the artifact does **not** claim:
 - full transitive Go module source/`go.sum` closure from the production module mirror (direct requirement checksums are now committed);
 - connected provider qualification against real PostgreSQL, Redis, GCS,
   Pub/Sub, Kubernetes, Connect, gRPC, and OpenTelemetry dependencies;
-- `bazel test //...`, Bzlmod lock closure, Buildifier, or remote execution;
+- connected Linux and remote-execution parity for the locally passing Bazel
+  graph, Bzlmod lock, and test suite;
 - `nix flake check` and local/remote toolchain-manifest parity;
-- compilation, clippy, fuzz, Miri, sanitizer, performance, or connected-provider
-  qualification of the newly implemented Rust runtime foundation and runtime
-  service cores;
+- fuzz, Miri, sanitizer, complete hardware/provider performance, or connected-provider
+  qualification of the Rust runtime foundation and runtime service cores
+  (the canonical presubmit, including cargo-deny and portable probes, now passes);
 - broader Python numerical, TileLang, TypeScript, infrastructure, or full product
   implementation/qualification beyond their explicit local evidence.
 
 Required connected closure:
 
 ```bash
-nix develop .#ci --command go mod tidy
-nix develop .#ci --command go test -race -count=1 ./libs/go/... ./control/... \
+tools/dev/nixw develop .#ci --command go mod tidy
+tools/dev/nixw develop .#ci --command go test -race -count=1 ./libs/go/... ./control/... \
   ./services/control_plane/... ./examples/go/...
-nix develop .#ci --command go vet ./libs/go/... ./control/... \
+tools/dev/nixw develop .#ci --command go vet ./libs/go/... ./control/... \
   ./services/control_plane/... ./examples/go/...
-nix develop .#ci --command bazel test //libs/go/... //control/... \
-  //services/control_plane/... //examples/go/...
-nix flake check
+tools/dev/nixw develop .#ci --command tools/dev/bazelw test //... --config=ci
+tools/dev/nixw flake check
 ```
 
 Provider, security, performance, fault-injection, image, SBOM, provenance, and
@@ -189,5 +253,9 @@ artifact/orchestration/ingestion Go tests   PASS
 foundation_freeze.py                         PASS (offline mode)
 ```
 
-The pinned Rust compiler is not available in this sandbox, and `Cargo.lock` remains an intentionally unresolved connected-lane artifact. Production promotion therefore still requires the repository-owned connected Rust lane to generate and commit the real lock and pass `cargo fmt`, workspace tests, Clippy, docs, cargo-deny, fuzz/Miri, measured performance, and provider-backed failure injection. No local claim substitutes for that evidence.
-
+The 2026-08-20 pass supersedes the historical toolchain limitation above: the
+pinned compiler and committed `Cargo.lock` are now present, and the canonical
+Rust presubmit passes. Production promotion still requires Bazel/Nix release
+qualification, fuzz/Miri/sanitizers, the remaining hardware/provider performance
+measurements, provider-backed failure injection, image/provenance checks, and
+deployment rollback. No local claim substitutes for that evidence.

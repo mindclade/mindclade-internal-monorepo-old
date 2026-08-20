@@ -12,21 +12,29 @@ import argparse
 import re
 from pathlib import Path
 
-GO_IMPORT = re.compile(r'"(mindclade\.internal/[^\"]+)"')
+# Must track go.mod's module directive, and the `rules` prefixes below with it. Left on
+# `mindclade.internal` by the cutover to go.mindclade.dev, this matched nothing, so every rule
+# below forbade nothing and the check reported success on a tree it had not inspected.
+GO_IMPORT = re.compile(r'"(go\.mindclade\.dev/[^\"]+)"')
+
+# Comments are stripped first: a quoted module path in prose is not a dependency, and a doc
+# comment naming a forbidden package would otherwise be reported as importing it. Safe because
+# nothing but the package clause and comments may precede a Go import block.
+GO_COMMENT = re.compile(r"/\*.*?\*/|//[^\n]*", re.S)
 
 
 def check(root: Path):
     e = []
     rules = [
-        ("libs/go", "mindclade.internal/control/"),
-        ("libs/go", "mindclade.internal/services/"),
-        ("control", "mindclade.internal/services/"),
+        ("libs/go", "go.mindclade.dev/control/"),
+        ("libs/go", "go.mindclade.dev/services/"),
+        ("control", "go.mindclade.dev/services/"),
     ]
     for rel, forbidden in rules:
         for p in (root / rel).rglob("*.go"):
             if p.name.endswith("_test.go"):
                 continue
-            for dep in GO_IMPORT.findall(p.read_text(errors="replace")):
+            for dep in GO_IMPORT.findall(GO_COMMENT.sub("", p.read_text(errors="replace"))):
                 if dep.startswith(forbidden):
                     e.append(f"{p.relative_to(root)}: forbidden dependency {dep}")
     for p in (root / "models").rglob("*.py"):

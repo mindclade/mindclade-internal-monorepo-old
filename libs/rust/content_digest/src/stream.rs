@@ -11,7 +11,7 @@ use std::io::{Read, Write};
 
 pub fn hash_reader(mut reader: impl Read) -> FaultResult<Digest> {
     let mut state = Sha256::new();
-    let mut buffer = [0_u8; 64 * 1024];
+    let mut buffer = vec![0_u8; 64 * 1024];
     loop {
         let read = reader
             .read(&mut buffer)
@@ -24,6 +24,7 @@ pub fn hash_reader(mut reader: impl Read) -> FaultResult<Digest> {
 }
 
 /// Writer that returns the digest and byte count of successfully written bytes.
+#[derive(Debug)]
 pub struct DigestingWriter<W> {
     inner: W,
     state: Sha256,
@@ -73,6 +74,7 @@ impl<W: Write> Write for DigestingWriter<W> {
 }
 
 /// Reader that verifies the full byte stream at EOF.
+#[derive(Debug)]
 pub struct VerifyingReader<R> {
     inner: R,
     expected: Digest,

@@ -2,7 +2,7 @@
   "name": "@mindclade/internal-monorepo",
   "version": "0.0.0",
   "private": true,
-  "packageManager": "pnpm@10",
+  "packageManager": "pnpm@11",
   "engines": {
     "node": ">=22"
   },

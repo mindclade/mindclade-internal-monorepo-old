@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"mindclade.internal/libs/go/coordination/cursor"
-	"mindclade.internal/libs/go/coordination/cursor/memory"
+	"go.mindclade.dev/libs/go/coordination/cursor"
+	"go.mindclade.dev/libs/go/coordination/cursor/memory"
 )
 
 func TestStoreCASAndFence(t *testing.T) {

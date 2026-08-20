@@ -38,7 +38,7 @@ impl GarbageCollectionPlan {
         candidates: impl IntoIterator<Item = GarbageCollectionCandidate>,
     ) -> FaultResult<Self> {
         let candidates = canonical_candidates(candidates)?;
-        let plan_digest = compute_plan_digest(&candidates)?;
+        let plan_digest = compute_plan_digest(&candidates);
         Ok(Self {
             plan_digest,
             candidates,
@@ -53,7 +53,7 @@ impl GarbageCollectionPlan {
         candidates: impl IntoIterator<Item = GarbageCollectionCandidate>,
     ) -> FaultResult<Self> {
         let candidates = canonical_candidates(candidates)?;
-        let actual = compute_plan_digest(&candidates)?;
+        let actual = compute_plan_digest(&candidates);
         if actual != plan_digest {
             return Err(Fault::new(
                 Code::FailedPrecondition,
@@ -101,7 +101,7 @@ fn canonical_candidates(
     Ok(canonical)
 }
 
-fn compute_plan_digest(candidates: &[GarbageCollectionCandidate]) -> FaultResult<Digest> {
+fn compute_plan_digest(candidates: &[GarbageCollectionCandidate]) -> Digest {
     let mut payload = Vec::new();
     for candidate in candidates {
         // Go canonical form:
@@ -113,7 +113,7 @@ fn compute_plan_digest(candidates: &[GarbageCollectionCandidate]) -> FaultResult
         payload.extend_from_slice(candidate.expected_version.to_string().as_bytes());
         payload.push(b'\n');
     }
-    Ok(hash_bytes(&payload))
+    hash_bytes(&payload)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -152,7 +152,7 @@ impl SweepReport {
 }
 
 pub fn sweep(store: &dyn ObjectStore, plan: &GarbageCollectionPlan) -> FaultResult<SweepReport> {
-    let expected = compute_plan_digest(&plan.candidates)?;
+    let expected = compute_plan_digest(&plan.candidates);
     if expected != plan.plan_digest {
         return Err(Fault::new(
             Code::FailedPrecondition,

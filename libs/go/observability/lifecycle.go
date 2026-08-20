@@ -13,7 +13,7 @@ import (
 	"sort"
 	"sync"
 
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // LifecycleHook flushes or shuts down one telemetry provider.

@@ -4,17 +4,11 @@
 #
 
 ---
-# Scaffold. Valid, and deliberately empty.
-#
-# The directory, the render-manifest entry, and the ApplicationSet glob all exist and are
-# exercised end to end; only the content is missing. The renderer emits NO directory for a
-# source that lists no resources, so this produces no vacuously-healthy Argo Application in
-# the meantime — the day this kustomization is wired, the directory appears with content and
-# nothing else changes.
-#
-# An EMPTY FILE is not the same thing: kustomize rejects it outright, which fails the whole
-# render rather than this one target.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-
-resources: []
+resources:
+  - deployment.yaml
+  - network-policy.yaml
+  - pod-disruption-budget.yaml
+  - service-account.yaml
+  - service.yaml

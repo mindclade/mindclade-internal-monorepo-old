@@ -44,22 +44,18 @@ impl NodeHealth {
                 self.mark_accounting_corrupt();
                 return false;
             };
-            match self.active.compare_exchange_weak(
-                active,
-                next,
-                Ordering::AcqRel,
-                Ordering::Acquire,
-            ) {
-                Ok(_) => {
-                    if self.accepting.load(Ordering::Acquire)
-                        && self.accounting_healthy.load(Ordering::Acquire)
-                    {
-                        return true;
-                    }
-                    let _ = self.end();
-                    return false;
+            if self
+                .active
+                .compare_exchange_weak(active, next, Ordering::AcqRel, Ordering::Acquire)
+                .is_ok()
+            {
+                if self.accepting.load(Ordering::Acquire)
+                    && self.accounting_healthy.load(Ordering::Acquire)
+                {
+                    return true;
                 }
-                Err(_) => continue,
+                let _ = self.end();
+                return false;
             }
         }
     }
@@ -71,14 +67,12 @@ impl NodeHealth {
                 self.mark_accounting_corrupt();
                 return false;
             };
-            match self.active.compare_exchange_weak(
-                active,
-                next,
-                Ordering::AcqRel,
-                Ordering::Acquire,
-            ) {
-                Ok(_) => return true,
-                Err(_) => continue,
+            if self
+                .active
+                .compare_exchange_weak(active, next, Ordering::AcqRel, Ordering::Acquire)
+                .is_ok()
+            {
+                return true;
             }
         }
     }

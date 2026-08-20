@@ -4,18 +4,42 @@
 #
 
 load("@rules_go//go:def.bzl", "go_library", "go_test")
+
 package(default_visibility = ["//visibility:public"])
 
 go_library(
     name = "middleware",
-    srcs = ["access.go", "authentication.go", "authorization.go", "body.go", "chain.go", "doc.go","internal.go", "recovery.go", "requestmeta.go", "security.go", "stack.go", "writer.go"],
-    importpath = "mindclade.internal/libs/go/httpx/middleware",
-    deps = ["//libs/go/auth", "//libs/go/faults", "//libs/go/httpx", "//libs/go/requestmeta"],
+    srcs = [
+        "access.go",
+        "authentication.go",
+        "authorization.go",
+        "body.go",
+        "chain.go",
+        "doc.go",
+        "internal.go",
+        "recovery.go",
+        "requestmeta.go",
+        "security.go",
+        "stack.go",
+        "writer.go",
+    ],
+    importpath = "go.mindclade.dev/libs/go/httpx/middleware",
+    deps = [
+        "//libs/go/auth",
+        "//libs/go/faults",
+        "//libs/go/httpx",
+        "//libs/go/requestmeta",
+    ],
 )
 
 go_test(
     name = "middleware_test",
     srcs = ["middleware_test.go"],
     embed = [":middleware"],
-    deps = ["//libs/go/auth", "//libs/go/faults", "//libs/go/httpx", "//libs/go/requestmeta"],
+    deps = [
+        "//libs/go/auth",
+        "//libs/go/faults",
+        "//libs/go/httpx",
+        "//libs/go/requestmeta",
+    ],
 )

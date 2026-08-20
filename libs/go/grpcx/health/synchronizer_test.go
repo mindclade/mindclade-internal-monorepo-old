@@ -7,9 +7,9 @@ package health
 
 import (
 	"context"
+	"go.mindclade.dev/libs/go/servicekit"
 	"google.golang.org/grpc"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-	"mindclade.internal/libs/go/servicekit"
 	"testing"
 	"time"
 )

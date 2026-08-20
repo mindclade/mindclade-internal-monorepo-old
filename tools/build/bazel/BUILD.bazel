@@ -5,8 +5,16 @@
 
 package(default_visibility = ["//visibility:private"])
 
+exports_files(
+    ["layers.bzl"],
+    visibility = ["//visibility:public"],
+)
+
 filegroup(
     name = "scaffold_files",
-    srcs = glob(["**"], exclude = ["BUILD.bazel"]),
+    srcs = glob(
+        ["**"],
+        exclude = ["BUILD.bazel"],
+    ),
     visibility = ["//visibility:public"],
 )

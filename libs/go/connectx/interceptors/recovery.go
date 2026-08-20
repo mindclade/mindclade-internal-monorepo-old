@@ -13,8 +13,8 @@ import (
 
 	"connectrpc.com/connect"
 
-	"mindclade.internal/libs/go/connectx"
-	"mindclade.internal/libs/go/faults"
+	"go.mindclade.dev/libs/go/connectx"
+	"go.mindclade.dev/libs/go/faults"
 )
 
 // Recovery contains handler panics and returns a generic internal error. The

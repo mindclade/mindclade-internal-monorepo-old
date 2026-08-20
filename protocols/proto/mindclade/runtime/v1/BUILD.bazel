@@ -3,12 +3,108 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-package(default_visibility=["//visibility:public"])
-proto_library(name="artifact_grant_proto",srcs=["artifact_grant.proto"])
-proto_library(name="execution_budget_proto",srcs=["execution_budget.proto"])
-proto_library(name="execution_ticket_proto",srcs=["execution_ticket.proto"],deps=[":artifact_grant_proto",":execution_budget_proto"])
-proto_library(name="buffer_descriptor_proto",srcs=["buffer_descriptor.proto"])
-proto_library(name="route_snapshot_proto",srcs=["route_snapshot.proto"],deps=[":artifact_grant_proto"])
-proto_library(name="worker_command_proto",srcs=["worker_command.proto"],deps=[":buffer_descriptor_proto",":execution_ticket_proto"])
-proto_library(name="worker_status_proto",srcs=["worker_status.proto"],deps=[":buffer_descriptor_proto"])
-proto_library(name="service_proto",srcs=["service.proto"],deps=[":route_snapshot_proto",":worker_command_proto",":worker_status_proto"])
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@protobuf//bazel:py_proto_library.bzl", "py_proto_library")
+load("@rules_python//python:defs.bzl", "py_test")
+
+package(default_visibility = ["//visibility:public"])
+
+proto_library(
+    name = "artifact_grant_proto",
+    srcs = ["artifact_grant.proto"],
+    strip_import_prefix = "/protocols/proto",
+)
+
+filegroup(
+    name = "cargo_proto_sources",
+    srcs = glob(["*.proto"]),
+)
+
+proto_library(
+    name = "execution_budget_proto",
+    srcs = ["execution_budget.proto"],
+    strip_import_prefix = "/protocols/proto",
+)
+
+proto_library(
+    name = "execution_ticket_proto",
+    srcs = ["execution_ticket.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = [
+        ":artifact_grant_proto",
+        ":execution_budget_proto",
+    ],
+)
+
+proto_library(
+    name = "buffer_descriptor_proto",
+    srcs = ["buffer_descriptor.proto"],
+    strip_import_prefix = "/protocols/proto",
+)
+
+proto_library(
+    name = "route_snapshot_proto",
+    srcs = ["route_snapshot.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = [":artifact_grant_proto"],
+)
+
+proto_library(
+    name = "worker_command_proto",
+    srcs = ["worker_command.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = [
+        ":buffer_descriptor_proto",
+        ":execution_ticket_proto",
+    ],
+)
+
+proto_library(
+    name = "worker_status_proto",
+    srcs = ["worker_status.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = [":buffer_descriptor_proto"],
+)
+
+# Python model workers consume the exact same generated wire types as the Rust
+# runtime. Generation remains a Bazel action rather than checked-in output;
+# protoc 35 explicitly marks its Python output as non-vendored gencode.
+py_proto_library(
+    name = "runtime_worker_py_pb2",
+    deps = [
+        ":worker_command_proto",
+        ":worker_status_proto",
+    ],
+)
+
+py_test(
+    name = "python_runtime_worker_golden_test",
+    srcs = ["python_runtime_worker_golden_test.py"],
+    legacy_create_init = False,
+    main = "python_runtime_worker_golden_test.py",
+    deps = [":runtime_worker_py_pb2"],
+)
+
+proto_library(
+    name = "service_proto",
+    srcs = ["service.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = [
+        ":execution_ticket_proto",
+        ":route_snapshot_proto",
+        ":worker_command_proto",
+        ":worker_status_proto",
+    ],
+)
+
+proto_library(
+    name = "execution_service_proto",
+    srcs = ["execution_service.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = [
+        ":buffer_descriptor_proto",
+        ":execution_ticket_proto",
+        ":service_proto",
+        ":worker_status_proto",
+    ],
+)

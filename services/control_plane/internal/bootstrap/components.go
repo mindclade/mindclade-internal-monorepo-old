@@ -6,9 +6,9 @@
 package bootstrap
 
 import (
-	"mindclade.internal/libs/go/faults"
-	"mindclade.internal/libs/go/servicekit"
-	"mindclade.internal/libs/go/servicekit/production"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/servicekit"
+	"go.mindclade.dev/libs/go/servicekit/production"
 )
 
 // Mechanism binds one lifecycle-owning production capability to its canonical

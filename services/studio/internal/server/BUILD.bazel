@@ -1,0 +1,44 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//services/studio:__subpackages__"])
+
+go_library(
+    name = "server",
+    srcs = [
+        "health.go",
+        "ids.go",
+        "server.go",
+    ],
+    importpath = "go.mindclade.dev/services/studio/internal/server",
+    deps = [
+        "//libs/go/httpx/health",
+        "//libs/go/identifiers",
+        "//libs/go/servicekit",
+        "//services/studio/internal/handoff",
+        "//services/studio/internal/httpx",
+        "//services/studio/internal/iap",
+        "//services/studio/internal/metrics",
+        "//services/studio/internal/runlog",
+        "//services/studio/internal/session",
+        "//services/studio/internal/stream",
+    ],
+)
+
+go_test(
+    name = "server_test",
+    srcs = [
+        "health_test.go",
+        "metrics_test.go",
+        "server_test.go",
+    ],
+    embed = [":server"],
+    deps = [
+        "//libs/go/observability",
+        "@com_github_lib_pq//:pq",
+    ],
+)
