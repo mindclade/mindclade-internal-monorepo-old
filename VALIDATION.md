@@ -63,18 +63,22 @@ Two rows changed meaning rather than magnitude:
   consolidation.** It is 97.5%, and `tests/integration/test_blueprint_scaffold.py` has measured
   the real number all along — the 100% claim came from `BLUEPRINT_COVERAGE.json`, a root
   snapshot with no generator behind it, which is why that file has been deleted rather than
-  refreshed. Of the 114 unmaterialized paths, 75 are two in-flight migrations the manifest has
-  not caught up with (`training/distributed`, `libs/go/storage/outbox`), 23 are a `.buildkite/`
-  pipeline tree this estate does not use, and the rest are `.github` templates and two
-  Kubernetes manifests. The per-path breakdown is in that test's baseline comment.
+  refreshed. Those 114 have since been reconciled in `1a3b46c`: the manifest now names the
+  layout that shipped, so the two in-flight migrations (`training/distributed`,
+  `libs/go/storage/outbox`) and the `.buildkite/` tree this estate does not use are no longer
+  counted as unwritten work. Coverage is above 99%, and what remains is genuinely unwritten --
+  `.github` templates and metadata, plus paths moving under the live `libs/python`
+  restructuring. The per-path breakdown is in that test's baseline comment.
 - **`libs/rust` crate count fell from 30 to 24, which is the consolidation succeeding, not
   regression.** The seven retired compatibility crates listed in
   `tools/analysis/check_code_docs_alignment.py` are gone, and that check now fails if any of
   them reappears.
 
 The `libs/go` counts are lower for a different reason: the outbox package moved to
-`libs/go/coordination/outbox`, where the blueprint manifest still names it
-`libs/go/storage/outbox`. The files exist and are still counted in the repository total.
+`libs/go/coordination/outbox`, which is where `libs/go/LAYERS.md` places it -- Layer 2, beside
+`inbox`, `leadership` and `workqueue`. It imports `retry`, `servicekit` and `storage/lease`, and
+a Layer-1 `storage/` contract root may not, so the manifest had been naming a location the
+layering forbids. The manifest now agrees with the tree.
 
 Root `go.sum` has gone from 36 lines to 438: the transitive graph is now populated rather than
 just the 18 direct requirements. All 18 still carry both their module and `go.mod` checksums,
