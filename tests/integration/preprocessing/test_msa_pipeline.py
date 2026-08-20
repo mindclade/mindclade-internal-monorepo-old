@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/integration/preprocessing/test_msa_pipeline.py."""
 
-
 import pytest
 
 

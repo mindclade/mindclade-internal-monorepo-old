@@ -5,7 +5,6 @@
 
 """Scaffold test for data/quality/tests/test_integrity.py."""
 
-
 import pytest
 
 

@@ -5,7 +5,6 @@
 
 """Scaffold test for training/runtime/resilience/tests/test_resilience.py."""
 
-
 import pytest
 
 

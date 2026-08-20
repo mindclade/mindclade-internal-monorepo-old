@@ -37,7 +37,7 @@ def fixture(root: Path, *, wildcard: str, sans: str) -> None:
     tfvars = root / alignment.TFVARS
     tfvars.parent.mkdir(parents=True, exist_ok=True)
     tfvars.write_text(
-        "project_id = \"example\"\n"
+        'project_id = "example"\n'
         "domains = {\n"
         "  studio = {\n"
         '    dns_name    = "example.studio."\n'

@@ -140,7 +140,15 @@ def _load_verified_bundle(root: Path, expected_digest: str) -> dict[str, torch.T
         raise ValueError("reference manifest is not valid UTF-8 JSON") from error
     if not isinstance(manifest, dict):
         raise ValueError("reference manifest must be a JSON object")
-    required = {"schema_version", "media_type", "logical_kind", "name", "digest", "size_bytes", "members"}
+    required = {
+        "schema_version",
+        "media_type",
+        "logical_kind",
+        "name",
+        "digest",
+        "size_bytes",
+        "members",
+    }
     if set(manifest) != required:
         raise ValueError("reference manifest fields do not match schema v1")
     if (
@@ -161,11 +169,23 @@ def _load_verified_bundle(root: Path, expected_digest: str) -> dict[str, torch.T
     for member in members:
         if not isinstance(member, dict):
             raise ValueError("reference manifest member must be an object")
-        member_required = {"path", "digest", "size_bytes", "media_type", "logical_kind", "schema_version"}
+        member_required = {
+            "path",
+            "digest",
+            "size_bytes",
+            "media_type",
+            "logical_kind",
+            "schema_version",
+        }
         if set(member) != member_required or member["schema_version"] != 1:
             raise ValueError("reference manifest member fields do not match schema v1")
         relative = member["path"]
-        if not isinstance(relative, str) or not relative or Path(relative).is_absolute() or ".." in Path(relative).parts:
+        if (
+            not isinstance(relative, str)
+            or not relative
+            or Path(relative).is_absolute()
+            or ".." in Path(relative).parts
+        ):
             raise ValueError("reference manifest member path is unsafe")
         path = root / relative
         file_stat = _regular_file(path)
@@ -199,7 +219,11 @@ def _validate_request(request: ReferenceRequest, config: ReferenceEngineConfig) 
     input_descriptor = request.input
     if input_descriptor.element_type not in {"f32", "float32"}:
         raise ValueError("reference input element type must be f32")
-    if not input_descriptor.shape or len(input_descriptor.shape) > 16 or any(dimension <= 0 for dimension in input_descriptor.shape):
+    if (
+        not input_descriptor.shape
+        or len(input_descriptor.shape) > 16
+        or any(dimension <= 0 for dimension in input_descriptor.shape)
+    ):
         raise ValueError("reference input shape is outside bounds")
     elements = 1
     for dimension in input_descriptor.shape:
@@ -238,12 +262,17 @@ def _read_verified_input(
         payload = os.pread(descriptor_fd, descriptor.length_bytes, descriptor.offset_bytes)
     finally:
         os.close(descriptor_fd)
-    if len(payload) != descriptor.length_bytes or _sha256_bytes(payload) != descriptor.content_digest:
+    if (
+        len(payload) != descriptor.length_bytes
+        or _sha256_bytes(payload) != descriptor.content_digest
+    ):
         raise ValueError("reference input content digest mismatch")
     return payload
 
 
-def _publish_output(request: ReferenceRequest, payload: bytes, output_root: Path) -> ReferenceOutput:
+def _publish_output(
+    request: ReferenceRequest, payload: bytes, output_root: Path
+) -> ReferenceOutput:
     stem = hashlib.sha256(request.request_id.encode()).hexdigest()
     target = output_root / f"{stem}.f32"
     descriptor_fd, temporary_name = tempfile.mkstemp(prefix=f".{stem}.", dir=output_root)

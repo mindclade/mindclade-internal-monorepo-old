@@ -69,7 +69,7 @@ def internal_deps(path: Path, language: str) -> set[str]:
         if manifest.exists():
             data = json.loads(manifest.read_text(errors="replace"))
             for section in ("dependencies", "devDependencies", "peerDependencies"):
-                for name in (data.get(section) or {}):
+                for name in data.get(section) or {}:
                     if name.startswith("@mindclade/"):
                         deps.add(name)
     return deps

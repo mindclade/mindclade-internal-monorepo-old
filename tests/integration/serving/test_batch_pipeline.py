@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/integration/serving/test_batch_pipeline.py."""
 
-
 import pytest
 
 

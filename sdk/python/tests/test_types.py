@@ -5,7 +5,6 @@
 
 """Scaffold test for sdk/python/tests/test_types.py."""
 
-
 import pytest
 
 

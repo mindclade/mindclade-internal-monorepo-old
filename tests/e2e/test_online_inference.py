@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/e2e/test_online_inference.py."""
 
-
 import pytest
 
 

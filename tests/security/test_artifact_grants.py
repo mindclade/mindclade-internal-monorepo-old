@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/security/test_artifact_grants.py."""
 
-
 import pytest
 
 

@@ -5,7 +5,6 @@
 
 """Scaffold test for evaluation/harness/tests/test_runner.py."""
 
-
 import pytest
 
 

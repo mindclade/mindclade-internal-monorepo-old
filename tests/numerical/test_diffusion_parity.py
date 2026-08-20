@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/numerical/test_diffusion_parity.py."""
 
-
 import pytest
 
 

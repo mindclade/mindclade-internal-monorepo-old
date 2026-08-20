@@ -5,7 +5,6 @@
 
 """Scaffold test for data/tokenizers/tests/test_tokenizers.py."""
 
-
 import pytest
 
 

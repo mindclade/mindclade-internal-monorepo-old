@@ -51,7 +51,11 @@ def write_safetensors(path: Path) -> None:
     offset = 0
     for name in TENSORS:
         length = VALUES * ITEM_SIZE
-        header[name] = {"dtype": "F32", "shape": [VALUES], "data_offsets": [offset, offset + length]}
+        header[name] = {
+            "dtype": "F32",
+            "shape": [VALUES],
+            "data_offsets": [offset, offset + length],
+        }
         offset += length
 
     # __metadata__ is where safetensors permits free-form strings. Saying so in the file itself
@@ -74,7 +78,9 @@ def write_safetensors(path: Path) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out", type=Path, required=True, help="directory to write the staged bundle into")
+    ap.add_argument(
+        "--out", type=Path, required=True, help="directory to write the staged bundle into"
+    )
     args = ap.parse_args()
 
     staging = args.out.parent / (args.out.name + ".checkpoint")

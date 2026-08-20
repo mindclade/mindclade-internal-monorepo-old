@@ -5,7 +5,6 @@
 
 """Scaffold test for evaluation/reporting/tests/test_reporting.py."""
 
-
 import pytest
 
 

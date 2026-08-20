@@ -140,17 +140,13 @@ def test_verify_digest_rejects_an_unsealed_descriptor() -> None:
 
 
 def test_validation_rejects_reserved_delimiters_in_capabilities() -> None:
-    smuggled = dataclasses.replace(
-        unsealed_descriptor(), capabilities=("structure|forged",)
-    )
+    smuggled = dataclasses.replace(unsealed_descriptor(), capabilities=("structure|forged",))
     with pytest.raises(ValueError, match="reserved delimiter"):
         smuggled.validate()
 
 
 def test_validation_rejects_unsorted_capabilities() -> None:
-    unsorted = dataclasses.replace(
-        unsealed_descriptor(), capabilities=("structure", "msa")
-    )
+    unsorted = dataclasses.replace(unsealed_descriptor(), capabilities=("structure", "msa"))
     with pytest.raises(ValueError, match="sorted and unique"):
         unsorted.validate()
 

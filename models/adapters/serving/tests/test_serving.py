@@ -5,7 +5,6 @@
 
 """Scaffold test for models/adapters/serving/tests/test_serving.py."""
 
-
 import pytest
 
 

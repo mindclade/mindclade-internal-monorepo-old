@@ -5,7 +5,6 @@
 
 """Scaffold test for training/distributed/tests/test_mesh.py."""
 
-
 import pytest
 
 

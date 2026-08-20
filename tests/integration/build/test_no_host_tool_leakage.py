@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/integration/build/test_no_host_tool_leakage.py."""
 
-
 import pytest
 
 

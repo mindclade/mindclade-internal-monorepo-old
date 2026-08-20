@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/integration/control/test_control_plane.py."""
 
-
 import pytest
 
 

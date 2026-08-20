@@ -34,7 +34,7 @@ sys.dont_write_bytecode = True
 HERE = Path(__file__).resolve().parent
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
-import go_import_graph as graphs
+import go_import_graph as graphs  # noqa: E402  (path is established immediately above)
 
 CONSUMPTION_PATH = "services/control_plane/internal/bootstrap/consumption.json"
 WAIVER_PATH = "libs/go/UNCONSUMED.toml"

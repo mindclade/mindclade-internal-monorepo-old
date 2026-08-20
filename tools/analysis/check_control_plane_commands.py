@@ -36,7 +36,7 @@ sys.dont_write_bytecode = True
 HERE = Path(__file__).resolve().parent
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
-import go_import_graph as graphs
+import go_import_graph as graphs  # noqa: E402  (path is established immediately above)
 
 COMMAND_ROOT = "services/control_plane/cmd"
 PROFILE_PATH = "services/control_plane/internal/bootstrap/profile.go"

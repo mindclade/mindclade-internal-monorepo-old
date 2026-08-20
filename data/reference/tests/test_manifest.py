@@ -5,7 +5,6 @@
 
 """Scaffold test for data/reference/tests/test_manifest.py."""
 
-
 import pytest
 
 

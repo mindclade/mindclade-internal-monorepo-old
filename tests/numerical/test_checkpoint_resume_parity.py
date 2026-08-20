@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/numerical/test_checkpoint_resume_parity.py."""
 
-
 import pytest
 
 

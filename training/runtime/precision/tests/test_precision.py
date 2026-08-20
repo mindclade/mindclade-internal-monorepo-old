@@ -5,7 +5,6 @@
 
 """Scaffold test for training/runtime/precision/tests/test_precision.py."""
 
-
 import pytest
 
 

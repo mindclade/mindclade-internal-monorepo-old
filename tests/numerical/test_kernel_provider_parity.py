@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/numerical/test_kernel_provider_parity.py."""
 
-
 import pytest
 
 

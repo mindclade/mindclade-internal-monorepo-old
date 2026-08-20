@@ -5,7 +5,6 @@
 
 """Scaffold test for preprocessing/biology/templates/tests/test_selection.py."""
 
-
 import pytest
 
 

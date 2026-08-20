@@ -5,7 +5,6 @@
 
 """Scaffold test for kernels/qualification/tests/test_qualification.py."""
 
-
 import pytest
 
 

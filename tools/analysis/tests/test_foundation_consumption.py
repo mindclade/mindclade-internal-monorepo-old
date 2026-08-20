@@ -54,7 +54,7 @@ def module_fixture(root: Path) -> None:
     )
     write(root, "libs/go/storage/blob/gcs/store.go", 'package gcs\n\nconst Name = "gcs"\n')
     write(root, "libs/go/kubernetes/client/client.go", "package client\n")
-    write(root, "services/control_plane/internal/bootstrap/profile.go", 'package bootstrap\n')
+    write(root, "services/control_plane/internal/bootstrap/profile.go", "package bootstrap\n")
 
 
 def test_import_graph_ignores_comments_and_test_files() -> None:
@@ -65,7 +65,7 @@ def test_import_graph_ignores_comments_and_test_files() -> None:
             root,
             "app/app.go",
             "// See example.test/libs/go/decoy for background.\n"
-            'package app\n\nimport (\n\t// example.test/libs/go/other is not an edge\n'
+            "package app\n\nimport (\n\t// example.test/libs/go/other is not an edge\n"
             '\t"example.test/libs/go/real"\n)\n',
         )
         write(root, "app/app_test.go", 'package app\n\nimport "example.test/libs/go/testonly"\n')
@@ -117,7 +117,7 @@ def test_drift_is_reported_in_both_directions() -> None:
             "services/control_plane/internal/bootstrap/profile.go",
             'package bootstrap\n\nconst RoleRegistry Role = "registry"\n',
         )
-        write(root, "libs/go/UNCONSUMED.toml", 'packages = []\n')
+        write(root, "libs/go/UNCONSUMED.toml", "packages = []\n")
         write(
             root,
             consumption.CONSUMPTION_PATH,
@@ -141,8 +141,7 @@ def test_orphan_requires_a_waiver_and_a_stale_waiver_is_rejected() -> None:
 
         write(root, "libs/go/UNCONSUMED.toml", "schema_version = 1\n")
         assert any(
-            "libs/go/kubernetes/client: no in-module importer" in e
-            for e in consumption.check(root)
+            "libs/go/kubernetes/client: no in-module importer" in e for e in consumption.check(root)
         )
 
         write(

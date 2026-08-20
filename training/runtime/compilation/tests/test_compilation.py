@@ -5,7 +5,6 @@
 
 """Scaffold test for training/runtime/compilation/tests/test_compilation.py."""
 
-
 import pytest
 
 

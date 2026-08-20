@@ -5,7 +5,6 @@
 
 """Scaffold test for models/components/attention/tests/test_attention.py."""
 
-
 import pytest
 
 

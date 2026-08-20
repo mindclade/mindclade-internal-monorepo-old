@@ -5,7 +5,6 @@
 
 """Scaffold test for training/runtime/callbacks/tests/test_callbacks.py."""
 
-
 import pytest
 
 

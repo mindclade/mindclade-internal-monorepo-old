@@ -5,7 +5,6 @@
 
 """Scaffold test for models/components/embeddings/tests/test_embeddings.py."""
 
-
 import pytest
 
 

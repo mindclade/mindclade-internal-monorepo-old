@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/numerical/test_world_size_change_parity.py."""
 
-
 import pytest
 
 

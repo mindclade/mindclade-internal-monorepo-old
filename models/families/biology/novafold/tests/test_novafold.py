@@ -5,7 +5,6 @@
 
 """Scaffold test for models/families/biology/novafold/tests/test_novafold.py."""
 
-
 import pytest
 
 

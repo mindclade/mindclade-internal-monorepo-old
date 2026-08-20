@@ -5,7 +5,6 @@
 
 """Scaffold test for training/distributed/moe/tests/test_moe.py."""
 
-
 import pytest
 
 

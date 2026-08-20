@@ -5,7 +5,6 @@
 
 """Scaffold test for preprocessing/chemistry/tests/test_canonicalize.py."""
 
-
 import pytest
 
 

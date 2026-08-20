@@ -2,6 +2,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
 
 """Normalize Bazel JSON Build Event Protocol metrics into JSON and Markdown evidence."""
 

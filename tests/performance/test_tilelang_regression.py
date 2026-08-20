@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/performance/test_tilelang_regression.py."""
 
-
 import pytest
 
 

@@ -73,6 +73,7 @@ SKIP_DIRS = frozenset(
     {
         ".claude",
         ".git",
+        ".generated",
         ".mypy_cache",
         ".pytest_cache",
         ".ruff_cache",
@@ -86,6 +87,7 @@ SKIP_DIRS = frozenset(
 # relative to the repository root. Each one is a file nobody in this repository authored.
 SKIP_PREFIXES: tuple[str, ...] = (
     "docs/blueprint/",
+    "infra/gitops/vendor/",
     "research/notebooks/",
 )
 
@@ -94,6 +96,7 @@ SKIP_PREFIXES: tuple[str, ...] = (
 SKIP_SUFFIXES: tuple[str, ...] = (
     ".lock",
     ".lock.hcl",
+    ".lock.yaml",
     "MODULE.bazel.lock",
     "Cargo.lock",
     "pnpm-lock.yaml",

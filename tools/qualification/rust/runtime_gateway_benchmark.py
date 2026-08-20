@@ -88,7 +88,7 @@ def measure_gateway(
     if parsed.query or parsed.fragment or parsed.username or parsed.password:
         raise ValueError("gateway URL contains unsupported components")
     base_path = parsed.path.rstrip("/")
-    path = f"{base_path}/v1/runtime/resolve" or "/v1/runtime/resolve"
+    path = f"{base_path}/v1/runtime/resolve"
 
     connection = _connection(parsed)
     try:

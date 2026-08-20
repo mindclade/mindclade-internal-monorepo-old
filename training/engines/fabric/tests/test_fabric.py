@@ -5,7 +5,6 @@
 
 """Scaffold test for training/engines/fabric/tests/test_fabric.py."""
 
-
 import pytest
 
 

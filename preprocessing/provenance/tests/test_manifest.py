@@ -5,7 +5,6 @@
 
 """Scaffold test for preprocessing/provenance/tests/test_manifest.py."""
 
-
 import pytest
 
 

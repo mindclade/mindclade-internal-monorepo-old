@@ -5,7 +5,6 @@
 
 """Scaffold test for training/runtime/rollouts/tests/test_rollouts.py."""
 
-
 import pytest
 
 

@@ -5,7 +5,6 @@
 
 """Scaffold test for models/families/diffusion/tests/test_diffusion.py."""
 
-
 import pytest
 
 

@@ -24,11 +24,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from build_model_bundle import build, collect, validate_safetensors
 
 
-def write_safetensors(path: Path, tensors: dict | None = None, payload: bytes = b"\x00" * 16) -> Path:
+def write_safetensors(
+    path: Path, tensors: dict | None = None, payload: bytes = b"\x00" * 16
+) -> Path:
     """Write a minimal valid safetensors file, without importing safetensors."""
-    header = tensors if tensors is not None else {
-        "weight": {"dtype": "F32", "shape": [2, 2], "data_offsets": [0, 16]}
-    }
+    header = (
+        tensors
+        if tensors is not None
+        else {"weight": {"dtype": "F32", "shape": [2, 2], "data_offsets": [0, 16]}}
+    )
     blob = json.dumps(header).encode()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(struct.pack("<Q", len(blob)) + blob + payload)
@@ -57,7 +61,13 @@ def test_builds_a_manifest_with_artifactref_fields(checkpoint: Path, tmp_path: P
     # Field names must match protocols/proto/mindclade/artifact/v1/artifact.proto. A manifest
     # that renamed them would still validate as JSON and would silently not be an ArtifactRef.
     for member in manifest["members"]:
-        assert set(member) >= {"digest", "size_bytes", "media_type", "logical_kind", "schema_version"}
+        assert set(member) >= {
+            "digest",
+            "size_bytes",
+            "media_type",
+            "logical_kind",
+            "schema_version",
+        }
         assert member["digest"].startswith("sha256:")
         assert member["size_bytes"] > 0
 

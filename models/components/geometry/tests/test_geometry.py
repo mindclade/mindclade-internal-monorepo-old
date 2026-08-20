@@ -5,7 +5,6 @@
 
 """Scaffold test for models/components/geometry/tests/test_geometry.py."""
 
-
 import pytest
 
 

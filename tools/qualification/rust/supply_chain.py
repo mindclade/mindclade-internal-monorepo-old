@@ -51,9 +51,11 @@ def validate_dependency(
 ) -> list[str]:
     label = f"{manifest_path.relative_to(ROOT)}: {name}"
     if isinstance(value, str):
-        return [] if value.startswith("=") and "*" not in value else [
-            f"{label}: external dependency must be exactly pinned"
-        ]
+        return (
+            []
+            if value.startswith("=") and "*" not in value
+            else [f"{label}: external dependency must be exactly pinned"]
+        )
     if not isinstance(value, dict):
         return [f"{label}: dependency declaration is invalid"]
     if value.get("git"):

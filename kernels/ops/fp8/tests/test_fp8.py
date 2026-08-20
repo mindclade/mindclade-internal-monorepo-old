@@ -5,7 +5,6 @@
 
 """Scaffold test for kernels/ops/fp8/tests/test_fp8.py."""
 
-
 import pytest
 
 

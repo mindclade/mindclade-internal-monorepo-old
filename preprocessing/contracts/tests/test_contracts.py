@@ -5,7 +5,6 @@
 
 """Scaffold test for preprocessing/contracts/tests/test_contracts.py."""
 
-
 import pytest
 
 

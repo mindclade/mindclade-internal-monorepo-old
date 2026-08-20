@@ -5,7 +5,6 @@
 
 """Scaffold test for models/components/losses/tests/test_losses.py."""
 
-
 import pytest
 
 

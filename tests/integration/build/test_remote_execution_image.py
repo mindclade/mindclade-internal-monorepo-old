@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/integration/build/test_remote_execution_image.py."""
 
-
 import pytest
 
 

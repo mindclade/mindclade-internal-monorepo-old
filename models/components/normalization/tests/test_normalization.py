@@ -5,7 +5,6 @@
 
 """Scaffold test for models/components/normalization/tests/test_normalization.py."""
 
-
 import pytest
 
 

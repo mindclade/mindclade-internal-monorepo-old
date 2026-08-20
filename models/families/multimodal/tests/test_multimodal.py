@@ -5,7 +5,6 @@
 
 """Scaffold test for models/families/multimodal/tests/test_multimodal.py."""
 
-
 import pytest
 
 

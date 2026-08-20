@@ -5,7 +5,6 @@
 
 """Scaffold test for preprocessing/pipeline/tests/test_planner.py."""
 
-
 import pytest
 
 

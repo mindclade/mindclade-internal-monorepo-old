@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/scale/test_preprocessing_fanout.py."""
 
-
 import pytest
 
 

@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/scale/test_serving_scale.py."""
 
-
 import pytest
 
 

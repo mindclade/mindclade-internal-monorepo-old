@@ -5,7 +5,6 @@
 
 """Scaffold test for models/registry/tests/test_registry.py."""
 
-
 import pytest
 
 

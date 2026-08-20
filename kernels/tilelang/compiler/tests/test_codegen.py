@@ -5,7 +5,6 @@
 
 """Scaffold test for kernels/tilelang/compiler/tests/test_codegen.py."""
 
-
 import pytest
 
 

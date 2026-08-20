@@ -5,7 +5,6 @@
 
 """Scaffold test for evaluation/regression/tests/test_regression.py."""
 
-
 import pytest
 
 

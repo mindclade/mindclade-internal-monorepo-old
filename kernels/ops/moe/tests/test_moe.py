@@ -5,7 +5,6 @@
 
 """Scaffold test for kernels/ops/moe/tests/test_moe.py."""
 
-
 import pytest
 
 

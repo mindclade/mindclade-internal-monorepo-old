@@ -5,7 +5,6 @@
 
 """Scaffold test for training/optim/regularization/tests/test_regularization.py."""
 
-
 import pytest
 
 

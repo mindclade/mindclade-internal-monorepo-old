@@ -5,7 +5,6 @@
 
 """Scaffold test for preprocessing/biology/ligands/tests/test_validation.py."""
 
-
 import pytest
 
 

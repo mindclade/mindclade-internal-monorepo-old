@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/integration/control/test_ingestion_state.py."""
 
-
 import pytest
 
 

@@ -5,7 +5,6 @@
 
 """Scaffold test for kernels/api/tests/test_api.py."""
 
-
 import pytest
 
 

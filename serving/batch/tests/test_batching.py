@@ -5,7 +5,6 @@
 
 """Scaffold test for serving/batch/tests/test_batching.py."""
 
-
 import pytest
 
 

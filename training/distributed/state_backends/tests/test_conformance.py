@@ -5,7 +5,6 @@
 
 """Scaffold test for training/distributed/backends/tests/test_backends.py."""
 
-
 import pytest
 
 

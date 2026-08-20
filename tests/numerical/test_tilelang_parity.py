@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/numerical/test_tilelang_parity.py."""
 
-
 import pytest
 
 

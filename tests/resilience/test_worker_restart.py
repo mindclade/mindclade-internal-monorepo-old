@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/resilience/test_worker_restart.py."""
 
-
 import pytest
 
 

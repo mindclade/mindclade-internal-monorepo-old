@@ -7,20 +7,22 @@
 
 from __future__ import annotations
 
-from . import collectives
-from . import transport
-from . import comm_hooks
-from . import gradient_sync
-from . import loss_reduction
-from . import metric_reduction
-from . import diagnostics
+from . import (
+    collectives,
+    comm_hooks,
+    diagnostics,
+    gradient_sync,
+    loss_reduction,
+    metric_reduction,
+    transport,
+)
 
 __all__ = [
     "collectives",
-    "transport",
     "comm_hooks",
+    "diagnostics",
     "gradient_sync",
     "loss_reduction",
     "metric_reduction",
-    "diagnostics",
+    "transport",
 ]

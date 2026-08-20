@@ -5,7 +5,6 @@
 
 """Scaffold test for training/optim/gradient/tests/test_gradient.py."""
 
-
 import pytest
 
 

@@ -5,7 +5,6 @@
 
 """Scaffold test for kernels/tilelang/testing/tests/test_harness.py."""
 
-
 import pytest
 
 

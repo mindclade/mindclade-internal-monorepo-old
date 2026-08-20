@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/integration/control/test_registry_roundtrip.py."""
 
-
 import pytest
 
 

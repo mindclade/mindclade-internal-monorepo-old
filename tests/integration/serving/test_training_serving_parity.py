@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/integration/serving/test_training_serving_parity.py."""
 
-
 import pytest
 
 

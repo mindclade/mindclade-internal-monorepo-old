@@ -5,7 +5,6 @@
 
 """Scaffold test for kernels/ops/fused/tests/test_fused.py."""
 
-
 import pytest
 
 

@@ -5,7 +5,6 @@
 
 """Scaffold test for infra/security/tests/test_weight_access.py."""
 
-
 import pytest
 
 

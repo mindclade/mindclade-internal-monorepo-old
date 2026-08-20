@@ -14,7 +14,6 @@ from pathlib import Path
 
 from build_model_bundle import build
 
-
 MODEL_NAME = "reference-affine-v1"
 
 

@@ -2,6 +2,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
 
 """Validate the on-disk contract consumed by the Nix C/C++ Bzlmod extension."""
 

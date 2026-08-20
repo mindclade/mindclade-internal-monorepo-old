@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/e2e/test_safety_release_gate.py."""
 
-
 import pytest
 
 

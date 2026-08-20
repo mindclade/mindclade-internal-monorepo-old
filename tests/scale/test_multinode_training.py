@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/scale/test_multinode_training.py."""
 
-
 import pytest
 
 

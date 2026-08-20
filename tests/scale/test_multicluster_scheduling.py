@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/scale/test_multicluster_scheduling.py."""
 
-
 import pytest
 
 

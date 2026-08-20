@@ -5,7 +5,6 @@
 
 """Scaffold test for training/distributed/parallelism/tests/test_parallelism.py."""
 
-
 import pytest
 
 

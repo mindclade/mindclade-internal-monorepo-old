@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/integration/data/test_streaming_loader.py."""
 
-
 import pytest
 
 

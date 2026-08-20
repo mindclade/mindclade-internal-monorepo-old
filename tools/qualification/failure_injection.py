@@ -81,8 +81,7 @@ def main() -> int:
             ]
             if len(matches) != 1:
                 print(
-                    f"{scenario['name']}: expected exactly one matching test, "
-                    f"found {len(matches)}"
+                    f"{scenario['name']}: expected exactly one matching test, found {len(matches)}"
                 )
                 return 1
             print(f"failure-injection: {scenario['name']} -> {' '.join(command)}")

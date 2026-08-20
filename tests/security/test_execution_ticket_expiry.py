@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/security/test_execution_ticket_expiry.py."""
 
-
 import pytest
 
 

@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/performance/test_step_time_budget.py."""
 
-
 import pytest
 
 

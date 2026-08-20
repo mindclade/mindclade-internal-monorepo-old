@@ -5,7 +5,6 @@
 
 """Scaffold test for models/reference/tests/test_reference.py."""
 
-
 import pytest
 
 

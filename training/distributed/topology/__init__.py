@@ -7,16 +7,18 @@
 
 from __future__ import annotations
 
-from . import execution_scope
-from . import groups
-from . import mesh
-from . import parallel_dims
-from . import placements
-from . import replica_groups
-from . import ranks
-from . import topology
-from . import validation
-from . import world
+from . import (
+    execution_scope,
+    groups,
+    mesh,
+    parallel_dims,
+    placements,
+    ranks,
+    replica_groups,
+    topology,
+    validation,
+    world,
+)
 
 __all__ = [
     "execution_scope",
@@ -24,10 +26,9 @@ __all__ = [
     "mesh",
     "parallel_dims",
     "placements",
-    "replica_groups",
     "ranks",
+    "replica_groups",
     "topology",
     "validation",
     "world",
 ]
-

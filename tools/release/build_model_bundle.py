@@ -183,7 +183,9 @@ def build(checkpoint: Path, out: Path, name: str, schema_version: int) -> dict:
                     if path.suffix.lower() == ".safetensors"
                     else "application/json"
                 ),
-                "logical_kind": "model.weights" if path.suffix.lower() == ".safetensors" else "model.metadata",
+                "logical_kind": "model.weights"
+                if path.suffix.lower() == ".safetensors"
+                else "model.metadata",
                 "schema_version": schema_version,
             }
         )
@@ -212,7 +214,9 @@ def build(checkpoint: Path, out: Path, name: str, schema_version: int) -> dict:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--checkpoint", type=Path, required=True, help="directory holding the checkpoint")
+    ap.add_argument(
+        "--checkpoint", type=Path, required=True, help="directory holding the checkpoint"
+    )
     ap.add_argument("--out", type=Path, required=True, help="directory to stage the bundle into")
     ap.add_argument("--name", required=True, help="logical model name recorded in the manifest")
     ap.add_argument("--schema-version", type=int, default=1)
@@ -224,7 +228,9 @@ def main() -> int:
         print(f"build_model_bundle: {exc}", file=sys.stderr)
         return 1
 
-    print(f"{manifest['name']} {manifest['digest']} ({len(manifest['members'])} files, {manifest['size_bytes']} bytes)")
+    print(
+        f"{manifest['name']} {manifest['digest']} ({len(manifest['members'])} files, {manifest['size_bytes']} bytes)"
+    )
     return 0
 
 

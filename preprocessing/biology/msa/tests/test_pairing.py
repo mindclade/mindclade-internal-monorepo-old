@@ -5,7 +5,6 @@
 
 """Scaffold test for preprocessing/biology/msa/tests/test_pairing.py."""
 
-
 import pytest
 
 

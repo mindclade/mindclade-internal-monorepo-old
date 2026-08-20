@@ -5,7 +5,6 @@
 
 """Scaffold test for data/datasets/tests/test_resolver.py."""
 
-
 import pytest
 
 

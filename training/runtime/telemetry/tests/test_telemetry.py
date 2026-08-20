@@ -5,7 +5,6 @@
 
 """Scaffold test for training/runtime/telemetry/tests/test_telemetry.py."""
 
-
 import pytest
 
 

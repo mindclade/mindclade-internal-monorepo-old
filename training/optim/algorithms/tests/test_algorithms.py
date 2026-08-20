@@ -5,7 +5,6 @@
 
 """Scaffold test for training/optim/algorithms/tests/test_algorithms.py."""
 
-
 import pytest
 
 

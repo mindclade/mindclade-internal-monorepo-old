@@ -5,7 +5,6 @@
 
 """Scaffold test for serving/testing/tests/test_harness.py."""
 
-
 import pytest
 
 

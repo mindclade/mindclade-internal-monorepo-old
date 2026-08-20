@@ -5,7 +5,6 @@
 
 """Scaffold test for models/adapters/huggingface/tests/test_huggingface.py."""
 
-
 import pytest
 
 

@@ -5,7 +5,6 @@
 
 """Scaffold test for evaluation/metrics/tests/test_metrics.py."""
 
-
 import pytest
 
 

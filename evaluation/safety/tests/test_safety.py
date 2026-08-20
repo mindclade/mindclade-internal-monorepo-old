@@ -5,7 +5,6 @@
 
 """Scaffold test for evaluation/safety/tests/test_safety.py."""
 
-
 import pytest
 
 

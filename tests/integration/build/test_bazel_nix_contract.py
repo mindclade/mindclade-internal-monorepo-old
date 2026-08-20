@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/integration/build/test_bazel_nix_contract.py."""
 
-
 import pytest
 
 

@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/integration/data/test_ingestion_pipeline.py."""
 
-
 import pytest
 
 

@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/resilience/test_control_plane_outage.py."""
 
-
 import pytest
 
 

@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/integration/control/test_routing_snapshots.py."""
 
-
 import pytest
 
 

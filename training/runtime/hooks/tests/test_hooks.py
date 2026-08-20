@@ -5,7 +5,6 @@
 
 """Scaffold test for training/runtime/hooks/tests/test_hooks.py."""
 
-
 import pytest
 
 

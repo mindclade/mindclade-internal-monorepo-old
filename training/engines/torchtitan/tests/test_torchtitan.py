@@ -5,7 +5,6 @@
 
 """Scaffold test for training/engines/torchtitan/tests/test_torchtitan.py."""
 
-
 import pytest
 
 

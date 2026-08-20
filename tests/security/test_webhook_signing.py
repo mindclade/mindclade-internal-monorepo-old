@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/security/test_webhook_signing.py."""
 
-
 import pytest
 
 

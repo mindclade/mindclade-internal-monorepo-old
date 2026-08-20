@@ -5,7 +5,6 @@
 
 """Scaffold test for serving/rollouts/tests/test_rollouts.py."""
 
-
 import pytest
 
 

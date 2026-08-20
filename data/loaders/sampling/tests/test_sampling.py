@@ -5,7 +5,6 @@
 
 """Scaffold test for data/loaders/sampling/tests/test_sampling.py."""
 
-
 import pytest
 
 

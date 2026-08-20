@@ -5,7 +5,6 @@
 
 """Scaffold test for data/curation/tests/test_deduplication.py."""
 
-
 import pytest
 
 

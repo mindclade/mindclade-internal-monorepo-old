@@ -5,7 +5,6 @@
 
 """Scaffold test for preprocessing/biology/entities/tests/test_canonicalize.py."""
 
-
 import pytest
 
 

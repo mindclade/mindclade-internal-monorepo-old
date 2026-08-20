@@ -5,7 +5,6 @@
 
 """Scaffold test for training/optim/tests/test_factory.py."""
 
-
 import pytest
 
 

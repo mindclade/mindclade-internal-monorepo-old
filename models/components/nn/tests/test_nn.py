@@ -5,7 +5,6 @@
 
 """Scaffold test for models/components/nn/tests/test_nn.py."""
 
-
 import pytest
 
 

@@ -5,7 +5,6 @@
 
 """Scaffold test for kernels/ops/attention/tests/test_attention.py."""
 
-
 import pytest
 
 

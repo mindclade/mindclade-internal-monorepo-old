@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/security/test_tenant_isolation.py."""
 
-
 import pytest
 
 

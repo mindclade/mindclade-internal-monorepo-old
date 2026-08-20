@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/resilience/test_artifact_corruption.py."""
 
-
 import pytest
 
 

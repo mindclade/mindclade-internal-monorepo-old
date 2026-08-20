@@ -5,7 +5,6 @@
 
 """Scaffold test for kernels/tilelang/autotune/tests/test_autotune.py."""
 
-
 import pytest
 
 

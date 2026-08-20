@@ -86,7 +86,9 @@ class WorkerProcessConfig:
         if set(value) != required:
             missing = sorted(required - set(value))
             unknown = sorted(set(value) - required)
-            raise ValueError(f"worker config fields are invalid: missing={missing}, unknown={unknown}")
+            raise ValueError(
+                f"worker config fields are invalid: missing={missing}, unknown={unknown}"
+            )
 
         roots = value["allowed_input_roots"]
         if not isinstance(roots, list) or not roots or len(roots) > 32:
@@ -96,7 +98,9 @@ class WorkerProcessConfig:
             model_bundle_root=_path(value, "model_bundle_root"),
             model_bundle_digest=_string(value, "model_bundle_digest"),
             output_root=_path(value, "output_root"),
-            allowed_input_roots=tuple(_absolute_path(item, "allowed_input_roots") for item in roots),
+            allowed_input_roots=tuple(
+                _absolute_path(item, "allowed_input_roots") for item in roots
+            ),
             device=_string(value, "device"),
             maximum_pending_requests=_integer(value, "maximum_pending_requests"),
             maximum_concurrent_executions=_integer(value, "maximum_concurrent_executions"),
@@ -136,7 +140,9 @@ class WorkerProcessConfig:
             if not directory.is_dir():
                 raise ValueError(f"configured directory does not exist: {directory}")
             if directory.is_symlink() or directory.resolve(strict=True) != directory:
-                raise ValueError(f"configured directory must be canonical and not a symlink: {directory}")
+                raise ValueError(
+                    f"configured directory must be canonical and not a symlink: {directory}"
+                )
         if _contains(self.output_root, self.model_bundle_root):
             raise ValueError("output_root must not be inside model_bundle_root")
 

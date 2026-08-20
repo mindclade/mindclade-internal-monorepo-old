@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/integration/data/test_dataset_publication.py."""
 
-
 import pytest
 
 

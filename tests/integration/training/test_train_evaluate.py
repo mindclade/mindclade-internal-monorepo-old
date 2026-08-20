@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/integration/training/test_train_evaluate.py."""
 
-
 import pytest
 
 

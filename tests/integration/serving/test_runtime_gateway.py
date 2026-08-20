@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/integration/serving/test_runtime_gateway.py."""
 
-
 import pytest
 
 

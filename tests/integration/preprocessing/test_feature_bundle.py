@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/integration/preprocessing/test_feature_bundle.py."""
 
-
 import pytest
 
 

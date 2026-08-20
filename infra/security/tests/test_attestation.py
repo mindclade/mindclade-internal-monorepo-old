@@ -5,7 +5,6 @@
 
 """Scaffold test for infra/security/tests/test_attestation.py."""
 
-
 import pytest
 
 

@@ -5,7 +5,6 @@
 
 """Scaffold test for evaluation/biological_risk/tests/test_biological_risk.py."""
 
-
 import pytest
 
 

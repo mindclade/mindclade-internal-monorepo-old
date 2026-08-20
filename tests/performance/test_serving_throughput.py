@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/performance/test_serving_throughput.py."""
 
-
 import pytest
 
 

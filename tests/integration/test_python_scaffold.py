@@ -152,16 +152,20 @@ def _scan() -> tuple[tuple[str, ...], tuple[str, ...]]:
             continue
 
         for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
-                if any(_is_scaffold_marker(d) for d in node.decorator_list):
-                    scaffolds.append(rel)
-                    break
+            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and any(
+                _is_scaffold_marker(d) for d in node.decorator_list
+            ):
+                scaffolds.append(rel)
+                break
 
         for node in ast.walk(tree):
-            if isinstance(node, ast.Assert) and isinstance(node.test, ast.Constant):
-                if node.test.value is True:
-                    vacuous.append(rel)
-                    break
+            if (
+                isinstance(node, ast.Assert)
+                and isinstance(node.test, ast.Constant)
+                and node.test.value is True
+            ):
+                vacuous.append(rel)
+                break
 
     return tuple(sorted(scaffolds)), tuple(sorted(vacuous))
 

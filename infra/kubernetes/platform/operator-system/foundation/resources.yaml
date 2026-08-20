@@ -1,6 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
 
 # This directory is consumed as a plain Argo CD directory source. It deliberately has no
 # Kustomization: environment-specific API-server, node-probe, and collector flows belong in the

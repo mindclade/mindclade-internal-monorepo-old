@@ -38,6 +38,7 @@ import check_libs_go_admission
 import check_rust_implementation
 import check_rust_workspace
 
+
 def _go_layers(root: Path) -> list[str]:
     """Adapt the Go layering checker, which reports structured violations."""
     return [violation.render(root) for violation in check_go_layers.check(root)]

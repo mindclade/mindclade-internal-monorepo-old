@@ -5,7 +5,6 @@
 
 """Scaffold test for training/tasks/reinforcement/tests/test_reinforcement.py."""
 
-
 import pytest
 
 

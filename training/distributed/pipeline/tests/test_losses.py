@@ -5,7 +5,6 @@
 
 """Scaffold test for training/distributed/pipeline/tests/test_pipeline.py."""
 
-
 import pytest
 
 

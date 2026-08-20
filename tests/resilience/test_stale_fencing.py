@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/resilience/test_stale_fencing.py."""
 
-
 import pytest
 
 

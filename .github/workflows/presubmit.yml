@@ -67,7 +67,7 @@ jobs:
   #
   # Do not rename this job. See the note above.
   ci:
-    uses: mindclade-org/.github/.github/workflows/reusable-go-ci.yml@22cd42b4f5c08bcb579aed4b6a0bb8cd4696daa0  # v1.1.0
+    uses: mindclade/.github/.github/workflows/reusable-go-ci.yml@7e4b7a873fc9312c2985ed262b251455c71756fe  # v3.0.0
     with:
       # The toolchain the devShell resolves, which is also what tools/build/nix/versions.nix
       # pins the language level to (go = "1.26") and what tools/build/nix/toolchain-manifest.json
@@ -131,7 +131,7 @@ jobs:
 
   # Rust — the online/runtime data plane and node execution.
   rust:
-    uses: mindclade-org/.github/.github/workflows/reusable-rust-ci.yml@22cd42b4f5c08bcb579aed4b6a0bb8cd4696daa0  # v1.1.0
+    uses: mindclade/.github/.github/workflows/reusable-rust-ci.yml@7e4b7a873fc9312c2985ed262b251455c71756fe  # v3.0.0
     with:
       # Explicit rather than empty. reusable-rust-ci resolves `inputs.toolchain || 'stable'`,
       # so leaving this blank silently pins to whatever stable is that week — it never reads
@@ -144,7 +144,7 @@ jobs:
 
   # Python — scientific, model, training, inference, and evaluation numerics.
   python:
-    uses: mindclade-org/.github/.github/workflows/reusable-uv-ci.yml@22cd42b4f5c08bcb579aed4b6a0bb8cd4696daa0  # v1.1.0
+    uses: mindclade/.github/.github/workflows/reusable-uv-ci.yml@7e4b7a873fc9312c2985ed262b251455c71756fe  # v3.0.0
     with:
       python-version: "3.12.12"
       # Empty, not "--all-packages". pyproject sets `[tool.uv] package = false` and declares no

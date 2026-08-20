@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 
 MODULE_RE = re.compile(r"(?m)^module\s+(\S+)\s*$")
@@ -61,11 +61,12 @@ def _go_files(directory: Path, include_tests: bool) -> list[Path]:
     return sorted(
         path
         for path in directory.glob("*.go")
-        if (include_tests or not path.name.endswith("_test.go")) and not path.name.endswith(".pb.go")
+        if (include_tests or not path.name.endswith("_test.go"))
+        and not path.name.endswith(".pb.go")
     )
 
 
-@lru_cache(maxsize=None)
+@cache
 def import_graph(root: Path, include_tests: bool = False) -> dict[str, frozenset[str]]:
     """Return {package import path: in-module packages it imports}.
 

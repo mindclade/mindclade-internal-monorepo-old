@@ -5,7 +5,6 @@
 
 """Scaffold test for evaluation/privacy/tests/test_privacy.py."""
 
-
 import pytest
 
 

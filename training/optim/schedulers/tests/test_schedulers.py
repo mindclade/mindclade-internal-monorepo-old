@@ -5,7 +5,6 @@
 
 """Scaffold test for training/optim/schedulers/tests/test_schedulers.py."""
 
-
 import pytest
 
 

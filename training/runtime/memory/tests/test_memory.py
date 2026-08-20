@@ -5,7 +5,6 @@
 
 """Scaffold test for training/runtime/memory/tests/test_memory.py."""
 
-
 import pytest
 
 

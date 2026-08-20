@@ -5,7 +5,6 @@
 
 """Scaffold test for models/families/biology/clade_1/tests/test_clade_1.py."""
 
-
 import pytest
 
 

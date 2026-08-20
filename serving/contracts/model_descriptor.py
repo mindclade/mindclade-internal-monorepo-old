@@ -31,12 +31,8 @@ MAX_COMPATIBILITY_CLASSES: Final = 64
 MAX_TEXT_BYTES: Final = 4096
 DIGEST_TEXT_LENGTH: Final = 71
 
-LIFECYCLES: Final = frozenset(
-    {"draft", "qualified", "serving", "deprecated", "revoked"}
-)
-EXECUTION_KINDS: Final = frozenset(
-    {"forward", "diffusion_sample", "embedding", "scoring"}
-)
+LIFECYCLES: Final = frozenset({"draft", "qualified", "serving", "deprecated", "revoked"})
+EXECUTION_KINDS: Final = frozenset({"forward", "diffusion_sample", "embedding", "scoring"})
 PRECISIONS: Final = frozenset({"fp32", "tf32", "bf16", "fp16", "fp8"})
 
 

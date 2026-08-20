@@ -126,7 +126,9 @@ class WorkerServer:
         cancellation = Event()
         self._cancellations.add(cancellation)
         loop = asyncio.get_running_loop()
-        execution = loop.run_in_executor(self._executor, self._engine.execute, request, cancellation)
+        execution = loop.run_in_executor(
+            self._executor, self._engine.execute, request, cancellation
+        )
         command = asyncio.create_task(read_command(reader, self._config.io_timeout_millis))
         last_command_sequence = first.sequence
         cancellation_requested = False
@@ -190,7 +192,9 @@ class WorkerServer:
                         ),
                         self._config.io_timeout_millis,
                     )
-                    command = asyncio.create_task(read_command(reader, self._config.io_timeout_millis))
+                    command = asyncio.create_task(
+                        read_command(reader, self._config.io_timeout_millis)
+                    )
                     continue
                 if kind == "drain":
                     sequence += 1

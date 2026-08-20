@@ -5,7 +5,6 @@
 
 """Scaffold test for preprocessing/multimodal/tests/test_layout.py."""
 
-
 import pytest
 
 

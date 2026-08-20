@@ -91,13 +91,14 @@ SKIP_DIR_PARTS = frozenset(
         ".ruff_cache",
         ".pytest_cache",
         ".mypy_cache",
+        "vendor",
     }
 )
 # Generated lockfiles. `.terraform.lock.hcl` matches .hcl above but is written by
 # `terraform init` and rewritten wholesale on every provider change, so a header in it is
 # removed the next time anyone runs init. The infra repos' bash checker excludes it for the
 # same reason.
-SKIP_NAMES = frozenset({"MODULE.bazel.lock", ".terraform.lock.hcl"})
+SKIP_NAMES = frozenset({"MODULE.bazel.lock", ".terraform.lock.hcl", "argocd.lock.yaml"})
 
 
 def header_lines(token: str) -> list[str]:
@@ -110,7 +111,7 @@ def header_lines(token: str) -> list[str]:
 
 
 def comment_token(path: Path) -> str | None:
-    if path.name in SKIP_NAMES:
+    if path.name in SKIP_NAMES or path.name.endswith((".lock.hcl", ".lock.yaml")):
         return None
     if path.name in HASH_NAMES:
         return "#"

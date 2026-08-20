@@ -5,7 +5,6 @@
 
 """Scaffold test for evaluation/simulation/tests/test_simulation.py."""
 
-
 import pytest
 
 

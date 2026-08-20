@@ -5,7 +5,6 @@
 
 """Scaffold test for training/checkpointing/tests/test_reshard.py."""
 
-
 import pytest
 
 

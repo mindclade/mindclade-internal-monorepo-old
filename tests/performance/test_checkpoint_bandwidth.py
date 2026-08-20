@@ -5,7 +5,6 @@
 
 """Scaffold test for tests/performance/test_checkpoint_bandwidth.py."""
 
-
 import pytest
 
 

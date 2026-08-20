@@ -5,7 +5,6 @@
 
 """Scaffold test for kernels/ops/diffusion/tests/test_diffusion.py."""
 
-
 import pytest
 
 

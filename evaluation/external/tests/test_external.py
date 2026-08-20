@@ -5,7 +5,6 @@
 
 """Scaffold test for evaluation/external/tests/test_external.py."""
 
-
 import pytest
 
 

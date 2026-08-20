@@ -5,7 +5,6 @@
 
 """Scaffold test for services/workers/training/tests/test_smoke.py."""
 
-
 import pytest
 
 
