@@ -26,7 +26,7 @@ a fight that produces no error and no stable state.
 
 ```hcl
 module "folders" {
-  source = "git::https://github.com/mindclade-org/mindclade.git//infra/terraform/modules/folder_factory?ref=v0.2.0"
+  source = "git::https://github.com/mindclade/mindclade-internal-monorepo.git//infra/terraform/modules/folder_factory?ref=v0.2.0"
 
   parent          = "organizations/123456789012"
   billing_account = "01A2B3-C4D5E6-F70819"

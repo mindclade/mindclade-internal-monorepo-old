@@ -30,7 +30,7 @@ mattered. That cannot be checked from an address alone, so it is enforced upstre
 
 ```hcl
 module "contacts" {
-  source = "git::https://github.com/mindclade-org/mindclade.git//infra/terraform/modules/essential_contacts?ref=v0.2.0"
+  source = "git::https://github.com/mindclade/mindclade-internal-monorepo.git//infra/terraform/modules/essential_contacts?ref=v0.2.0"
 
   contacts = {
     "folders/000000000000" = [

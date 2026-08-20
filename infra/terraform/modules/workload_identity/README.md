@@ -49,7 +49,7 @@ module "ci_identity" {
         "google.subject"      = "assertion.sub"
         "attribute.repository" = "assertion.repository"
       }
-      attribute_condition = "attribute.repository == 'mindclade/mindclade'"
+      attribute_condition = "attribute.repository == 'mindclade/mindclade-internal-monorepo'"
     }
   }
 
@@ -66,7 +66,7 @@ module "ci_identity" {
       service_account_key = "release"
       provider_key        = "github"
       attribute           = "repository"
-      value               = "mindclade/mindclade"
+      value               = "mindclade/mindclade-internal-monorepo"
     }
   }
 }

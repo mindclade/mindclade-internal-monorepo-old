@@ -20,7 +20,7 @@ else
   exit 1
 fi
 repository_root="$(cd -- "${gitops_root}/../.." && pwd)"
-canonical_repo="https://github.com/mindclade-org/mindclade.git"
+canonical_repo="https://github.com/mindclade/mindclade-internal-monorepo.git"
 revision_placeholder="SET_EXACT_40_CHAR_COMMIT_SHA"
 
 # Developer invocations and CI share one Bazel-owned implementation. Until every CLI is a native

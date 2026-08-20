@@ -16,7 +16,7 @@ metadata:
     mindclade.dev/activation-state: blocked
     mindclade.dev/non-operative-contract: "true"
 data:
-  repository.url: https://github.com/mindclade-org/mindclade.git
+  repository.url: https://github.com/mindclade/mindclade-internal-monorepo.git
   repository.credential-source: operator-provisioned-outside-source-tree
   repository.revision-policy: exact-lowercase-40-character-git-commit-sha
   repository.mutable-revisions: forbidden

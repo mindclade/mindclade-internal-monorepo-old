@@ -120,8 +120,9 @@ actually fixing rather than by date.
   root paths; the other 75 is two in-flight migrations (`training/distributed`,
   `libs/go/storage/outbox`) whose files moved without the blueprint manifest following. That
   is manifest reconciliation, owed by whichever change finishes those migrations.
-- The release workflow references `reusable-oci-build.yml@v1.2.0`. That tag has to be cut in
-  `mindclade-org/.github` before this lands, or the release job fails resolving it.
+- The release workflow remains fail-closed on the legacy `mindclade-org/.github` v1 contract.
+  The current `mindclade/.github` v3 contract is intentionally not a drop-in replacement; a
+  separate end-to-end build, qualification, and signing migration is required before release.
 - Rust targets still fail Bazel analysis in the `crate_universe` extension, because `Cargo.lock`
   remains the unresolved connected-lane artifact `VALIDATION.md` describes. Unaffected by the
   rules_go bump.

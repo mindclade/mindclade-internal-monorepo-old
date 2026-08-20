@@ -7,14 +7,14 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security, safety, or model-weight disclosure
-    url: https://github.com/mindclade-org/mindclade/blob/main/SECURITY.md
+    url: https://github.com/mindclade/mindclade-internal-monorepo/blob/main/SECURITY.md
     about: >-
       Vulnerabilities, credential exposure, tenant-isolation failures, model-weight
       access anomalies, supply-chain compromise, and biological safety control
       failures go through the private channel in SECURITY.md. Never open a public
       issue containing exploit detail, secrets, sensitive inputs, or customer data.
   - name: Architecture decision or boundary change
-    url: https://github.com/mindclade-org/mindclade/blob/main/docs/design/rfc-template.md
+    url: https://github.com/mindclade/mindclade-internal-monorepo/blob/main/docs/design/rfc-template.md
     about: >-
       Changes to a language boundary, dependency direction, or service ownership
       are ADRs, not issues. Start from the RFC template.

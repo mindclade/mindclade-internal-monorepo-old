@@ -15,7 +15,7 @@ metadata:
 spec:
   description: Self-management boundary for Mindclade Argo CD source contracts
   sourceRepos:
-    - https://github.com/mindclade-org/mindclade.git
+    - https://github.com/mindclade/mindclade-internal-monorepo.git
   destinations:
     - namespace: argocd
       server: https://kubernetes.default.svc
@@ -39,7 +39,7 @@ metadata:
 spec:
   description: Fail-closed Mindclade namespace, admission, and resource-policy foundation
   sourceRepos:
-    - https://github.com/mindclade-org/mindclade.git
+    - https://github.com/mindclade/mindclade-internal-monorepo.git
   destinations:
     - namespace: mindclade-batch-cpu
       server: https://kubernetes.default.svc
@@ -83,7 +83,7 @@ metadata:
 spec:
   description: Operator namespaces and fail-closed default-deny network boundaries
   sourceRepos:
-    - https://github.com/mindclade-org/mindclade.git
+    - https://github.com/mindclade/mindclade-internal-monorepo.git
   destinations:
     - namespace: cert-manager
       server: https://kubernetes.default.svc
@@ -111,7 +111,7 @@ metadata:
 spec:
   description: Non-prunable cert-manager, JobSet, and Kueue API definitions
   sourceRepos:
-    - https://github.com/mindclade-org/mindclade.git
+    - https://github.com/mindclade/mindclade-internal-monorepo.git
   destinations:
     - namespace: cert-manager
       server: https://kubernetes.default.svc
@@ -137,7 +137,7 @@ metadata:
 spec:
   description: Digest-pinned cert-manager controller and exact required RBAC
   sourceRepos:
-    - https://github.com/mindclade-org/mindclade.git
+    - https://github.com/mindclade/mindclade-internal-monorepo.git
   destinations:
     - namespace: cert-manager
       server: https://kubernetes.default.svc
@@ -179,7 +179,7 @@ metadata:
 spec:
   description: Repository-locked JobSet controller and exact required RBAC
   sourceRepos:
-    - https://github.com/mindclade-org/mindclade.git
+    - https://github.com/mindclade/mindclade-internal-monorepo.git
   destinations:
     - namespace: jobset-system
       server: https://kubernetes.default.svc
@@ -225,7 +225,7 @@ metadata:
 spec:
   description: Repository-locked Kueue controller and exact required RBAC
   sourceRepos:
-    - https://github.com/mindclade-org/mindclade.git
+    - https://github.com/mindclade/mindclade-internal-monorepo.git
   destinations:
     - namespace: kueue-system
       server: https://kubernetes.default.svc
@@ -273,7 +273,7 @@ metadata:
 spec:
   description: Operator-only metrics discovery and recording or alert rules
   sourceRepos:
-    - https://github.com/mindclade-org/mindclade.git
+    - https://github.com/mindclade/mindclade-internal-monorepo.git
   destinations:
     - namespace: jobset-system
       server: https://kubernetes.default.svc
@@ -299,7 +299,7 @@ metadata:
 spec:
   description: Held queue resources and suspended JobSet compatibility canary
   sourceRepos:
-    - https://github.com/mindclade-org/mindclade.git
+    - https://github.com/mindclade/mindclade-internal-monorepo.git
   destinations:
     - namespace: mindclade-batch-cpu
       server: https://kubernetes.default.svc

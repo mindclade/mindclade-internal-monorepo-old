@@ -52,6 +52,27 @@ architecture lane is `python3 ci/presubmit/pipeline.py --static-only`.
 Bazel is the test execution authority. CI selects targets; it does not duplicate
 build logic.
 
+## Buildkite activation status
+
+Current `main` has no repository-owned `.buildkite/` pipeline or token helper,
+so Buildkite-to-Google Cloud federation is not active and must not be presented
+as production-qualified. Activation is blocked on a separate connected change
+that implements the bootstrap trust contract: request `pipeline_id` as the OIDC
+subject claim, include the `organization_id` claim, use the exact configured
+audience, request Google Cloud token format, and prove token exchange end to end.
+The generic plugin defaults do not satisfy that contract.
+
+## Release activation status
+
+`release.yml` is also fail-closed. Its pre-v3 build, provenance, and WIF calls
+remain visibly pinned to the legacy `mindclade-org/.github` contract, and both
+root release jobs require a deliberately impossible repository sentinel that
+can be removed only by a reviewed source change. The current
+`mindclade/.github` v3 contract separates building, independent qualification,
+and Binary Authorization signing; it has no drop-in provenance workflow or WIF
+action for the legacy chain. Release activation therefore requires a separate
+end-to-end migration and connected qualification, not an owner-only rewrite.
+
 ## Dependency updates
 
 There is no `dependabot.yml`. Dependabot is disabled org-wide in `github-config`

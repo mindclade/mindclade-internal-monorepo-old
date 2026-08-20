@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	repo = "https://github.com/mindclade-org/mindclade"
+	repo = "https://github.com/mindclade/mindclade-internal-monorepo"
 	docs = "https://docs.mindclade.dev/go"
 )
 
@@ -89,12 +89,12 @@ func TestNonGoGetRedirectsToDocs(t *testing.T) {
 func TestMostSpecificRuleWins(t *testing.T) {
 	h := newTestHandler(t,
 		Rule{Prefix: "go.mindclade.dev", VCS: "git", RepoURL: repo},
-		Rule{Prefix: "go.mindclade.dev/tools", VCS: "git", RepoURL: "https://github.com/mindclade-org/tools"},
+		Rule{Prefix: "go.mindclade.dev/tools", VCS: "git", RepoURL: "https://github.com/mindclade/tools"},
 	)
 
 	for _, tc := range []struct{ path, wantRepo string }{
-		{"/tools?go-get=1", "https://github.com/mindclade-org/tools"},
-		{"/tools/lint?go-get=1", "https://github.com/mindclade-org/tools"},
+		{"/tools?go-get=1", "https://github.com/mindclade/tools"},
+		{"/tools/lint?go-get=1", "https://github.com/mindclade/tools"},
 		{"/serving/gateway?go-get=1", repo},
 		{"/?go-get=1", repo},
 		// The boundary case a naive strings.HasPrefix gets wrong: a DIFFERENT
@@ -115,13 +115,13 @@ func TestMostSpecificRuleWins(t *testing.T) {
 // Rules are supplied in the order a human would WRITE them — general first —
 // and must still be evaluated most-specific-first.
 func TestRuleOrderIndependence(t *testing.T) {
-	specific := Rule{Prefix: "go.mindclade.dev/tools", VCS: "git", RepoURL: "https://github.com/mindclade-org/tools"}
+	specific := Rule{Prefix: "go.mindclade.dev/tools", VCS: "git", RepoURL: "https://github.com/mindclade/tools"}
 	general := Rule{Prefix: "go.mindclade.dev", VCS: "git", RepoURL: repo}
 
 	for _, order := range [][]Rule{{general, specific}, {specific, general}} {
 		h := newTestHandler(t, order...)
 		rec := get(t, h, "/tools/lint?go-get=1")
-		if !strings.Contains(rec.Body.String(), "mindclade-org/tools") {
+		if !strings.Contains(rec.Body.String(), "mindclade/tools") {
 			t.Errorf("order %v: matched the general rule; body: %s", order, rec.Body.String())
 		}
 	}

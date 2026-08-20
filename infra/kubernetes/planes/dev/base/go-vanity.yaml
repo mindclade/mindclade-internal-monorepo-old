@@ -67,7 +67,7 @@ spec:
             - name: MODULE_PATH
               value: go.mindclade.dev
             - name: MODULE_REPO_URL
-              value: https://github.com/mindclade-org/mindclade
+              value: https://github.com/mindclade/mindclade-internal-monorepo
             - name: DOCS_URL
               value: https://docs.mindclade.dev
           securityContext:
