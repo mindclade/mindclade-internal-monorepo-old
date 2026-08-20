@@ -4,6 +4,8 @@
 #
 
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@protobuf//bazel:py_proto_library.bzl", "py_proto_library")
+load("@rules_python//python:defs.bzl", "py_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -62,6 +64,25 @@ proto_library(
     srcs = ["worker_status.proto"],
     strip_import_prefix = "/protocols/proto",
     deps = [":buffer_descriptor_proto"],
+)
+
+# Python model workers consume the exact same generated wire types as the Rust
+# runtime. Generation remains a Bazel action rather than checked-in output;
+# protoc 35 explicitly marks its Python output as non-vendored gencode.
+py_proto_library(
+    name = "runtime_worker_py_pb2",
+    deps = [
+        ":worker_command_proto",
+        ":worker_status_proto",
+    ],
+)
+
+py_test(
+    name = "python_runtime_worker_golden_test",
+    srcs = ["python_runtime_worker_golden_test.py"],
+    legacy_create_init = False,
+    main = "python_runtime_worker_golden_test.py",
+    deps = [":runtime_worker_py_pb2"],
 )
 
 proto_library(
