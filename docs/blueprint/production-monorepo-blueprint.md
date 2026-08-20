@@ -250,34 +250,6 @@ The supplied `libs/go` tree is already implemented and is adopted immediately. T
 
 ```text
 /
-├── .buildkite/
-│   ├── hooks/
-│   │   ├── environment
-│   │   ├── post-command
-│   │   └── pre-command
-│   ├── pipelines/
-│   │   ├── gpu.yml
-│   │   ├── nightly.yml
-│   │   ├── presubmit.yml
-│   │   ├── release.yml
-│   │   └── security.yml
-│   ├── scripts/
-│   │   ├── bazel_test.sh
-│   │   ├── bootstrap.sh
-│   │   ├── gpu_test.sh
-│   │   ├── multinode_test.sh
-│   │   ├── qualification.sh
-│   │   ├── release.sh
-│   │   ├── security_scan.sh
-│   │   └── upload_evidence.sh
-│   ├── steps/
-│   │   ├── common.yml
-│   │   ├── cpu.yml
-│   │   ├── gpu.yml
-│   │   ├── multinode.yml
-│   │   └── release.yml
-│   ├── pipeline.yml
-│   └── README.md
 ├── .github/
 │   ├── ISSUE_TEMPLATE/
 │   │   ├── bug_report.yml
@@ -288,8 +260,6 @@ The supplied `libs/go` tree is already implemented and is adopted immediately. T
 │   │   ├── research_proposal.yml
 │   │   └── safety_regression.yml
 │   ├── workflows/
-│   │   ├── gpu.yml
-│   │   ├── nightly.yml
 │   │   ├── presubmit.yml
 │   │   ├── release.yml
 │   │   └── security.yml
@@ -2189,6 +2159,40 @@ The supplied `libs/go` tree is already implemented and is adopted immediately. T
 │   │   │   ├── mount_test.go
 │   │   │   ├── procedure.go
 │   │   │   └── README.md
+│   │   ├── coordination/
+│   │   │   └── outbox/
+│   │   │       ├── memory/
+│   │   │       │   ├── BUILD.bazel
+│   │   │       │   ├── doc.go
+│   │   │       │   ├── README.md
+│   │   │       │   ├── store.go
+│   │   │       │   └── store_test.go
+│   │   │       ├── outboxtest/
+│   │   │       │   ├── BUILD.bazel
+│   │   │       │   ├── conformance.go
+│   │   │       │   ├── doc.go
+│   │   │       │   └── README.md
+│   │   │       ├── postgres/
+│   │   │       │   ├── migrations/
+│   │   │       │   │   ├── 000001_outbox.down.sql
+│   │   │       │   │   └── 000001_outbox.up.sql
+│   │   │       │   ├── BUILD.bazel
+│   │   │       │   ├── doc.go
+│   │   │       │   ├── README.md
+│   │   │       │   ├── store.go
+│   │   │       │   └── store_test.go
+│   │   │       ├── BUILD.bazel
+│   │   │       ├── claim.go
+│   │   │       ├── dispatcher.go
+│   │   │       ├── dispatcher_test.go
+│   │   │       ├── doc.go
+│   │   │       ├── errors.go
+│   │   │       ├── factory.go
+│   │   │       ├── message.go
+│   │   │       ├── message_test.go
+│   │   │       ├── publisher.go
+│   │   │       ├── README.md
+│   │   │       └── store.go
 │   │   ├── faults/
 │   │   │   ├── BUILD.bazel
 │   │   │   ├── classify.go
@@ -2644,30 +2648,6 @@ The supplied `libs/go` tree is already implemented and is adopted immediately. T
 │   │   │   │   ├── lease.go
 │   │   │   │   ├── README.md
 │   │   │   │   └── store.go
-│   │   │   ├── outbox/
-│   │   │   │   ├── outboxtest/
-│   │   │   │   │   ├── BUILD.bazel
-│   │   │   │   │   ├── conformance.go
-│   │   │   │   │   ├── memory.go
-│   │   │   │   │   ├── memory_test.go
-│   │   │   │   │   └── README.md
-│   │   │   │   ├── postgres/
-│   │   │   │   │   ├── BUILD.bazel
-│   │   │   │   │   ├── README.md
-│   │   │   │   │   ├── repository.go
-│   │   │   │   │   ├── repository_test.go
-│   │   │   │   │   ├── scanner.go
-│   │   │   │   │   └── transaction.go
-│   │   │   │   ├── BUILD.bazel
-│   │   │   │   ├── contracts_test.go
-│   │   │   │   ├── dispatcher.go
-│   │   │   │   ├── doc.go
-│   │   │   │   ├── envelope.go
-│   │   │   │   ├── errors.go
-│   │   │   │   ├── README.md
-│   │   │   │   ├── record.go
-│   │   │   │   ├── repository.go
-│   │   │   │   └── status.go
 │   │   │   ├── sql/
 │   │   │   │   ├── postgres/
 │   │   │   │   │   ├── BUILD.bazel
