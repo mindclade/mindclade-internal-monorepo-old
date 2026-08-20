@@ -26,7 +26,6 @@ from typing import Any
 import torch
 from safetensors.torch import load_file
 
-
 REFERENCE_MODEL_NAME = "reference-affine-v1"
 REFERENCE_OPERATION = "reference.affine.v1"
 MANIFEST_MEDIA_TYPE = "application/vnd.mindclade.model.manifest.v1+json"

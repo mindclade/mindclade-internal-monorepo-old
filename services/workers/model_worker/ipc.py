@@ -19,6 +19,7 @@ from threading import Event
 
 from google.protobuf.message import DecodeError
 from mindclade.runtime.v1 import buffer_descriptor_pb2, worker_command_pb2, worker_status_pb2
+
 from serving.model_worker.reference import (
     ExecutionCancelled,
     ReferenceEngine,
@@ -28,7 +29,6 @@ from serving.model_worker.reference import (
 )
 
 from .config import WorkerProcessConfig
-
 
 MAX_FRAME_BYTES = 1 << 20
 MAX_UNIX_SOCKET_PATH_BYTES = 100

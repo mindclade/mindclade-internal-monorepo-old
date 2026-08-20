@@ -13,10 +13,9 @@ import os
 import signal
 from pathlib import Path
 
-from serving.model_worker.reference import ReferenceEngine, ReferenceEngineConfig
-
 from services.workers.model_worker.config import WorkerProcessConfig
 from services.workers.model_worker.ipc import WorkerServer
+from serving.model_worker.reference import ReferenceEngine, ReferenceEngineConfig
 
 
 async def _run(config: WorkerProcessConfig, socket_path: Path) -> None:

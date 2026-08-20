@@ -12,7 +12,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-
 MAX_CONFIG_BYTES = 64 * 1024
 _DIGEST_LENGTH = len("sha256:") + 64
 

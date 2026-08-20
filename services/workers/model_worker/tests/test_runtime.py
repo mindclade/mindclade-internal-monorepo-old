@@ -18,6 +18,7 @@ from threading import Event
 
 import pytest
 from mindclade.runtime.v1 import buffer_descriptor_pb2, worker_command_pb2, worker_status_pb2
+
 from models.reference.affine_worker.make_bundle import generate
 from services.workers.model_worker.config import WorkerProcessConfig
 from services.workers.model_worker.ipc import MAX_FRAME_BYTES, WorkerServer
