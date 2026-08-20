@@ -17,9 +17,9 @@ python tools/qualification/rust/runtime_gateway_benchmark.py \
   --output gateway-results.json
 ```
 
-Release qualification runs this harness itself. A hardware/provider benchmark
-command must print one JSON object containing the remaining metrics (including
-cancellation, IPC, verified ranges, worker startup, checkpoint, copy, and
-allocation measurements). The release wrapper merges those fresh results with
-the portable Rust probe and rejects missing budgets; it no longer accepts a
-path to pre-authored result JSON.
+Release qualification runs this harness itself, executes the configured live
+gateway cancellation probe, and submits the repository-owned H100 and H200 GKE
+Jobs. The wrapper conservatively merges both hardware profiles (minimum
+throughput, maximum latency/copy/allocation) with the portable Rust probe and
+rejects missing budgets. It no longer accepts a path to pre-authored result
+JSON or a generic hardware command.

@@ -3,9 +3,16 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_python//python:defs.bzl", "py_binary")
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
+load("//tools/build:pytest.bzl", "pytest_test")
 
 package(default_visibility = ["//visibility:private"])
+
+py_library(
+    name = "release_performance_lib",
+    srcs = ["release_performance.py"],
+    imports = ["../../.."],
+)
 
 py_binary(
     name = "qualify",
@@ -15,6 +22,13 @@ py_binary(
     ],
     main = "qualify.py",
     visibility = ["//visibility:public"],
+)
+
+pytest_test(
+    name = "test_release_performance",
+    srcs = ["tests/test_release_performance.py"],
+    imports = ["../../.."],
+    deps = [":release_performance_lib"],
 )
 
 exports_files([
