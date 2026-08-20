@@ -43,6 +43,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             format!("crate::runtime::v1::{name}"),
         );
     }
-    builder.compile_protos(&[execution], &[proto_root])?;
+    let mut prost_config = tonic_prost_build::Config::new();
+    if std::env::var_os("PROTOC").is_none() {
+        // Bazel declares its pinned protoc through PROTOC. Plain Cargo builds have no tool
+        // dependency mechanism, so use a lockfile-pinned binary instead of whichever compiler
+        // happens to be installed on the workstation or hosted runner.
+        prost_config.protoc_executable(protoc_bin_vendored::protoc_bin_path()?);
+    }
+    builder.compile_with_config(prost_config, &[execution], &[proto_root])?;
     Ok(())
 }

@@ -31,7 +31,10 @@ cargo_build_script(
     data = ["//protocols/proto/mindclade/runtime/v1:cargo_proto_sources"],
     edition = "2024",
     tools = ["@protobuf//:protoc"],
-    deps = ["@crates//:tonic-prost-build"],
+    deps = [
+        "@crates//:protoc-bin-vendored",
+        "@crates//:tonic-prost-build",
+    ],
 )
 
 rust_test(
