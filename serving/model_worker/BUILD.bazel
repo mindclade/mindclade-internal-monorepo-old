@@ -22,6 +22,7 @@ py_library(
     imports = ["../.."],
     deps = [
         "//serving/model_worker/batching",
+        "@pypi//numpy",
         "@pypi//safetensors",
         "@pypi//torch",
     ],
