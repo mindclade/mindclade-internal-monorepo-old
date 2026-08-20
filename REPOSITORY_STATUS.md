@@ -27,13 +27,16 @@ record evidence.
 - canonical runtime/artifact/reference/evidence protocols and cross-language
   fixtures;
 - machine-readable component maturity and dependency-budget enforcement;
+- reusable Google Cloud Terraform modules for hierarchy, keyless identity,
+  security, private GKE/CPU/GPU compute, data/event/storage, build caches,
+  audit, SLOs, and multi-project observability, with offline contract tests;
 - comprehensive architecture, ADR, runbook, security, adoption, and
   qualification documentation.
 
 ## Implemented but not fully production-qualified
 
 The Rust runtime foundation, runtime gateway/host cores, Python preprocessing
-foundation, and several cross-language contracts contain substantive source but
+foundation, Terraform module library, and several cross-language contracts contain substantive source but
 still require the pinned Rust/build toolchain, provider integration,
 performance, failure-injection, and/or cloud qualification described in
 `QUALIFICATION.md`.
@@ -42,7 +45,7 @@ performance, failure-injection, and/or cloud qualification described in
 
 Many model families, full training/evaluation/serving implementations,
 provider-specific scientific search adapters, TypeScript applications,
-infrastructure deployments, and scale-specific qualification paths remain
+live environment Terraform roots/deployments, and scale-specific qualification paths remain
 partial or scaffolded unless their own component status states otherwise.
 
 Their presence communicates architecture and ownership, not release readiness.
@@ -71,4 +74,3 @@ See `docs/architecture/system-design-reference.md` for the complete design.
 ## Final hardening state
 
 The foundation architecture is frozen pending connected production qualification. Affected testing, artifact GC, Rust promotion/supply-chain/compatibility/failure/performance policies, node diagnostics/resource accounting, canonical workload envelopes, ownership metadata, and four golden vertical slices are implemented and locally validated. Future structural expansion requires measured workload evidence rather than symmetry.
-

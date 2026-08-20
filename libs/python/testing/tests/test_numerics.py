@@ -5,7 +5,6 @@
 
 """Scaffold test for libs/python/testing/tests/test_numerics.py."""
 
-
 import pytest
 
 

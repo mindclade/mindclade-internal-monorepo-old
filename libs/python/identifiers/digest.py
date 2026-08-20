@@ -47,13 +47,15 @@ _READ_CHUNK: Final = 1 << 20
 _LOWER_HEX: Final = frozenset("0123456789abcdef")
 
 
-def is_canonical_digest(value: str) -> bool:
+def is_canonical_digest(value: object) -> bool:
     """Report whether ``value`` is a canonical digest, without constructing one.
 
     The single predicate that replaces the three that disagreed. Checks the
     prefix, the exact length, *and* that every payload character is lowercase
     hexadecimal — the part the length-based checks omitted.
     """
+    if not isinstance(value, str):
+        return False
     if len(value) != DIGEST_TEXT_LENGTH or not value.startswith(DIGEST_PREFIX):
         return False
     return all(character in _LOWER_HEX for character in value[len(DIGEST_PREFIX) :])
@@ -66,6 +68,11 @@ class Digest:
     raw: bytes
 
     def __post_init__(self) -> None:
+        if not isinstance(self.raw, bytes):
+            raise InvalidArgument(
+                "digest payload must be bytes",
+                reason="digest_type",
+            )
         if len(self.raw) != DIGEST_BINARY_SIZE:
             raise InvalidArgument(
                 f"digest must be {DIGEST_BINARY_SIZE} bytes, got {len(self.raw)}",
@@ -75,6 +82,8 @@ class Digest:
     @classmethod
     def of(cls, data: bytes) -> Digest:
         """Digest ``data``."""
+        if not isinstance(data, bytes):
+            raise InvalidArgument("digest input must be bytes", reason="digest_input_type")
         return cls(hashlib.sha256(data).digest())
 
     @classmethod
@@ -97,6 +106,11 @@ class Digest:
         hasher = hashlib.sha256()
         consumed = 0
         while chunk := reader.read(_READ_CHUNK):
+            if not isinstance(chunk, bytes):
+                raise InvalidArgument(
+                    "digest reader must return bytes",
+                    reason="digest_reader_type",
+                )
             hasher.update(chunk)
             consumed += len(chunk)
         return cls(hasher.digest()), consumed
@@ -108,7 +122,7 @@ class Digest:
             raise InvalidArgument(
                 f"digest must be {DIGEST_PREFIX}<{DIGEST_HEX_LENGTH} lowercase hex>",
                 reason="digest_format",
-                fields={"value": value[:128]},
+                fields={"value": value[:128] if isinstance(value, str) else type(value).__name__},
             )
         return cls(bytes.fromhex(value[len(DIGEST_PREFIX) :]))
 
@@ -128,7 +142,7 @@ class Digest:
         Digests gate artifact admission, so a comparison that returns early leaks
         how much of a forged digest was correct.
         """
-        return compare_digest(self.raw, other.raw)
+        return isinstance(other, Digest) and compare_digest(self.raw, other.raw)
 
     def __str__(self) -> str:
         return self.text

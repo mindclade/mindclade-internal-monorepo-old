@@ -5,7 +5,6 @@
 
 """Scaffold test for libs/python/observability/tests/test_redaction.py."""
 
-
 import pytest
 
 

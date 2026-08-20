@@ -5,7 +5,6 @@
 
 """Scaffold test for libs/python/geometry/tests/test_rigid.py."""
 
-
 import pytest
 
 

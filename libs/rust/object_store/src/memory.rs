@@ -65,6 +65,7 @@ impl ObjectStore for MemoryStore {
         let entry = guard
             .get(path)
             .ok_or_else(|| Fault::new(Code::NotFound, "object not found"))?;
+        entry.meta.digest.verify(&entry.bytes)?;
         let start = usize::try_from(range.start())
             .map_err(|_| Fault::new(Code::OutOfRange, "range start exceeds platform limits"))?;
         let end = usize::try_from(range.end())

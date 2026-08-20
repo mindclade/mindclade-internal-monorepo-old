@@ -1,35 +1,49 @@
-# Infra / Terraform / Modules / Audit Archive
+# Immutable audit archive composition
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Terraform, Kubernetes, GitOps, and policy configuration
+This module composes `../log_sink` into one central organization- or folder-level Cloud
+Audit Logs archive. It captures Admin Activity, System Event, Policy Denied, and Data
+Access log IDs from the parent and all descendants, with no exclusions or caller-supplied
+narrowing filter.
 
-## Purpose
+The GCS destination enforces uniform access, public-access prevention, versioning,
+90-day soft delete by default, CMEK, `force_destroy = false`, provider deletion policy,
+Terraform `prevent_destroy`, and a locked retention policy. Storage-class transitions
+reduce long-term cost but never delete audit objects.
 
-Deployment and cloud foundations. Infrastructure declares environments, workload identity, storage, databases, queues, clusters, security policy, observability, and GitOps composition. This path specializes that domain for **audit archive**.
+Bucket Lock is irreversible: retention cannot later be shortened or removed, and changing
+location requires a new bucket. The caller must supply the exact confirmation only after
+security, legal, recovery, and cost owners approve the name, location, key, and retention.
+A migration must overlap old and new sinks and verify delivery before retiring anything.
 
-## Boundary
+This module routes logs that Google Cloud emits; it does not enable Data Access audit logs
+for individual services. Manage those audit configs at the organization/folder/project IAM
+authority and verify expected log types with canary activity. It also cannot prove delivery:
+alert on sink errors, periodically compare expected versus archived entries, verify the
+unique writer's object-creator grant, and test evidence retrieval.
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+`destination_project_default_retention_days` affects only the central destination
+project's own `_Default` bucket. It cannot change every descendant project's local bucket
+and defaults to zero (unmanaged).
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+```hcl
+module "audit_archive" {
+  source = "../../modules/audit_archive"
 
-## Materialization requirements
+  parent      = "organizations/123456789012"
+  project_id  = "mindclade-audit"
+  environment                 = "production"
+  owner                       = "security"
+  storage_service_agent_email = "service-123456789012@gs-project-accounts.iam.gserviceaccount.com"
+  bucket_name                 = "mindclade-central-audit-archive"
+  location                    = "US"
+  kms_key_name                = "projects/mindclade-security/locations/us/keyRings/audit/cryptoKeys/archive"
 
-Before this scaffold boundary is treated as implemented, add:
+  retention_lock_confirmation = "LOCKING A CLOUD STORAGE RETENTION POLICY IS IRREVERSIBLE"
+}
+```
 
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+The Cloud Storage service agent needs access to the archive CMEK. The required additive
+grant is exported, while Key IAM remains in the key-owning state; verify that grant in the
+live project before apply.
+Mock-provider tests do not prove audit-config enablement, KMS compatibility, VPC Service
+Controls behavior, log delivery, retention-law suitability, or evidence recovery.

@@ -4,4 +4,104 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# These flavors mirror labels and taints declared by the GKE Terraform module. They carry no
+# capacity by themselves; capacity is granted only through the held ClusterQueue below.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: mindclade-cpu
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+spec:
+  nodeLabels:
+    mindclade.dev/node-pool: cpu
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: mindclade-h100
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+spec:
+  nodeLabels:
+    mindclade.dev/gpu-profile: gke-h100-a3-megagpu-8g
+    mindclade.dev/node-pool: gpu
+  nodeTaints:
+    - effect: NoSchedule
+      key: nvidia.com/gpu
+      value: present
+  tolerations:
+    - effect: NoSchedule
+      key: nvidia.com/gpu
+      operator: Equal
+      value: present
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ResourceFlavor
+metadata:
+  name: mindclade-h200
+  annotations:
+    argocd.argoproj.io/sync-wave: "20"
+spec:
+  nodeLabels:
+    mindclade.dev/gpu-profile: gke-h200-a3-ultragpu-8g
+    mindclade.dev/node-pool: gpu
+  nodeTaints:
+    - effect: NoSchedule
+      key: nvidia.com/gpu
+      value: present
+  tolerations:
+    - effect: NoSchedule
+      key: nvidia.com/gpu
+      operator: Equal
+      value: present
+---
+# Queue activation is a reviewed three-key operation: set stopPolicy=None, assign non-zero
+# quotas, and label an approved workload namespace mindclade.dev/kueue-enabled=true.
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: ClusterQueue
+metadata:
+  name: mindclade-batch
+  annotations:
+    argocd.argoproj.io/sync-wave: "21"
+spec:
+  namespaceSelector:
+    matchLabels:
+      mindclade.dev/kueue-enabled: "true"
+  preemption:
+    reclaimWithinCohort: Never
+    withinClusterQueue: Never
+  resourceGroups:
+    - coveredResources:
+        - cpu
+        - memory
+      flavors:
+        - name: mindclade-cpu
+          resources:
+            - name: cpu
+              nominalQuota: "0"
+            - name: memory
+              nominalQuota: "0"
+    - coveredResources:
+        - nvidia.com/gpu
+      flavors:
+        - name: mindclade-h100
+          resources:
+            - name: nvidia.com/gpu
+              nominalQuota: "0"
+        - name: mindclade-h200
+          resources:
+            - name: nvidia.com/gpu
+              nominalQuota: "0"
+  stopPolicy: Hold
+---
+apiVersion: kueue.x-k8s.io/v1beta2
+kind: LocalQueue
+metadata:
+  name: mindclade-batch
+  namespace: mindclade-system
+  annotations:
+    argocd.argoproj.io/sync-wave: "22"
+spec:
+  clusterQueue: mindclade-batch
+  stopPolicy: Hold

@@ -2,8 +2,10 @@
 
 Cloud DNS managed zones, record sets, and the inbound server policy.
 
-Consumed by `infrastructure-live/3-networks/dns-hub`, which is the only caller. Pinned by
-semver tag from there, never by branch.
+Consumed in this repository by `environments/dns_hub`, the lifetime-scoped public
+delegation root. Additional environment-private DNS callers belong in the separately
+controlled live configuration and consume released module versions rather than a
+branch reference.
 
 ## What it does not do
 

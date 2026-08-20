@@ -39,10 +39,11 @@ variable "addresses" {
     condition = alltrue([
       for key, addr in var.addresses :
       can(regex("^[a-z](?:[-a-z0-9]{0,61}[a-z0-9])?$", addr.name)) &&
+      can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]$", addr.project_id)) &&
       can(regex("^[a-z]+(?:-[a-z0-9]+)+[0-9]$", addr.region)) &&
-      length(trimspace(addr.subnetwork)) > 0
+      can(regex("^projects/[^/]+/regions/[^/]+/subnetworks/[^/]+$|^https://www.googleapis.com/compute/[^/]+/projects/[^/]+/regions/[^/]+/subnetworks/[^/]+$", addr.subnetwork))
     ])
-    error_message = "Each address requires an RFC1035 name, a region, and a subnetwork self-link."
+    error_message = "Each address requires a valid project, RFC1035 name, region, and regional subnetwork resource name or self-link."
   }
 
   validation {

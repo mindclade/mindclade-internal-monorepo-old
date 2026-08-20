@@ -1,35 +1,49 @@
-# Infra / Terraform / Modules / Observability
+# Metrics-scope observability composition module
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Terraform, Kubernetes, GitOps, and policy configuration
+This module attaches existing projects to an existing Google Cloud metrics scope
+and composes one or more instances of `../monitoring` in the scoping project. It
+does not reimplement service-level objective logic: custom services, request-based
+SLOs, paired fast/slow burn alerts, dashboards, runbook links, labels, deletion
+guards, and their semantic validation remain owned and tested by that module.
 
-## Purpose
+Each `monitored_project_ids` entry creates a protected
+`google_monitoring_monitored_project` membership. The scoping project is already
+included by Google Cloud and is rejected from that set. Each `services` key is the
+stable Monitoring custom-service ID; its value is passed to `../monitoring`. Scope
+memberships are created before service monitoring resources so dashboards and
+alerts begin against the intended project view.
 
-Deployment and cloud foundations. Infrastructure declares environments, workload identity, storage, databases, queues, clusters, security policy, observability, and GitOps composition. This path specializes that domain for **observability**.
+## Prerequisites and responsibilities
 
-## Boundary
+Enable the Cloud Monitoring API in the scoping and monitored projects. The
+Terraform identity needs metrics-scope membership administration on the scoping
+project and the documented Monitoring permissions in each monitored project. It
+also needs the resource permissions required by `../monitoring` in the scoping
+project. Notification channels must already exist and route to tested responders.
+Metric descriptors, log sinks, trace collection, agents, Managed Service for
+Prometheus, uptime checks, telemetry sampling/redaction, and notification-channel
+creation are outside this module.
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+Because a metrics scope can expose many projects, every composed SLO good/total
+filter must include an explicit `project = "project-id"` selector. This prevents an
+otherwise valid metric type from silently aggregating unrelated projects. An
+intentional portfolio-wide SLO needs a separately reviewed monitoring design; it
+cannot bypass this module's per-service isolation contract.
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+Metrics scopes increase cross-project visibility; restrict access to the scoping
+project, audit scope changes, avoid sensitive label values, and apply retention and
+regional controls at telemetry sources. Keep filters bounded by stable resource and
+metric labels to manage cardinality and ingestion cost. Establish budgets for
+metrics, logs, traces, dashboards, and alert traffic.
 
-## Materialization requirements
+Both scope memberships and the monitoring resources composed beneath this module
+use deletion protection. A reviewed decommission must first remove guards in code,
+preserve required telemetry evidence, and assess alert/SLO gaps. Adding a project
+to a scope does not prove that it emits valid telemetry. Before relying on the
+result, test notification routing, dashboard queries, missing-data behavior, burn
+alerts, runbooks, access control, monitored-project removal, and disaster-recovery
+procedures.
 
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Provider-mock tests validate Terraform wiring and failure contracts only. They do
+not contact Cloud Monitoring, validate metric filters against real descriptors, or
+prove telemetry continuity and responder readiness.

@@ -6,7 +6,12 @@
 import pytest
 
 from libs.python.errors import Code, code_of
-from libs.python.identifiers import Digest, ResourceVersion, is_canonical_resource_version
+from libs.python.identifiers import (
+    MAXIMUM_GENERATION,
+    Digest,
+    ResourceVersion,
+    is_canonical_resource_version,
+)
 
 DIGEST_TEXT = "sha256:" + "a" * 64
 FIXTURE = f"rv1:42:{DIGEST_TEXT}"
@@ -54,8 +59,13 @@ def test_leading_zero_generations_are_rejected() -> None:
 
 
 def test_generation_zero_is_not_constructible() -> None:
-    with pytest.raises(ValueError, match="start at 1"):
+    with pytest.raises(ValueError, match="starting at 1"):
         ResourceVersion(0, Digest.of(b"x"))
+
+    with pytest.raises(ValueError, match="unsigned 64-bit"):
+        ResourceVersion(True, Digest.of(b"x"))
+    with pytest.raises(ValueError, match="unsigned 64-bit"):
+        ResourceVersion(MAXIMUM_GENERATION + 1, Digest.of(b"x"))
 
 
 def test_parse_failure_is_an_invalid_argument_fault() -> None:
@@ -69,6 +79,20 @@ def test_next_advances_the_generation_and_takes_the_new_digest() -> None:
     second = first.next(Digest.of(b"b"))
     assert second.generation == 2
     assert second.digest == Digest.of(b"b")
+
+
+def test_next_fails_with_out_of_range_at_uint64_exhaustion() -> None:
+    version = ResourceVersion(MAXIMUM_GENERATION, Digest.of(b"state"))
+    with pytest.raises(ValueError) as caught:
+        version.next(Digest.of(b"next"))
+    assert code_of(caught.value) is Code.OUT_OF_RANGE
+
+
+def test_parse_rejects_a_generation_larger_than_uint64_without_large_integer_conversion() -> None:
+    value = f"rv1:{MAXIMUM_GENERATION + 1}:{DIGEST_TEXT}"
+    assert not is_canonical_resource_version(value)
+    with pytest.raises(ValueError, match="unsigned 64-bit"):
+        ResourceVersion.parse(value)
 
 
 def test_next_leaves_the_original_untouched() -> None:

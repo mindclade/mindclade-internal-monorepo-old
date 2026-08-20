@@ -21,6 +21,10 @@ resource "google_scc_organization_scc_big_query_export" "this" {
   dataset             = "projects/${var.project_id}/datasets/${google_bigquery_dataset.findings[0].dataset_id}"
   description         = "Continuous export of SCC findings for joining against the audit dataset."
   filter              = var.bigquery_export.filter
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "google_bigquery_dataset" "findings" {
@@ -36,6 +40,11 @@ resource "google_bigquery_dataset" "findings" {
   # A findings dataset that can be dropped by the export's own service account is one an
   # attacker who reaches that identity can erase. Deletion is a deliberate act elsewhere.
   delete_contents_on_destroy = false
+  deletion_policy            = "PREVENT"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # ---------------------------------------------------------------------------------------
@@ -53,6 +62,10 @@ resource "google_pubsub_topic" "findings" {
   project = var.project_id
   name    = each.value.pubsub_topic.name
   labels  = var.labels
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "google_scc_notification_config" "this" {
@@ -65,6 +78,10 @@ resource "google_scc_notification_config" "this" {
 
   streaming_config {
     filter = each.value.filter
+  }
+
+  lifecycle {
+    prevent_destroy = true
   }
 }
 
@@ -82,6 +99,15 @@ resource "google_scc_mute_config" "this" {
   parent         = "organizations/${var.org_id}"
   description    = trimspace(each.value.description)
   filter         = each.value.filter
+  type           = "DYNAMIC"
+  expiry_time    = each.value.expiry_time
+
+  lifecycle {
+    precondition {
+      condition     = timecmp(each.value.expiry_time, plantimestamp()) > 0
+      error_message = "Mute ${each.key} has expired; remove or explicitly renew it after review."
+    }
+  }
 }
 
 # ---------------------------------------------------------------------------------------

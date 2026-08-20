@@ -22,10 +22,14 @@ supply-chain pinning, SBOM inclusion, vulnerability scanning, and ownership revi
 ## Bulk IPC
 
 Large tensors, feature bundles, MSA matrices and checkpoints do not transit gRPC.
-`ipc_os` implements Linux memfd segments with CLOEXEC handles, explicit generation,
-byte range, content digest, owner, lease expiration and access mode. The control
-protocol carries only `BufferDescriptor` values. Non-Linux platforms must use a
-qualified file/shared-memory fallback and never silently copy unbounded payloads.
+`ipc_os` implements Linux memfd segments created CLOEXEC and permanently sealed
+against write, growth, and truncation after initialization, with explicit
+generation, byte range, content digest, owner, lease expiration and access
+mode. Registry capacity is reserved without holding its mutex across OS I/O.
+The control protocol carries only `BufferDescriptor` values. The portable file
+fallback publishes create-new files atomically with owner-only Unix permissions.
+Non-Linux platforms must qualify that fallback and never silently copy
+unbounded payloads.
 
 ## Signing
 
@@ -48,3 +52,9 @@ Presubmit requires the pinned Rust 1.97.1 compiler, generated lockfile, rustfmt,
 workspace tests, doc tests and Clippy with warnings denied. Nightly/release add Miri,
 fuzzing and sanitizer/failure-injection lanes. Release also runs cross-language wire
 compatibility and the four architecture-defining vertical slices.
+
+The workspace deliberately exempts `clippy::missing_errors_doc`: public
+fallible APIs use the shared typed `Fault` taxonomy documented at module and
+contract level. All other `all` and `pedantic` findings remain warnings and are
+promoted to errors in qualification; narrow algorithm/generated-code exceptions
+carry source-local rationale.

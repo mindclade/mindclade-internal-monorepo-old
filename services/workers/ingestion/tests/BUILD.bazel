@@ -15,11 +15,7 @@ rust_test(
     srcs = ["integration.rs"],
     edition = "2024",
     deps = [
-        "//libs/rust/content_digest:mindclade_content_digest",
-        "//libs/rust/faults:mindclade_faults",
-        "//libs/rust/runtime_core:mindclade_runtime_core",
-        "//libs/rust/worker_protocol:mindclade_worker_protocol",
-        "//libs/rust/worker_runtime:mindclade_worker_runtime",
+        "//services/workers/ingestion:mindclade_ingestion_worker",
     ],
 )
 

@@ -26,6 +26,11 @@ had two digests — which is the one thing content addressing may not permit.
 UTF-8 is not a preference. Go's `encoding/json` and Rust's `serde_json` both emit
 UTF-8, so the ASCII-escaping form also disagreed with the other two languages.
 
+This is deterministic JSON, not RFC 8785/JCS. Strings, integers, booleans, nulls,
+arrays and string-keyed objects use the cross-language-compatible subset. Float
+formatting is Python's stable JSON representation; another language must hash the
+emitted bytes rather than independently re-encode a float-bearing document.
+
 `allow_nan=False` for the same class of reason: `NaN` and `Infinity` are not JSON
 and both other languages refuse them, so emitting them would produce a document
 only Python can read. Failing at encode time turns a remote parse error into a
@@ -58,7 +63,9 @@ impersonate a structural line, and two different documents would seal to one
 digest.
 
 Everything raises `libs.python.errors.InvalidArgument`, which is also a
-`ValueError`. Nothing coerces or truncates.
+`ValueError`. Non-string object keys, generic read-only mappings, unsupported
+types, cycles, excessive nesting, and non-finite numbers are handled explicitly;
+nothing silently coerces object keys or truncates values.
 
 ## Reserved, not implemented
 

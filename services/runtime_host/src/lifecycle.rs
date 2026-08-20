@@ -33,14 +33,14 @@ impl HostComponent {
 }
 
 impl Component for HostComponent {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "runtime-host-core"
     }
     /// Any preloaded model is already resident by the time this runs; the only
     /// thing start adds is ordering, so admission opens under the lifecycle
     /// rather than beside it.
     fn start(&mut self) -> FaultResult<()> {
-        self.health.set_accepting(true);
+        self.core.resume_admission();
         Ok(())
     }
     /// Stop admitting new sessions without terminating resident work.

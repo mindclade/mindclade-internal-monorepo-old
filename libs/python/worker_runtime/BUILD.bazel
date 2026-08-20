@@ -16,7 +16,12 @@ py_library(
         "executor.py",
         "workload.py",
     ],
+    data = ["py.typed"],
     imports = ["../../.."],
+    deps = [
+        "//libs/python/errors",
+        "//libs/python/identifiers",
+    ],
 )
 
 # pytest_test, not py_test: tests/test_executor.py is a pytest module, and its src living in
@@ -25,6 +30,13 @@ py_library(
 pytest_test(
     name = "test_executor",
     srcs = ["tests/test_executor.py"],
+    imports = ["../../.."],
+    deps = [":worker_runtime"],
+)
+
+pytest_test(
+    name = "test_workload",
+    srcs = ["tests/test_workload.py"],
     imports = ["../../.."],
     deps = [":worker_runtime"],
 )

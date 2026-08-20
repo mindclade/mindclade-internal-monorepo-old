@@ -8,7 +8,13 @@ from typing import Any
 import pytest
 
 from libs.python.errors import Code, code_of
-from libs.python.identifiers import ARTIFACT_REF_FIELDS, ArtifactRef, Digest
+from libs.python.identifiers import (
+    ARTIFACT_REF_FIELDS,
+    MAXIMUM_ARTIFACT_SIZE,
+    MAXIMUM_SCHEMA_VERSION,
+    ArtifactRef,
+    Digest,
+)
 
 DIGEST_TEXT = "sha256:" + "a" * 64
 
@@ -71,7 +77,10 @@ def test_negative_size_is_rejected_but_zero_is_allowed() -> None:
     assert ArtifactRef.from_document(document(size_bytes=0)).size_bytes == 0
 
 
-@pytest.mark.parametrize("media_type", ["", "application", "a" * 256 + "/b"])
+@pytest.mark.parametrize(
+    "media_type",
+    ["", "application", "Application/JSON", "application/json; charset=utf-8", "a" * 256 + "/b"],
+)
 def test_media_type_must_be_a_bounded_type_subtype(media_type: str) -> None:
     with pytest.raises(ValueError, match="media type"):
         ArtifactRef.from_document(document(media_type=media_type))
@@ -83,11 +92,34 @@ def test_logical_kind_is_required_and_bounded(logical_kind: str) -> None:
         ArtifactRef.from_document(document(logical_kind=logical_kind))
 
 
-@pytest.mark.parametrize("schema_version", [0, -1, True])
+@pytest.mark.parametrize("schema_version", [0, -1, True, MAXIMUM_SCHEMA_VERSION + 1])
 def test_schema_version_must_be_a_positive_non_boolean_integer(schema_version: object) -> None:
     # bool subclasses int, so True would otherwise pass as version 1.
     with pytest.raises(ValueError, match="schema version"):
         ArtifactRef.from_document(document(schema_version=schema_version))
+
+
+@pytest.mark.parametrize("size", [True, "1", MAXIMUM_ARTIFACT_SIZE + 1])
+def test_size_must_be_an_unsigned_64_bit_integer(size: object) -> None:
+    with pytest.raises(ValueError, match="size"):
+        ArtifactRef.from_document(document(size_bytes=size))
+
+
+@pytest.mark.parametrize(
+    "logical_kind",
+    ["has space", "UPPER", "slash/value", "line\nbreak"],
+)
+def test_logical_kind_has_one_canonical_text_form(logical_kind: str) -> None:
+    with pytest.raises(ValueError, match="logical kind"):
+        ArtifactRef.from_document(document(logical_kind=logical_kind))
+
+
+def test_direct_construction_validates_runtime_field_types() -> None:
+    digest = Digest.of(b"payload")
+    with pytest.raises(ValueError, match="Digest"):
+        ArtifactRef(DIGEST_TEXT, 1, "application/octet-stream", "features", 1)  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="media type"):
+        ArtifactRef(digest, 1, 7, "features", 1)  # type: ignore[arg-type]
 
 
 def test_reference_is_hashable_and_immutable() -> None:

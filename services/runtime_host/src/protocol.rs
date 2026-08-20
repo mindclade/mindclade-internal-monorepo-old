@@ -54,7 +54,7 @@ pub fn execution_ticket(message: wire::ExecutionTicket) -> FaultResult<Execution
             resolved_config_digest: parse_digest(&claims.resolved_config_digest)?,
             reference_snapshot: parse_optional_digest(&claims.reference_snapshot_digest)?,
             artifacts: artifact_grant(artifacts)?,
-            budget: execution_budget(budget),
+            budget: execution_budget(&budget),
             execution_class: claims.execution_class,
             accelerator_capability: claims.accelerator_capability,
             not_before_unix_millis: claims.not_before_unix_millis,
@@ -159,7 +159,7 @@ fn buffer_descriptor_wire(message: &BufferDescriptor) -> wire::BufferDescriptor 
     }
 }
 
-fn execution_budget(message: wire::ExecutionBudget) -> ExecutionBudget {
+fn execution_budget(message: &wire::ExecutionBudget) -> ExecutionBudget {
     let resources = ResourceVector::new()
         .set(ResourceKind::CpuMillis, u64::from(message.cpu_millis))
         .set(

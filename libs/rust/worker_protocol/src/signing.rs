@@ -117,7 +117,6 @@ impl Ed25519KeySet {
             clock,
         })
     }
-    #[must_use]
     pub fn key_ids(&self) -> impl Iterator<Item = &str> {
         self.keys.keys().map(String::as_str)
     }

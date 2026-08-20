@@ -47,7 +47,7 @@ type owning struct {
 }
 
 func (object *owning) DeepCopyObject() runtime.Object {
-	return &owning{PartialObjectMetadata: *object.PartialObjectMetadata.DeepCopy()}
+	return &owning{PartialObjectMetadata: *object.DeepCopy()}
 }
 
 // conditioned is the reconciled kind: the same metadata plus the condition
@@ -63,7 +63,7 @@ func (object *conditioned) SetConditions(values []metav1.Condition) {
 }
 
 func (object *conditioned) DeepCopyObject() runtime.Object {
-	copied := &conditioned{owning: owning{PartialObjectMetadata: *object.PartialObjectMetadata.DeepCopy()}}
+	copied := &conditioned{owning: owning{PartialObjectMetadata: *object.DeepCopy()}}
 	copied.conditions = append([]metav1.Condition(nil), object.conditions...)
 	return copied
 }

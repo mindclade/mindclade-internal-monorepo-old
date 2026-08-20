@@ -102,6 +102,8 @@ variable "mute_configs" {
   type = map(object({
     description = string
     filter      = string
+    owner       = string
+    expiry_time = string
   }))
   default = {}
 
@@ -109,6 +111,16 @@ variable "mute_configs" {
   validation {
     condition     = alltrue([for k, v in var.mute_configs : length(trimspace(v.description)) >= 30])
     error_message = "Every mute needs a description of at least 30 characters saying what is reported and why it is expected."
+  }
+
+
+  validation {
+    condition = alltrue([
+      for k, v in var.mute_configs :
+      can(regex("^[a-z0-9][a-z0-9_-]{2,62}$", v.owner)) &&
+      can(timecmp(v.expiry_time, v.expiry_time))
+    ])
+    error_message = "Every mute requires a valid accountable owner label and RFC3339 expiry_time."
   }
 
   validation {

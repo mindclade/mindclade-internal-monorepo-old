@@ -21,12 +21,12 @@ fn fasta_a3m_fastq_and_stockholm_round_trip() {
     );
     let a3m_records = a3m::parse(b">q\nACde-F\n", limits, ParseMode::Strict).expect("a3m");
     assert_eq!(a3m_records[0].sequence, b"ACde-F");
-    let fastq_records =
+    let parsed_reads =
         fastq::parse(b"@r1\nACGT\n+\nIIII\n", limits, ParseMode::Strict).expect("fastq");
-    let fastq_encoded = fastq::serialize(&fastq_records).expect("serialize fastq");
+    let wire_bytes = fastq::serialize(&parsed_reads).expect("serialize fastq");
     assert_eq!(
-        fastq::parse(&fastq_encoded, limits, ParseMode::Strict).expect("reparse fastq"),
-        fastq_records
+        fastq::parse(&wire_bytes, limits, ParseMode::Strict).expect("reparse fastq"),
+        parsed_reads
     );
     let stockholm =
         parse_stockholm(b"# STOCKHOLM 1.0\np1 AC-D\np1 EF--\n//\n", limits).expect("stockholm");

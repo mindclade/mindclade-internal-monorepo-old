@@ -15,7 +15,9 @@ present and is not:
 - **`mute_configs`** — muting in the console leaves no reason, no owner, and no expiry.
   Declared here, a mute is a pull request somebody reviews, and one that shows up in a diff
   when it is still present a year later. Descriptions under 30 characters are rejected: a mute
-  with no reason is a finding somebody found inconvenient.
+  with no reason is a finding somebody found inconvenient. Every mute is dynamic and must
+  carry an accountable owner and future RFC3339 expiry; an expired mute fails planning until
+  it is removed or deliberately renewed.
 
 ## Detector enablement is not managed here, and cannot be
 

@@ -45,6 +45,15 @@ pub struct ArtifactCas {
     clock: Arc<dyn Clock>,
 }
 
+impl core::fmt::Debug for ArtifactCas {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        formatter
+            .debug_struct("ArtifactCas")
+            .field("config", &self.config)
+            .finish_non_exhaustive()
+    }
+}
+
 impl ArtifactCas {
     pub fn new(
         store: Arc<dyn ObjectStore>,

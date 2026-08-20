@@ -55,6 +55,23 @@ run "reject_cross_region_cmek" {
   expect_failures = [var.kms_key_name]
 }
 
+run "reject_restricted_instance_without_cmek" {
+  command = plan
+
+  variables {
+    project_id          = "mindclade-production"
+    name                = "restricted-cache"
+    region              = "us-central1"
+    authorized_network  = "projects/mindclade-host/global/networks/production"
+    reserved_ip_range   = "google-managed-services-production"
+    environment         = "production"
+    owner               = "cloud-platform"
+    data_classification = "restricted"
+  }
+
+  expect_failures = [google_redis_instance.this]
+}
+
 run "reject_malformed_zone" {
   command = plan
 

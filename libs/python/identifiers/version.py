@@ -22,11 +22,13 @@ import re
 from dataclasses import dataclass
 from typing import Final
 
-from libs.python.errors import InvalidArgument
+from libs.python.errors import InvalidArgument, OutOfRange
 
 from .digest import Digest
 
 SCHEMA_PREFIX: Final = "rv1"
+MAXIMUM_GENERATION: Final = (1 << 64) - 1
+MAXIMUM_RESOURCE_VERSION_LENGTH: Final = 3 + 1 + 20 + 1 + 71
 
 # Leading zeros are rejected rather than tolerated: "rv1:007:..." and "rv1:7:..."
 # would otherwise be two spellings of one version, and this token is compared as a
@@ -47,23 +49,42 @@ class ResourceVersion:
     digest: Digest
 
     def __post_init__(self) -> None:
-        if self.generation < 1:
+        if (
+            isinstance(self.generation, bool)
+            or not isinstance(self.generation, int)
+            or not 1 <= self.generation <= MAXIMUM_GENERATION
+        ):
             raise InvalidArgument(
-                "resource version generations start at 1",
+                "resource version generation must be an unsigned 64-bit integer starting at 1",
                 reason="invalid_resource_version_generation",
+            )
+        if not isinstance(self.digest, Digest):
+            raise InvalidArgument(
+                "resource version digest must be a Digest",
+                reason="invalid_resource_version_digest",
             )
 
     @classmethod
     def parse(cls, value: str) -> ResourceVersion:
         """Parse the canonical text form."""
-        match = _VERSION.fullmatch(value)
+        match = (
+            _VERSION.fullmatch(value)
+            if isinstance(value, str) and len(value) <= MAXIMUM_RESOURCE_VERSION_LENGTH
+            else None
+        )
         if match is None:
             raise InvalidArgument(
                 "resource version must be rv1:<generation>:sha256:<64 lowercase hex>",
                 reason="invalid_resource_version_schema",
-                fields={"value": value[:128]},
+                fields={"value": value[:128] if isinstance(value, str) else type(value).__name__},
             )
-        return cls(int(match.group("generation")), Digest.parse(match.group("digest")))
+        generation = match.group("generation")
+        if len(generation) > 20:
+            raise InvalidArgument(
+                "resource version generation exceeds uint64",
+                reason="invalid_resource_version_generation",
+            )
+        return cls(int(generation), Digest.parse(match.group("digest")))
 
     @property
     def text(self) -> str:
@@ -72,12 +93,24 @@ class ResourceVersion:
 
     def next(self, digest: Digest) -> ResourceVersion:
         """The version that follows this one for ``digest``."""
+        if self.generation == MAXIMUM_GENERATION:
+            raise OutOfRange(
+                "resource version generation is exhausted",
+                reason="resource_version_overflow",
+            )
         return ResourceVersion(self.generation + 1, digest)
 
     def __str__(self) -> str:
         return self.text
 
 
-def is_canonical_resource_version(value: str) -> bool:
+def is_canonical_resource_version(value: object) -> bool:
     """Report whether ``value`` is a canonical resource version."""
-    return bool(_VERSION.fullmatch(value))
+    if (
+        not isinstance(value, str)
+        or len(value) > MAXIMUM_RESOURCE_VERSION_LENGTH
+        or not _VERSION.fullmatch(value)
+    ):
+        return False
+    generation = value.split(":", 2)[1]
+    return len(generation) <= 20 and int(generation) <= MAXIMUM_GENERATION

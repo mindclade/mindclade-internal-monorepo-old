@@ -54,18 +54,18 @@ COUNTER_SPACE: Final = _MAX_COUNTER + 1
 GUARANTEED_PER_MILLISECOND: Final = COUNTER_SPACE >> 1
 
 
-def is_canonical_kind(value: str) -> bool:
+def is_canonical_kind(value: object) -> bool:
     """Report whether ``value`` is a canonical kind prefix."""
-    return bool(_KIND.fullmatch(value))
+    return isinstance(value, str) and bool(_KIND.fullmatch(value))
 
 
-def is_canonical_resource_id(value: str) -> bool:
+def is_canonical_resource_id(value: object) -> bool:
     """Report whether ``value`` is a canonical resource ID.
 
     Checks the textual shape only. :func:`ResourceId.parse` additionally verifies
     that the payload is a version 7, RFC-variant UUID.
     """
-    return bool(_ID.fullmatch(value))
+    return isinstance(value, str) and bool(_ID.fullmatch(value))
 
 
 def parse_kind(value: str) -> str:
@@ -74,7 +74,7 @@ def parse_kind(value: str) -> str:
         raise InvalidArgument(
             f"kind must match [a-z][a-z0-9]{{{MINIMUM_KIND_LENGTH - 1},{MAXIMUM_KIND_LENGTH - 1}}}",
             reason="kind_format",
-            fields={"value": value[:128]},
+            fields={"value": value[:128] if isinstance(value, str) else type(value).__name__},
         )
     return value
 
@@ -88,6 +88,11 @@ class ResourceId:
 
     def __post_init__(self) -> None:
         parse_kind(self.kind)
+        if not isinstance(self.raw, bytes):
+            raise InvalidArgument(
+                "resource id payload must be bytes",
+                reason="id_type",
+            )
         if len(self.raw) != UUID_BINARY_SIZE:
             raise InvalidArgument(
                 f"resource id payload must be {UUID_BINARY_SIZE} bytes",
@@ -109,12 +114,12 @@ class ResourceId:
         Rejected for the same reason digests reject it: one byte-for-byte
         representation, so an ID is a single key in a database and a signature.
         """
-        match = _ID.fullmatch(value)
+        match = _ID.fullmatch(value) if isinstance(value, str) else None
         if match is None:
             raise InvalidArgument(
                 "resource id must be <kind>_<32 lowercase hex characters>",
                 reason="id_format",
-                fields={"value": value[:128]},
+                fields={"value": value[:128] if isinstance(value, str) else type(value).__name__},
             )
         return cls(match.group("kind"), bytes.fromhex(match.group("body")))
 
@@ -175,7 +180,12 @@ class IdGenerator:
         Callers minting at an explicit stamp are backfilling or building fixtures;
         thousands at one millisecond is a bug worth seeing.
         """
-        if unix_millis < 0 or unix_millis >= 1 << 48:
+        if (
+            isinstance(unix_millis, bool)
+            or not isinstance(unix_millis, int)
+            or unix_millis < 0
+            or unix_millis >= 1 << 48
+        ):
             raise InvalidArgument(
                 "UUIDv7 timestamps span 48 bits of milliseconds since the epoch",
                 reason="timestamp_range",
@@ -184,10 +194,26 @@ class IdGenerator:
 
     def raw_now(self) -> bytes:
         """Mint a payload at the current time, never earlier than the last one."""
-        return self._mint(max(self._clock(), self._last_millis), allow_advance=True)
+        unix_millis = self._clock()
+        if (
+            isinstance(unix_millis, bool)
+            or not isinstance(unix_millis, int)
+            or unix_millis < 0
+            or unix_millis >= 1 << 48
+        ):
+            raise InvalidArgument(
+                "UUIDv7 clock must return 48-bit non-negative integer milliseconds",
+                reason="timestamp_range",
+            )
+        return self._mint(unix_millis, allow_advance=True)
 
     def _mint(self, unix_millis: int, *, allow_advance: bool) -> bytes:
         with self._lock:
+            # Clamp under the same lock that updates the counter. Reading
+            # _last_millis before acquiring it lets a slower thread overwrite a
+            # newer timestamp minted by a faster one and makes IDs go backwards.
+            if allow_advance:
+                unix_millis = max(unix_millis, self._last_millis)
             if unix_millis != self._last_millis:
                 # Seed low so a burst has room to count up without spilling.
                 self._counter = secrets.randbelow(_MAX_COUNTER >> 1)
@@ -197,6 +223,11 @@ class IdGenerator:
                         "UUIDv7 counter space for this millisecond is exhausted",
                         reason="id_counter_exhausted",
                         fields={"unix_millis": str(unix_millis)},
+                    )
+                if unix_millis == (1 << 48) - 1:
+                    raise ResourceExhausted(
+                        "UUIDv7 timestamp and counter space are exhausted",
+                        reason="id_space_exhausted",
                     )
                 # Wall-clock minting promises "now, in order" rather than an exact
                 # stamp, so borrowing the next millisecond keeps uniqueness without

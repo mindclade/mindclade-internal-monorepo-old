@@ -113,6 +113,7 @@
               pnpm
               protobuf
               python312
+              python312Packages.mkdocs
               ruff
               uv
             ])
@@ -150,6 +151,7 @@
                 pnpm
                 protobuf
                 python312
+                python312Packages.mkdocs
                 ruff
                 shellcheck
                 terraform

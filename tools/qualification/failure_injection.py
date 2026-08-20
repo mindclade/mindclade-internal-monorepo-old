@@ -54,6 +54,22 @@ def main() -> int:
             if shutil.which(command[0]) is None:
                 print(f"required tool unavailable for {scenario['name']}: {command[0]}")
                 return 1
+            listed = subprocess.run(
+                [*command, "--list"],
+                cwd=ROOT,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            matches = [
+                line for line in listed.stdout.splitlines() if line.rstrip().endswith(": test")
+            ]
+            if len(matches) != 1:
+                print(
+                    f"{scenario['name']}: expected exactly one matching test, "
+                    f"found {len(matches)}"
+                )
+                return 1
             print(f"failure-injection: {scenario['name']} -> {' '.join(command)}")
             subprocess.run(command, cwd=ROOT, check=True)
     print(f"failure-injection matrix passed ({len(scenarios)} scenarios)")

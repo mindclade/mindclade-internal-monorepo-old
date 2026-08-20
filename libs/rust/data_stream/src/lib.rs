@@ -65,11 +65,12 @@ impl StreamPlan {
             .map_err(|_| Fault::new(Code::OutOfRange, "world size exceeds platform usize"))?;
         let rank_usize = usize::try_from(rank)
             .map_err(|_| Fault::new(Code::OutOfRange, "rank exceeds platform usize"))?;
+        let mut shards: Vec<Option<Shard>> = shards.into_iter().map(Some).collect();
         let assigned = order
             .into_iter()
             .enumerate()
             .filter(|&(position, _index)| position % world_size_usize == rank_usize)
-            .map(|(_position, index)| shards[index].clone())
+            .filter_map(|(_position, index)| shards[index].take())
             .collect::<Vec<_>>();
         let digest = plan_digest(&dataset, epoch, seed, world_size, rank, &assigned)?;
         Ok(Self {
@@ -157,6 +158,17 @@ pub struct Prefetcher {
     receiver: Option<mpsc::Receiver<FaultResult<PrefetchedShard>>>,
     cancelled: Arc<AtomicBool>,
     worker: Option<JoinHandle<()>>,
+}
+
+impl core::fmt::Debug for Prefetcher {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        formatter
+            .debug_struct("Prefetcher")
+            .field("receiver_open", &self.receiver.is_some())
+            .field("cancelled", &self.cancelled.load(Ordering::Acquire))
+            .field("worker_active", &self.worker.is_some())
+            .finish()
+    }
 }
 
 impl Prefetcher {

@@ -3,15 +3,20 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_rust//rust:defs.bzl", "rust_binary")
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
 
 package(default_visibility = ["//libs/rust:repo_consumers"])
 
-rust_binary(
+rust_library(
     name = "mindclade_ingestion_worker",
     srcs = glob(["src/**/*.rs"]),
     crate_name = "mindclade_ingestion_worker",
+    crate_root = "src/lib.rs",
     edition = "2024",
+    visibility = [
+        "//libs/rust:repo_consumers",
+        "//services/workers/ingestion/tests:__pkg__",
+    ],
     deps = [
         "//libs/rust/content_digest:mindclade_content_digest",
         "//libs/rust/faults:mindclade_faults",
@@ -19,6 +24,13 @@ rust_binary(
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
         "//libs/rust/worker_runtime:mindclade_worker_runtime",
     ],
+)
+
+rust_binary(
+    name = "mindclade_ingestion_worker_bin",
+    srcs = ["src/main.rs"],
+    crate_name = "mindclade_ingestion_worker_bin",
+    edition = "2024",
 )
 
 # The integration test lives in //services/workers/ingestion/tests, which is its own package

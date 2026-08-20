@@ -153,7 +153,7 @@ fn core() -> NodeAgentCore {
     NodeAgentCore::with_clock(
         config(),
         Arc::new(NodeHealth::new()),
-        Default::default(),
+        mindclade_node_agent::telemetry::NodeMetrics::default(),
         Arc::new(clock),
     )
     .expect("node agent")

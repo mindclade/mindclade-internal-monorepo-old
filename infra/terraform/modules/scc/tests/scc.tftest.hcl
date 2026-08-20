@@ -63,7 +63,12 @@ run "a_mute_without_a_real_reason_is_rejected" {
 
   variables {
     mute_configs = {
-      noisy = { description = "too noisy", filter = "category=\"PUBLIC_IP_ADDRESS\"" }
+      noisy = {
+        description = "too noisy"
+        filter      = "category=\"PUBLIC_IP_ADDRESS\""
+        owner       = "cloud-security"
+        expiry_time = "2099-01-01T00:00:00Z"
+      }
     }
   }
 
@@ -79,11 +84,30 @@ run "a_mute_with_an_empty_filter_is_rejected" {
       blanket = {
         description = "This would silence every finding in the entire organization at once."
         filter      = ""
+        owner       = "cloud-security"
+        expiry_time = "2099-01-01T00:00:00Z"
       }
     }
   }
 
   expect_failures = [var.mute_configs]
+}
+
+run "a_mute_requires_future_expiry" {
+  command = plan
+
+  variables {
+    mute_configs = {
+      expired = {
+        description = "This temporary exception is deliberately already expired for the test."
+        filter      = "category=\"PUBLIC_IP_ADDRESS\""
+        owner       = "cloud-security"
+        expiry_time = "2020-01-01T00:00:00Z"
+      }
+    }
+  }
+
+  expect_failures = [google_scc_mute_config.this["expired"]]
 }
 
 run "the_findings_dataset_survives_a_destroy_of_its_contents" {

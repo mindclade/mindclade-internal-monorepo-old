@@ -4,4 +4,5 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# Intentionally no PodDisruptionBudget. The component is disabled, and a future
+# DaemonSet disruption policy must follow its qualified drain semantics.

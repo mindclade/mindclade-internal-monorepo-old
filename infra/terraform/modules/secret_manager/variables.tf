@@ -61,7 +61,8 @@ variable "secrets" {
 
     # Seconds, as a string, matching the API. A secret with no rotation period is one nobody
     # will ever rotate — the annotation is what a rotation job reads to know what it owns.
-    rotation_period = optional(string)
+    rotation_period    = optional(string)
+    next_rotation_time = optional(string)
 
     labels      = optional(map(string), {})
     annotations = optional(map(string), {})
@@ -89,9 +90,44 @@ variable "secrets" {
   validation {
     condition = alltrue([
       for id, s in var.secrets :
-      s.rotation_period == null || can(regex("^[0-9]+s$", s.rotation_period))
+      (s.rotation_period == null) == (s.next_rotation_time == null) &&
+      (
+        s.rotation_period == null || (
+          can(regex("^[0-9]+s$", s.rotation_period)) &&
+          try(tonumber(trimsuffix(s.rotation_period, "s")), 0) >= 3600 &&
+          try(tonumber(trimsuffix(s.rotation_period, "s")), 3153600001) <= 3153600000
+        )
+      ) &&
+      (s.next_rotation_time == null || can(timecmp(s.next_rotation_time, s.next_rotation_time)))
     ])
-    error_message = "rotation_period must be a duration in seconds with a trailing s, e.g. \"7776000s\"."
+    error_message = "rotation_period and next_rotation_time must be set together; the period must be 3600s through 3153600000s and the timestamp must be RFC3339."
+  }
+
+  validation {
+    condition = alltrue([
+      for id, s in var.secrets :
+      alltrue([
+        for key, value in s.annotations :
+        key != "description" &&
+        can(regex("^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,61}[A-Za-z0-9])?$", key)) &&
+        can(regex("^[\\x20-\\x7e]*$", value))
+      ]) &&
+      sum([for key, value in s.annotations : length(key) + length(value)]) +
+      length("description") + min(length(s.description), 1000) < 16384
+    ])
+    error_message = "Annotation keys must be API-valid and cannot use the reserved description key; values must be printable ASCII and total key/value size including description must stay below 16 KiB."
+  }
+
+  validation {
+    condition = alltrue([
+      for id, s in var.secrets :
+      length(s.labels) <= 60 && alltrue([
+        for key, value in s.labels :
+        can(regex("^[a-z][a-z0-9_-]{0,62}$", key)) &&
+        can(regex("^$|^[a-z0-9][a-z0-9_-]{0,62}$", value))
+      ])
+    ])
+    error_message = "Per-secret labels must contain at most 60 valid lowercase pairs, leaving room for governance labels."
   }
 }
 
@@ -142,15 +178,6 @@ variable "replication" {
   })
 
   validation {
-    condition = (
-      length(var.replication.user_managed) > 0 ||
-      var.replication.automatic_kms_key_name != null ||
-      var.replication.automatic_kms_key_name == null
-    )
-    error_message = "replication must specify user_managed replicas, or leave automatic replication configured."
-  }
-
-  validation {
     condition     = length(var.replication.user_managed) == 0 || var.replication.automatic_kms_key_name == null
     error_message = "automatic_kms_key_name cannot be combined with user_managed replicas."
   }
@@ -188,12 +215,22 @@ variable "alert_on_unexpected_access" {
 variable "environment" {
   description = "Environment label applied to every secret"
   type        = string
+
+  validation {
+    condition     = can(regex("^[a-z0-9][a-z0-9_-]{0,62}$", var.environment))
+    error_message = "environment must be a valid non-empty GCP label value."
+  }
 }
 
 variable "owner" {
   description = "Accountable team label"
   type        = string
   default     = "platform"
+
+  validation {
+    condition     = can(regex("^[a-z0-9][a-z0-9_-]{0,62}$", var.owner))
+    error_message = "owner must be a valid non-empty GCP label value."
+  }
 }
 
 variable "data_classification" {
@@ -211,4 +248,13 @@ variable "labels" {
   description = "Labels applied to every secret, merged under each secret's own."
   type        = map(string)
   default     = {}
+
+  validation {
+    condition = length(var.labels) <= 60 && alltrue([
+      for key, value in var.labels :
+      can(regex("^[a-z][a-z0-9_-]{0,62}$", key)) &&
+      can(regex("^$|^[a-z0-9][a-z0-9_-]{0,62}$", value))
+    ])
+    error_message = "labels must contain at most 60 valid lowercase pairs, leaving room for governance labels."
+  }
 }

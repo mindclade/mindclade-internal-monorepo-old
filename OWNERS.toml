@@ -60,7 +60,26 @@ paths = ["data/**", "control/ingestion/**", "services/workers/ingestion/**"]
 
 [[owners]]
 team = "release-engineering"
-paths = ["ci/**", "infra/**", "qualification/**", "tools/build/**", "control/registry/releases/**"]
+paths = [
+    ".bazelrc",
+    ".bazelversion",
+    ".buildifier.json",
+    "BUILD.bazel",
+    "flake.lock",
+    "flake.nix",
+    "MODULE.bazel",
+    "MODULE.bazel.lock",
+    "ci/**",
+    "control/registry/releases/**",
+    "docs/architecture/build-and-toolchains.md",
+    "docs/architecture/dependency-rules.md",
+    "infra/**",
+    "qualification/**",
+    "tools/analysis/check_bazel_layers.py",
+    "tools/build/**",
+    "tools/dev/bazel-repo-bin/**",
+    "tools/dev/bazelw",
+]
 
 # ---------------------------------------------------------------------------------------
 # Release evidence and security surfaces

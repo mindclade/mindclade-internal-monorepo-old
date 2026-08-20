@@ -49,6 +49,8 @@ resource "google_org_policy_policy" "boolean" {
   }
 
   lifecycle {
+    prevent_destroy = true
+
     precondition {
       condition     = length(local.overlapping) == 0
       error_message = "Declared as both a boolean and a list constraint: ${join(", ", local.overlapping)}."
@@ -72,6 +74,10 @@ resource "google_org_policy_policy" "list" {
       }
     }
   }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # Folder relaxations.
@@ -93,5 +99,10 @@ resource "google_org_policy_policy" "folder_override" {
       deny_all  = each.value.deny_all == true ? "TRUE" : null
       enforce   = each.value.enforce == null ? null : (each.value.enforce ? "TRUE" : "FALSE")
     }
+  }
+
+
+  lifecycle {
+    prevent_destroy = true
   }
 }

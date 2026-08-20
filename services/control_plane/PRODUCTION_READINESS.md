@@ -75,12 +75,13 @@ ticked only when something in the repository proves it.
 - [ ] **SLOs, dashboards, alerts, and runbooks linked**
       **Not done.** No SLO or runbook artifacts are present to link.
 
-- [ ] **Bazel build, SBOM, provenance, image signature, and rollback evidence attached**
-      **Blocked.** `bazel test //...` cannot run: every rules_go release in the
-      registry passes `GOEXPERIMENT=coverageredesign`, which the pinned Go
-      rejects, so Bazel compiles against 1.22.7 while `go.mod` pins 1.26.0. The
-      analysis is in `MODULE.bazel`. All BUILD targets in this service are
-      hand-written and unverified against a real Bazel analysis.
+- [~] **Bazel build, SBOM, provenance, image signature, and rollback evidence attached**
+      The Go and control-plane graph is now verified under the pinned Go and
+      Bazel toolchains. The scoped `//libs/go/...` and
+      `//services/control_plane/...` test analyzed 228 targets, built 131
+      targets, and passed all 97 tests. The repository-wide `//...` test, SBOM,
+      provenance, image-signature, and rollback evidence still need
+      release-lane proof.
 
 - [x] **`bootstrap.UnconfiguredFactory` absent from the promoted command**
       Enforced, not reviewed: `internal/bootstrap/promotion_test.go` fails if
@@ -91,10 +92,10 @@ ticked only when something in the repository proves it.
 
 | | Count |
 |---|---:|
-| Satisfied | 6 |
-| Partial | 3 |
-| Not done | 1 |
-| Blocked on toolchain | 1 |
+| Satisfied | 5 |
+| Partial | 4 |
+| Not done | 2 |
+| Blocked on toolchain | 0 |
 
 **The critical path to promotion is domain implementation.** Everything the
 foundation owns is wired and guarded. The registry's storage layer now exists
@@ -102,4 +103,5 @@ but is unreachable, and no domain engine does. The next step is the composition
 decision that lets a `Store` be constructed at all; after that, in order:
 domain engines behind the fail-closed seams, control-plane lifecycle tests, a
 live-PostgreSQL qualification run, failure injection, then the operational
-artifacts. The Bazel gate is independent and blocked upstream.
+artifacts. The scoped Bazel build is unblocked; the broader release and
+supply-chain evidence remains independent work.

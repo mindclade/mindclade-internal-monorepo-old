@@ -8,7 +8,7 @@
 use crate::{ProcessHandle, ProcessSpec, ProcessSupervisor};
 use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_gpu_host::{Digest, GpuHost, ModelSlot, ModelSlotRequest};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -40,7 +40,7 @@ impl core::fmt::Debug for LoadedModel {
             .debug_struct("LoadedModel")
             .field("model_digest", &self.spec.model_digest)
             .field("pid", &self.process.pid)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -48,7 +48,13 @@ pub struct ModelRegistry {
     gpu: Arc<GpuHost>,
     processes: Arc<ProcessSupervisor>,
     maximum_slots: u32,
-    models: Mutex<BTreeMap<Digest, LoadedModel>>,
+    state: Mutex<ModelState>,
+}
+
+#[derive(Default)]
+struct ModelState {
+    pending: BTreeSet<Digest>,
+    models: BTreeMap<Digest, LoadedModel>,
 }
 impl core::fmt::Debug for ModelRegistry {
     fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -56,7 +62,7 @@ impl core::fmt::Debug for ModelRegistry {
             .debug_struct("ModelRegistry")
             .field("loaded", &self.len())
             .field("maximum_slots", &self.maximum_slots)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 impl ModelRegistry {
@@ -74,47 +80,72 @@ impl ModelRegistry {
             gpu,
             processes,
             maximum_slots,
-            models: Mutex::new(BTreeMap::new()),
+            state: Mutex::new(ModelState::default()),
         })
     }
     pub fn load(&self, spec: ModelSpec) -> FaultResult<()> {
         spec.validate()?;
-        let mut models = self
-            .models
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if models.contains_key(&spec.model_digest) {
-            return Ok(());
-        }
+        let model_digest = spec.model_digest;
         let maximum_slots = usize::try_from(self.maximum_slots)
             .map_err(|_| Fault::new(Code::OutOfRange, "model slot limit exceeds platform usize"))?;
-        if models.len() >= maximum_slots {
-            return Err(Fault::new(
-                Code::ResourceExhausted,
-                "model slot limit reached",
-            ));
+        {
+            let mut state = self
+                .state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if state.models.contains_key(&model_digest) {
+                return Ok(());
+            }
+            if state.pending.contains(&model_digest) {
+                return Err(Fault::new(
+                    Code::AlreadyExists,
+                    "model load is already in progress",
+                ));
+            }
+            let admitted = state
+                .models
+                .len()
+                .checked_add(state.pending.len())
+                .ok_or_else(|| {
+                    Fault::new(Code::ResourceExhausted, "model slot accounting overflow")
+                })?;
+            if admitted >= maximum_slots {
+                return Err(Fault::new(
+                    Code::ResourceExhausted,
+                    "model slot limit reached",
+                ));
+            }
+            state.pending.insert(model_digest);
         }
-        let slot = self.gpu.reserve_model(ModelSlotRequest {
-            model_digest: spec.model_digest,
-            minimum_memory_bytes: spec.minimum_gpu_memory_bytes,
-            pinned_memory_bytes: spec.pinned_memory_bytes,
-        })?;
-        let process = self.processes.launch(&spec.process)?;
-        models.insert(
-            spec.model_digest,
-            LoadedModel {
+
+        let loaded = (|| {
+            let slot = self.gpu.reserve_model(ModelSlotRequest {
+                model_digest,
+                minimum_memory_bytes: spec.minimum_gpu_memory_bytes,
+                pinned_memory_bytes: spec.pinned_memory_bytes,
+            })?;
+            let process = self.processes.launch(&spec.process)?;
+            Ok(LoadedModel {
                 spec,
                 process,
                 _slot: slot,
-            },
-        );
+            })
+        })();
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        state.pending.remove(&model_digest);
+        let loaded = loaded?;
+        state.models.insert(loaded.spec.model_digest, loaded);
         Ok(())
     }
     pub fn unload(&self, digest: &Digest) -> FaultResult<()> {
         let process_name = self
-            .models
+            .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .models
             .get(digest)
             .map(|loaded| loaded.spec.process.name.clone());
         let Some(process_name) = process_name else {
@@ -125,24 +156,53 @@ impl ModelRegistry {
         // is confirmed stopped. A termination failure must leave ownership and
         // accounting intact rather than creating an unbudgeted live process.
         self.processes.stop(&process_name)?;
-        self.models
+        self.state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .models
             .remove(digest);
         Ok(())
     }
     #[must_use]
     pub fn contains(&self, digest: &Digest) -> bool {
-        self.models
+        self.state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .models
             .contains_key(digest)
+    }
+    pub fn contains_running(&self, digest: &Digest) -> FaultResult<bool> {
+        let process_name = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .models
+            .get(digest)
+            .map(|model| model.spec.process.name.clone());
+        let Some(process_name) = process_name else {
+            return Ok(false);
+        };
+        if self.processes.running(&process_name)? {
+            return Ok(true);
+        }
+        self.state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .models
+            .remove(digest);
+        Ok(false)
     }
     #[must_use]
     pub fn len(&self) -> usize {
-        self.models
+        self.state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .models
             .len()
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }

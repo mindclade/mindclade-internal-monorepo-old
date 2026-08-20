@@ -13,10 +13,13 @@ use mindclade_bytes_io::ByteRange;
 use mindclade_content_digest::hash_bytes;
 use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_worker_protocol::{BufferAccess, BufferDescriptor, BufferTransport};
-use std::fs::{self, OpenOptions};
+use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
+
+#[cfg(unix)]
+use std::os::unix::fs::OpenOptionsExt;
 
 static NEXT_SEGMENT: AtomicU64 = AtomicU64::new(1);
 const MAX_SEGMENT_BYTES: u64 = 4 * 1024 * 1024 * 1024;
@@ -57,17 +60,20 @@ impl FileSegment {
                 current.checked_add(1)
             })
             .map_err(|_| Fault::new(Code::OutOfRange, "portable IPC segment counter exhausted"))?;
-        let file_name = format!("mindclade-{generation}-{sequence}.buffer");
+        let file_name = format!(
+            "mindclade-{}-{generation}-{sequence}.buffer",
+            std::process::id()
+        );
         let final_path = directory.join(&file_name);
-        let temp_path = directory.join(format!(".{file_name}.tmp"));
-        let mut file = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&temp_path)
-            .map_err(|error| {
-                Fault::new(Code::Unavailable, "failed to create portable IPC segment")
-                    .with_source(error)
-            })?;
+        let temp_path = directory.join(format!(".{file_name}.partial"));
+        let mut options = OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        options.mode(0o600);
+        let mut file = options.open(&temp_path).map_err(|error| {
+            Fault::new(Code::Unavailable, "failed to create portable IPC segment")
+                .with_source(error)
+        })?;
         if let Err(error) = file.write_all(bytes).and_then(|()| file.sync_all()) {
             let _ = fs::remove_file(&temp_path);
             return Err(
@@ -76,11 +82,24 @@ impl FileSegment {
             );
         }
         drop(file);
-        fs::rename(&temp_path, &final_path).map_err(|error| {
+        fs::hard_link(&temp_path, &final_path).map_err(|error| {
             let _ = fs::remove_file(&temp_path);
             Fault::new(Code::Unavailable, "failed to publish portable IPC segment")
                 .with_source(error)
         })?;
+        fs::remove_file(&temp_path).map_err(|error| {
+            let _ = fs::remove_file(&final_path);
+            Fault::new(Code::Unavailable, "failed to finalize portable IPC segment")
+                .with_source(error)
+        })?;
+        if let Err(error) = File::open(directory).and_then(|directory| directory.sync_all()) {
+            let _ = fs::remove_file(&final_path);
+            return Err(Fault::new(
+                Code::Unavailable,
+                "failed to synchronize portable IPC directory",
+            )
+            .with_source(error));
+        }
         let digest = hash_bytes(bytes);
         let descriptor = BufferDescriptor {
             segment_id: file_name,

@@ -4,4 +4,29 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mindclade-gpu-contract
+  namespace: mindclade-system
+data:
+  activationState: blocked
+  deviceResource: nvidia.com/gpu
+  h100Profile: gke-h100-a3-megagpu-8g
+  h200Profile: gke-h200-a3-ultragpu-8g
+  nodePoolLabel: mindclade.dev/node-pool=gpu
+  profileLabel: mindclade.dev/gpu-profile
+  requiredTaint: nvidia.com/gpu=present:NoSchedule
+  runtimeClass: unset-until-observed
+---
+# A separate quota object makes accidental GPU admission impossible even if general namespace
+# quotas are loosened. Production overlays must replace zero only after capacity qualification.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: mindclade-gpu-block
+  namespace: mindclade-system
+spec:
+  hard:
+    limits.nvidia.com/gpu: "0"
+    requests.nvidia.com/gpu: "0"

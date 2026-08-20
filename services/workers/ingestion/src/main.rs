@@ -3,10 +3,6 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-mod config;
-mod executor;
-mod lifecycle;
-
 fn main() {
     eprintln!(
         "mindclade-ingestion-worker: provider/source engine not configured; \

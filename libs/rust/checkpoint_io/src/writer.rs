@@ -22,6 +22,15 @@ pub struct CheckpointWriter {
     clock: Arc<dyn Clock>,
 }
 
+impl core::fmt::Debug for CheckpointWriter {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        formatter
+            .debug_struct("CheckpointWriter")
+            .field("cas", &self.cas)
+            .finish_non_exhaustive()
+    }
+}
+
 impl CheckpointWriter {
     #[must_use]
     pub fn new(cas: ArtifactCas, store: Arc<dyn ObjectStore>, clock: Arc<dyn Clock>) -> Self {
@@ -57,6 +66,7 @@ impl CheckpointWriter {
     }
 }
 
+#[derive(Debug)]
 pub struct CheckpointSession {
     writer: CheckpointWriter,
     checkpoint_id: ResourceId,

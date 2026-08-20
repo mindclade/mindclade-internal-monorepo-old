@@ -13,6 +13,9 @@
 | Cross-language release blocker | golden + field-tag compatibility gate | Go/Rust/Python protocols | release gate |
 | Vertical slices | integration release gate | ingestion/preprocessing/serving/training | provider/GPU-connected release evidence |
 
-The only evidence that cannot be generated in a toolchain-less sandbox is the
-Cargo-generated transitive lock and compiler/runtime qualification. The repository
-fails closed on those requirements rather than fabricating evidence.
+Local qualification was rerun on 2026-08-20 with the pinned Rust 1.97.1
+toolchain: locked all-feature/all-target tests, rustfmt, rustdoc, and Clippy with
+warnings denied pass. Promotion still requires connected Linux/Bazel/Nix,
+provider, sanitizer/Miri/fuzz, measured-performance, image/provenance, and
+deployment evidence; local compiler evidence is not a substitute for those
+release gates.

@@ -36,8 +36,9 @@ dependencies = [
 # stable within a version.
 [dependency-groups]
 dev = [
+    "mypy==2.3.1",
     "ruff==0.14.6",
-    "pytest==9.0.1",
+    "pytest==9.0.3",
 ]
 
 [tool.uv]
@@ -69,7 +70,7 @@ consider_namespace_packages = true
 # selector. They were absent, so tools/analysis/tests/ and ci/common/tests/ were never collected
 # — which is how the module-path cutover left test_higher_layer_import_is_rejected red without
 # any lane reporting it.
-testpaths = ["tests", "ci", "tools", "data", "evaluation", "kernels", "models", "preprocessing", "serving", "training"]
+testpaths = ["tests", "ci", "tools", "data", "evaluation", "kernels", "libs", "models", "preprocessing", "serving", "training"]
 python_files = ["test_*.py", "*_test.py"]
 
 [tool.ruff]

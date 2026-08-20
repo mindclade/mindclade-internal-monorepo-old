@@ -23,7 +23,8 @@ locals {
   unknown_attestors = setsubtract(local.referenced_attestors, keys(var.attestors))
 
   # Signers named for an attestor that does not exist is a grant that silently goes nowhere.
-  unknown_signers = setsubtract(keys(var.attestor_signers), keys(var.attestors))
+  unknown_signers   = setsubtract(keys(var.attestor_signers), keys(var.attestors))
+  unknown_verifiers = setsubtract(keys(var.attestor_verifiers), keys(var.attestors))
 
   # Filtered to attestors that exist. Not to tolerate a typo — the precondition below still
   # fails the apply — but so that the failure is that precondition's message rather than an
@@ -31,6 +32,17 @@ locals {
   signer_pairs = merge([
     for attestor, members in var.attestor_signers : {
       for m in members : "${attestor}:${m}" => { attestor = attestor, member = m }
+    } if contains(keys(var.attestors), attestor)
+  ]...)
+
+  signer_members = toset(flatten(values(var.attestor_signers)))
+
+  verifier_pairs = merge([
+    for attestor, members in var.attestor_verifiers : {
+      for member in members : "${attestor}:${member}" => {
+        attestor = attestor
+        member   = member
+      }
     } if contains(keys(var.attestors), attestor)
   ]...)
 }
@@ -83,6 +95,10 @@ resource "google_container_analysis_note" "attestor" {
       human_readable_name = each.value.description
     }
   }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "google_binary_authorization_attestor" "this" {
@@ -104,12 +120,53 @@ resource "google_binary_authorization_attestor" "this" {
       }
     }
   }
+
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "google_container_analysis_note_iam_member" "attestor_occurrence_viewer" {
+  for_each = var.attestors
+
+  project = var.project_id
+  note    = google_container_analysis_note.attestor[each.key].name
+  role    = "roles/containeranalysis.notes.occurrences.viewer"
+  member  = "serviceAccount:service-${var.project_number}@gcp-sa-binaryauthorization.iam.gserviceaccount.com"
 }
 
 # Who may sign. Deliberately not the same principal that may deploy: an identity that can
 # both attest and deploy can approve its own artefacts, which is the control removed.
-resource "google_binary_authorization_attestor_iam_member" "signer" {
+resource "google_container_analysis_note_iam_member" "signer_attacher" {
   for_each = local.signer_pairs
+
+  project = var.project_id
+  note    = google_container_analysis_note.attestor[each.value.attestor].name
+  role    = "roles/containeranalysis.notes.attacher"
+  member  = each.value.member
+}
+
+resource "google_project_iam_member" "signer_occurrence_editor" {
+  for_each = local.signer_members
+
+  project = var.project_id
+  role    = "roles/containeranalysis.occurrences.editor"
+  member  = each.value
+}
+
+resource "google_kms_crypto_key_iam_member" "signer" {
+  for_each = local.signer_pairs
+
+  crypto_key_id = google_kms_crypto_key.attestor[each.value.attestor].id
+  role          = "roles/cloudkms.signerVerifier"
+  member        = each.value.member
+}
+
+# Who may verify through this attestor, normally the Binary Authorization service agent in a
+# separate deployer project. This role does not let a signer create an attestation.
+resource "google_binary_authorization_attestor_iam_member" "verifier" {
+  for_each = local.verifier_pairs
 
   project  = var.project_id
   attestor = google_binary_authorization_attestor.this[each.value.attestor].name
@@ -163,6 +220,8 @@ resource "google_binary_authorization_policy" "this" {
   }
 
   lifecycle {
+    prevent_destroy = true
+
     precondition {
       condition     = length(local.unknown_attestors) == 0
       error_message = "Rules reference attestors that are not declared: ${join(", ", local.unknown_attestors)}."
@@ -171,6 +230,11 @@ resource "google_binary_authorization_policy" "this" {
     precondition {
       condition     = length(local.unknown_signers) == 0
       error_message = "attestor_signers names attestors that do not exist: ${join(", ", local.unknown_signers)}."
+    }
+
+    precondition {
+      condition     = length(local.unknown_verifiers) == 0
+      error_message = "attestor_verifiers names attestors that do not exist: ${join(", ", local.unknown_verifiers)}."
     }
 
     precondition {

@@ -28,6 +28,7 @@ use prost::Message;
 use std::collections::BTreeMap;
 use std::env;
 use std::future::Future;
+use std::io::Read;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::str::FromStr;
@@ -228,13 +229,13 @@ impl AsyncControlSession for ControlSession {
         &'a mut self,
         request: Vec<u8>,
     ) -> Pin<Box<dyn Future<Output = FaultResult<Vec<u8>>> + Send + 'a>> {
-        Box::pin(async move { self.handle_message(request) })
+        Box::pin(async move { self.handle_message(&request) })
     }
 }
 
 impl ControlSession {
-    fn handle_message(&mut self, request: Vec<u8>) -> FaultResult<Vec<u8>> {
-        let command = wire::WorkerCommand::decode(request.as_slice()).map_err(|error| {
+    fn handle_message(&mut self, request: &[u8]) -> FaultResult<Vec<u8>> {
+        let command = wire::WorkerCommand::decode(request).map_err(|error| {
             Fault::invalid_argument("worker control protobuf is invalid").with_source(error)
         })?;
         self.validate_sequence(command.sequence)?;
@@ -247,7 +248,7 @@ impl ControlSession {
             wire::worker_command::Command::Cancel(cancel) => self.cancel(cancel, now)?,
             wire::worker_command::Command::Drain(drain) => self.drain(drain, now)?,
             wire::worker_command::Command::Heartbeat(heartbeat) => {
-                self.heartbeat(heartbeat, now)?
+                self.heartbeat(&heartbeat, now)?
             }
         };
         let wire_status = protocol::worker_status(&status);
@@ -306,7 +307,7 @@ impl ControlSession {
 
     fn heartbeat(
         &mut self,
-        heartbeat: wire::HeartbeatCommand,
+        heartbeat: &wire::HeartbeatCommand,
         now: u64,
     ) -> FaultResult<WorkerStatus> {
         if heartbeat.requested_at_unix_millis == 0 || heartbeat.requested_at_unix_millis > now {
@@ -477,8 +478,11 @@ fn model_spec_from_env() -> FaultResult<Option<ModelSpec>> {
 }
 
 fn read_message<M: Message + Default>(path: &PathBuf) -> FaultResult<M> {
-    let metadata = std::fs::metadata(path).map_err(|error| {
+    let file = std::fs::File::open(path).map_err(|error| {
         Fault::new(Code::NotFound, "runtime policy file is unavailable").with_source(error)
+    })?;
+    let metadata = file.metadata().map_err(|error| {
+        Fault::new(Code::Unavailable, "runtime policy file inspection failed").with_source(error)
     })?;
     if !metadata.is_file() || metadata.len() == 0 || metadata.len() > MAX_POLICY_FILE_BYTES {
         return Err(Fault::new(
@@ -486,9 +490,26 @@ fn read_message<M: Message + Default>(path: &PathBuf) -> FaultResult<M> {
             "runtime policy file size is invalid",
         ));
     }
-    let bytes = std::fs::read(path).map_err(|error| {
-        Fault::new(Code::Unavailable, "runtime policy file read failed").with_source(error)
+    let capacity = usize::try_from(metadata.len()).map_err(|_| {
+        Fault::new(
+            Code::ResourceExhausted,
+            "runtime policy file exceeds platform limits",
+        )
     })?;
+    let mut bytes = Vec::with_capacity(capacity);
+    file.take(MAX_POLICY_FILE_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| {
+            Fault::new(Code::Unavailable, "runtime policy file read failed").with_source(error)
+        })?;
+    if bytes.is_empty()
+        || u64::try_from(bytes.len()).map_or(true, |length| length > MAX_POLICY_FILE_BYTES)
+    {
+        return Err(Fault::new(
+            Code::ResourceExhausted,
+            "runtime policy file changed beyond its size bound while reading",
+        ));
+    }
     M::decode(bytes.as_slice()).map_err(|error| {
         Fault::invalid_argument("runtime policy protobuf is invalid").with_source(error)
     })

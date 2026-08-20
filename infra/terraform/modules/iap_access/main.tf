@@ -34,11 +34,22 @@
 # them, and the browser plane's five-minute session cache then expires — which is what bounds
 # revocation latency at five minutes rather than at a session lifetime.
 
-resource "google_iap_web_backend_service_iam_binding" "accessor" {
-  for_each = var.backend_services
+locals {
+  accessor_members = merge([
+    for backend_key, backend_name in var.backend_services : {
+      for group in var.accessor_groups : "${backend_key}/${group}" => {
+        backend_name = backend_name
+        group        = group
+      }
+    }
+  ]...)
+}
+
+resource "google_iap_web_backend_service_iam_member" "accessor" {
+  for_each = local.accessor_members
 
   project             = var.project_id
-  web_backend_service = each.value
+  web_backend_service = each.value.backend_name
   role                = "roles/iap.httpsResourceAccessor"
-  members             = [for group in var.accessor_groups : "group:${group}"]
+  member              = "group:${each.value.group}"
 }

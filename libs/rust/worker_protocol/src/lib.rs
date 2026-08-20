@@ -827,7 +827,7 @@ pub enum WorkerState {
 pub enum WorkerCommand {
     Start {
         sequence: u64,
-        ticket: ExecutionTicket,
+        ticket: Box<ExecutionTicket>,
         inputs: Vec<BufferDescriptor>,
         operation: String,
     },
@@ -1032,6 +1032,12 @@ impl RouteSnapshot {
         self.claims.verify_digest()?;
         let bytes = self.claims.canonical_bytes()?;
         verifier.verify(&bytes, &self.signature)?;
+        if now < self.claims.created_unix_millis {
+            return Err(Fault::new(
+                Code::PermissionDenied,
+                "route snapshot is not active yet",
+            ));
+        }
         if now >= self.claims.expires_unix_millis {
             return Err(Fault::new(Code::DeadlineExceeded, "route snapshot expired"));
         }
@@ -1133,6 +1139,12 @@ impl RevocationSnapshot {
     ) -> FaultResult<()> {
         let bytes = self.claims.canonical_bytes()?;
         verifier.verify(&bytes, &self.signature)?;
+        if now < self.claims.created_unix_millis {
+            return Err(Fault::new(
+                Code::PermissionDenied,
+                "revocation snapshot is not active yet",
+            ));
+        }
         if now >= self.claims.expires_unix_millis {
             return Err(Fault::new(
                 Code::DeadlineExceeded,

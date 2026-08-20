@@ -32,7 +32,7 @@ impl ProcessSupervisor {
             children: Mutex::new(BTreeMap::new()),
         })
     }
-    pub fn register(&self, child: Child) -> FaultResult<ManagedProcess> {
+    pub fn register(&self, mut child: Child) -> FaultResult<ManagedProcess> {
         let mut children = self
             .children
             .lock()
@@ -44,6 +44,16 @@ impl ProcessSupervisor {
             )
         })?;
         if children.len() >= maximum {
+            // `register` consumes ownership. A rejected child must therefore
+            // be terminated and reaped here rather than being dropped alive.
+            let _ = child.kill();
+            child.wait().map_err(|error| {
+                Fault::new(
+                    Code::Unavailable,
+                    "child limit reached and rejected process could not be reaped",
+                )
+                .with_source(error)
+            })?;
             return Err(Fault::new(
                 Code::ResourceExhausted,
                 "child process limit reached",
@@ -75,8 +85,16 @@ impl ProcessSupervisor {
             .keys()
             .copied()
             .collect();
+        let mut first_fault = None;
         for pid in pids {
-            self.terminate(ManagedProcess { pid })?;
+            if let Err(fault) = self.terminate(ManagedProcess { pid })
+                && first_fault.is_none()
+            {
+                first_fault = Some(fault);
+            }
+        }
+        if let Some(fault) = first_fault {
+            return Err(fault);
         }
         Ok(())
     }

@@ -13,6 +13,8 @@ connected-provider qualification, and production promotion.
 - Modular control-plane bootstrap/config/foundation/transport seams.
 - Representative Go durable-policy/domain contracts under `control/`.
 - Runnable control-plane API, event-dispatcher, and ingestion-coordinator vertical slices.
+- Bzlmod lock closure, full Bazel configured analysis, dependency-layer graph,
+  and all 243 non-manual Bazel tests in the pinned local macOS/Nix environment.
 - Complete target-state path materialization, accepted decision register, Go module cookbook, security documentation, and operating runbooks.
 - Structured validation of 87 JSON, 185 TOML, 195 YAML/YML, 548 Markdown files, and internal relative links.
 
@@ -62,12 +64,12 @@ Promotion additionally requires:
 
 ## Explicit non-claims
 
-The Rust foundation and the `runtime_gateway` / `runtime_host` cores now contain
-substantive source implementations for the optimization program, but they have
-not been compiled or runtime-qualified in this execution environment because the
-pinned Rust/Bazel/Nix toolchain is unavailable. Python configuration,
-preprocessing contracts, and cross-language fixtures are implemented and locally
-tested; broader Python numerical systems, TileLang kernels, TypeScript apps,
+The pinned Rust/Bazel/Nix toolchain is available and the local Cargo and Bazel
+suites pass, including the `runtime_gateway` / `runtime_host` cores. This is not
+connected-provider, Linux unsafe-code, remote-execution, sanitizer, fuzz/Miri,
+or measured-performance evidence. Python configuration, preprocessing
+contracts, and cross-language fixtures are implemented and locally tested;
+broader Python numerical systems, TileLang kernels, TypeScript apps,
 infrastructure, provider adapters, and product code remain scaffolded or
 partially implemented unless local evidence states otherwise. Source presence
 never implies numerical parity, security qualification, performance
@@ -78,4 +80,3 @@ qualification, or production readiness.
 All ten post-architecture hardening items are represented by executable source, policy, or qualification machinery: Rust lock/toolchain gating, supply-chain policy, rolling compatibility, failure injection, performance budgets, node diagnostics, resource-budget observability, finished artifact-GC semantics, canonical workload envelopes, and golden vertical release slices. Affected-test selection and component ownership/enforcement metadata are also active presubmit invariants.
 
 Offline qualification passes. `qualified` and `production` maturity still require connected evidence for the pinned Rust 1.97.1 toolchain, a Cargo-generated committed lockfile, real provider integrations, hardware performance measurements, and release/security evidence.
-

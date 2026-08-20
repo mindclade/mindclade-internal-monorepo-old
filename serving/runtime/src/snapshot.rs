@@ -45,7 +45,7 @@ impl core::fmt::Debug for PolicyCache {
             .field("minimum_policy_epoch", &inner.minimum_policy_epoch)
             .field("minimum_route_version", &inner.minimum_route_version)
             .field("minimum_revocation_epoch", &inner.minimum_revocation_epoch)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 

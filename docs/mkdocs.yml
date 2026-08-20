@@ -10,6 +10,7 @@ strict: true
 docs_dir: .
 site_dir: ../.generated/docs-site
 exclude_docs: |
+  /README.md
   BUILD.bazel
   blueprint/production-monorepo-blueprint.md
 nav:

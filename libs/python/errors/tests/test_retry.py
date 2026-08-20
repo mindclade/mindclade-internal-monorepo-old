@@ -16,7 +16,7 @@ from libs.python.errors import (
 
 
 def test_unspecified_is_the_empty_string_so_it_matches_go_zero_value() -> None:
-    assert RetryKind.UNSPECIFIED == ""
+    assert RetryKind.UNSPECIFIED.value == ""
     assert RetryPolicy().kind is RetryKind.UNSPECIFIED
 
 

@@ -112,6 +112,29 @@ jobs:
       # piece of work, not a flag flip.
       typecheck: false
 
+  # The shared Python workflow currently owns lint and pytest but hard-codes pyright for its
+  # optional type step. This repository's contract is strict mypy, so run that checker in a
+  # narrow companion job instead of claiming type coverage through a different tool.
+  python-types:
+    name: strict mypy / libs/python
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
+        with:
+          python-version: "3.12.12"
+
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9  # v9.0.0
+        with:
+          version: "0.11.28"
+          enable-cache: true
+
+      - run: uv run --frozen --only-group dev mypy libs/python
+
   # ---------------------------------------------------------------------------------------
   # Toolchain, workflow and YAML lint
   # ---------------------------------------------------------------------------------------
@@ -170,6 +193,9 @@ jobs:
 
       - name: yamllint
         run: nix develop .#ci --command yamllint --strict .
+
+      - name: Strict documentation build
+        run: nix develop .#ci --command mkdocs build -f docs/mkdocs.yml --strict
 
   # ---------------------------------------------------------------------------------------
   # Terraform — infra/terraform
@@ -254,47 +280,20 @@ jobs:
           exit "$failed"
 
   # ---------------------------------------------------------------------------------------
-  # Bazel — loading phase
+  # Bazel — formatting, loading, architecture, configured analysis, and tests
   # ---------------------------------------------------------------------------------------
-  # `bazel query //...` loads every BUILD file in the workspace and resolves every label in
-  # them. It does not configure or build anything, which is exactly what makes it usable here:
-  # it needs no external dependency graph, so it runs in about a minute and catches the class
-  # of error that is invisible in review and fatal to everything downstream.
+  # Keep the phases separate. Loading gives the shortest diagnostic for malformed labels;
+  # the graph checker reports architectural edges; --nobuild proves every external repository,
+  # toolchain and configured target analyzes; test executes every non-manual test. A failure in
+  # an earlier phase should not be buried under a later compiler traceback.
   #
-  # That class is not hypothetical. Wiring this lane immediately found
-  # services/workers/ingestion declaring `srcs = ["tests/integration.rs"]` across a package
-  # boundary — a label Bazel refuses outright, which stopped `//...` from evaluating AT ALL and
-  # therefore hid every other result in the repository.
-  #
-  # WHY NOT `--nobuild`. Full analysis additionally resolves external repositories, and two
-  # TOOLCHAIN VERSIONS still stop it. Neither is a workflow change, and both are one line in
-  # MODULE.bazel once the upstream support exists:
-  #
-  #   Rust — RESOLVED by moving rules_rust 0.57.1 -> 0.73.0. The old note said cargo-bazel
-  #   shipped Cargo 1.84 against an `edition = "2024"` workspace (stabilised in 1.85) and
-  #   concluded it was blocked upstream. It was blocked in 0.57.1 specifically; the host tools
-  #   in 0.73.0 parse the workspace, and 84 of the 92 rust_test targets now build and pass.
-  #
-  #   The remaining 8 are missing `deps` entries in their own BUILD files — real gaps that
-  #   were unobservable while nothing compiled Rust under Bazel — so rust_test is not in the
-  #   test step below yet. Add it in the commit that fixes those eight.
-  #
-  #   Go — RESOLVED, and the step below is what keeps it that way. The blocker recorded here
-  #   (gazelle's fetch_repo running under rules_go's default 1.22.7 SDK against an otelhttp
-  #   needing go >= 1.25) no longer reproduces: external Go modules fetch and compile, and
-  #   111 of the 114 go_test targets build and pass.
-  #
-  # Everything BEFORE those two is now resolved — the go_deps and crate_universe extensions
-  # are declared, every workspace manifest is tracked, and the visibility graph is clean. The
-  # last full run analysed 900 targets and configured 9,336 before hitting the Rust host
-  # tools. Promote this step to `bazel build //... --nobuild` in the commit that closes them.
-  #
-  # buildifier runs FIRST. A malformed BUILD file fails `query` with a Starlark traceback;
-  # buildifier names the file, the line and the rule in one line.
+  # All commands use the repository wrapper. On Linux it is a version/root launcher; on Darwin
+  # it also bridges the pinned Nix compiler environment into rules_cc. CI's lockfile_mode=error
+  # makes the committed Bzlmod extension state immutable during every configured phase.
   bazel:
-    name: bazel loading and Go tests
+    name: bazel graph, analysis, and tests
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -306,7 +305,7 @@ jobs:
       #
       # It was briefly held at 8.4.2 because rules_go 0.51 does not load under Bazel 9 —
       # `cross.bzl` uses APIs it removed. rules_go 0.63.0 lifted that, and the tree now loads
-      # all 967 targets under 9.1.1.
+      # the complete graph under 9.1.1.
       - uses: bazel-contrib/setup-bazel@4fd964a13a440a8aeb0be47350db2fc640f19ca8  # v0.15.0
         with:
           bazelisk-cache: true
@@ -329,34 +328,16 @@ jobs:
         run: nix develop .#ci --command buildifier --mode=check -r .
 
       - name: Every BUILD file loads and every label resolves
-        run: bazel query '//...' --output=label --curses=no --color=no > /dev/null
+        run: tools/dev/bazelw query '//...' --output=label --curses=no --color=no > /dev/null
 
-      # The loading phase above proves labels resolve. It does not run a single test, and for
-      # as long as that was the whole lane the repository had 114 go_test targets that CI had
-      # never executed — which is how //tests/integration/cross_language:go_golden_test came
-      # to be unable to pass under Bazel AT ALL (no `data`, and fixtures resolved through
-      # runtime.Caller, which Bazel reports as a workspace-relative path) without anyone
-      # noticing. `--config=ci` was broken the same way and for the same reason.
-      #
-      # GO AND PYTHON, by explicit target list rather than `//...`. The crate_universe
-      # extension still fails to evaluate — see the Rust note above — and it aborts analysis
-      # for whatever is in the configured graph, so a wildcard would take these down with it.
-      # Naming them keeps Rust's blocker from hiding everyone else's results. Swap this for
-      # `bazel test //...` in the commit that closes the rules_rust bump.
-      - name: Go and Python targets build and pass under Bazel
-        run: |
-          set -euo pipefail
-          bazel query 'kind("(go|py)_test rule", //...)' \
-            --output=label --curses=no --color=no > bazel_tests.txt
-          count="$(wc -l < bazel_tests.txt)"
-          # A query that silently returns nothing would make this lane pass having tested
-          # nothing, which is the exact shape of gate this repository keeps removing.
-          if [ "$count" -eq 0 ]; then
-            echo "::error::no go_test/py_test targets matched; the query or the graph changed" >&2
-            exit 1
-          fi
-          echo "Testing ${count} target(s) under Bazel."
-          bazel test --config=ci --target_pattern_file=bazel_tests.txt
+      - name: Enforce Bazel dependency layers
+        run: python3 tools/analysis/check_bazel_layers.py
+
+      - name: Analyze the complete configured graph
+        run: tools/dev/bazelw build //... --nobuild --config=ci
+
+      - name: Run every non-manual Bazel test
+        run: tools/dev/bazelw test //... --config=ci
 
 
   # ---------------------------------------------------------------------------------------

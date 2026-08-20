@@ -22,6 +22,7 @@ pub struct InferenceEnvelope {
     pub admission: AdmissionRequest,
 }
 
+#[derive(Debug)]
 pub struct AdmittedRequest {
     pub request_id: ResourceId,
     pub route: DeploymentRoute,
@@ -30,6 +31,7 @@ pub struct AdmittedRequest {
     pub response_rx: crate::StreamReceiver,
 }
 
+#[derive(Debug)]
 pub struct GatewayCore {
     config: GatewayConfig,
     policy: Arc<PolicyCache>,
@@ -90,9 +92,15 @@ impl GatewayCore {
             .validate(self.config.maximum_request_key_bytes)?;
         self.policy
             .validate_grant(&envelope.grant, now_unix_millis)?;
-        let policy = self.policy.snapshot(now_unix_millis)?;
+        let policy = match self.policy.snapshot(now_unix_millis) {
+            Ok(policy) => policy,
+            Err(fault) => {
+                self.health.set_policy_fresh(false);
+                return Err(fault);
+            }
+        };
         self.health.set_policy_fresh(true);
-        let route = select_route(RouteRequest {
+        let route = select_route(&RouteRequest {
             admission: &envelope.admission,
             grant: &envelope.grant.claims,
             snapshot: &policy.route,
@@ -123,9 +131,11 @@ impl GatewayCore {
         })
     }
     pub fn begin_drain(&self) {
+        self.admission.begin_drain();
         self.health.set_accepting(false);
     }
     pub fn resume_admission(&self) {
+        self.admission.resume();
         self.health.set_accepting(true);
     }
     #[must_use]

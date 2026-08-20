@@ -8,34 +8,53 @@
 use crate::{ObjectMeta, ObjectPath, ObjectStore, PutCondition, PutResult};
 use mindclade_atomic_fs::{AtomicFileStore, RelativePath};
 use mindclade_bytes_io::{ByteRange, ByteSize};
-use mindclade_content_digest::{Digest, hash_bytes};
+use mindclade_content_digest::{Digest, Sha256, hash_bytes};
 use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_runtime_core::ResourceVersion;
 use std::fs;
-use std::io::{Read, Seek, SeekFrom};
+use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::sync::RwLock;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[derive(Debug)]
 pub struct LocalStore {
     files: AtomicFileStore,
     metadata_root: PathBuf,
+    metadata_files: AtomicFileStore,
+    operations: RwLock<()>,
 }
+
+const METADATA_DIRECTORY: &str = ".mindclade-object-metadata";
+const MAXIMUM_LIST_CANDIDATES: usize = 1_000_000;
 
 impl LocalStore {
     pub fn new(root: impl Into<PathBuf>) -> FaultResult<Self> {
         let root = root.into();
         let files = AtomicFileStore::new(&root)?;
-        let metadata_root = root.join(".mindclade-object-metadata");
+        let metadata_root = root.join(METADATA_DIRECTORY);
         fs::create_dir_all(&metadata_root).map_err(|error| {
             Fault::internal("failed to create object metadata directory").with_source(error)
         })?;
+        let metadata_files = AtomicFileStore::new(&metadata_root)?;
         Ok(Self {
             files,
             metadata_root,
+            metadata_files,
+            operations: RwLock::new(()),
         })
     }
     fn relative(path: &ObjectPath) -> FaultResult<RelativePath> {
+        if path
+            .as_str()
+            .split('/')
+            .next()
+            .is_some_and(|component| component == METADATA_DIRECTORY)
+        {
+            return Err(Fault::invalid_argument(
+                "object path uses the reserved metadata namespace",
+            ));
+        }
         RelativePath::new(path.as_str()).map_err(|error| Fault::invalid_argument(error.to_string()))
     }
     fn absolute(&self, path: &ObjectPath) -> PathBuf {
@@ -110,25 +129,10 @@ impl LocalStore {
             meta.digest,
             modified_millis
         );
-        let target = self.metadata_path(&meta.path);
-        let parent = target
-            .parent()
-            .ok_or_else(|| Fault::internal("object metadata parent is missing"))?;
-        fs::create_dir_all(parent).map_err(|error| {
-            Fault::internal("failed to create object metadata parent").with_source(error)
-        })?;
-        let temporary = target.with_extension(format!("tmp-{}", std::process::id()));
-        fs::write(&temporary, text.as_bytes()).map_err(|error| {
-            Fault::internal("failed to write object metadata").with_source(error)
-        })?;
-        if target.exists() {
-            fs::remove_file(&target).map_err(|error| {
-                Fault::internal("failed to replace object metadata").with_source(error)
-            })?;
-        }
-        fs::rename(&temporary, &target).map_err(|error| {
-            Fault::internal("failed to publish object metadata").with_source(error)
-        })?;
+        let digest = hash_bytes(meta.path.as_str().as_bytes()).to_hex();
+        let path = RelativePath::new(format!("{digest}.meta"))
+            .map_err(|error| Fault::internal(error.to_string()))?;
+        self.metadata_files.publish(path, text.as_bytes(), true)?;
         Ok(())
     }
     fn collect_paths(
@@ -178,16 +182,31 @@ impl LocalStore {
 
 impl ObjectStore for LocalStore {
     fn head(&self, path: &ObjectPath) -> FaultResult<Option<ObjectMeta>> {
+        Self::relative(path)?;
+        let _guard = self
+            .operations
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         self.read_meta(path)
     }
     fn get(&self, path: &ObjectPath, maximum_bytes: ByteSize) -> FaultResult<Vec<u8>> {
+        let relative = Self::relative(path)?;
+        let _guard = self
+            .operations
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let meta = self
             .read_meta(path)?
             .ok_or_else(|| Fault::new(Code::NotFound, "object not found"))?;
         self.files
-            .read_verified(&Self::relative(path)?, meta.digest, maximum_bytes.get())
+            .read_verified(&relative, meta.digest, maximum_bytes.get())
     }
     fn get_range(&self, path: &ObjectPath, range: ByteRange) -> FaultResult<Vec<u8>> {
+        Self::relative(path)?;
+        let _guard = self
+            .operations
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let meta = self
             .read_meta(path)?
             .ok_or_else(|| Fault::new(Code::NotFound, "object not found"))?;
@@ -199,14 +218,50 @@ impl ObjectStore for LocalStore {
         }
         let mut file = fs::File::open(self.absolute(path))
             .map_err(|error| Fault::internal("failed to open object").with_source(error))?;
-        file.seek(SeekFrom::Start(range.start()))
-            .map_err(|error| Fault::internal("failed to seek object").with_source(error))?;
         let length = usize::try_from(range.length())
             .map_err(|_| Fault::new(Code::OutOfRange, "object range exceeds platform limits"))?;
-        let mut bytes = vec![0_u8; length];
-        file.read_exact(&mut bytes)
-            .map_err(|error| Fault::data_loss("object range is truncated").with_source(error))?;
-        Ok(bytes)
+        let mut selected = Vec::with_capacity(length);
+        let mut digest = Sha256::new();
+        let mut offset = 0_u64;
+        let mut buffer = vec![0_u8; 64 * 1024];
+        loop {
+            let read = file.read(&mut buffer).map_err(|error| {
+                Fault::internal("failed to read object range source").with_source(error)
+            })?;
+            if read == 0 {
+                break;
+            }
+            let read_u64 = u64::try_from(read)
+                .map_err(|_| Fault::new(Code::OutOfRange, "object read exceeds u64"))?;
+            let next = offset
+                .checked_add(read_u64)
+                .ok_or_else(|| Fault::new(Code::OutOfRange, "object length overflow"))?;
+            if next > meta.size.get() {
+                return Err(Fault::data_loss("object is longer than its metadata"));
+            }
+            digest.update(&buffer[..read]);
+            let selected_start = range.start().max(offset);
+            let selected_end = range.end().min(next);
+            if selected_start < selected_end {
+                let start = usize::try_from(selected_start - offset).map_err(|_| {
+                    Fault::new(Code::OutOfRange, "range offset exceeds platform limits")
+                })?;
+                let end = usize::try_from(selected_end - offset).map_err(|_| {
+                    Fault::new(Code::OutOfRange, "range offset exceeds platform limits")
+                })?;
+                selected.extend_from_slice(&buffer[start..end]);
+            }
+            offset = next;
+        }
+        if offset != meta.size.get() || selected.len() != length {
+            return Err(Fault::data_loss(
+                "object is truncated relative to its metadata",
+            ));
+        }
+        if digest.finalize() != meta.digest {
+            return Err(Fault::data_loss("object digest mismatch"));
+        }
+        Ok(selected)
     }
     fn put(
         &self,
@@ -214,6 +269,11 @@ impl ObjectStore for LocalStore {
         bytes: &[u8],
         condition: PutCondition,
     ) -> FaultResult<PutResult> {
+        let relative = Self::relative(path)?;
+        let _guard = self
+            .operations
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let current = self.read_meta(path)?;
         match (condition, current.as_ref()) {
             (PutCondition::Any, _) | (PutCondition::CreateOnly, None) => {}
@@ -228,7 +288,8 @@ impl ObjectStore for LocalStore {
                 ));
             }
         }
-        let published = self.files.publish(Self::relative(path)?, bytes, true)?;
+        let overwrite = !matches!(condition, PutCondition::CreateOnly);
+        let published = self.files.publish(relative, bytes, overwrite)?;
         let digest = published.digest;
         let version = match current.as_ref() {
             Some(value) => value.version.next(digest)?,
@@ -248,6 +309,11 @@ impl ObjectStore for LocalStore {
         })
     }
     fn delete(&self, path: &ObjectPath, expected: Option<ResourceVersion>) -> FaultResult<bool> {
+        Self::relative(path)?;
+        let _guard = self
+            .operations
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let Some(meta) = self.read_meta(path)? else {
             return Ok(false);
         };
@@ -272,14 +338,26 @@ impl ObjectStore for LocalStore {
         if limit == 0 || limit > 100_000 {
             return Err(Fault::invalid_argument("object list limit is invalid"));
         }
-        let candidate_limit = (limit * 2).min(100_000);
+        if let Some(prefix) = prefix {
+            Self::relative(prefix)?;
+        }
+        let _guard = self
+            .operations
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let mut paths = Vec::new();
         Self::collect_paths(
             self.files.root(),
             self.files.root(),
             &mut paths,
-            candidate_limit,
+            MAXIMUM_LIST_CANDIDATES + 1,
         )?;
+        if paths.len() > MAXIMUM_LIST_CANDIDATES {
+            return Err(Fault::new(
+                Code::ResourceExhausted,
+                "local object listing exceeds bounded candidate scan",
+            ));
+        }
         paths.sort();
         let prefix = prefix.map(ObjectPath::as_str);
         let mut output = Vec::new();

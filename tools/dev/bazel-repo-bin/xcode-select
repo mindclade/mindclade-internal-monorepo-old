@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# Repository-rule adapter for tools that ask where Xcode is installed. A Nix Darwin shell
+# points DEVELOPER_DIR at its SDK bundle, which is correct for Nix Clang but is not an Xcode
+# installation and has no xcodebuild. Report the host Command Line Tools for discovery calls;
+# the compiler itself continues to use the Nix SDK baked into its wrapper.
+
+set -euo pipefail
+
+command_line_tools="/Library/Developer/CommandLineTools"
+
+if [[ "$#" -eq 1 && "$1" == "--print-path" ]]; then
+  if [[ ! -d "${command_line_tools}/SDKs/MacOSX.sdk" ]]; then
+    echo "error: Apple Command Line Tools SDK is missing under ${command_line_tools}" >&2
+    exit 2
+  fi
+  printf '%s\n' "${command_line_tools}"
+  exit 0
+fi
+
+exec env -u DEVELOPER_DIR /usr/bin/xcode-select "$@"

@@ -2,26 +2,19 @@
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
-# Organization-level log sinks, and the destinations they write into.
-#
-# The ordering here is the part that goes wrong silently. A sink is created with a writer
-# identity that Google mints at creation time; that identity has no permission on the
-# destination until something grants it. A sink whose writer cannot write does not error —
-# it reports as healthy and drops every entry, and the gap is only visible as an absence
-# nobody is looking for.
-#
-# So: destination, then sink, then the IAM binding that connects them, with the binding
-# depending on both. `unique_writer_identity = true` throughout, because the shared default
-# writer would give every sink the same principal and make a per-sink grant meaningless.
+# Aggregated organization- or folder-level sinks and their destinations. Destination
+# permissions are additive, and every sink receives its own writer identity.
 
 locals {
-  logging_sinks = { for k, v in var.sinks : k => v if v.destination == "logging" }
-  storage_sinks = { for k, v in var.sinks : k => v if v.destination == "storage" }
+  is_organization = startswith(var.parent, "organizations/")
 
-  # Bucket location for a Cloud Logging bucket is fixed at creation and cannot be changed.
-  # It is taken from the storage bucket's location where one is given, so that a caller
-  # setting a region for its cold tier does not silently get a global hot tier.
-  logging_location = "global"
+  logging_sinks = { for name, sink in var.sinks : name => sink if sink.destination == "logging" }
+  storage_sinks = { for name, sink in var.sinks : name => sink if sink.destination == "storage" }
+
+  organization_logging_sinks = local.is_organization ? local.logging_sinks : {}
+  organization_storage_sinks = local.is_organization ? local.storage_sinks : {}
+  folder_logging_sinks       = local.is_organization ? {} : local.logging_sinks
+  folder_storage_sinks       = local.is_organization ? {} : local.storage_sinks
 }
 
 # ---------------------------------------------------------------------------------------
@@ -31,33 +24,37 @@ locals {
 resource "google_logging_project_bucket_config" "this" {
   for_each = local.logging_sinks
 
-  project        = var.project_id
-  location       = local.logging_location
-  bucket_id      = each.key
-  description    = each.value.description
-  retention_days = each.value.retention_days
-
-  # Irreversible after creation: turning analytics on later requires deleting the bucket,
-  # which takes every entry in it.
+  project          = var.project_id
+  location         = var.logging_bucket_location
+  bucket_id        = each.key
+  description      = each.value.description
+  retention_days   = each.value.retention_days
   enable_analytics = each.value.enable_analytics
+  deletion_policy  = "PREVENT"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "google_storage_bucket" "this" {
   for_each = local.storage_sinks
 
-  project  = var.project_id
-  name     = each.value.bucket.name
-  location = each.value.bucket.location
-  labels   = var.labels
-
-  # Log archives are append-only by nature and there is no reason for a bucket-level ACL.
+  project                     = var.project_id
+  name                        = each.value.bucket.name
+  location                    = each.value.bucket.location
+  labels                      = var.labels
+  force_destroy               = false
+  deletion_policy             = "PREVENT"
   uniform_bucket_level_access = true
   public_access_prevention    = "enforced"
 
-  # A log archive that can be silently overwritten is not an archive. Versioning costs
-  # little here because log objects are written once.
   versioning {
     enabled = true
+  }
+
+  soft_delete_policy {
+    retention_duration_seconds = each.value.bucket.soft_delete_retention_days * 86400
   }
 
   dynamic "encryption" {
@@ -73,10 +70,7 @@ resource "google_storage_bucket" "this" {
 
     content {
       retention_period = retention_policy.value * 86400
-      # Deliberately not locked here. A locked retention policy cannot be shortened or
-      # removed by anyone, ever, including to correct a mistake — locking is a separate,
-      # explicit operational act rather than something a module does on a caller's behalf.
-      is_locked = false
+      is_locked        = each.value.bucket.lock_retention_policy
     }
   }
 
@@ -94,22 +88,34 @@ resource "google_storage_bucket" "this" {
       }
     }
   }
+
+  lifecycle {
+    prevent_destroy = true
+
+    precondition {
+      condition = !each.value.bucket.lock_retention_policy || (
+        each.value.bucket.retention_days != null &&
+        var.retention_lock_confirmation == "LOCKING A CLOUD STORAGE RETENTION POLICY IS IRREVERSIBLE"
+      )
+      error_message = "A locked archive requires retention_days and the exact retention_lock_confirmation acknowledgement. Bucket retention locking is irreversible."
+    }
+  }
 }
 
 # ---------------------------------------------------------------------------------------
-# Sinks
+# Aggregated sinks. Organization and folder resources are deliberately separate because
+# their parent arguments and resource identities are not interchangeable.
 # ---------------------------------------------------------------------------------------
 
 resource "google_logging_organization_sink" "logging" {
-  for_each = local.logging_sinks
+  for_each = local.organization_logging_sinks
 
   name             = each.key
   description      = each.value.description
   org_id           = trimprefix(var.parent, "organizations/")
   include_children = var.include_children
   filter           = each.value.filter
-
-  destination = "logging.googleapis.com/${google_logging_project_bucket_config.this[each.key].id}"
+  destination      = "logging.googleapis.com/${google_logging_project_bucket_config.this[each.key].id}"
 
   dynamic "exclusions" {
     for_each = each.value.exclusions
@@ -119,19 +125,22 @@ resource "google_logging_organization_sink" "logging" {
       description = exclusions.value.description
       filter      = exclusions.value.filter
     }
+  }
+
+  lifecycle {
+    prevent_destroy = true
   }
 }
 
 resource "google_logging_organization_sink" "storage" {
-  for_each = local.storage_sinks
+  for_each = local.organization_storage_sinks
 
   name             = each.key
   description      = each.value.description
   org_id           = trimprefix(var.parent, "organizations/")
   include_children = var.include_children
   filter           = each.value.filter
-
-  destination = "storage.googleapis.com/${google_storage_bucket.this[each.key].name}"
+  destination      = "storage.googleapis.com/${google_storage_bucket.this[each.key].name}"
 
   dynamic "exclusions" {
     for_each = each.value.exclusions
@@ -142,22 +151,84 @@ resource "google_logging_organization_sink" "storage" {
       filter      = exclusions.value.filter
     }
   }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "google_logging_folder_sink" "logging" {
+  for_each = local.folder_logging_sinks
+
+  name             = each.key
+  description      = each.value.description
+  folder           = var.parent
+  include_children = var.include_children
+  filter           = each.value.filter
+  destination      = "logging.googleapis.com/${google_logging_project_bucket_config.this[each.key].id}"
+
+  dynamic "exclusions" {
+    for_each = each.value.exclusions
+
+    content {
+      name        = exclusions.value.name
+      description = exclusions.value.description
+      filter      = exclusions.value.filter
+    }
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "google_logging_folder_sink" "storage" {
+  for_each = local.folder_storage_sinks
+
+  name             = each.key
+  description      = each.value.description
+  folder           = var.parent
+  include_children = var.include_children
+  filter           = each.value.filter
+  destination      = "storage.googleapis.com/${google_storage_bucket.this[each.key].name}"
+
+  dynamic "exclusions" {
+    for_each = each.value.exclusions
+
+    content {
+      name        = exclusions.value.name
+      description = exclusions.value.description
+      filter      = exclusions.value.filter
+    }
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+locals {
+  logging_writer_identities = merge(
+    { for name, sink in google_logging_organization_sink.logging : name => sink.writer_identity },
+    { for name, sink in google_logging_folder_sink.logging : name => sink.writer_identity },
+  )
+  storage_writer_identities = merge(
+    { for name, sink in google_logging_organization_sink.storage : name => sink.writer_identity },
+    { for name, sink in google_logging_folder_sink.storage : name => sink.writer_identity },
+  )
 }
 
 # ---------------------------------------------------------------------------------------
-# The grants that make the sinks actually deliver
+# Additive destination grants. Without these, an otherwise healthy sink drops delivery.
 # ---------------------------------------------------------------------------------------
-# Without these the sinks exist, report healthy, and write nothing.
 
 resource "google_project_iam_member" "logging_writer" {
   for_each = local.logging_sinks
 
   project = var.project_id
   role    = "roles/logging.bucketWriter"
-  member  = google_logging_organization_sink.logging[each.key].writer_identity
+  member  = local.logging_writer_identities[each.key]
 
-  # A condition scoping the grant to this one bucket. Without it, every sink's writer could
-  # write into every other sink's bucket, which defeats the point of a unique writer.
   condition {
     title       = "only-${each.key}"
     description = "Restricts this writer to the ${each.key} log bucket."
@@ -170,22 +241,17 @@ resource "google_storage_bucket_iam_member" "storage_writer" {
 
   bucket = google_storage_bucket.this[each.key].name
   role   = "roles/storage.objectCreator"
-  member = google_logging_organization_sink.storage[each.key].writer_identity
+  member = local.storage_writer_identities[each.key]
 }
 
-# ---------------------------------------------------------------------------------------
-# Each project's own _Default bucket
-# ---------------------------------------------------------------------------------------
-# Every project writes a second copy of everything above into its own _Default bucket.
-# Shortening its retention is what stops each project paying to store logs this module is
-# already keeping centrally, while leaving enough for `gcloud logging read` during an
-# incident.
-
+# This resource manages only the destination project's _Default bucket. Aggregated sinks
+# cannot reach into every descendant project's local bucket configuration.
 resource "google_logging_project_bucket_config" "default" {
   count = var.default_sink_retention_days > 0 ? 1 : 0
 
-  project        = var.project_id
-  location       = "global"
-  bucket_id      = "_Default"
-  retention_days = var.default_sink_retention_days
+  project         = var.project_id
+  location        = "global"
+  bucket_id       = "_Default"
+  retention_days  = var.default_sink_retention_days
+  deletion_policy = "ABANDON"
 }

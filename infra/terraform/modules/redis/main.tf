@@ -59,5 +59,10 @@ resource "google_redis_instance" "this" {
       condition     = var.primary_zone == null || var.alternative_zone == null || var.primary_zone != var.alternative_zone
       error_message = "primary_zone and alternative_zone must be different when both are provided."
     }
+
+    precondition {
+      condition     = var.data_classification != "restricted" || var.kms_key_name != null
+      error_message = "Restricted Redis instances require a customer-managed encryption key in the instance region."
+    }
   }
 }

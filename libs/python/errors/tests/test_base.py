@@ -7,6 +7,7 @@ import pytest
 
 from libs.python.errors import (
     MAXIMUM_FIELDS,
+    MAXIMUM_MESSAGE_LENGTH,
     Code,
     DeadlineExceeded,
     FailedPrecondition,
@@ -83,6 +84,15 @@ def test_field_bounds_raise_rather_than_truncate() -> None:
         MindcladeError(Code.INTERNAL, fields={"k" * 129: "v"})
     with pytest.raises(ValueError, match="value bound"):
         MindcladeError(Code.INTERNAL, fields={"k": "v" * 4097})
+
+
+def test_fault_text_and_field_types_are_checked_at_runtime() -> None:
+    with pytest.raises(TypeError, match="must be strings"):
+        MindcladeError(Code.INTERNAL, message=1)  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="keys and values"):
+        MindcladeError(Code.INTERNAL, fields={"attempt": 1})  # type: ignore[dict-item]
+    with pytest.raises(ValueError, match="message exceeds"):
+        MindcladeError(Code.INTERNAL, message="x" * (MAXIMUM_MESSAGE_LENGTH + 1))
 
 
 def test_retry_intent_round_trips_and_is_normalized() -> None:

@@ -20,6 +20,9 @@ happens to the logs once the entitlement exists.
 - **Retention is at least a year**, enforced by a bucket retention policy rather than a
   lifecycle rule. A lifecycle rule deletes on a schedule; a retention policy stops an object
   being deleted early, *including by whoever is being investigated*.
+- **The archive cannot be force-destroyed.** Provider and Terraform deletion guards plus a
+  90-day soft-delete window protect the container and recover accidentally deleted objects;
+  the retention policy remains the stronger minimum-age control.
 - **An alert with no notification channels is rejected.** Google accepts one, the policy shows
   as enabled, and the first anyone knows is that a page never arrived.
 - **The alert is a log-match condition, not a metric threshold.** A metric needs an aggregation

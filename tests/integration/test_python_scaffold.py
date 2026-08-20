@@ -76,8 +76,10 @@ import pytest
 # Three placeholders removed, twelve real test modules added. The remaining libs/python
 # scaffolds are deliberate: artifacts, distributed, geometry, observability and testing have no
 # consumer in this tree — there is no torch code yet — and libs/python/ADMISSION.md records the
-# bar each has to clear. config's two placeholders are the next thing to close.
-SCAFFOLD_BASELINE = 222
+# bar each has to clear. config's two placeholders were replaced by behavior tests and Bazel
+# targets in the production-hardening pass, lowering the ratchet by two.
+# LOWERED 222 -> 220 by materializing config's loader and merge coverage.
+SCAFFOLD_BASELINE = 220
 
 # Gitignored tool directories. Every entry is something that can hold a copy of the tree
 # without being part of it, which this scan would otherwise count.

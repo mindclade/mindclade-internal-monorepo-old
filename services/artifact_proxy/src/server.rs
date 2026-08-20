@@ -23,6 +23,7 @@ pub struct WriteResult {
     pub size: u64,
 }
 
+#[derive(Debug)]
 pub struct ArtifactProxyCore {
     config: ProxyConfig,
     transfer: TransferEngine,

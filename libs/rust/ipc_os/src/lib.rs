@@ -7,6 +7,7 @@
 //!
 //! Control messages remain in `mindclade_ipc`; this crate owns only the
 //! operating-system mechanism used by large local buffers.
+#![allow(clippy::missing_errors_doc)]
 
 pub mod broker;
 pub mod file;

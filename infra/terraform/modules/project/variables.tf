@@ -174,7 +174,7 @@ variable "shared_vpc_host_project_id" {
 }
 
 variable "remove_default_service_account" {
-  description = "Delete the default compute service account, which otherwise holds roles/editor on its own project"
+  description = "Deprivilege the default compute service account by removing its automatic project IAM grants; the account itself is retained"
   type        = bool
   default     = false
 }

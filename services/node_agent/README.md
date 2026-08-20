@@ -1,7 +1,7 @@
 # Node agent
 
 **Language:** Rust  
-**Status in this archive:** target-state composition scaffold; not a production implementation.
+**Status in this archive:** implemented core; production qualification pending.
 
 ## Role
 
@@ -42,9 +42,17 @@ tokens cannot commit, and unverified bytes are never accepted.
 
 - hierarchical node/service/worker/request budgets and bounded subprocess output, caches, transfers, and blocking pools;
 
+## Implemented core
+
+The service contains ticketed stage execution, bounded artifact/checkpoint and
+dataset transfer adapters, reference-cache authorization, subprocess/tool
+supervision, diagnostics, hierarchical budgets, cancellation, and fail-closed
+drain behavior. Tool invocations require absolute executables and enforce hard
+timeout/output limits; rejected children are terminated and reaped.
+
 ## Limitations
 
-The Rust files in this scaffold reserve the intended package and build
-boundaries. Promotion requires actual runtime implementation, connected tests,
-fuzz/concurrency qualification, load and failure testing, security review, and
-evidence referenced from `PRODUCTION_READINESS.md`.
+Promotion still requires connected provider tests, Linux/process-tree failure
+injection, fuzz/concurrency and sanitizer qualification, measured load/resource
+budgets, security review, and the release evidence referenced from
+`PRODUCTION_READINESS.md`.

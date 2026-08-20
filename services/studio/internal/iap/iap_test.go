@@ -28,6 +28,16 @@ type signer struct {
 	key *ecdsa.PrivateKey
 }
 
+type countingRoundTripper struct {
+	base  http.RoundTripper
+	count int
+}
+
+func (transport *countingRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
+	transport.count++
+	return transport.base.RoundTrip(request)
+}
+
 func newSigner(t *testing.T, kid string) *signer {
 	t.Helper()
 	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -243,6 +253,35 @@ func TestExpiredAssertionIsRejected(t *testing.T) {
 	}
 }
 
+func TestFutureAndMissingIssuedAtAreRejected(t *testing.T) {
+	s := newSigner(t, "kid-1")
+	v := newTestVerifier(t, s)
+	now := time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)
+	v.now = func() time.Time { return now }
+
+	claims := validClaims()
+	claims["iat"] = now.Add(time.Minute).Unix()
+	claims["exp"] = now.Add(time.Hour).Unix()
+	if _, err := v.Verify(context.Background(), s.mint(t, "ES256", claims)); !errors.Is(err, ErrIssuedAt) {
+		t.Fatalf("future iat: err = %v, want ErrIssuedAt", err)
+	}
+
+	delete(claims, "iat")
+	if _, err := v.Verify(context.Background(), s.mint(t, "ES256", claims)); !errors.Is(err, ErrIssuedAt) {
+		t.Fatalf("missing iat: err = %v, want ErrIssuedAt", err)
+	}
+}
+
+func TestOversizedAssertionIsRejectedBeforeKeyFetch(t *testing.T) {
+	v, err := NewVerifier(testAudience, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := v.Verify(context.Background(), string(make([]byte, maximumAssertionBytes+1))); !errors.Is(err, ErrMalformed) {
+		t.Fatalf("err = %v, want ErrMalformed", err)
+	}
+}
+
 // Starting without an audience would silently disable the only check that
 // distinguishes this application from every other IAP application in the org.
 func TestVerifierRequiresAnAudience(t *testing.T) {
@@ -308,6 +347,28 @@ func TestKeyRotationIsPickedUp(t *testing.T) {
 	}
 }
 
+func TestUnknownKeyRefreshIsRateLimited(t *testing.T) {
+	published := newSigner(t, "kid-published")
+	server := keyServer(t, published)
+	transport := &countingRoundTripper{base: http.DefaultTransport}
+	client := &http.Client{Transport: transport, Timeout: time.Second}
+	v, err := NewVerifier(testAudience, client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v.keysURL = server.URL
+
+	for _, kid := range []string{"kid-unknown-1", "kid-unknown-2"} {
+		unknown := newSigner(t, kid)
+		if _, err := v.Verify(context.Background(), unknown.mint(t, "ES256", validClaims())); !errors.Is(err, ErrUnknownKey) {
+			t.Fatalf("%s: err = %v, want ErrUnknownKey", kid, err)
+		}
+	}
+	if transport.count != 1 {
+		t.Fatalf("unknown keys caused %d fetches, want 1", transport.count)
+	}
+}
+
 func TestFromRequestReadsTheHeader(t *testing.T) {
 	s := newSigner(t, "kid-1")
 	v := newTestVerifier(t, s)
@@ -322,6 +383,45 @@ func TestFromRequestReadsTheHeader(t *testing.T) {
 	if _, err := v.FromRequest(bare); !errors.Is(err, ErrMissing) {
 		t.Fatalf("no header: err = %v, want ErrMissing", err)
 	}
+	if _, err := v.FromRequest(nil); !errors.Is(err, ErrMalformed) {
+		t.Fatalf("nil request: err = %v, want ErrMalformed", err)
+	}
+}
+
+func TestJWKCoordinatesMustBeOnP256(t *testing.T) {
+	zero := base64.RawURLEncoding.EncodeToString(make([]byte, 32))
+	if _, err := jwkToECDSA("P-256", zero, zero); err == nil {
+		t.Fatal("accepted coordinates outside P-256")
+	}
+}
+
+func FuzzJWKToECDSA(f *testing.F) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		f.Fatal(err)
+	}
+	x := make([]byte, 32)
+	y := make([]byte, 32)
+	key.X.FillBytes(x)
+	key.Y.FillBytes(y)
+	f.Add("P-256", base64.RawURLEncoding.EncodeToString(x), base64.RawURLEncoding.EncodeToString(y))
+	f.Add("P-256", "", "")
+	f.Add("P-384", "not-base64!", "not-base64!")
+
+	f.Fuzz(func(t *testing.T, curve, xCoordinate, yCoordinate string) {
+		if len(curve) > 16 || len(xCoordinate)+len(yCoordinate) > maximumKeySetBytes {
+			t.Skip()
+		}
+		publicKey, err := jwkToECDSA(curve, xCoordinate, yCoordinate)
+		if err == nil {
+			if publicKey == nil {
+				t.Fatal("successful parse returned a nil public key")
+			}
+			if _, encodeErr := publicKey.Bytes(); encodeErr != nil {
+				t.Fatalf("successful parse returned an invalid public key: %v", encodeErr)
+			}
+		}
+	})
 }
 
 func TestKeyFetchFailureIsAnError(t *testing.T) {

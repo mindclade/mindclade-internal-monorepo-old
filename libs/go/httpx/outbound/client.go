@@ -196,7 +196,7 @@ func (client *Client) validateResponse(response *http.Response) error {
 		response.Header.Del("Content-Encoding")
 		response.ContentLength = -1
 	}
-	response.Body = &limitedReadCloser{reader: reader, closer: closer, remaining: client.policy.MaxResponseBytes + 1, maximum: client.policy.MaxResponseBytes}
+	response.Body = &limitedReadCloser{reader: reader, closer: closer, remaining: client.policy.MaxResponseBytes, maximum: client.policy.MaxResponseBytes}
 	return nil
 }
 
@@ -210,20 +210,26 @@ type limitedReadCloser struct {
 
 func (value *limitedReadCloser) Read(buffer []byte) (int, error) {
 	if value.exceeded {
-		return 0, faults.Wrap(ErrResponseTooLarge, faults.CodeResourceExhausted, "outbound response exceeds configured limit", faults.WithReason("outbound_response_too_large"), faults.WithRetryPolicy(faults.NoRetry()))
+		return 0, responseTooLarge(value.maximum)
 	}
-	if int64(len(buffer)) > value.remaining {
-		buffer = buffer[:value.remaining]
+	if int64(len(buffer)) > value.remaining+1 {
+		buffer = buffer[:value.remaining+1]
 	}
 	count, err := value.reader.Read(buffer)
-	value.remaining -= int64(count)
-	if value.remaining <= 0 && err == nil {
+	if int64(count) > value.remaining {
+		accepted := int(value.remaining)
+		value.remaining = 0
 		value.exceeded = true
-		return count, faults.Wrap(ErrResponseTooLarge, faults.CodeResourceExhausted, "outbound response exceeds configured limit", faults.WithReason("outbound_response_too_large"), faults.WithField("maximum_bytes", value.maximum), faults.WithRetryPolicy(faults.NoRetry()))
+		return accepted, responseTooLarge(value.maximum)
 	}
+	value.remaining -= int64(count)
 	return count, err
 }
 func (value *limitedReadCloser) Close() error { return value.closer.Close() }
+
+func responseTooLarge(maximum int64) error {
+	return faults.Wrap(ErrResponseTooLarge, faults.CodeResourceExhausted, "outbound response exceeds configured limit", faults.WithReason("outbound_response_too_large"), faults.WithField("maximum_bytes", maximum), faults.WithRetryPolicy(faults.NoRetry()))
+}
 
 type compoundReadCloser struct {
 	io.Reader

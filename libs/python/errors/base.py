@@ -43,6 +43,9 @@ from .retry import RetryPolicy
 MAXIMUM_FIELDS = 128
 MAXIMUM_FIELD_KEY_LENGTH = 128
 MAXIMUM_FIELD_VALUE_LENGTH = 4096
+MAXIMUM_MESSAGE_LENGTH = 4096
+MAXIMUM_OPERATION_LENGTH = 256
+MAXIMUM_REASON_LENGTH = 128
 
 _EMPTY_FIELDS: Mapping[str, str] = MappingProxyType({})
 
@@ -68,6 +71,18 @@ class MindcladeError(Exception):
         retry: RetryPolicy | None = None,
         cause: BaseException | None = None,
     ) -> None:
+        if not all(isinstance(value, str) for value in (message, reason, operation)):
+            raise TypeError("errors: message, reason, and operation must be strings")
+        if len(message) > MAXIMUM_MESSAGE_LENGTH:
+            raise ValueError(f"errors: message exceeds {MAXIMUM_MESSAGE_LENGTH} characters")
+        if len(reason) > MAXIMUM_REASON_LENGTH:
+            raise ValueError(f"errors: reason exceeds {MAXIMUM_REASON_LENGTH} characters")
+        if len(operation) > MAXIMUM_OPERATION_LENGTH:
+            raise ValueError(f"errors: operation exceeds {MAXIMUM_OPERATION_LENGTH} characters")
+        if retry is not None and not isinstance(retry, RetryPolicy):
+            raise TypeError("errors: retry must be a RetryPolicy")
+        if cause is not None and not isinstance(cause, BaseException):
+            raise TypeError("errors: cause must be an exception")
         normalized_code = normalize_code(code)
         normalized_message = message.strip() or default_message(normalized_code)
 
@@ -152,6 +167,14 @@ class ResourceExhausted(MindcladeError):
         super().__init__(Code.RESOURCE_EXHAUSTED, message, **kwargs)  # type: ignore[arg-type]
 
 
+class OutOfRange(MindcladeError, ValueError):
+    """A numeric or ordinal value lies outside the supported contract range."""
+
+    def __init__(self, message: str = "", **kwargs: object) -> None:
+        kwargs.pop("code", None)
+        super().__init__(Code.OUT_OF_RANGE, message, **kwargs)  # type: ignore[arg-type]
+
+
 class DeadlineExceeded(MindcladeError):
     """The deadline for the operation passed before it could be completed.
 
@@ -175,10 +198,14 @@ def _clone_fields(fields: Mapping[str, str] | None) -> Mapping[str, str]:
     """
     if not fields:
         return _EMPTY_FIELDS
+    if not isinstance(fields, Mapping):
+        raise TypeError("errors: fields must be a mapping")
     if len(fields) > MAXIMUM_FIELDS:
         raise ValueError(f"errors: fault carries more than {MAXIMUM_FIELDS} fields")
     cloned: dict[str, str] = {}
     for key, value in fields.items():
+        if not isinstance(key, str) or not isinstance(value, str):
+            raise TypeError("errors: fault field keys and values must be strings")
         if not key or len(key) > MAXIMUM_FIELD_KEY_LENGTH:
             raise ValueError(f"errors: fault field key {key!r} is empty or too long")
         if len(value) > MAXIMUM_FIELD_VALUE_LENGTH:

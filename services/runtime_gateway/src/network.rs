@@ -34,7 +34,7 @@ const MAX_DISPATCH_BYTES: usize = 1024 * 1024;
 const MAX_NETWORK_CONCURRENCY: usize = 8_192;
 const GATEWAY_DRAIN_TIMEOUT: Duration = Duration::from_secs(30);
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct GatewayNetworkState {
     core: Arc<GatewayCore>,
 }
@@ -49,7 +49,7 @@ impl GatewayNetworkState {
 /// Serve the public runtime edge with a bounded graceful-drain interval.
 ///
 /// Once `shutdown` is asserted the listener stops accepting new connections.
-/// Existing connections receive at most [`GATEWAY_DRAIN_TIMEOUT`] to finish;
+/// Existing connections receive at most `GATEWAY_DRAIN_TIMEOUT` to finish;
 /// exceeding that deadline fails the server rather than leaving an unowned
 /// task tree alive indefinitely.
 pub async fn serve(
@@ -112,7 +112,7 @@ async fn readyz(State(state): State<GatewayNetworkState>) -> StatusCode {
 
 async fn dispatch(State(state): State<GatewayNetworkState>, body: Bytes) -> Response {
     if body.len() > MAX_DISPATCH_BYTES {
-        return fault_response(Fault::new(
+        return fault_response(&Fault::new(
             Code::ResourceExhausted,
             "runtime dispatch message exceeds network framing bound",
         ));
@@ -122,21 +122,21 @@ async fn dispatch(State(state): State<GatewayNetworkState>, body: Bytes) -> Resp
         Ok(message) => message,
         Err(error) => {
             return fault_response(
-                Fault::invalid_argument("runtime dispatch protobuf is invalid").with_source(error),
+                &Fault::invalid_argument("runtime dispatch protobuf is invalid").with_source(error),
             );
         }
     };
     let request = match protocol::inference_request(message) {
         Ok(request) => request,
-        Err(error) => return fault_response(error),
+        Err(error) => return fault_response(&error),
     };
     let now = match unix_millis() {
         Ok(now) => now,
-        Err(error) => return fault_response(error),
+        Err(error) => return fault_response(&error),
     };
     let admitted = match state.core.admit_request(request, now) {
         Ok(admitted) => admitted,
-        Err(error) => return fault_response(error),
+        Err(error) => return fault_response(&error),
     };
 
     let response = RuntimeDispatchResponse {
@@ -163,7 +163,7 @@ fn protobuf_response(status: StatusCode, body: Vec<u8>) -> Response {
 /// Render only the stable public code and the explicitly non-secret fault
 /// message. Structured context and source errors remain internal telemetry and
 /// are never reflected to an untrusted client.
-fn fault_response(error: Fault) -> Response {
+fn fault_response(error: &Fault) -> Response {
     let status = match error.code() {
         Code::InvalidArgument | Code::OutOfRange => StatusCode::BAD_REQUEST,
         Code::Unauthenticated => StatusCode::UNAUTHORIZED,
@@ -204,7 +204,7 @@ mod tests {
             .with_context("tenant", "tenant-secret")
             .with_sensitive_context("credential")
             .with_source(io::Error::other("provider secret"));
-        let response = fault_response(fault);
+        let response = fault_response(&fault);
         assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
 
         let body = axum::body::to_bytes(response.into_body(), 4_096)

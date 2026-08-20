@@ -21,8 +21,10 @@ against the string form. The integer wins because the contract says so.
 
 from __future__ import annotations
 
+import re
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Final
+from typing import Final
 
 from libs.python.errors import InvalidArgument
 
@@ -30,6 +32,11 @@ from .digest import Digest, is_canonical_digest
 
 MAXIMUM_MEDIA_TYPE_LENGTH: Final = 255
 MAXIMUM_LOGICAL_KIND_LENGTH: Final = 128
+MAXIMUM_ARTIFACT_SIZE: Final = (1 << 64) - 1
+MAXIMUM_SCHEMA_VERSION: Final = (1 << 32) - 1
+
+_MEDIA_TYPE: Final = re.compile(r"^[a-z0-9!#$&^_.+-]+/[a-z0-9!#$&^_.+-]+$")
+_LOGICAL_KIND: Final = re.compile(r"^[a-z][a-z0-9._-]{0,127}$")
 
 # The exact field set the cross-language round-trip test pins.
 ARTIFACT_REF_FIELDS: Final = frozenset(
@@ -48,31 +55,62 @@ class ArtifactRef:
     schema_version: int
 
     def __post_init__(self) -> None:
-        if self.size_bytes < 0:
-            raise InvalidArgument("artifact size must not be negative", reason="artifact_size")
-        if "/" not in self.media_type or len(self.media_type) > MAXIMUM_MEDIA_TYPE_LENGTH:
+        if not isinstance(self.digest, Digest):
+            raise InvalidArgument(
+                "artifact digest must be a Digest",
+                reason="artifact_digest",
+            )
+        if (
+            isinstance(self.size_bytes, bool)
+            or not isinstance(self.size_bytes, int)
+            or not 0 <= self.size_bytes <= MAXIMUM_ARTIFACT_SIZE
+        ):
+            raise InvalidArgument(
+                "artifact size must be an unsigned 64-bit integer",
+                reason="artifact_size",
+            )
+        if (
+            not isinstance(self.media_type, str)
+            or len(self.media_type) > MAXIMUM_MEDIA_TYPE_LENGTH
+            or _MEDIA_TYPE.fullmatch(self.media_type) is None
+        ):
             raise InvalidArgument(
                 "artifact media type must be a bounded type/subtype string",
                 reason="artifact_media_type",
             )
-        if not self.logical_kind or len(self.logical_kind) > MAXIMUM_LOGICAL_KIND_LENGTH:
+        if (
+            not isinstance(self.logical_kind, str)
+            or len(self.logical_kind) > MAXIMUM_LOGICAL_KIND_LENGTH
+            or _LOGICAL_KIND.fullmatch(self.logical_kind) is None
+        ):
             raise InvalidArgument(
-                "artifact logical kind is required and bounded", reason="artifact_logical_kind"
+                "artifact logical kind must be a bounded canonical name",
+                reason="artifact_logical_kind",
             )
         # bool is a subclass of int, so `True` would otherwise pass as schema version 1.
-        if isinstance(self.schema_version, bool) or self.schema_version < 1:
+        if (
+            isinstance(self.schema_version, bool)
+            or not isinstance(self.schema_version, int)
+            or not 1 <= self.schema_version <= MAXIMUM_SCHEMA_VERSION
+        ):
             raise InvalidArgument(
-                "artifact schema version is a positive integer", reason="artifact_schema_version"
+                "artifact schema version must be an unsigned 32-bit integer starting at 1",
+                reason="artifact_schema_version",
             )
 
     @classmethod
-    def from_document(cls, document: dict[str, Any]) -> ArtifactRef:
+    def from_document(cls, document: Mapping[str, object]) -> ArtifactRef:
         """Build a reference from its canonical document form.
 
         Rejects unknown and missing keys rather than ignoring them: an extra key
         is either a field this build does not understand or a location leaking
         back in, and both are worth failing on.
         """
+        if not isinstance(document, Mapping) or any(not isinstance(key, str) for key in document):
+            raise InvalidArgument(
+                "artifact reference must be a string-keyed mapping",
+                reason="artifact_document",
+            )
         keys = set(document)
         if keys != ARTIFACT_REF_FIELDS:
             raise InvalidArgument(
@@ -85,15 +123,39 @@ class ArtifactRef:
             raise InvalidArgument(
                 "artifact digest must be a canonical sha256 string", reason="artifact_digest"
             )
+        size_bytes = document["size_bytes"]
+        media_type = document["media_type"]
+        logical_kind = document["logical_kind"]
+        schema_version = document["schema_version"]
+        if isinstance(size_bytes, bool) or not isinstance(size_bytes, int):
+            raise InvalidArgument(
+                "artifact size must be an unsigned 64-bit integer",
+                reason="artifact_size",
+            )
+        if not isinstance(media_type, str):
+            raise InvalidArgument(
+                "artifact media type must be text",
+                reason="artifact_media_type",
+            )
+        if not isinstance(logical_kind, str):
+            raise InvalidArgument(
+                "artifact logical kind must be text",
+                reason="artifact_logical_kind",
+            )
+        if isinstance(schema_version, bool) or not isinstance(schema_version, int):
+            raise InvalidArgument(
+                "artifact schema version must be an integer",
+                reason="artifact_schema_version",
+            )
         return cls(
             digest=Digest.parse(digest),
-            size_bytes=document["size_bytes"],
-            media_type=document["media_type"],
-            logical_kind=document["logical_kind"],
-            schema_version=document["schema_version"],
+            size_bytes=size_bytes,
+            media_type=media_type,
+            logical_kind=logical_kind,
+            schema_version=schema_version,
         )
 
-    def to_document(self) -> dict[str, Any]:
+    def to_document(self) -> dict[str, str | int]:
         """The canonical document form, for canonical serialization and manifests."""
         return {
             "digest": self.digest.text,

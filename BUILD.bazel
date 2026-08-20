@@ -3,7 +3,14 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("//tools/build/bazel:layers.bzl", "declare_bazel_layer_package_groups")
+
 package(default_visibility = ["//visibility:private"])
+
+# These named groups are both reusable visibility boundaries and the package classification
+# consumed by tools/analysis/check_bazel_layers.py. Their membership is defined once in the
+# loaded module so BUILD visibility and the query-based CI gate cannot silently diverge.
+declare_bazel_layer_package_groups()
 
 # Root metadata, in one list used twice: exports_files makes each path referenceable as a label
 # from another package, and the filegroups below bundle them for the targets that need the set.

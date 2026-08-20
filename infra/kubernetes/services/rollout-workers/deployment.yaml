@@ -4,4 +4,65 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# Rollout generation is durable batch work. Its accelerator envelope depends on
+# the signed workload ticket; the package currently has no runnable composition
+# root, so this template stays suspended.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rollout-worker-template
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: rollout-worker
+    app.kubernetes.io/component: batch-worker
+    app.kubernetes.io/part-of: mindclade-platform
+  annotations:
+    mindclade.dev/deployment-status: disabled
+    mindclade.dev/activation-blocker: runnable-entrypoint-and-ticket-adapter-missing
+    mindclade.dev/gpu-contract: per-workload-ticket
+    mindclade.dev/template-only: "true"
+spec:
+  suspend: true
+  backoffLimit: 0
+  activeDeadlineSeconds: 21600
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rollout-worker
+        app.kubernetes.io/component: batch-worker
+        app.kubernetes.io/part-of: mindclade-platform
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      restartPolicy: Never
+      serviceAccountName: rollout-worker
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: rollout-worker
+          image: registry.invalid/mindclade/rollout-worker@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          resources:
+            requests:
+              cpu: "1"
+              ephemeral-storage: 1Gi
+              memory: 2Gi
+            limits:
+              cpu: "4"
+              ephemeral-storage: 8Gi
+              memory: 8Gi

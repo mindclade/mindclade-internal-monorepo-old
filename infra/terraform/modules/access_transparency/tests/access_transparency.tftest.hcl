@@ -32,8 +32,13 @@ run "records_cannot_be_deleted_before_their_window_expires" {
   }
 
   assert {
-    condition     = google_storage_bucket.access_transparency.public_access_prevention == "enforced"
-    error_message = "An access-transparency archive must never be publicly reachable."
+    condition = (
+      google_storage_bucket.access_transparency.public_access_prevention == "enforced" &&
+      google_storage_bucket.access_transparency.deletion_policy == "PREVENT" &&
+      google_storage_bucket.access_transparency.force_destroy == false &&
+      google_storage_bucket.access_transparency.soft_delete_policy[0].retention_duration_seconds == 7776000
+    )
+    error_message = "An access-transparency archive must remain private and protected against early or accidental deletion."
   }
 }
 

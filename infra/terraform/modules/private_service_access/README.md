@@ -11,7 +11,7 @@ module "private_service_access" {
   source = "../../modules/private_service_access"
 
   project_id          = "mindclade-production"
-  network_id          = module.network.network_id
+  network_id          = module.network.network_id["production"]
   reserved_range_name = "mindclade-production-psa"
   address             = "10.41.0.0"
   prefix_length       = 16

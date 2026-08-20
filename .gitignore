@@ -49,6 +49,9 @@ node_modules/
 /.bazel-cache/
 user.bazelrc
 
+# --- Generated documentation ---
+/.generated/
+
 # --- Go ---
 /bin/
 *.test

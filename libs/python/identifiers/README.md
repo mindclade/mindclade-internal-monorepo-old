@@ -46,6 +46,11 @@ here degrades or coerces: a malformed value raises rather than becoming a
 zero value, because a silently-zeroed identifier is indistinguishable from a real
 one downstream.
 
+Wire widths are enforced: artifact sizes and resource generations are `uint64`,
+and artifact schema versions are `uint32`. Advancing a generation already at the
+`uint64` maximum raises `OutOfRange`, matching the Go contract. Media types and
+logical artifact kinds have one bounded lowercase canonical spelling.
+
 `Digest.of_reader` streams in 1 MiB chunks and returns the byte count alongside
 the digest, so hashing a checkpoint does not require reading it into memory.
 `Digest.equals` compares in constant time; digests gate artifact admission, and an

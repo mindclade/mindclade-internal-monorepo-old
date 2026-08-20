@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["kueue"],
+  "properties": {
+    "kueue": {
+      "type": "object",
+      "required": ["controllerManager", "managerConfig"],
+      "properties": {
+        "controllerManager": {
+          "type": "object",
+          "required": ["replicas", "manager"],
+          "properties": {
+            "replicas": {"type": "integer", "minimum": 2},
+            "manager": {
+              "type": "object",
+              "required": ["image", "resources"],
+              "properties": {
+                "image": {
+                  "type": "object",
+                  "required": ["repository", "tag"],
+                  "properties": {
+                    "repository": {"const": "registry.k8s.io/kueue/kueue"},
+                    "tag": {"pattern": "^v0\\.19\\.1@sha256:[0-9a-f]{64}$"}
+                  }
+                },
+                "resources": {"type": "object"}
+              }
+            }
+          }
+        },
+        "managerConfig": {
+          "type": "object",
+          "required": ["controllerManagerConfigYaml"],
+          "properties": {
+            "controllerManagerConfigYaml": {"type": "string", "minLength": 1}
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

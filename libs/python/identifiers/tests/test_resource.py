@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+import threading
+
 import pytest
 
 from libs.python.errors import Code, MindcladeError, code_of
@@ -144,6 +146,37 @@ def test_wall_clock_minting_does_not_go_backwards_across_a_clock_step() -> None:
     assert len(set(minted)) == 3
 
 
+def test_wall_clock_minting_is_monotonic_across_racing_threads() -> None:
+    low_entered = threading.Event()
+    release_low = threading.Event()
+
+    class CoordinatedGenerator(IdGenerator):
+        def _mint(self, unix_millis: int, *, allow_advance: bool) -> bytes:
+            if unix_millis == 1_000:
+                low_entered.set()
+                if not release_low.wait(timeout=2):
+                    raise TimeoutError("test coordination timed out")
+            return super()._mint(unix_millis, allow_advance=allow_advance)
+
+    generator = CoordinatedGenerator(
+        clock=lambda: 1_000 if threading.current_thread().name == "low" else 2_000
+    )
+    completed: list[bytes] = []
+
+    low = threading.Thread(target=lambda: completed.append(generator.raw_now()), name="low")
+    high = threading.Thread(target=lambda: completed.append(generator.raw_now()), name="high")
+    low.start()
+    assert low_entered.wait(timeout=2)
+    high.start()
+    high.join(timeout=2)
+    release_low.set()
+    low.join(timeout=2)
+
+    assert not low.is_alive() and not high.is_alive()
+    assert completed == sorted(completed)
+    assert len(set(completed)) == 2
+
+
 def test_an_isolated_generator_does_not_share_state_with_the_default() -> None:
     generator = IdGenerator(clock=lambda: 1_700_000_000_000)
     first = ResourceId("job", generator.raw_now())
@@ -157,6 +190,22 @@ def test_timestamps_outside_48_bits_are_rejected() -> None:
         new_resource_id_at("job", -1)
     with pytest.raises(ValueError, match="48 bits"):
         new_resource_id_at("job", 1 << 48)
+    with pytest.raises(ValueError, match="48 bits"):
+        new_resource_id_at("job", True)
+
+
+@pytest.mark.parametrize("reading", [-1, 1 << 48, True, 1.5])
+def test_wall_clock_must_return_48_bit_integer_milliseconds(reading: object) -> None:
+    generator = IdGenerator(clock=lambda: reading)  # type: ignore[arg-type,return-value]
+    with pytest.raises(ValueError, match="48-bit"):
+        generator.raw_now()
+
+
+def test_non_text_identifiers_fail_cleanly() -> None:
+    assert not is_canonical_kind(None)
+    assert not is_canonical_resource_id(None)
+    with pytest.raises(ValueError):
+        ResourceId.parse(None)  # type: ignore[arg-type]
 
 
 def test_identifier_is_hashable_and_immutable() -> None:

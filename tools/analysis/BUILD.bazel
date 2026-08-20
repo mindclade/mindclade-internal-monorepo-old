@@ -15,6 +15,17 @@ package(default_visibility = ["//visibility:private"])
 # a confidently wrong coverage number instead of a missing-file error. Same shape as every
 # sibling checker here: run it against a checkout, or pass --root.
 py_binary(
+    name = "check_bazel_layers",
+    srcs = ["check_bazel_layers.py"],
+    data = [
+        "//tools/build/bazel:layers.bzl",
+        "//tools/dev:dev_sources",
+    ],
+    main = "check_bazel_layers.py",
+    visibility = ["//visibility:public"],
+)
+
+py_binary(
     name = "check_blueprint_scaffold",
     srcs = ["check_blueprint_scaffold.py"],
     main = "check_blueprint_scaffold.py",
@@ -38,6 +49,15 @@ py_binary(
 # pytest_test, not py_test: these are pytest modules, and a py_test would run them as scripts
 # and execute no test function. They also failed analysis outright — the src is in tests/, so
 # the default main "<name>.py" never appeared in srcs.
+pytest_test(
+    name = "bazel_layers_test",
+    srcs = ["tests/test_bazel_layers.py"],
+    data = [
+        "check_bazel_layers.py",
+        "//tools/build/bazel:layers.bzl",
+    ],
+)
+
 pytest_test(
     name = "go_architecture_checks_test",
     srcs = ["tests/test_go_checks.py"],

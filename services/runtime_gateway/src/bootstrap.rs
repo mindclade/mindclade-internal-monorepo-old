@@ -18,6 +18,7 @@ use mindclade_protocols::runtime::v1 as wire;
 use mindclade_servicekit::{Service, signals};
 use mindclade_worker_protocol::Ed25519VerificationKey;
 use prost::Message;
+use std::io::Read;
 use std::{env, fs, net::SocketAddr, path::PathBuf, sync::Arc, time::UNIX_EPOCH};
 use tokio::sync::watch;
 
@@ -132,8 +133,11 @@ pub async fn run(config: BootstrapConfig) -> FaultResult<()> {
 }
 
 fn read_message<M: Message + Default>(path: &PathBuf) -> FaultResult<M> {
-    let metadata = fs::metadata(path).map_err(|error| {
+    let file = fs::File::open(path).map_err(|error| {
         Fault::new(Code::NotFound, "runtime policy file is unavailable").with_source(error)
+    })?;
+    let metadata = file.metadata().map_err(|error| {
+        Fault::new(Code::Unavailable, "runtime policy file inspection failed").with_source(error)
     })?;
     if !metadata.is_file() || metadata.len() == 0 || metadata.len() > MAX_POLICY_FILE_BYTES {
         return Err(Fault::new(
@@ -141,9 +145,26 @@ fn read_message<M: Message + Default>(path: &PathBuf) -> FaultResult<M> {
             "runtime policy file size is invalid",
         ));
     }
-    let bytes = fs::read(path).map_err(|error| {
-        Fault::new(Code::Unavailable, "runtime policy file read failed").with_source(error)
+    let capacity = usize::try_from(metadata.len()).map_err(|_| {
+        Fault::new(
+            Code::ResourceExhausted,
+            "runtime policy file exceeds platform limits",
+        )
     })?;
+    let mut bytes = Vec::with_capacity(capacity);
+    file.take(MAX_POLICY_FILE_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| {
+            Fault::new(Code::Unavailable, "runtime policy file read failed").with_source(error)
+        })?;
+    if bytes.is_empty()
+        || u64::try_from(bytes.len()).map_or(true, |length| length > MAX_POLICY_FILE_BYTES)
+    {
+        return Err(Fault::new(
+            Code::ResourceExhausted,
+            "runtime policy file changed beyond its size bound while reading",
+        ));
+    }
     M::decode(bytes.as_slice()).map_err(|error| {
         Fault::invalid_argument("runtime policy protobuf is invalid").with_source(error)
     })

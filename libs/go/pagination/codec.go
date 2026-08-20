@@ -6,6 +6,7 @@
 package pagination
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -67,15 +68,15 @@ func (codec *Codec) Decode(ctx context.Context, token string, expected Binding) 
 	if err := expected.Validate(); err != nil {
 		return Cursor{}, err
 	}
-	parts := strings.Split(token, ".")
-	if len(parts) != 2 {
+	payloadPart, signaturePart, found := strings.Cut(token, ".")
+	if !found || strings.Contains(signaturePart, ".") {
 		return Cursor{}, invalid(ErrInvalidCursor, "invalid_cursor_token", "pagination.Codec.Decode")
 	}
-	payload, err := base64.RawURLEncoding.DecodeString(parts[0])
+	payload, err := base64.RawURLEncoding.DecodeString(payloadPart)
 	if err != nil {
 		return Cursor{}, invalid(ErrInvalidCursor, "invalid_cursor_payload_encoding", "pagination.Codec.Decode")
 	}
-	signatureText, err := base64.RawURLEncoding.DecodeString(parts[1])
+	signatureText, err := base64.RawURLEncoding.DecodeString(signaturePart)
 	if err != nil {
 		return Cursor{}, invalid(ErrInvalidCursor, "invalid_cursor_signature_encoding", "pagination.Codec.Decode")
 	}
@@ -87,7 +88,7 @@ func (codec *Codec) Decode(ctx context.Context, token string, expected Binding) 
 		return Cursor{}, err
 	}
 	var cursor Cursor
-	decoder := json.NewDecoder(strings.NewReader(string(payload)))
+	decoder := json.NewDecoder(bytes.NewReader(payload))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&cursor); err != nil {
 		return Cursor{}, invalid(ErrInvalidCursor, "invalid_cursor_payload", "pagination.Codec.Decode")

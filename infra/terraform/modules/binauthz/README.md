@@ -30,10 +30,24 @@ signs by calling KMS, so a compromised pipeline can mint attestations while it i
 but cannot take the key with it. The keys carry `prevent_destroy` — destroying one invalidates
 every attestation ever made with it, including those on images currently running.
 
-`attestor_signers` is who may *attest*, deliberately not who may *deploy*. An identity that
-can do both approves its own artefacts, which is the control removed. An empty list is
+`project_number` is separate from `project_id` because the Binary Authorization service
+agent is number-addressed. The module grants that service agent occurrence-viewer access on
+each note so an attestor cannot exist while being unable to evaluate its attestations.
+
+`attestor_signers` is who may *attest*, deliberately not who may *deploy*. Each signer gets
+the three capabilities Google documents for the operation: attach an occurrence to that
+specific Container Analysis note, create the occurrence in the attestation project, and use
+the attestor's KMS key to sign. `roles/binaryauthorization.attestorsVerifier` is not a signer
+role; it is granted separately through `attestor_verifiers` to the Binary Authorization
+service agent in a deployer project. An identity that can both attest and deploy approves its
+own artefacts, which is the control removed. An empty list is
 meaningful and is not the same as omitting the entry: it declares that only a human granted
 the role out of band may sign, which is how a human-review attestor stays un-automatable.
+
+Upgrading from a release that used the old `attestor_signers` implementation changes IAM
+resource addresses and corrects a semantic defect: the old code granted signers only the
+verifier role. Review the transition as an IAM change, create the new grants before relying
+on the pipeline, and remove the obsolete verifier grants only after a signing canary passes.
 
 Every entry in `exempt_images` is a hole by design, so the list is an output as well as an
 input — it shows up in a plan diff.

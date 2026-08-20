@@ -7,6 +7,7 @@ mock_provider "google" {}
 
 variables {
   project_id        = "mc-development-platform"
+  project_number    = "123456789012"
   cluster           = "europe-west4.mc-development"
   attestor_key_ring = "projects/mc-b-seed/locations/europe-west4/keyRings/binauthz"
 
@@ -124,4 +125,38 @@ run "signers_for_an_unknown_attestor_are_rejected" {
   }
 
   expect_failures = [google_binary_authorization_policy.this]
+}
+
+run "signers_get_attestation_permissions_not_verifier" {
+  command = plan
+
+  variables {
+    attestor_signers = {
+      build-attestor = ["serviceAccount:release@mc-development-platform.iam.gserviceaccount.com"]
+    }
+  }
+
+  assert {
+    condition = (
+      google_container_analysis_note_iam_member.signer_attacher["build-attestor:serviceAccount:release@mc-development-platform.iam.gserviceaccount.com"].role == "roles/containeranalysis.notes.attacher" &&
+      google_project_iam_member.signer_occurrence_editor["serviceAccount:release@mc-development-platform.iam.gserviceaccount.com"].role == "roles/containeranalysis.occurrences.editor" &&
+      google_kms_crypto_key_iam_member.signer["build-attestor:serviceAccount:release@mc-development-platform.iam.gserviceaccount.com"].role == "roles/cloudkms.signerVerifier"
+    )
+    error_message = "A signer must be able to attach the note occurrence, create the occurrence, and sign with KMS."
+  }
+}
+
+run "deployer_service_agent_gets_verifier_role" {
+  command = plan
+
+  variables {
+    attestor_verifiers = {
+      build-attestor = ["serviceAccount:service-123456789012@gcp-sa-binaryauthorization.iam.gserviceaccount.com"]
+    }
+  }
+
+  assert {
+    condition     = google_binary_authorization_attestor_iam_member.verifier["build-attestor:serviceAccount:service-123456789012@gcp-sa-binaryauthorization.iam.gserviceaccount.com"].role == "roles/binaryauthorization.attestorsVerifier"
+    error_message = "Only deployer Binary Authorization service agents receive the attestor verifier role."
+  }
 }

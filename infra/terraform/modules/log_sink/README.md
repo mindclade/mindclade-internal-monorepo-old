@@ -1,31 +1,50 @@
-# `log_sink`
+# Aggregated log sink module
 
-Organization-level log sinks and the destinations they write into.
+This module creates aggregated sinks on either an organization or a folder and routes each
+sink to a dedicated Cloud Logging or GCS bucket in `project_id`. Organization and folder
+sinks use their respective provider resources; a `folders/...` parent is never passed as
+an organization ID.
 
-## The failure this module is shaped around
+Every sink requests a unique writer identity. The module then adds only the destination
+grant that identity needs: conditional Logging bucket-writer for a Cloud Logging
+destination or GCS object-creator for an archive. A configured sink is not proof of
+delivery, so monitor sink errors and verify expected canary entries.
 
-A sink is created with a writer identity Google mints at creation time. That identity has no
-permission on the destination until something grants it, and **a sink whose writer cannot
-write does not error** — it reports healthy and drops every entry. The gap is visible only as
-an absence nobody is looking for.
+Cloud Logging destinations have bounded retention, configurable location, deletion policy,
+and Terraform destruction protection. Log Analytics is a creation-time decision. GCS
+destinations enforce uniform access, public-access prevention, versioning, soft delete,
+`force_destroy = false`, provider deletion policy, and Terraform destruction protection.
+CMEK is optional at this generic layer; the key-owning state must grant the relevant
+service agent.
 
-So the ordering is destination → sink → grant, with the grant depending on both, and
-`unique_writer_identity` throughout: the shared default writer would give every sink the same
-principal and make a per-sink grant meaningless. The `writer_identities` output is the value
-to check against a destination's IAM policy when entries stop arriving.
+GCS retention is distinct from lifecycle deletion. Retention locking is irreversible and
+requires both `lock_retention_policy = true` and the exact
+`retention_lock_confirmation`. Generic archives default to an unlocked policy; the
+`audit_archive` composition requires a locked policy.
 
-## Two destinations
+`default_sink_retention_days` manages only the destination project's own global
+`_Default` bucket. It cannot update the local buckets of descendant projects. The
+backward-compatible default is 30 days; set it to zero to leave that bucket unmanaged.
 
-- `logging` — a Cloud Logging bucket in `project_id`. Queryable, optionally through Log
-  Analytics. **`enable_analytics` can only be set at creation**; turning it on later requires
-  deleting the bucket, which takes every entry in it.
-- `storage` — a GCS bucket. Versioned, uniform access, public access prevented, optional CMEK.
+```hcl
+module "logs" {
+  source = "../../modules/log_sink"
 
-Retention on a GCS destination is a **retention policy**, not a lifecycle delete rule: a
-lifecycle rule removes objects on a schedule, a retention policy stops them being removed
-early. It is deliberately never locked here — a locked policy cannot be shortened by anyone,
-ever, including to correct a mistake, so locking stays a separate operational act.
+  parent     = "folders/123456789012"
+  project_id = "mindclade-logging"
 
-`default_sink_retention_days` shortens each project's own `_Default` bucket, which is what
-stops every project paying to store logs this module already keeps centrally. Set it to `0`
-to leave `_Default` alone; `0` means untouched, not zero-day retention.
+  sinks = {
+    application-hot = {
+      description      = "Queryable application logs."
+      destination      = "logging"
+      filter           = "resource.type=\"k8s_container\""
+      retention_days   = 30
+      enable_analytics = true
+    }
+  }
+}
+```
+
+Mock-provider tests validate resource selection and configuration only. They do not prove
+Logging API enablement, IAM propagation, CMEK access, destination compatibility, live
+delivery, exclusions, retention execution, cost, or recovery.

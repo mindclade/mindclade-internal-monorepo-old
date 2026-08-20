@@ -22,3 +22,15 @@ output "rotating_secret_ids" {
   EOT
   value       = [for k, s in var.secrets : k if s.rotation_period != null]
 }
+
+output "unexpected_access_alert_intent" {
+  description = "Declarative input for the observability state that owns unexpected Secret Manager DATA_READ alerting."
+  value = {
+    enabled      = var.alert_on_unexpected_access
+    project_id   = var.project_id
+    secret_names = { for key, secret in google_secret_manager_secret.this : key => secret.name }
+    expected_bindings = {
+      for secret_id, secret in var.secrets : secret_id => sort(tolist(secret.accessors))
+    }
+  }
+}

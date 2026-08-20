@@ -84,6 +84,9 @@ jobs:
   # a duplicated `with:` block and make each digest unambiguous. That trade is not close.
   image-go-vanity:
     uses: mindclade-org/.github/.github/workflows/reusable-oci-build.yml@v1.2.0
+    permissions:
+      contents: read
+      id-token: write
     with:
       image: ${{ vars.ARTIFACT_REGISTRY_HOST }}/${{ vars.DEV_PLATFORM_PROJECT_ID }}/containers/go-vanity
       bazel-image-target: //services/go_vanity:image
@@ -120,6 +123,9 @@ jobs:
   # written for images must not be able to delete a model.
   image-weights:
     uses: mindclade-org/.github/.github/workflows/reusable-oci-build.yml@v1.2.0
+    permissions:
+      contents: read
+      id-token: write
     with:
       image: ${{ vars.ARTIFACT_REGISTRY_HOST }}/${{ vars.DEV_PLATFORM_PROJECT_ID }}/weights/mindclade-fixture
       bazel-image-target: //models/reference/weights_fixture:fixture_image

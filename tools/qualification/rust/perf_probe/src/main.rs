@@ -11,16 +11,25 @@ use std::time::Instant;
 
 fn main() {
     let bytes = vec![0x5a_u8; 32 * 1024 * 1024];
-    let start = Instant::now();
-    for _ in 0..4 {
-        black_box(hash_bytes(black_box(&bytes)));
+    // Warm page mappings, allocator state, and runtime CPU-feature detection
+    // before collecting a median. A single cold sample is too sensitive to
+    // concurrent CI load to serve as promotion evidence.
+    black_box(hash_bytes(black_box(&bytes)));
+    let mut verify_samples = [0.0_f64; 5];
+    for sample in &mut verify_samples {
+        let start = Instant::now();
+        for _ in 0..4 {
+            black_box(hash_bytes(black_box(&bytes)));
+        }
+        let seconds = start.elapsed().as_secs_f64();
+        *sample = if seconds > 0.0 {
+            128.0 / seconds
+        } else {
+            f64::INFINITY
+        };
     }
-    let seconds = start.elapsed().as_secs_f64();
-    let verify_mib_per_s = if seconds > 0.0 {
-        128.0 / seconds
-    } else {
-        f64::INFINITY
-    };
+    verify_samples.sort_by(f64::total_cmp);
+    let verify_mib_per_s = verify_samples[verify_samples.len() / 2];
 
     let budget = Budget::root("probe", ResourceVector::default());
     let start = Instant::now();

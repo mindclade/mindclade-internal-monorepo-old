@@ -122,6 +122,23 @@ pub struct TelemetrySpool {
     state: Mutex<State>,
 }
 
+impl core::fmt::Debug for TelemetrySpool {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        formatter
+            .debug_struct("TelemetrySpool")
+            .field("root", &self.root)
+            .field("config", &self.config)
+            .field(
+                "state",
+                &*self
+                    .state
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner),
+            )
+            .finish_non_exhaustive()
+    }
+}
+
 impl TelemetrySpool {
     pub fn open(
         root: impl Into<PathBuf>,
@@ -153,6 +170,10 @@ impl TelemetrySpool {
             }),
         })
     }
+    // Keep the append transaction contiguous: sequence allocation, segment
+    // rotation, budget admission, durable write, and counter publication must
+    // be reviewed in their exact failure order.
+    #[allow(clippy::too_many_lines)]
     pub fn append(&self, event_type: impl Into<String>, payload: &[u8]) -> FaultResult<Envelope> {
         let payload_bytes = u64::try_from(payload.len())
             .map_err(|_| Fault::new(Code::OutOfRange, "telemetry event length exceeds u64"))?;
@@ -349,8 +370,14 @@ fn segment_files(root: &Path) -> FaultResult<Vec<PathBuf>> {
             Fault::internal("failed to inspect telemetry spool entry").with_source(error)
         })?;
         let name = entry.file_name().to_string_lossy().into_owned();
-        if name.starts_with("segment-") && name.ends_with(".mcrd") {
-            output.push(entry.path());
+        let path = entry.path();
+        if name.starts_with("segment-")
+            && path
+                .extension()
+                .and_then(std::ffi::OsStr::to_str)
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("mcrd"))
+        {
+            output.push(path);
         }
     }
     Ok(output)

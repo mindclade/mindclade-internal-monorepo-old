@@ -4,4 +4,31 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mindclade-rdma-contract
+  namespace: mindclade-system
+data:
+  activationState: blocked
+  transportLabel: mindclade.dev/distributed-transport=rdma
+  deviceResource: unset-until-observed
+  networkAttachment: unset-until-observed
+  h200Profile: gke-h200-a3-ultragpu-8g
+  privilegePolicy: no-host-devices-until-reviewed
+---
+# Kubernetes NetworkPolicy is not treated as sufficient isolation for a directly attached RDMA
+# device. This deny policy is defense in depth while the device resource and VPC policy remain
+# deliberately unconfigured.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: block-unqualified-rdma
+  namespace: mindclade-system
+spec:
+  podSelector:
+    matchLabels:
+      mindclade.dev/distributed-transport: rdma
+  policyTypes:
+    - Egress
+    - Ingress

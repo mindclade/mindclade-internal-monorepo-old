@@ -33,9 +33,12 @@ note() {
 }
 
 note "checking Go formatting"
-mapfile -d '' go_files < <(
+go_files=()
+while IFS= read -r go_file; do
+  go_files+=("$go_file")
+done < <(
   find libs/go control services/control_plane examples/go \
-    -type f -name '*.go' -print0 | sort -z
+    -type f -name '*.go' -print | LC_ALL=C sort
 )
 ((${#go_files[@]} > 0)) || fail "no Go source files found"
 unformatted="$(gofmt -l "${go_files[@]}")"
@@ -46,7 +49,7 @@ note "checking foundation shape"
   || fail "nested Go modules are prohibited under libs/go"
 [[ -z "$(find libs/go -type f -size 0 -print -quit)" ]] \
   || fail "zero-byte files are prohibited under libs/go"
-[[ -z "$(find . -type d -name __pycache__ -print -quit)" ]] \
+[[ -z "$(git ls-files ':(glob)**/__pycache__/**' | head -n 1)" ]] \
   || fail "Python cache directories must not be committed"
 
 note "checking Go dependency layers and paved roads"
@@ -73,7 +76,7 @@ packages=(
   ./libs/go/coordination/...
   ./services/control_plane/internal/bootstrap
   ./services/control_plane/internal/foundation
-  ./services/control_plane/internal/provider
+  ./services/control_plane/internal/providers
   ./services/control_plane/internal/transport
   ./examples/go/event_dispatcher
   ./examples/go/ingestion_coordinator

@@ -28,6 +28,26 @@ output "attestor_key_versions" {
   value       = { for name, v in data.google_kms_crypto_key_version.attestor : name => v.id }
 }
 
+output "signer_grants" {
+  description = "Least-privilege note-attacher, occurrence-editor, and KMS signer grants created for attestation producers."
+  value = {
+    for key, pair in local.signer_pairs : key => {
+      attestor = pair.attestor
+      member   = pair.member
+      roles = [
+        "roles/containeranalysis.notes.attacher",
+        "roles/containeranalysis.occurrences.editor",
+        "roles/cloudkms.signerVerifier",
+      ]
+    }
+  }
+}
+
+output "verifier_grants" {
+  description = "Attestor verifier grants created for Binary Authorization service agents."
+  value       = { for key, pair in local.verifier_pairs : key => pair }
+}
+
 output "enforcement_mode" {
   description = "The default rule's enforcement mode, surfaced so a caller can assert that production is not silently in dry-run."
   value       = google_binary_authorization_policy.this.default_admission_rule[0].enforcement_mode

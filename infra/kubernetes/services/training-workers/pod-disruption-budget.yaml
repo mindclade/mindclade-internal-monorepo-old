@@ -4,4 +4,5 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# Intentionally no PodDisruptionBudget. Training recovery is checkpoint- and
+# gang-scheduling-aware, not replica-availability-based.

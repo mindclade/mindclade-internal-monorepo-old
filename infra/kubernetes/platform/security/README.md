@@ -1,35 +1,27 @@
-# Infra / Kubernetes / Platform / Security
+# Native admission security
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Terraform, Kubernetes, GitOps, and policy configuration
+This module adds Kubernetes `ValidatingAdmissionPolicy` controls to namespaces that explicitly
+opt in through Mindclade labels. It complements Pod Security Admission and default-deny
+NetworkPolicy; it does not replace image-signature enforcement, Workload Identity, or an
+external secrets controller.
 
-## Purpose
+Protected pods must use digest-pinned images, a named ServiceAccount without automatic tokens,
+restricted security contexts, and CPU/memory/ephemeral-storage bounds. Host namespaces,
+hostPath, privileged containers, and ordinary ephemeral debug containers are denied. Services
+are internal-only so public exposure remains centralized in Gateway API.
 
-Deployment and cloud foundations. Infrastructure declares environments, workload identity, storage, databases, queues, clusters, security policy, observability, and GitOps composition. This path specializes that domain for **security**.
+Namespaces labeled `mindclade.dev/workload-activation=blocked` additionally require zero
+Deployment/StatefulSet replicas and suspended Jobs/JobSets. The policy and manifests are
+separate defenses: removing the label alone does not activate a workload.
 
-## Boundary
+## Rollout and break glass
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+Render and schema-check first, then apply policies with their bindings in `Audit` plus `Deny` as
+declared. A connected pre-production test must exercise valid and invalid objects and inspect
+policy `status.typeChecking.expressionWarnings` before production promotion. Debugging requires
+a separately governed namespace; do not weaken the protected namespace to attach an ephemeral
+container.
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
-
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+If admission incorrectly blocks recovery, remove only the affected binding through the approved
+break-glass procedure, retain the policy for evidence, repair the manifest, and immediately
+restore the binding. Every such action is an incident and requires audit-log review.

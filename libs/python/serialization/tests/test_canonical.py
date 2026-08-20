@@ -4,6 +4,7 @@
 #
 
 import json
+from types import MappingProxyType
 
 import pytest
 
@@ -67,6 +68,24 @@ def test_circular_references_are_reported_as_a_fault() -> None:
     assert code_of(caught.value) is Code.INVALID_ARGUMENT
 
 
+def test_unsupported_values_and_non_string_keys_are_controlled_faults() -> None:
+    with pytest.raises(ValueError) as caught:
+        canonical_json_bytes({"value": object()})
+    assert code_of(caught.value) is Code.INVALID_ARGUMENT
+
+    with pytest.raises(ValueError, match="mappings"):
+        canonical_json_bytes([1, 2, 3])  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError) as caught:
+        canonical_json_bytes({1: "one"})  # type: ignore[dict-item]
+    assert code_of(caught.value) is Code.INVALID_ARGUMENT
+
+
+def test_read_only_mappings_encode_like_plain_mappings() -> None:
+    read_only = MappingProxyType({"nested": MappingProxyType({"value": 1})})
+    assert canonical_json_bytes(read_only) == b'{"nested":{"value":1}}'
+
+
 def test_empty_document_encodes() -> None:
     assert canonical_json_bytes({}) == b"{}"
 
@@ -79,6 +98,15 @@ def test_canonical_lines_joins_with_a_trailing_newline() -> None:
 def test_canonical_lines_rejects_an_embedded_newline() -> None:
     with pytest.raises(ValueError, match="newline"):
         canonical_lines(["a\nb"])
+
+
+def test_canonical_lines_rejects_non_text_values_as_a_fault() -> None:
+    with pytest.raises(ValueError) as caught:
+        canonical_lines([1])  # type: ignore[list-item]
+    assert code_of(caught.value) is Code.INVALID_ARGUMENT
+
+    with pytest.raises(ValueError, match="sequence"):
+        canonical_lines("not-a-line-sequence")
 
 
 def test_canonical_lines_is_utf8() -> None:

@@ -203,6 +203,10 @@ func (factory *Factory) Create(ctx context.Context, profile bootstrap.Profile) (
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}
+	// The replacement GetEventRecorder API cannot attach the request-lineage
+	// annotations that events.Recorder guarantees. Keep the compatibility API
+	// until client-go exposes equivalent structured-event metadata support.
+	//nolint:staticcheck // AnnotatedEventf is required to preserve request lineage.
 	publications, err := events.New(manager.GetEventRecorderFor(factory.eventSource))
 	if err != nil {
 		return bootstrap.Runtime{}, err

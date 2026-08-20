@@ -151,7 +151,10 @@ func (store *Store) Renew(ctx context.Context, claim workqueue.Claim, duration t
 	if err != nil {
 		return workqueue.Claim{}, sqlpostgres.Qualify(ctx, err, "workqueue.postgres.Renew")
 	}
-	affected, _ := result.RowsAffected()
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return workqueue.Claim{}, sqlpostgres.Qualify(ctx, err, "workqueue.postgres.Renew")
+	}
 	if affected != 1 {
 		return workqueue.Claim{}, lost(ctx, claim.Record.Item.ID, "workqueue.postgres.Renew")
 	}
@@ -194,7 +197,10 @@ func (store *Store) Cancel(ctx context.Context, id identifiers.ID, reason string
 	if err != nil {
 		return sqlpostgres.Qualify(ctx, err, "workqueue.postgres.Cancel")
 	}
-	affected, _ := result.RowsAffected()
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return sqlpostgres.Qualify(ctx, err, "workqueue.postgres.Cancel")
+	}
 	if affected != 1 {
 		return workqueue.ErrTerminal
 	}
@@ -216,7 +222,10 @@ func (store *Store) transition(ctx context.Context, query string, args ...any) e
 	if err != nil {
 		return sqlpostgres.Qualify(ctx, err, "workqueue.postgres.transition")
 	}
-	affected, _ := result.RowsAffected()
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return sqlpostgres.Qualify(ctx, err, "workqueue.postgres.transition")
+	}
 	if affected != 1 {
 		return faults.Wrap(workqueue.ErrLeaseLost, faults.CodeAborted, "work lease was lost", faults.WithReason("work_lease_lost"), faults.WithRetryPolicy(faults.NoRetry()))
 	}
@@ -256,7 +265,9 @@ func scan(row scanner) (workqueue.Record, coordination.Claim, error) {
 	}
 	var meta requestmeta.Metadata
 	if len(metadata) > 0 {
-		_ = json.Unmarshal(metadata, &meta)
+		if err := json.Unmarshal(metadata, &meta); err != nil {
+			return workqueue.Record{}, coordination.Claim{}, fmt.Errorf("decode request metadata: %w", err)
+		}
 	}
 	item, err := workqueue.ItemFromID(id, queue, payload, priority, available, maxAttempts, meta)
 	if err != nil {

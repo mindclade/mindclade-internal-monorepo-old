@@ -19,9 +19,10 @@ resource "google_compute_address" "this" {
   description = each.value.description
   region      = each.value.region
 
-  address_type = "INTERNAL"
-  purpose      = each.value.purpose
-  subnetwork   = each.value.subnetwork
+  address_type    = "INTERNAL"
+  purpose         = each.value.purpose
+  subnetwork      = each.value.subnetwork
+  deletion_policy = "PREVENT"
 
   # null lets GCP allocate. Pin it once a DNS record points here: an unpinned address can come
   # back different after a destroy and recreate, and the private-zone A records would then

@@ -52,3 +52,13 @@ output "mute_reasons" {
   description = "Why each mute exists, keyed by name. In state and in the plan diff, so a mute that is still present a year later is visible without opening the console."
   value       = { for name, cfg in var.mute_configs : name => trimspace(cfg.description) }
 }
+
+output "mute_governance" {
+  description = "Owner and mandatory expiry for each standing dynamic mute."
+  value = {
+    for name, config in var.mute_configs : name => {
+      owner       = config.owner
+      expiry_time = config.expiry_time
+    }
+  }
+}

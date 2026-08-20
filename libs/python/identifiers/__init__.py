@@ -13,8 +13,10 @@ about where any of them are stored.
 
 from .artifact import (
     ARTIFACT_REF_FIELDS,
+    MAXIMUM_ARTIFACT_SIZE,
     MAXIMUM_LOGICAL_KIND_LENGTH,
     MAXIMUM_MEDIA_TYPE_LENGTH,
+    MAXIMUM_SCHEMA_VERSION,
     ArtifactRef,
 )
 from .digest import (
@@ -43,7 +45,13 @@ from .resource import (
     new_resource_id_at,
     parse_kind,
 )
-from .version import SCHEMA_PREFIX, ResourceVersion, is_canonical_resource_version
+from .version import (
+    MAXIMUM_GENERATION,
+    MAXIMUM_RESOURCE_VERSION_LENGTH,
+    SCHEMA_PREFIX,
+    ResourceVersion,
+    is_canonical_resource_version,
+)
 
 __all__ = [
     "ARTIFACT_REF_FIELDS",
@@ -55,9 +63,13 @@ __all__ = [
     "DIGEST_TEXT_LENGTH",
     "GUARANTEED_PER_MILLISECOND",
     "ID_SEPARATOR",
+    "MAXIMUM_ARTIFACT_SIZE",
+    "MAXIMUM_GENERATION",
     "MAXIMUM_KIND_LENGTH",
     "MAXIMUM_LOGICAL_KIND_LENGTH",
     "MAXIMUM_MEDIA_TYPE_LENGTH",
+    "MAXIMUM_RESOURCE_VERSION_LENGTH",
+    "MAXIMUM_SCHEMA_VERSION",
     "MINIMUM_KIND_LENGTH",
     "SCHEMA_PREFIX",
     "UUID_BINARY_SIZE",

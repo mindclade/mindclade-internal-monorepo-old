@@ -10,8 +10,11 @@ metadata:
   name: default-deny
   namespace: mindclade-system
   labels:
+    app.kubernetes.io/component: network-policy
     app.kubernetes.io/part-of: mindclade-platform
     mindclade.dev/owner: security-and-operations
+  annotations:
+    mindclade.dev/failure-mode: fail-closed
 spec:
   podSelector: {}
   policyTypes:
@@ -24,8 +27,11 @@ metadata:
   name: allow-cluster-dns
   namespace: mindclade-system
   labels:
+    app.kubernetes.io/component: network-policy
     app.kubernetes.io/part-of: mindclade-platform
     mindclade.dev/owner: security-and-operations
+  annotations:
+    mindclade.dev/scope: dns-only
 spec:
   podSelector: {}
   policyTypes:

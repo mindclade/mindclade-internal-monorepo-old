@@ -74,9 +74,19 @@ def test_parse_failure_is_an_invalid_argument_fault() -> None:
     assert code_of(caught.value) is Code.INVALID_ARGUMENT
 
 
+def test_non_text_predicate_and_parser_inputs_fail_cleanly() -> None:
+    assert not is_canonical_digest(None)
+    with pytest.raises(ValueError) as caught:
+        Digest.parse(None)  # type: ignore[arg-type]
+    assert code_of(caught.value) is Code.INVALID_ARGUMENT
+
+
 def test_construction_rejects_a_wrong_length_payload() -> None:
     with pytest.raises(ValueError, match="32 bytes"):
         Digest(b"\x00" * 31)
+
+    with pytest.raises(ValueError, match="bytes"):
+        Digest("x" * 32)  # type: ignore[arg-type]
 
 
 def test_of_reader_streams_and_reports_the_byte_count() -> None:
@@ -90,6 +100,11 @@ def test_of_reader_on_empty_input() -> None:
     digest, consumed = Digest.of_reader(io.BytesIO(b""))
     assert consumed == 0
     assert digest == Digest.of(b"")
+
+
+def test_of_reader_rejects_a_text_stream() -> None:
+    with pytest.raises(ValueError, match="return bytes"):
+        Digest.of_reader(io.StringIO("payload"))  # type: ignore[arg-type]
 
 
 def test_equals_is_value_based() -> None:

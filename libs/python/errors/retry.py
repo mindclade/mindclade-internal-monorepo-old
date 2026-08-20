@@ -74,8 +74,6 @@ class RetryPolicy:
                         max_attempts=max_attempts,
                     )
                 return replace(self, max_attempts=max_attempts)
-            case _:
-                return RetryPolicy()
 
     def valid(self) -> bool:
         """Report whether this policy is already canonical."""

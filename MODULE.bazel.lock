@@ -531,7 +531,7 @@
     },
     "@@rules_rust+//crate_universe:extensions.bzl%crate": {
       "general": {
-        "bzlTransitiveDigest": "jmisR+FgNUspQ/NQKhOAWlH3lW9tAD4G1PN7xzJ/yho=",
+        "bzlTransitiveDigest": "OU8xosc7wzFKcnmiNYlekC/89lBRWZhdqGEYo7MLtMY=",
         "usagesDigest": "LuLuPAtYVpBvzln4PJuxophIrLm0T6uliarcvEuI74w=",
         "recordedInputs": [
           "ENV:CARGO_BAZEL_DEBUG \\0",
@@ -555,7 +555,7 @@
           "REPO_MAPPING:rules_rust+,bazel_tools bazel_tools",
           "REPO_MAPPING:rules_rust+,rules_cc rules_cc+",
           "FILE:@@//Cargo.lock 7ebb999669b2923d9bda13030f5c41eaff78d1beb3e0a07166c2368ace9b4ada",
-          "FILE:@@//Cargo.toml 1681f958005ff00c6a716bedf0bf89431adb3145f38ad7d6c5a42b4f368d7019",
+          "FILE:@@//Cargo.toml 0cdd02f787761be6c6ccaf00cd7d9d26a80dac8c0c083d588007ce19291dfb87",
           "FILE:@@//libs/rust/artifact_cas/Cargo.toml 739fd806cdfedbea93de4d6b615ea95dd05d7c06b8121b377f98e098eed4d040",
           "FILE:@@//libs/rust/atomic_fs/Cargo.toml 5317f19beb4cbef89f776e7d80e2c959942d99c461d3a0c5cdcbb8dbf3fd83a1",
           "FILE:@@//libs/rust/bio_formats/Cargo.toml 1cb853ce01f564e6638e3bf4de7b413311a8d153e06a0579da00b1baa3876e14",
@@ -585,7 +585,7 @@
           "FILE:@@//services/node_agent/Cargo.toml e4099510a9852e33bf4df8ad6b17a2b000f24a8a4824f28d30d7f925f97d814d",
           "FILE:@@//services/runtime_gateway/Cargo.toml 078f7234baaf800955cad2a68784b3774859c07cd3a33bb18bcef9f6b0d0be48",
           "FILE:@@//services/runtime_host/Cargo.toml 6880dfcbbe1d05cd907cc04fdc8afef67935a9f13609e415e94efcd7492de3e0",
-          "FILE:@@//services/workers/ingestion/Cargo.toml 9ff52ace2ec9693e3357010c0e8c8319cec34c1410767be0f26917be6e7653fe",
+          "FILE:@@//services/workers/ingestion/Cargo.toml 41a8ef6551863728e154d46e45029042bdbdd6511d42d7aa7df021cc409e32ee",
           "FILE:@@//protocols/rust/Cargo.toml 6c3d62f4983a70eac9879d0883ef2efde655f2cd8919bb57a1735fa78792dc88",
           "FILE:@@//tools/qualification/rust/perf_probe/Cargo.toml 3af3ebb62d2ead41e1512a1c8183e49930a66a3e083b9a9adde851b2281fbc21"
         ],
@@ -3640,7 +3640,7 @@
     },
     "@@rules_rust+//crate_universe/private:internal_extensions.bzl%cu_nr": {
       "general": {
-        "bzlTransitiveDigest": "L/Ulx0b6aZ1/bnd/ykrcHizFAZCp/kDOxWaMFzJCjIg=",
+        "bzlTransitiveDigest": "zJvFnfZFJWMsTArFsL0UufaeVHk6fI3E7egxnXUjyzA=",
         "usagesDigest": "+1w4EnEfZLFpf8Ak18jhmCWsOTE75Noy2i16whyXYWs=",
         "recordedInputs": [
           "REPO_MAPPING:apple_support+,bazel_skylib bazel_skylib+",

@@ -35,6 +35,9 @@ empty target-state placeholders:
 - `tools/analysis/`: architecture, maturity, dependency, Go admission, and
   workspace consistency checks;
 - `tools/qualification/go/`: offline and connected Go qualification lanes;
+- `infra/terraform/modules/`: reusable Google Cloud module contracts spanning
+  hierarchy, identity, networking, security, storage/data/event services,
+  GKE/CPU/GPU compute, build caches, audit, SLOs, and metrics scopes;
 - runnable Go examples for control-plane API, event dispatch, and ingestion;
 - complete architecture/ADR/runbook/security/qualification documentation.
 
@@ -44,7 +47,8 @@ A substantive source implementation may still be blocked from `qualified` or
 `production` by unavailable toolchains/providers or missing performance,
 security, or failure evidence. In particular, Rust compilation/fuzz/Miri,
 Tokio/Tonic network leaves, KMS-backed production signing, real cloud provider
-integration, OS-specific optimized bulk IPC, and scale qualification remain
+integration (including Terraform connected plans/applies, drift, restore, and
+environment roots), OS-specific optimized bulk IPC, and scale qualification remain
 explicit promotion work where noted.
 
 ## Scaffolded/partial target-state areas

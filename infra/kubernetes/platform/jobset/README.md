@@ -1,35 +1,30 @@
-# Infra / Kubernetes / Platform / JobSet
+# JobSet module
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Terraform, Kubernetes, GitOps, and policy configuration
+This module installs the upstream JobSet controller through a supply-chain-locked Helm wrapper
+and keeps a suspended `v1alpha2` API compatibility canary under Kustomize. The canary cannot
+create a child Job and its image points to `registry.invalid` as an additional safety barrier.
 
-## Purpose
+## Controller install
 
-Deployment and cloud foundations. Infrastructure declares environments, workload identity, storage, databases, queues, clusters, security policy, observability, and GitOps composition. This path specializes that domain for **JobSet**.
+```bash
+helm dependency build infra/kubernetes/platform/jobset/chart
+helm lint infra/kubernetes/platform/jobset/chart
+helm template jobset infra/kubernetes/platform/jobset/chart \
+  --namespace jobset-system --include-crds
+```
 
-## Boundary
+The wrapper locks JobSet `0.12.0`, the upstream OCI chart digest in `Chart.lock`, and the
+controller image digest in `values.yaml`. Two controller replicas use leader election, hard
+container security defaults, bounded resources, topology anti-affinity, and a PDB.
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+Install or upgrade the CRDs and controller before reconciling any JobSet. Validate stored
+versions and conversion compatibility before changing the API version. Rollback never deletes
+the CRD: suspend JobSets, allow child Jobs to checkpoint or terminate, and roll back only to a
+controller compatible with the stored resources.
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+## Workload requirements
 
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Production JobSets must remain suspended until Kueue admission, image provenance, checkpoint
+restore, topology placement, rendezvous, numerical parity, cancellation, and retry behavior
+are qualified. Multi-node GPU templates must explicitly request `nvidia.com/gpu`, tolerate the
+GPU taint, select a reviewed GPU profile, and bound CPU, memory, ephemeral storage, and runtime.

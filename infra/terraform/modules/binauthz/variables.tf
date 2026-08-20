@@ -13,6 +13,16 @@ variable "project_id" {
   }
 }
 
+variable "project_number" {
+  description = "Numeric project number used to grant the Binary Authorization service agent access to attestation occurrences"
+  type        = string
+
+  validation {
+    condition     = can(regex("^[0-9]{6,32}$", var.project_number))
+    error_message = "project_number must be a 6-32 digit numeric project number, not the project ID."
+  }
+}
+
 variable "cluster" {
   description = <<-EOT
     Cluster the per-namespace rules apply to, as <location>.<cluster_name>. Google matches
@@ -176,6 +186,33 @@ variable "attestor_signers" {
   EOT
   type        = map(list(string))
   default     = {}
+
+  validation {
+    condition = alltrue(flatten([
+      for attestor, members in var.attestor_signers : [
+        for member in members :
+        length(trimspace(member)) > 0 &&
+        !contains(["allUsers", "allAuthenticatedUsers"], member)
+      ]
+    ]))
+    error_message = "Attestor signers must be explicit non-public IAM members."
+  }
+}
+
+variable "attestor_verifiers" {
+  description = "Binary Authorization verifier principals keyed by attestor, normally deployer-project service agents; kept separate from signers"
+  type        = map(set(string))
+  default     = {}
+
+  validation {
+    condition = alltrue(flatten([
+      for attestor, members in var.attestor_verifiers : [
+        for member in members :
+        can(regex("^serviceAccount:service-[0-9]+@gcp-sa-binaryauthorization\\.iam\\.gserviceaccount\\.com$", member))
+      ]
+    ]))
+    error_message = "Attestor verifiers must be Binary Authorization service agents in serviceAccount:service-NUMBER@gcp-sa-binaryauthorization.iam.gserviceaccount.com form."
+  }
 }
 
 variable "labels" {

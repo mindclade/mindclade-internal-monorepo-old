@@ -151,10 +151,8 @@ resource "google_secret_manager_secret" "this" {
   dynamic "rotation" {
     for_each = each.value.rotation_period == null ? [] : [each.value.rotation_period]
     content {
-      rotation_period = rotation.value
-      # next_rotation_time is deliberately omitted. Supplying a computed timestamp makes every
-      # plan show a diff on a field nothing intends to change, and the API derives a first
-      # rotation from the period on its own.
+      rotation_period    = rotation.value
+      next_rotation_time = each.value.next_rotation_time
     }
   }
 
@@ -166,6 +164,14 @@ resource "google_secret_manager_secret" "this" {
     precondition {
       condition     = each.value.rotation_period == null || length(local.rotation_topics) > 0
       error_message = "Secret \"${each.key}\" declares a rotation_period but no topic carries the event. Secret Manager only emits it; something else has to act on it."
+    }
+
+    precondition {
+      condition = (
+        each.value.next_rotation_time == null ? true :
+        timecmp(each.value.next_rotation_time, timeadd(plantimestamp(), "5m")) >= 0
+      )
+      error_message = "Secret \"${each.key}\" next_rotation_time must remain at least five minutes after the plan timestamp; regenerate stale plans before applying."
     }
 
     precondition {

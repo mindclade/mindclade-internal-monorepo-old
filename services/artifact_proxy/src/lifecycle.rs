@@ -9,6 +9,7 @@ use mindclade_faults::FaultResult;
 use mindclade_servicekit::Component;
 use std::sync::Arc;
 
+#[derive(Debug)]
 pub struct ArtifactProxyComponent {
     core: Arc<ArtifactProxyCore>,
 }

@@ -1,0 +1,90 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+apiVersion: mindclade.dev/v1
+kind: KubernetesValidationPolicy
+spec:
+  # kubeconform uses upstream Kubernetes schemas, not the provider build suffix. The matching GKE
+  # platform lock is 1.36.2-gke.2064000 in infra/terraform/modules/gke/variables.tf.
+  kubernetesVersion: 1.36.0
+
+  # This is an inventory, not a discovery convenience. A new Kustomization must be classified in
+  # review so a newly empty module cannot enter the tree and receive a vacuous green check.
+  requiredNonEmptyRoots:
+    - base
+    - overlays/development
+    - overlays/production
+    - overlays/staging
+    - planes/ai/base
+    - planes/ai/overlays/development
+    - planes/ai/overlays/production
+    - planes/ai/overlays/staging
+    - planes/dev/base
+    - planes/dev/overlays/development
+    - planes/dev/overlays/production
+    - planes/dev/overlays/staging
+    - planes/studio/base
+    - planes/studio/overlays/development
+    - planes/studio/overlays/production
+    - planes/studio/overlays/staging
+    - platform/cert-manager/base
+    - platform/cert-manager/overlays/development
+    - platform/cert-manager/overlays/production
+    - platform/cert-manager/overlays/staging
+    - platform/gateway/base
+    - platform/gateway/overlays/development
+    - platform/gateway/overlays/production
+    - platform/gateway/overlays/staging
+    - policies
+    - services/artifact-proxy
+    - services/control-plane
+    - services/curation-workers
+    - services/evaluation-workers
+    - services/ingestion-workers
+    - services/node-agent
+    - services/preprocessing-workers
+    - services/rollout-workers
+    - services/runtime-gateway
+    - services/runtime-host
+    - services/training-workers
+
+  # These modules are provider/release activation points. Empty is fail-closed only while the
+  # Kustomization says resources: [] explicitly; any later resources are rendered and validated.
+  activationGatedEmptyRoots:
+    - platform/gpu
+    - platform/jobset
+    - platform/kueue
+    - platform/nccl
+    - platform/rdma
+    - platform/remote-execution
+    - platform/security
+
+  # Custom resources are rendered but do not use a core schema. Enumerating exact GVKs prevents a
+  # typo or an unreviewed CRD dependency from being silently treated as "schema unavailable".
+  allowedCustomGVKs:
+    - cert-manager.io/v1/Certificate
+    - cert-manager.io/v1/ClusterIssuer
+    - gateway.networking.k8s.io/v1/Gateway
+    - gateway.networking.k8s.io/v1/HTTPRoute
+    - networking.gke.io/v1/GCPBackendPolicy
+
+  # These are deployment-capable roots, so they receive workload policy in addition to render and
+  # schema checks. Base-only routing/certificate packages remain schema-checked above.
+  policyRoots:
+    - overlays/development
+    - overlays/production
+    - overlays/staging
+    - services/artifact-proxy
+    - services/control-plane
+    - services/curation-workers
+    - services/evaluation-workers
+    - services/ingestion-workers
+    - services/node-agent
+    - services/preprocessing-workers
+    - services/rollout-workers
+    - services/runtime-gateway
+    - services/runtime-host
+    - services/training-workers

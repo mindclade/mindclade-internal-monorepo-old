@@ -6,6 +6,11 @@
 variable "project_id" {
   description = "Project holding the IAP-protected backend services."
   type        = string
+
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]{4,28}[a-z0-9]$", var.project_id))
+    error_message = "project_id must be a valid 6-30 character GCP project ID."
+  }
 }
 
 variable "backend_services" {
@@ -29,6 +34,15 @@ variable "backend_services" {
   validation {
     condition     = length(var.backend_services) > 0
     error_message = "No backend services given; this module would create no binding and report success."
+  }
+
+  validation {
+    condition = alltrue([
+      for key, backend in var.backend_services :
+      can(regex("^[a-z][a-z0-9-]{0,62}$", key)) &&
+      can(regex("^[a-z](?:[-a-z0-9]{0,61}[a-z0-9])?$", backend))
+    ])
+    error_message = "backend_services must use stable lowercase keys and valid Compute backend-service names."
   }
 }
 

@@ -3,20 +3,61 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold test for libs/python/artifacts/tests/test_verification.py."""
+from __future__ import annotations
 
+from collections.abc import Iterable
 
 import pytest
 
+from libs.python.artifacts import (
+    VerifiedArtifactClient,
+    reference_bytes,
+    verify_bytes,
+    verify_chunks,
+)
+from libs.python.errors import Code, MindcladeError, code_of
+from libs.python.identifiers import ArtifactRef
 
-# SKIPPED, not passing.
-#
-# A placeholder for tests that do not exist yet. It used to `assert True` — which pytest
-# reports as a pass, so the suite was green and the number it printed was not the number of
-# things actually verified. A vacuous gate is worse than no gate: it manufactures confidence.
-#
-# Write real tests here when there is an implementation to test, and lower SCAFFOLD_BASELINE
-# in tests/integration/test_python_scaffold.py in the same commit.
-@pytest.mark.scaffold
-def test_scaffold_contract() -> None:
-    pytest.skip("scaffold: no implementation to test yet")
+
+def reference(content: bytes = b"content") -> ArtifactRef:
+    return reference_bytes(
+        content,
+        media_type="application/octet-stream",
+        logical_kind="dataset",
+    )
+
+
+def test_verification_accepts_chunking_without_changing_identity() -> None:
+    ref = reference()
+    assert verify_chunks(ref, (b"con", b"tent")) == len(b"content")
+    verify_bytes(ref, b"content")
+
+
+@pytest.mark.parametrize("content", [b"short", b"content-too-long", b"contXnt"])
+def test_verification_rejects_size_or_digest_mismatches(content: bytes) -> None:
+    with pytest.raises(MindcladeError):
+        verify_bytes(reference(), content)
+
+
+def test_verification_honors_cancellation_without_consuming_more_chunks() -> None:
+    consumed = 0
+
+    def chunks() -> Iterable[bytes]:
+        nonlocal consumed
+        consumed += 1
+        yield b"content"
+
+    with pytest.raises(MindcladeError) as caught:
+        verify_chunks(reference(), chunks(), cancelled=lambda: True)
+    assert code_of(caught.value) is Code.CANCELED
+    assert consumed == 1
+
+
+def test_verified_client_uses_an_injected_reader_and_enforces_memory_bound() -> None:
+    class Reader:
+        def read(self, _reference: ArtifactRef) -> Iterable[bytes]:
+            return (b"con", b"tent")
+
+    assert VerifiedArtifactClient(Reader()).read(reference()) == b"content"
+    with pytest.raises(MindcladeError, match="client bound"):
+        VerifiedArtifactClient(Reader(), maximum_bytes=2).read(reference())

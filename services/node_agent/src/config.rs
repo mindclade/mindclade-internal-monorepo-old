@@ -4,6 +4,7 @@
 //
 
 //! Node-agent limits and resource envelope.
+use crate::tool_runner::MAXIMUM_TOOL_OUTPUT_BYTES;
 use mindclade_faults::{Fault, FaultResult};
 use mindclade_runtime_core::{ResourceKind, ResourceVector};
 use std::time::Duration;
@@ -24,6 +25,7 @@ impl NodeAgentConfig {
             || self.node_resources.get(ResourceKind::CpuThreads) == 0
             || self.maximum_reference_cache_bytes == 0
             || self.maximum_tool_output_bytes == 0
+            || self.maximum_tool_output_bytes > MAXIMUM_TOOL_OUTPUT_BYTES
             || self.maximum_children == 0
             || self.tool_poll_interval.is_zero()
         {

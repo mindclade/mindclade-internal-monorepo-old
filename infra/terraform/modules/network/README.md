@@ -11,24 +11,29 @@ project, and router/NAT identities are unique within a region.
 module "network" {
   source = "../../modules/network"
 
-  project_id   = "mindclade-network-prod"
-  network_name = "mindclade-prod"
-  subnets = {
-    prod-central = {
-      region        = "us-central1"
-      ip_cidr_range = "10.20.0.0/20"
-      secondary_ip_ranges = {
-        prod-pods     = "10.24.0.0/14"
-        prod-services = "10.28.0.0/20"
+  networks = {
+    production = {
+      project_id        = "mindclade-network-prod"
+      network_name      = "mindclade-prod"
+      primary_subnet_key = "nodes"
+      subnets = {
+        nodes = {
+          region        = "us-central1"
+          ip_cidr_range = "10.20.0.0/20"
+          secondary_ip_ranges = {
+            prod-pods     = "10.24.0.0/14"
+            prod-services = "10.28.0.0/20"
+          }
+        }
       }
-    }
-  }
-  nat_gateways = {
-    central = {
-      region      = "us-central1"
-      router_name = "mindclade-prod-central-router"
-      nat_name    = "mindclade-prod-central-nat"
-      subnet_keys = ["prod-central"]
+      nat_gateways = {
+        central = {
+          region      = "us-central1"
+          router_name = "mindclade-prod-central-router"
+          nat_name    = "mindclade-prod-central-nat"
+          subnet_keys = ["nodes"]
+        }
+      }
     }
   }
 }

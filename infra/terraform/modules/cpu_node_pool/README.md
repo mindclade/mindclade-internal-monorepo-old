@@ -1,35 +1,55 @@
-# Infra / Terraform / Modules / Cpu Node Pool
+# GKE CPU node-pool module
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Terraform, Kubernetes, GitOps, and policy configuration
+This module creates one protected CPU node pool in an existing **regional GKE
+Standard** cluster. It supports reviewed `GENERAL_PURPOSE` and `HIGH_MEMORY`
+profiles, creates a dedicated user-managed node service account, and grants that
+identity the additive `roles/container.defaultNodeServiceAccount` project role.
+The default machines are `n2-standard-8` and `n2-highmem-8`; an explicit override
+must remain consistent with the selected profile.
 
-## Purpose
+Nodes are private, use `COS_CONTAINERD`, GKE metadata, the `cloud-platform` OAuth
+scope, Shielded VM secure boot and integrity monitoring, cgroup v2, a disabled
+legacy metadata endpoint and read-only kubelet port, and a bounded per-Pod PID
+limit. Autoscaling limits apply across all selected zones. Repair, automatic
+upgrade, surge/unavailable limits, Pod-disruption-budget-aware draining, and both
+Terraform and provider deletion guards are mandatory.
 
-Deployment and cloud foundations. Infrastructure declares environments, workload identity, storage, databases, queues, clusters, security policy, observability, and GitOps composition. This path specializes that domain for **CPU node pool**.
+`HIGH_MEMORY` nodes receive
+`scheduling.mindclade.dev/high-memory=true:NoSchedule`. Spot nodes receive
+`scheduling.mindclade.dev/spot=true:NoSchedule`, must scale from zero, use the
+autoscaler's `ANY` location policy, and require the exact acknowledgement
+`I ACCEPT EVICTION AND CAPACITY-LOSS RISK`. On-demand pools must leave
+`spot_approval` null. Module-owned labels and taints cannot be replaced by caller
+values, and duplicate taint keys are rejected.
 
-## Boundary
+## Operating contract
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+The caller must provide the existing cluster name, regional location, one to three
+zones in that region, and the cluster Pod secondary-range name. Private Google
+Access, Workload Identity Federation for GKE, and control-plane/network policy
+belong to the cluster and VPC modules. `GKE_METADATA` is enforced here and assumes
+the existing cluster has Workload Identity Federation enabled; qualify Kubernetes
+service-account to Google service-account bindings before scheduling workloads.
+Grant Artifact Registry Reader in each image project and Service Usage Consumer
+where cross-project image pulls require it; those grants are deliberately outside
+this node-pool boundary. If `boot_disk_kms_key` is set, grant the GKE/Compute
+service identities the required KMS permissions before creating the pool.
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+`prevent_destroy` and `deletion_policy = "PREVENT"` mean ordinary Terraform
+destroy is intentionally blocked. A reviewed decommission must first change those
+guards in code and drain workloads. Do not use Spot as the only reliable capacity
+for a service. Confirm regional quota, machine availability, Pod disruption
+budgets, upgrade headroom, logging/monitoring ingestion, image access, and CMEK
+permissions with a saved plan and a staged rollout.
 
-## Materialization requirements
+Provider-mock tests validate configuration and rejection paths only. They do not
+prove quota, capacity, networking, successful drains, workload performance, or
+cloud-side IAM propagation.
 
-Before this scaffold boundary is treated as implemented, add:
+## Key outputs
 
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+- `node_pool`: resource identity and managed instance-group URLs.
+- `node_service_account`: the dedicated keyless VM identity.
+- `machine_type`, `profile`, and `capacity_type`: effective scheduling contract.
+- `node_labels` and `node_taints`: effective Kubernetes placement metadata.
+- `required_node_service_account_project_roles`: additive role granted here.

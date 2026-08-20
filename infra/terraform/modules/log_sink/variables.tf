@@ -1,10 +1,9 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
 variable "parent" {
-  description = "Organization or folder the sinks are created on, as organizations/<id> or folders/<id>"
+  description = "Organization or folder on which to create aggregated sinks, as organizations/<id> or folders/<id>."
   type        = string
 
   validation {
@@ -14,7 +13,7 @@ variable "parent" {
 }
 
 variable "project_id" {
-  description = "Project that holds the destination buckets. Every sink writes into this one project so that log storage has a single billing owner and a single perimeter."
+  description = "Project that owns destination buckets and their billing/perimeter boundary."
   type        = string
 
   validation {
@@ -24,41 +23,43 @@ variable "project_id" {
 }
 
 variable "include_children" {
-  description = <<-EOT
-    Whether the sink captures logs from every descendant of the parent. false on an
-    organization sink means it captures only logs written against the organization resource
-    itself — which is almost nothing, and looks identical to a working sink.
-  EOT
+  description = "Include descendant folders and projects in the aggregated sink."
   type        = bool
   default     = true
 }
 
+variable "logging_bucket_location" {
+  description = "Location for Cloud Logging destinations; fixed when each bucket is created."
+  type        = string
+  default     = "global"
+
+  validation {
+    condition     = length(trimspace(var.logging_bucket_location)) > 0
+    error_message = "logging_bucket_location must not be empty."
+  }
+}
+
 variable "sinks" {
   description = <<-EOT
-    Sinks keyed by a stable short name, which also names the destination bucket.
-
-    `destination` selects the backend:
-      logging  a Cloud Logging bucket in project_id — queryable, optionally via Log Analytics
-      storage  a GCS bucket in project_id — cheap, for the tier nobody queries interactively
-
-    `bucket` is required for `storage` and ignored for `logging`, where retention_days and
-    enable_analytics configure the log bucket instead.
+    Aggregated sinks keyed by a stable sink name. "logging" creates a queryable Cloud
+    Logging bucket. "storage" creates a deletion-protected GCS archive bucket. A storage
+    retention lock is irreversible and additionally requires retention_lock_confirmation.
   EOT
   type = map(object({
     description = string
     destination = string
     filter      = string
 
-    # logging destinations
     enable_analytics = optional(bool, false)
     retention_days   = optional(number, 30)
 
-    # storage destinations
     bucket = optional(object({
-      name           = string
-      location       = string
-      encryption_key = optional(string)
-      retention_days = optional(number)
+      name                       = string
+      location                   = string
+      encryption_key             = optional(string)
+      retention_days             = optional(number)
+      lock_retention_policy      = optional(bool, false)
+      soft_delete_retention_days = optional(number, 30)
       lifecycle_rules = optional(list(object({
         age           = number
         action        = string
@@ -74,68 +75,110 @@ variable "sinks" {
   }))
 
   validation {
-    condition     = alltrue([for k, v in var.sinks : contains(["logging", "storage"], v.destination)])
+    condition     = alltrue([for sink in values(var.sinks) : contains(["logging", "storage"], sink.destination)])
     error_message = "destination must be either logging or storage."
   }
 
   validation {
-    condition     = alltrue([for k, v in var.sinks : v.destination != "storage" || v.bucket != null])
-    error_message = "A storage sink needs a bucket block; without one there is nowhere to write."
+    condition     = alltrue([for sink in values(var.sinks) : sink.destination != "storage" || sink.bucket != null])
+    error_message = "Every storage sink requires a bucket block."
   }
 
   validation {
-    condition     = alltrue([for k, v in var.sinks : length(trimspace(v.filter)) > 0])
-    error_message = "An empty filter matches everything, which is never what a named sink means. Use a filter that says so explicitly."
+    condition = alltrue([
+      for name, sink in var.sinks :
+      can(regex("^[a-z][a-z0-9-]{1,98}[a-z0-9]$", name)) &&
+      length(sink.description) <= 8000 &&
+      length(trimspace(sink.filter)) > 0 &&
+      length(sink.filter) <= 20000
+    ])
+    error_message = "Sink keys must be 3-100 lowercase characters; descriptions and non-empty filters must remain within Logging API bounds."
   }
 
   validation {
-    condition     = alltrue([for k, v in var.sinks : can(regex("^[a-z][a-z0-9-]{1,98}[a-z0-9]$", k))])
-    error_message = "Each sink key must be a 3-100 character lowercase name."
-  }
-
-  # Log Analytics can only be turned on when the bucket is created. Enabling it later
-  # requires deleting and recreating the bucket, taking every log entry in it.
-  validation {
-    condition     = alltrue([for k, v in var.sinks : !v.enable_analytics || v.destination == "logging"])
+    condition     = alltrue([for sink in values(var.sinks) : !sink.enable_analytics || sink.destination == "logging"])
     error_message = "enable_analytics applies only to a logging destination."
   }
 
   validation {
     condition = alltrue([
-      for k, v in var.sinks :
-      v.destination != "logging" || (v.retention_days >= 1 && v.retention_days <= 3650)
+      for sink in values(var.sinks) :
+      sink.destination != "logging" || (sink.retention_days >= 1 && sink.retention_days <= 3650 && floor(sink.retention_days) == sink.retention_days)
     ])
-    error_message = "Cloud Logging bucket retention must be between 1 and 3650 days."
+    error_message = "Cloud Logging bucket retention must be a whole number from 1 through 3650 days."
+  }
+
+  validation {
+    condition = alltrue([
+      for sink in values(var.sinks) : sink.destination != "storage" ? true : (
+        can(regex("^[a-z0-9][a-z0-9._-]{1,61}[a-z0-9]$", sink.bucket.name)) &&
+        length(trimspace(sink.bucket.location)) > 0 &&
+        (sink.bucket.encryption_key == null || can(regex("^projects/[^/]+/locations/[^/]+/keyRings/[^/]+/cryptoKeys/[^/]+$", sink.bucket.encryption_key))) &&
+        (sink.bucket.retention_days == null ? true : (sink.bucket.retention_days >= 1 && sink.bucket.retention_days <= 36500 && floor(sink.bucket.retention_days) == sink.bucket.retention_days)) &&
+        sink.bucket.soft_delete_retention_days >= 7 &&
+        sink.bucket.soft_delete_retention_days <= 90 &&
+        floor(sink.bucket.soft_delete_retention_days) == sink.bucket.soft_delete_retention_days
+      )
+    ])
+    error_message = "Storage bucket names, locations, CMEK names, retention, and 7-90 day soft-delete windows must be valid and bounded."
   }
 
   validation {
     condition = alltrue(flatten([
-      for k, v in var.sinks : [
-        for e in v.exclusions : length(trimspace(e.filter)) > 0
+      for sink in values(var.sinks) : [
+        for rule in sink.bucket == null ? [] : sink.bucket.lifecycle_rules :
+        rule.age >= 1 && floor(rule.age) == rule.age &&
+        contains(["Delete", "SetStorageClass"], rule.action) &&
+        (rule.action != "SetStorageClass" || contains(["STANDARD", "NEARLINE", "COLDLINE", "ARCHIVE"], rule.storage_class)) &&
+        (rule.action == "SetStorageClass" || rule.storage_class == null)
       ]
     ]))
-    error_message = "An exclusion with an empty filter excludes nothing and reads as if it does."
+    error_message = "Storage lifecycle rules require a positive whole-number age and a valid Delete or SetStorageClass action."
+  }
+
+  validation {
+    condition = alltrue(flatten([
+      for sink in values(var.sinks) : [
+        for exclusion in sink.exclusions :
+        can(regex("^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$", exclusion.name)) &&
+        length(exclusion.description) <= 8000 &&
+        length(trimspace(exclusion.filter)) > 0 &&
+        length(exclusion.filter) <= 20000
+      ]
+    ]))
+    error_message = "Exclusion names, descriptions, and non-empty filters must remain within Logging API bounds."
   }
 }
 
-variable "default_sink_retention_days" {
-  description = <<-EOT
-    Retention for each project's own _Default log bucket. Set to 0 to leave it untouched.
+variable "retention_lock_confirmation" {
+  description = "Exact irreversible-action acknowledgement required when any GCS archive retention policy is locked."
+  type        = string
+  default     = null
+  sensitive   = true
+}
 
-    Not disabled outright: local retention is what makes `gcloud logging read` in a project
-    work during an incident, before anyone has opened BigQuery.
-  EOT
+variable "default_sink_retention_days" {
+  description = "Retention for only project_id's own _Default log bucket; 0 leaves that bucket unmanaged. Descendant project buckets are outside this module's scope."
   type        = number
   default     = 30
 
   validation {
-    condition     = var.default_sink_retention_days >= 0 && var.default_sink_retention_days <= 3650
-    error_message = "default_sink_retention_days must be between 0 and 3650."
+    condition     = var.default_sink_retention_days >= 0 && var.default_sink_retention_days <= 3650 && floor(var.default_sink_retention_days) == var.default_sink_retention_days
+    error_message = "default_sink_retention_days must be a whole number from 0 through 3650."
   }
 }
 
 variable "labels" {
-  description = "Labels applied to every GCS bucket this module creates. Cloud Logging buckets do not carry labels."
+  description = "Labels applied to GCS archive buckets. Cloud Logging buckets do not carry labels."
   type        = map(string)
   default     = {}
+
+  validation {
+    condition = length(var.labels) <= 64 && alltrue([
+      for key, value in var.labels :
+      can(regex("^[a-z][a-z0-9_-]{0,62}$", key)) &&
+      can(regex("^$|^[a-z0-9][a-z0-9_-]{0,62}$", value))
+    ])
+    error_message = "labels must contain at most 64 valid lowercase Google Cloud label pairs."
+  }
 }

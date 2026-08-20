@@ -1,0 +1,22 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("//tools/build:pytest.bzl", "pytest_test")
+
+package(default_visibility = ["//visibility:private"])
+
+pytest_test(
+    name = "test_manifest",
+    srcs = ["test_manifest.py"],
+    imports = ["../../../.."],
+    deps = ["//libs/python/artifacts"],
+)
+
+pytest_test(
+    name = "test_verification",
+    srcs = ["test_verification.py"],
+    imports = ["../../../.."],
+    deps = ["//libs/python/artifacts"],
+)

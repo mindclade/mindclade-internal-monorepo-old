@@ -19,7 +19,6 @@ import (
 	outboxpostgres "go.mindclade.dev/libs/go/coordination/outbox/postgres"
 	idempotencypostgres "go.mindclade.dev/libs/go/idempotency/postgres"
 	"go.mindclade.dev/services/control_plane/internal/bootstrap"
-	"go.mindclade.dev/services/control_plane/internal/config"
 	"go.mindclade.dev/services/control_plane/internal/providers"
 )
 
@@ -133,13 +132,4 @@ func TestMigrationsAndStoresNameTheSameTables(t *testing.T) {
 			}
 		})
 	}
-}
-
-func decodeTestSettings(t *testing.T) (config.Settings, error) {
-	t.Helper()
-	resolved, err := config.Load(context.Background(), "control-plane-registry", testSettings(t))
-	if err != nil {
-		return config.Settings{}, err
-	}
-	return resolved.Settings, nil
 }

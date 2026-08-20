@@ -1,35 +1,47 @@
-# Infra / Terraform / Modules / Nix Binary Cache
+# Nix binary-cache bucket module
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Terraform, Kubernetes, GitOps, and policy configuration
+This module composes `../storage` into a private, CMEK-encrypted Cloud Storage
+backend for immutable Nix binary publication. Unlike the Bazel remote cache, this
+bucket is not modeled as disposable performance data: a published store path and
+its `.narinfo` metadata are an **immutable artifact contract** and must remain
+reproducible, signed, and recoverable.
 
-## Purpose
+Uniform bucket-level access, enforced public-access prevention, versioning, soft
+delete, a minimum retention period, server-access logging, additive IAM member
+grants, `force_destroy = false`, and both Terraform and provider deletion guards
+are inherited from the storage module. A required CMEK must share the bucket
+location. No lifecycle rule deletes or transitions live or noncurrent objects;
+only incomplete multipart uploads are aborted after seven days.
+`data_classification` accepts `internal`, `confidential`, or `restricted` so
+published artifacts retain an explicit governance label; the bucket remains
+private in every case and public classification is forbidden.
 
-Deployment and cloud foundations. Infrastructure declares environments, workload identity, storage, databases, queues, clusters, security policy, observability, and GitOps composition. This path specializes that domain for **nix binary cache**.
+Publishers receive `roles/storage.objectCreator` and
+`roles/storage.objectViewer`, never object-admin access. Publication tooling must
+also send `ifGenerationMatch=0`; IAM alone cannot make an object key immutable.
+Reader workload identities and groups receive additive
+`roles/storage.objectViewer`. Public, domain, direct-user, and wildcard principals
+are rejected. Nix signing keys are intentionally outside Terraform state: sign NAR
+metadata in a hardened build/signing service, distribute only the trusted public
+key, verify signatures on every client, and publish payloads before metadata.
 
-## Boundary
+## Integration and operations
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+The separately governed logging bucket must grant
+`group:cloud-storage-analytics@google.com` `roles/storage.objectCreator`; the exact
+grant is returned by `required_access_log_writer_grant`. Grant the Cloud Storage
+service agent `roles/cloudkms.cryptoKeyEncrypterDecrypter` on the selected key
+outside this module. Authenticated HTTPS use may require client credential/header
+integration; never interpret the returned substituter URI as anonymous access.
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+Retention lock is optional and off by default. Enabling it is irreversible and
+requires the exact acknowledgement. Review legal retention, recovery, KMS
+cryptoperiod and key-destruction controls, storage growth, and decommissioning
+before locking. Budget for retained generations, soft delete, KMS, access logs,
+requests, and egress. Monitor publication failures, generation-precondition
+failures, signature verification, KMS errors, authorization failures, log delivery,
+object count, bytes, and restore exercises.
 
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Provider-mock tests prove configuration contracts and input rejection only; they
+do not prove bucket-name availability, IAM/KMS propagation, signing correctness,
+client authentication, artifact reproducibility, or recovery procedures.

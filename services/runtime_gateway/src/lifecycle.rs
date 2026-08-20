@@ -33,7 +33,7 @@ impl GatewayComponent {
 }
 
 impl Component for GatewayComponent {
-    fn name(&self) -> &str {
+    fn name(&self) -> &'static str {
         "runtime-gateway-core"
     }
     /// Readiness is asserted HERE rather than at construction.
@@ -43,7 +43,7 @@ impl Component for GatewayComponent {
     /// until the lifecycle has actually entered startup.
     fn start(&mut self) -> FaultResult<()> {
         self.health.set_policy_fresh(true);
-        self.health.set_accepting(true);
+        self.core.resume_admission();
         Ok(())
     }
     /// Stop admitting new work without severing what is already established.

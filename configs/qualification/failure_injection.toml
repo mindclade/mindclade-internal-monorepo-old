@@ -39,4 +39,4 @@ command = ["cargo", "test", "-p", "mindclade-artifact-proxy", "--test", "failure
 name = "control_plane_unavailable_after_admission"
 invariant = "admitted_work_continues"
 owner = "runtime-platform"
-command = ["cargo", "test", "-p", "mindclade-serving-runtime", "--test", "outage", "admitted_work_survives_control_plane_outage", "--locked", "--", "--exact"]
+command = ["cargo", "test", "-p", "mindclade-serving-runtime", "--test", "outage", "established_local_stream_survives_control_plane_unavailability", "--locked", "--", "--exact"]

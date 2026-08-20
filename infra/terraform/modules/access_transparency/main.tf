@@ -20,6 +20,9 @@ resource "google_storage_bucket" "access_transparency" {
   location = var.sink.bucket.location
   labels   = var.labels
 
+  force_destroy   = false
+  deletion_policy = "PREVENT"
+
   uniform_bucket_level_access = true
   public_access_prevention    = "enforced"
 
@@ -41,6 +44,14 @@ resource "google_storage_bucket" "access_transparency" {
     retention_period = coalesce(var.sink.bucket.retention_days, 2555) * 86400
     is_locked        = false
   }
+
+  soft_delete_policy {
+    retention_duration_seconds = 7776000
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "google_logging_organization_sink" "access_transparency" {
@@ -51,6 +62,10 @@ resource "google_logging_organization_sink" "access_transparency" {
   filter           = var.sink.filter
 
   destination = "storage.googleapis.com/${google_storage_bucket.access_transparency.name}"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # Without this the sink exists, reports healthy, and writes nothing.

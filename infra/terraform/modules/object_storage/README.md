@@ -1,35 +1,75 @@
-# Infra / Terraform / Modules / Object Storage
+# Object storage composition
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Terraform, Kubernetes, GitOps, and policy configuration
+This is an opinionated multi-bucket composition of `../storage`; it does not declare a
+second bucket implementation. The sibling storage module remains the single authority for
+bucket resources, deletion protection, uniform access, public-access prevention,
+versioning, soft delete, server-access logging, retention, lifecycle, CMEK, and additive
+object IAM.
 
-## Purpose
+The composition creates three explicit trust classes:
 
-Deployment and cloud foundations. Infrastructure declares environments, workload identity, storage, databases, queues, clusters, security policy, observability, and GitOps composition. This path specializes that domain for **object storage**.
+- one restricted access-log bucket, retained for at least a year and transitioned through
+  colder storage without lifecycle deletion;
+- mutable governed data buckets classified as raw, curated, reference, dataset, or
+  evidence;
+- restricted create-only AI artifact buckets classified as checkpoint, model, evaluation,
+  or release evidence.
 
-## Boundary
+AI publishers receive creator plus viewer, never object-admin, and the underlying module
+permits only incomplete-multipart cleanup. Clients must still upload with
+`ifGenerationMatch=0`, verify checksums/digests, and publish a digest-bound manifest last.
+Bucket controls cannot enforce that application protocol.
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+All managed buckets require CMEK and are protected with provider deletion policy plus
+Terraform `prevent_destroy`. KMS IAM stays in the key-owning state; the composition
+exports the required Cloud Storage service-agent grants. The managed access-log
+bucket grants only object-creator to Cloud Storage's analytics writer. It must itself log to
+a separately governed upstream bucket to avoid a self-logging cycle; the required upstream
+grant is exported. Before apply, verify that source and logging buckets meet Cloud Storage
+location, organization, and VPC Service Controls requirements.
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+```hcl
+module "object_storage" {
+  source = "../../modules/object_storage"
 
-## Materialization requirements
+  project_id                     = "mindclade-production"
+  environment                    = "production"
+  owner                          = "data-platform"
+  storage_service_agent_email    = "service-123456789012@gs-project-accounts.iam.gserviceaccount.com"
+  upstream_access_log_bucket_name = "mindclade-central-storage-access-logs"
 
-Before this scaffold boundary is treated as implemented, add:
+  access_log_bucket = {
+    name         = "mindclade-production-storage-access"
+    location     = "US"
+    kms_key_name = "projects/security/locations/us/keyRings/data/cryptoKeys/storage"
+  }
 
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
+  data_buckets = {
+    curated = {
+      name          = "mindclade-production-curated"
+      location      = "US"
+      kms_key_name  = "projects/security/locations/us/keyRings/data/cryptoKeys/storage"
+      data_class    = "curated"
+      readers       = ["group:data-consumers@example.com"]
+      writers       = ["serviceAccount:curator@mindclade-production.iam.gserviceaccount.com"]
+    }
+  }
 
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+  ai_artifact_buckets = {
+    checkpoints = {
+      name           = "mindclade-production-checkpoints"
+      location       = "US"
+      kms_key_name   = "projects/security/locations/us/keyRings/data/cryptoKeys/storage"
+      artifact_class = "checkpoint"
+      publishers     = ["serviceAccount:trainer@mindclade-production.iam.gserviceaccount.com"]
+      readers        = ["serviceAccount:runtime@mindclade-production.iam.gserviceaccount.com"]
+    }
+  }
+}
+```
+
+Changing a bucket key or name can imply replacement, while deletion guards intentionally
+stop the operation. Use an approved migration with copied-and-verified data and a
+state-safe address move; do not disable the guards casually. Mock-provider tests do not
+prove KMS grants, access-log delivery, object recovery, legal holds, lifecycle execution,
+or restore objectives in a live project.

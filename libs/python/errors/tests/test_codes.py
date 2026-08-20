@@ -35,7 +35,7 @@ def test_code_set_is_exactly_the_declared_wire_contract() -> None:
 
 
 def test_code_is_its_wire_string() -> None:
-    assert Code.NOT_FOUND == "not_found"
+    assert Code.NOT_FOUND.value == "not_found"
     assert f"{Code.DATA_LOSS}" == "data_loss"
 
 

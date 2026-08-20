@@ -1,35 +1,38 @@
-# Infra / Kubernetes / Platform / Kueue
+# Kueue module
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Terraform, Kubernetes, GitOps, and policy configuration
+This module owns Mindclade's queue policy, not the controller lifecycle. The controller and
+CRDs are installed from the locked wrapper chart in `chart/`; `resources.yaml` is reconciled
+only after that chart is healthy.
 
-## Purpose
+Current state is deliberately blocked. `mindclade-batch` is held, every nominal quota is zero,
+its LocalQueue is held, and only namespaces labeled `mindclade.dev/kueue-enabled=true` are
+eligible. All four controls are reviewed independently before a workload can be admitted.
 
-Deployment and cloud foundations. Infrastructure declares environments, workload identity, storage, databases, queues, clusters, security policy, observability, and GitOps composition. This path specializes that domain for **Kueue**.
+## Controller install
 
-## Boundary
+```bash
+helm dependency build infra/kubernetes/platform/kueue/chart
+helm lint infra/kubernetes/platform/kueue/chart
+helm template kueue infra/kubernetes/platform/kueue/chart \
+  --namespace kueue-system --include-crds
+```
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+The wrapper locks Kueue `0.19.1`, the OCI chart digest in `Chart.lock`, and the controller image
+digest in `values.yaml`. It opts into only Kubernetes Jobs and JobSet and only in explicitly
+labeled namespaces. Controller CRDs must be upgraded before these custom resources. Never
+remove Kueue CRDs during rollback: first hold queues, drain or finish admitted work, roll back
+the controller to a CRD-compatible version, and preserve all custom resources.
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+## Activation review
 
-## Materialization requirements
+Before changing the held defaults, record measured cluster allocatable capacity after system
+reservation, per-tenant quotas, preemption policy, checkpoint behavior, queue wait-time SLOs,
+and alert ownership. Then change all of the following in one reviewed GitOps promotion:
 
-Before this scaffold boundary is treated as implemented, add:
+1. set non-zero nominal quota no larger than measured allocatable capacity;
+2. label only the approved workload namespaces `mindclade.dev/kueue-enabled=true`;
+3. change the selected LocalQueue and ClusterQueue `stopPolicy` to `None`;
+4. use only digest-pinned, qualified Job or JobSet templates.
 
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Rollback is `Hold` for graceful stop or `HoldAndDrain` for an incident. Quota increases and
+preemption changes require a fresh capacity and failure-domain review.

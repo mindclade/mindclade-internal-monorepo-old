@@ -49,3 +49,8 @@ retryable.
 can adopt the taxonomy without breaking a consumer that still catches the
 built-in. `DeadlineExceeded` cannot do the same for `TimeoutError`, which
 descends from `OSError` and has an incompatible instance layout.
+
+`OutOfRange` also preserves `ValueError` compatibility and is used when a
+well-formed numeric contract reaches its wire maximum. Client-safe messages are
+bounded at 4096 characters, reasons at 128, and operation names at 256; oversized
+diagnostics fail at construction rather than creating unbounded frames or logs.

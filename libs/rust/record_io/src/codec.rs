@@ -31,6 +31,10 @@ impl Encoder {
     pub fn len(&self) -> usize {
         self.bytes.len()
     }
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.bytes.is_empty()
+    }
     pub fn u8(&mut self, value: u8) {
         self.bytes.push(value);
     }

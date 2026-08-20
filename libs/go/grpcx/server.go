@@ -78,9 +78,6 @@ func (server *Server) Shutdown(ctx context.Context) error {
 	if ctx == nil {
 		return faults.New(faults.CodeInvalidArgument, "shutdown context is required", faults.WithReason("nil_context"))
 	}
-	if !server.serving.Load() {
-		return nil
-	}
 	done := make(chan struct{})
 	go func() { server.server.GracefulStop(); close(done) }()
 	select {

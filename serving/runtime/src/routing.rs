@@ -21,7 +21,7 @@ pub struct RouteRequest<'a> {
     pub now_unix_millis: u64,
 }
 
-pub fn select_route(request: RouteRequest<'_>) -> FaultResult<DeploymentRoute> {
+pub fn select_route(request: &RouteRequest<'_>) -> FaultResult<DeploymentRoute> {
     let mut eligible = Vec::new();
     for route in &request.snapshot.claims.routes {
         let deployment = route.deployment_id.to_string();

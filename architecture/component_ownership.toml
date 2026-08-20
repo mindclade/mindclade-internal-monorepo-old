@@ -216,6 +216,48 @@ criticality = "tier-2"
 language = "python"
 security_review = true
 
+[component."libs.python.identifiers"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."libs.python.serialization"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."libs.python.artifacts"]
+owner = "runtime-platform"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."libs.python.distributed"]
+owner = "training-platform"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
+[component."libs.python.geometry"]
+owner = "biology-ml"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
+[component."libs.python.observability"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."libs.python.testing"]
+owner = "biology-ml"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
 [component."serving.model_worker"]
 owner = "runtime-platform"
 criticality = "tier-2"

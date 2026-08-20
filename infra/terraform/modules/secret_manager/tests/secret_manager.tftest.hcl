@@ -51,9 +51,10 @@ run "metadata_only_secret_contract" {
 
     secrets = {
       control-plane-database = {
-        description     = "Connection string for the control-plane Cloud SQL instance."
-        accessors       = ["runtime"]
-        rotation_period = "7776000s"
+        description        = "Connection string for the control-plane Cloud SQL instance."
+        accessors          = ["runtime"]
+        rotation_period    = "7776000s"
+        next_rotation_time = timeadd(plantimestamp(), "24h")
       }
     }
   }
@@ -103,8 +104,9 @@ run "rotation_without_a_topic_gets_one" {
 
     secrets = {
       rotation-canary = {
-        description     = "Proves the rotation event has somewhere to go."
-        rotation_period = "2592000s"
+        description        = "Proves the rotation event has somewhere to go."
+        rotation_period    = "2592000s"
+        next_rotation_time = timeadd(plantimestamp(), "24h")
       }
     }
   }
@@ -259,8 +261,9 @@ run "reject_rotation_period_without_seconds_suffix" {
 
     secrets = {
       rotation-format-canary = {
-        description     = "A duration the API will not parse."
-        rotation_period = "90d"
+        description        = "A duration the API will not parse."
+        rotation_period    = "90d"
+        next_rotation_time = timeadd(plantimestamp(), "24h")
       }
     }
   }
@@ -290,4 +293,50 @@ run "reject_automatic_kms_alongside_user_managed_replicas" {
   }
 
   expect_failures = [var.replication]
+}
+
+run "reject_rotation_without_next_time" {
+  command = plan
+
+  variables {
+    project_id     = "mindclade-development"
+    project_number = "482910385712"
+    environment    = "development"
+
+    replication = {
+      user_managed = [{ location = "us-central1" }]
+    }
+
+    secrets = {
+      incomplete-rotation = {
+        description     = "A rotation period without the timestamp required by the API."
+        rotation_period = "2592000s"
+      }
+    }
+  }
+
+  expect_failures = [var.secrets]
+}
+
+run "reject_reserved_annotation" {
+  command = plan
+
+  variables {
+    project_id     = "mindclade-development"
+    project_number = "482910385712"
+    environment    = "development"
+
+    replication = {
+      user_managed = [{ location = "us-central1" }]
+    }
+
+    secrets = {
+      invalid-annotation = {
+        description = "The module owns the description annotation."
+        annotations = { description = "caller override" }
+      }
+    }
+  }
+
+  expect_failures = [var.secrets]
 }

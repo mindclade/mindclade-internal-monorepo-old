@@ -4,4 +4,18 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: curation-worker-default-deny
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: curation-worker
+    app.kubernetes.io/part-of: mindclade-platform
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: curation-worker
+  policyTypes:
+    - Ingress
+    - Egress

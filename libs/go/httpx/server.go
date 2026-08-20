@@ -136,9 +136,6 @@ func (server *Server) Shutdown(ctx context.Context) error {
 	if ctx == nil {
 		return faults.New(faults.CodeInvalidArgument, "shutdown context is required", faults.WithReason("nil_context"))
 	}
-	if !server.serving.Load() {
-		return nil
-	}
 	if err := server.server.Shutdown(ctx); err != nil {
 		code := faults.CodeOf(err)
 		reason := "http_shutdown_failed"
