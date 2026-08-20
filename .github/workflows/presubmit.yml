@@ -68,12 +68,16 @@ jobs:
   ci:
     uses: mindclade-org/.github/.github/workflows/reusable-go-ci.yml@v1.1.0
     with:
-      # BELOW the `go` directive in go.mod, which is 1.26.0 — not 1.25.0, as this comment used
-      # to claim. The lane therefore only builds because GOTOOLCHAIN defaults to `auto` and the
-      # 1.25.12 toolchain downloads 1.26.0 on demand; under GOTOOLCHAIN=local, or on a runner
-      # without module-proxy egress, `go build` fails with "go.mod requires go >= 1.26.0".
-      # Raise this to a 1.26.x release so the pin is the toolchain that actually runs.
-      go-version: "1.25.12"
+      # The toolchain the devShell resolves, which is also what tools/build/nix/versions.nix
+      # pins the language level to (go = "1.26") and what tools/build/nix/toolchain-manifest.json
+      # records as evidence.
+      #
+      # WAS "1.25.12", below the `go` directive in go.mod. That lane only built because
+      # GOTOOLCHAIN defaults to `auto` and 1.25.12 downloaded 1.26.0 on demand — so under
+      # GOTOOLCHAIN=local, or on a runner without module-proxy egress, `go build` fails with
+      # "go.mod requires go >= 1.26.0" and the gate that was supposed to catch it is the thing
+      # that breaks.
+      go-version: "1.26.5"
       # The control plane is concurrent throughout — durable coordination, schedulers, event
       # dispatch. The race detector is the point of running tests here at all.
       race: true
