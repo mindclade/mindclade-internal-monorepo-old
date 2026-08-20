@@ -13,7 +13,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 VALIDATOR_PATH = REPO_ROOT / ".buildkite/scripts/validate_wif_contract.py"
 SPEC = importlib.util.spec_from_file_location("validate_wif_contract", VALIDATOR_PATH)
@@ -51,16 +50,22 @@ class BuildkiteWIFContractTest(unittest.TestCase):
         value["queue"]["id"] = "99999999-9999-4999-8999-999999999999"
         pipelines = value["pipelines"]
         pipelines["build"]["id"] = "22222222-2222-4222-8222-222222222222"
-        pipelines["build"]["service_account"] = "sa-artifact-builder@mc-common-ci.iam.gserviceaccount.com"
+        pipelines["build"]["service_account"] = (
+            "sa-artifact-builder@mc-common-ci.iam.gserviceaccount.com"
+        )
         pipelines["qualification"]["id"] = "33333333-3333-4333-8333-333333333333"
         pipelines["qualification"]["service_account"] = (
             "sa-artifact-qualifier@mc-common-ci.iam.gserviceaccount.com"
         )
         pipelines["promotion"]["id"] = "44444444-4444-4444-8444-444444444444"
-        pipelines["promotion"]["service_account"] = "sa-artifact-promoter@mc-common-ci.iam.gserviceaccount.com"
+        pipelines["promotion"]["service_account"] = (
+            "sa-artifact-promoter@mc-common-ci.iam.gserviceaccount.com"
+        )
         return value
 
-    def runtime_environment(self, contract: dict[str, object], stage: str, expectation: str) -> dict[str, str]:
+    def runtime_environment(
+        self, contract: dict[str, object], stage: str, expectation: str
+    ) -> dict[str, str]:
         pipeline = contract["pipelines"][stage]
         step_key = pipeline["step_key"] if expectation == "allowed" else pipeline["denied_step_key"]
         return {
@@ -107,21 +112,31 @@ class BuildkiteWIFContractTest(unittest.TestCase):
     def test_pipeline_step_key_drift_is_rejected(self) -> None:
         path = self.root / ".buildkite/pipelines/artifact-build.yml"
         text = path.read_text(encoding="utf-8")
-        path.write_text(text.replace("key: artifact-build\n", "key: artifact-build-mutated\n", 1), encoding="utf-8")
+        path.write_text(
+            text.replace("key: artifact-build\n", "key: artifact-build-mutated\n", 1),
+            encoding="utf-8",
+        )
         with self.assertRaisesRegex(VALIDATOR.ContractError, "allowed step drifted"):
             VALIDATOR.validate_source(self.contract_path, self.root)
 
     def test_privileged_operation_in_identity_canary_is_rejected(self) -> None:
         path = self.root / ".buildkite/scripts/wif-preflight.sh"
-        path.write_text(path.read_text(encoding="utf-8") + "\nkubectl apply -f forbidden.yml\n", encoding="utf-8")
+        path.write_text(
+            path.read_text(encoding="utf-8") + "\nkubectl apply -f forbidden.yml\n",
+            encoding="utf-8",
+        )
         with self.assertRaisesRegex(VALIDATOR.ContractError, "forbidden privileged operation"):
             VALIDATOR.validate_source(self.contract_path, self.root)
 
     def test_negative_canary_requires_exact_attribute_condition_rejection(self) -> None:
         path = self.root / ".buildkite/scripts/wif-preflight.sh"
         text = path.read_text(encoding="utf-8")
-        path.write_text(text.replace('grep -Fqi "invalid_grant"', "grep -Fqi rejected", 1), encoding="utf-8")
-        with self.assertRaisesRegex(VALIDATOR.ContractError, "missing required token-exchange fragment"):
+        path.write_text(
+            text.replace('grep -Fqi "invalid_grant"', "grep -Fqi rejected", 1), encoding="utf-8"
+        )
+        with self.assertRaisesRegex(
+            VALIDATOR.ContractError, "missing required token-exchange fragment"
+        ):
             VALIDATOR.validate_source(self.contract_path, self.root)
 
     def test_allowed_runtime_requires_exact_immutable_context(self) -> None:

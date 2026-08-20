@@ -21,13 +21,16 @@ import os
 import re
 import subprocess
 import sys
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 try:
     import yaml
 except ModuleNotFoundError as exc:  # pragma: no cover - exercised by the declared Nix shell.
-    raise SystemExit("PyYAML is required; run this validator through nix develop .#ci-infra") from exc
+    raise SystemExit(
+        "PyYAML is required; run this validator through nix develop .#ci-infra"
+    ) from exc
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -99,14 +102,20 @@ def load_contract(path: Path = DEFAULT_CONTRACT) -> dict[str, Any]:
 def _validate_active_identifiers(contract: Mapping[str, Any]) -> None:
     organization_id = contract.get("organization_id")
     audience = contract.get("wif_provider_audience")
-    require(isinstance(organization_id, str) and UUID.fullmatch(organization_id) is not None,
-            "active contract organization_id must be an immutable UUID")
-    require(isinstance(audience, str) and WIF_AUDIENCE.fullmatch(audience) is not None,
-            "active contract wif_provider_audience must be the exact bootstrap provider URL")
+    require(
+        isinstance(organization_id, str) and UUID.fullmatch(organization_id) is not None,
+        "active contract organization_id must be an immutable UUID",
+    )
+    require(
+        isinstance(audience, str) and WIF_AUDIENCE.fullmatch(audience) is not None,
+        "active contract wif_provider_audience must be the exact bootstrap provider URL",
+    )
     for key in ("cluster_id", "id"):
         value = contract["queue"].get(key)
-        require(isinstance(value, str) and UUID.fullmatch(value) is not None,
-                f"active queue.{key} must be an immutable UUID")
+        require(
+            isinstance(value, str) and UUID.fullmatch(value) is not None,
+            f"active queue.{key} must be an immutable UUID",
+        )
 
     pipeline_ids: list[str] = []
     service_accounts: list[str] = []
@@ -114,22 +123,31 @@ def _validate_active_identifiers(contract: Mapping[str, Any]) -> None:
         configured = contract["pipelines"][stage]
         pipeline_id = configured.get("id")
         service_account = configured.get("service_account")
-        require(isinstance(pipeline_id, str) and UUID.fullmatch(pipeline_id) is not None,
-                f"active {stage} pipeline id must be an immutable UUID")
+        require(
+            isinstance(pipeline_id, str) and UUID.fullmatch(pipeline_id) is not None,
+            f"active {stage} pipeline id must be an immutable UUID",
+        )
         require(
             isinstance(service_account, str)
             and service_account.startswith(fixed["service_account_prefix"])
-            and re.fullmatch(r"[a-z0-9-]+@[a-z][a-z0-9-]{4,28}[a-z0-9]\.iam\.gserviceaccount\.com", service_account)
+            and re.fullmatch(
+                r"[a-z0-9-]+@[a-z][a-z0-9-]{4,28}[a-z0-9]\.iam\.gserviceaccount\.com",
+                service_account,
+            )
             is not None,
             f"active {stage} service account must be its dedicated normal-plane identity",
         )
         pipeline_ids.append(pipeline_id)
         service_accounts.append(service_account)
 
-    require(len(set(pipeline_ids)) == len(pipeline_ids),
-            "build, qualification, and promotion must use distinct pipeline UUIDs")
-    require(len(set(service_accounts)) == len(service_accounts),
-            "build, qualification, and promotion must use distinct service accounts")
+    require(
+        len(set(pipeline_ids)) == len(pipeline_ids),
+        "build, qualification, and promotion must use distinct pipeline UUIDs",
+    )
+    require(
+        len(set(service_accounts)) == len(service_accounts),
+        "build, qualification, and promotion must use distinct service accounts",
+    )
 
 
 def validate_contract(contract: Mapping[str, Any]) -> None:
@@ -147,26 +165,39 @@ def validate_contract(contract: Mapping[str, Any]) -> None:
         "queue",
         "pipelines",
     }
-    require(set(contract) == expected_keys,
-            f"contract keys must be exact; found {sorted(set(contract) ^ expected_keys)}")
+    require(
+        set(contract) == expected_keys,
+        f"contract keys must be exact; found {sorted(set(contract) ^ expected_keys)}",
+    )
     require(contract["_comment"] == NOTICE, "contract proprietary notice changed")
     require(contract["schema_version"] == 1, "unsupported Buildkite WIF contract version")
     require(contract["issuer"] == "https://agent.buildkite.com", "Buildkite OIDC issuer changed")
     require(contract["organization_slug"] == "mindclade", "Buildkite organization slug changed")
     require(contract["default_branch"] == "main", "WIF is restricted to main")
-    require(contract["allowed_build_sources"] == EXPECTED_SOURCES,
-            "only API and webhook builds are accepted by bootstrap")
-    require(contract["repository_urls"] == EXPECTED_REPOSITORIES,
-            "pipeline repository must be the canonical Mindclade monorepo")
+    require(
+        contract["allowed_build_sources"] == EXPECTED_SOURCES,
+        "only API and webhook builds are accepted by bootstrap",
+    )
+    require(
+        contract["repository_urls"] == EXPECTED_REPOSITORIES,
+        "pipeline repository must be the canonical Mindclade monorepo",
+    )
     queue = contract.get("queue")
-    require(isinstance(queue, dict) and set(queue) == {"cluster_id", "id", "key", "runner_environment"},
-            "queue contract keys are not exact")
+    require(
+        isinstance(queue, dict) and set(queue) == {"cluster_id", "id", "key", "runner_environment"},
+        "queue contract keys are not exact",
+    )
     for key, expected in EXPECTED_QUEUE_FIXED.items():
-        require(queue[key] == expected, "artifact identity canaries require the dedicated self-hosted queue")
+        require(
+            queue[key] == expected,
+            "artifact identity canaries require the dedicated self-hosted queue",
+        )
 
     pipelines = contract.get("pipelines")
-    require(isinstance(pipelines, dict) and set(pipelines) == set(PIPELINE_CONTRACT),
-            "contract must define exactly build, qualification, and promotion pipelines")
+    require(
+        isinstance(pipelines, dict) and set(pipelines) == set(PIPELINE_CONTRACT),
+        "contract must define exactly build, qualification, and promotion pipelines",
+    )
     for stage, fixed in PIPELINE_CONTRACT.items():
         configured = pipelines[stage]
         require(isinstance(configured, dict), f"{stage} pipeline contract must be an object")
@@ -176,10 +207,14 @@ def validate_contract(contract: Mapping[str, Any]) -> None:
             f"{stage} pipeline contract keys are not exact",
         )
         for key in ("slug", "definition", "step_key", "denied_step_key"):
-            require(configured[key] == fixed[key], f"{stage}.{key} changed from bootstrap's contract")
+            require(
+                configured[key] == fixed[key], f"{stage}.{key} changed from bootstrap's contract"
+            )
 
     state = contract.get("activation_state")
-    require(state in {"unprovisioned", "active"}, "activation_state must be unprovisioned or active")
+    require(
+        state in {"unprovisioned", "active"}, "activation_state must be unprovisioned or active"
+    )
     if state == "unprovisioned":
         live_values = [
             contract.get("organization_id"),
@@ -189,8 +224,10 @@ def validate_contract(contract: Mapping[str, Any]) -> None:
         ]
         live_values.extend(pipelines[stage].get("id") for stage in PIPELINE_CONTRACT)
         live_values.extend(pipelines[stage].get("service_account") for stage in PIPELINE_CONTRACT)
-        require(all(value is None for value in live_values),
-                "unprovisioned contract must not contain a partial live identity")
+        require(
+            all(value is None for value in live_values),
+            "unprovisioned contract must not contain a partial live identity",
+        )
     else:
         _validate_active_identifiers(contract)
 
@@ -221,18 +258,31 @@ def validate_pipeline_files(contract: Mapping[str, Any], root: Path = ROOT) -> N
             pipeline = yaml.safe_load(path.read_text(encoding="utf-8"))
         except (OSError, yaml.YAMLError) as exc:
             raise ContractError(f"cannot parse {configured['definition']}: {exc}") from exc
-        require(isinstance(pipeline, dict) and set(pipeline) == {"checkout", "steps"},
-                f"{configured['definition']} may define only checkout and steps")
-        require(pipeline["checkout"] == {"commit_verification": "strict"},
-                f"{configured['definition']} must enforce strict branch/commit verification")
+        require(
+            isinstance(pipeline, dict) and set(pipeline) == {"checkout", "steps"},
+            f"{configured['definition']} may define only checkout and steps",
+        )
+        require(
+            pipeline["checkout"] == {"commit_verification": "strict"},
+            f"{configured['definition']} must enforce strict branch/commit verification",
+        )
         steps = pipeline["steps"]
-        require(isinstance(steps, list) and len(steps) == 3,
-                f"{configured['definition']} must contain denied, wait, and allowed steps")
-        require(steps[1] == "wait", f"{configured['definition']} must gate the allowed canary after denial")
-        require(steps[0] == _expected_step(stage, "denied", configured),
-                f"{configured['definition']} denied step drifted from the exact canary")
-        require(steps[2] == _expected_step(stage, "allowed", configured),
-                f"{configured['definition']} allowed step drifted from the exact canary")
+        require(
+            isinstance(steps, list) and len(steps) == 3,
+            f"{configured['definition']} must contain denied, wait, and allowed steps",
+        )
+        require(
+            steps[1] == "wait",
+            f"{configured['definition']} must gate the allowed canary after denial",
+        )
+        require(
+            steps[0] == _expected_step(stage, "denied", configured),
+            f"{configured['definition']} denied step drifted from the exact canary",
+        )
+        require(
+            steps[2] == _expected_step(stage, "allowed", configured),
+            f"{configured['definition']} allowed step drifted from the exact canary",
+        )
 
 
 def validate_helper_source(root: Path = ROOT) -> None:
@@ -246,14 +296,14 @@ def validate_helper_source(root: Path = ROOT) -> None:
         "set +x",
         "umask 077",
         "oidc request-token",
-        "--audience \"${wif_audience}\"",
+        '--audience "${wif_audience}"',
         "--subject-claim pipeline_id",
         "--claim organization_id",
         "--format gcp",
         "create-cred-config",
         "--credential-source-type=json",
         "--credential-source-field-name=id_token",
-        "--service-account=\"${service_account}\"",
+        '--service-account="${service_account}"',
         "gcloud auth login",
         "gcloud auth print-access-token",
         'grep -Fqi "invalid_grant"',
@@ -261,7 +311,10 @@ def validate_helper_source(root: Path = ROOT) -> None:
         'write_evidence "indeterminate_failure"',
     )
     for fragment in required:
-        require(fragment in helper, f"WIF helper is missing required token-exchange fragment: {fragment}")
+        require(
+            fragment in helper,
+            f"WIF helper is missing required token-exchange fragment: {fragment}",
+        )
 
     forbidden = (
         "sign-and-create",
@@ -279,7 +332,10 @@ def validate_helper_source(root: Path = ROOT) -> None:
     )
     lowered = helper.lower()
     for fragment in forbidden:
-        require(fragment.lower() not in lowered, f"WIF canary contains forbidden privileged operation: {fragment}")
+        require(
+            fragment.lower() not in lowered,
+            f"WIF canary contains forbidden privileged operation: {fragment}",
+        )
 
 
 def validate_source(contract_path: Path = DEFAULT_CONTRACT, root: Path = ROOT) -> dict[str, Any]:
@@ -303,13 +359,17 @@ def validate_runtime(
     environ: Mapping[str, str],
     checkout_commit: str,
 ) -> tuple[str, str, str]:
-    require(contract["activation_state"] == "active",
-            "Buildkite WIF contract is unprovisioned; live token exchange is prohibited")
+    require(
+        contract["activation_state"] == "active",
+        "Buildkite WIF contract is unprovisioned; live token exchange is prohibited",
+    )
     require(stage in PIPELINE_CONTRACT, f"unknown WIF stage: {stage}")
     require(expectation in {"allowed", "denied"}, f"unknown WIF expectation: {expectation}")
 
     configured = contract["pipelines"][stage]
-    expected_step = configured["step_key"] if expectation == "allowed" else configured["denied_step_key"]
+    expected_step = (
+        configured["step_key"] if expectation == "allowed" else configured["denied_step_key"]
+    )
     checks = {
         "BUILDKITE_ORGANIZATION_ID": contract["organization_id"],
         "BUILDKITE_ORGANIZATION_SLUG": contract["organization_slug"],
@@ -327,19 +387,27 @@ def validate_runtime(
         "BUILDKITE_PULL_REQUEST": "false",
     }
     for variable, expected in checks.items():
-        require(_env(environ, variable) == expected,
-                f"{variable} does not match the reviewed immutable contract")
+        require(
+            _env(environ, variable) == expected,
+            f"{variable} does not match the reviewed immutable contract",
+        )
 
-    require(_env(environ, "BUILDKITE_SOURCE") in contract["allowed_build_sources"],
-            "Buildkite WIF accepts only API or webhook builds")
-    require(_env(environ, "BUILDKITE_REPO") in contract["repository_urls"],
-            "Buildkite pipeline is not connected to the canonical monorepo")
+    require(
+        _env(environ, "BUILDKITE_SOURCE") in contract["allowed_build_sources"],
+        "Buildkite WIF accepts only API or webhook builds",
+    )
+    require(
+        _env(environ, "BUILDKITE_REPO") in contract["repository_urls"],
+        "Buildkite pipeline is not connected to the canonical monorepo",
+    )
     commit = _env(environ, "BUILDKITE_COMMIT").lower()
     require(COMMIT.fullmatch(commit) is not None, "BUILDKITE_COMMIT must be a full Git SHA-1")
     require(checkout_commit.lower() == commit, "checked-out HEAD does not match BUILDKITE_COMMIT")
     for variable in ("BUILDKITE_AGENT_ID", "BUILDKITE_JOB_ID", "BUILDKITE_STEP_ID"):
-        require(UUID.fullmatch(_env(environ, variable).lower()) is not None,
-                f"{variable} must be an immutable UUID")
+        require(
+            UUID.fullmatch(_env(environ, variable).lower()) is not None,
+            f"{variable} must be an immutable UUID",
+        )
 
     audience = contract["wif_provider_audience"]
     provider_resource = audience.removeprefix("https://iam.googleapis.com/")
@@ -387,7 +455,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             if args.emit_runtime_values:
                 print("\n".join(values))
             else:
-                print(f"Buildkite {args.runtime_stage} {args.expectation} runtime contract is valid.")
+                print(
+                    f"Buildkite {args.runtime_stage} {args.expectation} runtime contract is valid."
+                )
         else:
             print(f"Buildkite WIF source contract is valid ({contract['activation_state']}).")
     except (ContractError, subprocess.CalledProcessError) as exc:
