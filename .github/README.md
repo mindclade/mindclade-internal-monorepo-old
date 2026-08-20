@@ -26,6 +26,22 @@ never satisfied, and a default branch nothing can merge into.
 real pull request confirms their exact emitted contexts; the separate ruleset
 change then makes them merge-blocking without risking an unsatisfiable branch.
 
+## Shared workflow access is load-bearing
+
+The Go, Rust, and Python jobs call SHA-pinned reusable workflows from
+`mindclade/.github`. That repository's Actions access must remain
+`organization`; `none` makes GitHub reject `presubmit.yml` during workflow
+startup, before it creates a single job or useful log. Confirm the migration
+contract with:
+
+```bash
+gh api repos/mindclade/.github/actions/permissions/access --jq .access_level
+```
+
+Repository moves require updating both the reusable-workflow owner and immutable
+commit SHA. A redirect that works for `git fetch` does not make an old Actions
+workflow reference valid.
+
 ## Relationship to `ci/`
 
 Workflows decide *when*; `ci/{presubmit,gpu,nightly,release,security}/` decide
