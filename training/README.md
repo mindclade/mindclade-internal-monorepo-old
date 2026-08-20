@@ -1,35 +1,51 @@
-# Training
+<p align="center">
+  <a href="../README.md"><img src="../.github/assets/brand/mindclade-wordmark.png" alt="Mindclade" width="240"></a>
+</p>
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Python/PyTorch
+[← Repository home](../README.md) · [Architecture](../docs/README.md) · [Maturity](../SCAFFOLD_STATUS.md)
 
-## Purpose
+# Model training
 
-Authoritative training contracts, core state machine, engine adapters, distributed plans, checkpoint orchestration, optimizers, runtime mechanisms, and task objectives. This path specializes that domain for **training**.
+> **Maturity:** Scaffolded; no production training capability is claimed here.
+> **Primary implementation:** Python and PyTorch.
+
+`training/` reserves the authoritative contracts and reusable mechanisms for
+training state, engines, distributed plans, checkpoints, optimization, runtime
+coordination, and task objectives.
+
+## What's here
+
+| Path | Responsibility |
+| --- | --- |
+| [`contracts/`](contracts/) | Stable training inputs, outputs, state, and compatibility |
+| [`core/`](core/) | Training state machine and reusable orchestration semantics |
+| [`engines/`](engines/) | Framework and execution-engine adapters |
+| [`distributed/`](distributed/) | Parallelism and distributed execution plans |
+| [`checkpointing/`](checkpointing/) | Save, restore, compatibility, and resume orchestration |
+| [`optim/`](optim/) | Optimizers, schedules, and optimization policy |
+| [`runtime/`](runtime/) | Reusable runtime mechanisms for training workers |
+| [`tasks/`](tasks/) | Task-specific objectives and data/model integration |
+| [`cli/`](cli/) | Training inspection and invocation surfaces |
 
 ## Boundary
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+- Training owns model-update semantics; model definitions remain in
+  [`models/`](../models/), and data semantics remain in [`data/`](../data/).
+- Durable fleet scheduling and run authority belong in
+  [`control/`](../control/).
+- Deployable worker composition belongs under [`services/workers/`](../services/workers/).
+- Checkpoint identity, compatibility, resume behavior, and failure semantics
+  must be explicit and independently testable.
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+## Start here
 
-## Materialization requirements
+- [Training architecture](../docs/architecture/training.md)
+- [Distributed training](../docs/architecture/distributed-training.md)
+- [Checkpointing](../docs/architecture/checkpointing.md)
 
-Before this scaffold boundary is treated as implemented, add:
+## Promotion bar
 
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Promotion requires named ownership, stable contracts, deterministic or
+explicitly statistical behavior, bounded resources and cancellation, numerical
+and resume evidence, Bazel ownership, compatibility and rollback policy, and
+current qualification recorded in [`components.toml`](../components.toml).

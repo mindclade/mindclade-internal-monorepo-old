@@ -1,4 +1,14 @@
+<p align="center">
+  <a href="../README.md"><img src="assets/brand/mindclade-wordmark.png" alt="Mindclade" width="240"></a>
+</p>
+
+[← Repository home](../README.md) · [CI lanes](../ci/README.md) · [Validation](../VALIDATION.md)
+
 # GitHub configuration
+
+> **Maturity:** Presubmit and security workflows are active repository
+> contracts; release and Buildkite identities retain explicit fail-closed
+> activation gates.
 
 ## Workflows
 

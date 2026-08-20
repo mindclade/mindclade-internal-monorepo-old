@@ -1,35 +1,48 @@
-# Evaluation
+<p align="center">
+  <a href="../README.md"><img src="../.github/assets/brand/mindclade-wordmark.png" alt="Mindclade" width="240"></a>
+</p>
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Python/PyTorch
+[← Repository home](../README.md) · [Architecture](../docs/README.md) · [Maturity](../SCAFFOLD_STATUS.md)
 
-## Purpose
+# Evaluation and release qualification
 
-Independent evaluation contracts, harnesses, suites, metrics, reporting, safety, privacy, robustness, and release qualification. Evaluation can run against checkpoints, bundles, or endpoints. This path specializes that domain for **evaluation**.
+> **Maturity:** Mixed target-state implementation; no blanket production claim.
+> **Primary implementation:** Python and PyTorch.
+
+`evaluation/` keeps model and system evaluation independent from training and
+serving. It can evaluate checkpoints, model bundles, or endpoints and produces
+evidence consumed by release gates.
+
+## What's here
+
+| Path | Responsibility |
+| --- | --- |
+| [`contracts/`](contracts/) | Cases, suites, metrics, results, evaluators, and reports |
+| [`harness/`](harness/) | Isolated, distributed, cached, and batched evaluation execution |
+| [`suites/`](suites/) and [`metrics/`](metrics/) | Capability suites and reusable measurement semantics |
+| [`regression/`](regression/) and [`robustness/`](robustness/) | Baseline comparison, perturbation, and regression gates |
+| [`safety/`](safety/), [`privacy/`](privacy/), and [`biological_risk/`](biological_risk/) | Risk-specific policies, checks, and reports |
+| [`simulation/`](simulation/) and [`external/`](external/) | Replayable environments and external evaluation adapters |
+| [`reporting/`](reporting/) | JSON, Markdown, HTML, and summary output |
+| [`qualification/`](qualification/) | Thresholds, verification, promotion, and release evidence |
 
 ## Boundary
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+- Evaluation defines independent measurement and release evidence; it does not
+  train models or own serving policy.
+- Hidden sets and sensitive safety material must not leak into training,
+  application code, logs, or public artifacts.
+- Reusable inference mechanisms remain under [`serving/`](../serving/), while
+  release authority remains in the control plane.
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+## Start here
 
-## Materialization requirements
+- Read [`contracts/README.md`](contracts/README.md) before adding an evaluator.
+- Follow [`qualification/README.md`](qualification/README.md) for promotion
+  evidence.
+- Use [`docs/architecture/release-evidence.md`](../docs/architecture/release-evidence.md)
+  for the cross-system evidence model.
 
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Check [`components.toml`](../components.toml) and
+[`QUALIFICATION.md`](../QUALIFICATION.md) before describing a suite or gate as
+qualified.

@@ -1,35 +1,43 @@
-# Tools
+<p align="center">
+  <a href="../README.md"><img src="../.github/assets/brand/mindclade-wordmark.png" alt="Mindclade" width="240"></a>
+</p>
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Bazel/Nix/Python/Go/Rust development and qualification tooling
+[← Repository home](../README.md) · [Contributing](../CONTRIBUTING.md) · [Validation](../VALIDATION.md)
 
-## Purpose
+# Repository tooling
 
-Repository-owned code generation, analysis, developer, qualification, and release tools. Tools are invoked through Bazel targets in production/CI paths. This path specializes that domain for **tools**.
+> **Maturity:** Mixed; each tool documents its own supported and qualified
+> surface.
+> **Primary implementation:** Bazel, Nix, Python, Go, and Rust.
+
+`tools/` contains repository-owned developer, build, code-generation,
+analysis, qualification, licensing, and release utilities.
+
+## What's here
+
+| Path | Responsibility |
+| --- | --- |
+| [`dev/`](dev/) | Repository-aware Nix and Bazel entry points |
+| [`build/`](build/) | Toolchains, build metadata, and packaging support |
+| [`analysis/`](analysis/) | Architecture, maturity, dependency, and repository invariant checks |
+| [`codegen/`](codegen/) | Reproducible generation entry points |
+| [`qualification/`](qualification/) | Go, Rust, kernels, security, scale, and GKE qualification |
+| [`release/`](release/) | Release assembly and evidence helpers |
+| [`license/`](license/) | License-header and compliance tooling |
 
 ## Boundary
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+- Production and CI paths invoke repository-owned Bazel targets or checked-in
+  wrappers; ad hoc host tooling is not an authority.
+- Generated output must have a reproducible source and command.
+- Tools do not silently choose a release, environment, or production identity.
+- A helper shared by product code belongs in the appropriate language library,
+  not in this directory.
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+## Start here
 
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+- [`tools/dev/nixw`](dev/nixw) applies the repository Nix configuration.
+- [`tools/dev/bazelw`](dev/bazelw) enforces the pinned Bazel launcher.
+- [`tools/qualification/README.md`](qualification/README.md) indexes
+  qualification lanes.
+- [`CONTRIBUTING.md`](../CONTRIBUTING.md) defines the expected change workflow.

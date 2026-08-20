@@ -1,4 +1,13 @@
+<p align="center">
+  <a href="../README.md"><img src="../.github/assets/brand/mindclade-wordmark.png" alt="Mindclade" width="240"></a>
+</p>
+
+[← Repository home](../README.md) · [GitHub configuration](../.github/README.md) · [Infrastructure](../infra/README.md)
+
 # Buildkite identity preflight
+
+> **Maturity:** Deliberately unprovisioned and fail-closed; this directory is not
+> an active artifact release pipeline.
 
 This directory contains identity canaries, not an artifact release pipeline. The checked-in
 contract is deliberately `unprovisioned`: every live UUID, provider, and service-account value

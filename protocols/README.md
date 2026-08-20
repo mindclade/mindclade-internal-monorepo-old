@@ -1,35 +1,48 @@
-# Protocols
+<p align="center">
+  <a href="../README.md"><img src="../.github/assets/brand/mindclade-wordmark.png" alt="Mindclade" width="240"></a>
+</p>
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Protobuf, OpenAPI, event schemas, and compatibility policy
+[← Repository home](../README.md) · [Architecture](../docs/README.md) · [Maturity](../SCAFFOLD_STATUS.md)
 
-## Purpose
+# Protocols and compatibility
 
-Canonical cross-language wire contracts and explicit mappings. A concept may have multiple external projections, but fields have one authority or a tested mapping. This path specializes that domain for **protocols**.
+> **Maturity:** Mixed; each schema surface carries its own compatibility and
+> qualification evidence.
+> **Primary implementation:** Protobuf, OpenAPI, AsyncAPI, and explicit mapping
+> policy.
+
+`protocols/` is the authority for cross-process and cross-language wire
+contracts. A concept can have several external projections, but every field has
+one authority or a tested mapping.
+
+## What's here
+
+| Path | Responsibility |
+| --- | --- |
+| [`proto/`](proto/) | Canonical Protobuf service and message definitions |
+| [`openapi/`](openapi/) | Public and administrative HTTP API projections |
+| [`events/`](events/) | Event catalog, AsyncAPI surface, and generated event bindings |
+| [`mappings/`](mappings/) | Explicit identifier, error, timestamp, event, and API mappings |
+| [`compatibility/`](compatibility/) | Breaking-change policy, reserved fields, and runtime compatibility |
+| [`rust/`](rust/) | Rust protocol bindings and compatibility crate |
 
 ## Boundary
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+- Protocols define representation and compatibility, not domain policy.
+- Domain decisions belong in [`control/`](../control/); runtime execution
+  belongs in [`services/`](../services/).
+- Generated code is derived output. Change the authoritative schema or mapping,
+  then regenerate through the repository-owned Bazel target.
+- Field renames, removals, reuse, and semantic changes require compatibility
+  review and evidence.
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+## Start here
 
-## Materialization requirements
+- [`events/README.md`](events/README.md) for event authority and generation
+- [`openapi/README.md`](openapi/README.md) for HTTP projections
+- [`mappings/README.md`](mappings/README.md) for cross-projection rules
+- [ADR-0014: protocol authority](../docs/design/adr-0014-protocol-authority.md)
 
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Before changing a durable contract, follow [`CONTRIBUTING.md`](../CONTRIBUTING.md)
+and update the governing ADR, compatibility fixtures, and downstream generated
+surfaces together.

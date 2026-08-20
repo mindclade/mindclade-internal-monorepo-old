@@ -1,35 +1,49 @@
-# Preprocessing
+<p align="center">
+  <a href="../README.md"><img src="../.github/assets/brand/mindclade-wordmark.png" alt="Mindclade" width="240"></a>
+</p>
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Python scientific semantics with Rust-supervised external tools
+[← Repository home](../README.md) · [Architecture](../docs/README.md) · [Maturity](../SCAFFOLD_STATUS.md)
 
-## Purpose
+# Scientific preprocessing
 
-Reusable scientific preprocessing for entities, MSAs, templates, ligands, chemistry, multimodal inputs, caching, provenance, and feature bundles. This path specializes that domain for **preprocessing**.
+> **Maturity:** Mixed; core contracts, DAG, and provenance seams are
+> substantive, while provider and scale qualification is component-specific.
+> **Primary implementation:** Python scientific semantics with Rust-supervised
+> external tools.
+
+`preprocessing/` turns validated source entities into deterministic,
+provenance-rich feature bundles for model consumption.
+
+## What's here
+
+| Path | Responsibility |
+| --- | --- |
+| [`contracts/`](contracts/) | Entities, stages, search results, pipelines, and feature bundles |
+| [`pipeline/`](pipeline/) | Planning, compilation, execution, resume, and validation |
+| [`biology/`](biology/) | Entity featurization, MSAs, templates, and ligands |
+| [`chemistry/`](chemistry/) | Canonicalization, conformers, descriptors, graphs, and validation |
+| [`multimodal/`](multimodal/) | Alignment, layout, packing, and multimodal validation |
+| [`cache/`](cache/) | Content-keyed lookup, storage, policy, and promotion |
+| [`provenance/`](provenance/) | Database snapshots, toolchains, searches, and manifests |
+| [`cli/`](cli/) | Inspection, preparation, MSA search, and template search entry points |
 
 ## Boundary
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+- Python owns scientific transformations and validation semantics.
+- Rust supervises bounded external-tool execution; tools do not become an
+  implicit source of workflow authority.
+- Durable workflow state belongs in Go under
+  [`control/ingestion/`](../control/ingestion/).
+- Inputs, outputs, database snapshots, tool versions, and cache keys must be
+  explicit enough to reproduce or reject a result.
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+## Start here
 
-## Materialization requirements
+- [Preprocessing architecture](../docs/architecture/preprocessing.md)
+- [MSA and template-search architecture](../docs/architecture/msa-and-template-search.md)
+- [`contracts/README.md`](contracts/README.md) for stable package boundaries
+- [`pipeline/README.md`](pipeline/README.md) for DAG behavior
 
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Use [`preprocessing/tests/test_core_contracts.py`](tests/test_core_contracts.py)
+for the current provider-independent contract evidence and
+[`VALIDATION.md`](../VALIDATION.md) for remaining connected checks.

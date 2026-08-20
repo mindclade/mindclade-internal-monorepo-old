@@ -1,35 +1,51 @@
-# Serving
+<p align="center">
+  <a href="../README.md"><img src="../.github/assets/brand/mindclade-wordmark.png" alt="Mindclade" width="240"></a>
+</p>
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Python/PyTorch reusable inference engines
+[← Repository home](../README.md) · [Architecture](../docs/README.md) · [Maturity](../SCAFFOLD_STATUS.md)
 
-## Purpose
+# Model serving
 
-Reusable model-loading, batching, sampling, safety, rollout, and inference-runtime engines. Deployable network/process wiring stays under `services/`. This path specializes that domain for **serving**.
+> **Maturity:** Mixed; serving contracts and the Rust runtime core are
+> implemented, while broader engines and deployment qualification remain
+> component-specific.
+> **Primary implementation:** Python/PyTorch inference engines and Rust runtime
+> mechanisms.
+
+`serving/` owns reusable model-loading, batching, sampling, safety, rollout,
+and inference-runtime behavior. Network and process composition stays under
+[`services/`](../services/).
+
+## What's here
+
+| Path | Responsibility |
+| --- | --- |
+| [`contracts/`](contracts/) | Requests, responses, model bundles, descriptors, and runtime manifests |
+| [`runtime/`](runtime/) | Rust gateway/host runtime core and outage behavior |
+| [`model_worker/`](model_worker/) | Python model loading, execution, batching, precision, and health |
+| [`batch/`](batch/) | Batch inference jobs, queues, retries, artifacts, and telemetry |
+| [`rollouts/`](rollouts/) | Policy synchronization, sampling, actors, and trajectories |
+| [`safety/`](safety/) | Request and output policy, screening, audit, and validation |
+| [`testing/`](testing/) | Fakes, fixtures, goldens, and load-test support |
 
 ## Boundary
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+- Reusable inference behavior belongs here; sockets, signals, provider
+  construction, and deployment lifecycle belong in
+  [`services/`](../services/).
+- Model architecture and weights contracts originate in
+  [`models/`](../models/).
+- Admission, routing, tenancy, and release authority remain in the Go control
+  plane.
+- Runtime requests and artifacts must remain bounded, cancellable, observable,
+  and tenant-scoped.
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+## Start here
 
-## Materialization requirements
+- [Serving architecture](../docs/architecture/serving.md)
+- [Runtime data-plane architecture](../docs/architecture/runtime-data-plane.md)
+- [`contracts/README.md`](contracts/README.md) for stable interfaces
+- [`runtime/README.md`](runtime/README.md) for the implemented Rust core
 
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Consult [`components.toml`](../components.toml) and
+[`QUALIFICATION.md`](../QUALIFICATION.md) for component-specific readiness.

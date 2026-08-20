@@ -1,35 +1,49 @@
-# Apps
+<p align="center">
+  <a href="../README.md"><img src="../.github/assets/brand/mindclade-wordmark.png" alt="Mindclade" width="240"></a>
+</p>
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** TypeScript
+[← Repository home](../README.md) · [Architecture](../docs/README.md) · [Maturity](../SCAFFOLD_STATUS.md)
 
-## Purpose
+# Product applications
 
-Product-facing web applications. Product surfaces consume generated SDKs and public contracts; they never import deployable service implementations. This path specializes that domain for **apps**.
+> **Maturity:** Scaffolded; this page does not claim production capability.
+> **Primary implementation:** TypeScript and Next.js.
+
+`apps/` contains Mindclade's product-facing web applications. Applications
+consume generated SDKs and public contracts; they do not import deployable
+service implementations.
+
+## What's here
+
+| Application | Audience | Responsibility |
+| --- | --- | --- |
+| [`console/`](console/) | Platform users | Primary product console and scientific workflows |
+| [`admin/`](admin/) | Authorized operators | Administrative and operational product surfaces |
+
+Each application owns its composition, routes, and product-specific behavior.
+Reusable UI primitives belong in [`libs/ts/design_system/`](../libs/ts/design_system/),
+API access belongs in [`libs/ts/api_client/`](../libs/ts/api_client/), and public
+client contracts belong in [`sdk/typescript/`](../sdk/typescript/).
 
 ## Boundary
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+- Product surfaces depend on generated SDKs and versioned contracts.
+- Server policy and provider wiring stay in [`services/`](../services/).
+- Cross-language payloads are defined under [`protocols/`](../protocols/).
+- Shared code must have a clear owner and consumer; do not create generic
+  `common`, `shared`, `helpers`, or `utils` packages.
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+## Start here
 
-## Materialization requirements
+- Read the [`console` README](console/README.md) or
+  [`admin` README](admin/README.md) before changing an application.
+- Use [`docs/architecture/dependency-rules.md`](../docs/architecture/dependency-rules.md)
+  for allowed dependency direction.
+- Check [`SCAFFOLD_STATUS.md`](../SCAFFOLD_STATUS.md) and the application
+  `PRODUCTION_READINESS.md` before making readiness claims.
 
-Before this scaffold boundary is treated as implemented, add:
+## Promotion bar
 
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Promotion requires a named owner, reviewed contracts, bounded behavior,
+meaningful tests, a Bazel target in the pinned Nix environment, documented
+failure and rollback behavior, and current production-readiness evidence.

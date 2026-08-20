@@ -1,38 +1,53 @@
-# Infra
+<p align="center">
+  <a href="../README.md"><img src="../.github/assets/brand/mindclade-wordmark.png" alt="Mindclade" width="240"></a>
+</p>
 
-- **Status:** Foundation modules are materialized, but live production deployment remains gated
-  by each subsystem's production-readiness evidence.
-- **Primary implementation ownership:** Terraform, Kubernetes, GitOps, and policy configuration
+[← Repository home](../README.md) · [Architecture](../docs/README.md) · [Maturity](../SCAFFOLD_STATUS.md)
 
-## Purpose
+# Infrastructure
 
-Deployment and cloud foundations. Infrastructure declares environments, workload identity, storage, databases, queues, clusters, security policy, observability, and GitOps composition. This path specializes that domain for **infra**.
+> **Maturity:** Foundation modules are materialized; live deployment remains
+> gated by subsystem production-readiness evidence.
+> **Primary implementation:** Terraform, Kubernetes, GitOps, and policy.
+
+`infra/` declares Mindclade's cloud and deployment foundations: environments,
+identity, networking, storage, data services, clusters, security controls,
+observability, and GitOps composition.
+
+## What's here
+
+| Path | Responsibility |
+| --- | --- |
+| [`terraform/`](terraform/) | Reusable Google Cloud modules and environment composition |
+| [`kubernetes/`](kubernetes/) | Platform controllers, policies, and workload contracts |
+| [`gitops/`](gitops/) | Declarative delivery composition and promotion boundaries |
+| [`observability/`](observability/) | Metrics, logs, traces, dashboards, and alert contracts |
+| [`security/`](security/) | Infrastructure security controls and supporting policy |
 
 ## Boundary
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+- Infrastructure declares provider resources and deployment composition; it
+  does not own product or scientific behavior.
+- Deployable processes and provider construction belong in
+  [`services/`](../services/).
+- Workload identity and tenant boundaries must remain explicit and least
+  privilege.
+- Live activation requires reviewed environment state and cannot be inferred
+  from a passing module test.
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+## Start here
 
-## Promotion requirements
+- [`terraform/README.md`](terraform/README.md) for module and environment rules
+- [`kubernetes/README.md`](kubernetes/README.md) for platform and workload
+  composition
+- [`gitops/README.md`](gitops/README.md) for declarative delivery
+- [GCP Terraform architecture review](../docs/architecture/gcp-terraform-well-architected-review.md)
 
-Before an infrastructure subsystem is activated in a live environment, require:
+## Promotion bar
 
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-Kubernetes and GitOps source contracts are documented in
-`kubernetes/PRODUCTION_READINESS.md` and `gitops/PRODUCTION_READINESS.md`. See
-the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Before activation, require named ownership, reviewed contracts, policy and
+security tests, explicit failure and rollback behavior, connected-provider
+qualification, and current `PRODUCTION_READINESS.md` evidence. The Kubernetes
+and GitOps source contracts are indexed by
+[`kubernetes/PRODUCTION_READINESS.md`](kubernetes/PRODUCTION_READINESS.md) and
+[`gitops/PRODUCTION_READINESS.md`](gitops/PRODUCTION_READINESS.md).

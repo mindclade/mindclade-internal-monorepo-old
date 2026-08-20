@@ -1,35 +1,50 @@
-# Data
+<p align="center">
+  <a href="../README.md"><img src="../.github/assets/brand/mindclade-wordmark.png" alt="Mindclade" width="240"></a>
+</p>
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Python scientific semantics with Rust byte workers and Go workflow coordination
+[← Repository home](../README.md) · [Architecture](../docs/README.md) · [Maturity](../SCAFFOLD_STATUS.md)
 
-## Purpose
+# Data platform
 
-Reusable data contracts, connectors, curation, dataset publication, quality, tokenization, and loading semantics. Durable source/workflow state stays in Go; high-throughput transfer/parsing stays in Rust. This path specializes that domain for **data**.
+> **Maturity:** Mixed; substantive contracts and implementations exist, while
+> provider and scale qualification remains component-specific.
+> **Primary implementation:** Python scientific semantics, Rust byte workers,
+> and Go workflow coordination.
+
+`data/` owns reusable data contracts, ingestion semantics, curation, dataset
+publication, quality controls, tokenization, reference data, and loading.
+
+## What's here
+
+| Path | Responsibility |
+| --- | --- |
+| [`contracts/`](contracts/) | Source, record, shard, snapshot, and dataset contracts |
+| [`connectors/`](connectors/) | External source adapters and bounded retrieval |
+| [`ingestion/`](ingestion/) | Canonical ingestion stages, validation, and publication |
+| [`curation/`](curation/) | Consent, licensing, filtering, deduplication, contamination, and provenance |
+| [`datasets/`](datasets/) | Dataset catalogs, mixtures, versions, lineage, and manifests |
+| [`quality/`](quality/) | Integrity, privacy, leakage, bias, safety, and license gates |
+| [`reference/`](reference/) | Versioned reference database sources, snapshots, indexes, and manifests |
+| [`tokenizers/`](tokenizers/) | Modality-specific tokenization and vocabulary contracts |
+| [`loaders/`](loaders/) | Sampling, sharding, collation, prefetch, and worker behavior |
 
 ## Boundary
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+- Python owns scientific record and transformation semantics.
+- Go owns durable source, workflow, lease, and publication state under
+  [`control/ingestion/`](../control/ingestion/).
+- Rust owns bounded transfer, parsing, cache, and worker execution in runtime
+  services and libraries.
+- Cross-language records and events use [`protocols/`](../protocols/); no
+  language-private structure becomes an implicit wire contract.
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+## Start here
 
-## Materialization requirements
+- [Data ingestion architecture](../docs/architecture/data-ingestion.md)
+- [Dataset publication architecture](../docs/architecture/dataset-publication.md)
+- [Reference data and release evidence](../docs/architecture/reference-data-and-release-evidence.md)
+- [`data/curation/README.md`](curation/README.md) for the implemented curation
+  pipeline
 
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Always confirm component maturity in [`components.toml`](../components.toml) and
+required evidence in [`QUALIFICATION.md`](../QUALIFICATION.md).

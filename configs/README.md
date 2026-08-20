@@ -1,35 +1,51 @@
-# Configs
+<p align="center">
+  <a href="../README.md"><img src="../.github/assets/brand/mindclade-wordmark.png" alt="Mindclade" width="240"></a>
+</p>
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** language-neutral validated configuration
+[← Repository home](../README.md) · [Architecture](../docs/README.md) · [Maturity](../SCAFFOLD_STATUS.md)
 
-## Purpose
+# Configuration catalog
 
-Composable, schema-validated configuration profiles. Every run resolves to one canonical immutable document with a deterministic digest and recorded source precedence. This path specializes that domain for **configs**.
+> **Maturity:** Target-state catalog with mixed implementation and qualification.
+> **Primary implementation:** Language-neutral TOML and JSON Schema.
+
+`configs/` holds composable, reviewable configuration inputs. A run resolves
+these inputs into one canonical immutable document with recorded source
+precedence and a deterministic digest.
+
+## What's here
+
+| Path | Responsibility |
+| --- | --- |
+| [`base/`](base/) | Baseline ingestion, preprocessing, training, evaluation, and inference settings |
+| [`environments/`](environments/) and [`profiles/`](profiles/) | Environment- and workload-specific overlays |
+| [`recipes/`](recipes/) | Reviewed reusable configuration compositions |
+| [`evaluation/`](evaluation/) | Presubmit, nightly, release, safety, and biology evaluation inputs |
+| [`qualification/`](qualification/) | Failure-injection and performance qualification inputs |
+| [`release/`](release/) | Bundle, signing, qualification, and rollback inputs |
+| [`schemas/`](schemas/) | JSON Schemas for run, dataset, serving, and release documents |
 
 ## Boundary
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+- This directory owns declarative inputs and schemas, not resolution behavior.
+- Deterministic resolution lives in
+  [`libs/python/config/`](../libs/python/config/).
+- Secrets never belong in checked-in configuration; services obtain them
+  through approved provider boundaries.
+- Deployment-specific values stay with the owning environment under
+  [`infra/`](../infra/) or a protected external configuration plane.
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+## Start here
 
-## Materialization requirements
+- Read the [resolved configuration guide](../docs/guides/config-resolution.md).
+- Use [`schemas/run.schema.json`](schemas/run.schema.json) for the canonical run
+  document shape.
+- Check [`maturity.toml`](../maturity.toml) and
+  [`SCAFFOLD_STATUS.md`](../SCAFFOLD_STATUS.md) before treating a profile as
+  qualified.
 
-Before this scaffold boundary is treated as implemented, add:
+## Promotion bar
 
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+A configuration becomes supported only with schema validation, deterministic
+resolution, compatibility rules, tests, ownership, and qualification evidence
+for every environment in which it is used.

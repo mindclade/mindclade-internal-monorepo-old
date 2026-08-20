@@ -1,35 +1,42 @@
-# Research
+<p align="center">
+  <a href="../README.md"><img src="../.github/assets/brand/mindclade-wordmark.png" alt="Mindclade" width="240"></a>
+</p>
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Python/notebooks consuming production packages
+[← Repository home](../README.md) · [Architecture](../docs/README.md) · [Maturity](../SCAFFOLD_STATUS.md)
 
-## Purpose
+# Research workspace
 
-Non-production experiments, notebooks, and benchmarks. Research may import production packages; production packages may not import research code. This path specializes that domain for **research**.
+> **Maturity:** Non-production and scaffolded by design.
+> **Primary implementation:** Python and notebooks consuming production
+> packages.
+
+`research/` is the isolated workspace for experiments, notebooks, and
+benchmarks that are not part of a production dependency path.
+
+## What's here
+
+| Path | Responsibility |
+| --- | --- |
+| [`experiments/`](experiments/) | Reproducible experimental code and configurations |
+| [`notebooks/`](notebooks/) | Interactive exploration and analysis |
+| [`benchmarks/`](benchmarks/) | Research comparisons that are not release qualification |
 
 ## Boundary
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+- Research may import production packages; production packages must never
+  import research code.
+- A notebook result is not qualification evidence unless it is promoted into a
+  deterministic, reviewed test or qualification lane.
+- Do not place private datasets, patient information, hidden evaluation
+  material, credentials, or model-weight secrets in this tree.
+- Reusable behavior moves to the owning package only after its contract,
+  ownership, tests, and dependency direction are explicit.
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+## Start here
 
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+- Read [`notebooks/README.md`](notebooks/README.md) before adding interactive
+  work.
+- Use [`docs/architecture/dependency-rules.md`](../docs/architecture/dependency-rules.md)
+  for the one-way dependency boundary.
+- Follow [`CONTRIBUTING.md`](../CONTRIBUTING.md) for data, security, and
+  scientific-integrity expectations.

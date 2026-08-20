@@ -1,35 +1,60 @@
-# Ci
+<p align="center">
+  <a href="../README.md"><img src="../.github/assets/brand/mindclade-wordmark.png" alt="Mindclade" width="240"></a>
+</p>
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** CI configuration and Bazel target selection
+[← Repository home](../README.md) · [GitHub workflows](../.github/README.md) · [Validation](../VALIDATION.md)
 
-## Purpose
+# Continuous integration
 
-CI entry points that select repository-owned Bazel qualification targets. Workflow files coordinate execution but do not duplicate build, test, or release logic. This path specializes that domain for **ci**.
+> **Maturity:** Mixed; presubmit and repository checks are implemented, while
+> hardware, connected-provider, and release lanes retain explicit activation
+> gates.
+> **Primary implementation:** Python orchestration and Bazel target selection.
+
+`ci/` defines what each automation lane validates. Workflow files under
+`.github/workflows/` decide when lanes run; CI code here selects repository-owned
+targets and records evidence.
+
+## Pipeline model
+
+```mermaid
+flowchart LR
+    event["GitHub event"] --> workflow[".github workflow"]
+    workflow --> lane["ci/&lt;lane&gt;/pipeline.py"]
+    lane --> targets["targets.yaml"]
+    targets --> bazel["Bazel targets"]
+    bazel --> evidence["Qualification evidence"]
+```
+
+## What's here
+
+| Path | Responsibility |
+| --- | --- |
+| [`common/`](common/) | Affected-target analysis, environment, matrix, reporting, and evidence helpers |
+| [`presubmit/`](presubmit/) | Pull-request architecture and test selection |
+| [`security/`](security/) | Security analysis and policy checks |
+| [`gpu/`](gpu/) | Accelerator qualification target selection |
+| [`nightly/`](nightly/) | Broader scheduled qualification |
+| [`release/`](release/) | Release target selection and evidence boundaries |
+| [`terraform/`](terraform/) | Terraform and infrastructure validation |
 
 ## Boundary
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+- CI selects targets; Bazel remains the test execution authority.
+- Workflow YAML coordinates identity, permissions, triggers, and reusable
+  workflows; it does not duplicate build or release logic.
+- A reserved or fail-closed lane is not evidence that its external runners,
+  identities, providers, or release plane are active.
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+## Start here
 
-## Materialization requirements
+Run the provider-independent presubmit checks from the repository root:
 
-Before this scaffold boundary is treated as implemented, add:
+```bash
+tools/dev/nixw develop .#default
+python3 ci/presubmit/pipeline.py --static-only
+```
 
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Read [`presubmit/README.md`](presubmit/README.md) for lane details and
+[`../.github/README.md`](../.github/README.md) before changing workflow job IDs,
+permissions, or reusable-workflow references.

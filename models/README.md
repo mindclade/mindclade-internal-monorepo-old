@@ -1,35 +1,50 @@
+<p align="center">
+  <a href="../README.md"><img src="../.github/assets/brand/mindclade-wordmark.png" alt="Mindclade" width="240"></a>
+</p>
+
+[← Repository home](../README.md) · [Architecture](../docs/README.md) · [Maturity](../SCAFFOLD_STATUS.md)
+
 # Models
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Python/PyTorch
+> **Maturity:** Scaffolded; no production model capability is claimed here.
+> **Primary implementation:** Python and PyTorch.
 
-## Purpose
+`models/` reserves the contracts and reusable implementation boundaries for
+model families, components, adapters, references, and registry metadata.
 
-Model contracts, reusable components, independent model families, adapters, references, and registry metadata. Model families do not import one another. This path specializes that domain for **models**.
+## What's here
+
+| Path | Responsibility |
+| --- | --- |
+| [`contracts/`](contracts/) | Model, configuration, state, checkpoint, export, provenance, and compatibility contracts |
+| [`components/`](components/) | Reusable attention, embedding, geometry, loss, normalization, and neural-network components |
+| [`families/`](families/) | Independent biology, diffusion, language, MoE, and multimodal families |
+| [`adapters/`](adapters/) | Export, Hugging Face, and serving integration boundaries |
+| [`reference/`](reference/) | Small reference models for deterministic testing and examples |
+| [`registry/`](registry/) | Model catalog, resolution, factories, and validation |
 
 ## Boundary
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+- Model families do not import one another.
+- Reusable model and numerical logic stays here; deployable process and network
+  wiring belongs under [`services/`](../services/).
+- Runtime request, response, and bundle formats belong under
+  [`serving/contracts/`](../serving/contracts/).
+- Cross-language data uses [`protocols/`](../protocols/) rather than Python
+  implementation types.
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+## Start here
 
-## Materialization requirements
+- Read [`contracts/README.md`](contracts/README.md) before changing a public
+  model boundary.
+- Use [`reference/README.md`](reference/README.md) for test-oriented reference
+  models.
+- Check the [model registry](registry/README.md) and
+  [`models/registry.yaml`](registry.yaml) for catalog shape.
 
-Before this scaffold boundary is treated as implemented, add:
+## Promotion bar
 
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Promotion requires named ownership, stable contracts, bounded resource and
+failure behavior, package-local tests, Bazel ownership, compatibility and
+rollback policy, numerical evidence, and current qualification. Until then,
+[`components.toml`](../components.toml) remains authoritative.

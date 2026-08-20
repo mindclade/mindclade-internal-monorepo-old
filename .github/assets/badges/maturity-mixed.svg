@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="126" height="24" viewBox="0 0 126 24" role="img" aria-label="maturity: mixed">
+  <title>maturity: mixed</title>
+  <rect width="126" height="24" rx="6" fill="#201C24"/>
+  <rect x="72" width="54" height="24" rx="6" fill="#B5673F"/>
+  <path d="M72 0h6v24h-6z" fill="#B5673F"/>
+  <g fill="#FBFAF7" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11" font-weight="600" text-anchor="middle">
+    <text x="36" y="16">maturity</text>
+    <text x="99" y="16">mixed</text>
+  </g>
+</svg>
