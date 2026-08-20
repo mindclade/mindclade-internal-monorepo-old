@@ -6,7 +6,11 @@
 { pkgs, versions, ... }:
 let
   toolchain = pkgs.rust-bin.stable.${versions.rust}.default.override {
-    extensions = [ "clippy" "rust-src" "rustfmt" ];
+    extensions = [
+      "clippy"
+      "rust-src"
+      "rustfmt"
+    ];
   };
 in
 {

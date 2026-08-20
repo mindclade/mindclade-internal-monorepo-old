@@ -16,14 +16,21 @@
 # The failure prints a field-by-field diff and the regeneration command, because a manifest
 # check whose remedy is unclear gets bypassed rather than fixed.
 
-{ pkgs, root, versions, ... }:
+{
+  pkgs,
+  root,
+  versions,
+  ...
+}:
 
 let
   manifest = import ../manifest.nix { inherit pkgs root versions; };
 in
 pkgs.runCommand "mindclade-toolchain-manifest"
   {
-    nativeBuildInputs = [ pkgs.python3 ];
+    # jsonschema, not plain python3: the manifest has a published schema under
+    # tools/qualification/schemas/, and a schema nothing validates against is a comment.
+    nativeBuildInputs = [ (pkgs.python3.withPackages (ps: [ ps.jsonschema ])) ];
   }
   ''
     python3 - <<'PY'
@@ -31,8 +38,11 @@ pkgs.runCommand "mindclade-toolchain-manifest"
     import sys
     from pathlib import Path
 
+    import jsonschema
+
     committed_path = Path("${root}/tools/build/nix/toolchain-manifest.json")
     rendered_path = Path("${manifest.file}")
+    schema_path = Path("${root}/tools/qualification/schemas/toolchain-manifest.schema.json")
 
     if not committed_path.is_file():
         print(
@@ -51,6 +61,26 @@ pkgs.runCommand "mindclade-toolchain-manifest"
         raise SystemExit(1)
 
     rendered = json.loads(rendered_path.read_text())
+
+    # Shape first, then drift. A hand-edited manifest usually fails both, and the schema failure
+    # is the one that says which field is malformed rather than merely different.
+    schema = json.loads(schema_path.read_text())
+    validator = jsonschema.Draft202012Validator(schema)
+
+    for label, document in (("committed", committed), ("rendered", rendered)):
+        errors = sorted(validator.iter_errors(document), key=lambda error: list(error.path))
+        if errors:
+            print(
+                f"toolchain-manifest: the {label} manifest does not satisfy\n"
+                "tools/qualification/schemas/toolchain-manifest.schema.json:",
+                file=sys.stderr,
+            )
+            print("", file=sys.stderr)
+            for error in errors:
+                where = ".".join(str(part) for part in error.path) or "<root>"
+                print(f"  {where}\n      {error.message}", file=sys.stderr)
+            print("", file=sys.stderr)
+            raise SystemExit(1)
 
 
     def flatten(value, prefix=""):

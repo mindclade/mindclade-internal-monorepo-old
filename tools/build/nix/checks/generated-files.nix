@@ -23,7 +23,12 @@
 # the failure mode worth catching is a hand-edited line, and matching the line means the error
 # can quote it back. package.json is parsed as JSON because it is JSON.
 
-{ pkgs, root, versions, ... }:
+{
+  pkgs,
+  root,
+  versions,
+  ...
+}:
 pkgs.runCommand "mindclade-generated-files"
   {
     nativeBuildInputs = [ pkgs.python3 ];
@@ -41,6 +46,7 @@ pkgs.runCommand "mindclade-generated-files"
     go = "${versions.go}"
     python_version = "${versions.python}"
     node_major = "${toString versions.nodeMajor}"
+    pnpm_major = "${toString versions.pnpmMajor}"
 
     failures: list[str] = []
 
@@ -127,6 +133,76 @@ pkgs.runCommand "mindclade-generated-files"
                 failures.append("  package.json\n      missing: engines.node")
             elif node != f">={node_major}":
                 fail("package.json engines.node", f">={node_major}", node)
+
+            # corepack reads this to decide which pnpm to run, so it is the file that decides
+            # what a developer OUTSIDE the devShell gets against the same lockfile.
+            manager = manifest.get("packageManager")
+            if manager is None:
+                failures.append("  package.json\n      missing: packageManager")
+            elif manager != f"pnpm@{pnpm_major}":
+                fail("package.json packageManager", f"pnpm@{pnpm_major}", manager)
+
+    # --- .github/workflows/*.yml ----------------------------------------------------------
+    # The CI lanes pin their own toolchains, and those pins are the same compatibility surface
+    # as the files above: a lane pinned below what the repository requires is a gate that tests
+    # a toolchain nobody uses. `go-version: "1.25.12"` sat under `go 1.26.0` in go.mod for long
+    # enough to acquire a comment explaining the bug, which is the argument for asserting it
+    # here rather than describing it there.
+    #
+    # Workflow pins carry a patch and versions.nix pins major.minor, so most of these compare by
+    # prefix. Rust is exact because versions.rust is exact.
+    #
+    # The value pattern requires a digit, which is what separates `toolchain: "1.97.1"` (a pin)
+    # from `toolchain:` (a job id — presubmit.yml has one).
+    WORKFLOW_PINS = [
+        ("go-version", go, "prefix"),
+        ("python-version", python_version, "prefix"),
+        ("node-version", node_major, "prefix"),
+        ("toolchain", rust, "exact"),
+    ]
+
+    workflows = sorted((root / ".github" / "workflows").glob("*.yml"))
+    if not workflows:
+        failures.append(
+            "  .github/workflows/\n"
+            "      missing: no *.yml files, so the lane pins were not checked at all"
+        )
+
+    pins_seen = 0
+    for workflow in workflows:
+        source = workflow.read_text()
+        rel = workflow.relative_to(root)
+
+        for key, expected, mode in WORKFLOW_PINS:
+            pattern = rf'^\s*{re.escape(key)}:\s*"?(\d[^"\s#]*)"?'
+            for match in re.finditer(pattern, source, re.MULTILINE):
+                pins_seen += 1
+                actual = match.group(1)
+                line_no = source[: match.start()].count("\n") + 1
+
+                if mode == "exact":
+                    ok = actual == expected
+                    wanted = expected
+                else:
+                    ok = actual == expected or actual.startswith(f"{expected}.")
+                    wanted = f"{expected}.x"
+
+                if not ok:
+                    fail(
+                        f"{rel}:{line_no} {key}",
+                        wanted,
+                        actual,
+                        "a lane pinned off the repository's toolchain gates the wrong version.",
+                    )
+
+    # A check that silently stops finding anything is worse than no check: if the workflows are
+    # restructured so these keys move, this says so instead of passing.
+    if workflows and pins_seen == 0:
+        failures.append(
+            "  .github/workflows/\n"
+            "      unreadable: no toolchain pins matched, but the workflows exist.\n"
+            "      Either the pins moved or the key names changed; update WORKFLOW_PINS."
+        )
 
     if failures:
         print("generated-files: compatibility files disagree with the Nix-owned source.", file=sys.stderr)

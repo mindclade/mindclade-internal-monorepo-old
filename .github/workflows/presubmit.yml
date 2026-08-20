@@ -113,7 +113,7 @@ jobs:
       typecheck: false
 
   # ---------------------------------------------------------------------------------------
-  # Workflow and YAML lint
+  # Toolchain, workflow and YAML lint
   # ---------------------------------------------------------------------------------------
   # .yamllint.yaml and .github/actionlint.yaml are the CANONICAL copies — the `.github`
   # repository's are copies of these — and until now neither existed here, so the repository
@@ -122,10 +122,18 @@ jobs:
   # Binaries from `.#ci`, not a release download: actionlint shells out to shellcheck, and
   # versions disagree about SC2153 and SC2015. A locally installed actionlint can pass on a
   # change this job fails.
+  #
+  # `nix flake check` runs HERE rather than in a job of its own, and the reason is cost rather
+  # than taste: installing Nix and realising `.#ci` is most of this job's wall clock, and a
+  # separate job pays all of it a second time for checks that take seconds once the store is
+  # warm. Two lanes' worth of signal, one nixpkgs evaluation.
+  #
+  # The job id stays `lint`. Only "ci / build" is a required status check (see the header note),
+  # so the display name below is free to change, but the id is what a future ruleset would name.
   lint:
-    name: actionlint + yamllint
+    name: nix flake check + actionlint + yamllint
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -136,43 +144,32 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
             accept-flake-config = false
+
+      # ADR-0002 states that CI rejects host-tool leakage and toolchain-manifest drift, and that
+      # compatibility version files are generated from the Nix-owned source. The checks that
+      # assert all three live in tools/build/nix/checks/, and until this step existed nothing ran
+      # them: they were reachable only by a developer typing `nix flake check` on a laptop, which
+      # is how .bazelversion came to disagree with versions.nix without any lane noticing.
+      #
+      # Not --all-systems: the darwin attributes cannot build on a linux runner, and evaluating
+      # them costs a full nixpkgs evaluation per system to prove nothing.
+      #
+      # First, not last. It is the step most likely to fail on a toolchain change, and failing
+      # before the shell is realised keeps the feedback short.
+      - name: nix flake check
+        run: nix flake check --print-build-logs
+
+      # The flake exposes nixfmt-tree as its formatter; this is what makes that more than a
+      # declaration. `--ci` is treefmt's check mode — fail on change, no cache — and the wrapper
+      # is what keeps the walk inside the repository rather than into .direnv and bazel-out.
+      - name: nix fmt
+        run: nix fmt -- --ci
 
       - name: actionlint
         run: nix develop .#ci --command actionlint -color
 
       - name: yamllint
         run: nix develop .#ci --command yamllint --strict .
-
-  # ---------------------------------------------------------------------------------------
-  # Toolchain — nix flake check
-  # ---------------------------------------------------------------------------------------
-  # ADR-0002 states that CI rejects host-tool leakage and toolchain-manifest drift, and that
-  # compatibility version files are generated from the Nix-owned source. The checks that assert
-  # all three live in tools/build/nix/checks/, and until this job existed nothing ran them: they
-  # were reachable only by a developer typing `nix flake check` on a laptop, which is how
-  # .bazelversion came to disagree with versions.nix without any lane noticing.
-  #
-  # ubuntu, not macos: the checks are platform-independent text and version assertions, and the
-  # x86_64-linux evaluation is the one that matches the runners the rest of the estate builds on.
-  toolchain:
-    name: nix flake check
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          persist-credentials: false
-
-      - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
-        with:
-          extra_nix_config: |
-            experimental-features = nix-command flakes
-            accept-flake-config = false
-
-      # Not --all-systems: evaluating the darwin attributes on a linux runner builds nothing
-      # useful and costs a full nixpkgs evaluation per system.
-      - name: nix flake check
-        run: nix flake check --print-build-logs
 
   # ---------------------------------------------------------------------------------------
   # Terraform — infra/terraform

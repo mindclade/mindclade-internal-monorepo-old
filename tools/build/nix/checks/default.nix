@@ -6,7 +6,13 @@
 # attrset does not run — which is how bazel-version, generated-files, no-host-tools and
 # toolchain-manifest sat as `{ ... }: { }` stubs while the pins they were meant to guard drifted.
 
-{ pkgs, root, rustToolchain, versions, ... }:
+{
+  pkgs,
+  root,
+  rustToolchain,
+  versions,
+  ...
+}:
 {
   # ADR-0002: compat files are generated from the Nix-owned source.
   bazel-version = import ./bazel-version.nix { inherit pkgs root versions; };

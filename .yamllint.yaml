@@ -8,6 +8,14 @@
 # workflows and the monorepo lint identically — a rule that differs between them shows up as a
 # workflow that passes in one repository and fails in the other, with no diff explaining it.
 extends: default
+
+# Lint what the repository owns, which is what .gitignore already defines. Without this,
+# `yamllint --strict .` — the command the presubmit lane runs and the one CONTRIBUTING tells a
+# developer to run — walks .venv and reports 666 findings from PyTorch's packaged YAML. It
+# passes in CI only because a fresh runner has no .venv or .direnv yet, so the lane and the
+# laptop disagree about a command that is supposed to be identical in both.
+ignore-from-file: .gitignore
+
 rules:
   line-length: disable
   # The Kubernetes manifests use spaced flow mappings — `{ type: RuntimeDefault }` — which is

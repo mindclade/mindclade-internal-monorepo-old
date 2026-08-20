@@ -39,4 +39,11 @@
   # Consumed by package.json's engines.node. Major only: the devShell pins nodejs_22 and the
   # patch level follows nixpkgs.
   nodeMajor = 22;
+
+  # Consumed by package.json's `packageManager` field, which corepack reads to decide which
+  # pnpm to run. Major only, matching how that field was already written.
+  #
+  # WAS absent while package.json said pnpm@10 and the devShell shipped 11.21.0 — so a developer
+  # inside `nix develop` ran pnpm 11 and corepack outside it ran pnpm 10, against one lockfile.
+  pnpmMajor = 11;
 }

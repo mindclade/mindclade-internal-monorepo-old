@@ -16,7 +16,12 @@
 # `nix flake check` correctly does not have, and would make a build-graph tool a dependency of
 # the check that guards its version.
 
-{ pkgs, root, versions, ... }:
+{
+  pkgs,
+  root,
+  versions,
+  ...
+}:
 pkgs.runCommand "mindclade-bazel-version" { } ''
   declared="${versions.bazel}"
   file="${root}/.bazelversion"

@@ -27,7 +27,12 @@
 # revision across all four supported systems. If a package ever resolves differently per system,
 # this attrset grows a per-system section rather than the check growing an exception.
 
-{ pkgs, root, versions, ... }:
+{
+  pkgs,
+  root,
+  versions,
+  ...
+}:
 
 let
   # The lock is read through the flake source rather than passed in from flake.nix, so the
@@ -56,11 +61,29 @@ let
     rust = versions.rust;
   };
 
+  # What `.#ci` adds on top of the default shell. These are the tools that decide whether a pull
+  # request merges, so they are exactly the ones whose versions have to be evidence rather than
+  # whatever the lock happened to resolve that week:
+  #
+  #   * terraform's output is version-sensitive, and infrastructure-live consumes infra/terraform
+  #     as a module source — a silent bump changes plan output in a DIFFERENT repository;
+  #   * actionlint and shellcheck disagree across versions about which findings exist at all
+  #     (SC2153, SC2015), so "passes locally, fails in CI" is a version question;
+  #   * cargo-deny's advisory verdicts move with its database and its own release line.
+  ciTools = {
+    actionlint = pkgs.actionlint.version;
+    cargo-deny = pkgs.cargo-deny.version;
+    shellcheck = pkgs.shellcheck.version;
+    terraform = pkgs.terraform.version;
+    yamllint = pkgs.yamllint.version;
+  };
+
   attrs = {
     schema = 1;
     nixpkgs = nixpkgsRev;
     pins = versions;
     inherit tools;
+    ciTools = ciTools;
   };
 
 in

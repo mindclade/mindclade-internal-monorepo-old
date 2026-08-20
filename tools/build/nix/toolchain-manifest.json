@@ -1,9 +1,17 @@
 {
+  "ciTools": {
+    "actionlint": "1.7.12",
+    "cargo-deny": "0.20.2",
+    "shellcheck": "0.11.0",
+    "terraform": "1.15.8",
+    "yamllint": "1.37.1"
+  },
   "nixpkgs": "ec2d622de0773551768cf98f3fc50cbcc003b9c5",
   "pins": {
     "bazel": "9.1.1",
     "go": "1.26",
     "nodeMajor": 22,
+    "pnpmMajor": 11,
     "python": "3.12",
     "rust": "1.97.1"
   },
