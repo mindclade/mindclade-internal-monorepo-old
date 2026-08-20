@@ -116,14 +116,19 @@ import pytest
 #   workflows/{gpu,nightly} (2)   waiting on self-hosted runners, per presubmit.yml.
 #   base/network-policies.yaml    relocated to policies/network-policies.yaml.
 #
-# The 17 that remain are real, and split two ways: 12 files nobody has written
-# (.github/ISSUE_TEMPLATE/* and four .github metadata files, infra/kubernetes/base/rbac.yaml),
-# and the rest gone missing under the in-flight libs/python restructuring, which belongs to
-# whoever owns that work -- that group is still moving, so re-measure before trusting a split.
+# LOWERED again to 6: the .github templates and metadata are written, rbac.yaml is
+# materialized, and .github/dependabot.yml was dropped from the manifest rather than created --
+# Dependabot is disabled org-wide in github-config and renovate.json5 owns dependency updates
+# for the estate, so writing one would field a second updater against the same lockfiles. That
+# was the reconciliation the note near the top of this file predicted would be needed.
+#
+# What remains is entirely libs/python/*/tests/BUILD.bazel, removed by the in-flight libs/python
+# restructuring, and belongs to whoever owns that work -- that group is still moving, so
+# re-measure before trusting a count.
 # This number is now a tight floor rather than 90 counts of slack. The assertion below is
 # two-sided on purpose: lower it as these close, and do not raise it without saying which
 # movement raised it.
-MATERIALIZATION_BASELINE = 17
+MATERIALIZATION_BASELINE = 6
 
 
 def _load_checker(root: Path):

@@ -16,7 +16,6 @@
 .github/ISSUE_TEMPLATE/research_proposal.yml
 .github/ISSUE_TEMPLATE/safety_regression.yml
 .github/README.md
-.github/dependabot.yml
 .github/pull_request_template.md
 .github/workflows/presubmit.yml
 .github/workflows/release.yml
