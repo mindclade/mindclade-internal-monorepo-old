@@ -31,6 +31,19 @@ dependencies = [
     "safetensors>=0.6",
 ]
 
+# The root environment is the portable development and CPU-presubmit contract. PyPI's Linux
+# Torch wheel now selects a CUDA runtime, which makes an ordinary import fail on a CPU runner
+# and pulls several gigabytes of accelerator libraries into every test. Pin Torch to its
+# official CPU index here; accelerator images must select and lock their CUDA/ROCm variant in
+# their own build boundary instead of changing the repository-wide test environment.
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
 # The lint and test tooling CI runs. Pinned exactly: an unpinned linter turns an unrelated
 # release into a red build on a PR that changed nothing, and `ruff format` output is only
 # stable within a version.
