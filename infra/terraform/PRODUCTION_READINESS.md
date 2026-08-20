@@ -15,7 +15,7 @@ topology and live evidence remain external and unknown.
 | Formatting and static repository checks | PASS | Terraform formatting, diff check, Actionlint, strict YAML lint, Nix flake evaluation/toolchain evidence, documentation build, and the repository static presubmit pass |
 | Backendless init/validate/mock tests | PASS | 36/36 configurations validate and 237/237 mock runs pass across 33 suites using committed locks |
 | Provider-connected non-production plan | MISSING | Saved plan, plan JSON, provider versions, project/region, and expiration |
-| IaC security and policy checks | PARTIAL | CI pins TFLint 0.64.0 and Trivy 0.74.0; Trivy has zero unsuppressed findings and three resource-local exceptions expiring 2027-08-20. Conftest's fail-closed policy and fixtures pass, and local Checkov reported 152 passed, 0 failed, 8 documented skips. An approved live profile, saved-plan evaluation, cost analysis, and retained reports remain missing |
+| IaC security and policy checks | PARTIAL | CI pins TFLint 0.64.0 and Trivy 0.74.0; Trivy has zero unsuppressed findings, three resource-local exceptions, and one module-scoped embedded-check exception, all expiring 2027-08-20. Conftest's fail-closed policy and fixtures pass, and local Checkov reported 152 passed, 0 failed, 8 documented skips. An approved live profile, saved-plan evaluation, cost analysis, and retained reports remain missing |
 | IAM and public-access review | MISSING | Effective inherited IAM; WIF allow/deny; no keys/basic/public grants |
 | Destructive/replacement review | MISSING | Explicit zero/unapproved-action statement or signed approvals |
 | Cost review | MISSING | Estimate, budgets, allocation tags/labels, quota and capacity assumptions |

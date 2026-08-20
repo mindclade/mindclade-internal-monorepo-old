@@ -115,6 +115,9 @@ resource "google_service_account_iam_member" "gke_workload_identity" {
 
 # CAS/Action Cache objects are append-only from this identity: it can create and read but not
 # administer the bucket or lifecycle. The cache module owns expiry and emergency deletion.
+# The module-scoped Trivy exception in policy/trivy-bazel-remote-execution-ignore.yaml covers
+# an embedded-check false positive on these IAM-only resources. The separately owned
+# bazel_remote_cache module pins versioning_enabled = true.
 resource "google_storage_bucket_iam_member" "cache_creator" {
   bucket = var.cache_bucket_name
   role   = "roles/storage.objectCreator"

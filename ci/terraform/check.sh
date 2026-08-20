@@ -386,6 +386,7 @@ run_security() {
 import datetime as dt
 import re
 import subprocess
+from pathlib import Path
 
 result = subprocess.run(
     ["git", "grep", "-n", "#trivy:ignore:", "--", "infra/terraform"],
@@ -418,17 +419,61 @@ for line in result.stdout.splitlines():
     if expiry > maximum:
         print(f"::error::Trivy exception exceeds the 366-day review horizon: {line}")
         failed = True
+
+module_ignore = Path("infra/terraform/policy/trivy-bazel-remote-execution-ignore.yaml")
+if not module_ignore.is_file():
+    print(f"::error file={module_ignore}::module-scoped Trivy exception file is missing")
+    failed = True
+else:
+    ignore_text = module_ignore.read_text(encoding="utf-8")
+    ids = re.findall(r"^\s+- id: (\S+)\s*$", ignore_text, flags=re.MULTILINE)
+    expiries = re.findall(r"^\s+expired_at: (\S+)\s*$", ignore_text, flags=re.MULTILINE)
+    if ids != ["GCP-0078"]:
+        print(f"::error file={module_ignore}::expected exactly the scoped GCP-0078 exception")
+        failed = True
+    if "Owner:" not in ignore_text or "Reason:" not in ignore_text:
+        print(f"::error file={module_ignore}::exception statement requires Owner and Reason metadata")
+        failed = True
+    if len(expiries) != 1:
+        print(f"::error file={module_ignore}::exception requires exactly one expiry date")
+        failed = True
+    else:
+        try:
+            expiry = dt.date.fromisoformat(expiries[0])
+        except ValueError:
+            print(f"::error file={module_ignore}::exception has an invalid expiry date")
+            failed = True
+        else:
+            if expiry < today:
+                print(f"::error file={module_ignore}::exception is expired")
+                failed = True
+            if expiry > maximum:
+                print(f"::error file={module_ignore}::exception exceeds the 366-day review horizon")
+                failed = True
 if failed:
     raise SystemExit(1)
 PY
 
+  # Trivy 0.74.0's embedded GCP-0078 check emits an issue without source-location metadata
+  # for this IAM-only module, so an inline resource suppression cannot match it. Keep the
+  # exception scoped to a separate invocation: every other check still evaluates the module,
+  # and GCP-0078 remains enforced everywhere that creates a bucket.
   trivy config \
     --disable-telemetry \
     --exit-code 1 \
     --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL \
     --skip-check-update \
     --skip-dirs '**/.terraform' \
+    --skip-dirs 'infra/terraform/modules/bazel_remote_execution' \
     infra/terraform
+
+  trivy config \
+    --disable-telemetry \
+    --exit-code 1 \
+    --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL \
+    --skip-check-update \
+    --ignorefile infra/terraform/policy/trivy-bazel-remote-execution-ignore.yaml \
+    infra/terraform/modules/bazel_remote_execution
 
   local policy_test="infra/terraform/policy/test-policy.sh"
   if [[ ! -x "${policy_test}" ]]; then
