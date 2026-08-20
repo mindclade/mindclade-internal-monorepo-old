@@ -21,10 +21,10 @@ constructs real provider adapters. `bootstrap.UnconfiguredFactory` remains for
 a role added before its providers exist — it fails closed with exit 78 — and
 `internal/bootstrap/promotion_test.go` enforces that no command reaches it.
 
-What is **not** yet supplied is domain policy. Each role that performs work
-exposes an injectable handler with a fail-closed default, so a process
-assembles, validates its profile, and starts, but refuses the work itself until
-domain code is injected. See "Domain seams" below.
+The registry supplies concrete model-publication and release-promotion policy.
+Roles listed under "Domain seams" still expose injectable handlers with
+fail-closed defaults, so those processes assemble and validate but refuse work
+until their own domain composition is supplied.
 
 ## Process roles
 
@@ -32,7 +32,7 @@ domain code is injected. See "Domain seams" below.
 |---|---|---|
 | `api` | API | auth, audit, idempotency, transactions, outbox store, HTTP/Connect/gRPC |
 | `admin` | Admin | the API composition on its own listeners |
-| `registry` | Registry | blob/cache, audit, idempotency, outbox store, HTTP; owns the migration manifest |
+| `registry` | Registry | model/release domains, PostgreSQL registry store, blob/cache, audit, idempotency, outbox store, HTTP; owns the migration manifest |
 | `scheduler` | Scheduler | leases, leadership, Kubernetes, work queue, outbox |
 | `controller` | Controller | leases, leadership, Kubernetes + manager, work queue, outbox |
 | `operator` | Operator | the controller composition under its own lease and event source |
@@ -79,6 +79,12 @@ internal/providers/cluster    Kubernetes REST config, client, discovery
 internal/providers/apikeys    service-to-service credential registry
 ```
 
+The shared `internal/providers` package is mechanism-only. Role subpackages
+under `internal/providers/<role>` are Layer-5 process composition roots: they
+may bind reusable `control/` services to concrete repositories and transports.
+This is the boundary used by the registry and is the standing rule for future
+role materialization.
+
 ## Domain storage
 
 `internal/store/postgres` implements the repository contracts the domain
@@ -96,9 +102,11 @@ deliberately not `libs/go/resourceversion`, because two version fields on one
 record is two things to keep agreeing. An `EvidenceGraph` is sealed by the
 digest its release quotes and is therefore immutable once written.
 
-Nothing constructs a `Store` yet. `internal/providers/doc.go` rules repositories
-out of the composition root, so the wiring needs either that boundary revised or
-a Layer 5 composition point owned by `control/registry`.
+`internal/providers/registry.RegistryFactory` constructs the store and binds it
+to `models.Service` and `releases.Service`. Release promotion wraps evidence and
+release writes in one serializable transaction. The HTTP adapter depends only
+on narrow domain interfaces, keeping provider selection out of reusable domain
+packages and out of the command.
 
 ## Durable coordination contracts
 

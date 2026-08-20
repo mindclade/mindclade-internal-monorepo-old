@@ -1,107 +1,93 @@
 # Control plane production readiness
 
-The reusable Go foundation and role contracts are implemented, and every role
-now wires a service-owned provider factory. The service is still **not
-promotable**: the composition layer is complete, the domain layer is not, and
-several gates below need evidence that does not exist yet.
+Readiness is evaluated per deployable role. The registry role is no longer
+blocked on a composition decision: its model and release engines are wired to
+the production PostgreSQL store and qualified against live PostgreSQL. Other
+roles with explicit fail-closed domain seams remain unavailable and must not be
+promoted merely because the registry is ready.
 
-Status is per-item and repository-wide unless a row says otherwise. A box is
-ticked only when something in the repository proves it.
+## Registry role
 
-## Required for each role
+- [x] **Production composition boundary decided and enforced.** The shared
+      `internal/providers` package remains mechanism-only. A role package under
+      `internal/providers/<role>` is a Layer-5 process composition root and may
+      bind reusable `control/` services to concrete repositories and transports.
+      `internal/providers/registry` owns that binding for the registry.
 
-- [x] **Real PostgreSQL pool and migrations wired through `storage/sql/postgres`**
-      Every role builds its pool through `providers.NewDatabase`. The `registry`
-      role owns the migration manifest — audit, idempotency, outbox, leases,
-      work items, cursors — because one database holds every adapter's tables
-      and the version ordering must be global. No other role runs a runner.
+- [x] **Model and release domain engines wired.** `RegistryFactory.Create`
+      constructs `internal/store/postgres.Store`, `models.Service` with its
+      production publication policy, and `releases.Service` with its production
+      promotion policy. Evidence graph and release persistence share one
+      serializable transaction.
 
-- [~] **Transactional audit, idempotency, and outbox adapters qualified**
-      Wired for every role that needs them, through `providers/durable`, and
-      unit-tested. Not qualified against a live PostgreSQL: the conformance
-      suites in `libs/go/storage/sql/sqltest` and the `*/postgres` adapters
-      need a connected environment that CI does not currently run.
+- [x] **Registry HTTP surface is authenticated and fail-closed authorized.**
+      Publication, resolution, and promotion have explicit permissions. The
+      middleware requires a mapping, so an added route is denied until its
+      authorization target is declared.
 
-- [x] **Role-specific coordination loops use fenced claims and bounded queues**
-      Work queues claim under a fencing token with bounded concurrency,
-      heartbeat renewal, and dead-lettering. Electors renew well inside their
-      TTL. The projector advances its cursor under the elector's fence, so a
-      demoted leader cannot overwrite its successor.
+- [x] **Production DDL is migration-owned and append-only.** Registry descriptor,
+      release, and evidence-graph migrations follow the shared durable adapter
+      migrations. Only the registry role runs the global manifest.
 
-- [~] **Domain engines and repositories implemented outside `libs/go`**
-      **Still the gate that matters.** Repositories: `internal/store/postgres`
-      implements the two contracts `control/registry` declares —
-      `models.Repository` and `releases.Repository` — with DDL, content-addressed
-      insert-if-absent for descriptors, and compare-and-swap on the release's own
-      `ResourceVersion`. Unit-tested against `sqltest`, not against a live
-      database, and **not yet wired into any role**: nothing constructs a `Store`
-      (see the boundary note below). Engines: not started. Every role that
-      performs work still exposes an injectable handler whose default fails
-      closed — placement, projection, delivery, staging, housekeeping. A deployed
-      process today assembles, validates, starts, and then refuses the work
-      itself. See the domain-seam table in `GO_FOUNDATION_CONSUMPTION.md`.
+- [x] **Live PostgreSQL and failure injection are qualified.** The connected
+      suite covers JSONB round trips, idempotent content-addressed publication,
+      atomic release promotion, rollback after an injected mid-transaction
+      failure, retry classification after database loss, and stale-owner lease
+      rejection. The CI service image is pinned by digest. See
+      `docs/qualification/go/control-plane-registry.md`.
 
-      Wiring is deliberately deferred, not overlooked. `internal/providers/doc.go`
-      states that no repositories or business services are assembled in the
-      composition root, so constructing the registry `Store` there would
-      contradict a documented boundary. Either that boundary is revised or a
-      Layer 5 composition point owned by `control/registry` takes the wiring;
-      that decision is open.
+- [x] **SLO and runbook contracts exist.** Availability, latency, RPO/RTO, burn
+      response, rollback, and database-loss procedures are defined in
+      `docs/slo/control-model-registry.md` and
+      `docs/runbooks/control-model-registry.md`.
 
-- [x] **Authentication and authorization provider qualified where required**
-      `providers/apikeys` resolves the service credential registry with
-      constant-time comparison, rejecting duplicate subjects and shared
-      secrets; `auth.PermissionAuthorizer` gates every surface. Required by the
-      `api`, `admin`, and `registry` roles only, and refused at startup when
-      unconfigured.
+- [x] **Repository-wide Bazel passes and is a required gate.** The 2026-08-20
+      local qualification analyzed 1,023 targets and all 264 tests passed with
+      lockfile drift rejected. Presubmit runs the same complete repository
+      graph through `tools/dev/bazelw test //... --config=ci`; scoped Go results
+      are not a substitute.
 
-- [x] **Kubernetes, blob, cache, and transport adapters wired as required**
-      Kubernetes through `providers/cluster` (client, discovery, and a manager
-      for the reconciling roles); blob and cache through `providers/objects`;
-      HTTP, Connect, and gRPC through `internal/transport`. Each role links
-      only what its profile justifies, enforced by `profile_test.go`.
+- [x] **Release supply-chain controls are materialized.** The release workflow
+      uses commit-pinned reusable workflows to build both images, emit SPDX SBOMs
+      and SLSA provenance, sign and attest images, and verify signatures before
+      accepting rollback evidence. A dry workflow dispatch publishes nothing.
+      Actual signatures and attestations are release artifacts and therefore
+      exist only after an authorized tagged or push-enabled release succeeds.
 
-- [~] **Readiness, liveness, drain, cancellation, and shutdown tests pass**
-      The staged lifecycle, probes, and bounded reverse shutdown are tested in
-      `libs/go/servicekit`. One prober answers for HTTP, Connect, and gRPC so
-      the three surfaces cannot disagree. What is missing is control-plane
-      level coverage: `services/control_plane/tests/` still holds four
-      scaffold placeholders, not real drain or shutdown tests.
+The registry role may advance through the normal presubmit and release gates.
+Promotion still requires the release run's SBOM, provenance, signature, and
+rollback artifacts; repository code does not manufacture evidence for a release
+that did not happen.
 
-- [ ] **Failure injection covers database loss, lease loss, duplicate events, and retry exhaustion**
-      **Not done.** No failure-injection harness exists in the repository.
-      `libs/go/faults` models and classifies failures; it does not inject them.
+## Roles still held fail-closed
 
-- [ ] **SLOs, dashboards, alerts, and runbooks linked**
-      **Not done.** No SLO or runbook artifacts are present to link.
+| Role | Remaining domain or provider gate |
+|---|---|
+| `api`, `admin` | Business API handlers are not yet mounted. |
+| `scheduler` | Placement handler is not configured. |
+| `controller`, `operator` | Domain reconcilers are not registered. |
+| `event-projector` | Projection source and handler are not configured. |
+| `event-dispatcher` | A production Pub/Sub adapter is not present. |
+| `webhook-dispatcher` | Delivery handler is not configured. |
+| `ingestion-controller` | Staging handler is not configured. |
+| `maintenance` | Housekeeping handler is not configured. |
 
-- [~] **Bazel build, SBOM, provenance, image signature, and rollback evidence attached**
-      The Go and control-plane graph is now verified under the pinned Go and
-      Bazel toolchains. The scoped `//libs/go/...` and
-      `//services/control_plane/...` test analyzed 228 targets, built 131
-      targets, and passed all 97 tests. The repository-wide `//...` test, SBOM,
-      provenance, image-signature, and rollback evidence still need
-      release-lane proof.
+These are independent promotion units, not hidden registry dependencies. Each
+must gain a concrete domain composition, connected qualification, SLO, and
+runbook before its deployment is enabled. Their default handlers continue to
+return stable `*_not_configured` faults so incomplete roles cannot report
+successful work.
 
-- [x] **`bootstrap.UnconfiguredFactory` absent from the promoted command**
-      Enforced, not reviewed: `internal/bootstrap/promotion_test.go` fails if
-      any command references it, skips `bootstrap.Main`, or constructs a
-      service directly, and if any role lacks a command directory.
+## Cross-role enforcement
 
-## Summary
-
-| | Count |
-|---|---:|
-| Satisfied | 5 |
-| Partial | 4 |
-| Not done | 2 |
-| Blocked on toolchain | 0 |
-
-**The critical path to promotion is domain implementation.** Everything the
-foundation owns is wired and guarded. The registry's storage layer now exists
-but is unreachable, and no domain engine does. The next step is the composition
-decision that lets a `Store` be constructed at all; after that, in order:
-domain engines behind the fail-closed seams, control-plane lifecycle tests, a
-live-PostgreSQL qualification run, failure injection, then the operational
-artifacts. The scoped Bazel build is unblocked; the broader release and
-supply-chain evidence remains independent work.
+- `internal/bootstrap/promotion_test.go` requires every command to enter through
+  `bootstrap.Main` and forbids `bootstrap.UnconfiguredFactory` in promoted
+  commands.
+- `internal/bootstrap/profile_test.go` rejects provider capabilities that a
+  role's declared profile does not justify.
+- `tools/analysis/check_foundation_consumption.py` and
+  `tools/analysis/check_go_layers.py` enforce foundation consumption and the Go
+  dependency law.
+- The control-plane failure matrix names database loss, transaction rollback,
+  lease loss, duplicate replay, and retry exhaustion explicitly; CI executes
+  the control-plane subset rather than accepting placeholder scenarios.

@@ -20,7 +20,7 @@ config.Settings
 
 | Role | Factory | Providers |
 |---|---|---|
-| `registry` | `NewRegistryFactory` | PostgreSQL, Google Cloud Storage, Redis |
+| `registry` | `NewRegistryFactory` | model/release domain services, PostgreSQL registry store, Google Cloud Storage, Redis |
 | `event-dispatcher` | `NewEventDispatcherFactory` | PostgreSQL, broker |
 | `scheduler` | `NewSchedulerFactory` | PostgreSQL, broker, Kubernetes |
 | `controller` | `NewControllerFactory` | PostgreSQL, broker, Kubernetes + manager |
@@ -48,6 +48,13 @@ providers/objects   artifact store and read cache
 
 The root package keeps what every role needs: the pure mechanisms, the
 PostgreSQL pool, and the table names those adapters are bound to.
+
+The root package is mechanism-only. Each role subpackage is the Layer-5 process
+composition root accepted by ADR-0010 and ADR-0015, so it may bind reusable
+`control/` domain services to concrete repositories and transports. The
+registry demonstrates the boundary: its factory constructs the PostgreSQL
+registry store and supplies it to the model and release services, while its HTTP
+adapter consumes narrow domain interfaces.
 
 The scheduler is the first role to hold a singleton lease and the first to
 reach a cluster. Its placement handler is a seam rather than a stub: with none
@@ -109,8 +116,8 @@ deployment tooling needs the manifest before the adapters do.
 - Construction is ordered cheapest-first. Configuration and pure mechanisms
   fail before a socket, connection, or cloud client is opened, and anything
   already opened is released when a later step fails.
-- No domain policy: no repositories, route tables, generated handlers, or
-  business services are assembled here.
+- No domain policy in the shared root package. Domain repositories and services
+  are assembled only by the role package that owns the process boundary.
 - Missing provider configuration is a startup failure, never a silent
   downgrade to a weaker adapter.
 

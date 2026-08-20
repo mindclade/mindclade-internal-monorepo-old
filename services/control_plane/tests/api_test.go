@@ -23,12 +23,21 @@ import (
 	"go.mindclade.dev/control/runtime_authority"
 )
 
+const (
+	alphaDeploymentID = "deployment_0000000003e870008000000000000000"
+	betaDeploymentID  = "deployment_0000000003e870008000000000000001"
+)
+
+// A fixed, valid digest. The value is irrelevant here; only its validity is, because
+// Deployment.Validate and Policy.Validate both refuse a zero one.
+func testDigest() identifiers.Digest {
+	return identifiers.MustParseDigest(
+		"sha256:0000000000000000000000000000000000000000000000000000000000000000")
+}
+
 func deployment(t *testing.T, id, region string, capabilities ...string) routing.Deployment {
 	t.Helper()
-	digest, err := identifiers.NewDigest("sha256", make([]byte, 32))
-	if err != nil {
-		t.Fatal(err)
-	}
+	digest := testDigest()
 	return routing.Deployment{
 		DeploymentID:       id,
 		ModelBundleDigest:  digest,
@@ -47,12 +56,12 @@ func TestCanonicalDeploymentsIsOrderIndependent(t *testing.T) {
 	// or the same fleet state yields two different snapshots and the gateway sees churn that
 	// corresponds to no actual change.
 	forward := []routing.Deployment{
-		deployment(t, "alpha", "us-central1", "chat", "biology"),
-		deployment(t, "beta", "us-central1", "chat"),
+		deployment(t, alphaDeploymentID, "us-central1", "chat", "biology"),
+		deployment(t, betaDeploymentID, "us-central1", "chat"),
 	}
 	reverse := []routing.Deployment{
-		deployment(t, "beta", "us-central1", "chat"),
-		deployment(t, "alpha", "us-central1", "biology", "chat"),
+		deployment(t, betaDeploymentID, "us-central1", "chat"),
+		deployment(t, alphaDeploymentID, "us-central1", "biology", "chat"),
 	}
 	a, err := routing.CanonicalDeployments(forward)
 	if err != nil {
@@ -71,8 +80,8 @@ func TestCanonicalDeploymentsRejectsADuplicateDeployment(t *testing.T) {
 	// Two rows claiming the same DeploymentID cannot both be honoured, and picking one
 	// silently would make the choice depend on input order.
 	_, err := routing.CanonicalDeployments([]routing.Deployment{
-		deployment(t, "alpha", "us-central1", "chat"),
-		deployment(t, "alpha", "us-east1", "chat"),
+		deployment(t, alphaDeploymentID, "us-central1", "chat"),
+		deployment(t, alphaDeploymentID, "us-east1", "chat"),
 	})
 	if err == nil {
 		t.Fatal("a duplicate DeploymentID was accepted")
@@ -88,7 +97,9 @@ func TestCanonicalDeploymentsSortsTheCallersCapabilities(t *testing.T) {
 	// Harmless today: sorting is idempotent and the canonical order is the one a caller wants.
 	// Worth pinning anyway, because the day a caller holds Capabilities in a meaningful order
 	// for its own reasons, this silently reorders it, and nothing else would catch that.
-	input := []routing.Deployment{deployment(t, "alpha", "us-central1", "chat", "biology")}
+	input := []routing.Deployment{
+		deployment(t, alphaDeploymentID, "us-central1", "chat", "biology"),
+	}
 	if _, err := routing.CanonicalDeployments(input); err != nil {
 		t.Fatal(err)
 	}
@@ -101,15 +112,11 @@ func TestRoutePolicyRequiresEveryFreshnessInput(t *testing.T) {
 	// Each field is what lets the Rust gateway decide a snapshot is too old to admit new work
 	// without calling back into the control plane. A zero epoch would read as "no policy" and
 	// pass a naive comparison, so Validate has to refuse each one individually.
-	digest, err := identifiers.NewDigest("sha256", make([]byte, 32))
-	if err != nil {
-		t.Fatal(err)
-	}
 	valid := routing.Policy{
 		PolicyEpoch:           1,
 		RevocationEpoch:       1,
 		MinimumRuntimeVersion: "1.0.0",
-		PolicyDigest:          digest,
+		PolicyDigest:          testDigest(),
 	}
 	if err := valid.Validate(); err != nil {
 		t.Fatalf("valid policy rejected: %v", err)
