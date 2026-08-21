@@ -15,6 +15,7 @@ import (
 
 	foundationconfig "go.mindclade.dev/libs/go/config"
 	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/servicekit"
 	"go.mindclade.dev/services/control_plane/internal/bootstrap"
 	"go.mindclade.dev/services/control_plane/internal/config"
 )
@@ -29,8 +30,9 @@ func apiSettings() foundationconfig.MapSource {
 		"auth.api_keys":    "api-client:" + hex.EncodeToString(digest[:]) + ":artifacts.read",
 		// Port 0 lets the kernel choose, so the suite never collides with a
 		// developer's running process or with a parallel package.
-		"http.address": "127.0.0.1:0",
-		"grpc.address": "127.0.0.1:0",
+		"http.address":    "127.0.0.1:0",
+		"grpc.address":    "127.0.0.1:0",
+		"metrics.address": "127.0.0.1:0",
 	}}
 }
 
@@ -77,6 +79,39 @@ func TestAPIMountsEveryInboundTransport(t *testing.T) {
 	for _, required := range []string{"http", "grpc", "connect"} {
 		if _, found := present[required]; !found {
 			t.Fatalf("api does not mount the %q transport", required)
+		}
+	}
+}
+
+func TestAPIWiresDedicatedAdmissionMetricsLifecycle(t *testing.T) {
+	profile, err := bootstrap.ProfileFor(bootstrap.RoleAPI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime, err := NewAPIFactory(apiSettings()).Create(context.Background(), profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, auxiliary := range runtime.Components.Auxiliary {
+		if auxiliary.Stage == servicekit.StageServing && auxiliary.Component.Name == "admission-metrics-server" {
+			return
+		}
+	}
+	t.Fatal("API has no dedicated admission metrics serving component")
+}
+
+func TestAdminDoesNotWireAdmissionMetricsSlice(t *testing.T) {
+	profile, err := bootstrap.ProfileFor(bootstrap.RoleAdmin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime, err := NewAdminFactory(apiSettings()).Create(context.Background(), profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, auxiliary := range runtime.Components.Auxiliary {
+		if auxiliary.Component.Name == "admission-metrics-server" {
+			t.Fatal("admin role unexpectedly owns the API admission metrics listener")
 		}
 	}
 }

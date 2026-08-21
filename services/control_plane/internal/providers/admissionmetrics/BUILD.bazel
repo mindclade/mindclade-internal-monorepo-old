@@ -1,0 +1,39 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//services/control_plane:__subpackages__"])
+
+go_library(
+    name = "admissionmetrics",
+    srcs = [
+        "metrics.go",
+        "server.go",
+    ],
+    importpath = "go.mindclade.dev/services/control_plane/internal/providers/admissionmetrics",
+    deps = [
+        "//control/admission",
+        "//libs/go/faults",
+        "//libs/go/httpx",
+        "//libs/go/identifiers",
+        "//libs/go/resourceversion",
+        "//libs/go/servicekit",
+        "@com_github_prometheus_client_golang//prometheus",
+        "@com_github_prometheus_client_golang//prometheus/promhttp",
+    ],
+)
+
+go_test(
+    name = "admissionmetrics_test",
+    srcs = ["metrics_test.go"],
+    embed = [":admissionmetrics"],
+    deps = [
+        "//control/admission",
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+        "//libs/go/resourceversion",
+    ],
+)
