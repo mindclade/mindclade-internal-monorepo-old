@@ -10,6 +10,21 @@ load("@rules_python//python:defs.bzl", "py_binary", "py_test")
 
 package(default_visibility = ["//visibility:private"])
 
+filegroup(
+    name = "runtime_lock",
+    srcs = ["runtime.lock.yaml"],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "runtime_qualification_inputs",
+    srcs = [
+        "requirements.lock.txt",
+        "runtime.lock.yaml",
+    ],
+    visibility = ["//visibility:public"],
+)
+
 py_binary(
     name = "server",
     srcs = ["server.py"],
@@ -93,6 +108,13 @@ oci_push(
 py_test(
     name = "validate_image",
     srcs = ["validate_image_test.py"],
-    args = ["--image=$(rootpath :image)"],
-    data = [":image"],
+    args = [
+        "--image=$(rootpath :image)",
+        "--lock=$(rootpath :runtime_lock)",
+    ],
+    data = [
+        ":image",
+        ":runtime_lock",
+    ],
+    main = "validate_image_test.py",
 )

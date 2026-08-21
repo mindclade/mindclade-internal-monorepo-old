@@ -25,6 +25,12 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- if eq .Values.activation.releaseEvidenceDigest "sha256:0000000000000000000000000000000000000000000000000000000000000000" -}}
 {{- fail "activation requires a nonzero release evidence digest" -}}
 {{- end -}}
+{{- if eq .Values.image.digest "sha256:0000000000000000000000000000000000000000000000000000000000000000" -}}
+{{- fail "activation requires a qualified nonzero runtime image digest" -}}
+{{- end -}}
+{{- if not (hasSuffix "/mlflow-server" .Values.image.repository) -}}
+{{- fail "activation requires the Mindclade MLflow wrapper image" -}}
+{{- end -}}
 {{- if eq .Values.auth.existingSecret "SET_BY_ACTIVATION_BUNDLE" -}}
 {{- fail "activation requires auth.existingSecret" -}}
 {{- end -}}

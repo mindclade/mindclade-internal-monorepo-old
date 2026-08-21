@@ -151,6 +151,12 @@
       "then": {
         "properties": {
           "activation": {"properties": {"releaseEvidenceDigest": {"pattern": "^sha256:[0-9a-f]{64}$"}}},
+          "image": {
+            "properties": {
+              "repository": {"pattern": "/mlflow-server$"},
+              "digest": {"not": {"const": "sha256:0000000000000000000000000000000000000000000000000000000000000000"}}
+            }
+          },
           "migration": {"properties": {"enabled": {"const": true}}},
           "server": {"properties": {"allowedHosts": {"minItems": 1}}},
           "artifacts": {

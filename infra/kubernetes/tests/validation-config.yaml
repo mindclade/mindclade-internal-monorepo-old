@@ -118,7 +118,7 @@ spec:
       release: mindclade
       namespace: research-mlflow
       values: platform/mlflow/qualification-values.yaml
-      upstreamImageLock: platform/mlflow/upstream.lock.yaml
+      runtimeImageLock: services/mlflow/runtime.lock.yaml
       workloadName: mindclade-mlflow
       expectedResourceCount: 8
 

@@ -422,13 +422,13 @@ while IFS=$'\t' read -r chart_name release_name release_namespace values_name lo
   application_chart_count=$((application_chart_count + 1))
   chart_dir="${kubernetes_root}/${chart_name}"
   values_file="${kubernetes_root}/${values_name}"
-  lock_file="${kubernetes_root}/${lock_name}"
+  lock_file="${repository_root}/${lock_name}"
   disabled_output="${validation_tmp_dir}/application-helm-disabled-${application_chart_count}.yaml"
   chart_output="${validation_tmp_dir}/application-helm-${application_chart_count}.yaml"
 
   [[ -f "${chart_dir}/Chart.yaml" ]] || fail "declared application Helm chart is missing: ${chart_name}"
   [[ -f "${values_file}" ]] || fail "${chart_name}: qualification values are missing"
-  [[ -f "${lock_file}" ]] || fail "${chart_name}: upstream image lock is missing"
+  [[ -f "${lock_file}" ]] || fail "${chart_name}: runtime image lock is missing"
   [[ "${release_name}" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]] ||
     fail "${chart_name}: release name is not a DNS label"
   [[ "${release_namespace}" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]] ||
@@ -442,16 +442,40 @@ while IFS=$'\t' read -r chart_name release_name release_namespace values_name lo
   [[ "${dependency_count}" == "0" ]] ||
     fail "${chart_name}: application chart dependencies must be vendored and explicitly locked"
 
-  locked_image="$(yq eval -r '.spec.image' "${lock_file}")"
-  locked_digest="$(yq eval -r '.spec.indexDigest' "${lock_file}")"
-  locked_version="$(yq eval -r '.spec.version' "${lock_file}")"
-  [[ "${locked_image}" =~ ^[a-z0-9][a-z0-9./_-]{2,255}$ ]] ||
-    fail "${chart_name}: upstream image lock has an invalid repository"
+  [[ "$(yq eval -r '.kind' "${lock_file}")" == "RuntimeImageQualificationLock" ]] ||
+    fail "${chart_name}: runtime image lock kind is invalid"
+  locked_target="$(yq eval -r '.spec.target' "${lock_file}")"
+  locked_platform="$(yq eval -r '.spec.platform' "${lock_file}")"
+  locked_repository_suffix="$(yq eval -r '.spec.repositorySuffix' "${lock_file}")"
+  locked_digest="$(yq eval -r '.spec.imageDigest' "${lock_file}")"
+  locked_version="$(yq eval -r '.spec.mlflow.version' "${lock_file}")"
+  locked_requirements_name="$(yq eval -r '.spec.mlflow.requirementsLock' "${lock_file}")"
+  locked_requirements_digest="$(yq eval -r '.spec.mlflow.requirementsDigest' "${lock_file}")"
+  [[ "${locked_target}" == "//services/mlflow:image" ]] ||
+    fail "${chart_name}: runtime image lock target is invalid"
+  [[ "${locked_platform}" == "linux/amd64" ]] ||
+    fail "${chart_name}: runtime image lock platform is invalid"
+  [[ "${locked_repository_suffix}" == "/mlflow-server" ]] ||
+    fail "${chart_name}: runtime image lock repository suffix is invalid"
   [[ "${locked_digest}" =~ ^sha256:[0-9a-f]{64}$ ]] ||
-    fail "${chart_name}: upstream image lock has an invalid index digest"
-  [[ "v$(yq eval -r '.appVersion' "${chart_dir}/Chart.yaml")" == "${locked_version}" ]] ||
-    fail "${chart_name}: Chart appVersion does not match the upstream image lock"
-  expected_image="${locked_image}@${locked_digest}"
+    fail "${chart_name}: runtime image lock has an invalid digest"
+  [[ "$(yq eval -r '.appVersion' "${chart_dir}/Chart.yaml")" == "${locked_version}" ]] ||
+    fail "${chart_name}: Chart appVersion does not match the runtime image lock"
+  [[ "${locked_requirements_name}" =~ ^services/mlflow/[A-Za-z0-9._/-]+$ &&
+    "${locked_requirements_name}" != *"../"* ]] ||
+    fail "${chart_name}: requirements lock path is unsafe"
+  requirements_lock_file="${repository_root}/${locked_requirements_name}"
+  [[ -f "${requirements_lock_file}" ]] ||
+    fail "${chart_name}: declared requirements lock is missing"
+  [[ "${locked_requirements_digest}" =~ ^sha256:[0-9a-f]{64}$ ]] ||
+    fail "${chart_name}: requirements lock digest is invalid"
+  actual_requirements_digest="sha256:$(sha256_file "${requirements_lock_file}")"
+  [[ "${actual_requirements_digest}" == "${locked_requirements_digest}" ]] ||
+    fail "${chart_name}: requirements lock digest drifted"
+  qualification_repository="$(yq eval -r '.image.repository' "${values_file}")"
+  [[ "${qualification_repository}" == *"${locked_repository_suffix}" ]] ||
+    fail "${chart_name}: qualification values do not select the Mindclade wrapper image"
+  expected_image="${qualification_repository}@${locked_digest}"
 
   helm lint --strict "${chart_dir}"
   helm template "${release_name}" "${chart_dir}" \
@@ -517,7 +541,7 @@ done < <(
     .release,
     .namespace,
     .values,
-    .upstreamImageLock,
+    .runtimeImageLock,
     .workloadName,
     .expectedResourceCount
   ] | @tsv' "${validation_config}"

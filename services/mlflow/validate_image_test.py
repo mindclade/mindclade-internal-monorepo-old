@@ -43,12 +43,24 @@ def resolve_runfile(value: str) -> Path:
     return Path(os.environ["RUNFILES_DIR"]) / os.environ["TEST_WORKSPACE"] / path
 
 
-def validate(image: Path) -> str:
+def validate(image: Path, lock_path: Path) -> str:
     index = document(image / "index.json")
     manifests = index.get("manifests")
     if not isinstance(manifests, list) or len(manifests) != 1:
         raise AssertionError("OCI index must bind exactly one manifest")
     manifest_reference = manifests[0].get("digest")
+    lock_text = lock_path.read_text(encoding="utf-8")
+    if not re.search(r"^kind: RuntimeImageQualificationLock$", lock_text, re.MULTILINE):
+        raise AssertionError("runtime image lock kind is invalid")
+    required_lock_lines = (
+        "  target: //services/mlflow:image",
+        "  platform: linux/amd64",
+        f"  imageDigest: {manifest_reference}",
+        "    version: 3.15.1",
+    )
+    for required_line in required_lock_lines:
+        if lock_text.splitlines().count(required_line) != 1:
+            raise AssertionError(f"runtime image lock drifted: {required_line.strip()}")
     manifest = document(blob(image, manifest_reference, "manifest"))
     config = document(blob(image, (manifest.get("config") or {}).get("digest"), "config"))
 
@@ -56,9 +68,9 @@ def validate(image: Path) -> str:
     assert config.get("architecture") == "amd64", "image architecture is not amd64"
     runtime = config.get("config") or {}
     assert runtime.get("User") == "65532:65532", "image runtime identity is not non-root"
-    assert runtime.get("Entrypoint") == [
-        "/opt/mindclade/services/mlflow/server"
-    ], "image entrypoint drifted"
+    assert runtime.get("Entrypoint") == ["/opt/mindclade/services/mlflow/server"], (
+        "image entrypoint drifted"
+    )
     labels = runtime.get("Labels") or {}
     assert labels.get("org.opencontainers.image.version") == "3.15.1", (
         "MLflow version label drifted"
@@ -97,8 +109,9 @@ def validate(image: Path) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--image", required=True)
+    parser.add_argument("--lock", required=True)
     args = parser.parse_args()
-    manifest = validate(resolve_runfile(args.image))
+    manifest = validate(resolve_runfile(args.image), resolve_runfile(args.lock))
     print(f"MLflow OCI layout passed ({manifest})")
     return 0
 

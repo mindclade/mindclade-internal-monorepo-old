@@ -9,8 +9,8 @@ activation:
   releaseEvidenceDigest: blocked
 
 image:
-  repository: ghcr.io/mlflow/mlflow
-  digest: sha256:ea84a0b879f08b35a6f22f22b294024413e780b8fc978eecf5f760ac16cc9ce5
+  repository: localhost/mindclade/mlflow-server
+  digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
   pullPolicy: IfNotPresent
 
 replicaCount: 2

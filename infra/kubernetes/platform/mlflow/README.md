@@ -20,14 +20,17 @@ image digest and release evidence.
 - Redis-backed AI Gateway budget enforcement shared across every worker and replica.
 - A PreSync, bounded, single-writer schema migration Job before the Deployment rollout.
 - GKE Workload Identity, no Kubernetes API token, namespace default deny, exact network flows,
-  PDB, HPA, topology spread, probes, and GMP `PodMonitoring`.
+  a separately admitted `gmp-system` collector namespace, PDB, HPA, topology spread, probes, and
+  GMP `PodMonitoring`.
 - No Secret, Namespace, RBAC, PVC, CRD, Gateway, certificate, or public Service is created here.
 
 The image at `//services/mlflow:image` is assembled with Bazel/rules_oci from an independently
 hash-locked Python graph. A platform transition forces Linux/amd64 wheels even when a developer
 builds on macOS. The image contains MLflow 3.15.1 with basic-auth, AI Gateway, PostgreSQL, GCS, and
-Redis support. GitOps must replace the chart image with the protected release record's exact
-Artifact Registry digest.
+Redis support. `//services/mlflow:validate_image` binds the OCI output to `runtime.lock.yaml` and
+rejects a wrong platform, runtime identity, entrypoint, missing extra, or Darwin-native binary.
+GitOps must replace the chart image with the protected release record's exact Artifact Registry
+digest.
 
 ## External prerequisites
 
@@ -42,7 +45,8 @@ Activation must bind observed, environment-specific resources rather than fabric
 4. a dedicated GSA with only required object permissions and a qualified KSA/GSA binding;
 5. an externally synchronized `mlflow-runtime` Secret and rotation owner;
 6. an identity-aware TLS ingress namespace and hostname permitted by the GitOps project;
-7. exact private database/Redis CIDRs and approved Google API restricted-VIP CIDRs;
+7. exact private database/Redis CIDRs, approved Google API restricted-VIP CIDRs, and the observed
+   managed Prometheus collector namespace;
 8. image SBOM, provenance, signature, vulnerability result, runtime smoke result, and rollback
    digest connected by one release evidence graph.
 

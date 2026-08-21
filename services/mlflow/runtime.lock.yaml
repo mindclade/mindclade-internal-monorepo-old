@@ -1,0 +1,26 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+---
+apiVersion: mindclade.dev/v1
+kind: RuntimeImageQualificationLock
+metadata:
+  name: mlflow-server-3.15.1-linux-amd64
+spec:
+  target: //services/mlflow:image
+  platform: linux/amd64
+  repositorySuffix: /mlflow-server
+  imageDigest: sha256:8b75f684c24b6c4290934a258e88238399abf026b359dc48fc21cb6c34a54fb8
+  mlflow:
+    version: 3.15.1
+    requirementsLock: services/mlflow/requirements.lock.txt
+    requirementsDigest: sha256:501ee403b30c132e9a956147888b7146283cef28ae4ef3750d98e3d758f9dce1
+  base:
+    image: docker.io/library/python
+    version: 3.12.12-slim-bookworm
+    indexDigest: sha256:593bd06efe90efa80dc4eee3948be7c0fde4134606dd40d8dd8dbcade98e669c
+    platforms:
+      linux/amd64: sha256:2986c55feb36e6cae00fa1fefb454283e4b33f35e75ff8bdd123b134130be301
+  qualifiedAt: "2026-08-21T06:15:00Z"
+  qualification: //services/mlflow:validate_image

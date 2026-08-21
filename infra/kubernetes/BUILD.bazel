@@ -51,6 +51,7 @@ filegroup(
         "//infra/kubernetes/workloads/ingestion:manifests",
         "//infra/kubernetes/workloads/preprocessing:manifests",
         "//infra/kubernetes/workloads/training:manifests",
+        "//services/mlflow:runtime_qualification_inputs",
     ],
     visibility = ["//visibility:public"],
 )

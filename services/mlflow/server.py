@@ -9,7 +9,6 @@ import sys
 
 from mlflow.cli import cli
 
-
 if __name__ == "__main__":
     if sys.argv[1:] == ["mindclade-db-upgrade"]:
         # Keep credentials out of the Kubernetes Job argv/spec. Click receives the URI only after

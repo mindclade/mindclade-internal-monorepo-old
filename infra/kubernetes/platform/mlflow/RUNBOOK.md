@@ -25,12 +25,14 @@ PodMonitoring; it must contain no Secret, RBAC, Namespace, PVC, CRD, or public S
 2. Verify fresh SQL PITR/snapshot and GCS restore evidence. Confirm the rollback server remains
    compatible with the post-migration schema; otherwise rollback is a database restore, not an
    image-only change.
-3. Build and qualify `//services/mlflow:image` for Linux/amd64. Attach SBOM, provenance,
-   signature, vulnerability, dependency-import, and disposable-stack results.
+3. Build and qualify `//services/mlflow:image` for Linux/amd64; require
+   `//services/mlflow:validate_image` to match `services/mlflow/runtime.lock.yaml`. Attach SBOM,
+   provenance, signature, vulnerability, dependency-import, and disposable-stack results.
 4. Create/update only external secret metadata through its owner. Confirm all five required keys
    exist without reading or printing their values.
-5. Produce environment values with observed CIDRs, GSA, GCS prefixes, hostname, release evidence,
-   and the selected image digest. Run the complete Kubernetes validation.
+5. Produce environment values with observed CIDRs, GSA, GCS prefixes, hostname, managed
+   Prometheus collector namespace, release evidence, and the selected image digest. Run the
+   complete Kubernetes validation.
 6. Release the monorepo, add the exact release record/selection, activate the Helm target in
    GitOps, and review generated output. Obtain a server-side diff in isolated staging.
 7. Reconcile through Argo CD. The PreSync migration Job must succeed before Deployment rollout.
