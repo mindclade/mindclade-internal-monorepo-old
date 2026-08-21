@@ -9,8 +9,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
+	"strconv"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -21,6 +28,8 @@ import (
 	"go.mindclade.dev/libs/go/httpx"
 	"go.mindclade.dev/libs/go/httpx/middleware"
 	"go.mindclade.dev/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/resourceversion"
+	"go.mindclade.dev/services/control_plane/internal/providers/admissionmetrics"
 	"go.mindclade.dev/services/control_plane/internal/transport"
 )
 
@@ -35,6 +44,10 @@ type admissionHTTPFixture struct {
 }
 
 func newAdmissionHTTPFixture(t *testing.T) admissionHTTPFixture {
+	return newAdmissionHTTPFixtureWithMetrics(t, nil)
+}
+
+func newAdmissionHTTPFixtureWithMetrics(t *testing.T, metrics admissionmetrics.Recorder) admissionHTTPFixture {
 	t.Helper()
 	fake := clock.NewFake(admissionHTTPNow)
 	repository := admission.NewMemoryRepository(100)
@@ -66,7 +79,7 @@ func newAdmissionHTTPFixture(t *testing.T) admissionHTTPFixture {
 		t.Fatal(err)
 	}
 	service := admission.Service{Repository: repository, Clock: fake, MaximumTTL: time.Minute}
-	handler, err := newAdmissionMux(service)
+	handler, err := newAdmissionMux(service, metrics)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -454,4 +467,327 @@ func TestAdmissionHTTPRejectsInvalidTransportBodiesBeforeMutation(t *testing.T) 
 			}
 		})
 	}
+}
+
+func TestAdmissionMetricsExcludeUnauthenticatedAndMalformedRequests(t *testing.T) {
+	metrics, endpoint := newRunningAdmissionMetrics(t)
+	fixture := newAdmissionHTTPFixtureWithMetrics(t, metrics)
+	handler := metrics.Middleware(fixture.guardedHandler(t))
+	payload, err := json.Marshal(fixture.request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	baseHeaders := http.Header{
+		"Content-Type":             {"application/json"},
+		httpx.HeaderIdempotencyKey: {"metrics-exclusion-0001"},
+	}
+	unauthenticated := callAdmissionHTTP(t, handler, http.MethodPost, reservationsPath, payload, baseHeaders, nil)
+	if unauthenticated.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated status=%d body=%s", unauthenticated.Code, unauthenticated.Body.String())
+	}
+	deniedHeaders := baseHeaders.Clone()
+	deniedHeaders.Set("Authorization", "Bearer denied-token")
+	denied := callAdmissionHTTP(t, handler, http.MethodPost, reservationsPath, payload, deniedHeaders, nil)
+	if denied.Code != http.StatusForbidden {
+		t.Fatalf("unauthorized status=%d body=%s", denied.Code, denied.Body.String())
+	}
+	malformedHeaders := baseHeaders.Clone()
+	malformedHeaders.Set("Authorization", "Bearer owner-token")
+	malformed := callAdmissionHTTP(t, handler, http.MethodPost, reservationsPath, []byte(`{"broken":`), malformedHeaders, nil)
+	if malformed.Code != http.StatusBadRequest {
+		t.Fatalf("malformed status=%d body=%s", malformed.Code, malformed.Body.String())
+	}
+
+	// A structurally valid but semantically invalid request is inside the SLI,
+	// proving the two exclusions above did not merely disable instrumentation.
+	semantic := fixture.request
+	semantic.TTLSeconds = 0
+	semanticPayload, err := json.Marshal(semantic)
+	if err != nil {
+		t.Fatal(err)
+	}
+	semanticHeaders := malformedHeaders.Clone()
+	semanticHeaders.Set(httpx.HeaderIdempotencyKey, "metrics-exclusion-0002")
+	invalid := callAdmissionHTTP(t, handler, http.MethodPost, reservationsPath, semanticPayload, semanticHeaders, nil)
+	if invalid.Code != http.StatusBadRequest {
+		t.Fatalf("semantic invalid status=%d body=%s", invalid.Code, invalid.Body.String())
+	}
+
+	body := readAdmissionMetrics(t, endpoint)
+	if got := admissionDecisionTotal(t, body, "admit"); got != 1 {
+		t.Fatalf("admit decisions = %v, want only the semantic invalid request\n%s", got, body)
+	}
+	if !strings.Contains(body, `mindclade_control_admission_decisions_total{operation="admit",result="invalid"} 1`) {
+		t.Fatalf("semantic invalid decision missing:\n%s", body)
+	}
+	if !strings.Contains(body, `mindclade_control_admission_decision_duration_seconds_count{operation="admit"} 1`) {
+		t.Fatalf("excluded requests contributed latency or valid request was omitted:\n%s", body)
+	}
+}
+
+func TestAdmissionMetricsIncludeParsingAndSerializationBoundaryLatency(t *testing.T) {
+	metrics, endpoint := newRunningAdmissionMetrics(t)
+	fixture := newAdmissionHTTPFixtureWithMetrics(t, metrics)
+	handler := metrics.Middleware(fixture.guardedHandler(t))
+	payload, err := json.Marshal(fixture.request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, reservationsPath, &delayedAdmissionReader{
+		reader: bytes.NewReader(payload),
+		delay:  20 * time.Millisecond,
+	})
+	request.Header = http.Header{
+		"Content-Type":             {"application/json"},
+		"Authorization":            {"Bearer owner-token"},
+		httpx.HeaderIdempotencyKey: {"metrics-boundary-0001"},
+	}
+	response := &delayedAdmissionWriter{ResponseRecorder: httptest.NewRecorder(), delay: 20 * time.Millisecond}
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusCreated {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+
+	body := readAdmissionMetrics(t, endpoint)
+	seconds := admissionMetricValue(t, body, `mindclade_control_admission_decision_duration_seconds_sum\{operation="admit"\}`)
+	if seconds < 0.035 {
+		t.Fatalf("boundary duration=%f, want request parsing and response serialization included", seconds)
+	}
+}
+
+func TestAdmissionMetricsSeparateCallerCancellationAndServerDeadline(t *testing.T) {
+	cases := []struct {
+		name          string
+		terminal      error
+		status        int
+		result        string
+		durationCount string
+	}{
+		{name: "caller canceled", terminal: context.Canceled, status: http.StatusRequestTimeout, result: "canceled", durationCount: "0"},
+		{name: "server deadline", terminal: context.DeadlineExceeded, status: http.StatusGatewayTimeout, result: "deadline", durationCount: "1"},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			metrics, endpoint := newRunningAdmissionMetrics(t)
+			fixture := newAdmissionHTTPFixture(t)
+			mux, err := newAdmissionMux(&terminalAdmissionEngine{err: test.terminal}, metrics)
+			if err != nil {
+				t.Fatal(err)
+			}
+			fixture.handler = transport.Preconditions()(mux)
+			handler := metrics.Middleware(fixture.guardedHandler(t))
+			payload, err := json.Marshal(fixture.request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			headers := http.Header{
+				"Content-Type":             {"application/json"},
+				"Authorization":            {"Bearer owner-token"},
+				httpx.HeaderIdempotencyKey: {"metrics-terminal-0001"},
+			}
+			response := callAdmissionHTTP(t, handler, http.MethodPost, reservationsPath, payload, headers, nil)
+			if response.Code != test.status {
+				t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+			}
+			body := readAdmissionMetrics(t, endpoint)
+			want := fmt.Sprintf(`mindclade_control_admission_decisions_total{operation="admit",result=%q} 1`, test.result)
+			if !strings.Contains(body, want) {
+				t.Fatalf("terminal result missing %q:\n%s", want, body)
+			}
+			count := fmt.Sprintf(`mindclade_control_admission_decision_duration_seconds_count{operation="admit"} %s`, test.durationCount)
+			if !strings.Contains(body, count) {
+				t.Fatalf("duration classification missing %q:\n%s", count, body)
+			}
+		})
+	}
+}
+
+func TestAdmissionMetricsClassifyTerminalResponseWriteFailure(t *testing.T) {
+	metrics, endpoint := newRunningAdmissionMetrics(t)
+	fixture := newAdmissionHTTPFixtureWithMetrics(t, metrics)
+	handler := metrics.Middleware(fixture.guardedHandler(t))
+	payload, err := json.Marshal(fixture.request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, reservationsPath, bytes.NewReader(payload))
+	request.Header = http.Header{
+		"Content-Type":             {"application/json"},
+		"Authorization":            {"Bearer owner-token"},
+		httpx.HeaderIdempotencyKey: {"metrics-response-failure-0001"},
+	}
+	handler.ServeHTTP(&failingAdmissionWriter{header: make(http.Header)}, request)
+	body := readAdmissionMetrics(t, endpoint)
+	if !strings.Contains(body, `mindclade_control_admission_decisions_total{operation="admit",result="unavailable"} 1`) ||
+		!strings.Contains(body, `mindclade_control_admission_decisions_total{operation="admit",result="allow"} 0`) {
+		t.Fatalf("terminal response failure was misclassified:\n%s", body)
+	}
+}
+
+func TestAdmissionMetricsResponseWriteFailureSupersedesSemanticFailure(t *testing.T) {
+	metrics, endpoint := newRunningAdmissionMetrics(t)
+	fixture := newAdmissionHTTPFixture(t)
+	semantic := faults.New(faults.CodeConflict, "engine conflict")
+	mux, err := newAdmissionMux(&terminalAdmissionEngine{err: semantic}, metrics)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixture.handler = transport.Preconditions()(mux)
+	handler := metrics.Middleware(fixture.guardedHandler(t))
+	payload, err := json.Marshal(fixture.request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, reservationsPath, bytes.NewReader(payload))
+	request.Header = http.Header{
+		"Content-Type":             {"application/json"},
+		"Authorization":            {"Bearer owner-token"},
+		httpx.HeaderIdempotencyKey: {"metrics-response-failure-0002"},
+	}
+	handler.ServeHTTP(&failingAdmissionWriter{header: make(http.Header)}, request)
+	body := readAdmissionMetrics(t, endpoint)
+	if !strings.Contains(body, `mindclade_control_admission_decisions_total{operation="admit",result="unavailable"} 1`) ||
+		!strings.Contains(body, `mindclade_control_admission_decisions_total{operation="admit",result="conflict"} 0`) {
+		t.Fatalf("response failure did not supersede semantic conflict:\n%s", body)
+	}
+}
+
+type terminalAdmissionEngine struct {
+	err error
+}
+
+func (engine *terminalAdmissionEngine) Admit(context.Context, admission.AdmitRequest) (admission.Decision, error) {
+	return admission.Decision{}, engine.err
+}
+
+func (engine *terminalAdmissionEngine) Commit(context.Context, identifiers.ID, resourceversion.Version, identifiers.Digest, string, admission.Quota) (admission.Decision, error) {
+	return admission.Decision{}, engine.err
+}
+
+func (engine *terminalAdmissionEngine) Release(context.Context, identifiers.ID, resourceversion.Version, identifiers.Digest, string) (admission.Decision, error) {
+	return admission.Decision{}, engine.err
+}
+
+type delayedAdmissionReader struct {
+	reader io.Reader
+	delay  time.Duration
+	once   sync.Once
+}
+
+func (reader *delayedAdmissionReader) Read(value []byte) (int, error) {
+	reader.once.Do(func() { time.Sleep(reader.delay) })
+	return reader.reader.Read(value)
+}
+
+type delayedAdmissionWriter struct {
+	*httptest.ResponseRecorder
+	delay time.Duration
+	once  sync.Once
+}
+
+func (writer *delayedAdmissionWriter) Write(value []byte) (int, error) {
+	writer.once.Do(func() { time.Sleep(writer.delay) })
+	return writer.ResponseRecorder.Write(value)
+}
+
+type failingAdmissionWriter struct {
+	header http.Header
+	status int
+}
+
+func (writer *failingAdmissionWriter) Header() http.Header { return writer.header }
+func (writer *failingAdmissionWriter) WriteHeader(status int) {
+	if writer.status == 0 {
+		writer.status = status
+	}
+}
+func (*failingAdmissionWriter) Write([]byte) (int, error) {
+	return 0, errors.New("terminal response write failed")
+}
+
+func newRunningAdmissionMetrics(t *testing.T) (*admissionmetrics.Runtime, string) {
+	t.Helper()
+	runtime, err := admissionmetrics.New("127.0.0.1:0", time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	component := runtime.Component()
+	if err := component.Start(context.Background()); err != nil {
+		_ = runtime.Close()
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- component.Run(context.Background()) }()
+	deadline := time.Now().Add(time.Second)
+	for component.Readiness(context.Background()) != nil {
+		if time.Now().After(deadline) {
+			_ = runtime.Close()
+			t.Fatal("admission metrics listener did not become ready")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		if err := component.Stop(ctx); err != nil {
+			t.Errorf("stop admission metrics: %v", err)
+		}
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Errorf("run admission metrics: %v", err)
+			}
+		case <-time.After(time.Second):
+			t.Error("admission metrics listener did not stop")
+		}
+		if err := runtime.Close(); err != nil {
+			t.Errorf("close admission metrics: %v", err)
+		}
+	})
+	return runtime, "http://" + runtime.Address().String() + "/metrics"
+}
+
+func readAdmissionMetrics(t *testing.T, endpoint string) string {
+	t.Helper()
+	client := &http.Client{Transport: &http.Transport{Proxy: nil}, Timeout: time.Second}
+	response, err := client.Get(endpoint)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("metrics status=%d body=%s", response.StatusCode, body)
+	}
+	return string(body)
+}
+
+func admissionDecisionTotal(t *testing.T, body, operation string) float64 {
+	t.Helper()
+	pattern := regexp.MustCompile(`(?m)^mindclade_control_admission_decisions_total\{operation="` + regexp.QuoteMeta(operation) + `",result="[a-z_]+"\} ([0-9.eE+-]+)$`)
+	var total float64
+	for _, match := range pattern.FindAllStringSubmatch(body, -1) {
+		value, err := strconv.ParseFloat(match[1], 64)
+		if err != nil {
+			t.Fatal(err)
+		}
+		total += value
+	}
+	return total
+}
+
+func admissionMetricValue(t *testing.T, body, metricPattern string) float64 {
+	t.Helper()
+	match := regexp.MustCompile(metricPattern + ` ([0-9.eE+-]+)`).FindStringSubmatch(body)
+	if len(match) != 2 {
+		t.Fatalf("metric %s missing:\n%s", metricPattern, body)
+	}
+	value, err := strconv.ParseFloat(match[1], 64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return value
 }

@@ -31,11 +31,10 @@ const (
 	metricsMaxRequestsInFlight = 2
 )
 
-// Runtime keeps the instrumented engine, private registry, pre-bound scrape
+// Runtime keeps the boundary observer, private registry, pre-bound scrape
 // listener, and lifecycle component in one construction result. The registry
 // is deliberately not exported or installed as Prometheus's global default.
 type Runtime struct {
-	delegate  Engine
 	metrics   collectors
 	handler   http.Handler
 	listener  net.Listener
@@ -43,15 +42,15 @@ type Runtime struct {
 	component servicekit.Component
 }
 
-// New instruments delegate and pre-binds the dedicated metrics address. A
-// listener conflict is a startup failure, never a reason to silently omit
-// telemetry or expose metrics on the authenticated API listener.
-func New(address string, shutdownTimeout time.Duration, delegate Engine) (*Runtime, error) {
+// New constructs the boundary observer and pre-binds the dedicated metrics
+// address. A listener conflict is a startup failure, never a reason to silently
+// omit telemetry or expose metrics on the authenticated API listener.
+func New(address string, shutdownTimeout time.Duration) (*Runtime, error) {
 	address = strings.TrimSpace(address)
-	if address == "" || nilEngine(delegate) {
+	if address == "" {
 		return nil, faults.New(
 			faults.CodeInvalidArgument,
-			"admission metrics require an address and engine",
+			"admission metrics require an address",
 			faults.WithReason("admission_metrics_configuration_invalid"),
 			faults.WithOperation("controlplane.admissionmetrics.New"),
 			faults.WithRetryPolicy(faults.NoRetry()),
@@ -97,7 +96,6 @@ func New(address string, shutdownTimeout time.Duration, delegate Engine) (*Runti
 	}
 
 	runtime := &Runtime{
-		delegate: delegate,
 		metrics:  metrics,
 		handler:  handler,
 		listener: listener,

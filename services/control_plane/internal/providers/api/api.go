@@ -152,15 +152,14 @@ func (factory *APIFactory) Create(ctx context.Context, profile bootstrap.Profile
 	})
 	var metrics *admissionmetrics.Runtime
 	if profile.Role == bootstrap.RoleAPI {
-		metrics, err = admissionmetrics.New(settings.MetricsAddress, settings.DrainTimeout, engine)
+		metrics, err = admissionmetrics.New(settings.MetricsAddress, settings.DrainTimeout)
 		if err != nil {
 			return bootstrap.Runtime{}, err
 		}
 		release = append(release, func() { _ = metrics.Close() })
-		engine = metrics
 	}
 
-	inbound, err := newServing(settings, shared.Observability, authenticator, engine)
+	inbound, err := newServing(settings, shared.Observability, authenticator, engine, metrics)
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}

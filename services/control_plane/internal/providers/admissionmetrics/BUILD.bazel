@@ -15,11 +15,8 @@ go_library(
     ],
     importpath = "go.mindclade.dev/services/control_plane/internal/providers/admissionmetrics",
     deps = [
-        "//control/admission",
         "//libs/go/faults",
         "//libs/go/httpx",
-        "//libs/go/identifiers",
-        "//libs/go/resourceversion",
         "//libs/go/servicekit",
         "@com_github_prometheus_client_golang//prometheus",
         "@com_github_prometheus_client_golang//prometheus/promhttp",
@@ -31,9 +28,6 @@ go_test(
     srcs = ["metrics_test.go"],
     embed = [":admissionmetrics"],
     deps = [
-        "//control/admission",
         "//libs/go/faults",
-        "//libs/go/identifiers",
-        "//libs/go/resourceversion",
     ],
 )

@@ -20,6 +20,7 @@ import (
 	"go.mindclade.dev/libs/go/identifiers"
 	"go.mindclade.dev/libs/go/requestmeta"
 	"go.mindclade.dev/libs/go/resourceversion"
+	"go.mindclade.dev/services/control_plane/internal/providers/admissionmetrics"
 	"go.mindclade.dev/services/control_plane/internal/transport"
 )
 
@@ -75,7 +76,7 @@ type decisionHTTPResponse struct {
 	Replayed    bool                    `json:"replayed"`
 }
 
-func newAdmissionMux(engine admissionEngine) (http.Handler, error) {
+func newAdmissionMux(engine admissionEngine, metrics admissionmetrics.Recorder) (http.Handler, error) {
 	if engine == nil {
 		return nil, admissionHTTPError(faults.CodeFailedPrecondition, "admission_engine_unconfigured", "admission engine is not configured")
 	}
@@ -97,13 +98,16 @@ func newAdmissionMux(engine admissionEngine) (http.Handler, error) {
 			httpx.WriteError(request.Context(), writer, err, request.URL.Path)
 			return
 		}
+		qualifyAdmission(metrics, request.Context(), admissionmetrics.OperationAdmit)
 		if input.TTLSeconds == 0 || input.TTLSeconds > uint32((24*time.Hour)/time.Second) {
-			httpx.WriteError(request.Context(), writer,
-				admissionHTTPError(faults.CodeInvalidArgument, "reservation_ttl_invalid", "reservation TTL is outside bounds"), request.URL.Path)
+			err := admissionHTTPError(faults.CodeInvalidArgument, "reservation_ttl_invalid", "reservation TTL is outside bounds")
+			completeAdmission(metrics, request.Context(), err)
+			httpx.WriteError(request.Context(), writer, err, request.URL.Path)
 			return
 		}
 		scope, err := idempotency.ParseScope(input.Workspace + "/mlflow-gateway/" + principal.Subject())
 		if err != nil {
+			completeAdmission(metrics, request.Context(), err)
 			httpx.WriteError(request.Context(), writer, err, request.URL.Path)
 			return
 		}
@@ -114,6 +118,7 @@ func newAdmissionMux(engine admissionEngine) (http.Handler, error) {
 			TTL: time.Duration(input.TTLSeconds) * time.Second,
 		})
 		if err != nil {
+			completeAdmission(metrics, request.Context(), err)
 			httpx.WriteError(request.Context(), writer, err, request.URL.Path)
 			return
 		}
@@ -124,8 +129,10 @@ func newAdmissionMux(engine admissionEngine) (http.Handler, error) {
 		if decision.Replayed {
 			status = http.StatusOK
 		}
-		if err := httpx.WriteJSON(writer, status, projectDecision(decision)); err != nil {
-			httpx.WriteError(request.Context(), writer, err, request.URL.Path)
+		writeErr := httpx.WriteJSON(writer, status, projectDecision(decision))
+		completeAdmission(metrics, request.Context(), writeErr)
+		if writeErr != nil {
+			httpx.WriteError(request.Context(), writer, writeErr, request.URL.Path)
 		}
 	})
 	mux.HandleFunc("POST "+reservationPrefix+"{reservationID}/commit", func(writer http.ResponseWriter, request *http.Request) {
@@ -140,8 +147,9 @@ func newAdmissionMux(engine admissionEngine) (http.Handler, error) {
 			httpx.WriteError(request.Context(), writer, err, request.URL.Path)
 			return
 		}
+		qualifyAdmission(metrics, request.Context(), admissionmetrics.OperationCommit)
 		decision, err := engine.Commit(request.Context(), reservationID, expected, input.RequestDigest, principal.Subject(), input.Actual)
-		writeFinalization(writer, request, decision, err)
+		writeFinalization(writer, request, decision, err, metrics)
 	})
 	mux.HandleFunc("POST "+reservationPrefix+"{reservationID}/release", func(writer http.ResponseWriter, request *http.Request) {
 		request = withAdmissionOperation(request, "ai_gateway.reservations.release")
@@ -155,13 +163,15 @@ func newAdmissionMux(engine admissionEngine) (http.Handler, error) {
 			httpx.WriteError(request.Context(), writer, err, request.URL.Path)
 			return
 		}
+		qualifyAdmission(metrics, request.Context(), admissionmetrics.OperationRelease)
 		if len(input.Actual) != 0 {
-			httpx.WriteError(request.Context(), writer,
-				admissionHTTPError(faults.CodeInvalidArgument, "release_actual_unexpected", "release must not contain actual usage"), request.URL.Path)
+			err := admissionHTTPError(faults.CodeInvalidArgument, "release_actual_unexpected", "release must not contain actual usage")
+			completeAdmission(metrics, request.Context(), err)
+			httpx.WriteError(request.Context(), writer, err, request.URL.Path)
 			return
 		}
 		decision, err := engine.Release(request.Context(), reservationID, expected, input.RequestDigest, principal.Subject())
-		writeFinalization(writer, request, decision, err)
+		writeFinalization(writer, request, decision, err, metrics)
 	})
 	return mux, nil
 }
@@ -188,15 +198,30 @@ func decodeFinalizationRequest(request *http.Request) (identifiers.ID, resourcev
 	return id, precondition.Match, input, nil
 }
 
-func writeFinalization(writer http.ResponseWriter, request *http.Request, decision admission.Decision, err error) {
+func writeFinalization(writer http.ResponseWriter, request *http.Request, decision admission.Decision, err error, metrics admissionmetrics.Recorder) {
 	if err != nil {
+		completeAdmission(metrics, request.Context(), err)
 		httpx.WriteError(request.Context(), writer, err, request.URL.Path)
 		return
 	}
 	writer.Header().Set("Cache-Control", "no-store")
 	writer.Header().Set("ETag", decision.Reservation.Version.ETag())
-	if writeErr := httpx.WriteJSON(writer, http.StatusOK, projectDecision(decision)); writeErr != nil {
+	writeErr := httpx.WriteJSON(writer, http.StatusOK, projectDecision(decision))
+	completeAdmission(metrics, request.Context(), writeErr)
+	if writeErr != nil {
 		httpx.WriteError(request.Context(), writer, writeErr, request.URL.Path)
+	}
+}
+
+func qualifyAdmission(metrics admissionmetrics.Recorder, ctx context.Context, operation admissionmetrics.Operation) {
+	if metrics != nil {
+		metrics.Qualify(ctx, operation)
+	}
+}
+
+func completeAdmission(metrics admissionmetrics.Recorder, ctx context.Context, err error) {
+	if metrics != nil {
+		metrics.Complete(ctx, err)
 	}
 }
 

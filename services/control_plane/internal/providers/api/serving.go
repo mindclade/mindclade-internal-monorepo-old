@@ -38,6 +38,7 @@ import (
 	"go.mindclade.dev/libs/go/servicekit/production"
 	"go.mindclade.dev/services/control_plane/internal/bootstrap"
 	"go.mindclade.dev/services/control_plane/internal/config"
+	"go.mindclade.dev/services/control_plane/internal/providers/admissionmetrics"
 	"go.mindclade.dev/services/control_plane/internal/transport"
 )
 
@@ -58,7 +59,7 @@ type serving struct {
 	bind       func(*production.Runtime) error
 }
 
-func newServing(settings config.Settings, telemetry *observability.Runtime, authenticator auth.Authenticator, admissions admissionEngine) (result serving, err error) {
+func newServing(settings config.Settings, telemetry *observability.Runtime, authenticator auth.Authenticator, admissions admissionEngine, metrics *admissionmetrics.Runtime) (result serving, err error) {
 	value := &transport.Prober{}
 
 	closers := make([]func(), 0, 2)
@@ -77,7 +78,7 @@ func newServing(settings config.Settings, telemetry *observability.Runtime, auth
 	}
 	closers = append(closers, func() { _ = httpListener.Close() })
 
-	handler, connectMounted, err := newHandler(value, telemetry, authenticator, admissions)
+	handler, connectMounted, err := newHandler(value, telemetry, authenticator, admissions, metrics)
 	if err != nil {
 		return serving{}, err
 	}
@@ -123,6 +124,7 @@ func newHandler(
 	telemetry *observability.Runtime,
 	authenticator auth.Authenticator,
 	admissions admissionEngine,
+	metrics *admissionmetrics.Runtime,
 ) (http.Handler, bool, error) {
 	root := http.NewServeMux()
 	root.Handle("/livez", health.NewHandler(value, health.Config{}))
@@ -152,7 +154,7 @@ func newHandler(
 		return nil, false, err
 	}
 
-	api, err := newAdmissionMux(admissions)
+	api, err := newAdmissionMux(admissions, metrics)
 	if err != nil {
 		return nil, false, err
 	}
@@ -170,6 +172,7 @@ func newHandler(
 		},
 		Additional: []middleware.Middleware{transport.Preconditions()},
 	})
+	guarded = metrics.Middleware(guarded)
 	root.Handle("/", guarded)
 
 	// Deliberately not wrapped in httpx/otel. The Connect handlers above are
