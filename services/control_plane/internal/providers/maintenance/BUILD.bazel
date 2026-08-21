@@ -51,6 +51,7 @@ go_test(
         "//libs/go/coordination/outbox/memory",
         "//libs/go/coordination/workqueue",
         "//libs/go/coordination/workqueue/memory",
+        "//libs/go/coordination/workqueue/postgres",
         "//libs/go/faults",
         "//libs/go/identifiers",
         "//libs/go/retry",

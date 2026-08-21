@@ -132,6 +132,7 @@ jobs:
           MINDCLADE_TEST_POSTGRES_DSN: postgres://postgres:postgres@127.0.0.1:5432/mindclade_test?sslmode=disable
         run: >-
           go test -race -count=1 -v
+          ./services/control_plane/internal/providers/maintenance
           ./services/control_plane/internal/store/postgres
           ./services/control_plane/internal/store/postgres/admission
 

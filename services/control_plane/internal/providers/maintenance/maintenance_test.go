@@ -7,9 +7,14 @@ package maintenance
 
 import (
 	"context"
+	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"os"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -22,6 +27,7 @@ import (
 	outboxmemory "go.mindclade.dev/libs/go/coordination/outbox/memory"
 	"go.mindclade.dev/libs/go/coordination/workqueue"
 	workqueuememory "go.mindclade.dev/libs/go/coordination/workqueue/memory"
+	workqueuepostgres "go.mindclade.dev/libs/go/coordination/workqueue/postgres"
 	"go.mindclade.dev/libs/go/faults"
 	"go.mindclade.dev/libs/go/identifiers"
 	"go.mindclade.dev/libs/go/retry"
@@ -30,6 +36,10 @@ import (
 	"go.mindclade.dev/services/control_plane/internal/bootstrap"
 	admissionstore "go.mindclade.dev/services/control_plane/internal/store/postgres/admission"
 )
+
+const liveMaintenancePostgresEnvironment = "MINDCLADE_TEST_POSTGRES_DSN"
+
+var liveMaintenanceSchemaSequence atomic.Uint64
 
 func maintenanceSettings() foundationconfig.MapSource {
 	return foundationconfig.MapSource{SourceName: "test", Values: map[string]string{
@@ -356,6 +366,69 @@ func TestRecurringScheduleAcceptsCanonicalizedJSONBReplay(t *testing.T) {
 	}
 	if err := scheduler.enqueue(context.Background(), now); err != nil {
 		t.Fatalf("canonical JSONB replay was rejected: %v", err)
+	}
+}
+
+func TestLivePostgresRecurringScheduleAcceptsJSONBRoundTripReplay(t *testing.T) {
+	dsn := strings.TrimSpace(os.Getenv(liveMaintenancePostgresEnvironment))
+	if dsn == "" {
+		t.Skipf("%s is not set; live PostgreSQL qualification is opt-in", liveMaintenancePostgresEnvironment)
+	}
+	database, err := sql.Open("postgres", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	database.SetMaxOpenConns(4)
+	database.SetMaxIdleConns(2)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := database.PingContext(ctx); err != nil {
+		_ = database.Close()
+		t.Fatalf("connect to live PostgreSQL: %v", err)
+	}
+	schema := fmt.Sprintf("mc_maintenance_qual_%d_%d", os.Getpid(), liveMaintenanceSchemaSequence.Add(1))
+	if _, err := database.ExecContext(ctx, "CREATE SCHEMA "+schema); err != nil {
+		_ = database.Close()
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		cleanup, openErr := sql.Open("postgres", dsn)
+		if openErr == nil {
+			cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 10*time.Second)
+			_, _ = cleanup.ExecContext(cleanupCtx, "DROP SCHEMA IF EXISTS "+schema+" CASCADE")
+			cleanupCancel()
+			_ = cleanup.Close()
+		}
+		_ = database.Close()
+	})
+	table := schema + ".work_items"
+	ddl, err := workqueuepostgres.DDL(table)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.ExecContext(ctx, ddl); err != nil {
+		t.Fatalf("apply workqueue DDL: %v", err)
+	}
+	store, err := workqueuepostgres.New(database, table)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, time.August, 21, 12, 0, 2, 0, time.UTC)
+	scheduler := newTestHousekeepingScheduler(t, store, clock.NewFake(now))
+	if err := scheduler.enqueue(context.Background(), now); err != nil {
+		t.Fatalf("initial schedule: %v", err)
+	}
+	// The second call takes the duplicate-ID Lookup path after PostgreSQL has
+	// normalized the JSONB payload. It must remain a semantic replay.
+	if err := scheduler.enqueue(context.Background(), now.Add(time.Second)); err != nil {
+		t.Fatalf("same-bucket JSONB replay: %v", err)
+	}
+	var count int
+	if err := database.QueryRowContext(ctx, "SELECT count(*) FROM "+table).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("scheduled rows = %d, want 1", count)
 	}
 }
 
