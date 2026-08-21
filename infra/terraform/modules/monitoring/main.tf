@@ -42,6 +42,31 @@ locals {
     }
   }
 
+  signal_window_seconds = {
+    for signal_id, signal in var.signal_alerts : signal_id => {
+      duration = try(
+        tonumber(substr(signal.duration, 0, length(signal.duration) - 1)) *
+        lookup({ s = 1, m = 60, h = 3600 }, substr(signal.duration, -1, 1), 0),
+        0,
+      )
+      alignment = try(
+        tonumber(substr(signal.alignment_period, 0, length(signal.alignment_period) - 1)) *
+        lookup({ s = 1, m = 60, h = 3600 }, substr(signal.alignment_period, -1, 1), 0),
+        0,
+      )
+      minimum_samples_duration = try(
+        tonumber(substr(signal.minimum_samples.duration, 0, length(signal.minimum_samples.duration) - 1)) *
+        lookup({ s = 1, m = 60, h = 3600 }, substr(signal.minimum_samples.duration, -1, 1), 0),
+        0,
+      )
+      minimum_samples_alignment = try(
+        tonumber(substr(signal.minimum_samples.alignment_period, 0, length(signal.minimum_samples.alignment_period) - 1)) *
+        lookup({ s = 1, m = 60, h = 3600 }, substr(signal.minimum_samples.alignment_period, -1, 1), 0),
+        0,
+      )
+    }
+  }
+
   slo_dashboard_tiles = flatten([
     for index, slo_id in sort(keys(var.slos)) : [
       {
@@ -146,6 +171,49 @@ locals {
     ]
   ])
 
+  signal_dashboard_tiles = [
+    for index, signal_id in sort(keys(var.signal_alerts)) : {
+      xPos   = 0
+      yPos   = 4 + (length(var.slos) * 12) + (index * 8)
+      width  = 48
+      height = 8
+      widget = {
+        title = var.signal_alerts[signal_id].display_name
+        xyChart = {
+          chartOptions = {
+            mode = "COLOR"
+          }
+          dataSets = [
+            {
+              legendTemplate = var.signal_alerts[signal_id].display_name
+              plotType       = "LINE"
+              targetAxis     = "Y1"
+              timeSeriesQuery = {
+                timeSeriesFilter = {
+                  aggregation = {
+                    alignmentPeriod    = var.signal_alerts[signal_id].alignment_period
+                    perSeriesAligner   = var.signal_alerts[signal_id].per_series_aligner
+                    crossSeriesReducer = var.signal_alerts[signal_id].cross_series_reducer
+                    groupByFields      = sort(tolist(var.signal_alerts[signal_id].group_by_fields))
+                  }
+                  filter = var.signal_alerts[signal_id].filter
+                }
+              }
+            }
+          ]
+          thresholds = [
+            {
+              color     = "RED"
+              direction = var.signal_alerts[signal_id].comparison == "COMPARISON_GT" ? "ABOVE" : "BELOW"
+              label     = "alert threshold"
+              value     = var.signal_alerts[signal_id].threshold_value
+            }
+          ]
+        }
+      }
+    }
+  ]
+
   dashboard_json = jsonencode({
     displayName = "${var.service_display_name} service health (${var.environment})"
     labels      = local.resource_labels
@@ -172,6 +240,7 @@ locals {
           }
         ],
         local.slo_dashboard_tiles,
+        local.signal_dashboard_tiles,
       )
     }
   })
@@ -367,6 +436,118 @@ resource "google_monitoring_alert_policy" "slow_burn" {
   }
 
   depends_on = [google_monitoring_slo.this]
+}
+
+resource "google_monitoring_alert_policy" "signal" {
+  for_each = var.signal_alerts
+
+  project               = var.project_id
+  display_name          = "${var.service_display_name}: ${each.value.display_name}"
+  combiner              = each.value.minimum_samples == null ? "OR" : "AND"
+  enabled               = true
+  severity              = each.value.severity
+  notification_channels = sort(tolist(var.notification_channels))
+  user_labels           = merge(local.resource_labels, { signal = each.key })
+  deletion_policy       = "PREVENT"
+
+  conditions {
+    display_name = "Signal crosses ${each.value.comparison == "COMPARISON_GT" ? "upper" : "lower"} threshold"
+
+    condition_threshold {
+      filter                  = each.value.filter
+      comparison              = each.value.comparison
+      duration                = each.value.duration
+      threshold_value         = each.value.threshold_value
+      evaluation_missing_data = each.value.evaluation_missing_data
+
+      aggregations {
+        alignment_period     = each.value.alignment_period
+        per_series_aligner   = each.value.per_series_aligner
+        cross_series_reducer = each.value.cross_series_reducer
+        group_by_fields      = sort(tolist(each.value.group_by_fields))
+      }
+
+      trigger {
+        count = each.value.trigger_count
+      }
+    }
+  }
+
+  dynamic "conditions" {
+    for_each = each.value.minimum_samples == null ? [] : [each.value.minimum_samples]
+
+    content {
+      display_name = "Minimum sample guard"
+
+      condition_threshold {
+        filter                  = conditions.value.filter
+        comparison              = "COMPARISON_GT"
+        duration                = conditions.value.duration
+        threshold_value         = conditions.value.threshold_value
+        evaluation_missing_data = "EVALUATION_MISSING_DATA_INACTIVE"
+
+        aggregations {
+          alignment_period     = conditions.value.alignment_period
+          per_series_aligner   = conditions.value.per_series_aligner
+          cross_series_reducer = conditions.value.cross_series_reducer
+          group_by_fields      = sort(tolist(conditions.value.group_by_fields))
+        }
+
+        trigger {
+          count = 1
+        }
+      }
+    }
+  }
+
+  alert_strategy {
+    auto_close           = "${var.alert_auto_close_seconds}s"
+    notification_prompts = ["OPENED", "CLOSED"]
+  }
+
+  documentation {
+    content = join("\n", [
+      "# ${each.value.display_name}",
+      "The governed `${each.key}` signal crossed its reviewed threshold. Validate telemetry freshness before mitigation, then inspect recent changes and dependency health.",
+      "Runbook: ${var.runbook_url}",
+    ])
+    mime_type = "text/markdown"
+    subject   = "[${upper(var.environment)}] ${var.service_display_name}: ${each.value.display_name}"
+
+    links {
+      display_name = "Responder runbook"
+      url          = var.runbook_url
+    }
+  }
+
+  lifecycle {
+    prevent_destroy = true
+
+    precondition {
+      condition = (
+        local.signal_window_seconds[each.key].duration >= 60 &&
+        local.signal_window_seconds[each.key].duration <= 86400 &&
+        local.signal_window_seconds[each.key].duration % 60 == 0 &&
+        local.signal_window_seconds[each.key].alignment >= 60 &&
+        local.signal_window_seconds[each.key].alignment <= 86400 &&
+        local.signal_window_seconds[each.key].alignment % 60 == 0
+      )
+      error_message = "Signal duration and alignment must be whole-minute windows from 60 seconds through 24 hours so missing-data evaluation remains API-valid."
+    }
+
+    precondition {
+      condition = each.value.minimum_samples == null || (
+        local.signal_window_seconds[each.key].minimum_samples_duration >= 60 &&
+        local.signal_window_seconds[each.key].minimum_samples_duration <= 86400 &&
+        local.signal_window_seconds[each.key].minimum_samples_duration % 60 == 0 &&
+        local.signal_window_seconds[each.key].minimum_samples_alignment >= 60 &&
+        local.signal_window_seconds[each.key].minimum_samples_alignment <= 86400 &&
+        local.signal_window_seconds[each.key].minimum_samples_alignment % 60 == 0 &&
+        each.value.minimum_samples.filter != each.value.filter
+      )
+      error_message = "A minimum-sample guard must use distinct telemetry and whole-minute duration/alignment windows from 60 seconds through 24 hours."
+    }
+  }
 }
 
 resource "google_monitoring_dashboard" "this" {

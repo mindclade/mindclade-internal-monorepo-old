@@ -4039,6 +4039,20 @@
             "sha256:d3cd09201f21fb5bbcfa05d3fc3c4416350c796912240d2117a80863ad7ea02f"
           ]
         },
+        "signal_alerts": {
+          "default": {},
+          "ephemeral": false,
+          "nullable": false,
+          "required": false,
+          "sensitive": false,
+          "type": "map(object({ display_name = string filter = string comparison = string threshold_value = number duration = optional(string, \"60s\") severity = optional(string, \"WARNING\") alignment_period = optional(string, \"60s\") per_series_aligner = optional(string, \"ALIGN_MAX\") cross_series_reducer = optional(string, \"REDUCE_MAX\") group_by_fields = optional(set(string), []) evaluation_missing_data = optional(string, \"EVALUATION_MISSING_DATA_ACTIVE\") trigger_count = optional(number, 1) minimum_samples = optional(object({ filter = string threshold_value = number duration = optional(string, \"60s\") alignment_period = optional(string, \"60s\") per_series_aligner = optional(string, \"ALIGN_MAX\") cross_series_reducer = optional(string, \"REDUCE_SUM\") group_by_fields = optional(set(string), []) }), null) }))",
+          "validation_fingerprints": [
+            "sha256:108869e8cb4d90c1d5b67258d5af4d41ff250981739e824a77419969b4532794",
+            "sha256:3e0b0d97a82d2fd2240062b4faddca6dbad97248bc50d0ba6306654dbf5e0427",
+            "sha256:6fef2a203126b507bba3097761c3cddb5e9226870db3eb7b57a84a4e25cbe46d",
+            "sha256:abb52373446bc73426d32aeedfe96130172f4dd1368a6e3f2f0acc1601471c39"
+          ]
+        },
         "slos": {
           "default": null,
           "ephemeral": false,
@@ -4056,6 +4070,7 @@
       },
       "managed_resource_addresses": [
         "google_monitoring_alert_policy.fast_burn",
+        "google_monitoring_alert_policy.signal",
         "google_monitoring_alert_policy.slow_burn",
         "google_monitoring_custom_service.this",
         "google_monitoring_dashboard.this",
@@ -4088,6 +4103,11 @@
           "ephemeral": false,
           "sensitive": false,
           "value_fingerprint": "sha256:2815fb2dd03de59ed96c47029d551753eaca9092b58fc2e03feab969bc6f239b"
+        },
+        "signal_alert_policy_names": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:bf41ae809a3684f33abbe53b0aa9177e8409ded0376de5c8bea3ff4508f850ad"
         },
         "slo_contracts": {
           "ephemeral": false,
