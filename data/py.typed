@@ -1,1 +1,1 @@
-# Scaffold file: data/py.typed
+# PEP 561 marker: the data package publishes inline type information.

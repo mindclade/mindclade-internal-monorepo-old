@@ -40,10 +40,7 @@ class Sample:
             not isinstance(self.provenance_digest, str)
             or len(self.provenance_digest) != 71
             or not self.provenance_digest.startswith("sha256:")
-            or any(
-                character not in "0123456789abcdef"
-                for character in self.provenance_digest[7:]
-            )
+            or any(character not in "0123456789abcdef" for character in self.provenance_digest[7:])
         ):
             raise ValueError("sample provenance digest is invalid")
         if not isinstance(self.features, Mapping) or not 1 <= len(self.features) <= MAX_FIELDS:

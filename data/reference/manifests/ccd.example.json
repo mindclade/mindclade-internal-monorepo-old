@@ -1,1 +1,36 @@
-{}
+{
+  "build_provenance_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+  "compatible_search_tools": ["ccd-reader-1"],
+  "generated_at": "2026-01-01T00:00:00+00:00",
+  "indexes": [
+    {
+      "artifacts": [
+        {
+          "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+          "logical_kind": "reference-index",
+          "media_type": "application/octet-stream",
+          "schema_version": "v1",
+          "size_bytes": 1
+        }
+      ],
+      "format_version": "1",
+      "kind": "chemical-components",
+      "parameters_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "tool": "ccd-builder",
+      "tool_version": "1.0.0"
+    }
+  ],
+  "reference_id": "ccd",
+  "schema_version": 1,
+  "sources": [
+    {
+      "cutoff": "2026-01-01T00:00:00+00:00",
+      "license_ref": "EXAMPLE-NOT-FOR-RELEASE",
+      "name": "ccd",
+      "release": "example-0",
+      "snapshot_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "uri": "https://example.invalid/reference/ccd/components.cif.gz"
+    }
+  ],
+  "version": "0.0.0"
+}

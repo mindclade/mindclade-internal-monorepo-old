@@ -36,6 +36,7 @@ CATALOG_NAME_RE = re.compile(r"^[a-z][a-z0-9-]{1,62}$")
 BAZEL_TARGET_RE = re.compile(r"^//[A-Za-z0-9_./+-]+(?::[A-Za-z0-9_./+-]+)?(?:/\.\.\.)?$")
 RELEASE_KINDS = {"application", "bundle", "dataset", "model", "pipeline", "platform"}
 ROLLOUT_CLASSES = {"model-bundle", "offline-pipeline", "platform", "stateful", "stateless"}
+ROLLBACK_STRATEGIES = {"bootstrap", "previous-release"}
 KEY_VERSION_RE = re.compile(
     r"^projects/[a-z][a-z0-9-]{4,28}[a-z0-9]/locations/[a-z0-9-]+/"
     r"keyRings/[A-Za-z0-9_-]+/cryptoKeys/[A-Za-z0-9_-]+/cryptoKeyVersions/[1-9][0-9]*$"
@@ -167,7 +168,7 @@ def validate_request(raw_path: str, source_sha: str) -> dict[str, Any]:
     path = _resolve_request(raw_path)
     request = _load_yaml(path)
     _exact_keys(request, {"apiVersion", "kind", "metadata", "spec"}, "request")
-    if request["apiVersion"] != "release.mindclade.dev/v1beta1":
+    if request["apiVersion"] != "release.mindclade.dev/v1beta2":
         raise ContractError("unsupported release request apiVersion")
     if request["kind"] != "ReleaseRequest":
         raise ContractError("kind must be ReleaseRequest")
@@ -184,27 +185,41 @@ def validate_request(raw_path: str, source_sha: str) -> dict[str, Any]:
         raise ContractError("metadata.changeTicket must be an immutable ticket identifier")
 
     spec = _mapping(request["spec"], "spec")
-    _exact_keys(spec, {"target", "previousRelease"}, "spec")
+    _exact_keys(spec, {"target", "rollback"}, "spec")
     catalog = load_catalog()
     target_name = spec["target"]
     if not isinstance(target_name, str) or target_name not in catalog:
         raise ContractError(f"target is not in the closed catalog: {target_name!r}")
-    previous = _mapping(spec["previousRelease"], "spec.previousRelease")
-    _exact_keys(previous, {"id", "subjectDigest"}, "spec.previousRelease")
-    previous_release_id = previous["id"]
-    if not isinstance(previous_release_id, str) or not RELEASE_RE.fullmatch(previous_release_id):
-        raise ContractError("previousRelease.id must be a full vX.Y.Z release identifier")
-    if _semver_tuple(previous_release_id) >= _semver_tuple(release_id):
-        raise ContractError("previousRelease.id must be older than the requested release")
-    previous_subject_digest = previous["subjectDigest"]
-    if not isinstance(previous_subject_digest, str) or not DIGEST_RE.fullmatch(
-        previous_subject_digest
-    ):
-        raise ContractError(
-            "previousRelease.subjectDigest must be a canonical lowercase sha256 digest"
-        )
-    if previous_subject_digest == "sha256:" + "0" * 64:
-        raise ContractError("previousRelease.subjectDigest cannot be the zero digest")
+    rollback = _mapping(spec["rollback"], "spec.rollback")
+    strategy = rollback.get("strategy")
+    if strategy not in ROLLBACK_STRATEGIES:
+        raise ContractError("rollback.strategy must be bootstrap or previous-release")
+    previous_release_id: str | None = None
+    previous_subject_digest: str | None = None
+    if strategy == "bootstrap":
+        _exact_keys(rollback, {"strategy"}, "spec.rollback")
+        if release_id != "v1.0.0":
+            raise ContractError("bootstrap rollback is permitted only for the first v1.0.0 release")
+    else:
+        _exact_keys(rollback, {"strategy", "previousRelease"}, "spec.rollback")
+        previous = _mapping(rollback["previousRelease"], "spec.rollback.previousRelease")
+        _exact_keys(previous, {"id", "subjectDigest"}, "spec.rollback.previousRelease")
+        previous_release_id = previous["id"]
+        if not isinstance(previous_release_id, str) or not RELEASE_RE.fullmatch(
+            previous_release_id
+        ):
+            raise ContractError("previousRelease.id must be a full vX.Y.Z release identifier")
+        if _semver_tuple(previous_release_id) >= _semver_tuple(release_id):
+            raise ContractError("previousRelease.id must be older than the requested release")
+        previous_subject_digest = previous["subjectDigest"]
+        if not isinstance(previous_subject_digest, str) or not DIGEST_RE.fullmatch(
+            previous_subject_digest
+        ):
+            raise ContractError(
+                "previousRelease.subjectDigest must be a canonical lowercase sha256 digest"
+            )
+        if previous_subject_digest == "sha256:" + "0" * 64:
+            raise ContractError("previousRelease.subjectDigest cannot be the zero digest")
 
     return {
         "path": path,
@@ -213,6 +228,7 @@ def validate_request(raw_path: str, source_sha: str) -> dict[str, Any]:
         "changeTicket": ticket,
         "sourceSha": source_sha,
         "target": target_name,
+        "rollbackStrategy": strategy,
         "previousReleaseId": previous_release_id,
         "previousSubjectDigest": previous_subject_digest,
         "catalog": catalog[target_name],
@@ -282,6 +298,7 @@ def build(request_path: str, source_sha: str, output: Path) -> None:
     key_version = _require_env("BINAUTHZ_BUILD_ATTESTOR_KEY_VERSION", KEY_VERSION_RE)
     _require_tool("gcloud")
     _require_tool("syft")
+    _require_tool("trivy")
 
     target = contract["catalog"]
     image_target = target["images"]["primary"]
@@ -313,13 +330,43 @@ def build(request_path: str, source_sha: str, output: Path) -> None:
     )
     if not DIGEST_RE.fullmatch(digest):
         raise ContractError("Artifact Registry did not return a canonical image digest")
-    if digest == contract["previousSubjectDigest"]:
+    if contract["previousSubjectDigest"] is not None and digest == contract["previousSubjectDigest"]:
         raise ContractError("candidate digest must differ from the previous release subject")
     image_ref = f"{repository}@{digest}"
 
     sbom_path = output.parent / "sbom.spdx.json"
     provenance_path = output.parent / "provenance.json"
+    vulnerability_path = output.parent / "vulnerability.json"
+    rollback_path = output.parent / "rollback.json"
     _run(["syft", "scan", image_ref, "-o", f"spdx-json={sbom_path}"])
+    _run(
+        [
+            "trivy",
+            "image",
+            "--format",
+            "json",
+            "--output",
+            str(vulnerability_path),
+            "--severity",
+            "HIGH,CRITICAL",
+            "--exit-code",
+            "1",
+            image_ref,
+        ]
+    )
+    rollback_record = {
+        "schemaVersion": 1,
+        "releaseId": contract["releaseId"],
+        "strategy": contract["rollbackStrategy"],
+        "previousReleaseId": contract["previousReleaseId"],
+        "previousSubjectDigest": contract["previousSubjectDigest"],
+        "bootstrapAction": (
+            "remove-development-selection-and-restore-blocked-zero-state"
+            if contract["rollbackStrategy"] == "bootstrap"
+            else None
+        ),
+    }
+    _write_json(rollback_path, rollback_record)
     provenance = {
         "_type": "https://in-toto.io/Statement/v1",
         "predicateType": "https://slsa.dev/provenance/v1",
@@ -333,8 +380,7 @@ def build(request_path: str, source_sha: str, output: Path) -> None:
                     "releaseKind": target["releaseKind"],
                     "application": target["application"],
                     "rolloutClass": target["rolloutClass"],
-                    "previousReleaseId": contract["previousReleaseId"],
-                    "previousSubjectDigest": contract["previousSubjectDigest"],
+                    "rollback": rollback_record,
                 },
                 "resolvedDependencies": [
                     {
@@ -346,7 +392,7 @@ def build(request_path: str, source_sha: str, output: Path) -> None:
             "runDetails": {
                 "builder": {
                     "id": "https://github.com/mindclade/.github/.github/workflows/"
-                    "reusable-arc-oci-build.yml@v4.0.0"
+                    "reusable-arc-oci-build.yml@v5.0.0"
                 },
                 "metadata": {"invocationId": os.environ.get("GITHUB_RUN_ID", "connected-run")},
             },
@@ -374,7 +420,7 @@ def build(request_path: str, source_sha: str, output: Path) -> None:
         ]
     )
     candidate = {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "releaseId": contract["releaseId"],
         "releaseKind": target["releaseKind"],
         "application": target["application"],
@@ -382,8 +428,7 @@ def build(request_path: str, source_sha: str, output: Path) -> None:
         "changeTicket": contract["changeTicket"],
         "sourceSha": source_sha,
         "target": contract["target"],
-        "previousReleaseId": contract["previousReleaseId"],
-        "previousSubjectDigest": contract["previousSubjectDigest"],
+        "rollback": rollback_record,
         "createdAt": _now(),
         "artifact": {"imageRef": image_ref, "digest": digest},
         "evidence": {
@@ -391,6 +436,14 @@ def build(request_path: str, source_sha: str, output: Path) -> None:
             "provenance": {
                 "path": provenance_path.name,
                 "sha256": _sha256(provenance_path),
+            },
+            "vulnerability": {
+                "path": vulnerability_path.name,
+                "sha256": _sha256(vulnerability_path),
+            },
+            "rollback": {
+                "path": rollback_path.name,
+                "sha256": _sha256(rollback_path),
             },
             "buildAttestor": f"projects/{attestor_project}/attestors/{attestor}",
         },
@@ -412,15 +465,14 @@ def validate_candidate(path: Path) -> dict[str, Any]:
             "changeTicket",
             "sourceSha",
             "target",
-            "previousReleaseId",
-            "previousSubjectDigest",
+            "rollback",
             "createdAt",
             "artifact",
             "evidence",
         },
         "candidate",
     )
-    if candidate["schemaVersion"] != 2:
+    if candidate["schemaVersion"] != 3:
         raise ContractError("unsupported candidate schemaVersion")
     if not RELEASE_RE.fullmatch(str(candidate["releaseId"])):
         raise ContractError("candidate releaseId is malformed")
@@ -437,16 +489,42 @@ def validate_candidate(path: Path) -> dict[str, Any]:
         expected = target[field]
         if candidate[field] != expected:
             raise ContractError(f"candidate {field} does not match the closed catalog")
-    if not RELEASE_RE.fullmatch(str(candidate["previousReleaseId"])):
-        raise ContractError("candidate previousReleaseId is malformed")
-    if _semver_tuple(str(candidate["previousReleaseId"])) >= _semver_tuple(
-        str(candidate["releaseId"])
-    ):
-        raise ContractError("candidate previousReleaseId must be older than releaseId")
-    if not DIGEST_RE.fullmatch(str(candidate["previousSubjectDigest"])):
-        raise ContractError("candidate previousSubjectDigest is malformed")
-    if candidate["previousSubjectDigest"] == "sha256:" + "0" * 64:
-        raise ContractError("candidate previousSubjectDigest cannot be the zero digest")
+    rollback = _mapping(candidate["rollback"], "candidate rollback")
+    _exact_keys(
+        rollback,
+        {
+            "schemaVersion",
+            "releaseId",
+            "strategy",
+            "previousReleaseId",
+            "previousSubjectDigest",
+            "bootstrapAction",
+        },
+        "candidate rollback",
+    )
+    if rollback["schemaVersion"] != 1 or rollback["releaseId"] != candidate["releaseId"]:
+        raise ContractError("candidate rollback identity is malformed")
+    if rollback["strategy"] == "bootstrap":
+        if (
+            candidate["releaseId"] != "v1.0.0"
+            or rollback["previousReleaseId"] is not None
+            or rollback["previousSubjectDigest"] is not None
+            or rollback["bootstrapAction"]
+            != "remove-development-selection-and-restore-blocked-zero-state"
+        ):
+            raise ContractError("candidate bootstrap rollback is malformed")
+    elif rollback["strategy"] == "previous-release":
+        if (
+            not RELEASE_RE.fullmatch(str(rollback["previousReleaseId"]))
+            or _semver_tuple(str(rollback["previousReleaseId"]))
+            >= _semver_tuple(str(candidate["releaseId"]))
+            or not DIGEST_RE.fullmatch(str(rollback["previousSubjectDigest"]))
+            or rollback["previousSubjectDigest"] == "sha256:" + "0" * 64
+            or rollback["bootstrapAction"] is not None
+        ):
+            raise ContractError("candidate previous-release rollback is malformed")
+    else:
+        raise ContractError("candidate rollback strategy is unsupported")
     artifact = _mapping(candidate["artifact"], "candidate artifact")
     _exact_keys(artifact, {"imageRef", "digest"}, "candidate artifact")
     if not DIGEST_RE.fullmatch(str(artifact["digest"])):
@@ -461,16 +539,23 @@ def validate_candidate(path: Path) -> dict[str, Any]:
         str(artifact["imageRef"]),
     ):
         raise ContractError("candidate imageRef is outside its catalog repository")
-    if artifact["digest"] == candidate["previousSubjectDigest"]:
+    if (
+        rollback["previousSubjectDigest"] is not None
+        and artifact["digest"] == rollback["previousSubjectDigest"]
+    ):
         raise ContractError("candidate and previous subject digests must differ")
     evidence = _mapping(candidate["evidence"], "candidate evidence")
-    _exact_keys(evidence, {"sbom", "provenance", "buildAttestor"}, "candidate evidence")
+    _exact_keys(
+        evidence,
+        {"sbom", "provenance", "vulnerability", "rollback", "buildAttestor"},
+        "candidate evidence",
+    )
     if not re.fullmatch(
         r"projects/[a-z][a-z0-9-]{4,28}[a-z0-9]/attestors/[a-z][a-z0-9-]{0,61}[a-z0-9]",
         str(evidence["buildAttestor"]),
     ):
         raise ContractError("candidate buildAttestor is malformed")
-    for label in ("sbom", "provenance"):
+    for label in ("sbom", "provenance", "vulnerability", "rollback"):
         record = _mapping(evidence[label], f"candidate {label}")
         _exact_keys(record, {"path", "sha256"}, f"candidate {label}")
         evidence_path = (path.parent / str(record["path"])).resolve()
@@ -500,7 +585,7 @@ def qualify(candidate_path: Path, expected_image_ref: str, output: Path) -> None
     ]
     _run(command)
     result = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "passed": True,
         "releaseId": candidate["releaseId"],
         "sourceSha": candidate["sourceSha"],
@@ -508,6 +593,17 @@ def qualify(candidate_path: Path, expected_image_ref: str, output: Path) -> None
         "qualifiedAt": _now(),
         "candidateSha256": _sha256(candidate_path),
         "artifact": {"imageRef": expected_image_ref, "digest": registry_digest},
+        "evidence": {
+            "sbom": candidate["evidence"]["sbom"],
+            "provenance": candidate["evidence"]["provenance"],
+            "vulnerability": candidate["evidence"]["vulnerability"],
+            "rollback": candidate["evidence"]["rollback"],
+            "qualification": {
+                "result": "pass",
+                "mode": target["qualificationMode"],
+                "targets": target["qualificationTargets"],
+            },
+        },
     }
     _write_json(output, result)
     validate_qualification(output, expected_image_ref)
@@ -526,11 +622,12 @@ def validate_qualification(path: Path, expected_image_ref: str) -> dict[str, Any
             "qualifiedAt",
             "candidateSha256",
             "artifact",
+            "evidence",
         },
         "qualification result",
     )
-    if result["schemaVersion"] != 1 or result["passed"] is not True:
-        raise ContractError("qualification result is not a passing version 1 result")
+    if result["schemaVersion"] != 2 or result["passed"] is not True:
+        raise ContractError("qualification result is not a passing version 2 result")
     if not RELEASE_RE.fullmatch(str(result["releaseId"])):
         raise ContractError("qualification releaseId is malformed")
     if not SHA_RE.fullmatch(str(result["sourceSha"])):
@@ -548,6 +645,13 @@ def validate_qualification(path: Path, expected_image_ref: str) -> dict[str, Any
         raise ContractError("qualification digest is malformed")
     if not expected_image_ref.endswith("@" + artifact["digest"]):
         raise ContractError("qualification imageRef and digest disagree")
+    evidence = _mapping(result["evidence"], "qualification evidence")
+    if set(evidence) != {"sbom", "provenance", "vulnerability", "rollback", "qualification"}:
+        raise ContractError("qualification must bind exactly five typed evidence records")
+    qualification = _mapping(evidence["qualification"], "qualification evidence result")
+    _exact_keys(qualification, {"result", "mode", "targets"}, "qualification evidence result")
+    if qualification["result"] != "pass":
+        raise ContractError("qualification evidence result must pass")
     return result
 
 
@@ -561,10 +665,9 @@ def inspect_request(request_path: str, source_sha: str, github_output: Path) -> 
         "application": target["application"],
         "release-kind": target["releaseKind"],
         "rollout-class": target["rolloutClass"],
-        "previous-release-id": contract["previousReleaseId"],
-        "previous-subject-digest": contract["previousSubjectDigest"],
-        # Temporary v4 shared-workflow compatibility. Remove only with the v5 caller pin.
-        "rollback-digest": contract["previousSubjectDigest"],
+        "rollback-strategy": contract["rollbackStrategy"],
+        "previous-release-id": contract["previousReleaseId"] or "",
+        "previous-subject-digest": contract["previousSubjectDigest"] or "",
     }
     with github_output.open("a", encoding="utf-8") as stream:
         for key, value in values.items():

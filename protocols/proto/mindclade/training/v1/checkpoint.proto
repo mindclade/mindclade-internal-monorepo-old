@@ -7,6 +7,72 @@ syntax = "proto3";
 
 package mindclade.training.v1;
 
+import "google/protobuf/timestamp.proto";
+import "mindclade/common/v1/artifact_ref.proto";
+import "mindclade/training/v1/progress.proto";
+import "mindclade/training/v1/topology.proto";
+
+// CheckpointScaffold is retained only for source and wire compatibility with
+// the reserved pre-implementation surface.
 message CheckpointScaffold {
+  option deprecated = true;
   string reserved = 1;
+}
+
+// CheckpointComponentKind identifies semantic state without embedding Python
+// object graphs. V1 payload artifacts are safetensors or bounded canonical
+// metadata; pickle-capable byte objects are forbidden by consumers.
+enum CheckpointComponentKind {
+  CHECKPOINT_COMPONENT_KIND_UNSPECIFIED = 0;
+  CHECKPOINT_COMPONENT_KIND_MODEL = 1;
+  CHECKPOINT_COMPONENT_KIND_OPTIMIZER = 2;
+  CHECKPOINT_COMPONENT_KIND_RNG = 3;
+  CHECKPOINT_COMPONENT_KIND_DATA = 4;
+  CHECKPOINT_COMPONENT_KIND_TRAINER = 5;
+}
+
+// CheckpointTensorLayout records whether a tensor payload is identical on
+// every rank or partitioned by the recorded topology.
+enum CheckpointTensorLayout {
+  CHECKPOINT_TENSOR_LAYOUT_UNSPECIFIED = 0;
+  CHECKPOINT_TENSOR_LAYOUT_REPLICATED = 1;
+  CHECKPOINT_TENSOR_LAYOUT_SHARDED = 2;
+}
+
+// CheckpointComponent binds one immutable payload to its canonical state names.
+// tensor_fqns are strictly ordered and unique. relative_path is a safe relative
+// member name, never a provider URI or host path.
+message CheckpointComponent {
+  string name = 1;
+  CheckpointComponentKind kind = 2;
+  mindclade.common.v1.ArtifactRef artifact = 3;
+  string relative_path = 4;
+  uint32 rank = 5;
+  CheckpointTensorLayout tensor_layout = 6;
+  repeated string tensor_fqns = 7;
+}
+
+// CheckpointManifest is the semantic immutable description of training state.
+// Its existence does not make a checkpoint restorable; an artifact.v1
+// CheckpointCommit must be published after every component and this manifest
+// have been durably verified.
+message CheckpointManifest {
+  uint32 schema_version = 1;
+  string checkpoint_id = 2;
+  string run_id = 3;
+  string attempt_id = 4;
+  uint64 checkpoint_attempt = 5;
+  TrainingCounters counters = 6;
+  uint64 data_position = 7;
+  mindclade.common.v1.ArtifactRef resolved_config = 8;
+  mindclade.common.v1.ArtifactRef dataset = 9;
+  mindclade.common.v1.ArtifactRef model = 10;
+  mindclade.common.v1.ArtifactRef source = 11;
+  mindclade.common.v1.ArtifactRef toolchain = 12;
+  mindclade.common.v1.ArtifactRef environment = 13;
+  TrainingTopology topology = 14;
+  repeated CheckpointComponent components = 15;
+  mindclade.common.v1.ArtifactRef parent_manifest = 16;
+  mindclade.common.v1.ArtifactRef compatibility_policy = 17;
+  google.protobuf.Timestamp created_at = 18;
 }

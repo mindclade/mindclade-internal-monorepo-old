@@ -7,6 +7,7 @@
 
 from .catalog import DatasetCatalog
 from .lineage import LineageEdge, LineageGraph, LineageNode
+from .manifest import parse_dataset_manifest
 from .mixture import DatasetMixture, MixtureComponent
 from .registry import PublicationState, validate_transition
 from .resolver import DatasetResolver, ResolvedArtifact, ResolvedDataset
@@ -25,7 +26,6 @@ __all__ = [
     "ResolvedArtifact",
     "ResolvedDataset",
     "SplitPolicy",
+    "parse_dataset_manifest",
     "validate_transition",
 ]
-
-"""Mindclade scaffold package for data/datasets."""

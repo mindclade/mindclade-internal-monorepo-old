@@ -3,7 +3,5 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-// Package uniprot reserves the boundary defined by the production blueprint.
+// Package uniprot validates configured immutable UniProt catalog releases.
 package uniprot
-
-const scaffold_doc = "data/connectors/uniprot/doc.go"

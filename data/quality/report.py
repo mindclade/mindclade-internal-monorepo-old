@@ -93,8 +93,7 @@ class QualityReport:
     @property
     def passed(self) -> bool:
         return all(
-            finding.severity not in {Severity.ERROR, Severity.BLOCKING}
-            for finding in self.findings
+            finding.severity not in {Severity.ERROR, Severity.BLOCKING} for finding in self.findings
         )
 
     def canonical_document(self) -> str:
@@ -115,8 +114,7 @@ class QualityReport:
                 for item in self.findings
             ],
             "metrics": [
-                {"name": item.name, "value": item.value, "unit": item.unit}
-                for item in self.metrics
+                {"name": item.name, "value": item.value, "unit": item.unit} for item in self.metrics
             ],
         }
         return json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n"

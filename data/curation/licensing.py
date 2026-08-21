@@ -3,12 +3,22 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/curation/licensing.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Approved-license allow-list stage; legal policy remains external evidence."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/curation/licensing.py"
+from dataclasses import dataclass
+
+from .pipeline import CuratedRecord
+
+
+@dataclass(frozen=True, slots=True)
+class RequireApprovedLicense:
+    approved: frozenset[str]
+
+    def __post_init__(self) -> None:
+        if not self.approved or any(not item for item in self.approved):
+            raise ValueError("license stage requires an approved set")
+
+    def __call__(self, record: CuratedRecord) -> CuratedRecord | None:
+        return record if dict(record.metadata).get("license_ref") in self.approved else None

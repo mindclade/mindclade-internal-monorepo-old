@@ -3,13 +3,110 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//tools/build:pytest.bzl", "pytest_test")
+
 package(default_visibility = ["//visibility:private"])
 
 filegroup(
-    name = "scaffold_files",
+    name = "control_documents",
+    srcs = [
+        "audit-retention.yaml",
+        "break-glass.yaml",
+        "image-policy.yaml",
+        "model-weight-access.yaml",
+        "network-policies.yaml",
+        "node-attestation.yaml",
+        "pod-security.yaml",
+        "secrets-rotation.yaml",
+        "supply-chain-policy.yaml",
+    ],
+)
+
+py_library(
+    name = "security_contracts",
+    srcs = ["security_contracts.py"],
+    data = [
+        ":control-contract.schema.json",
+        ":control_documents",
+        "//infra/kubernetes:validation_inputs",
+        "//infra/terraform/modules:module_sources",
+    ],
+    imports = ["../.."],
+    visibility = ["//visibility:public"],
+    deps = ["//configs:contract_validation"],
+)
+
+py_binary(
+    name = "validate_security_contracts",
+    srcs = ["security_contracts.py"],
+    data = [
+        ":control-contract.schema.json",
+        ":control_documents",
+        "//infra/kubernetes:validation_inputs",
+        "//infra/terraform/modules:module_sources",
+    ],
+    main = "security_contracts.py",
+    deps = ["//configs:contract_validation"],
+)
+
+pytest_test(
+    name = "test_attestation",
+    srcs = ["tests/test_attestation.py"],
+    imports = ["../.."],
+    deps = [":security_contracts"],
+)
+
+pytest_test(
+    name = "test_break_glass",
+    srcs = ["tests/test_break_glass.py"],
+    imports = ["../.."],
+    deps = [":security_contracts"],
+)
+
+pytest_test(
+    name = "test_weight_access",
+    srcs = ["tests/test_weight_access.py"],
+    imports = ["../.."],
+    deps = [":security_contracts"],
+)
+
+sh_test(
+    name = "test_opa_policy",
+    srcs = ["tests/bazel_policy.sh"],
+    data = [
+        ":control_documents",
+        "//tools/build/nix:toolchain-manifest.json",
+        "@mindclade_infra_validation_tools//:bin/.tool-root",
+        "@mindclade_infra_validation_tools//:tools",
+    ] + glob(["opa/*.rego"]),
+    env = {
+        "MINDCLADE_TOOLCHAIN_MANIFEST_RLOCATION": "$(rlocationpath //tools/build/nix:toolchain-manifest.json)",
+        "MINDCLADE_VALIDATION_TOOL_MARKER_RLOCATION": "$(rlocationpath @mindclade_infra_validation_tools//:bin/.tool-root)",
+    },
+    tags = [
+        "policy",
+        "security",
+    ],
+)
+
+filegroup(
+    name = "contracts",
     srcs = glob(
         ["**"],
-        exclude = ["BUILD.bazel"],
+        exclude = [
+            "**/__pycache__/**",
+            "**/*.pyc",
+            "BUILD.bazel",
+        ],
     ),
+    visibility = ["//visibility:public"],
+)
+
+# Compatibility alias for callers that consumed the reserved scaffold.
+filegroup(
+    name = "scaffold_files",
+    srcs = [":contracts"],
     visibility = ["//visibility:public"],
 )

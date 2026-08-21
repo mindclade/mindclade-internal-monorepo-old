@@ -4,4 +4,28 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+{
+  "schemaVersion": "mindclade.dev/infrastructure-security-control/v1",
+  "name": "pod-security",
+  "owner": "security-platform",
+  "controlFamily": "pod-security",
+  "description": "Enforce restricted pod security, non-root execution, dropped capabilities, read-only filesystems, bounded resources, dedicated identities, and immutable images.",
+  "planes": ["kubernetes"],
+  "enforcementSources": [
+    "infra/kubernetes/base/namespace.yaml",
+    "infra/kubernetes/platform/security/resources.yaml"
+  ],
+  "testSources": [
+    "infra/kubernetes/tests/policy-pass-test.yaml",
+    "infra/kubernetes/tests/policy-test.yaml",
+    "infra/kubernetes/tests/validate.sh"
+  ],
+  "requiredEvidence": ["connected-gke", "deny-fixture", "synthetic-allow-deny"],
+  "failurePolicy": {"mode": "fail-closed", "onMissingEvidence": "deny-activation", "retry": {"strategy": "none", "maxAttempts": 0}},
+  "activationPolicy": {"enabledByDefault": false, "environmentOwned": true, "exactRevisionRequired": true, "qualificationDigestRequired": true},
+  "rollbackPolicy": {"strategy": "revert-exact-revision", "preserveAuditTrail": true, "requiresOwner": true},
+  "nonResponsibilities": [
+    "This catalog does not activate a policy binding or waive a denied workload.",
+    "Runtime sandboxing and kernel isolation guarantees require provider and node qualification evidence."
+  ]
+}

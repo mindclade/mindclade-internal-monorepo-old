@@ -1,6 +1,6 @@
 # Data / Reference / Manifests
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
+- **Status:** Release-evidence templates; no dataset or reference release is represented here.
 - **Primary implementation ownership:** Python scientific semantics with Rust byte workers and Go workflow coordination
 
 ## Purpose
@@ -18,18 +18,12 @@ This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
 ground. It may depend only in the direction documented by
 `docs/architecture/dependency-rules.md` and the accepted ADRs.
 
-## Materialization requirements
+## Template use
 
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
+Files in this directory are non-release examples. A real release must be
+generated from the implemented typed manifest contracts, pin immutable artifacts
+and digests, carry quality and lineage evidence, pass the Go publication state
+machine, and be independently approved where policy requires it.
 
 See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
 artifact-wide implementation status.

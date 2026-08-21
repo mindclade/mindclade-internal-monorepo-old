@@ -602,3 +602,9 @@ jobs:
 
       - name: Optimized SDK, library, and Next builds
         run: pnpm run build
+
+      - name: Install pinned accessibility browsers
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+
+      - name: WCAG 2.1 AA browser accessibility
+        run: pnpm run test:accessibility

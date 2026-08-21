@@ -3,13 +3,18 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-package(default_visibility = ["//visibility:private"])
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//visibility:public"])
 
 filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
-    visibility = ["//visibility:public"],
+    name = "manifest_examples",
+    srcs = glob(["manifests/*.json"]),
+)
+
+py_library(
+    name = "reference",
+    srcs = glob(["**/*.py"], exclude = ["tests/**"]),
+    imports = ["../.."],
+    deps = ["//data"],
 )

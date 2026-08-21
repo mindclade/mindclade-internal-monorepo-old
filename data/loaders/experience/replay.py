@@ -14,7 +14,11 @@ from .trajectory import Trajectory
 
 class ReplayBuffer:
     def __init__(self, capacity: int) -> None:
-        if isinstance(capacity, bool) or not isinstance(capacity, int) or not 1 <= capacity <= 10_000_000:
+        if (
+            isinstance(capacity, bool)
+            or not isinstance(capacity, int)
+            or not 1 <= capacity <= 10_000_000
+        ):
             raise ValueError("replay capacity is outside bounds")
         self._capacity = capacity
         self._items: list[Trajectory] = []

@@ -27,8 +27,7 @@ class CanonicalRecord:
             or len(self.source_record_digest) != 71
             or not self.source_record_digest.startswith("sha256:")
             or any(
-                character not in "0123456789abcdef"
-                for character in self.source_record_digest[7:]
+                character not in "0123456789abcdef" for character in self.source_record_digest[7:]
             )
         ):
             raise ValueError("canonical record source digest is invalid")

@@ -11,8 +11,8 @@ from collections.abc import Iterator, Sequence
 
 from torch.utils.data import IterableDataset, get_worker_info
 
-from data.sample import Sample
 from data.loaders.sharding import worker_indices
+from data.sample import Sample
 
 
 class ShardedSampleStream(IterableDataset[Sample]):

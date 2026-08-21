@@ -11,12 +11,15 @@
     "generate": "pnpm --filter @mindclade/sdk-typescript generate",
     "generate:check": "pnpm --filter @mindclade/sdk-typescript generate:check",
     "test": "pnpm -r --if-present test",
+    "test:accessibility": "playwright test --config tests/accessibility/playwright.config.ts",
     "lint": "python3 tools/analysis/check_typescript.py && pnpm --filter @mindclade/sdk-typescript build && pnpm --filter './libs/ts/*' build && pnpm -r --if-present lint",
     "typecheck": "pnpm --filter @mindclade/sdk-typescript build && pnpm --filter './libs/ts/*' build && pnpm -r --if-present typecheck"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@bufbuild/buf": "1.72.0",
     "@bufbuild/protoc-gen-es": "2.14.0",
+    "@playwright/test": "1.62.1",
     "@types/node": "22.18.0",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",

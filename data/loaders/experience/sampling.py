@@ -16,7 +16,10 @@ def priority_weights(priorities: tuple[float, ...], *, exponent: float) -> tuple
         or isinstance(exponent, bool)
         or not math.isfinite(exponent)
         or exponent < 0
-        or any(isinstance(value, bool) or not math.isfinite(value) or value <= 0 for value in priorities)
+        or any(
+            isinstance(value, bool) or not math.isfinite(value) or value <= 0
+            for value in priorities
+        )
     ):
         raise ValueError("replay priorities/exponent are invalid")
     scaled = tuple(value**exponent for value in priorities)

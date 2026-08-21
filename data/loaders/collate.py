@@ -58,9 +58,13 @@ def collate_samples(samples: Sequence[Sample]) -> CollatedBatch:
         features = {
             key: default_collate([sample.features[key] for sample in items]) for key in keys
         }
-        labels = default_collate([sample.label for sample in items]) if all(labels_present) else None
+        labels = (
+            default_collate([sample.label for sample in items]) if all(labels_present) else None
+        )
     except (RuntimeError, TypeError, ValueError) as error:
-        raise ValueError("sample values do not satisfy the fixed-shape collation contract") from error
+        raise ValueError(
+            "sample values do not satisfy the fixed-shape collation contract"
+        ) from error
     _assert_host_values(features)
     _assert_host_values(labels)
     return CollatedBatch(

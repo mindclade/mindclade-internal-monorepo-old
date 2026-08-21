@@ -6,8 +6,9 @@
 
 # Data platform
 
-> **Maturity:** Mixed; substantive contracts and implementations exist, while
-> provider and scale qualification remains component-specific.
+> **Maturity:** Implemented source capability. Connected provider, distributed
+> scale, security, SLO, and disaster-recovery qualification remains required
+> before an environment may claim production readiness.
 > **Primary implementation:** Python scientific semantics, Rust byte workers,
 > and Go workflow coordination.
 
@@ -45,6 +46,25 @@ publication, quality controls, tokenization, reference data, and loading.
 - [Reference data and release evidence](../docs/architecture/reference-data-and-release-evidence.md)
 - [`data/curation/README.md`](curation/README.md) for the implemented curation
   pipeline
+- [Data context](DATA_CONTEXT.md) for identities, metrics, filters, and semantic
+  gotchas
+- [Production readiness](PRODUCTION_READINESS.md) for the evidence-backed
+  promotion decision and remaining environment gates
+
+## Invariants
+
+- Every artifact is addressed by immutable generation/version and SHA-256
+  digest; mutable aliases are discovery inputs, never training identities.
+- Dataset versions pin source snapshots, transforms, tokenizer/feature
+  versions, split policy, lineage, quality evidence, and intended/prohibited
+  uses.
+- Quality output is aggregate-only. Raw records, sensitive identifiers, and
+  credentials must not enter logs or reports.
+- Split assignment is group-aware and performed before stochastic transforms.
+- Go remains the durable workflow/publication authority. This package validates
+  transitions and builds evidence but does not publish by itself.
+- MLflow is an optional experiment/lineage mirror, never the canonical dataset
+  registry or artifact store.
 
 Always confirm component maturity in [`components.toml`](../components.toml) and
 required evidence in [`QUALIFICATION.md`](../QUALIFICATION.md).

@@ -18,9 +18,7 @@ def sample(sample_id: str, group_id: str | None, split: str | None) -> Sample:
 
 
 def test_quality_gate_blocks_group_leakage_and_emits_aggregate_only_evidence() -> None:
-    gate = QualityGate(
-        "ml-data-v1", (FunctionValidator("group-leakage", group_split_findings),)
-    )
+    gate = QualityGate("ml-data-v1", (FunctionValidator("group-leakage", group_split_findings),))
     report = gate.evaluate(
         DIGEST,
         (sample("s1", "donor-1", "train"), sample("s2", "donor-1", "test")),
@@ -35,9 +33,7 @@ def test_quality_gate_blocks_group_leakage_and_emits_aggregate_only_evidence() -
 
 
 def test_quality_gate_accepts_disjoint_complete_splits_deterministically() -> None:
-    gate = QualityGate(
-        "ml-data-v1", (FunctionValidator("group-leakage", group_split_findings),)
-    )
+    gate = QualityGate("ml-data-v1", (FunctionValidator("group-leakage", group_split_findings),))
     samples = (sample("s1", "donor-1", "train"), sample("s2", "donor-2", "test"))
     timestamp = dt.datetime(2026, 8, 20, tzinfo=dt.UTC)
     first = gate.evaluate(DIGEST, samples, evaluated_at=timestamp)

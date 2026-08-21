@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-// Package http reserves the boundary defined by the production blueprint.
 package http
 
-const scaffold_snapshot = "data/connectors/http/snapshot.go"
+import "go.mindclade.dev/data/connectors"
+
+type Snapshot = connectors.Snapshot

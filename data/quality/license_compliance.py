@@ -34,7 +34,9 @@ class UseEvidence:
             raise ValueError("use evidence requires unique approved uses")
 
 
-def use_findings(evidence: Iterable[UseEvidence], intended_uses: Iterable[str]) -> tuple[QualityFinding, ...]:
+def use_findings(
+    evidence: Iterable[UseEvidence], intended_uses: Iterable[str]
+) -> tuple[QualityFinding, ...]:
     items = tuple(evidence)
     intended = set(intended_uses)
     unsupported = sum(1 for item in items if not intended.issubset(set(item.approved_uses)))

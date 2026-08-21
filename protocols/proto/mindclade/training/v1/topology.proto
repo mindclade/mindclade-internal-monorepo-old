@@ -7,6 +7,41 @@ syntax = "proto3";
 
 package mindclade.training.v1;
 
+// TopologyScaffold is retained only for source and wire compatibility with the
+// reserved pre-implementation surface.
 message TopologyScaffold {
+  option deprecated = true;
   string reserved = 1;
+}
+
+// CollectiveBackend selects the process-group implementation. Consumers must
+// reject UNSPECIFIED rather than silently selecting a backend.
+enum CollectiveBackend {
+  COLLECTIVE_BACKEND_UNSPECIFIED = 0;
+  COLLECTIVE_BACKEND_GLOO = 1;
+  COLLECTIVE_BACKEND_NCCL = 2;
+}
+
+// TrainingDeviceType is the device family assigned to every rank in a
+// homogeneous topology.
+enum TrainingDeviceType {
+  TRAINING_DEVICE_TYPE_UNSPECIFIED = 0;
+  TRAINING_DEVICE_TYPE_CPU = 1;
+  TRAINING_DEVICE_TYPE_CUDA = 2;
+}
+
+// TrainingTopology is the immutable logical process layout recorded on every
+// run and checkpoint. Endpoint addresses and rendezvous credentials are
+// intentionally excluded from this durable contract.
+message TrainingTopology {
+  uint32 world_size = 1;
+  uint32 local_world_size = 2;
+  uint32 node_count = 3;
+  uint32 data_parallel_size = 4;
+  uint32 tensor_parallel_size = 5;
+  uint32 pipeline_parallel_size = 6;
+  CollectiveBackend backend = 7;
+  TrainingDeviceType device_type = 8;
+  // Canonical sha256:<lowercase-hex> digest of the validated logical layout.
+  string topology_fingerprint = 9;
 }

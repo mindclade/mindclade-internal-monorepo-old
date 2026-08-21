@@ -3,7 +3,5 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-// Package rnacentral reserves the boundary defined by the production blueprint.
+// Package rnacentral validates configured immutable RNAcentral catalog releases.
 package rnacentral
-
-const scaffold_doc = "data/connectors/rnacentral/doc.go"

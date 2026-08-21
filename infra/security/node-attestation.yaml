@@ -4,4 +4,29 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+{
+  "schemaVersion": "mindclade.dev/infrastructure-security-control/v1",
+  "name": "node-attestation",
+  "owner": "security-platform",
+  "controlFamily": "node-attestation",
+  "description": "Require reviewed GKE node images, Shielded VM controls, workload metadata isolation, exact accelerator profiles, and connected node qualification evidence.",
+  "planes": ["gcp", "kubernetes", "terraform"],
+  "enforcementSources": [
+    "infra/kubernetes/platform/security/resources.yaml",
+    "infra/terraform/modules/gke/main.tf",
+    "infra/terraform/modules/gpu_node_pool/main.tf"
+  ],
+  "testSources": [
+    "infra/kubernetes/tests/capacity_contract.py",
+    "infra/terraform/modules/gke/tests/gke.tftest.hcl",
+    "infra/terraform/modules/gpu_node_pool/tests/gpu_node_pool.tftest.hcl"
+  ],
+  "requiredEvidence": ["connected-gke", "deny-fixture", "signed-attestation", "synthetic-allow-deny"],
+  "failurePolicy": {"mode": "fail-closed", "onMissingEvidence": "deny-activation", "retry": {"strategy": "none", "maxAttempts": 0}},
+  "activationPolicy": {"enabledByDefault": false, "environmentOwned": true, "exactRevisionRequired": true, "qualificationDigestRequired": true},
+  "rollbackPolicy": {"strategy": "manual-containment", "preserveAuditTrail": true, "requiresOwner": true},
+  "nonResponsibilities": [
+    "This contract does not prove physical host integrity, GPU availability, firmware state, or confidential-computing eligibility.",
+    "Live node-image inventory and attestation verification require a connected qualification cluster."
+  ]
+}

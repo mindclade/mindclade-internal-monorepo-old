@@ -3,12 +3,28 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/tokenizers/special_tokens.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Explicit reserved-token contract."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/tokenizers/special_tokens.py"
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True, slots=True)
+class SpecialTokens:
+    pad: str = "<pad>"
+    unknown: str = "<unk>"
+    begin: str = "<bos>"
+    end: str = "<eos>"
+    separator: str = "<sep>"
+    mask: str = "<mask>"
+
+    def __post_init__(self) -> None:
+        values = (self.pad, self.unknown, self.begin, self.end, self.separator, self.mask)
+        if len(set(values)) != len(values) or any(
+            not value or len(value.encode()) > 64 for value in values
+        ):
+            raise ValueError("special tokens must be unique, non-empty, and bounded")
+
+    def ordered(self) -> tuple[str, ...]:
+        return (self.pad, self.unknown, self.begin, self.end, self.separator, self.mask)

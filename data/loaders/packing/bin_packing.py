@@ -23,9 +23,7 @@ def pack_lengths(lengths: tuple[int, ...], capacity: int) -> tuple[PackedBin, ..
         or not isinstance(capacity, int)
         or capacity < 1
         or any(
-            isinstance(length, bool)
-            or not isinstance(length, int)
-            or not 1 <= length <= capacity
+            isinstance(length, bool) or not isinstance(length, int) or not 1 <= length <= capacity
             for length in lengths
         )
     ):

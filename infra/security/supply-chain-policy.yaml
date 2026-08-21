@@ -4,4 +4,31 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+{
+  "schemaVersion": "mindclade.dev/infrastructure-security-control/v1",
+  "name": "supply-chain-policy",
+  "owner": "security-platform",
+  "controlFamily": "supply-chain",
+  "description": "Require pinned build inputs, immutable release identities, vulnerability and policy gates, signed provenance, controlled registries, and deny-by-default admission.",
+  "planes": ["ci", "gcp", "kubernetes", "terraform"],
+  "enforcementSources": [
+    "ci/security/pipeline.py",
+    "infra/kubernetes/platform/security/resources.yaml",
+    "infra/terraform/modules/artifact_registry/main.tf",
+    "infra/terraform/modules/binauthz/main.tf"
+  ],
+  "testSources": [
+    "ci/terraform/tests/binauthz_iam_test.py",
+    "infra/kubernetes/tests/validate.sh",
+    "infra/terraform/modules/artifact_registry/tests/artifact_registry.tftest.hcl",
+    "infra/terraform/modules/binauthz/tests/binauthz.tftest.hcl"
+  ],
+  "requiredEvidence": ["deny-fixture", "drift-check", "saved-plan-policy", "signed-attestation", "synthetic-allow-deny"],
+  "failurePolicy": {"mode": "fail-closed", "onMissingEvidence": "deny-activation", "retry": {"strategy": "none", "maxAttempts": 0}},
+  "activationPolicy": {"enabledByDefault": false, "environmentOwned": true, "exactRevisionRequired": true, "qualificationDigestRequired": true},
+  "rollbackPolicy": {"strategy": "revert-exact-revision", "preserveAuditTrail": true, "requiresOwner": true},
+  "nonResponsibilities": [
+    "This contract does not publish artifacts, sign releases, create attestations, or configure a live admission policy.",
+    "Artifact promotion and production GitOps revision selection remain protected external operations."
+  ]
+}

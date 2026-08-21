@@ -11,5 +11,3 @@ from .multimodal import validate_modalities
 from .sequence import pad_sequences
 
 __all__ = ["PackedBin", "bucket_for", "pack_lengths", "pad_sequences", "validate_modalities"]
-
-"""Mindclade scaffold package for data/loaders/packing."""

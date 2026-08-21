@@ -2,5 +2,3 @@
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
-
-"""Mindclade scaffold package for data/ingestion/tests."""

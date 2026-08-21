@@ -2,6 +2,11 @@
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
+# Compatibility sentinel only. Mindclade's GKE policy authority is the native CEL
+# ValidatingAdmissionPolicy bundle in infra/kubernetes/platform/security. Keeping this
+# valid, empty Kustomization prevents a second policy engine from silently becoming an
+# enforcement dependency while preserving the blueprint path for downstream detection.
 
----
-# Scaffold configuration; promotion requires schema validation.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources: []

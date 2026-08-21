@@ -65,6 +65,16 @@ resource "google_storage_bucket" "this" {
   }
 }
 
+# Additive, bucket-scoped grants only. This module deliberately does not expose authoritative
+# IAM bindings or policies, so a holdout evaluator cannot replace unrelated bucket access.
+resource "google_storage_bucket_iam_member" "reader" {
+  for_each = var.bucket_iam_members
+
+  bucket = google_storage_bucket.this[each.value.bucket_key].name
+  role   = each.value.role
+  member = each.value.member
+}
+
 resource "google_iam_deny_policy" "this" {
   for_each = var.deny_policies
 

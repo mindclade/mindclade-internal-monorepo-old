@@ -4,4 +4,29 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+{
+  "schemaVersion": "mindclade.dev/infrastructure-security-control/v1",
+  "name": "break-glass",
+  "owner": "security-platform",
+  "controlFamily": "break-glass",
+  "description": "Require time-bounded, independently approved, fully audited emergency access with exact principals, roles, targets, expiry, and revocation proof.",
+  "planes": ["gcp", "terraform"],
+  "enforcementSources": [
+    "infra/terraform/modules/iap_access/main.tf",
+    "infra/terraform/modules/workload_identity/main.tf",
+    "infra/terraform/policy/terraform_plan.rego"
+  ],
+  "testSources": [
+    "infra/terraform/modules/iap_access/tests/iap_access.tftest.hcl",
+    "infra/terraform/modules/workload_identity/tests/workload_identity.tftest.hcl",
+    "infra/terraform/policy/test-policy.sh"
+  ],
+  "requiredEvidence": ["access-review", "audit-query", "revocation-proof", "time-bound-approval"],
+  "failurePolicy": {"mode": "fail-closed", "onMissingEvidence": "deny-activation", "retry": {"strategy": "manual", "maxAttempts": 0}},
+  "activationPolicy": {"enabledByDefault": false, "environmentOwned": true, "exactRevisionRequired": true, "qualificationDigestRequired": true},
+  "rollbackPolicy": {"strategy": "manual-containment", "preserveAuditTrail": true, "requiresOwner": true},
+  "nonResponsibilities": [
+    "This contract does not identify emergency-access group membership or disclose private approvers.",
+    "This repository cannot grant, approve, exercise, or revoke live emergency access."
+  ]
+}

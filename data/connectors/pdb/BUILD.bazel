@@ -3,13 +3,20 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-package(default_visibility = ["//visibility:private"])
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
-filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
-    visibility = ["//visibility:public"],
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "pdb",
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    importpath = "go.mindclade.dev/data/connectors/pdb",
+    deps = ["//data/connectors"],
+)
+
+go_test(
+    name = "pdb_test",
+    srcs = ["pdb_test.go"],
+    embed = [":pdb"],
+    deps = ["//data/connectors"],
 )

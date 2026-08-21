@@ -3,12 +3,25 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/tokenizers/structure.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Validate pre-quantized structure token streams without hidden numerics."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/tokenizers/structure.py"
+
+def validate_structure_tokens(
+    token_ids: tuple[int, ...], *, vocabulary_size: int, maximum_length: int = 1_000_000
+) -> tuple[int, ...]:
+    if (
+        isinstance(vocabulary_size, bool)
+        or not isinstance(vocabulary_size, int)
+        or vocabulary_size < 1
+        or not 1 <= len(token_ids) <= maximum_length
+        or any(
+            isinstance(token, bool)
+            or not isinstance(token, int)
+            or not 0 <= token < vocabulary_size
+            for token in token_ids
+        )
+    ):
+        raise ValueError("structure token stream is invalid")
+    return tuple(token_ids)

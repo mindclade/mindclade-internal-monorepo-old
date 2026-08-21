@@ -13,7 +13,11 @@ from collections.abc import Mapping
 def validate_modalities(values: Mapping[str, tuple[int, ...]], *, maximum_tokens: int) -> None:
     if not values or len(values) > 32:
         raise ValueError("multimodal packing requires 1..32 modalities")
-    if isinstance(maximum_tokens, bool) or not isinstance(maximum_tokens, int) or maximum_tokens < 1:
+    if (
+        isinstance(maximum_tokens, bool)
+        or not isinstance(maximum_tokens, int)
+        or maximum_tokens < 1
+    ):
         raise ValueError("multimodal token limit is invalid")
     if any(
         not name

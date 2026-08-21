@@ -416,6 +416,12 @@ criticality = "tier-2"
 language = "python"
 security_review = true
 
+[component."infra.security_contracts"]
+owner = "security-platform"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
 [component."qualification.release_evidence"]
 owner = "release-engineering"
 criticality = "tier-2"

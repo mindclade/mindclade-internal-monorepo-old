@@ -3,7 +3,23 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-// Package uniprot reserves the boundary defined by the production blueprint.
 package uniprot
 
-const scaffold_license = "data/connectors/uniprot/license.go"
+import "errors"
+
+type LicensePolicy struct {
+	Reference    string
+	ApprovedUses []string
+}
+
+func (p LicensePolicy) ValidateUse(use string) error {
+	if p.Reference == "" || use == "" || len(p.ApprovedUses) == 0 {
+		return errors.New("uniprot license policy is incomplete")
+	}
+	for _, approved := range p.ApprovedUses {
+		if approved == use {
+			return nil
+		}
+	}
+	return errors.New("uniprot license policy does not approve requested use")
+}

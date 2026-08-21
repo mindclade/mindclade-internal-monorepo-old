@@ -22,5 +22,7 @@ def rebalance(
     shard_ids: tuple[str, ...], previous: dict[str, str], workers: tuple[str, ...]
 ) -> RebalancePlan:
     current = assign(shard_ids, workers)
-    moved = tuple(sorted(shard for shard, worker in current.items() if previous.get(shard) != worker))
+    moved = tuple(
+        sorted(shard for shard, worker in current.items() if previous.get(shard) != worker)
+    )
     return RebalancePlan(current, moved)

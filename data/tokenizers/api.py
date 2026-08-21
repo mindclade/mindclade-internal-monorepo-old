@@ -3,12 +3,39 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/tokenizers/api.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Tokenizer input/output contract."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/tokenizers/api.py"
+from dataclasses import dataclass
+from typing import Protocol
+
+from .vocabulary import Vocabulary
+
+
+@dataclass(frozen=True, slots=True)
+class EncodedSequence:
+    token_ids: tuple[int, ...]
+    vocabulary_digest: str
+    tokenizer_version: str
+
+    def __post_init__(self) -> None:
+        if not self.token_ids or any(
+            isinstance(token, bool) or not isinstance(token, int) or token < 0
+            for token in self.token_ids
+        ):
+            raise ValueError("encoded token ids are invalid")
+        if len(self.vocabulary_digest) != 71 or not self.vocabulary_digest.startswith("sha256:"):
+            raise ValueError("encoded vocabulary digest is invalid")
+        if not self.tokenizer_version or len(self.tokenizer_version) > 128:
+            raise ValueError("encoded tokenizer version is invalid")
+
+
+class Tokenizer(Protocol):
+    @property
+    def version(self) -> str: ...
+
+    @property
+    def vocabulary(self) -> Vocabulary: ...
+
+    def encode(self, value: str) -> EncodedSequence: ...

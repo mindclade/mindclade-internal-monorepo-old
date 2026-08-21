@@ -1,0 +1,73 @@
+{
+  "apiVersion": "jobset.x-k8s.io/v1alpha2",
+  "kind": "JobSet",
+  "metadata": {
+    "name": "mindclade-h100-8g-ddp-dcp",
+    "namespace": "mindclade-training-h100",
+    "labels": {
+      "app.kubernetes.io/component": "training-qualification",
+      "app.kubernetes.io/name": "reference-training",
+      "kueue.x-k8s.io/queue-name": "mindclade-training-h100",
+      "mindclade.dev/capacity-type": "on-demand",
+      "mindclade.dev/qualification-phase": "h100-8g-ddp-dcp",
+      "mindclade.dev/workload-class": "training-h100"
+    }
+  },
+  "spec": {
+    "suspend": true,
+    "replicatedJobs": [
+      {
+        "name": "trainer",
+        "replicas": 1,
+        "template": {
+          "spec": {
+            "activeDeadlineSeconds": 3600,
+            "backoffLimit": 0,
+            "completions": 1,
+            "parallelism": 1,
+            "ttlSecondsAfterFinished": 86400,
+            "template": {
+              "metadata": {"labels": {"app.kubernetes.io/component": "training-qualification", "app.kubernetes.io/name": "reference-training", "mindclade.dev/qualification-phase": "h100-8g-ddp-dcp", "mindclade.dev/workload-class": "training-h100"}},
+              "spec": {
+                "automountServiceAccountToken": false,
+                "containers": [
+                  {
+                    "name": "trainer",
+                    "image": "registry.invalid/mindclade/training-worker@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                    "imagePullPolicy": "IfNotPresent",
+                    "command": ["torchrun"],
+                    "args": ["--standalone", "--nproc-per-node=8", "/opt/mindclade/bin/training-qualification", "--phase", "h100-8g-ddp-dcp", "--checkpoint-socket", "/run/mindclade/checkpoint.sock"],
+                    "resources": {
+                      "requests": {"cpu": "32", "memory": "192Gi", "ephemeral-storage": "64Gi", "nvidia.com/gpu": "8"},
+                      "limits": {"cpu": "64", "memory": "384Gi", "ephemeral-storage": "128Gi", "nvidia.com/gpu": "8"}
+                    },
+                    "securityContext": {"allowPrivilegeEscalation": false, "capabilities": {"drop": ["ALL"]}, "readOnlyRootFilesystem": true, "runAsNonRoot": true, "runAsUser": 65532},
+                    "volumeMounts": [{"name": "runtime", "mountPath": "/run/mindclade"}, {"name": "scratch", "mountPath": "/scratch"}]
+                  },
+                  {
+                    "name": "checkpoint-agent",
+                    "image": "registry.invalid/mindclade/checkpoint-agent@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                    "imagePullPolicy": "IfNotPresent",
+                    "command": ["/opt/mindclade/bin/checkpoint-agent"],
+                    "args": ["--socket", "/run/mindclade/checkpoint.sock", "--scratch", "/scratch"],
+                    "resources": {"requests": {"cpu": "2", "memory": "4Gi"}, "limits": {"cpu": "4", "memory": "8Gi"}},
+                    "securityContext": {"allowPrivilegeEscalation": false, "capabilities": {"drop": ["ALL"]}, "readOnlyRootFilesystem": true, "runAsNonRoot": true, "runAsUser": 65532},
+                    "volumeMounts": [{"name": "runtime", "mountPath": "/run/mindclade"}, {"name": "scratch", "mountPath": "/scratch"}]
+                  }
+                ],
+                "nodeSelector": {"mindclade.dev/capacity-type": "on-demand", "mindclade.dev/gpu-profile": "gke-h100-a3-megagpu-8g", "mindclade.dev/node-pool": "gpu"},
+                "priorityClassName": "mindclade-batch",
+                "restartPolicy": "Never",
+                "securityContext": {"runAsNonRoot": true, "seccompProfile": {"type": "RuntimeDefault"}},
+                "serviceAccountName": "mindclade-training-h100",
+                "terminationGracePeriodSeconds": 120,
+                "tolerations": [{"effect": "NoSchedule", "key": "nvidia.com/gpu", "operator": "Equal", "value": "present"}],
+                "volumes": [{"name": "runtime", "emptyDir": {"medium": "Memory", "sizeLimit": "16Mi"}}, {"name": "scratch", "emptyDir": {"sizeLimit": "128Gi"}}]
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

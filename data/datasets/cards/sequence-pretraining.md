@@ -1,6 +1,6 @@
 # Dataset card: Sequence Pretraining
 
-- **Status:** Scaffold template; no dataset release is represented by this file.
+- **Status:** Release-card template; no dataset release is represented by this file.
 - **Owner:** Data domain owner to be assigned before materialization.
 
 ## Intended purpose
@@ -25,5 +25,5 @@ Protected or hidden data uses least-privilege grants and auditable access.
 ## Limitations
 
 Populate measured limitations and failure modes before release. The existence
-of this scaffold card does not authorize collection, use, training, evaluation,
+of this template does not authorize collection, use, training, evaluation,
 or publication of any data.

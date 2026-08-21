@@ -3,7 +3,5 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-// Package http reserves the boundary defined by the production blueprint.
+// Package http retrieves bounded connector manifests from approved HTTPS origins.
 package http
-
-const scaffold_doc = "data/connectors/http/doc.go"

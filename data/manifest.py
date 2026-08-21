@@ -65,9 +65,7 @@ class ArtifactLocation:
     region: str | None = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.artifact_digest, str) or not _DIGEST.fullmatch(
-            self.artifact_digest
-        ):
+        if not isinstance(self.artifact_digest, str) or not _DIGEST.fullmatch(self.artifact_digest):
             raise ValueError("location artifact digest must be canonical SHA-256")
         if not isinstance(self.provider, str) or not _TOKEN.fullmatch(self.provider):
             raise ValueError("location provider is invalid")

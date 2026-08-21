@@ -19,5 +19,3 @@ __all__ = [
     "StageKind",
     "StageSpec",
 ]
-
-"""Mindclade scaffold package for data/ingestion."""

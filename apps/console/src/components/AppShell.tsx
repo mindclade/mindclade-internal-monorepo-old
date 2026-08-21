@@ -7,7 +7,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useConsoleIdentity } from "../lib/auth";
 
 const groups = [
@@ -20,13 +20,24 @@ export function AppShell({ children }: { children: ReactNode }): ReactNode {
   const pathname = usePathname();
   const identity = useConsoleIdentity();
   const [navigationOpen, setNavigationOpen] = useState(false);
+  const navigationButton = useRef<HTMLButtonElement>(null);
   useEffect(() => setNavigationOpen(false), [pathname]);
+  useEffect(() => {
+    if (!navigationOpen) return;
+    const closeNavigation = (event: KeyboardEvent): void => {
+      if (event.key !== "Escape") return;
+      setNavigationOpen(false);
+      navigationButton.current?.focus();
+    };
+    document.addEventListener("keydown", closeNavigation);
+    return () => document.removeEventListener("keydown", closeNavigation);
+  }, [navigationOpen]);
   return (
     <div className="shell">
       <a className="skip-link" href="#content">Skip to content</a>
       <aside className="sidebar" data-open={navigationOpen || undefined}>
         <Link className="brand" href="/" aria-label="Mindclade command home"><span className="brand-mark" aria-hidden="true">M</span><span>Mindclade<small>Command</small></span></Link>
-        <button className="mobile-nav-toggle" type="button" aria-controls="console-navigation" aria-expanded={navigationOpen} onClick={() => setNavigationOpen((open) => !open)}><span aria-hidden="true" />{navigationOpen ? "Close" : "Menu"}</button>
+        <button ref={navigationButton} className="mobile-nav-toggle" type="button" aria-controls="console-navigation" aria-expanded={navigationOpen} onClick={() => setNavigationOpen((open) => !open)}><span aria-hidden="true" />{navigationOpen ? "Close" : "Menu"}</button>
         <nav id="console-navigation" aria-label="Primary navigation">
           {groups.map((group) => <section className="nav-group" key={group.label}><h2>{group.label}</h2>{group.items.map(([href, label]) => <Link key={href} href={href} aria-current={pathname === href || pathname.startsWith(`${href}/`) ? "page" : undefined}><span aria-hidden="true" />{label}</Link>)}</section>)}
         </nav>

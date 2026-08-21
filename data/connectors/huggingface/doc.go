@@ -3,7 +3,5 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-// Package huggingface reserves the boundary defined by the production blueprint.
+// Package huggingface validates immutable repository-revision snapshot manifests.
 package huggingface
-
-const scaffold_doc = "data/connectors/huggingface/doc.go"

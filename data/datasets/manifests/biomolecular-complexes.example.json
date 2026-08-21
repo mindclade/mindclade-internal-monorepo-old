@@ -1,1 +1,41 @@
-{}
+{
+  "artifacts": [
+    {
+      "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "logical_kind": "dataset-shard",
+      "media_type": "application/x-parquet",
+      "schema_version": "v1",
+      "size_bytes": 1
+    }
+  ],
+  "build_provenance_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "canonicalization_version": "canonical-v1",
+  "classification": "public",
+  "curation_version": "curation-v1",
+  "dataset_id": "biomolecular-complexes",
+  "evidence_digests": [
+    "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+  ],
+  "featurization_version": "features-v1",
+  "generated_at": "2026-01-01T00:00:00+00:00",
+  "intended_uses": ["Contract validation and documentation examples only"],
+  "lineage_graph_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+  "owner": "data-platform",
+  "prohibited_uses": ["Training, evaluation, serving, or release"],
+  "quality_report_digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+  "schema_digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+  "schema_version": 1,
+  "source_snapshot_digests": [
+    "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+  ],
+  "split_policy": {
+    "algorithm": "group-hash-v1",
+    "grouping_keys": ["complex_id"],
+    "seed": 0,
+    "stratification_keys": [],
+    "temporal_cutoff": null
+  },
+  "supersedes_manifest_digest": null,
+  "tokenizer_version": null,
+  "version": "0.0.0"
+}

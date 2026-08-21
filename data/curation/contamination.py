@@ -3,12 +3,19 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/curation/contamination.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Digest-set contamination exclusion stage."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/curation/contamination.py"
+from dataclasses import dataclass
+
+from .fingerprints import payload_fingerprint
+from .pipeline import CuratedRecord
+
+
+@dataclass(frozen=True, slots=True)
+class ExcludeFingerprints:
+    forbidden: frozenset[str]
+
+    def __call__(self, record: CuratedRecord) -> CuratedRecord | None:
+        return None if payload_fingerprint(record) in self.forbidden else record

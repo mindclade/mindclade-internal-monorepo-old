@@ -17,7 +17,7 @@ import hashlib
 import json
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import Protocol, cast
 
 MAX_RECORDS = 10_000_000
 MAX_METADATA_ENTRIES = 256
@@ -134,4 +134,4 @@ def identity(record: CuratedRecord) -> CuratedRecord:
 def transform(function: Callable[[CuratedRecord], CuratedRecord | None]) -> Transform:
     """Type-preserving helper for composing function-based stages."""
 
-    return function
+    return cast(Transform, function)

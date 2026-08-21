@@ -77,6 +77,29 @@ variable "buckets" {
     error_message = "Buckets require valid names, supported soft-delete windows, and whole-day retention."
   }
 }
+variable "bucket_iam_members" {
+  description = "Additive, bucket-scoped read grants keyed by stable Terraform identity."
+  type = map(object({
+    bucket_key = string
+    role       = string
+    member     = string
+  }))
+  default = {}
+  validation {
+    condition = alltrue([
+      for grant in values(var.bucket_iam_members) : contains(keys(var.buckets), grant.bucket_key)
+    ])
+    error_message = "Every bucket IAM member must reference a bucket key declared by this module."
+  }
+  validation {
+    condition = alltrue([
+      for grant in values(var.bucket_iam_members) :
+      grant.role == "roles/storage.objectViewer" &&
+      can(regex("^serviceAccount:[a-z0-9-]+@[a-z0-9-]+\\.iam\\.gserviceaccount\\.com$", grant.member))
+    ])
+    error_message = "Bucket IAM members are limited to service-account principals with roles/storage.objectViewer."
+  }
+}
 variable "deny_policies" {
   description = "Project-attached deny policies that this module automatically scopes to its sole managed bucket."
   type = map(object({

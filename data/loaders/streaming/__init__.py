@@ -20,5 +20,3 @@ __all__ = [
     "StreamCheckpoint",
     "buffered_shuffle",
 ]
-
-"""Mindclade scaffold package for data/loaders/streaming."""

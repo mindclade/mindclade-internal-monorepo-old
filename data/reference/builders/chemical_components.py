@@ -3,12 +3,23 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/reference/builders/chemical_components.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Chemical Component Dictionary index candidate."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/reference/builders/chemical_components.py"
+from data.manifest import ArtifactRef
+
+from ..index import ReferenceIndex
+
+
+def chemical_components_index(
+    artifacts: tuple[ArtifactRef, ...], *, tool_version: str, parameters_digest: str
+) -> ReferenceIndex:
+    return ReferenceIndex(
+        "chemical-components",
+        "v1",
+        "mindclade-ccd-builder",
+        tool_version,
+        parameters_digest,
+        artifacts,
+    )

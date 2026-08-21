@@ -18,7 +18,9 @@ def temperature_weights(weights: Iterable[float], temperature: float) -> tuple[f
         or isinstance(temperature, bool)
         or not math.isfinite(temperature)
         or temperature <= 0
-        or any(isinstance(value, bool) or not math.isfinite(value) or value <= 0 for value in values)
+        or any(
+            isinstance(value, bool) or not math.isfinite(value) or value <= 0 for value in values
+        )
     ):
         raise ValueError("temperature weights require finite positive values")
     scaled = tuple(value ** (1.0 / temperature) for value in values)
