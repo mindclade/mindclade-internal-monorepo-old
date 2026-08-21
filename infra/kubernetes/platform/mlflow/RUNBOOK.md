@@ -25,9 +25,11 @@ PodMonitoring; it must contain no Secret, RBAC, Namespace, PVC, CRD, or public S
 2. Verify fresh SQL PITR/snapshot and GCS restore evidence. Confirm the rollback server remains
    compatible with the post-migration schema; otherwise rollback is a database restore, not an
    image-only change.
-3. Build and qualify `//services/mlflow:image` for Linux/amd64; require
-   `//services/mlflow:validate_image` to match `services/mlflow/runtime.lock.yaml`. Attach SBOM,
-   provenance, signature, vulnerability, dependency-import, and disposable-stack results.
+3. On the protected Linux release executor, build and qualify `//services/mlflow:image` for
+   Linux/amd64; require `//services/mlflow:validate_image` to match
+   `services/mlflow/runtime.lock.yaml`. Non-Linux runs are structural checks and cannot publish.
+   Attach SBOM, provenance, signature, vulnerability, dependency-import, and disposable-stack
+   results.
 4. Create/update only external secret metadata through its owner. Confirm all five required keys
    exist without reading or printing their values.
 5. Produce environment values with observed CIDRs, GSA, GCS prefixes, hostname, managed
