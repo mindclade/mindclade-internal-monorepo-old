@@ -52,14 +52,14 @@ module "control_plane_monitoring" {
   signal_alerts = {
     admission-latency = {
       display_name            = "Admission p99 latency"
-      filter                  = "metric.type=\"prometheus.googleapis.com/mindclade_control_plane_admission_decision_duration_seconds/gauge\" AND resource.type=\"prometheus_target\""
+      filter                  = "metric.type=\"prometheus.googleapis.com/mindclade_control_admission_decision_duration_seconds/gauge\" AND resource.type=\"prometheus_target\""
       comparison              = "COMPARISON_GT"
       threshold_value         = 0.1
       severity                = "CRITICAL"
       per_series_aligner      = "ALIGN_PERCENTILE_99"
       evaluation_missing_data = "EVALUATION_MISSING_DATA_ACTIVE"
       minimum_samples = {
-        filter               = "metric.type=\"prometheus.googleapis.com/mindclade_control_plane_admission_decisions_total/counter\" AND resource.type=\"prometheus_target\""
+        filter               = "metric.type=\"prometheus.googleapis.com/mindclade_control_admission_decisions_total/counter\" AND resource.type=\"prometheus_target\""
         threshold_value      = 9
         per_series_aligner   = "ALIGN_RATE"
         cross_series_reducer = "REDUCE_SUM"
