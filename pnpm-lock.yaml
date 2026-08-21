@@ -156,13 +156,13 @@ importers:
 
   libs/ts/design_system:
     dependencies:
-      '@types/react':
-        specifier: 19.2.18
-        version: 19.2.18
-    devDependencies:
       react:
         specifier: 19.2.8
         version: 19.2.8
+    devDependencies:
+      '@types/react':
+        specifier: 19.2.18
+        version: 19.2.18
 
   libs/ts/molecular_viewer:
     devDependencies:
