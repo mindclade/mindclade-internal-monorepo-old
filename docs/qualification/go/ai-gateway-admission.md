@@ -1,6 +1,6 @@
 # AI Gateway admission qualification
 
-**Source and single-process connected qualification:** 2026-08-21
+**Source and local connected qualification:** 2026-08-21
 **Owner:** platform-control
 
 The authoritative AI Gateway accounting boundary is implemented in
@@ -10,21 +10,40 @@ role, and wired to the maintenance role behind the source-defined leadership
 gate. MLflow's Redis-backed budget remains a secondary local guard and is not
 accounting authority.
 
-## Connected environment
+## Current local connected evidence
 
-- Exact source snapshot `7fcbb8fd89b3d90f099fdb294f7fbc6580d450c7`
-  passed locally against PostgreSQL 18.4 with an isolated schema per test and
-  `lib/pq` from the locked root module.
-- That run used pinned Nix Go 1.26.6 on Darwin arm64 with `-race -count=1`; all
-  19 package tests passed, including seven live PostgreSQL tests.
-- CI is configured to repeat the registry and admission suites on the
-  digest-pinned PostgreSQL 17 image in `go-postgres-qualification`, including
-  pull-request and merge-group paths. A protected connected run is still
+- Admission accounting, maintenance probes, migration v14, and their local
+  qualifier are exact through source snapshot
+  `5318cb32ea910888ea2017cc6a60be3598a93c2a`.
+- The final package suite passed with `-race -count=1` against PostgreSQL 18.4
+  for `services/control_plane/internal/providers/maintenance`,
+  `services/control_plane/internal/providers/registry`, and
+  `services/control_plane/internal/store/postgres/admission`. The same three
+  packages passed `go vet`, and their corresponding Bazel tests passed.
+- The PostgreSQL-backed maintenance test proved the bounded expiration and
+  recent-lineage snapshots and required `EXPLAIN` to select each of the five
+  v14 indexes. Its completed-work probe remained index-backed with 2,000 newer
+  adversarial `failed` and `cancelled` rows, proving that the completed-only
+  partial index avoids the mixed-terminal v13 access shape.
+- CI is configured to repeat the three-package race suite on the digest-pinned
+  PostgreSQL 17 image in `go-postgres-qualification` on pull-request and
+  merge-group paths. A protected pull-request and merge-group run is still
   pending and is required merge evidence.
 
-## Evidence
+This is local connected evidence against a real PostgreSQL server. It is not
+evidence that a production database has accepted the migration manifest or
+that the production monitoring path has scraped and evaluated the resulting
+signals.
 
-The seven connected tests passed:
+## Historical accounting evidence
+
+The earlier exact source snapshot
+`7fcbb8fd89b3d90f099fdb294f7fbc6580d450c7` passed locally against PostgreSQL
+18.4 with an isolated schema per test and `lib/pq` from the locked root module.
+That run used pinned Nix Go 1.26.6 on Darwin arm64 with `-race -count=1`; all 19
+package tests passed, including seven live PostgreSQL tests.
+
+Those seven connected tests proved:
 
 - entitlement/budget publication, reservation creation and exact replay,
   compare-and-swap commit, full JSONB round trip, transaction-matched
@@ -49,36 +68,80 @@ tests could not: the caller sampled `available_at` immediately before the
 factory sampled `created_at`. The adapter now lets the outbox factory assign
 one coherent timestamp, preserving `available_at >= created_at`.
 
-The maintenance unit/race suite covers strict versioned payload decoding,
-bounded batch draining, admission-schema-gated readiness/startup, successive
-five-second UTC buckets, stable UUIDv7 work identity, fail-closed duplicate
-payload or availability collisions, durable handler lineage, and bounded
-queue-scoped retention of terminal scheduler records. These are source
-behaviors, not connected evidence of multi-replica leadership failover or
-long-running retention. The readiness, lineage, collision, pruning, and
-migration-v13 changes in this change postdate the connected snapshot above;
-their focused source/race/Bazel checks pass, but their connected
-migration/worker run remains pending.
+This historical evidence remains valid for the accounting behaviors it tested.
+It predates maintenance readiness, lineage, retention, v14 observability, and
+the current metric-serving boundary; the current PostgreSQL 18.4 package run
+above is the evidence for those additions.
 
-The original work-queue migration remains byte-for-byte checksum-stable at
-version 5 (`16c6c1b9b95d0b4813e6f463cb4e6718bca29621892105613d54f0ecd65dd3c7`).
-The terminal-retention partial index is append-only migration 13. The migration
-runner verifies connected receipts before planning v13, but v13 has not yet
-been applied in a connected qualification environment.
+## Migration and probe integrity
 
-Local reproduction:
+Released and candidate migration bytes remain immutable. The original work
+queue migration v5 remains checksum-stable at
+`16c6c1b9b95d0b4813e6f463cb4e6718bca29621892105613d54f0ecd65dd3c7`.
+Candidate migrations v10-v13 retain their prior names, order, and checksums:
+
+- v10 `gateway_entitlements`:
+  `45b05b578a5ccb270057a9c7deba7a0b9073fdb6a8b6e05b7faf07118ba6e887`;
+- v11 `gateway_budgets`:
+  `9ba9cd46aa177c1235d7a8371fac924663b43bdb7773aef5a4123e4f6355fd7f`;
+- v12 `gateway_reservations`:
+  `fe9bcab8c59225c4631b3837f3383707b99a610fb30493535894cc36ddd4c224`;
+- v13 `work_items_terminal_retention`:
+  `357900579e432566e8514df3c441433fd06c1f4161ae926039538d06e63259d2`.
+
+Append-only v14 `gateway_admission_observability` has checksum
+`7ce75981303dfbc48cfc717cc5c1bc47260a81657eabb3ebeb1a01240867313c`
+and adds exactly these indexes:
+
+- reserved reservation expiration by `expires_at,reservation_id`;
+- recent admission audit events by `occurred_at,event_id`;
+- recent admission outbox messages by `created_at,message_id`;
+- admission outbox lookup by the `audit-event-id` header; and
+- completed-only housekeeping work by `queue,completed_at,item_id`.
+
+The maintenance lineage signal is deliberately bounded to the newest 1,000
+audit and outbox candidates in a 24-hour lookback. It detects recent missing or
+mismatched lineage; it is not historical reconciliation and cannot prove the
+absence of older drift. Production qualification therefore requires a clean
+post-header 24-hour observation window in addition to any separate historical
+reconciliation.
+
+## Local reproduction
 
 ```bash
 export MINDCLADE_TEST_POSTGRES_DSN='postgres://postgres@127.0.0.1:5432/postgres?sslmode=disable'
-go test -race -count=1 -v \
-  ./services/control_plane/internal/store/postgres \
+tools/dev/nixw develop .#ci --command go test -race -count=1 -v \
+  ./services/control_plane/internal/providers/maintenance \
+  ./services/control_plane/internal/providers/registry \
   ./services/control_plane/internal/store/postgres/admission
-go test -race ./services/control_plane/internal/providers/maintenance
+tools/dev/nixw develop .#ci --command go vet \
+  ./services/control_plane/internal/providers/maintenance \
+  ./services/control_plane/internal/providers/registry \
+  ./services/control_plane/internal/store/postgres/admission
+tools/dev/nixw develop .#ci-bazel --command tools/dev/bazelw test \
+  --config=ci --lockfile_mode=error \
+  //services/control_plane/internal/providers/maintenance:maintenance_test \
+  //services/control_plane/internal/providers/registry:registry_test \
+  //services/control_plane/internal/store/postgres/admission:admission_test
 ```
 
-This evidence qualifies single-process durable admission accounting and expiry
-behavior. It does not qualify protected-CI execution, policy administration, a
-bypass-proof Gateway proxy, provider-call reconciliation, cross-pod lease
-failover, long-running retention/backlog behavior, backup/restore, an
-SLO/runbook, or a production release. MLflow client ingress therefore remains
-disabled.
+## Production activation boundary
+
+This evidence qualifies the source-defined, single-process durable admission
+accounting, expiration, and bounded recent-observability behavior. Production
+activation remains blocked until all of the following have connected evidence:
+
+- existing migration receipts are verified, v14 is applied through the
+  migration runner with an index-lock preflight, and the post-migration query
+  plans are captured;
+- the protected PostgreSQL 17 pull-request and merge-group lane passes;
+- Google Managed Service for Prometheus collector identity and authorization,
+  NetworkPolicy reachability, live API and maintenance scrapes, rule
+  evaluation, alert routing, and notification delivery are qualified;
+- a tenant-scoped, signed, two-person-controlled policy administration and
+  initial entitlement/budget seeding authority is defined and qualified; and
+- the bypass-proof Gateway proxy, provider-call reconciliation, cross-pod
+  lease failover, long-running retention/backlog behavior, backup/restore, and
+  production release are qualified.
+
+MLflow client ingress therefore remains disabled.
