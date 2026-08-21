@@ -36,19 +36,25 @@ SHA there would be circular and stale. It is reproducible drift evidence, not re
 provenance. Historical baselines alone record an immutable commit SHA and released
 contract version.
 
-Breaking changes require a SemVer-compatible version increment and a TOML record in
-`migrations/`. The record must name every stable detected-change ID, affected modules,
-consumer steps, rollback, and qualification evidence. Address moves additionally need
-a native Terraform `moved` block and matching `state_move` table; recording a move cannot
-waive that requirement. Every removed managed-resource or child-module address must have
-exactly one disposition: a verified state move, or an `intentional_removal` table with a
-non-empty reason, consumer action, and rollback action. Moved-mapping removal or retargeting
-is itself a breaking change.
+Breaking changes relative to a released interface require a SemVer-compatible version
+increment and a TOML record in `migrations/`. A version whose policy and base manifest are
+both `planned` may evolve before publication without manufacturing another version: the
+checker authenticates the immutable released fallback and revalidates the entire candidate
+and cumulative migration record against it. This exception never applies to a released base,
+a version/status mismatch, or a planned-to-released transition that also changes an interface.
+
+The migration record must name every stable detected-change ID, affected module, consumer
+step, rollback, and qualification artifact. Address moves additionally need a native Terraform
+`moved` block and matching `state_move` table; recording a move cannot waive that requirement.
+Every removed managed-resource or child-module address must have exactly one disposition: a
+verified state move, or an `intentional_removal` table with a non-empty reason, consumer action,
+and rollback action. Moved-mapping removal or retargeting is itself a breaking change.
 
 The base revision must be available locally. An invalid or shallow/unfetched ref is an error,
 not permission to compare against older evidence. Fallback to `baselines/v0.1.1.json` occurs
-only after Git verifies that the requested base commit exists and truly predates the manifest;
-the fallback version, source SHA, schema, and local commit identity are checked every time.
-The checker then archives the Terraform modules from that exact commit, rebuilds the manifest
-with the pinned `terraform-docs`, and requires it to equal the committed fallback byte-for-byte
-at the decoded JSON contract level. Valid-looking metadata cannot authenticate forged content.
+only after Git verifies that the requested base commit either predates the interface manifest
+or contains the same still-planned candidate version. The fallback version, source SHA, schema,
+status, and local commit identity are checked every time. The checker then archives the Terraform
+modules from that exact immutable baseline commit, rebuilds the manifest with the pinned
+`terraform-docs`, and requires it to equal the committed fallback byte-for-byte at the decoded
+JSON contract level. Valid-looking metadata cannot authenticate forged content.

@@ -186,7 +186,9 @@ variable "signal_alerts" {
     condition = alltrue([
       for signal in values(var.signal_alerts) :
       length(trimspace(signal.filter)) >= 1 && length(signal.filter) <= 2048 &&
-      strcontains(signal.filter, "metric.type") && strcontains(signal.filter, "resource.type") &&
+      can(regex("^[[:space:]]*[A-Za-z_][A-Za-z0-9_.-]*[[:space:]]*=[[:space:]]*\"[^\"\\r\\n]+\"([[:space:]]+AND[[:space:]]+[A-Za-z_][A-Za-z0-9_.-]*[[:space:]]*=[[:space:]]*\"[^\"\\r\\n]+\")*[[:space:]]*$", signal.filter)) &&
+      length(regexall("(^|[[:space:]()])metric\\.type[[:space:]]*=[[:space:]]*\"[^\"]+\"", signal.filter)) == 1 &&
+      length(regexall("(^|[[:space:]()])resource\\.type[[:space:]]*=[[:space:]]*\"[^\"]+\"", signal.filter)) == 1 &&
       contains(["COMPARISON_GT", "COMPARISON_LT"], signal.comparison) &&
       signal.threshold_value >= -1000000000000000 && signal.threshold_value <= 1000000000000000 &&
       contains(["CRITICAL", "ERROR", "WARNING"], signal.severity) &&
@@ -196,7 +198,7 @@ variable "signal_alerts" {
         "EVALUATION_MISSING_DATA_NO_OP",
       ], signal.evaluation_missing_data)
     ])
-    error_message = "Each signal alert requires a bounded metric/resource filter, an API-supported GT/LT comparison, a governed severity, and explicit missing-data behavior."
+    error_message = "Each signal alert requires a complete AND-only conjunction of string equalities with exactly one metric.type and resource.type selector, an API-supported GT/LT comparison, a governed severity, and explicit missing-data behavior."
   }
 
   validation {
@@ -220,8 +222,9 @@ variable "signal_alerts" {
       for signal in values(var.signal_alerts) : signal.minimum_samples == null || (
         length(trimspace(signal.minimum_samples.filter)) >= 1 &&
         length(signal.minimum_samples.filter) <= 2048 &&
-        strcontains(signal.minimum_samples.filter, "metric.type") &&
-        strcontains(signal.minimum_samples.filter, "resource.type") &&
+        can(regex("^[[:space:]]*[A-Za-z_][A-Za-z0-9_.-]*[[:space:]]*=[[:space:]]*\"[^\"\\r\\n]+\"([[:space:]]+AND[[:space:]]+[A-Za-z_][A-Za-z0-9_.-]*[[:space:]]*=[[:space:]]*\"[^\"\\r\\n]+\")*[[:space:]]*$", signal.minimum_samples.filter)) &&
+        length(regexall("(^|[[:space:]()])metric\\.type[[:space:]]*=[[:space:]]*\"[^\"]+\"", signal.minimum_samples.filter)) == 1 &&
+        length(regexall("(^|[[:space:]()])resource\\.type[[:space:]]*=[[:space:]]*\"[^\"]+\"", signal.minimum_samples.filter)) == 1 &&
         signal.minimum_samples.threshold_value > 0 &&
         can(regex("^[1-9][0-9]*(s|m|h)$", signal.minimum_samples.duration)) &&
         can(regex("^[1-9][0-9]*(s|m|h)$", signal.minimum_samples.alignment_period)) &&
@@ -234,7 +237,7 @@ variable "signal_alerts" {
         ])
       )
     ])
-    error_message = "A minimum-sample guard requires a bounded metric/resource filter, positive threshold, valid durations, and bounded aggregation."
+    error_message = "A minimum-sample guard requires a complete AND-only conjunction of string equalities with exactly one metric.type and resource.type selector, a positive threshold, valid durations, and bounded aggregation."
   }
 }
 

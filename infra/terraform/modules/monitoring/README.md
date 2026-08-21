@@ -12,13 +12,20 @@ minute and 24 hours, with short windows before long windows and fast signals
 ordered ahead of their slow counterparts.
 
 Signal alerts are an additive interface for correctness, freshness, saturation,
-and dependency metrics that do not fit request-based SLO math. Their filters must
-select an exact metric and monitored-resource type; duration and alignment are
-whole-minute windows between one minute and 24 hours. Missing-data behavior is
+and dependency metrics that do not fit request-based SLO math. Their filters use
+bounded, `AND`-only string-equality conjunctions with one exact metric and
+monitored-resource type selector;
+duration and alignment are whole-minute windows between one minute and 24 hours.
+Complex disjunctions must be reduced into a recording rule first. Missing-data behavior is
 always explicit. A signal can add a distinct minimum-sample condition, in which
 case the policy uses `AND`: the symptom must breach while enough traffic is
 present. The sample condition treats missing data as inactive, while standalone
 freshness/target alerts can fail closed with active missing-data evaluation.
+Cloud Monitoring evaluates this `AND` at policy scope; it does not join the two
+conditions by resource identity. Both filters must therefore reduce to the
+intended bounded series. Use a recording rule when per-resource correlation is
+required, and prove the fire/resolve behavior against connected telemetry before
+activation.
 
 Callers supply the good and total time-series filters because meaningful SLIs
 depend on workload telemetry. Both metrics must be `DELTA` or `CUMULATIVE`, have
@@ -52,7 +59,7 @@ module "control_plane_monitoring" {
   signal_alerts = {
     admission-latency = {
       display_name            = "Admission p99 latency"
-      filter                  = "metric.type=\"prometheus.googleapis.com/mindclade_control_admission_decision_duration_seconds/gauge\" AND resource.type=\"prometheus_target\""
+      filter                  = "metric.type=\"prometheus.googleapis.com/mindclade_control_admission_decision_duration_seconds/histogram\" AND resource.type=\"prometheus_target\""
       comparison              = "COMPARISON_GT"
       threshold_value         = 0.1
       severity                = "CRITICAL"

@@ -72,7 +72,7 @@ locals {
       {
         xPos   = 0
         yPos   = 4 + (index * 12)
-        width  = 24
+        width  = 6
         height = 12
         widget = {
           title = "${var.slos[slo_id].display_name}: remaining error budget"
@@ -109,9 +109,9 @@ locals {
         }
       },
       {
-        xPos   = 24
+        xPos   = 6
         yPos   = 4 + (index * 12)
-        width  = 24
+        width  = 6
         height = 12
         widget = {
           title = "${var.slos[slo_id].display_name}: error-budget burn rate"
@@ -175,7 +175,7 @@ locals {
     for index, signal_id in sort(keys(var.signal_alerts)) : {
       xPos   = 0
       yPos   = 4 + (length(var.slos) * 12) + (index * 8)
-      width  = 48
+      width  = 12
       height = 8
       widget = {
         title = var.signal_alerts[signal_id].display_name
@@ -218,13 +218,13 @@ locals {
     displayName = "${var.service_display_name} service health (${var.environment})"
     labels      = local.resource_labels
     mosaicLayout = {
-      columns = 48
+      columns = 12
       tiles = concat(
         [
           {
             xPos   = 0
             yPos   = 0
-            width  = 48
+            width  = 12
             height = 4
             widget = {
               text = {

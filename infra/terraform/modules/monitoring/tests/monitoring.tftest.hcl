@@ -29,7 +29,7 @@ run "actionable_slo_contract" {
     signal_alerts = {
       admission-latency = {
         display_name            = "Admission p99 latency"
-        filter                  = "metric.type=\"prometheus.googleapis.com/mindclade_control_admission_decision_duration_seconds/gauge\" AND resource.type=\"prometheus_target\""
+        filter                  = "metric.type=\"prometheus.googleapis.com/mindclade_control_admission_decision_duration_seconds/histogram\" AND resource.type=\"prometheus_target\""
         comparison              = "COMPARISON_GT"
         threshold_value         = 0.1
         severity                = "CRITICAL"
@@ -154,6 +154,17 @@ run "actionable_slo_contract" {
 
   assert {
     condition = (
+      jsondecode(google_monitoring_dashboard.this.dashboard_json).mosaicLayout.columns == 12 &&
+      alltrue([
+        for tile in jsondecode(google_monitoring_dashboard.this.dashboard_json).mosaicLayout.tiles :
+        tile.xPos >= 0 && tile.width >= 1 && tile.xPos + tile.width <= 12
+      ])
+    )
+    error_message = "Every dashboard tile must fit the Cloud Monitoring API's 12-column mosaic geometry."
+  }
+
+  assert {
+    condition = (
       jsondecode(google_monitoring_dashboard.this.dashboard_json).mosaicLayout.tiles[1].widget.xyChart.dataSets[0].timeSeriesQuery.timeSeriesFilter.aggregation.alignmentPeriod == "60s" &&
       jsondecode(google_monitoring_dashboard.this.dashboard_json).mosaicLayout.tiles[2].widget.xyChart.dataSets[0].timeSeriesQuery.timeSeriesFilter.aggregation.alignmentPeriod == "60s" &&
       jsondecode(google_monitoring_dashboard.this.dashboard_json).mosaicLayout.tiles[2].widget.xyChart.dataSets[1].timeSeriesQuery.timeSeriesFilter.aggregation.alignmentPeriod == "60s"
@@ -195,6 +206,180 @@ run "rejects_subminute_signal_windows" {
   }
 
   expect_failures = [google_monitoring_alert_policy.signal["invalid-window"]]
+}
+
+run "rejects_substring_only_signal_selectors" {
+  command = plan
+
+  variables {
+    project_id           = "mindclade-observability"
+    environment          = "production"
+    owner                = "security-and-operations"
+    service_id           = "control-plane"
+    service_display_name = "Control plane"
+    runbook_url          = "https://runbooks.example.com/control-plane"
+    notification_channels = [
+      "projects/mindclade-observability/notificationChannels/on-call",
+    ]
+    slos = {
+      availability = {
+        display_name         = "Request availability"
+        goal                 = 0.999
+        good_service_filter  = "metric.type=\"custom.googleapis.com/http/good_requests\" AND resource.type=\"generic_task\""
+        total_service_filter = "metric.type=\"custom.googleapis.com/http/requests\" AND resource.type=\"generic_task\""
+      }
+    }
+    signal_alerts = {
+      invalid-filter = {
+        display_name    = "Invalid signal filter"
+        filter          = "not_metric.type=\"custom.googleapis.com/control/freshness\" AND not_resource.type=\"generic_task\""
+        comparison      = "COMPARISON_GT"
+        threshold_value = 1
+      }
+    }
+  }
+
+  expect_failures = [var.signal_alerts]
+}
+
+run "rejects_substring_only_sample_guard_selectors" {
+  command = plan
+
+  variables {
+    project_id           = "mindclade-observability"
+    environment          = "production"
+    owner                = "security-and-operations"
+    service_id           = "control-plane"
+    service_display_name = "Control plane"
+    runbook_url          = "https://runbooks.example.com/control-plane"
+    notification_channels = [
+      "projects/mindclade-observability/notificationChannels/on-call",
+    ]
+    slos = {
+      availability = {
+        display_name         = "Request availability"
+        goal                 = 0.999
+        good_service_filter  = "metric.type=\"custom.googleapis.com/http/good_requests\" AND resource.type=\"generic_task\""
+        total_service_filter = "metric.type=\"custom.googleapis.com/http/requests\" AND resource.type=\"generic_task\""
+      }
+    }
+    signal_alerts = {
+      invalid-guard = {
+        display_name    = "Invalid sample guard"
+        filter          = "metric.type=\"custom.googleapis.com/control/latency\" AND resource.type=\"generic_task\""
+        comparison      = "COMPARISON_GT"
+        threshold_value = 1
+        minimum_samples = {
+          filter          = "not_metric.type=\"custom.googleapis.com/control/requests\" AND not_resource.type=\"generic_task\""
+          threshold_value = 9
+        }
+      }
+    }
+  }
+
+  expect_failures = [var.signal_alerts]
+}
+
+run "rejects_duplicate_signal_selectors" {
+  command = plan
+
+  variables {
+    project_id           = "mindclade-observability"
+    environment          = "production"
+    owner                = "security-and-operations"
+    service_id           = "control-plane"
+    service_display_name = "Control plane"
+    runbook_url          = "https://runbooks.example.com/control-plane"
+    notification_channels = [
+      "projects/mindclade-observability/notificationChannels/on-call",
+    ]
+    slos = {
+      availability = {
+        display_name         = "Request availability"
+        goal                 = 0.999
+        good_service_filter  = "metric.type=\"custom.googleapis.com/http/good_requests\" AND resource.type=\"generic_task\""
+        total_service_filter = "metric.type=\"custom.googleapis.com/http/requests\" AND resource.type=\"generic_task\""
+      }
+    }
+    signal_alerts = {
+      duplicate = {
+        display_name    = "Duplicate metric selector"
+        filter          = "metric.type=\"custom.googleapis.com/control/one\" AND metric.type=\"custom.googleapis.com/control/two\" AND resource.type=\"generic_task\""
+        comparison      = "COMPARISON_GT"
+        threshold_value = 1
+      }
+    }
+  }
+
+  expect_failures = [var.signal_alerts]
+}
+
+run "rejects_negated_signal_selectors" {
+  command = plan
+
+  variables {
+    project_id           = "mindclade-observability"
+    environment          = "production"
+    owner                = "security-and-operations"
+    service_id           = "control-plane"
+    service_display_name = "Control plane"
+    runbook_url          = "https://runbooks.example.com/control-plane"
+    notification_channels = [
+      "projects/mindclade-observability/notificationChannels/on-call",
+    ]
+    slos = {
+      availability = {
+        display_name         = "Request availability"
+        goal                 = 0.999
+        good_service_filter  = "metric.type=\"custom.googleapis.com/http/good_requests\" AND resource.type=\"generic_task\""
+        total_service_filter = "metric.type=\"custom.googleapis.com/http/requests\" AND resource.type=\"generic_task\""
+      }
+    }
+    signal_alerts = {
+      negated = {
+        display_name    = "Negated metric selector"
+        filter          = "NOT metric.type=\"custom.googleapis.com/control/freshness\" AND resource.type=\"generic_task\""
+        comparison      = "COMPARISON_GT"
+        threshold_value = 1
+      }
+    }
+  }
+
+  expect_failures = [var.signal_alerts]
+}
+
+run "rejects_trailing_filter_operators" {
+  command = plan
+
+  variables {
+    project_id           = "mindclade-observability"
+    environment          = "production"
+    owner                = "security-and-operations"
+    service_id           = "control-plane"
+    service_display_name = "Control plane"
+    runbook_url          = "https://runbooks.example.com/control-plane"
+    notification_channels = [
+      "projects/mindclade-observability/notificationChannels/on-call",
+    ]
+    slos = {
+      availability = {
+        display_name         = "Request availability"
+        goal                 = 0.999
+        good_service_filter  = "metric.type=\"custom.googleapis.com/http/good_requests\" AND resource.type=\"generic_task\""
+        total_service_filter = "metric.type=\"custom.googleapis.com/http/requests\" AND resource.type=\"generic_task\""
+      }
+    }
+    signal_alerts = {
+      trailing-operator = {
+        display_name    = "Trailing filter operator"
+        filter          = "metric.type=\"custom.googleapis.com/control/freshness\" AND resource.type=\"generic_task\" AND"
+        comparison      = "COMPARISON_GT"
+        threshold_value = 1
+      }
+    }
+  }
+
+  expect_failures = [var.signal_alerts]
 }
 
 run "rejects_unrouted_alerts" {
