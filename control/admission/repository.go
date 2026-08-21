@@ -33,10 +33,6 @@ func (snapshot PolicySnapshot) Validate() error {
 	return nil
 }
 
-func (snapshot PolicySnapshot) clone() PolicySnapshot {
-	return PolicySnapshot{Entitlement: snapshot.Entitlement.clone(), Budget: snapshot.Budget.clone()}
-}
-
 // Repository implementations must make Reserve/Commit/Release atomic with their audit and
 // outbox writes. Reserve must compare both policy versions in the same transaction as quota use.
 type Repository interface {

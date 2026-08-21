@@ -9,7 +9,10 @@ package(default_visibility = ["//visibility:public"])
 
 go_library(
     name = "s3",
-    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    srcs = glob(
+        ["*.go"],
+        exclude = ["*_test.go"],
+    ),
     importpath = "go.mindclade.dev/data/connectors/s3",
     deps = ["//data/connectors"],
 )

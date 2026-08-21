@@ -7,18 +7,30 @@
 // @generated from file mindclade/training/v1/checkpoint.proto (package mindclade.training.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { ArtifactRef } from "../../common/v1/artifact_ref_pb.js";
+import { file_mindclade_common_v1_artifact_ref } from "../../common/v1/artifact_ref_pb.js";
+import type { TrainingCounters } from "./progress_pb.js";
+import { file_mindclade_training_v1_progress } from "./progress_pb.js";
+import type { TrainingTopology } from "./topology_pb.js";
+import { file_mindclade_training_v1_topology } from "./topology_pb.js";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file mindclade/training/v1/checkpoint.proto.
  */
 export const file_mindclade_training_v1_checkpoint: GenFile = /*@__PURE__*/
-  fileDesc("CiZtaW5kY2xhZGUvdHJhaW5pbmcvdjEvY2hlY2twb2ludC5wcm90bxIVbWluZGNsYWRlLnRyYWluaW5nLnYxIiYKEkNoZWNrcG9pbnRTY2FmZm9sZBIQCghyZXNlcnZlZBgBIAEoCWIGcHJvdG8z");
+  fileDesc("CiZtaW5kY2xhZGUvdHJhaW5pbmcvdjEvY2hlY2twb2ludC5wcm90bxIVbWluZGNsYWRlLnRyYWluaW5nLnYxIioKEkNoZWNrcG9pbnRTY2FmZm9sZBIQCghyZXNlcnZlZBgBIAEoCToCGAEilQIKE0NoZWNrcG9pbnRDb21wb25lbnQSDAoEbmFtZRgBIAEoCRI8CgRraW5kGAIgASgOMi4ubWluZGNsYWRlLnRyYWluaW5nLnYxLkNoZWNrcG9pbnRDb21wb25lbnRLaW5kEjIKCGFydGlmYWN0GAMgASgLMiAubWluZGNsYWRlLmNvbW1vbi52MS5BcnRpZmFjdFJlZhIVCg1yZWxhdGl2ZV9wYXRoGAQgASgJEgwKBHJhbmsYBSABKA0SRAoNdGVuc29yX2xheW91dBgGIAEoDjItLm1pbmRjbGFkZS50cmFpbmluZy52MS5DaGVja3BvaW50VGVuc29yTGF5b3V0EhMKC3RlbnNvcl9mcW5zGAcgAygJIrgGChJDaGVja3BvaW50TWFuaWZlc3QSFgoOc2NoZW1hX3ZlcnNpb24YASABKA0SFQoNY2hlY2twb2ludF9pZBgCIAEoCRIOCgZydW5faWQYAyABKAkSEgoKYXR0ZW1wdF9pZBgEIAEoCRIaChJjaGVja3BvaW50X2F0dGVtcHQYBSABKAQSOQoIY291bnRlcnMYBiABKAsyJy5taW5kY2xhZGUudHJhaW5pbmcudjEuVHJhaW5pbmdDb3VudGVycxIVCg1kYXRhX3Bvc2l0aW9uGAcgASgEEjkKD3Jlc29sdmVkX2NvbmZpZxgIIAEoCzIgLm1pbmRjbGFkZS5jb21tb24udjEuQXJ0aWZhY3RSZWYSMQoHZGF0YXNldBgJIAEoCzIgLm1pbmRjbGFkZS5jb21tb24udjEuQXJ0aWZhY3RSZWYSLwoFbW9kZWwYCiABKAsyIC5taW5kY2xhZGUuY29tbW9uLnYxLkFydGlmYWN0UmVmEjAKBnNvdXJjZRgLIAEoCzIgLm1pbmRjbGFkZS5jb21tb24udjEuQXJ0aWZhY3RSZWYSMwoJdG9vbGNoYWluGAwgASgLMiAubWluZGNsYWRlLmNvbW1vbi52MS5BcnRpZmFjdFJlZhI1CgtlbnZpcm9ubWVudBgNIAEoCzIgLm1pbmRjbGFkZS5jb21tb24udjEuQXJ0aWZhY3RSZWYSOQoIdG9wb2xvZ3kYDiABKAsyJy5taW5kY2xhZGUudHJhaW5pbmcudjEuVHJhaW5pbmdUb3BvbG9neRI+Cgpjb21wb25lbnRzGA8gAygLMioubWluZGNsYWRlLnRyYWluaW5nLnYxLkNoZWNrcG9pbnRDb21wb25lbnQSOQoPcGFyZW50X21hbmlmZXN0GBAgASgLMiAubWluZGNsYWRlLmNvbW1vbi52MS5BcnRpZmFjdFJlZhI+ChRjb21wYXRpYmlsaXR5X3BvbGljeRgRIAEoCzIgLm1pbmRjbGFkZS5jb21tb24udjEuQXJ0aWZhY3RSZWYSLgoKY3JlYXRlZF9hdBgSIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAqgAIKF0NoZWNrcG9pbnRDb21wb25lbnRLaW5kEikKJUNIRUNLUE9JTlRfQ09NUE9ORU5UX0tJTkRfVU5TUEVDSUZJRUQQABIjCh9DSEVDS1BPSU5UX0NPTVBPTkVOVF9LSU5EX01PREVMEAESJwojQ0hFQ0tQT0lOVF9DT01QT05FTlRfS0lORF9PUFRJTUlaRVIQAhIhCh1DSEVDS1BPSU5UX0NPTVBPTkVOVF9LSU5EX1JORxADEiIKHkNIRUNLUE9JTlRfQ09NUE9ORU5UX0tJTkRfREFUQRAEEiUKIUNIRUNLUE9JTlRfQ09NUE9ORU5UX0tJTkRfVFJBSU5FUhAFKpEBChZDaGVja3BvaW50VGVuc29yTGF5b3V0EigKJENIRUNLUE9JTlRfVEVOU09SX0xBWU9VVF9VTlNQRUNJRklFRBAAEicKI0NIRUNLUE9JTlRfVEVOU09SX0xBWU9VVF9SRVBMSUNBVEVEEAESJAogQ0hFQ0tQT0lOVF9URU5TT1JfTEFZT1VUX1NIQVJERUQQAmIGcHJvdG8z", [file_google_protobuf_timestamp, file_mindclade_common_v1_artifact_ref, file_mindclade_training_v1_progress, file_mindclade_training_v1_topology]);
 
 /**
+ * CheckpointScaffold is retained only for source and wire compatibility with
+ * the reserved pre-implementation surface.
+ *
  * @generated from message mindclade.training.v1.CheckpointScaffold
+ * @deprecated
  */
 export type CheckpointScaffold = Message<"mindclade.training.v1.CheckpointScaffold"> & {
   /**
@@ -30,7 +42,240 @@ export type CheckpointScaffold = Message<"mindclade.training.v1.CheckpointScaffo
 /**
  * Describes the message mindclade.training.v1.CheckpointScaffold.
  * Use `create(CheckpointScaffoldSchema)` to create a new message.
+ * @deprecated
  */
 export const CheckpointScaffoldSchema: GenMessage<CheckpointScaffold> = /*@__PURE__*/
   messageDesc(file_mindclade_training_v1_checkpoint, 0);
+
+/**
+ * CheckpointComponent binds one immutable payload to its canonical state names.
+ * tensor_fqns are strictly ordered and unique. relative_path is a safe relative
+ * member name, never a provider URI or host path.
+ *
+ * @generated from message mindclade.training.v1.CheckpointComponent
+ */
+export type CheckpointComponent = Message<"mindclade.training.v1.CheckpointComponent"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: mindclade.training.v1.CheckpointComponentKind kind = 2;
+   */
+  kind: CheckpointComponentKind;
+
+  /**
+   * @generated from field: mindclade.common.v1.ArtifactRef artifact = 3;
+   */
+  artifact?: ArtifactRef | undefined;
+
+  /**
+   * @generated from field: string relative_path = 4;
+   */
+  relativePath: string;
+
+  /**
+   * @generated from field: uint32 rank = 5;
+   */
+  rank: number;
+
+  /**
+   * @generated from field: mindclade.training.v1.CheckpointTensorLayout tensor_layout = 6;
+   */
+  tensorLayout: CheckpointTensorLayout;
+
+  /**
+   * @generated from field: repeated string tensor_fqns = 7;
+   */
+  tensorFqns: string[];
+};
+
+/**
+ * Describes the message mindclade.training.v1.CheckpointComponent.
+ * Use `create(CheckpointComponentSchema)` to create a new message.
+ */
+export const CheckpointComponentSchema: GenMessage<CheckpointComponent> = /*@__PURE__*/
+  messageDesc(file_mindclade_training_v1_checkpoint, 1);
+
+/**
+ * CheckpointManifest is the semantic immutable description of training state.
+ * Its existence does not make a checkpoint restorable; an artifact.v1
+ * CheckpointCommit must be published after every component and this manifest
+ * have been durably verified.
+ *
+ * @generated from message mindclade.training.v1.CheckpointManifest
+ */
+export type CheckpointManifest = Message<"mindclade.training.v1.CheckpointManifest"> & {
+  /**
+   * @generated from field: uint32 schema_version = 1;
+   */
+  schemaVersion: number;
+
+  /**
+   * @generated from field: string checkpoint_id = 2;
+   */
+  checkpointId: string;
+
+  /**
+   * @generated from field: string run_id = 3;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string attempt_id = 4;
+   */
+  attemptId: string;
+
+  /**
+   * @generated from field: uint64 checkpoint_attempt = 5;
+   */
+  checkpointAttempt: bigint;
+
+  /**
+   * @generated from field: mindclade.training.v1.TrainingCounters counters = 6;
+   */
+  counters?: TrainingCounters | undefined;
+
+  /**
+   * @generated from field: uint64 data_position = 7;
+   */
+  dataPosition: bigint;
+
+  /**
+   * @generated from field: mindclade.common.v1.ArtifactRef resolved_config = 8;
+   */
+  resolvedConfig?: ArtifactRef | undefined;
+
+  /**
+   * @generated from field: mindclade.common.v1.ArtifactRef dataset = 9;
+   */
+  dataset?: ArtifactRef | undefined;
+
+  /**
+   * @generated from field: mindclade.common.v1.ArtifactRef model = 10;
+   */
+  model?: ArtifactRef | undefined;
+
+  /**
+   * @generated from field: mindclade.common.v1.ArtifactRef source = 11;
+   */
+  source?: ArtifactRef | undefined;
+
+  /**
+   * @generated from field: mindclade.common.v1.ArtifactRef toolchain = 12;
+   */
+  toolchain?: ArtifactRef | undefined;
+
+  /**
+   * @generated from field: mindclade.common.v1.ArtifactRef environment = 13;
+   */
+  environment?: ArtifactRef | undefined;
+
+  /**
+   * @generated from field: mindclade.training.v1.TrainingTopology topology = 14;
+   */
+  topology?: TrainingTopology | undefined;
+
+  /**
+   * @generated from field: repeated mindclade.training.v1.CheckpointComponent components = 15;
+   */
+  components: CheckpointComponent[];
+
+  /**
+   * @generated from field: mindclade.common.v1.ArtifactRef parent_manifest = 16;
+   */
+  parentManifest?: ArtifactRef | undefined;
+
+  /**
+   * @generated from field: mindclade.common.v1.ArtifactRef compatibility_policy = 17;
+   */
+  compatibilityPolicy?: ArtifactRef | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 18;
+   */
+  createdAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message mindclade.training.v1.CheckpointManifest.
+ * Use `create(CheckpointManifestSchema)` to create a new message.
+ */
+export const CheckpointManifestSchema: GenMessage<CheckpointManifest> = /*@__PURE__*/
+  messageDesc(file_mindclade_training_v1_checkpoint, 2);
+
+/**
+ * CheckpointComponentKind identifies semantic state without embedding Python
+ * object graphs. V1 payload artifacts are safetensors or bounded canonical
+ * metadata; pickle-capable byte objects are forbidden by consumers.
+ *
+ * @generated from enum mindclade.training.v1.CheckpointComponentKind
+ */
+export enum CheckpointComponentKind {
+  /**
+   * @generated from enum value: CHECKPOINT_COMPONENT_KIND_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: CHECKPOINT_COMPONENT_KIND_MODEL = 1;
+   */
+  MODEL = 1,
+
+  /**
+   * @generated from enum value: CHECKPOINT_COMPONENT_KIND_OPTIMIZER = 2;
+   */
+  OPTIMIZER = 2,
+
+  /**
+   * @generated from enum value: CHECKPOINT_COMPONENT_KIND_RNG = 3;
+   */
+  RNG = 3,
+
+  /**
+   * @generated from enum value: CHECKPOINT_COMPONENT_KIND_DATA = 4;
+   */
+  DATA = 4,
+
+  /**
+   * @generated from enum value: CHECKPOINT_COMPONENT_KIND_TRAINER = 5;
+   */
+  TRAINER = 5,
+}
+
+/**
+ * Describes the enum mindclade.training.v1.CheckpointComponentKind.
+ */
+export const CheckpointComponentKindSchema: GenEnum<CheckpointComponentKind> = /*@__PURE__*/
+  enumDesc(file_mindclade_training_v1_checkpoint, 0);
+
+/**
+ * CheckpointTensorLayout records whether a tensor payload is identical on
+ * every rank or partitioned by the recorded topology.
+ *
+ * @generated from enum mindclade.training.v1.CheckpointTensorLayout
+ */
+export enum CheckpointTensorLayout {
+  /**
+   * @generated from enum value: CHECKPOINT_TENSOR_LAYOUT_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: CHECKPOINT_TENSOR_LAYOUT_REPLICATED = 1;
+   */
+  REPLICATED = 1,
+
+  /**
+   * @generated from enum value: CHECKPOINT_TENSOR_LAYOUT_SHARDED = 2;
+   */
+  SHARDED = 2,
+}
+
+/**
+ * Describes the enum mindclade.training.v1.CheckpointTensorLayout.
+ */
+export const CheckpointTensorLayoutSchema: GenEnum<CheckpointTensorLayout> = /*@__PURE__*/
+  enumDesc(file_mindclade_training_v1_checkpoint, 1);
 

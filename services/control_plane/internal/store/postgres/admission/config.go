@@ -6,8 +6,10 @@
 package admissionpostgres
 
 import (
+	"context"
 	"database/sql"
 	"reflect"
+	"time"
 
 	"go.mindclade.dev/libs/go/audit"
 	"go.mindclade.dev/libs/go/clock"
@@ -20,9 +22,10 @@ import (
 )
 
 const (
-	DefaultEntitlementTable = "mindclade_gateway_entitlements"
-	DefaultBudgetTable      = "mindclade_gateway_budgets"
-	DefaultReservationTable = "mindclade_gateway_reservations"
+	DefaultEntitlementTable  = "mindclade_gateway_entitlements"
+	DefaultBudgetTable       = "mindclade_gateway_budgets"
+	DefaultReservationTable  = "mindclade_gateway_reservations"
+	serializationMaxAttempts = 8
 )
 
 type Option func(*Store) error
@@ -114,13 +117,24 @@ func New(db *sql.DB, recorder audit.Recorder, messages outbox.Store, options ...
 	if store.generator == nil {
 		generator, err := identifiers.NewGenerator(identifiers.WithTimeSource(store.clock.Now))
 		if err != nil {
-			return nil, internal(nil, err, "admission.postgres.New", "admission_generator_failed")
+			return nil, internal(context.Background(), err, "admission.postgres.New", "admission_generator_failed")
 		}
 		store.generator = generator
 	}
 	var err error
 	if store.retries == nil {
-		store.retries, err = retry.NewExecutor(retry.DefaultPolicy(), retry.WithClock(store.clock))
+		backoff, backoffErr := retry.ExponentialBackoff(10*time.Millisecond, 250*time.Millisecond, 2)
+		if backoffErr != nil {
+			return nil, backoffErr
+		}
+		policy, policyErr := retry.NewPolicy(
+			retry.WithMaxAttempts(serializationMaxAttempts),
+			retry.WithBackoff(backoff),
+		)
+		if policyErr != nil {
+			return nil, policyErr
+		}
+		store.retries, err = retry.NewExecutor(policy, retry.WithClock(store.clock))
 		if err != nil {
 			return nil, err
 		}

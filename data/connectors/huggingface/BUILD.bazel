@@ -9,7 +9,10 @@ package(default_visibility = ["//visibility:public"])
 
 go_library(
     name = "huggingface",
-    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    srcs = glob(
+        ["*.go"],
+        exclude = ["*_test.go"],
+    ),
     importpath = "go.mindclade.dev/data/connectors/huggingface",
     deps = ["//data/connectors"],
 )

@@ -7,18 +7,22 @@
 // @generated from file mindclade/training/v1/topology.proto (package mindclade.training.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file mindclade/training/v1/topology.proto.
  */
 export const file_mindclade_training_v1_topology: GenFile = /*@__PURE__*/
-  fileDesc("CiRtaW5kY2xhZGUvdHJhaW5pbmcvdjEvdG9wb2xvZ3kucHJvdG8SFW1pbmRjbGFkZS50cmFpbmluZy52MSIkChBUb3BvbG9neVNjYWZmb2xkEhAKCHJlc2VydmVkGAEgASgJYgZwcm90bzM");
+  fileDesc("CiRtaW5kY2xhZGUvdHJhaW5pbmcvdjEvdG9wb2xvZ3kucHJvdG8SFW1pbmRjbGFkZS50cmFpbmluZy52MSIoChBUb3BvbG9neVNjYWZmb2xkEhAKCHJlc2VydmVkGAEgASgJOgIYASLHAgoQVHJhaW5pbmdUb3BvbG9neRISCgp3b3JsZF9zaXplGAEgASgNEhgKEGxvY2FsX3dvcmxkX3NpemUYAiABKA0SEgoKbm9kZV9jb3VudBgDIAEoDRIaChJkYXRhX3BhcmFsbGVsX3NpemUYBCABKA0SHAoUdGVuc29yX3BhcmFsbGVsX3NpemUYBSABKA0SHgoWcGlwZWxpbmVfcGFyYWxsZWxfc2l6ZRgGIAEoDRI5CgdiYWNrZW5kGAcgASgOMigubWluZGNsYWRlLnRyYWluaW5nLnYxLkNvbGxlY3RpdmVCYWNrZW5kEj4KC2RldmljZV90eXBlGAggASgOMikubWluZGNsYWRlLnRyYWluaW5nLnYxLlRyYWluaW5nRGV2aWNlVHlwZRIcChR0b3BvbG9neV9maW5nZXJwcmludBgJIAEoCSpxChFDb2xsZWN0aXZlQmFja2VuZBIiCh5DT0xMRUNUSVZFX0JBQ0tFTkRfVU5TUEVDSUZJRUQQABIbChdDT0xMRUNUSVZFX0JBQ0tFTkRfR0xPTxABEhsKF0NPTExFQ1RJVkVfQkFDS0VORF9OQ0NMEAIqdwoSVHJhaW5pbmdEZXZpY2VUeXBlEiQKIFRSQUlOSU5HX0RFVklDRV9UWVBFX1VOU1BFQ0lGSUVEEAASHAoYVFJBSU5JTkdfREVWSUNFX1RZUEVfQ1BVEAESHQoZVFJBSU5JTkdfREVWSUNFX1RZUEVfQ1VEQRACYgZwcm90bzM");
 
 /**
+ * TopologyScaffold is retained only for source and wire compatibility with the
+ * reserved pre-implementation surface.
+ *
  * @generated from message mindclade.training.v1.TopologyScaffold
+ * @deprecated
  */
 export type TopologyScaffold = Message<"mindclade.training.v1.TopologyScaffold"> & {
   /**
@@ -30,7 +34,129 @@ export type TopologyScaffold = Message<"mindclade.training.v1.TopologyScaffold">
 /**
  * Describes the message mindclade.training.v1.TopologyScaffold.
  * Use `create(TopologyScaffoldSchema)` to create a new message.
+ * @deprecated
  */
 export const TopologyScaffoldSchema: GenMessage<TopologyScaffold> = /*@__PURE__*/
   messageDesc(file_mindclade_training_v1_topology, 0);
+
+/**
+ * TrainingTopology is the immutable logical process layout recorded on every
+ * run and checkpoint. Endpoint addresses and rendezvous credentials are
+ * intentionally excluded from this durable contract.
+ *
+ * @generated from message mindclade.training.v1.TrainingTopology
+ */
+export type TrainingTopology = Message<"mindclade.training.v1.TrainingTopology"> & {
+  /**
+   * @generated from field: uint32 world_size = 1;
+   */
+  worldSize: number;
+
+  /**
+   * @generated from field: uint32 local_world_size = 2;
+   */
+  localWorldSize: number;
+
+  /**
+   * @generated from field: uint32 node_count = 3;
+   */
+  nodeCount: number;
+
+  /**
+   * @generated from field: uint32 data_parallel_size = 4;
+   */
+  dataParallelSize: number;
+
+  /**
+   * @generated from field: uint32 tensor_parallel_size = 5;
+   */
+  tensorParallelSize: number;
+
+  /**
+   * @generated from field: uint32 pipeline_parallel_size = 6;
+   */
+  pipelineParallelSize: number;
+
+  /**
+   * @generated from field: mindclade.training.v1.CollectiveBackend backend = 7;
+   */
+  backend: CollectiveBackend;
+
+  /**
+   * @generated from field: mindclade.training.v1.TrainingDeviceType device_type = 8;
+   */
+  deviceType: TrainingDeviceType;
+
+  /**
+   * Canonical sha256:<lowercase-hex> digest of the validated logical layout.
+   *
+   * @generated from field: string topology_fingerprint = 9;
+   */
+  topologyFingerprint: string;
+};
+
+/**
+ * Describes the message mindclade.training.v1.TrainingTopology.
+ * Use `create(TrainingTopologySchema)` to create a new message.
+ */
+export const TrainingTopologySchema: GenMessage<TrainingTopology> = /*@__PURE__*/
+  messageDesc(file_mindclade_training_v1_topology, 1);
+
+/**
+ * CollectiveBackend selects the process-group implementation. Consumers must
+ * reject UNSPECIFIED rather than silently selecting a backend.
+ *
+ * @generated from enum mindclade.training.v1.CollectiveBackend
+ */
+export enum CollectiveBackend {
+  /**
+   * @generated from enum value: COLLECTIVE_BACKEND_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: COLLECTIVE_BACKEND_GLOO = 1;
+   */
+  GLOO = 1,
+
+  /**
+   * @generated from enum value: COLLECTIVE_BACKEND_NCCL = 2;
+   */
+  NCCL = 2,
+}
+
+/**
+ * Describes the enum mindclade.training.v1.CollectiveBackend.
+ */
+export const CollectiveBackendSchema: GenEnum<CollectiveBackend> = /*@__PURE__*/
+  enumDesc(file_mindclade_training_v1_topology, 0);
+
+/**
+ * TrainingDeviceType is the device family assigned to every rank in a
+ * homogeneous topology.
+ *
+ * @generated from enum mindclade.training.v1.TrainingDeviceType
+ */
+export enum TrainingDeviceType {
+  /**
+   * @generated from enum value: TRAINING_DEVICE_TYPE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: TRAINING_DEVICE_TYPE_CPU = 1;
+   */
+  CPU = 1,
+
+  /**
+   * @generated from enum value: TRAINING_DEVICE_TYPE_CUDA = 2;
+   */
+  CUDA = 2,
+}
+
+/**
+ * Describes the enum mindclade.training.v1.TrainingDeviceType.
+ */
+export const TrainingDeviceTypeSchema: GenEnum<TrainingDeviceType> = /*@__PURE__*/
+  enumDesc(file_mindclade_training_v1_topology, 1);
 

@@ -14,7 +14,10 @@ filegroup(
 
 py_library(
     name = "reference",
-    srcs = glob(["**/*.py"], exclude = ["tests/**"]),
+    srcs = glob(
+        ["**/*.py"],
+        exclude = ["tests/**"],
+    ),
     imports = ["../.."],
     deps = ["//data"],
 )
