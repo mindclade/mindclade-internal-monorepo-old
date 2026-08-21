@@ -129,6 +129,31 @@ CREATE INDEX %s ON %s (workspace, created_at DESC);`, reservationTable,
 	return []string{entitlements, budgets, reservations}, nil
 }
 
+// ObservabilityDDL returns the append-only indexes required by the bounded
+// maintenance admission snapshot. It is intentionally separate from DDL:
+// released admission and shared-adapter migration bytes must remain stable.
+func ObservabilityDDL(reservationTable, auditTable, outboxTable, workQueueTable string) (string, error) {
+	for _, table := range []string{reservationTable, auditTable, outboxTable, workQueueTable} {
+		if !sqlpostgres.ValidQualifiedIdentifier(table) {
+			return "", faults.New(faults.CodeInvalidArgument, "admission observability table name is invalid",
+				faults.WithReason("admission_observability_invalid_table"), faults.WithOperation("admission.postgres.ObservabilityDDL"),
+				faults.WithRetryPolicy(faults.NoRetry()))
+		}
+	}
+	return fmt.Sprintf(`CREATE INDEX %s ON %s (expires_at,reservation_id) WHERE state='reserved';
+CREATE INDEX %s ON %s (occurred_at DESC,event_id DESC) WHERE target_type='%s';
+CREATE INDEX %s ON %s (created_at DESC,message_id DESC) WHERE topic='%s';
+CREATE INDEX %s ON %s ((headers->>'%s')) WHERE topic='%s' AND headers ? '%s';
+CREATE INDEX %s ON %s (queue,completed_at DESC,item_id DESC) WHERE state='completed';`,
+		indexName(reservationTable, "expiration_observability_idx"), reservationTable,
+		indexName(auditTable, "admission_observability_idx"), auditTable, ReservationTargetType,
+		indexName(outboxTable, "admission_recent_idx"), outboxTable, ReservationEventTopic,
+		indexName(outboxTable, "admission_audit_event_idx"), outboxTable, LineageAuditEventIDHeader,
+		ReservationEventTopic, LineageAuditEventIDHeader,
+		indexName(workQueueTable, "completed_observability_idx"), workQueueTable,
+	), nil
+}
+
 func indexName(table, suffix string) string {
 	base := strings.ReplaceAll(table, ".", "_")
 	maximumBase := maximumPostgresIdentifierBytes - len(suffix) - 1

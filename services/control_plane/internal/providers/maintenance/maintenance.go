@@ -7,10 +7,10 @@
 // maintenance role: the process that runs periodic housekeeping over the
 // control plane's own state.
 //
-// It is the narrowest role that still holds a singleton lease. It serves
-// nothing and reaches no cluster; while leader it schedules and claims bounded
-// work, records every mutation, and appends transactional outbox events for the
-// separate dispatcher to publish.
+// It is the narrowest role that still holds a singleton lease. It exposes only
+// a dedicated operational metrics listener and reaches no cluster; while
+// leader it schedules and claims bounded work, records every mutation, and
+// appends transactional outbox events for the separate dispatcher to publish.
 package maintenance
 
 import (
@@ -160,6 +160,20 @@ func (factory *MaintenanceFactory) Create(ctx context.Context, profile bootstrap
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}
+	snapshotSource, err := newPostgresMaintenanceSnapshotSource(stores.DB, maintenanceMetricTables{
+		reservations: admissionstore.DefaultReservationTable,
+		audit:        providers.AuditTable,
+		outbox:       providers.OutboxTable,
+		workQueue:    providers.WorkQueueTable,
+	})
+	if err != nil {
+		return bootstrap.Runtime{}, err
+	}
+	metrics, err := newMaintenanceMetrics(settings.MetricsAddress, settings.DrainTimeout, snapshotSource, shared.Clock)
+	if err != nil {
+		return bootstrap.Runtime{}, err
+	}
+	release = append(release, func() { _ = metrics.Close() })
 
 	handler := factory.housekeeper
 	if handler == nil {
@@ -266,6 +280,12 @@ func (factory *MaintenanceFactory) Create(ctx context.Context, profile bootstrap
 				Queue:   queue,
 				Workers: map[string]servicekit.Component{housekeepingWorker: workerComponent},
 			},
+		},
+		Components: bootstrap.Components{
+			Auxiliary: []bootstrap.StagedComponent{{
+				Stage: servicekit.StageServing, Component: metrics.serverComponent(),
+			}},
+			Work: []servicekit.Component{metrics.samplerComponent()},
 		},
 	}, nil
 }

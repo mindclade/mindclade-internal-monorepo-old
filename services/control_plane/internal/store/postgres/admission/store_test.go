@@ -156,6 +156,39 @@ func TestDDLIsCompleteAndRejectsUnsafeIdentifiers(t *testing.T) {
 	}
 }
 
+func TestObservabilityDDLIsAdditiveBoundedAndRejectsUnsafeIdentifiers(t *testing.T) {
+	statement, err := ObservabilityDDL(DefaultReservationTable, "mindclade_audit_events", "mindclade_outbox", "mindclade_work_items")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, required := range []string{
+		"(expires_at,reservation_id) WHERE state='reserved'",
+		"(occurred_at DESC,event_id DESC) WHERE target_type='gateway_reservation'",
+		"(created_at DESC,message_id DESC) WHERE topic='control.admission.reservation.v1'",
+		"((headers->>'audit-event-id')) WHERE topic='control.admission.reservation.v1' AND headers ? 'audit-event-id'",
+		"(queue,completed_at DESC,item_id DESC) WHERE state='completed'",
+	} {
+		if !strings.Contains(statement, required) {
+			t.Fatalf("observability DDL lacks %q: %s", required, statement)
+		}
+	}
+	if strings.Contains(statement, "CREATE TABLE") || strings.Contains(statement, "ALTER TABLE") || strings.Contains(statement, "DROP ") {
+		t.Fatalf("observability migration is not additive index-only DDL: %s", statement)
+	}
+	if _, err := ObservabilityDDL(DefaultReservationTable, "bad-table", "mindclade_outbox", "mindclade_work_items"); err == nil {
+		t.Fatal("unsafe observability table identifier was accepted")
+	}
+	maximumQualifiedTable := strings.Repeat("s", 63) + "." + strings.Repeat("t", 63)
+	if _, err := ObservabilityDDL(maximumQualifiedTable, maximumQualifiedTable, maximumQualifiedTable, maximumQualifiedTable); err != nil {
+		t.Fatalf("maximum valid qualified identifiers were rejected: %v", err)
+	}
+	for _, suffix := range []string{"expiration_observability_idx", "admission_observability_idx", "admission_recent_idx", "admission_audit_event_idx", "completed_observability_idx"} {
+		if generated := indexName(maximumQualifiedTable, suffix); len(generated) > maximumPostgresIdentifierBytes {
+			t.Fatalf("generated index %q is %d bytes, maximum is %d", generated, len(generated), maximumPostgresIdentifierBytes)
+		}
+	}
+}
+
 func TestSnapshotRevalidatesStoredPolicySeals(t *testing.T) {
 	fixture := newDomainFixture(t)
 	entitlementDocument, _ := json.Marshal(fixture.snapshot.Entitlement)
@@ -307,6 +340,23 @@ func TestReserveRunsOneSerializableMutationAndEmitsOutbox(t *testing.T) {
 	auditMetadata, ok := recorded.RequestMetadata()
 	if !ok || auditMetadata.RequestID != requestID || claims[0].Message().Request().RequestID != requestID {
 		t.Fatalf("request lineage missing from audit/outbox: audit=%#v outbox=%#v", auditMetadata, claims[0].Message().Request())
+	}
+	headers := claims[0].Message().Headers()
+	wantHeaders := map[string]string{
+		LineageSchemaVersionHeader:   fmt.Sprint(ReservationEventSchemaVersion),
+		LineageAuditEventIDHeader:    recorded.ID().String(),
+		LineageAuditActionHeader:     recorded.Action().String(),
+		LineageTargetTypeHeader:      recorded.Target().Type(),
+		LineageTargetIDHeader:        reservation.ID.String(),
+		LineageResourceVersionHeader: reservation.Version.String(),
+	}
+	if len(headers) != len(wantHeaders) {
+		t.Fatalf("reservation lineage headers=%v, want exactly %v", headers, wantHeaders)
+	}
+	for key, want := range wantHeaders {
+		if headers[key] != want {
+			t.Fatalf("reservation lineage header %q=%q, want %q", key, headers[key], want)
+		}
 	}
 }
 

@@ -12,6 +12,8 @@ go_library(
     srcs = [
         "housekeeping.go",
         "maintenance.go",
+        "metrics.go",
+        "metrics_postgres.go",
     ],
     importpath = "go.mindclade.dev/services/control_plane/internal/providers/maintenance",
     deps = [
@@ -21,11 +23,13 @@ go_library(
         "//libs/go/coordination/leadership",
         "//libs/go/coordination/workqueue",
         "//libs/go/faults",
+        "//libs/go/httpx",
         "//libs/go/identifiers",
         "//libs/go/requestmeta",
         "//libs/go/retry",
         "//libs/go/servicekit",
         "//libs/go/storage/lease",
+        "//libs/go/storage/sql/postgres",
         "//services/control_plane/internal/bootstrap",
         "//services/control_plane/internal/config",
         "//services/control_plane/internal/foundation",
@@ -37,12 +41,17 @@ go_library(
         "//services/control_plane/internal/providers",
         "//services/control_plane/internal/providers/durable",
         "//services/control_plane/internal/store/postgres/admission",
+        "@com_github_prometheus_client_golang//prometheus",
+        "@com_github_prometheus_client_golang//prometheus/promhttp",
     ],
 )
 
 go_test(
     name = "maintenance_test",
-    srcs = ["maintenance_test.go"],
+    srcs = [
+        "maintenance_test.go",
+        "metrics_test.go",
+    ],
     embed = [":maintenance"],
     deps = [
         "//libs/go/audit",

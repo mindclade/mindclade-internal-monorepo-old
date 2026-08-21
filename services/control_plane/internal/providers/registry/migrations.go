@@ -46,6 +46,7 @@ const (
 	migrationGatewayBudgets
 	migrationGatewayReservations
 	migrationWorkQueueTerminalRetention
+	migrationGatewayAdmissionObservability
 )
 
 // newMigrationManifest orders the schemas the shared adapters declare for the
@@ -73,6 +74,15 @@ func newMigrationManifest() (*migrate.Manifest, error) {
 		return nil, err
 	}
 	workQueueTerminalRetentionDDL, err := workqueuepostgres.TerminalRetentionDDL(providers.WorkQueueTable)
+	if err != nil {
+		return nil, err
+	}
+	admissionObservabilityDDL, err := admissionstore.ObservabilityDDL(
+		admissionstore.DefaultReservationTable,
+		providers.AuditTable,
+		providers.OutboxTable,
+		providers.WorkQueueTable,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -110,6 +120,7 @@ func newMigrationManifest() (*migrate.Manifest, error) {
 		migrate.Migration{Version: migrationGatewayBudgets, Name: "gateway_budgets", Up: admissionDDL[1]},
 		migrate.Migration{Version: migrationGatewayReservations, Name: "gateway_reservations", Up: admissionDDL[2]},
 		migrate.Migration{Version: migrationWorkQueueTerminalRetention, Name: "work_items_terminal_retention", Up: workQueueTerminalRetentionDDL},
+		migrate.Migration{Version: migrationGatewayAdmissionObservability, Name: "gateway_admission_observability", Up: admissionObservabilityDDL},
 	)
 	if err != nil {
 		return nil, err

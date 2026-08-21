@@ -232,6 +232,14 @@ func TestLivePostgresAdmissionRoundTripIsAtomicAndRedacted(t *testing.T) {
 			t.Fatalf("reservation event exposed ownership proof or provider payload: %q", forbidden)
 		}
 	}
+	var policyLineageHeaders int64
+	if err := live.db.QueryRow("SELECT count(*) FROM "+live.outboxTable+
+		" WHERE topic <> $1 AND headers ? $2", ReservationEventTopic, LineageAuditEventIDHeader).Scan(&policyLineageHeaders); err != nil {
+		t.Fatal(err)
+	}
+	if policyLineageHeaders != 0 {
+		t.Fatalf("non-reservation outbox rows with reservation lineage headers = %d", policyLineageHeaders)
+	}
 }
 
 func TestLivePostgresAdmissionOutboxFailureRollsBackMutationAndAudit(t *testing.T) {

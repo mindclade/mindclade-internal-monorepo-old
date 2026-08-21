@@ -8,6 +8,7 @@ package admissionpostgres
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strconv"
 	"time"
 
@@ -16,6 +17,20 @@ import (
 	"go.mindclade.dev/libs/go/auth"
 	"go.mindclade.dev/libs/go/identifiers"
 	"go.mindclade.dev/libs/go/requestmeta"
+)
+
+const (
+	// ReservationEventTopic and the Lineage* constants are the fixed join
+	// contract consumed by the maintenance snapshot source.
+	ReservationEventTopic         = "control.admission.reservation.v1"
+	ReservationTargetType         = "gateway_reservation"
+	LineageAuditEventIDHeader     = "audit-event-id"
+	LineageAuditActionHeader      = "audit-action"
+	LineageTargetTypeHeader       = "audit-target-type"
+	LineageTargetIDHeader         = "audit-target-id"
+	LineageResourceVersionHeader  = "resource-version"
+	LineageSchemaVersionHeader    = "schema-version"
+	ReservationEventSchemaVersion = 1
 )
 
 type reservationEvent struct {
@@ -40,7 +55,7 @@ type reservationEvent struct {
 
 func (store *Store) emitReservation(ctx context.Context, action string, reservation admission.Reservation) error {
 	payload, err := json.Marshal(reservationEvent{
-		SchemaVersion: 1, ReservationID: reservation.ID.String(), Workspace: reservation.Workspace,
+		SchemaVersion: ReservationEventSchemaVersion, ReservationID: reservation.ID.String(), Workspace: reservation.Workspace,
 		Subject: reservation.Subject, Route: reservation.Route, PolicyEpoch: reservation.PolicyEpoch,
 		EntitlementID: reservation.EntitlementID.String(), EntitlementVersion: reservation.EntitlementVersion.String(),
 		BudgetID: reservation.BudgetID.String(), BudgetVersion: reservation.BudgetVersion.String(),
@@ -59,8 +74,8 @@ func (store *Store) emitReservation(ctx context.Context, action string, reservat
 		"policy_epoch":     strconv.FormatUint(reservation.PolicyEpoch, 10),
 		"resource_version": reservation.Version.String(),
 	}
-	return store.emit(ctx, action, "gateway_reservation", reservation.ID, reservation.Workspace,
-		"control.admission.reservation.v1", reservation.Workspace, payload, fields)
+	return store.emit(ctx, action, ReservationTargetType, reservation.ID, reservation.Workspace,
+		ReservationEventTopic, reservation.Workspace, payload, fields)
 }
 
 func (store *Store) emitPolicy(ctx context.Context, action, targetType string, id identifiers.ID, workspace, topic string, payload []byte) error {
@@ -90,11 +105,28 @@ func (store *Store) emit(ctx context.Context, action, targetType string, id iden
 	if err != nil {
 		return err
 	}
+	headers := map[string]string{LineageSchemaVersionHeader: strconv.Itoa(ReservationEventSchemaVersion)}
+	// Reservation events carry a normalized, bounded join contract. The
+	// maintenance lineage probe can therefore compare the relational audit
+	// columns with outbox headers without decoding either JSON event bodies or
+	// bytea payloads. Policy topics deliberately do not inherit this contract.
+	if targetType == ReservationTargetType && topic == ReservationEventTopic {
+		resourceVersion := fields["resource_version"]
+		if resourceVersion == "" {
+			return internal(ctx, errors.New("reservation event resource version is missing"),
+				"admission.postgres.emit", "admission_event_lineage_invalid")
+		}
+		headers[LineageAuditEventIDHeader] = event.ID().String()
+		headers[LineageAuditActionHeader] = event.Action().String()
+		headers[LineageTargetTypeHeader] = target.Type()
+		headers[LineageTargetIDHeader] = id.String()
+		headers[LineageResourceVersionHeader] = resourceVersion
+	}
 	if err := audit.Record(ctx, store.recorder, event); err != nil {
 		return err
 	}
 	message, err := store.events.Create(topic, partitionKey, "application/json", payload,
-		map[string]string{"schema-version": "1"}, metadata, time.Time{})
+		headers, metadata, time.Time{})
 	if err != nil {
 		return err
 	}

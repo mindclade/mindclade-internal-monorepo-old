@@ -45,6 +45,7 @@ func maintenanceSettings() foundationconfig.MapSource {
 	return foundationconfig.MapSource{SourceName: "test", Values: map[string]string{
 		"signing.hmac_key": "01234567890123456789012345678901",
 		"database.dsn":     "postgres://control:control@127.0.0.1:5432/control?sslmode=require",
+		"metrics.address":  "127.0.0.1:0",
 	}}
 }
 
@@ -69,7 +70,8 @@ func TestMaintenanceFactoryBuildsThroughProductionLifecycle(t *testing.T) {
 }
 
 // Maintenance is the narrowest role that still holds a lease. It publishes
-// nothing, serves nothing, and reaches no cluster.
+// nothing, exposes no application transport, and reaches no cluster. Its
+// private metrics listener is auxiliary and claims no HTTP capability.
 func TestMaintenanceComposesOnlyWhatItsRoleNeeds(t *testing.T) {
 	profile, err := bootstrap.ProfileFor(bootstrap.RoleMaintenance)
 	if err != nil {
@@ -93,6 +95,32 @@ func TestMaintenanceComposesOnlyWhatItsRoleNeeds(t *testing.T) {
 		if _, found := present[absent]; found {
 			t.Fatalf("maintenance composes %q, which its role does not require", absent)
 		}
+	}
+}
+
+func TestMaintenanceWiresDedicatedAdmissionMetricsLifecycle(t *testing.T) {
+	profile, err := bootstrap.ProfileFor(bootstrap.RoleMaintenance)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime, err := NewMaintenanceFactory(maintenanceSettings()).Create(context.Background(), profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	serverFound := false
+	for _, auxiliary := range runtime.Components.Auxiliary {
+		if auxiliary.Stage == servicekit.StageServing && auxiliary.Component.Name == "admission-maintenance-metrics-server" {
+			serverFound = true
+		}
+	}
+	samplerFound := false
+	for _, component := range runtime.Components.Work {
+		if component.Name == "admission-maintenance-metrics-sampler" && component.Run != nil && component.Readiness != nil {
+			samplerFound = true
+		}
+	}
+	if !serverFound || !samplerFound {
+		t.Fatalf("maintenance metric lifecycle server=%t sampler=%t", serverFound, samplerFound)
 	}
 }
 

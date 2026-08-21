@@ -112,18 +112,35 @@ func TestMigrationRunnerCarriesEveryAdapterSchema(t *testing.T) {
 	}
 }
 
-func TestMigrationManifestPreservesWorkQueueV5AndAppendsRetentionV13(t *testing.T) {
+func TestMigrationManifestPreservesWorkQueueV5AndAppendsObservabilityV14(t *testing.T) {
 	manifest, err := newMigrationManifest()
 	if err != nil {
 		t.Fatal(err)
 	}
 	migrations := manifest.Migrations()
-	if len(migrations) != int(migrationWorkQueueTerminalRetention) {
-		t.Fatalf("migration count = %d, want %d", len(migrations), migrationWorkQueueTerminalRetention)
+	if len(migrations) != int(migrationGatewayAdmissionObservability) {
+		t.Fatalf("migration count = %d, want %d", len(migrations), migrationGatewayAdmissionObservability)
 	}
 	for index, migration := range migrations {
 		if migration.Version != uint64(index+1) {
 			t.Fatalf("migration[%d].Version = %d, want %d", index, migration.Version, index+1)
+		}
+	}
+	// Candidate migrations 10-13 may already have receipts in connected
+	// databases. Appending v14 must never rewrite any of their bytes or order.
+	for version, want := range map[uint64]struct {
+		name     string
+		checksum string
+	}{
+		migrationGatewayEntitlements:           {"gateway_entitlements", "45b05b578a5ccb270057a9c7deba7a0b9073fdb6a8b6e05b7faf07118ba6e887"},
+		migrationGatewayBudgets:                {"gateway_budgets", "9ba9cd46aa177c1235d7a8371fac924663b43bdb7773aef5a4123e4f6355fd7f"},
+		migrationGatewayReservations:           {"gateway_reservations", "fe9bcab8c59225c4631b3837f3383707b99a610fb30493535894cc36ddd4c224"},
+		migrationWorkQueueTerminalRetention:    {"work_items_terminal_retention", "357900579e432566e8514df3c441433fd06c1f4161ae926039538d06e63259d2"},
+		migrationGatewayAdmissionObservability: {"gateway_admission_observability", "7ce75981303dfbc48cfc717cc5c1bc47260a81657eabb3ebeb1a01240867313c"},
+	} {
+		migration := migrations[version-1]
+		if migration.Name != want.name || migration.Checksum() != want.checksum {
+			t.Fatalf("migration v%d = %s/%s, want %s/%s", version, migration.Name, migration.Checksum(), want.name, want.checksum)
 		}
 	}
 	workQueue := migrations[migrationWorkQueue-1]
@@ -136,6 +153,17 @@ func TestMigrationManifestPreservesWorkQueueV5AndAppendsRetentionV13(t *testing.
 		!strings.Contains(retention.Up, "(queue,completed_at,item_id)") ||
 		!strings.Contains(retention.Up, "WHERE state IN ('completed','failed','cancelled')") {
 		t.Fatalf("work queue retention v13 = %+v", retention)
+	}
+	observability := migrations[migrationGatewayAdmissionObservability-1]
+	if observability.Name != "gateway_admission_observability" ||
+		!strings.Contains(observability.Up, "mindclade_gateway_reservations_expiration_observability_idx") ||
+		!strings.Contains(observability.Up, "mindclade_audit_events_admission_observability_idx") ||
+		!strings.Contains(observability.Up, "mindclade_outbox_admission_recent_idx") ||
+		!strings.Contains(observability.Up, "mindclade_outbox_admission_audit_event_idx") ||
+		!strings.Contains(observability.Up, "mindclade_work_items_completed_observability_idx") ||
+		!strings.Contains(observability.Up, "WHERE state='completed'") ||
+		!strings.Contains(observability.Up, "headers->>'audit-event-id'") {
+		t.Fatalf("gateway admission observability v14 = %+v", observability)
 	}
 }
 
