@@ -415,12 +415,12 @@ func TestLivePostgresRecurringScheduleAcceptsJSONBRoundTripReplay(t *testing.T) 
 	}
 	now := time.Date(2026, time.August, 21, 12, 0, 2, 0, time.UTC)
 	scheduler := newTestHousekeepingScheduler(t, store, clock.NewFake(now))
-	if err := scheduler.enqueue(context.Background(), now); err != nil {
+	if err := scheduler.enqueue(ctx, now); err != nil {
 		t.Fatalf("initial schedule: %v", err)
 	}
 	// The second call takes the duplicate-ID Lookup path after PostgreSQL has
 	// normalized the JSONB payload. It must remain a semantic replay.
-	if err := scheduler.enqueue(context.Background(), now.Add(time.Second)); err != nil {
+	if err := scheduler.enqueue(ctx, now.Add(time.Second)); err != nil {
 		t.Fatalf("same-bucket JSONB replay: %v", err)
 	}
 	var count int
