@@ -98,20 +98,28 @@ oci_load(
 )
 
 # The environment-specific Artifact Registry repository is supplied by the protected release job.
+# rules_python's generated launcher makes the final layer executor-host-dependent, so only the
+# Linux release executor may publish the digest that runtime.lock.yaml records.
 oci_push(
     name = "push",
     image = ":image",
     repository = "localhost/mindclade/mlflow-server",
+    target_compatible_with = ["@platforms//os:linux"],
     visibility = ["//visibility:public"],
 )
 
 py_test(
     name = "validate_image",
     srcs = ["validate_image_test.py"],
+    # Every host validates the transitioned Linux image contents. Only Linux is allowed to assert
+    # byte identity with the release lock because it is also the protected publication executor.
     args = [
         "--image=$(rootpath :image)",
         "--lock=$(rootpath :runtime_lock)",
-    ],
+    ] + select({
+        "@platforms//os:linux": ["--enforce-lock-digest"],
+        "//conditions:default": [],
+    }),
     data = [
         ":image",
         ":runtime_lock",
