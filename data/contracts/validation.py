@@ -41,7 +41,6 @@ def _type_matches(value: Any, field: FieldContract) -> bool:
             and value.tzinfo is not None
             and value.utcoffset() is not None
         )
-    return False
 
 
 def validate_record(record: object, contract: DatasetContract) -> tuple[ValidationIssue, ...]:

@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-// Package pdb reserves the boundary defined by the production blueprint.
 package pdb
 
-const scaffold_cursor = "data/connectors/pdb/cursor.go"
+import "go.mindclade.dev/data/connectors"
+
+type Cursor = connectors.Cursor

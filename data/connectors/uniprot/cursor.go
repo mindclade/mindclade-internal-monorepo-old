@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-// Package uniprot reserves the boundary defined by the production blueprint.
 package uniprot
 
-const scaffold_cursor = "data/connectors/uniprot/cursor.go"
+import "go.mindclade.dev/data/connectors"
+
+type Cursor = connectors.Cursor

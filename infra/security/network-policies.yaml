@@ -4,4 +4,31 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+{
+  "schemaVersion": "mindclade.dev/infrastructure-security-control/v1",
+  "name": "network-policies",
+  "owner": "security-platform",
+  "controlFamily": "network-policy",
+  "description": "Preserve default-deny workload isolation and explicit GCP ingress, egress, perimeter, private-connectivity, DNS, and telemetry flow contracts.",
+  "planes": ["gcp", "kubernetes", "terraform"],
+  "enforcementSources": [
+    "infra/kubernetes/policies/network-policies.yaml",
+    "infra/terraform/modules/firewall/main.tf",
+    "infra/terraform/modules/network/main.tf",
+    "infra/terraform/modules/service_perimeter/main.tf"
+  ],
+  "testSources": [
+    "infra/kubernetes/tests/validate.sh",
+    "infra/terraform/modules/firewall/tests/firewall.tftest.hcl",
+    "infra/terraform/modules/network/tests/network.tftest.hcl",
+    "infra/terraform/modules/service_perimeter/tests/service_perimeter.tftest.hcl"
+  ],
+  "requiredEvidence": ["connected-gke", "deny-fixture", "drift-check", "synthetic-allow-deny"],
+  "failurePolicy": {"mode": "fail-closed", "onMissingEvidence": "deny-activation", "retry": {"strategy": "bounded", "maxAttempts": 3}},
+  "activationPolicy": {"enabledByDefault": false, "environmentOwned": true, "exactRevisionRequired": true, "qualificationDigestRequired": true},
+  "rollbackPolicy": {"strategy": "revert-exact-revision", "preserveAuditTrail": true, "requiresOwner": true},
+  "nonResponsibilities": [
+    "Exact CIDRs, collector identities, partner routes, DNS resolvers, and firewall targets are environment inputs.",
+    "This repository does not establish VPN, Interconnect, VPC, DNS, service-perimeter, or cluster connectivity."
+  ]
+}

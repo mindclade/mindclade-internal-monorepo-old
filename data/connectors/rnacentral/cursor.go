@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-// Package rnacentral reserves the boundary defined by the production blueprint.
 package rnacentral
 
-const scaffold_cursor = "data/connectors/rnacentral/cursor.go"
+import "go.mindclade.dev/data/connectors"
+
+type Cursor = connectors.Cursor

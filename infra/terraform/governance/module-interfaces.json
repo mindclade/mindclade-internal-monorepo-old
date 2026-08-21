@@ -7110,6 +7110,18 @@
     },
     "storage_collection": {
       "inputs": {
+        "bucket_iam_members": {
+          "default": {},
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "map(object({ bucket_key = string role = string member = string }))",
+          "validation_fingerprints": [
+            "sha256:6d6b23368ba087f25040da8d1a5fac84460715bff23faade3a3e11debcabdff3",
+            "sha256:e5f57b917fcd3ed127576d2434abed709e2c2462595fc20d8bec08b9101e1b38"
+          ]
+        },
         "buckets": {
           "default": null,
           "ephemeral": false,
@@ -7225,11 +7237,17 @@
       },
       "managed_resource_addresses": [
         "google_iam_deny_policy.this",
-        "google_storage_bucket.this"
+        "google_storage_bucket.this",
+        "google_storage_bucket_iam_member.reader"
       ],
       "module_calls": {},
       "moved": [],
       "outputs": {
+        "bucket_iam_members": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:8684f882845f71e36eac95751af240dddd40c7c03b5e502f699a3af8abfea666"
+        },
         "buckets": {
           "ephemeral": false,
           "sensitive": false,

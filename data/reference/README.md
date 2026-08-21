@@ -1,6 +1,6 @@
 # Data / Reference
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
+- **Status:** Implemented source contract; connected production qualification is pending.
 - **Primary implementation ownership:** Python scientific semantics with Rust byte workers and Go workflow coordination
 
 ## Purpose
@@ -18,18 +18,18 @@ This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
 ground. It may depend only in the direction documented by
 `docs/architecture/dependency-rules.md` and the accepted ADRs.
 
-## Materialization requirements
+## Qualification boundary
 
-Before this scaffold boundary is treated as implemented, add:
+The source contract is implemented with package-local tests and Bazel ownership.
+Production promotion still requires:
 
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
+- connected provider and representative-volume evidence for enabled paths;
+- reviewed workload identity, IAM, network, encryption, retention, and audit
+  configuration;
+- approved SLO, capacity, cost, failure-injection, rollback, restore, and DR
+  evidence;
+- signed release evidence for every promoted dataset or reference snapshot; and
+- the remaining gates in [`data/PRODUCTION_READINESS.md`](../PRODUCTION_READINESS.md).
 
 See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
 artifact-wide implementation status.

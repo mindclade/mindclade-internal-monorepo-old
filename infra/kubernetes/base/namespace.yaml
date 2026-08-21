@@ -115,6 +115,31 @@ metadata:
     mindclade.dev/environment: unbound
     mindclade.dev/release-evidence-digest: blocked
 ---
+# Held-out evaluation runs in a dedicated trust boundary. No workload is selected by this
+# foundation resource; activation is limited to a reviewed, ephemeral qualification Job.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mindclade-evaluation
+  labels:
+    app.kubernetes.io/part-of: mindclade-platform
+    kubernetes.io/metadata.name: mindclade-evaluation
+    mindclade.dev/admission: enforced
+    mindclade.dev/data-plane: held-out-evaluation
+    mindclade.dev/owner: evaluation
+    mindclade.dev/workload-activation: blocked
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: v1.36
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.36
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: v1.36
+  annotations:
+    mindclade.dev/activation-blocker: ephemeral-qualification-only
+    mindclade.dev/deployment-status: identity-foundation-only
+    mindclade.dev/environment: unbound
+    mindclade.dev/release-evidence-digest: blocked
+---
 # MLflow is a metadata mirror, isolated from training, serving, and held-out evaluation data.
 # The namespace exists in the platform foundation so the research AppProject does not need
 # cluster-scoped Namespace authority. Pod capacity stays zero until the complete server,

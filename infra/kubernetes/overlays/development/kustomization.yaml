@@ -57,6 +57,18 @@ patches:
         value: no-api-token-workload-identity
   - target:
       version: v1
+      kind: ServiceAccount
+      namespace: mindclade-evaluation
+      name: mindclade-holdout-evaluator
+    patch: |-
+      - op: add
+        path: /metadata/annotations/iam.gke.io~1gcp-service-account
+        value: holdout-evaluator@mc-development-research.iam.gserviceaccount.com
+      - op: replace
+        path: /metadata/annotations/mindclade.dev~1credential-policy
+        value: no-api-token-workload-identity
+  - target:
+      version: v1
       kind: Namespace
       name: mindclade-system
     patch: |-

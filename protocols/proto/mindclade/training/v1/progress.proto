@@ -7,6 +7,42 @@ syntax = "proto3";
 
 package mindclade.training.v1;
 
+import "google/protobuf/timestamp.proto";
+import "mindclade/common/v1/artifact_ref.proto";
+
+// ProgressScaffold is retained only for source and wire compatibility with the
+// reserved pre-implementation surface.
 message ProgressScaffold {
+  option deprecated = true;
   string reserved = 1;
+}
+
+// TrainingRunState is an observation, not a command. The orchestration stage
+// envelope remains authoritative for cancellation and retry.
+enum TrainingRunState {
+  TRAINING_RUN_STATE_UNSPECIFIED = 0;
+  TRAINING_RUN_STATE_PENDING = 1;
+  TRAINING_RUN_STATE_RUNNING = 2;
+  TRAINING_RUN_STATE_CHECKPOINTING = 3;
+  TRAINING_RUN_STATE_SUCCEEDED = 4;
+  TRAINING_RUN_STATE_FAILED = 5;
+  TRAINING_RUN_STATE_CANCELED = 6;
+}
+
+// TrainingCounters advance only after the corresponding operation commits.
+message TrainingCounters {
+  uint64 microbatches = 1;
+  uint64 optimizer_steps = 2;
+  uint64 samples = 3;
+}
+
+// TrainingProgress is a bounded point-in-time projection of one attempt.
+message TrainingProgress {
+  string run_id = 1;
+  string attempt_id = 2;
+  TrainingRunState state = 3;
+  TrainingCounters counters = 4;
+  uint64 data_position = 5;
+  mindclade.common.v1.ArtifactRef latest_checkpoint_manifest = 6;
+  google.protobuf.Timestamp observed_at = 7;
 }

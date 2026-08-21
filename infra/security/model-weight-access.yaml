@@ -4,4 +4,29 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+{
+  "schemaVersion": "mindclade.dev/infrastructure-security-control/v1",
+  "name": "model-weight-access",
+  "owner": "security-platform",
+  "controlFamily": "model-weight-access",
+  "description": "Constrain model-weight storage to encrypted, non-public objects and exact workload identities with access review, deny-path, and audit-query evidence.",
+  "planes": ["gcp", "terraform"],
+  "enforcementSources": [
+    "infra/terraform/modules/kms/main.tf",
+    "infra/terraform/modules/object_storage/main.tf",
+    "infra/terraform/modules/workload_identity/main.tf"
+  ],
+  "testSources": [
+    "infra/terraform/modules/kms/tests/kms.tftest.hcl",
+    "infra/terraform/modules/object_storage/tests/object_storage.tftest.hcl",
+    "infra/terraform/modules/workload_identity/tests/workload_identity.tftest.hcl"
+  ],
+  "requiredEvidence": ["access-review", "audit-query", "synthetic-allow-deny", "workload-identity-proof"],
+  "failurePolicy": {"mode": "fail-closed", "onMissingEvidence": "deny-activation", "retry": {"strategy": "none", "maxAttempts": 0}},
+  "activationPolicy": {"enabledByDefault": false, "environmentOwned": true, "exactRevisionRequired": true, "qualificationDigestRequired": true},
+  "rollbackPolicy": {"strategy": "manual-containment", "preserveAuditTrail": true, "requiresOwner": true},
+  "nonResponsibilities": [
+    "This repository does not contain model weights, customer data, or live access-control membership.",
+    "Dataset consent, licensing, and biological-risk policy remain owned by their data and safety domains."
+  ]
+}

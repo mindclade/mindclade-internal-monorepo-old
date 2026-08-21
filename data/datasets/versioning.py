@@ -136,15 +136,17 @@ class DatasetVersionManifest:
                 raise ValueError(f"dataset {name} digest is invalid")
         if len(source_digests) != len(set(source_digests)) or len(evidence) != len(set(evidence)):
             raise ValueError("dataset source and evidence digests must be unique")
-        for value, name, required in (
+        for version_value, name, required in (
             (self.canonicalization_version, "canonicalization", True),
             (self.curation_version, "curation", True),
             (self.tokenizer_version, "tokenizer", False),
             (self.featurization_version, "featurization", False),
         ):
-            if required and value is None:
+            if required and version_value is None:
                 raise ValueError(f"dataset {name} version is required")
-            if value is not None and (not isinstance(value, str) or not _VERSION.fullmatch(value)):
+            if version_value is not None and (
+                not isinstance(version_value, str) or not _VERSION.fullmatch(version_value)
+            ):
                 raise ValueError(f"dataset {name} version is invalid")
         if not isinstance(self.split_policy, SplitPolicy):
             raise ValueError("dataset split policy is invalid")

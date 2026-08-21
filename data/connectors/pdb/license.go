@@ -3,7 +3,23 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-// Package pdb reserves the boundary defined by the production blueprint.
 package pdb
 
-const scaffold_license = "data/connectors/pdb/license.go"
+import "errors"
+
+type LicensePolicy struct {
+	Reference    string
+	ApprovedUses []string
+}
+
+func (p LicensePolicy) ValidateUse(use string) error {
+	if p.Reference == "" || use == "" || len(p.ApprovedUses) == 0 {
+		return errors.New("pdb license policy is incomplete")
+	}
+	for _, approved := range p.ApprovedUses {
+		if approved == use {
+			return nil
+		}
+	}
+	return errors.New("pdb license policy does not approve requested use")
+}

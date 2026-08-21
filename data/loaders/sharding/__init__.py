@@ -12,5 +12,3 @@ from .resume import ShardCursor
 from .worker_partition import worker_indices
 
 __all__ = ["RebalancePlan", "ShardCursor", "assign", "rank_indices", "rebalance", "worker_indices"]
-
-"""Mindclade scaffold package for data/loaders/sharding."""

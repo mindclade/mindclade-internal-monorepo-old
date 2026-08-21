@@ -3,19 +3,41 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold test for infra/security/tests/test_break_glass.py."""
+"""Emergency-access lifecycle tests for the infrastructure security catalog."""
 
-import pytest
+from pathlib import Path
+
+from infra.security.security_contracts import load_json_yaml
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
-# SKIPPED, not passing.
-#
-# A placeholder for tests that do not exist yet. It used to `assert True` — which pytest
-# reports as a pass, so the suite was green and the number it printed was not the number of
-# things actually verified. A vacuous gate is worse than no gate: it manufactures confidence.
-#
-# Write real tests here when there is an implementation to test, and lower SCAFFOLD_BASELINE
-# in tests/integration/test_python_scaffold.py in the same commit.
-@pytest.mark.scaffold
-def test_scaffold_contract() -> None:
-    pytest.skip("scaffold: no implementation to test yet")
+def test_break_glass_requires_manual_time_bounded_revocation() -> None:
+    contract = load_json_yaml(ROOT / "break-glass.yaml")
+
+    assert contract["requiredEvidence"] == [
+        "access-review",
+        "audit-query",
+        "revocation-proof",
+        "time-bound-approval",
+    ]
+    assert contract["failurePolicy"]["retry"] == {
+        "strategy": "manual",
+        "maxAttempts": 0,
+    }
+    assert contract["rollbackPolicy"] == {
+        "strategy": "manual-containment",
+        "preserveAuditTrail": True,
+        "requiresOwner": True,
+    }
+
+
+def test_break_glass_sources_include_access_identity_and_plan_policy() -> None:
+    contract = load_json_yaml(ROOT / "break-glass.yaml")
+    assert contract["enforcementSources"] == [
+        "infra/terraform/modules/iap_access/main.tf",
+        "infra/terraform/modules/workload_identity/main.tf",
+        "infra/terraform/policy/terraform_plan.rego",
+    ]
+    assert contract["activationPolicy"]["environmentOwned"] is True
+    assert contract["activationPolicy"]["exactRevisionRequired"] is True

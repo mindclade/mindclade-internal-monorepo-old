@@ -3,7 +3,20 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_python//python:defs.bzl", "py_test")
+
 package(default_visibility = ["//visibility:private"])
+
+py_test(
+    name = "release_request_test",
+    srcs = [
+        "release_request.py",
+        "tests/test_release_request.py",
+    ],
+    data = ["release-request.schema.json"],
+    main = "tests/test_release_request.py",
+    deps = ["@pypi//pyyaml"],
+)
 
 filegroup(
     name = "scaffold_files",

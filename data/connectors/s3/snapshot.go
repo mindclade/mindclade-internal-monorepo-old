@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-// Package s3 reserves the boundary defined by the production blueprint.
 package s3
 
-const scaffold_snapshot = "data/connectors/s3/snapshot.go"
+import "go.mindclade.dev/data/connectors"
+
+type Snapshot = connectors.Snapshot

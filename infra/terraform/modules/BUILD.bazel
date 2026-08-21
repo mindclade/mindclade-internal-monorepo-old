@@ -57,6 +57,7 @@ filegroup(
         "//infra/terraform/modules/storage_collection:scaffold_files",
         "//infra/terraform/modules/workload_identity:scaffold_files",
     ],
+    visibility = ["//infra/security:__pkg__"],
 )
 
 py_test(

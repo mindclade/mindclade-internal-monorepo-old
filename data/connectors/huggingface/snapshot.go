@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-// Package huggingface reserves the boundary defined by the production blueprint.
 package huggingface
 
-const scaffold_snapshot = "data/connectors/huggingface/snapshot.go"
+import "go.mindclade.dev/data/connectors"
+
+type Snapshot = connectors.Snapshot

@@ -3,12 +3,29 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/tokenizers/registry.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Exact-version tokenizer registry."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/tokenizers/registry.py"
+from collections.abc import Iterable
+
+from .api import Tokenizer
+
+
+class TokenizerRegistry:
+    def __init__(self, tokenizers: Iterable[tuple[str, Tokenizer]]) -> None:
+        entries: dict[tuple[str, str], Tokenizer] = {}
+        for name, tokenizer in tokenizers:
+            if not name or not hasattr(tokenizer, "encode"):
+                raise ValueError("tokenizer registry entry is invalid")
+            key = (name, tokenizer.version)
+            if key in entries:
+                raise ValueError("tokenizer registry identity/version must be unique")
+            entries[key] = tokenizer
+        self._entries = entries
+
+    def resolve(self, name: str, version: str) -> Tokenizer:
+        try:
+            return self._entries[(name, version)]
+        except KeyError as error:
+            raise KeyError(f"unknown exact tokenizer {name}@{version}") from error

@@ -44,6 +44,8 @@ node_modules/
 /apps/*/.next/
 /sdk/typescript/dist/
 /libs/ts/*/dist/
+/playwright-report/
+/test-results/
 
 # --- Bazel ---
 /bazel-*

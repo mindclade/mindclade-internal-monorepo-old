@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import cast
 
 import torch
 from torch.utils.data import DataLoader, Dataset, DistributedSampler
@@ -133,10 +134,7 @@ def build_loader(
         )
     generator = torch.Generator()
     generator.manual_seed(config.seed)
-    kwargs: dict[str, object] = {}
-    if config.prefetch_factor is not None:
-        kwargs["prefetch_factor"] = config.prefetch_factor
-    loader: DataLoader[CollatedBatch] = DataLoader(
+    source_loader = DataLoader(
         dataset,
         batch_size=config.batch_size,
         shuffle=config.shuffle if sampler is None else False,
@@ -148,6 +146,7 @@ def build_loader(
         generator=generator,
         pin_memory=config.pin_memory,
         persistent_workers=config.persistent_workers,
-        **kwargs,
+        prefetch_factor=config.prefetch_factor,
     )
+    loader = cast(DataLoader[CollatedBatch], source_loader)
     return EpochDataLoader(loader, sampler)

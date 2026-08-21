@@ -31,8 +31,6 @@ jobs:
       rollout-class: ${{ steps.request.outputs.rollout-class }}
       previous-release-id: ${{ steps.request.outputs.previous-release-id }}
       previous-subject-digest: ${{ steps.request.outputs.previous-subject-digest }}
-      # Compatibility-only until the reviewed shared-workflow v5 tag exists.
-      rollback-digest: ${{ steps.request.outputs.rollback-digest }}
     steps:
       - name: Reject non-platform or non-main events
         run: |
@@ -79,7 +77,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: mindclade/.github/.github/workflows/reusable-arc-wif-canary.yml@v4.0.0
+    uses: mindclade/.github/.github/workflows/reusable-arc-wif-canary.yml@v5.0.0
 
   build:
     needs: [discover, canary]
@@ -88,7 +86,7 @@ jobs:
       id-token: write
       attestations: write
       artifact-metadata: write
-    uses: mindclade/.github/.github/workflows/reusable-arc-oci-build.yml@v4.0.0
+    uses: mindclade/.github/.github/workflows/reusable-arc-oci-build.yml@v5.0.0
     with:
       request-path: ${{ needs.discover.outputs.request-path }}
 
@@ -98,7 +96,7 @@ jobs:
       actions: read
       contents: read
       id-token: write
-    uses: mindclade/.github/.github/workflows/reusable-arc-oci-qualify.yml@v4.0.0
+    uses: mindclade/.github/.github/workflows/reusable-arc-oci-qualify.yml@v5.0.0
     with:
       candidate-artifact: ${{ needs.build.outputs.candidate-artifact }}
       image-ref: ${{ needs.build.outputs.image-ref }}
@@ -109,7 +107,7 @@ jobs:
       actions: read
       contents: read
       id-token: write
-    uses: mindclade/.github/.github/workflows/reusable-arc-qualification-attest.yml@v4.0.0
+    uses: mindclade/.github/.github/workflows/reusable-arc-qualification-attest.yml@v5.0.0
     with:
       qualification-artifact: ${{ needs.qualify.outputs.qualification-artifact }}
       image-ref: ${{ needs.build.outputs.image-ref }}
@@ -119,7 +117,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: mindclade/.github/.github/workflows/reusable-binauthz-sign.yml@v4.0.0
+    uses: mindclade/.github/.github/workflows/reusable-binauthz-sign.yml@v5.0.0
     with:
       image-ref: ${{ needs.build.outputs.image-ref }}
 
@@ -128,8 +126,11 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: mindclade/.github/.github/workflows/reusable-gitops-promote.yml@v4.0.0
+    uses: mindclade/.github/.github/workflows/reusable-gitops-promote.yml@v5.0.0
     with:
+      application: ${{ needs.discover.outputs.application }}
       image-ref: ${{ needs.build.outputs.image-ref }}
+      release-kind: ${{ needs.discover.outputs.release-kind }}
       release-id: ${{ needs.build.outputs.release-id }}
-      rollback-digest: ${{ needs.discover.outputs.rollback-digest }}
+      previous-release-id: ${{ needs.discover.outputs.previous-release-id }}
+      previous-subject-digest: ${{ needs.discover.outputs.previous-subject-digest }}

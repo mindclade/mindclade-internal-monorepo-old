@@ -3,7 +3,5 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-// Package pdb reserves the boundary defined by the production blueprint.
+// Package pdb validates configured immutable PDB catalog releases.
 package pdb
-
-const scaffold_doc = "data/connectors/pdb/doc.go"

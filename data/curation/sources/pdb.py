@@ -3,12 +3,22 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/curation/sources/pdb.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""PDB provenance stage configured from an approved source snapshot."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/curation/sources/pdb.py"
+from dataclasses import dataclass
+
+from ..pipeline import CuratedRecord
+from ..provenance import with_metadata
+
+
+@dataclass(frozen=True, slots=True)
+class PDBProvenance:
+    snapshot_digest: str
+    license_ref: str
+
+    def __call__(self, record: CuratedRecord) -> CuratedRecord:
+        value = with_metadata(record, "source", "pdb")
+        value = with_metadata(value, "source_snapshot_digest", self.snapshot_digest)
+        return with_metadata(value, "license_ref", self.license_ref)

@@ -7,6 +7,43 @@ syntax = "proto3";
 
 package mindclade.registry.v1;
 
+import "google/protobuf/timestamp.proto";
+import "mindclade/common/v1/artifact_ref.proto";
+
+// CheckpointScaffold is retained only for source and wire compatibility with
+// the reserved pre-implementation surface.
 message CheckpointScaffold {
+  option deprecated = true;
   string reserved = 1;
+}
+
+// CheckpointLifecycle is registry policy state. Only COMMITTED and PROTECTED
+// records are eligible for restore; EXPIRED and REVOKED are terminal.
+enum CheckpointLifecycle {
+  CHECKPOINT_LIFECYCLE_UNSPECIFIED = 0;
+  CHECKPOINT_LIFECYCLE_COMMITTED = 1;
+  CHECKPOINT_LIFECYCLE_PROTECTED = 2;
+  CHECKPOINT_LIFECYCLE_EXPIRED = 3;
+  CHECKPOINT_LIFECYCLE_REVOKED = 4;
+}
+
+// CheckpointRecord is the durable catalog projection of an already-published
+// manifest and commit artifact. It does not contain provider locations.
+message CheckpointRecord {
+  uint32 schema_version = 1;
+  string checkpoint_id = 2;
+  string run_id = 3;
+  mindclade.common.v1.ArtifactRef manifest = 4;
+  mindclade.common.v1.ArtifactRef commit = 5;
+  uint64 optimizer_step = 6;
+  uint64 checkpoint_attempt = 7;
+  uint64 fencing_token = 8;
+  string topology_fingerprint = 9;
+  mindclade.common.v1.ArtifactRef parent_manifest = 10;
+  CheckpointLifecycle lifecycle = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp retain_until = 13;
+  uint64 policy_epoch = 14;
+  uint64 resource_version = 15;
+  string record_digest = 16;
 }

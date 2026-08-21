@@ -39,6 +39,11 @@ type domainFixture struct {
 	reservation admission.Reservation
 }
 
+type testSQLStateError string
+
+func (value testSQLStateError) Error() string    { return string(value) }
+func (value testSQLStateError) SQLState() string { return string(value) }
+
 func newDomainFixture(t *testing.T) domainFixture {
 	t.Helper()
 	fake := clock.NewFake(testNow)
@@ -443,6 +448,177 @@ func TestReserveRetriesConcurrentIdempotencyWinner(t *testing.T) {
 	}
 	if state.Begins.Load() != 2 || state.Rollbacks.Load() != 1 || state.Commits.Load() != 1 {
 		t.Fatalf("begins=%d rollbacks=%d commits=%d", state.Begins.Load(), state.Rollbacks.Load(), state.Commits.Load())
+	}
+}
+
+func TestReserveBoundsStatementSerializationRetriesAtOuterTransaction(t *testing.T) {
+	fixture := newDomainFixture(t)
+	entitlementDocument, _ := json.Marshal(fixture.snapshot.Entitlement)
+	budgetDocument, _ := json.Marshal(fixture.snapshot.Budget)
+	queryIndex := 0
+	state := &sqltest.State{
+		Query: func(_ context.Context, _ string, _ []driver.NamedValue) (driver.Rows, error) {
+			queryIndex++
+			switch (queryIndex - 1) % 4 {
+			case 0:
+				return sqltest.NewRows([]string{"document"}), nil
+			case 1:
+				return sqltest.NewRows([]string{"document"}, []driver.Value{entitlementDocument}), nil
+			case 2:
+				return sqltest.NewRows([]string{"document"}, []driver.Value{budgetDocument}), nil
+			default:
+				return sqltest.NewRows([]string{"requests", "input", "output", "cost"}, []driver.Value{int64(0), int64(0), int64(0), int64(0)}), nil
+			}
+		},
+		Exec: func(context.Context, string, []driver.NamedValue) (driver.Result, error) {
+			return nil, testSQLStateError("40001")
+		},
+	}
+	store, _ := newTestStore(t, state, fixture.clock, audit.NopRecorder{})
+	policy, err := retry.NewPolicy(
+		retry.WithMaxAttempts(admissionMutationMaxAttempts),
+		retry.WithBackoff(retry.ImmediateBackoff()),
+		retry.WithoutJitter(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.retries, err = retry.NewExecutor(policy, retry.WithClock(fixture.clock))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, err = store.Reserve(context.Background(), fixture.snapshot, fixture.reservation, testNow)
+	if !errors.Is(err, retry.ErrExhausted) {
+		t.Fatalf("serialization error=%v, want retry exhaustion", err)
+	}
+	// PostgreSQL's statement-level retry policy caps SQLSTATE 40001 at five attempts;
+	// the admission executor's eight-attempt ceiling must not override that smaller bound.
+	if state.Begins.Load() != 5 || state.Rollbacks.Load() != 5 || state.Commits.Load() != 0 {
+		t.Fatalf("begins=%d rollbacks=%d commits=%d, want 5/5/0",
+			state.Begins.Load(), state.Rollbacks.Load(), state.Commits.Load())
+	}
+}
+
+func TestReserveReplaysWinnerAfterStatementSerializationFailure(t *testing.T) {
+	fixture := newDomainFixture(t)
+	entitlementDocument, _ := json.Marshal(fixture.snapshot.Entitlement)
+	budgetDocument, _ := json.Marshal(fixture.snapshot.Budget)
+	reservationDocument, _ := json.Marshal(fixture.reservation)
+	queryIndex := 0
+	state := &sqltest.State{
+		Query: func(_ context.Context, _ string, _ []driver.NamedValue) (driver.Rows, error) {
+			queryIndex++
+			switch queryIndex {
+			case 1:
+				return sqltest.NewRows([]string{"document"}), nil
+			case 2:
+				return sqltest.NewRows([]string{"document"}, []driver.Value{entitlementDocument}), nil
+			case 3:
+				return sqltest.NewRows([]string{"document"}, []driver.Value{budgetDocument}), nil
+			case 4:
+				return sqltest.NewRows([]string{"requests", "input", "output", "cost"}, []driver.Value{int64(0), int64(0), int64(0), int64(0)}), nil
+			case 5:
+				return sqltest.NewRows([]string{"document"}, []driver.Value{reservationDocument}), nil
+			default:
+				return nil, fmt.Errorf("unexpected query %d", queryIndex)
+			}
+		},
+		Exec: func(context.Context, string, []driver.NamedValue) (driver.Result, error) {
+			return nil, testSQLStateError("40001")
+		},
+	}
+	store, _ := newTestStore(t, state, fixture.clock, audit.NopRecorder{})
+	policy, err := retry.NewPolicy(
+		retry.WithMaxAttempts(admissionMutationMaxAttempts),
+		retry.WithBackoff(retry.ImmediateBackoff()),
+		retry.WithoutJitter(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.retries, err = retry.NewExecutor(policy, retry.WithClock(fixture.clock))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	reservation, replayed, err := store.Reserve(context.Background(), fixture.snapshot, fixture.reservation, testNow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !replayed || reservation.ID.String() != fixture.reservation.ID.String() {
+		t.Fatalf("reservation=%s replayed=%t", reservation.ID, replayed)
+	}
+	if state.Begins.Load() != 2 || state.Rollbacks.Load() != 1 || state.Commits.Load() != 1 || state.Executions.Load() != 1 {
+		t.Fatalf("begins=%d rollbacks=%d commits=%d executions=%d, want 2/1/1/1",
+			state.Begins.Load(), state.Rollbacks.Load(), state.Commits.Load(), state.Executions.Load())
+	}
+}
+
+func TestReserveCancellationInterruptsSerializationBackoff(t *testing.T) {
+	fixture := newDomainFixture(t)
+	entitlementDocument, _ := json.Marshal(fixture.snapshot.Entitlement)
+	budgetDocument, _ := json.Marshal(fixture.snapshot.Budget)
+	queryIndex := 0
+	state := &sqltest.State{
+		Query: func(_ context.Context, _ string, _ []driver.NamedValue) (driver.Rows, error) {
+			queryIndex++
+			switch queryIndex {
+			case 1:
+				return sqltest.NewRows([]string{"document"}), nil
+			case 2:
+				return sqltest.NewRows([]string{"document"}, []driver.Value{entitlementDocument}), nil
+			case 3:
+				return sqltest.NewRows([]string{"document"}, []driver.Value{budgetDocument}), nil
+			default:
+				return sqltest.NewRows([]string{"requests", "input", "output", "cost"}, []driver.Value{int64(0), int64(0), int64(0), int64(0)}), nil
+			}
+		},
+		Exec: func(context.Context, string, []driver.NamedValue) (driver.Result, error) {
+			return nil, testSQLStateError("40001")
+		},
+	}
+	store, _ := newTestStore(t, state, fixture.clock, audit.NopRecorder{})
+	backoff, err := retry.FixedBackoff(time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	policy, err := retry.NewPolicy(
+		retry.WithMaxAttempts(admissionMutationMaxAttempts),
+		retry.WithBackoff(backoff),
+		retry.WithoutJitter(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.retries, err = retry.NewExecutor(policy, retry.WithClock(fixture.clock))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		_, _, reserveErr := store.Reserve(ctx, fixture.snapshot, fixture.reservation, testNow)
+		done <- reserveErr
+	}()
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer waitCancel()
+	if err := fixture.clock.BlockUntil(waitCtx, 1); err != nil {
+		t.Fatal(err)
+	}
+	cancel()
+	select {
+	case err = <-done:
+	case <-waitCtx.Done():
+		t.Fatal("reservation retry did not honor context cancellation")
+	}
+	if !errors.Is(err, context.Canceled) || faults.CodeOf(err) != faults.CodeCanceled {
+		t.Fatalf("cancellation error=%v", err)
+	}
+	if state.Begins.Load() != 1 || state.Rollbacks.Load() != 1 || state.Commits.Load() != 0 {
+		t.Fatalf("begins=%d rollbacks=%d commits=%d, want 1/1/0",
+			state.Begins.Load(), state.Rollbacks.Load(), state.Commits.Load())
 	}
 }
 

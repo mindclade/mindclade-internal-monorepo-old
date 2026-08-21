@@ -5,6 +5,9 @@
 
 from __future__ import annotations
 
+import tomllib
+from pathlib import Path
+
 import pytest
 
 from data.datasets import (
@@ -15,6 +18,7 @@ from data.datasets import (
     LineageNode,
     MixtureComponent,
     PublicationState,
+    parse_dataset_manifest,
     validate_transition,
 )
 from data.datasets.tests.fixtures import DIGESTS, manifest
@@ -63,3 +67,40 @@ def test_publication_state_and_mixture_fail_closed() -> None:
             ),
             7,
         )
+
+
+def test_checked_in_manifest_and_mixture_examples_are_consistent() -> None:
+    root = Path(__file__).resolve().parents[1]
+    manifests = {
+        item.dataset_id: item
+        for path in sorted((root / "manifests").glob("*.json"))
+        for item in (parse_dataset_manifest(path.read_text(encoding="utf-8")),)
+    }
+    assert set(manifests) == {
+        "biomolecular-complexes",
+        "rollout-trajectories",
+        "sequence-pretraining",
+    }
+    for manifest_item in manifests.values():
+        assert "release" in manifest_item.prohibited_uses[0].lower()
+
+    for path in sorted((root / "mixtures").glob("*.toml")):
+        raw = tomllib.loads(path.read_text(encoding="utf-8"))
+        components = tuple(
+            MixtureComponent(
+                str(item["dataset_id"]),
+                str(item["version"]),
+                str(item["manifest_digest"]),
+                str(item["split"]),
+                float(item["weight"]),
+            )
+            for item in raw["components"]
+        )
+        mixture = DatasetMixture(str(raw["name"]), components, int(raw["seed"]))
+        assert all(
+            component.manifest_digest == manifests[component.dataset_id].manifest_digest
+            for component in mixture.components
+        )
+
+    with pytest.raises(ValueError, match="duplicate field"):
+        parse_dataset_manifest('{"schema_version":1,"schema_version":1}')

@@ -38,6 +38,10 @@ tools/dev/nixw develop .#ci-bazel --command \
     //apps/console:release_archive //apps/admin:release_archive --config=ci
 tools/dev/nixw develop .#default --command \
   python3 tools/analysis/run_architecture_checks.py
+tools/dev/nixw develop .#ci-bazel --command \
+  tools/dev/bazelw build //... --nobuild --config=ci
+tools/dev/nixw develop .#default --command \
+  mkdocs build -f docs/mkdocs.yml --strict
 ```
 
 The static protobuf guard and Buf lint pass all 72 canonical schemas. SDK
@@ -62,7 +66,9 @@ frame-denial, and no-store headers. Both packaged `robots.txt` files disallow
 all crawlers. These hashes and observations identify local review artifacts;
 they are not signed release provenance or evidence of a deployed environment.
 The pinned aggregate architecture suite also passed all 21 repository
-invariants.
+invariants. The full Bazel repository graph analyzed 1,263 targets across
+2,099 loaded packages and 87,425 configured targets, and the strict MkDocs
+site build completed without warnings.
 
 ## Compatibility
 
@@ -82,9 +88,3 @@ canary safety, signed provenance, SBOM completeness, or rollback execution.
 Those controls require protected identities and the owning infrastructure,
 GitOps, IdP, API, and release lanes. No cloud, DNS, cluster, GitHub, package
 registry, or production mutation was performed during this review.
-
-The repository-wide strict MkDocs build remains blocked by an unrelated link
-from `docs/architecture/gcp-terraform-well-architected-review.md` to a file
-outside the documentation input tree. That concurrently modified review file
-was not changed in this work; its warning must be resolved before claiming a
-green repository-wide documentation build.

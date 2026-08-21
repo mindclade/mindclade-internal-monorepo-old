@@ -20,5 +20,3 @@ __all__ = [
     "temperature_weights",
     "weighted_indices",
 ]
-
-"""Mindclade scaffold package for data/loaders/sampling."""

@@ -3,12 +3,15 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/curation/fingerprints.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Content fingerprints for exact deduplication evidence."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/curation/fingerprints.py"
+import hashlib
+
+from .pipeline import CuratedRecord
+
+
+def payload_fingerprint(record: CuratedRecord) -> str:
+    record.validate()
+    return "sha256:" + hashlib.sha256(record.payload).hexdigest()

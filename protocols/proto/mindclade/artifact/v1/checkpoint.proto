@@ -7,6 +7,28 @@ syntax = "proto3";
 
 package mindclade.artifact.v1;
 
+import "google/protobuf/timestamp.proto";
+import "mindclade/common/v1/artifact_ref.proto";
+
+// CheckpointScaffold is retained only for source and wire compatibility with
+// the reserved pre-implementation surface.
 message CheckpointScaffold {
+  option deprecated = true;
   string reserved = 1;
+}
+
+// CheckpointCommit is the manifest-last, create-only publication receipt. A
+// reader must reject a manifest with no matching commit or with an older
+// fencing token. The digest is the canonical sha256 digest of this record with
+// commit_digest omitted.
+message CheckpointCommit {
+  uint32 schema_version = 1;
+  string checkpoint_id = 2;
+  string run_id = 3;
+  mindclade.common.v1.ArtifactRef manifest = 4;
+  uint64 checkpoint_attempt = 5;
+  uint64 fencing_token = 6;
+  string writer_id = 7;
+  google.protobuf.Timestamp committed_at = 8;
+  string commit_digest = 9;
 }

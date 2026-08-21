@@ -9,16 +9,24 @@
 
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { ArtifactRef } from "../../common/v1/artifact_ref_pb.js";
+import { file_mindclade_common_v1_artifact_ref } from "../../common/v1/artifact_ref_pb.js";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file mindclade/artifact/v1/checkpoint.proto.
  */
 export const file_mindclade_artifact_v1_checkpoint: GenFile = /*@__PURE__*/
-  fileDesc("CiZtaW5kY2xhZGUvYXJ0aWZhY3QvdjEvY2hlY2twb2ludC5wcm90bxIVbWluZGNsYWRlLmFydGlmYWN0LnYxIiYKEkNoZWNrcG9pbnRTY2FmZm9sZBIQCghyZXNlcnZlZBgBIAEoCWIGcHJvdG8z");
+  fileDesc("CiZtaW5kY2xhZGUvYXJ0aWZhY3QvdjEvY2hlY2twb2ludC5wcm90bxIVbWluZGNsYWRlLmFydGlmYWN0LnYxIioKEkNoZWNrcG9pbnRTY2FmZm9sZBIQCghyZXNlcnZlZBgBIAEoCToCGAEilAIKEENoZWNrcG9pbnRDb21taXQSFgoOc2NoZW1hX3ZlcnNpb24YASABKA0SFQoNY2hlY2twb2ludF9pZBgCIAEoCRIOCgZydW5faWQYAyABKAkSMgoIbWFuaWZlc3QYBCABKAsyIC5taW5kY2xhZGUuY29tbW9uLnYxLkFydGlmYWN0UmVmEhoKEmNoZWNrcG9pbnRfYXR0ZW1wdBgFIAEoBBIVCg1mZW5jaW5nX3Rva2VuGAYgASgEEhEKCXdyaXRlcl9pZBgHIAEoCRIwCgxjb21taXR0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhUKDWNvbW1pdF9kaWdlc3QYCSABKAliBnByb3RvMw", [file_google_protobuf_timestamp, file_mindclade_common_v1_artifact_ref]);
 
 /**
+ * CheckpointScaffold is retained only for source and wire compatibility with
+ * the reserved pre-implementation surface.
+ *
  * @generated from message mindclade.artifact.v1.CheckpointScaffold
+ * @deprecated
  */
 export type CheckpointScaffold = Message<"mindclade.artifact.v1.CheckpointScaffold"> & {
   /**
@@ -30,7 +38,70 @@ export type CheckpointScaffold = Message<"mindclade.artifact.v1.CheckpointScaffo
 /**
  * Describes the message mindclade.artifact.v1.CheckpointScaffold.
  * Use `create(CheckpointScaffoldSchema)` to create a new message.
+ * @deprecated
  */
 export const CheckpointScaffoldSchema: GenMessage<CheckpointScaffold> = /*@__PURE__*/
   messageDesc(file_mindclade_artifact_v1_checkpoint, 0);
+
+/**
+ * CheckpointCommit is the manifest-last, create-only publication receipt. A
+ * reader must reject a manifest with no matching commit or with an older
+ * fencing token. The digest is the canonical sha256 digest of this record with
+ * commit_digest omitted.
+ *
+ * @generated from message mindclade.artifact.v1.CheckpointCommit
+ */
+export type CheckpointCommit = Message<"mindclade.artifact.v1.CheckpointCommit"> & {
+  /**
+   * @generated from field: uint32 schema_version = 1;
+   */
+  schemaVersion: number;
+
+  /**
+   * @generated from field: string checkpoint_id = 2;
+   */
+  checkpointId: string;
+
+  /**
+   * @generated from field: string run_id = 3;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: mindclade.common.v1.ArtifactRef manifest = 4;
+   */
+  manifest?: ArtifactRef | undefined;
+
+  /**
+   * @generated from field: uint64 checkpoint_attempt = 5;
+   */
+  checkpointAttempt: bigint;
+
+  /**
+   * @generated from field: uint64 fencing_token = 6;
+   */
+  fencingToken: bigint;
+
+  /**
+   * @generated from field: string writer_id = 7;
+   */
+  writerId: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp committed_at = 8;
+   */
+  committedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: string commit_digest = 9;
+   */
+  commitDigest: string;
+};
+
+/**
+ * Describes the message mindclade.artifact.v1.CheckpointCommit.
+ * Use `create(CheckpointCommitSchema)` to create a new message.
+ */
+export const CheckpointCommitSchema: GenMessage<CheckpointCommit> = /*@__PURE__*/
+  messageDesc(file_mindclade_artifact_v1_checkpoint, 1);
 

@@ -107,7 +107,11 @@ import pytest
 # per-file marker diff agree on this bounded reduction.
 # LOWERED 164 -> 163 by replacing the local checkpoint/resume placeholder with exact-state,
 # identity, corruption, incomplete-commit, immutability, and fail-closed restore coverage.
-SCAFFOLD_BASELINE = 163
+# LOWERED 163 -> 160 by replacing the data curation deduplication, reference manifest,
+# and tokenizer placeholders with behavioral, identity, and validation coverage.
+# LOWERED 160 -> 157 by materializing the infrastructure attestation, break-glass, and
+# model-weight access control catalog with schema, source-link, and fail-closed tests.
+SCAFFOLD_BASELINE = 157
 
 # Gitignored tool directories. Every entry is something that can hold a copy of the tree
 # without being part of it, which this scan would otherwise count.

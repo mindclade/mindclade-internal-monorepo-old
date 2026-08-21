@@ -26,6 +26,7 @@ py_library(
     pytest_test(
         name = name,
         srcs = [name + ".py"],
+        data = ["//data/datasets:examples"],
         imports = ["../../.."],
         deps = [
             ":fixtures",

@@ -3,12 +3,21 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/reference/builders/msa_databases.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""MSA search index candidate."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/reference/builders/msa_databases.py"
+from data.manifest import ArtifactRef
+
+from ..index import ReferenceIndex
+
+
+def msa_index(
+    artifacts: tuple[ArtifactRef, ...],
+    *,
+    format_version: str,
+    tool: str,
+    tool_version: str,
+    parameters_digest: str,
+) -> ReferenceIndex:
+    return ReferenceIndex("msa", format_version, tool, tool_version, parameters_digest, artifacts)

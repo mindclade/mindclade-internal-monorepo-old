@@ -3,19 +3,34 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold test for data/tokenizers/tests/test_tokenizers.py."""
+from __future__ import annotations
 
 import pytest
 
+from data.tokenizers import NucleotideTokenizer, ProteinTokenizer, TokenizerRegistry
+from data.tokenizers.chemistry import lex_smiles
 
-# SKIPPED, not passing.
-#
-# A placeholder for tests that do not exist yet. It used to `assert True` — which pytest
-# reports as a pass, so the suite was green and the number it printed was not the number of
-# things actually verified. A vacuous gate is worse than no gate: it manufactures confidence.
-#
-# Write real tests here when there is an implementation to test, and lower SCAFFOLD_BASELINE
-# in tests/integration/test_python_scaffold.py in the same commit.
-@pytest.mark.scaffold
-def test_scaffold_contract() -> None:
-    pytest.skip("scaffold: no implementation to test yet")
+
+def test_biological_tokenizers_are_versioned_and_deterministic() -> None:
+    protein = ProteinTokenizer()
+    assert protein.encode("ACDX") == protein.encode("acdx")
+    nucleotide = NucleotideTokenizer()
+    encoded = nucleotide.encode("ACGUN")
+    assert encoded.vocabulary_digest == nucleotide.vocabulary.digest
+    assert len(encoded.token_ids) == 7
+
+
+def test_nucleotide_unknowns_fail_and_smiles_lexing_is_lossless() -> None:
+    with pytest.raises(ValueError, match="outside"):
+        NucleotideTokenizer().encode("ACG?")
+    assert lex_smiles("CC(=O)Cl") == ("C", "C", "(", "=", "O", ")", "Cl")
+    with pytest.raises(ValueError, match="unsupported"):
+        lex_smiles("C C")
+
+
+def test_registry_requires_exact_versions() -> None:
+    protein = ProteinTokenizer()
+    registry = TokenizerRegistry((("protein", protein),))
+    assert registry.resolve("protein", protein.version) is protein
+    with pytest.raises(KeyError, match="exact"):
+        registry.resolve("protein", "latest")

@@ -9,16 +9,28 @@
 
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { ArtifactRef } from "../../common/v1/artifact_ref_pb.js";
+import { file_mindclade_common_v1_artifact_ref } from "../../common/v1/artifact_ref_pb.js";
+import type { TrainingCounters, TrainingRunState } from "./progress_pb.js";
+import { file_mindclade_training_v1_progress } from "./progress_pb.js";
+import type { TrainingTopology } from "./topology_pb.js";
+import { file_mindclade_training_v1_topology } from "./topology_pb.js";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file mindclade/training/v1/run.proto.
  */
 export const file_mindclade_training_v1_run: GenFile = /*@__PURE__*/
-  fileDesc("Ch9taW5kY2xhZGUvdHJhaW5pbmcvdjEvcnVuLnByb3RvEhVtaW5kY2xhZGUudHJhaW5pbmcudjEiHwoLUnVuU2NhZmZvbGQSEAoIcmVzZXJ2ZWQYASABKAliBnByb3RvMw");
+  fileDesc("Ch9taW5kY2xhZGUvdHJhaW5pbmcvdjEvcnVuLnByb3RvEhVtaW5kY2xhZGUudHJhaW5pbmcudjEiIwoLUnVuU2NhZmZvbGQSEAoIcmVzZXJ2ZWQYASABKAk6AhgBIr4DChhUcmFpbmluZ1J1blNwZWNpZmljYXRpb24SFgoOc2NoZW1hX3ZlcnNpb24YASABKA0SDgoGcnVuX2lkGAIgASgJEg4KBmVuZ2luZRgDIAEoCRI5Cg9yZXNvbHZlZF9jb25maWcYBCABKAsyIC5taW5kY2xhZGUuY29tbW9uLnYxLkFydGlmYWN0UmVmEjEKB2RhdGFzZXQYBSABKAsyIC5taW5kY2xhZGUuY29tbW9uLnYxLkFydGlmYWN0UmVmEjcKDWluaXRpYWxfbW9kZWwYBiABKAsyIC5taW5kY2xhZGUuY29tbW9uLnYxLkFydGlmYWN0UmVmEkQKGnJlc3VtZV9jaGVja3BvaW50X21hbmlmZXN0GAcgASgLMiAubWluZGNsYWRlLmNvbW1vbi52MS5BcnRpZmFjdFJlZhI5Cgh0b3BvbG9neRgIIAEoCzInLm1pbmRjbGFkZS50cmFpbmluZy52MS5UcmFpbmluZ1RvcG9sb2d5Eh8KF21heGltdW1fb3B0aW1pemVyX3N0ZXBzGAkgASgEEiEKGWNoZWNrcG9pbnRfaW50ZXJ2YWxfc3RlcHMYCiABKAQi8AMKEVRyYWluaW5nUnVuUmVzdWx0EhYKDnNjaGVtYV92ZXJzaW9uGAEgASgNEg4KBnJ1bl9pZBgCIAEoCRISCgphdHRlbXB0X2lkGAMgASgJEjYKBXN0YXRlGAQgASgOMicubWluZGNsYWRlLnRyYWluaW5nLnYxLlRyYWluaW5nUnVuU3RhdGUSOQoIY291bnRlcnMYBSABKAsyJy5taW5kY2xhZGUudHJhaW5pbmcudjEuVHJhaW5pbmdDb3VudGVycxIVCg1kYXRhX3Bvc2l0aW9uGAYgASgEEkMKGWZpbmFsX2NoZWNrcG9pbnRfbWFuaWZlc3QYByABKAsyIC5taW5kY2xhZGUuY29tbW9uLnYxLkFydGlmYWN0UmVmEjYKDG1vZGVsX2J1bmRsZRgIIAEoCzIgLm1pbmRjbGFkZS5jb21tb24udjEuQXJ0aWZhY3RSZWYSNgoMcnVuX2V2aWRlbmNlGAkgASgLMiAubWluZGNsYWRlLmNvbW1vbi52MS5BcnRpZmFjdFJlZhIuCgpzdGFydGVkX2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIwCgxjb21wbGV0ZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wYgZwcm90bzM", [file_google_protobuf_timestamp, file_mindclade_common_v1_artifact_ref, file_mindclade_training_v1_progress, file_mindclade_training_v1_topology]);
 
 /**
+ * RunScaffold is retained only for source and wire compatibility with the
+ * reserved pre-implementation surface.
+ *
  * @generated from message mindclade.training.v1.RunScaffold
+ * @deprecated
  */
 export type RunScaffold = Message<"mindclade.training.v1.RunScaffold"> & {
   /**
@@ -30,7 +42,144 @@ export type RunScaffold = Message<"mindclade.training.v1.RunScaffold"> & {
 /**
  * Describes the message mindclade.training.v1.RunScaffold.
  * Use `create(RunScaffoldSchema)` to create a new message.
+ * @deprecated
  */
 export const RunScaffoldSchema: GenMessage<RunScaffold> = /*@__PURE__*/
   messageDesc(file_mindclade_training_v1_run, 0);
+
+/**
+ * TrainingRunSpecification is the immutable input to one admitted training
+ * operation. The workload StageEnvelope owns execution identity, fencing,
+ * deadlines, and cancellation; this message owns training semantics only.
+ *
+ * @generated from message mindclade.training.v1.TrainingRunSpecification
+ */
+export type TrainingRunSpecification = Message<"mindclade.training.v1.TrainingRunSpecification"> & {
+  /**
+   * @generated from field: uint32 schema_version = 1;
+   */
+  schemaVersion: number;
+
+  /**
+   * @generated from field: string run_id = 2;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string engine = 3;
+   */
+  engine: string;
+
+  /**
+   * @generated from field: mindclade.common.v1.ArtifactRef resolved_config = 4;
+   */
+  resolvedConfig?: ArtifactRef | undefined;
+
+  /**
+   * @generated from field: mindclade.common.v1.ArtifactRef dataset = 5;
+   */
+  dataset?: ArtifactRef | undefined;
+
+  /**
+   * @generated from field: mindclade.common.v1.ArtifactRef initial_model = 6;
+   */
+  initialModel?: ArtifactRef | undefined;
+
+  /**
+   * @generated from field: mindclade.common.v1.ArtifactRef resume_checkpoint_manifest = 7;
+   */
+  resumeCheckpointManifest?: ArtifactRef | undefined;
+
+  /**
+   * @generated from field: mindclade.training.v1.TrainingTopology topology = 8;
+   */
+  topology?: TrainingTopology | undefined;
+
+  /**
+   * @generated from field: uint64 maximum_optimizer_steps = 9;
+   */
+  maximumOptimizerSteps: bigint;
+
+  /**
+   * @generated from field: uint64 checkpoint_interval_steps = 10;
+   */
+  checkpointIntervalSteps: bigint;
+};
+
+/**
+ * Describes the message mindclade.training.v1.TrainingRunSpecification.
+ * Use `create(TrainingRunSpecificationSchema)` to create a new message.
+ */
+export const TrainingRunSpecificationSchema: GenMessage<TrainingRunSpecification> = /*@__PURE__*/
+  messageDesc(file_mindclade_training_v1_run, 1);
+
+/**
+ * TrainingRunResult contains only immutable output references and terminal
+ * counters. Detailed logs and metrics remain separate evidence artifacts.
+ *
+ * @generated from message mindclade.training.v1.TrainingRunResult
+ */
+export type TrainingRunResult = Message<"mindclade.training.v1.TrainingRunResult"> & {
+  /**
+   * @generated from field: uint32 schema_version = 1;
+   */
+  schemaVersion: number;
+
+  /**
+   * @generated from field: string run_id = 2;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string attempt_id = 3;
+   */
+  attemptId: string;
+
+  /**
+   * @generated from field: mindclade.training.v1.TrainingRunState state = 4;
+   */
+  state: TrainingRunState;
+
+  /**
+   * @generated from field: mindclade.training.v1.TrainingCounters counters = 5;
+   */
+  counters?: TrainingCounters | undefined;
+
+  /**
+   * @generated from field: uint64 data_position = 6;
+   */
+  dataPosition: bigint;
+
+  /**
+   * @generated from field: mindclade.common.v1.ArtifactRef final_checkpoint_manifest = 7;
+   */
+  finalCheckpointManifest?: ArtifactRef | undefined;
+
+  /**
+   * @generated from field: mindclade.common.v1.ArtifactRef model_bundle = 8;
+   */
+  modelBundle?: ArtifactRef | undefined;
+
+  /**
+   * @generated from field: mindclade.common.v1.ArtifactRef run_evidence = 9;
+   */
+  runEvidence?: ArtifactRef | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp started_at = 10;
+   */
+  startedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp completed_at = 11;
+   */
+  completedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message mindclade.training.v1.TrainingRunResult.
+ * Use `create(TrainingRunResultSchema)` to create a new message.
+ */
+export const TrainingRunResultSchema: GenMessage<TrainingRunResult> = /*@__PURE__*/
+  messageDesc(file_mindclade_training_v1_run, 2);
 

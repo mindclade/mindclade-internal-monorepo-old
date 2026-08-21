@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mindclade.com/contracts/infrastructure-security-control-1.0.0.schema.json",
+  "title": "Mindclade infrastructure security control contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "name", "owner", "controlFamily", "description", "planes", "enforcementSources", "testSources", "requiredEvidence", "failurePolicy", "activationPolicy", "rollbackPolicy", "nonResponsibilities"],
+  "properties": {
+    "schemaVersion": {"const": "mindclade.dev/infrastructure-security-control/v1"},
+    "name": {"$ref": "#/$defs/id"},
+    "owner": {"const": "security-platform"},
+    "controlFamily": {"enum": ["audit-retention", "break-glass", "image-policy", "model-weight-access", "network-policy", "node-attestation", "pod-security", "secrets-rotation", "supply-chain"]},
+    "description": {"type": "string", "minLength": 40, "maxLength": 1000},
+    "planes": {"type": "array", "minItems": 1, "maxItems": 4, "uniqueItems": true, "items": {"enum": ["ci", "gcp", "kubernetes", "terraform"]}},
+    "enforcementSources": {"type": "array", "minItems": 2, "maxItems": 16, "uniqueItems": true, "items": {"$ref": "#/$defs/repositoryPath"}},
+    "testSources": {"type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": {"$ref": "#/$defs/repositoryPath"}},
+    "requiredEvidence": {"type": "array", "minItems": 3, "maxItems": 12, "uniqueItems": true, "items": {"enum": ["access-review", "alert-fire-resolve", "audit-query", "connected-gke", "deny-fixture", "drift-check", "failure-injection", "key-rotation", "restore-rehearsal", "revocation-proof", "saved-plan-policy", "signed-attestation", "synthetic-allow-deny", "time-bound-approval", "workload-identity-proof"]}},
+    "failurePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "onMissingEvidence", "retry"],
+      "properties": {
+        "mode": {"const": "fail-closed"},
+        "onMissingEvidence": {"const": "deny-activation"},
+        "retry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["strategy", "maxAttempts"],
+          "properties": {
+            "strategy": {"enum": ["bounded", "manual", "none"]},
+            "maxAttempts": {"type": "integer", "minimum": 0, "maximum": 10}
+          }
+        }
+      }
+    },
+    "activationPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabledByDefault", "environmentOwned", "exactRevisionRequired", "qualificationDigestRequired"],
+      "properties": {
+        "enabledByDefault": {"const": false},
+        "environmentOwned": {"const": true},
+        "exactRevisionRequired": {"const": true},
+        "qualificationDigestRequired": {"const": true}
+      }
+    },
+    "rollbackPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy", "preserveAuditTrail", "requiresOwner"],
+      "properties": {
+        "strategy": {"enum": ["forward-fix", "manual-containment", "revert-exact-revision"]},
+        "preserveAuditTrail": {"const": true},
+        "requiresOwner": {"const": true}
+      }
+    },
+    "nonResponsibilities": {"type": "array", "minItems": 1, "maxItems": 12, "uniqueItems": true, "items": {"type": "string", "minLength": 20, "maxLength": 500}}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,127}$"},
+    "repositoryPath": {"type": "string", "pattern": "^(ci|infra|tools)/[A-Za-z0-9_./-]+$"}
+  }
+}

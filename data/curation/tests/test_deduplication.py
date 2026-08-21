@@ -3,19 +3,31 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold test for data/curation/tests/test_deduplication.py."""
+from __future__ import annotations
 
-import pytest
+from data.curation.deduplication import deduplicate_payloads
+from data.curation.filtering import RequireMetadata
+from data.curation.pipeline import CuratedRecord, CurationPipeline, identity
 
 
-# SKIPPED, not passing.
-#
-# A placeholder for tests that do not exist yet. It used to `assert True` — which pytest
-# reports as a pass, so the suite was green and the number it printed was not the number of
-# things actually verified. A vacuous gate is worse than no gate: it manufactures confidence.
-#
-# Write real tests here when there is an implementation to test, and lower SCAFFOLD_BASELINE
-# in tests/integration/test_python_scaffold.py in the same commit.
-@pytest.mark.scaffold
-def test_scaffold_contract() -> None:
-    pytest.skip("scaffold: no implementation to test yet")
+def test_exact_payload_deduplication_is_order_independent_and_retains_stable_key() -> None:
+    records = (
+        CuratedRecord("z-key", b"same"),
+        CuratedRecord("a-key", b"same"),
+        CuratedRecord("b-key", b"different"),
+    )
+    assert [record.key for record in deduplicate_payloads(records)] == ["a-key", "b-key"]
+    assert deduplicate_payloads(records) == deduplicate_payloads(reversed(records))
+
+
+def test_explicit_metadata_filter_counts_drops_in_pipeline_evidence() -> None:
+    stage = RequireMetadata("license_ref", frozenset({"approved"}))
+    pipeline = CurationPipeline((stage, identity))
+    result = pipeline.run(
+        (
+            CuratedRecord("a", b"accepted", (("license_ref", "approved"),)),
+            CuratedRecord("b", b"dropped", (("license_ref", "denied"),)),
+        )
+    )
+    assert [record.key for record in result.records] == ["a"]
+    assert result.dropped_records == 1

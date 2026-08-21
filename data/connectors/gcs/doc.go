@@ -3,7 +3,5 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-// Package gcs reserves the boundary defined by the production blueprint.
+// Package gcs discovers immutable GCS object generations without transferring bulk bytes.
 package gcs
-
-const scaffold_doc = "data/connectors/gcs/doc.go"

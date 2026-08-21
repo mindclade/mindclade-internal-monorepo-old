@@ -4,4 +4,27 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+{
+  "schemaVersion": "mindclade.dev/infrastructure-security-control/v1",
+  "name": "audit-retention",
+  "owner": "security-platform",
+  "controlFamily": "audit-retention",
+  "description": "Route administrative, data-access, network, and workload audit records to protected retention boundaries with explicit query and restore evidence.",
+  "planes": ["gcp", "terraform"],
+  "enforcementSources": [
+    "infra/terraform/modules/audit_archive/main.tf",
+    "infra/terraform/modules/log_sink/main.tf"
+  ],
+  "testSources": [
+    "infra/terraform/modules/audit_archive/tests/audit_archive.tftest.hcl",
+    "infra/terraform/modules/log_sink/tests/log_sink.tftest.hcl"
+  ],
+  "requiredEvidence": ["audit-query", "drift-check", "restore-rehearsal", "saved-plan-policy"],
+  "failurePolicy": {"mode": "fail-closed", "onMissingEvidence": "deny-activation", "retry": {"strategy": "bounded", "maxAttempts": 3}},
+  "activationPolicy": {"enabledByDefault": false, "environmentOwned": true, "exactRevisionRequired": true, "qualificationDigestRequired": true},
+  "rollbackPolicy": {"strategy": "forward-fix", "preserveAuditTrail": true, "requiresOwner": true},
+  "nonResponsibilities": [
+    "This catalog does not select environment retention periods or legal-hold obligations.",
+    "This repository does not create, query, unlock, or delete a production audit archive."
+  ]
+}

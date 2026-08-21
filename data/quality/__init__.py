@@ -23,5 +23,3 @@ __all__ = [
     "group_split_findings",
     "verify_bytes",
 ]
-
-"""Mindclade scaffold package for data/quality."""

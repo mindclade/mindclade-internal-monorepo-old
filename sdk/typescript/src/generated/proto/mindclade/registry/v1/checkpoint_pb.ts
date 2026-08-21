@@ -7,18 +7,26 @@
 // @generated from file mindclade/registry/v1/checkpoint.proto (package mindclade.registry.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { ArtifactRef } from "../../common/v1/artifact_ref_pb.js";
+import { file_mindclade_common_v1_artifact_ref } from "../../common/v1/artifact_ref_pb.js";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file mindclade/registry/v1/checkpoint.proto.
  */
 export const file_mindclade_registry_v1_checkpoint: GenFile = /*@__PURE__*/
-  fileDesc("CiZtaW5kY2xhZGUvcmVnaXN0cnkvdjEvY2hlY2twb2ludC5wcm90bxIVbWluZGNsYWRlLnJlZ2lzdHJ5LnYxIiYKEkNoZWNrcG9pbnRTY2FmZm9sZBIQCghyZXNlcnZlZBgBIAEoCWIGcHJvdG8z");
+  fileDesc("CiZtaW5kY2xhZGUvcmVnaXN0cnkvdjEvY2hlY2twb2ludC5wcm90bxIVbWluZGNsYWRlLnJlZ2lzdHJ5LnYxIioKEkNoZWNrcG9pbnRTY2FmZm9sZBIQCghyZXNlcnZlZBgBIAEoCToCGAEiwwQKEENoZWNrcG9pbnRSZWNvcmQSFgoOc2NoZW1hX3ZlcnNpb24YASABKA0SFQoNY2hlY2twb2ludF9pZBgCIAEoCRIOCgZydW5faWQYAyABKAkSMgoIbWFuaWZlc3QYBCABKAsyIC5taW5kY2xhZGUuY29tbW9uLnYxLkFydGlmYWN0UmVmEjAKBmNvbW1pdBgFIAEoCzIgLm1pbmRjbGFkZS5jb21tb24udjEuQXJ0aWZhY3RSZWYSFgoOb3B0aW1pemVyX3N0ZXAYBiABKAQSGgoSY2hlY2twb2ludF9hdHRlbXB0GAcgASgEEhUKDWZlbmNpbmdfdG9rZW4YCCABKAQSHAoUdG9wb2xvZ3lfZmluZ2VycHJpbnQYCSABKAkSOQoPcGFyZW50X21hbmlmZXN0GAogASgLMiAubWluZGNsYWRlLmNvbW1vbi52MS5BcnRpZmFjdFJlZhI9CglsaWZlY3ljbGUYCyABKA4yKi5taW5kY2xhZGUucmVnaXN0cnkudjEuQ2hlY2twb2ludExpZmVjeWNsZRIuCgpjcmVhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIwCgxyZXRhaW5fdW50aWwYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhQKDHBvbGljeV9lcG9jaBgOIAEoBBIYChByZXNvdXJjZV92ZXJzaW9uGA8gASgEEhUKDXJlY29yZF9kaWdlc3QYECABKAkqxwEKE0NoZWNrcG9pbnRMaWZlY3ljbGUSJAogQ0hFQ0tQT0lOVF9MSUZFQ1lDTEVfVU5TUEVDSUZJRUQQABIiCh5DSEVDS1BPSU5UX0xJRkVDWUNMRV9DT01NSVRURUQQARIiCh5DSEVDS1BPSU5UX0xJRkVDWUNMRV9QUk9URUNURUQQAhIgChxDSEVDS1BPSU5UX0xJRkVDWUNMRV9FWFBJUkVEEAMSIAocQ0hFQ0tQT0lOVF9MSUZFQ1lDTEVfUkVWT0tFRBAEYgZwcm90bzM", [file_google_protobuf_timestamp, file_mindclade_common_v1_artifact_ref]);
 
 /**
+ * CheckpointScaffold is retained only for source and wire compatibility with
+ * the reserved pre-implementation surface.
+ *
  * @generated from message mindclade.registry.v1.CheckpointScaffold
+ * @deprecated
  */
 export type CheckpointScaffold = Message<"mindclade.registry.v1.CheckpointScaffold"> & {
   /**
@@ -30,7 +38,142 @@ export type CheckpointScaffold = Message<"mindclade.registry.v1.CheckpointScaffo
 /**
  * Describes the message mindclade.registry.v1.CheckpointScaffold.
  * Use `create(CheckpointScaffoldSchema)` to create a new message.
+ * @deprecated
  */
 export const CheckpointScaffoldSchema: GenMessage<CheckpointScaffold> = /*@__PURE__*/
   messageDesc(file_mindclade_registry_v1_checkpoint, 0);
+
+/**
+ * CheckpointRecord is the durable catalog projection of an already-published
+ * manifest and commit artifact. It does not contain provider locations.
+ *
+ * @generated from message mindclade.registry.v1.CheckpointRecord
+ */
+export type CheckpointRecord = Message<"mindclade.registry.v1.CheckpointRecord"> & {
+  /**
+   * @generated from field: uint32 schema_version = 1;
+   */
+  schemaVersion: number;
+
+  /**
+   * @generated from field: string checkpoint_id = 2;
+   */
+  checkpointId: string;
+
+  /**
+   * @generated from field: string run_id = 3;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: mindclade.common.v1.ArtifactRef manifest = 4;
+   */
+  manifest?: ArtifactRef | undefined;
+
+  /**
+   * @generated from field: mindclade.common.v1.ArtifactRef commit = 5;
+   */
+  commit?: ArtifactRef | undefined;
+
+  /**
+   * @generated from field: uint64 optimizer_step = 6;
+   */
+  optimizerStep: bigint;
+
+  /**
+   * @generated from field: uint64 checkpoint_attempt = 7;
+   */
+  checkpointAttempt: bigint;
+
+  /**
+   * @generated from field: uint64 fencing_token = 8;
+   */
+  fencingToken: bigint;
+
+  /**
+   * @generated from field: string topology_fingerprint = 9;
+   */
+  topologyFingerprint: string;
+
+  /**
+   * @generated from field: mindclade.common.v1.ArtifactRef parent_manifest = 10;
+   */
+  parentManifest?: ArtifactRef | undefined;
+
+  /**
+   * @generated from field: mindclade.registry.v1.CheckpointLifecycle lifecycle = 11;
+   */
+  lifecycle: CheckpointLifecycle;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 12;
+   */
+  createdAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp retain_until = 13;
+   */
+  retainUntil?: Timestamp | undefined;
+
+  /**
+   * @generated from field: uint64 policy_epoch = 14;
+   */
+  policyEpoch: bigint;
+
+  /**
+   * @generated from field: uint64 resource_version = 15;
+   */
+  resourceVersion: bigint;
+
+  /**
+   * @generated from field: string record_digest = 16;
+   */
+  recordDigest: string;
+};
+
+/**
+ * Describes the message mindclade.registry.v1.CheckpointRecord.
+ * Use `create(CheckpointRecordSchema)` to create a new message.
+ */
+export const CheckpointRecordSchema: GenMessage<CheckpointRecord> = /*@__PURE__*/
+  messageDesc(file_mindclade_registry_v1_checkpoint, 1);
+
+/**
+ * CheckpointLifecycle is registry policy state. Only COMMITTED and PROTECTED
+ * records are eligible for restore; EXPIRED and REVOKED are terminal.
+ *
+ * @generated from enum mindclade.registry.v1.CheckpointLifecycle
+ */
+export enum CheckpointLifecycle {
+  /**
+   * @generated from enum value: CHECKPOINT_LIFECYCLE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: CHECKPOINT_LIFECYCLE_COMMITTED = 1;
+   */
+  COMMITTED = 1,
+
+  /**
+   * @generated from enum value: CHECKPOINT_LIFECYCLE_PROTECTED = 2;
+   */
+  PROTECTED = 2,
+
+  /**
+   * @generated from enum value: CHECKPOINT_LIFECYCLE_EXPIRED = 3;
+   */
+  EXPIRED = 3,
+
+  /**
+   * @generated from enum value: CHECKPOINT_LIFECYCLE_REVOKED = 4;
+   */
+  REVOKED = 4,
+}
+
+/**
+ * Describes the enum mindclade.registry.v1.CheckpointLifecycle.
+ */
+export const CheckpointLifecycleSchema: GenEnum<CheckpointLifecycle> = /*@__PURE__*/
+  enumDesc(file_mindclade_registry_v1_checkpoint, 0);
 

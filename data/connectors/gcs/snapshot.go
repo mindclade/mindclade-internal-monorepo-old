@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-// Package gcs reserves the boundary defined by the production blueprint.
 package gcs
 
-const scaffold_snapshot = "data/connectors/gcs/snapshot.go"
+import "go.mindclade.dev/data/connectors"
+
+type Snapshot = connectors.Snapshot

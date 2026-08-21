@@ -3,13 +3,23 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-package(default_visibility = ["//visibility:private"])
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
-filegroup(
-    name = "scaffold_files",
+package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "uniprot",
     srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
+        ["*.go"],
+        exclude = ["*_test.go"],
     ),
-    visibility = ["//visibility:public"],
+    importpath = "go.mindclade.dev/data/connectors/uniprot",
+    deps = ["//data/connectors"],
+)
+
+go_test(
+    name = "uniprot_test",
+    srcs = ["uniprot_test.go"],
+    embed = [":uniprot"],
+    deps = ["//data/connectors"],
 )

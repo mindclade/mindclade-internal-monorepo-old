@@ -17,7 +17,8 @@ from .report import QualityFinding
 
 
 class Validator(Protocol):
-    name: str
+    @property
+    def name(self) -> str: ...
 
     def validate(self, samples: Sequence[Sample]) -> tuple[QualityFinding, ...]: ...
 

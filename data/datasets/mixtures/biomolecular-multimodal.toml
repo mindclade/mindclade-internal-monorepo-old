@@ -3,4 +3,20 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-# Scaffold configuration; promotion requires schema validation.
+# Non-release example; promotion requires exact manifest digests and schema validation.
+name = "biomolecular-multimodal-example"
+seed = 11
+
+[[components]]
+dataset_id = "biomolecular-complexes"
+version = "0.0.0"
+manifest_digest = "sha256:4eaf2bd7560869ab6a811240354b7045b98335736762d74ca1e03a726f3ee482"
+split = "train"
+weight = 0.5
+
+[[components]]
+dataset_id = "sequence-pretraining"
+version = "0.0.0"
+manifest_digest = "sha256:4ed80c47048200ad43123f267ed600a196b770750c93aa3417c40c13a6ae86b9"
+split = "train"
+weight = 0.5

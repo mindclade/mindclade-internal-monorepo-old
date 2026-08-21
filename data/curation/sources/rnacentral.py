@@ -3,12 +3,22 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/curation/sources/rnacentral.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""RNAcentral provenance stage configured from an approved source snapshot."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/curation/sources/rnacentral.py"
+from dataclasses import dataclass
+
+from ..pipeline import CuratedRecord
+from ..provenance import with_metadata
+
+
+@dataclass(frozen=True, slots=True)
+class RNAcentralProvenance:
+    snapshot_digest: str
+    license_ref: str
+
+    def __call__(self, record: CuratedRecord) -> CuratedRecord:
+        value = with_metadata(record, "source", "rnacentral")
+        value = with_metadata(value, "source_snapshot_digest", self.snapshot_digest)
+        return with_metadata(value, "license_ref", self.license_ref)

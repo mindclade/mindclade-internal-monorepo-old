@@ -3,19 +3,38 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold test for infra/security/tests/test_weight_access.py."""
+"""Model-weight access boundary tests for the infrastructure security catalog."""
 
-import pytest
+from pathlib import Path
+
+from infra.security.security_contracts import load_json_yaml
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
-# SKIPPED, not passing.
-#
-# A placeholder for tests that do not exist yet. It used to `assert True` — which pytest
-# reports as a pass, so the suite was green and the number it printed was not the number of
-# things actually verified. A vacuous gate is worse than no gate: it manufactures confidence.
-#
-# Write real tests here when there is an implementation to test, and lower SCAFFOLD_BASELINE
-# in tests/integration/test_python_scaffold.py in the same commit.
-@pytest.mark.scaffold
-def test_scaffold_contract() -> None:
-    pytest.skip("scaffold: no implementation to test yet")
+def test_weight_access_requires_key_identity_and_audit_evidence() -> None:
+    contract = load_json_yaml(ROOT / "model-weight-access.yaml")
+
+    assert contract["enforcementSources"] == [
+        "infra/terraform/modules/kms/main.tf",
+        "infra/terraform/modules/object_storage/main.tf",
+        "infra/terraform/modules/workload_identity/main.tf",
+    ]
+    assert contract["requiredEvidence"] == [
+        "access-review",
+        "audit-query",
+        "synthetic-allow-deny",
+        "workload-identity-proof",
+    ]
+
+
+def test_weight_access_never_retries_a_denied_decision() -> None:
+    contract = load_json_yaml(ROOT / "model-weight-access.yaml")
+
+    assert contract["failurePolicy"] == {
+        "mode": "fail-closed",
+        "onMissingEvidence": "deny-activation",
+        "retry": {"strategy": "none", "maxAttempts": 0},
+    }
+    assert contract["rollbackPolicy"]["strategy"] == "manual-containment"
+    assert all("model weights" not in item.lower() for item in contract["enforcementSources"])

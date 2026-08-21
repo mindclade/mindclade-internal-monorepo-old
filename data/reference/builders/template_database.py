@@ -3,12 +3,23 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/reference/builders/template_database.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Structure-template search index candidate."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/reference/builders/template_database.py"
+from data.manifest import ArtifactRef
+
+from ..index import ReferenceIndex
+
+
+def template_index(
+    artifacts: tuple[ArtifactRef, ...],
+    *,
+    format_version: str,
+    tool: str,
+    tool_version: str,
+    parameters_digest: str,
+) -> ReferenceIndex:
+    return ReferenceIndex(
+        "template", format_version, tool, tool_version, parameters_digest, artifacts
+    )

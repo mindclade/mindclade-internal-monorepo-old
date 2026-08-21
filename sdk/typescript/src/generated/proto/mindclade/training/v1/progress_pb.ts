@@ -7,18 +7,26 @@
 // @generated from file mindclade/training/v1/progress.proto (package mindclade.training.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { ArtifactRef } from "../../common/v1/artifact_ref_pb.js";
+import { file_mindclade_common_v1_artifact_ref } from "../../common/v1/artifact_ref_pb.js";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file mindclade/training/v1/progress.proto.
  */
 export const file_mindclade_training_v1_progress: GenFile = /*@__PURE__*/
-  fileDesc("CiRtaW5kY2xhZGUvdHJhaW5pbmcvdjEvcHJvZ3Jlc3MucHJvdG8SFW1pbmRjbGFkZS50cmFpbmluZy52MSIkChBQcm9ncmVzc1NjYWZmb2xkEhAKCHJlc2VydmVkGAEgASgJYgZwcm90bzM");
+  fileDesc("CiRtaW5kY2xhZGUvdHJhaW5pbmcvdjEvcHJvZ3Jlc3MucHJvdG8SFW1pbmRjbGFkZS50cmFpbmluZy52MSIoChBQcm9ncmVzc1NjYWZmb2xkEhAKCHJlc2VydmVkGAEgASgJOgIYASJSChBUcmFpbmluZ0NvdW50ZXJzEhQKDG1pY3JvYmF0Y2hlcxgBIAEoBBIXCg9vcHRpbWl6ZXJfc3RlcHMYAiABKAQSDwoHc2FtcGxlcxgDIAEoBCK3AgoQVHJhaW5pbmdQcm9ncmVzcxIOCgZydW5faWQYASABKAkSEgoKYXR0ZW1wdF9pZBgCIAEoCRI2CgVzdGF0ZRgDIAEoDjInLm1pbmRjbGFkZS50cmFpbmluZy52MS5UcmFpbmluZ1J1blN0YXRlEjkKCGNvdW50ZXJzGAQgASgLMicubWluZGNsYWRlLnRyYWluaW5nLnYxLlRyYWluaW5nQ291bnRlcnMSFQoNZGF0YV9wb3NpdGlvbhgFIAEoBBJEChpsYXRlc3RfY2hlY2twb2ludF9tYW5pZmVzdBgGIAEoCzIgLm1pbmRjbGFkZS5jb21tb24udjEuQXJ0aWZhY3RSZWYSLwoLb2JzZXJ2ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wKv4BChBUcmFpbmluZ1J1blN0YXRlEiIKHlRSQUlOSU5HX1JVTl9TVEFURV9VTlNQRUNJRklFRBAAEh4KGlRSQUlOSU5HX1JVTl9TVEFURV9QRU5ESU5HEAESHgoaVFJBSU5JTkdfUlVOX1NUQVRFX1JVTk5JTkcQAhIkCiBUUkFJTklOR19SVU5fU1RBVEVfQ0hFQ0tQT0lOVElORxADEiAKHFRSQUlOSU5HX1JVTl9TVEFURV9TVUNDRUVERUQQBBIdChlUUkFJTklOR19SVU5fU1RBVEVfRkFJTEVEEAUSHwobVFJBSU5JTkdfUlVOX1NUQVRFX0NBTkNFTEVEEAZiBnByb3RvMw", [file_google_protobuf_timestamp, file_mindclade_common_v1_artifact_ref]);
 
 /**
+ * ProgressScaffold is retained only for source and wire compatibility with the
+ * reserved pre-implementation surface.
+ *
  * @generated from message mindclade.training.v1.ProgressScaffold
+ * @deprecated
  */
 export type ProgressScaffold = Message<"mindclade.training.v1.ProgressScaffold"> & {
   /**
@@ -30,7 +38,135 @@ export type ProgressScaffold = Message<"mindclade.training.v1.ProgressScaffold">
 /**
  * Describes the message mindclade.training.v1.ProgressScaffold.
  * Use `create(ProgressScaffoldSchema)` to create a new message.
+ * @deprecated
  */
 export const ProgressScaffoldSchema: GenMessage<ProgressScaffold> = /*@__PURE__*/
   messageDesc(file_mindclade_training_v1_progress, 0);
+
+/**
+ * TrainingCounters advance only after the corresponding operation commits.
+ *
+ * @generated from message mindclade.training.v1.TrainingCounters
+ */
+export type TrainingCounters = Message<"mindclade.training.v1.TrainingCounters"> & {
+  /**
+   * @generated from field: uint64 microbatches = 1;
+   */
+  microbatches: bigint;
+
+  /**
+   * @generated from field: uint64 optimizer_steps = 2;
+   */
+  optimizerSteps: bigint;
+
+  /**
+   * @generated from field: uint64 samples = 3;
+   */
+  samples: bigint;
+};
+
+/**
+ * Describes the message mindclade.training.v1.TrainingCounters.
+ * Use `create(TrainingCountersSchema)` to create a new message.
+ */
+export const TrainingCountersSchema: GenMessage<TrainingCounters> = /*@__PURE__*/
+  messageDesc(file_mindclade_training_v1_progress, 1);
+
+/**
+ * TrainingProgress is a bounded point-in-time projection of one attempt.
+ *
+ * @generated from message mindclade.training.v1.TrainingProgress
+ */
+export type TrainingProgress = Message<"mindclade.training.v1.TrainingProgress"> & {
+  /**
+   * @generated from field: string run_id = 1;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string attempt_id = 2;
+   */
+  attemptId: string;
+
+  /**
+   * @generated from field: mindclade.training.v1.TrainingRunState state = 3;
+   */
+  state: TrainingRunState;
+
+  /**
+   * @generated from field: mindclade.training.v1.TrainingCounters counters = 4;
+   */
+  counters?: TrainingCounters | undefined;
+
+  /**
+   * @generated from field: uint64 data_position = 5;
+   */
+  dataPosition: bigint;
+
+  /**
+   * @generated from field: mindclade.common.v1.ArtifactRef latest_checkpoint_manifest = 6;
+   */
+  latestCheckpointManifest?: ArtifactRef | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp observed_at = 7;
+   */
+  observedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message mindclade.training.v1.TrainingProgress.
+ * Use `create(TrainingProgressSchema)` to create a new message.
+ */
+export const TrainingProgressSchema: GenMessage<TrainingProgress> = /*@__PURE__*/
+  messageDesc(file_mindclade_training_v1_progress, 2);
+
+/**
+ * TrainingRunState is an observation, not a command. The orchestration stage
+ * envelope remains authoritative for cancellation and retry.
+ *
+ * @generated from enum mindclade.training.v1.TrainingRunState
+ */
+export enum TrainingRunState {
+  /**
+   * @generated from enum value: TRAINING_RUN_STATE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: TRAINING_RUN_STATE_PENDING = 1;
+   */
+  PENDING = 1,
+
+  /**
+   * @generated from enum value: TRAINING_RUN_STATE_RUNNING = 2;
+   */
+  RUNNING = 2,
+
+  /**
+   * @generated from enum value: TRAINING_RUN_STATE_CHECKPOINTING = 3;
+   */
+  CHECKPOINTING = 3,
+
+  /**
+   * @generated from enum value: TRAINING_RUN_STATE_SUCCEEDED = 4;
+   */
+  SUCCEEDED = 4,
+
+  /**
+   * @generated from enum value: TRAINING_RUN_STATE_FAILED = 5;
+   */
+  FAILED = 5,
+
+  /**
+   * @generated from enum value: TRAINING_RUN_STATE_CANCELED = 6;
+   */
+  CANCELED = 6,
+}
+
+/**
+ * Describes the enum mindclade.training.v1.TrainingRunState.
+ */
+export const TrainingRunStateSchema: GenEnum<TrainingRunState> = /*@__PURE__*/
+  enumDesc(file_mindclade_training_v1_progress, 0);
 

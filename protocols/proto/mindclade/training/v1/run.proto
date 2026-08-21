@@ -7,6 +7,46 @@ syntax = "proto3";
 
 package mindclade.training.v1;
 
+import "google/protobuf/timestamp.proto";
+import "mindclade/common/v1/artifact_ref.proto";
+import "mindclade/training/v1/progress.proto";
+import "mindclade/training/v1/topology.proto";
+
+// RunScaffold is retained only for source and wire compatibility with the
+// reserved pre-implementation surface.
 message RunScaffold {
+  option deprecated = true;
   string reserved = 1;
+}
+
+// TrainingRunSpecification is the immutable input to one admitted training
+// operation. The workload StageEnvelope owns execution identity, fencing,
+// deadlines, and cancellation; this message owns training semantics only.
+message TrainingRunSpecification {
+  uint32 schema_version = 1;
+  string run_id = 2;
+  string engine = 3;
+  mindclade.common.v1.ArtifactRef resolved_config = 4;
+  mindclade.common.v1.ArtifactRef dataset = 5;
+  mindclade.common.v1.ArtifactRef initial_model = 6;
+  mindclade.common.v1.ArtifactRef resume_checkpoint_manifest = 7;
+  TrainingTopology topology = 8;
+  uint64 maximum_optimizer_steps = 9;
+  uint64 checkpoint_interval_steps = 10;
+}
+
+// TrainingRunResult contains only immutable output references and terminal
+// counters. Detailed logs and metrics remain separate evidence artifacts.
+message TrainingRunResult {
+  uint32 schema_version = 1;
+  string run_id = 2;
+  string attempt_id = 3;
+  TrainingRunState state = 4;
+  TrainingCounters counters = 5;
+  uint64 data_position = 6;
+  mindclade.common.v1.ArtifactRef final_checkpoint_manifest = 7;
+  mindclade.common.v1.ArtifactRef model_bundle = 8;
+  mindclade.common.v1.ArtifactRef run_evidence = 9;
+  google.protobuf.Timestamp started_at = 10;
+  google.protobuf.Timestamp completed_at = 11;
 }

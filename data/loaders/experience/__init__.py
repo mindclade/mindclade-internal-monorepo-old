@@ -21,5 +21,3 @@ __all__ = [
     "bucket_trajectories",
     "priority_weights",
 ]
-
-"""Mindclade scaffold package for data/loaders/experience."""

@@ -4,4 +4,29 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+{
+  "schemaVersion": "mindclade.dev/infrastructure-security-control/v1",
+  "name": "image-policy",
+  "owner": "security-platform",
+  "controlFamily": "image-policy",
+  "description": "Admit only immutable, non-placeholder images whose provenance and attestation satisfy the reviewed Binary Authorization and Kubernetes admission policy.",
+  "planes": ["gcp", "kubernetes", "terraform"],
+  "enforcementSources": [
+    "infra/kubernetes/platform/security/resources.yaml",
+    "infra/terraform/modules/artifact_registry/main.tf",
+    "infra/terraform/modules/binauthz/main.tf"
+  ],
+  "testSources": [
+    "infra/kubernetes/tests/capacity_contract.py",
+    "infra/terraform/modules/artifact_registry/tests/artifact_registry.tftest.hcl",
+    "infra/terraform/modules/binauthz/tests/binauthz.tftest.hcl"
+  ],
+  "requiredEvidence": ["connected-gke", "deny-fixture", "signed-attestation", "synthetic-allow-deny"],
+  "failurePolicy": {"mode": "fail-closed", "onMissingEvidence": "deny-activation", "retry": {"strategy": "none", "maxAttempts": 0}},
+  "activationPolicy": {"enabledByDefault": false, "environmentOwned": true, "exactRevisionRequired": true, "qualificationDigestRequired": true},
+  "rollbackPolicy": {"strategy": "revert-exact-revision", "preserveAuditTrail": true, "requiresOwner": true},
+  "nonResponsibilities": [
+    "This catalog does not issue signing keys, attest artifacts, or choose production image digests.",
+    "Trust roots and admission activation belong to controlled cloud and GitOps environments."
+  ]
+}

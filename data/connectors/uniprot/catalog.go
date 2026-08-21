@@ -3,7 +3,27 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-// Package uniprot reserves the boundary defined by the production blueprint.
 package uniprot
 
-const scaffold_catalog = "data/connectors/uniprot/catalog.go"
+import (
+	"errors"
+
+	"go.mindclade.dev/data/connectors"
+)
+
+type CatalogEntry struct {
+	Release string
+	Objects []connectors.Object
+	License LicensePolicy
+}
+
+func (e CatalogEntry) Validate() error {
+	if len(e.Objects) == 0 {
+		return errors.New("uniprot catalog entry requires objects")
+	}
+	snapshot, err := BuildSnapshot(e, connectors.Cursor{Value: e.Release, Sequence: 1}, e.Objects[0].UpdatedAt)
+	if err != nil {
+		return err
+	}
+	return snapshot.Validate()
+}

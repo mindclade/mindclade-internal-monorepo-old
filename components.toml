@@ -257,15 +257,27 @@ path = "kernels"
 status = "scaffolded"
 owner = "biology-ml"
 
-# The `data` umbrella, not `data/curation`. Curation is the one implemented package in this
-# tree and stays declared separately above as `data.curation`; `data.contracts` is also declared
-# below. The umbrella records the still-reserved connectors, datasets, ingestion, loaders,
-# quality, reference, tokenizers, and root modules without promoting them by association.
+# The `data` umbrella is implemented source capability. This status does not
+# assert that any environment has passed provider, scale, SLO, security, or DR
+# qualification; those deployment gates are recorded in the readiness report.
 [[component]]
 name = "data"
 path = "data"
-status = "scaffolded"
+status = "implemented"
 owner = "data-platform"
+tests = [
+    "data/connectors/gcs/gcs_test.go",
+    "data/connectors/http/http_test.go",
+    "data/connectors/s3/s3_test.go",
+    "data/curation/tests/test_pipeline.py",
+    "data/datasets/tests/test_catalog.py",
+    "data/ingestion/tests/test_pipeline.py",
+    "data/loaders/tests/test_loader.py",
+    "data/quality/tests/test_gates.py",
+    "data/reference/tests/test_manifest.py",
+    "data/tokenizers/tests/test_tokenizers.py",
+]
+qualification = "data/PRODUCTION_READINESS.md"
 
 # ---------------------------------------------------------------------------------------
 # libs/python
@@ -521,6 +533,18 @@ tests = [
     "infra/observability/tests/test_alert_contracts.py",
     "infra/observability/tests/test_jobset_outcomes.py",
 ]
+
+[[component]]
+name = "infra.security_contracts"
+path = "infra/security"
+status = "implemented"
+owner = "security-platform"
+tests = [
+    "infra/security/tests/test_attestation.py",
+    "infra/security/tests/test_break_glass.py",
+    "infra/security/tests/test_weight_access.py",
+]
+qualification = "infra/security/PRODUCTION_READINESS.md"
 
 [[component]]
 name = "qualification.release_evidence"

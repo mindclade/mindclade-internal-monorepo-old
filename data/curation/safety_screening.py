@@ -3,12 +3,13 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/curation/safety_screening.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Policy-evidence gate; screening engines remain separately qualified."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/curation/safety_screening.py"
+from .pipeline import CuratedRecord
+
+
+def require_approved_screening(record: CuratedRecord) -> CuratedRecord | None:
+    metadata = dict(record.metadata)
+    return record if metadata.get("safety_decision") == "approved" else None

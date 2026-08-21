@@ -9,14 +9,14 @@ import pytest
 
 from data.datasets import DatasetCatalog, DatasetResolver
 from data.datasets.tests.fixtures import DIGESTS, manifest
-from data.manifest import ArtifactLocation
+from data.manifest import ArtifactLocation, ArtifactRef
 
 
 class Locations:
     def __init__(self, digest: str) -> None:
         self.digest = digest
 
-    def locations(self, artifact):
+    def locations(self, artifact: ArtifactRef) -> tuple[ArtifactLocation, ...]:
         return (
             ArtifactLocation(
                 self.digest,
@@ -45,7 +45,7 @@ def test_resolver_rejects_mismatched_and_missing_locations() -> None:
         )
 
     class Missing:
-        def locations(self, artifact):
+        def locations(self, artifact: ArtifactRef) -> tuple[ArtifactLocation, ...]:
             return ()
 
     with pytest.raises(LookupError, match="no registered location"):
