@@ -1,0 +1,7 @@
+interface:
+  display_name: "PyTorch: Performance"
+  short_description: "Benchmark, profile, compile, and optimize PyTorch."
+  brand_color: "#EE4C2C"
+  default_prompt: "Use $pytorch-performance to define a benchmark, profile this workload, apply one evidence-backed optimization at a time, and report comparable results."
+policy:
+  allow_implicit_invocation: true

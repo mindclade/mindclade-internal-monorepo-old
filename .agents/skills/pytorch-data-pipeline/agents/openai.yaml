@@ -1,0 +1,7 @@
+interface:
+  display_name: "PyTorch: Data Pipeline"
+  short_description: "Build and debug PyTorch input pipelines."
+  brand_color: "#EE4C2C"
+  default_prompt: "Use $pytorch-data-pipeline to repair or design this Dataset and DataLoader path, including batching, workers, seeding, sharding, and throughput checks."
+policy:
+  allow_implicit_invocation: true

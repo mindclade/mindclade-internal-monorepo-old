@@ -1,0 +1,7 @@
+interface:
+  display_name: "PyTorch: Testing"
+  short_description: "Add numerical, gradient, device, and regression tests."
+  brand_color: "#EE4C2C"
+  default_prompt: "Use $pytorch-testing to add focused PyTorch tests that reproduce the defect, verify tensor and gradient contracts, and run the relevant suite."
+policy:
+  allow_implicit_invocation: true

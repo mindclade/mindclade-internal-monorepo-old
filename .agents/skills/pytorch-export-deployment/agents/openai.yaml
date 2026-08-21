@@ -1,0 +1,7 @@
+interface:
+  display_name: "PyTorch: Export and Deployment"
+  short_description: "Export PyTorch models and verify runtime parity."
+  brand_color: "#EE4C2C"
+  default_prompt: "Use $pytorch-export-deployment to export this model for the stated runtime, define dynamic shapes, validate parity, and produce an artifact manifest."
+policy:
+  allow_implicit_invocation: true

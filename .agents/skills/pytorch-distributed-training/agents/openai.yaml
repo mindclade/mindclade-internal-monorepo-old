@@ -1,0 +1,7 @@
+interface:
+  display_name: "PyTorch: Distributed Training"
+  short_description: "Implement and debug DDP, FSDP, and sharded training."
+  brand_color: "#EE4C2C"
+  default_prompt: "Use $pytorch-distributed-training to implement or debug this multi-rank PyTorch workflow, proving it first with a two-process smoke test."
+policy:
+  allow_implicit_invocation: true

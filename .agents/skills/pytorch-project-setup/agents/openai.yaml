@@ -1,0 +1,7 @@
+interface:
+  display_name: "PyTorch: Project Setup"
+  short_description: "Scaffold or repair a PyTorch repository."
+  brand_color: "#EE4C2C"
+  default_prompt: "Use $pytorch-project-setup to scaffold or repair this PyTorch project, preserving its package manager and verifying a clean smoke path."
+policy:
+  allow_implicit_invocation: true

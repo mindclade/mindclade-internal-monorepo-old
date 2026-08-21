@@ -1,0 +1,7 @@
+interface:
+  display_name: "PyTorch: Training Loop"
+  short_description: "Build correct, resumable PyTorch training loops."
+  brand_color: "#EE4C2C"
+  default_prompt: "Use $pytorch-training-loop to implement or repair this trainer, including AMP, accumulation, metrics, checkpointing, resume, and executable verification."
+policy:
+  allow_implicit_invocation: true

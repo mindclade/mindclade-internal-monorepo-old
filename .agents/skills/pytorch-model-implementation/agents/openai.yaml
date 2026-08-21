@@ -1,0 +1,7 @@
+interface:
+  display_name: "PyTorch: Model Implementation"
+  short_description: "Implement safe PyTorch modules and tensor contracts."
+  brand_color: "#EE4C2C"
+  default_prompt: "Use $pytorch-model-implementation to implement or refactor this module, then verify shapes, gradients, devices, dtypes, and state_dict behavior."
+policy:
+  allow_implicit_invocation: true

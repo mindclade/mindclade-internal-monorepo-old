@@ -1,0 +1,7 @@
+interface:
+  display_name: "PyTorch: Debugging"
+  short_description: "Diagnose PyTorch crashes, NaNs, OOMs, and wrong results."
+  brand_color: "#EE4C2C"
+  default_prompt: "Use $pytorch-debugging to reproduce this failure, isolate the first bad boundary, implement a cause-level fix, and add a regression test."
+policy:
+  allow_implicit_invocation: true
