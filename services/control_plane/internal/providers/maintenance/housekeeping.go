@@ -78,13 +78,8 @@ func (handler *gatewayHousekeeper) Handle(ctx context.Context, item workqueue.It
 	if item.Queue != housekeepingQueue {
 		return workqueue.Result{}, maintenanceFault(faults.CodeInvalidArgument, "housekeeping_queue_invalid", "housekeeping item targets the wrong queue", operation)
 	}
-	var request housekeepingRequest
-	decoder := json.NewDecoder(bytes.NewReader(item.Payload))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&request); err != nil {
-		return workqueue.Result{}, maintenanceFault(faults.CodeInvalidArgument, "housekeeping_payload_invalid", "housekeeping payload is invalid", operation)
-	}
-	if err := requireJSONEOF(decoder); err != nil {
+	request, err := decodeHousekeepingRequest(item.Payload)
+	if err != nil {
 		return workqueue.Result{}, maintenanceFault(faults.CodeInvalidArgument, "housekeeping_payload_invalid", "housekeeping payload is invalid", operation)
 	}
 	if request.SchemaVersion != housekeepingSchemaVersion || request.Operation != expireReservationsOperation ||
@@ -227,10 +222,26 @@ func (scheduler *housekeepingScheduler) enqueue(ctx context.Context, now time.Ti
 }
 
 func sameScheduledWork(existing, expected workqueue.Item) bool {
+	existingRequest, existingErr := decodeHousekeepingRequest(existing.Payload)
+	expectedRequest, expectedErr := decodeHousekeepingRequest(expected.Payload)
 	return existing.ID == expected.ID && existing.Queue == expected.Queue &&
-		bytes.Equal(existing.Payload, expected.Payload) && existing.Priority == expected.Priority &&
+		existingErr == nil && expectedErr == nil && existingRequest == expectedRequest &&
+		existing.Priority == expected.Priority &&
 		existing.AvailableAt.Equal(expected.AvailableAt) && existing.MaxAttempts == expected.MaxAttempts &&
 		existing.Request == expected.Request
+}
+
+func decodeHousekeepingRequest(payload []byte) (housekeepingRequest, error) {
+	var request housekeepingRequest
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&request); err != nil {
+		return housekeepingRequest{}, err
+	}
+	if err := requireJSONEOF(decoder); err != nil {
+		return housekeepingRequest{}, err
+	}
+	return request, nil
 }
 
 func expirationRequestMetadata(id identifiers.ID) (requestmeta.Metadata, error) {

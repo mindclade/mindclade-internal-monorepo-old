@@ -326,6 +326,39 @@ func TestRecurringScheduleRejectsIdentityPayloadCollision(t *testing.T) {
 	}
 }
 
+func TestRecurringScheduleAcceptsCanonicalizedJSONBReplay(t *testing.T) {
+	now := time.Date(2026, time.August, 21, 12, 0, 2, 0, time.UTC)
+	bucket := now.Truncate(expirationScheduleInterval)
+	value := clock.NewFake(now)
+	store := workqueuememory.New()
+	scheduler := newTestHousekeepingScheduler(t, store, value)
+	id, err := expirationWorkID(bucket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request, err := expirationRequestMetadata(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// PostgreSQL JSONB normalizes insignificant whitespace and object key order before Lookup.
+	// Replay equality must therefore bind the decoded closed contract, not source bytes.
+	canonicalized := json.RawMessage(`{
+  "batch_size": 256,
+  "maximum_batches": 16,
+  "operation": "expire_gateway_reservations",
+  "schema_version": 1
+}`)
+	if err := store.Enqueue(context.Background(), workqueue.Item{
+		ID: id, Queue: housekeepingQueue, Payload: canonicalized, AvailableAt: bucket,
+		MaxAttempts: expirationWorkMaximumAttempts, CreatedAt: now, Request: request,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := scheduler.enqueue(context.Background(), now); err != nil {
+		t.Fatalf("canonical JSONB replay was rejected: %v", err)
+	}
+}
+
 func TestRecurringScheduleRejectsIdentityAvailableAtCollision(t *testing.T) {
 	now := time.Date(2026, time.August, 21, 12, 0, 2, 0, time.UTC)
 	bucket := now.Truncate(expirationScheduleInterval)
