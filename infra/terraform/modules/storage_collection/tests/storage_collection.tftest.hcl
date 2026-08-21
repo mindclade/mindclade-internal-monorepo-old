@@ -44,7 +44,7 @@ run "reject_project_wide_or_unknown_bucket_grants" {
     project_id     = "mindclade-development-data"
     location       = "us-central1"
     encryption_key = "projects/mindclade-seed/locations/us-central1/keyRings/development/cryptoKeys/storage"
-    buckets         = { holdout = { name = "mindclade-development-holdout" } }
+    buckets        = { holdout = { name = "mindclade-development-holdout" } }
     bucket_iam_members = {
       invalid = {
         bucket_key = "missing"

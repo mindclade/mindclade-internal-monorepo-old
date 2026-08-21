@@ -4,6 +4,8 @@
 
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+import { browserSecurityHeaders } from "@mindclade/libs-ts-browser-security";
+import { loopbackDocumentHeaders } from "./loopback-security.js";
 
 const surfaces = [
   { name: "Command", origin: "http://127.0.0.1:4411", routes: ["/", "/runs", "/evaluations", "/safety"] },
@@ -15,6 +17,33 @@ function violationSummary(violations: Awaited<ReturnType<AxeBuilder["analyze"]>>
     `${violation.id} (${violation.impact ?? "unknown"}) ${node.target.join(" ")}: ${node.failureSummary ?? violation.help}`,
   )).join("\n");
 }
+
+test.beforeEach(async ({ page }) => {
+  await page.route(/^http:\/\/127\.0\.0\.1:441[12](?:\/|$)/, async (route) => {
+    if (route.request().resourceType() !== "document") {
+      await route.continue();
+      return;
+    }
+    const response = await route.fetch();
+    await route.fulfill({
+      response,
+      headers: loopbackDocumentHeaders(route.request().url(), response.headers()),
+    });
+  });
+});
+
+test("accessibility transport override is loopback-only and preserves production defaults", async ({}, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "single contract assertion");
+  const production = Object.fromEntries(browserSecurityHeaders().map(({ key, value }) => [key, value]));
+  expect(production["Content-Security-Policy"]).toContain("upgrade-insecure-requests");
+  expect(production["Strict-Transport-Security"]).toContain("includeSubDomains");
+
+  const loopback = loopbackDocumentHeaders("http://127.0.0.1:4411/", production);
+  expect(loopback["Content-Security-Policy"]).not.toContain("upgrade-insecure-requests");
+  expect(loopback["Strict-Transport-Security"]).toBeUndefined();
+  expect(production["Content-Security-Policy"]).toContain("upgrade-insecure-requests");
+  expect(() => loopbackDocumentHeaders("https://console.mindclade.example/", production)).toThrow(/non-test origin/);
+});
 
 for (const surface of surfaces) {
   for (const route of surface.routes) {

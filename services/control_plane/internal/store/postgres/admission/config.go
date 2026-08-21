@@ -9,7 +9,6 @@ import (
 	"context"
 	"database/sql"
 	"reflect"
-	"time"
 
 	"go.mindclade.dev/libs/go/audit"
 	"go.mindclade.dev/libs/go/clock"
@@ -22,10 +21,10 @@ import (
 )
 
 const (
-	DefaultEntitlementTable  = "mindclade_gateway_entitlements"
-	DefaultBudgetTable       = "mindclade_gateway_budgets"
-	DefaultReservationTable  = "mindclade_gateway_reservations"
-	serializationMaxAttempts = 8
+	DefaultEntitlementTable      = "mindclade_gateway_entitlements"
+	DefaultBudgetTable           = "mindclade_gateway_budgets"
+	DefaultReservationTable      = "mindclade_gateway_reservations"
+	admissionMutationMaxAttempts = 8
 )
 
 type Option func(*Store) error
@@ -123,14 +122,12 @@ func New(db *sql.DB, recorder audit.Recorder, messages outbox.Store, options ...
 	}
 	var err error
 	if store.retries == nil {
-		backoff, backoffErr := retry.ExponentialBackoff(10*time.Millisecond, 250*time.Millisecond, 2)
-		if backoffErr != nil {
-			return nil, backoffErr
-		}
-		policy, policyErr := retry.NewPolicy(
-			retry.WithMaxAttempts(serializationMaxAttempts),
-			retry.WithBackoff(backoff),
-		)
+		// A reservation serializes on policy and quota rows. The package-wide three-attempt
+		// default is intentionally conservative, but it is too small for a bounded burst of
+		// otherwise valid contenders: PostgreSQL correctly returns SQLSTATE 40001 until the
+		// winning transactions become visible. Keep the adapter-specific budget finite while
+		// allowing jittered backoff to drain that contention.
+		policy, policyErr := retry.NewPolicy(retry.WithMaxAttempts(admissionMutationMaxAttempts))
 		if policyErr != nil {
 			return nil, policyErr
 		}

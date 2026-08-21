@@ -80,6 +80,10 @@ func (store *Store) validate(ctx context.Context, operation string) error {
 }
 
 func runMutation[T any](ctx context.Context, store *Store, operation string, function func(context.Context) (T, error)) (T, error) {
+	return runMutationAtIsolation(ctx, store, operation, sql.LevelSerializable, function)
+}
+
+func runMutationAtIsolation[T any](ctx context.Context, store *Store, operation string, isolation sql.IsolationLevel, function func(context.Context) (T, error)) (T, error) {
 	var zero T
 	if err := store.validate(ctx, operation); err != nil {
 		return zero, err
@@ -87,18 +91,18 @@ func runMutation[T any](ctx context.Context, store *Store, operation string, fun
 	if _, nested := transaction.FromContext(ctx); nested {
 		return zero, domainError(ctx, faults.CodeFailedPrecondition,
 			"admission_nested_transaction_unsupported",
-			"admission mutations require their own serializable transaction", operation)
+			"admission mutations require their own transaction", operation)
 	}
 	var result T
 	_, err := store.retries.Do(ctx, operation, func(attemptContext context.Context, _ retry.Attempt) error {
 		var attemptErr error
 		result, attemptErr = transaction.Run(attemptContext, store.db,
-			transaction.Options{Isolation: sql.LevelSerializable},
+			transaction.Options{Isolation: isolation},
 			func(txContext context.Context, _ *sql.Tx) (T, error) { return function(txContext) })
 		if faults.IsCode(attemptErr, faults.CodeAborted) && faults.IsReason(attemptErr, "sql_transaction_failed") {
-			return faults.Wrap(attemptErr, faults.CodeAborted, "serializable admission transaction must be retried",
+			return faults.Wrap(attemptErr, faults.CodeAborted, "admission transaction must be retried",
 				faults.WithReason("admission_serialization_retry"), faults.WithOperation(operation),
-				faults.WithRetryPolicy(faults.BackoffRetry(serializationMaxAttempts)), faults.WithContextMetadata(attemptContext))
+				faults.WithRetryPolicy(faults.BackoffRetry(admissionMutationMaxAttempts)), faults.WithContextMetadata(attemptContext))
 		}
 		return attemptErr
 	})
