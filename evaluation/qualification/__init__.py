@@ -7,7 +7,13 @@
 
 from .evidence import EvaluationEvidence
 from .promotion import PromotionDecision
-from .release_gate import EvaluationBatch, EvaluationPlan, GateResult, build_evidence, evaluate_release
+from .release_gate import (
+    EvaluationBatch,
+    EvaluationPlan,
+    GateResult,
+    build_evidence,
+    evaluate_release,
+)
 from .thresholds import (
     Direction,
     MetricCategory,

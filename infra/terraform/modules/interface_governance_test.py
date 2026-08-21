@@ -483,9 +483,9 @@ rollback_action = "restore the prior module source and inputs"
             }
         )
         current = copy.deepcopy(base)
-        current["modules"]["example"]["inputs"]["optional"][
-            "validation_fingerprints"
-        ] = ["sha256:new"]
+        current["modules"]["example"]["inputs"]["optional"]["validation_fingerprints"] = [
+            "sha256:new"
+        ]
         policy = {"contract_version": "0.4.0", "status": "planned"}
 
         with patch.object(
@@ -522,9 +522,9 @@ rollback_action = "restore the prior module source and inputs"
         )
         base["modules"]["example"]["inputs"]["optional"]["default"] = "candidate"
         current = copy.deepcopy(base)
-        current["modules"]["example"]["inputs"]["optional"][
-            "validation_fingerprints"
-        ] = ["sha256:new"]
+        current["modules"]["example"]["inputs"]["optional"]["validation_fingerprints"] = [
+            "sha256:new"
+        ]
         policy = {"contract_version": "0.4.0", "status": "planned"}
 
         with (
@@ -628,8 +628,9 @@ qualification_evidence = ["evidence.md"]
             {"contract_version": "0.5.0", "status": "planned"},
             {"contract_version": "0.4.0", "status": "released"},
         ):
-            with self.subTest(policy=policy), self.assertRaisesRegex(
-                governance.GovernanceError, "differs from version.toml"
+            with (
+                self.subTest(policy=policy),
+                self.assertRaisesRegex(governance.GovernanceError, "differs from version.toml"),
             ):
                 governance._compatibility_baseline(
                     Path("/unused"), base, current, policy, "terraform-docs"

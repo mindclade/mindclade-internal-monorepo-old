@@ -22,9 +22,7 @@ def test_sampling_is_local_seeded_and_reproducible() -> None:
         reversed(identities), seed=3, epoch=2
     )
     assert sample_indices(10, 4, seed=9) == sample_indices(10, 4, seed=9)
-    assert mixture_schedule((0.2, 0.8), 20, seed=7) == mixture_schedule(
-        (0.2, 0.8), 20, seed=7
-    )
+    assert mixture_schedule((0.2, 0.8), 20, seed=7) == mixture_schedule((0.2, 0.8), 20, seed=7)
 
 
 def test_temperature_and_curriculum_validate_domains() -> None:

@@ -12,7 +12,7 @@ import json
 import struct
 from pathlib import Path
 
-from build_model_bundle import build
+from tools.release.build_model_bundle import build
 
 MODEL_NAME = "reference-affine-v1"
 

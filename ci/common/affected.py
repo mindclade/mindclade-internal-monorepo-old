@@ -172,6 +172,14 @@ def select(changed: list[str]) -> list[str]:
         path == prefix or path.startswith(prefix) for path in changed for prefix in GLOBAL_PREFIXES
     ):
         return ["//..."]
+    for raw in changed:
+        path = (ROOT / raw).resolve()
+        try:
+            path.relative_to(ROOT)
+        except ValueError:
+            return ["//..."]
+        if not path.exists():
+            return ["//..."]
     targets, reverse = graph()
     packages = changed_packages(changed)
     seeds = {label for label, target in targets.items() if target.package in packages}

@@ -201,11 +201,9 @@ def test_rust_version_contract_rejects_an_implicit_bazel_toolchain() -> None:
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         contract_fixture(root)
-        write(root, "MODULE.bazel", "module(name = \"fixture\")\n")
+        write(root, "MODULE.bazel", 'module(name = "fixture")\n')
         errors = contract.rust_version_contract(root)
-    assert errors == [
-        "MODULE.bazel must configure the root rules_rust toolchain extension"
-    ]
+    assert errors == ["MODULE.bazel must configure the root rules_rust toolchain extension"]
 
 
 def test_rust_version_contract_rejects_bazel_version_drift() -> None:

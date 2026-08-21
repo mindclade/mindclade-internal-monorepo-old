@@ -79,7 +79,7 @@ spec:
   target: go-vanity
   previousRelease:
     id: {previous_id}
-    subjectDigest: {previous_digest or 'sha256:' + '1' * 64}
+    subjectDigest: {previous_digest or "sha256:" + "1" * 64}
 {extra}""",
             encoding="utf-8",
         )

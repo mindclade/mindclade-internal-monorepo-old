@@ -79,7 +79,7 @@ def rust_version_contract(root: Path) -> list[str]:
         errors.append("Rust qualification expected-version does not match Cargo rust-version")
 
     extension = re.search(
-        r'(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*use_extension\(\s*'
+        r"(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*use_extension\(\s*"
         r'"@rules_rust//rust:extensions\.bzl"\s*,\s*"rust"\s*\)',
         module,
     )

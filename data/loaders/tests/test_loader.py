@@ -43,9 +43,15 @@ def test_zero_worker_loader_has_explicit_batch_contract_and_complete_coverage() 
 def test_shuffle_is_seeded_and_invalid_indices_fail_clearly() -> None:
     dataset = SampleDataset(samples())
     config = LoaderConfig(2, 29, shuffle=True)
-    first = [sample_id for batch in build_loader(dataset, config).loader for sample_id in batch.sample_ids]
+    first = [
+        sample_id
+        for batch in build_loader(dataset, config).loader
+        for sample_id in batch.sample_ids
+    ]
     second = [
-        sample_id for batch in build_loader(dataset, config).loader for sample_id in batch.sample_ids
+        sample_id
+        for batch in build_loader(dataset, config).loader
+        for sample_id in batch.sample_ids
     ]
     assert first == second
     with pytest.raises(IndexError, match="addressable"):

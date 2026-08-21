@@ -9,12 +9,9 @@ from __future__ import annotations
 
 import random
 from collections.abc import Iterable, Iterator
-from typing import TypeVar
-
-T = TypeVar("T")
 
 
-def buffered_shuffle(values: Iterable[T], *, buffer_size: int, seed: int) -> Iterator[T]:
+def buffered_shuffle[T](values: Iterable[T], *, buffer_size: int, seed: int) -> Iterator[T]:
     if (
         isinstance(buffer_size, bool)
         or not isinstance(buffer_size, int)

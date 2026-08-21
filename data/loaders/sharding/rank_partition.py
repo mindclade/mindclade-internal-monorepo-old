@@ -9,7 +9,10 @@ from __future__ import annotations
 
 
 def rank_indices(length: int, rank: int, world_size: int) -> tuple[int, ...]:
-    if any(isinstance(value, bool) or not isinstance(value, int) for value in (length, rank, world_size)):
+    if any(
+        isinstance(value, bool) or not isinstance(value, int)
+        for value in (length, rank, world_size)
+    ):
         raise ValueError("rank partition values must be integers")
     if length < 0 or world_size < 1 or not 0 <= rank < world_size:
         raise ValueError("rank partition bounds are invalid")

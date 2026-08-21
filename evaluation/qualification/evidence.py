@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Final
 
 from libs.python.errors import InvalidArgument
@@ -54,7 +54,10 @@ class EvaluationEvidence:
         ):
             if not isinstance(value, Digest):
                 raise _invalid("evidence digest is invalid", reason)
-        if not isinstance(self.source_revision, str) or _REVISION.fullmatch(self.source_revision) is None:
+        if (
+            not isinstance(self.source_revision, str)
+            or _REVISION.fullmatch(self.source_revision) is None
+        ):
             raise _invalid("source revision must be an exact commit", "source_revision")
         if not 1 <= len(self.dataset_digests) <= MAXIMUM_METRICS:
             raise _invalid("dataset digest count is outside bounds", "dataset_count")
@@ -160,7 +163,7 @@ def _timestamp(value: object, label: str) -> None:
 
 
 def _render_time(value: datetime) -> str:
-    return value.astimezone(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    return value.astimezone(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
 def _invalid(message: str, reason: str) -> InvalidArgument:

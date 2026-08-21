@@ -44,8 +44,8 @@ def _normalize(value: object, *, depth: int) -> Any:
     if isinstance(value, dt.datetime):
         if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("canonical timestamps must be timezone-aware")
-        rendered = value.astimezone(dt.UTC).isoformat(timespec="microseconds").replace(
-            "+00:00", "Z"
+        rendered = (
+            value.astimezone(dt.UTC).isoformat(timespec="microseconds").replace("+00:00", "Z")
         )
         return {"$timestamp": rendered}
     if isinstance(value, Mapping):

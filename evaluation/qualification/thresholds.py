@@ -216,7 +216,11 @@ def _finite(value: object, label: str) -> None:
 
 
 def _samples(value: object, label: str) -> None:
-    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= MAXIMUM_SAMPLE_COUNT:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int)
+        or not 1 <= value <= MAXIMUM_SAMPLE_COUNT
+    ):
         raise _invalid(f"{label} is outside bounds", "sample_count")
 
 

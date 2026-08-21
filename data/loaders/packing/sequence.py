@@ -24,8 +24,10 @@ def pad_sequences(
     if isinstance(pad_token, bool) or not isinstance(pad_token, int):
         raise ValueError("padding token must be an integer")
     target = max(len(sequence) for sequence in sequences) if width is None else width
-    if isinstance(target, bool) or not isinstance(target, int) or target < max(
-        len(sequence) for sequence in sequences
+    if (
+        isinstance(target, bool)
+        or not isinstance(target, int)
+        or target < max(len(sequence) for sequence in sequences)
     ):
         raise ValueError("padding width is too small")
     tokens = torch.full((len(sequences), target), pad_token, dtype=torch.int64)

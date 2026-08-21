@@ -27,12 +27,11 @@ filegroup(
 # depending on torch here would put a multi-gigabyte CUDA closure in the release path.
 # A library as well as a binary, because the fixture generator in
 # //models/reference/weights_fixture stages through build() rather than reimplementing it.
-# `imports` makes this directory a sys.path root, so that consumer writes a plain
-# `from build_model_bundle import build` instead of reaching for the source file by path.
+# Consumers use the repository-qualified tools.release.build_model_bundle module, which keeps
+# Bazel and the root uv/pytest runner on one import contract without sys.path mutation.
 py_library(
     name = "build_model_bundle_lib",
     srcs = ["build_model_bundle.py"],
-    imports = ["."],
     visibility = ["//visibility:public"],
 )
 

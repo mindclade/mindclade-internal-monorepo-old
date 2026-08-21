@@ -22,7 +22,9 @@ def weighted_indices(weights: Iterable[float], count: int, *, seed: int) -> tupl
         or isinstance(seed, bool)
         or not isinstance(seed, int)
         or seed < 0
-        or any(isinstance(value, bool) or not math.isfinite(value) or value <= 0 for value in values)
+        or any(
+            isinstance(value, bool) or not math.isfinite(value) or value <= 0 for value in values
+        )
     ):
         raise ValueError("weighted sampling inputs are invalid")
     return tuple(random.Random(seed).choices(range(len(values)), weights=values, k=count))

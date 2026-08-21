@@ -24,8 +24,7 @@ def telemetry_findings(
         if field.name in emitted
         and (
             field.log_policy is not LogPolicy.ALLOW
-            or field.sensitivity
-            in {Sensitivity.PROPRIETARY_INTERNAL, Sensitivity.RESTRICTED}
+            or field.sensitivity in {Sensitivity.PROPRIETARY_INTERNAL, Sensitivity.RESTRICTED}
         )
     ]
     if not forbidden:

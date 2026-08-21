@@ -65,9 +65,7 @@ class PromotionDecision:
 def make_promotion_decision(
     candidate_digest: Digest, verification: VerificationResult
 ) -> PromotionDecision:
-    if not isinstance(candidate_digest, Digest) or not isinstance(
-        verification, VerificationResult
-    ):
+    if not isinstance(candidate_digest, Digest) or not isinstance(verification, VerificationResult):
         raise _invalid("promotion inputs are invalid", "promotion_input")
     return PromotionDecision(
         authorized=verification.accepted,

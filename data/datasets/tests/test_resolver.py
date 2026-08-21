@@ -8,9 +8,8 @@ from __future__ import annotations
 import pytest
 
 from data.datasets import DatasetCatalog, DatasetResolver
-from data.manifest import ArtifactLocation
-
 from data.datasets.tests.fixtures import DIGESTS, manifest
+from data.manifest import ArtifactLocation
 
 
 class Locations:
@@ -31,9 +30,9 @@ class Locations:
 
 def test_resolver_binds_exact_manifest_artifacts_to_generations() -> None:
     item = manifest()
-    resolved = DatasetResolver(DatasetCatalog((item,)), Locations(item.artifacts[0].digest)).resolve(
-        item.dataset_id, item.version
-    )
+    resolved = DatasetResolver(
+        DatasetCatalog((item,)), Locations(item.artifacts[0].digest)
+    ).resolve(item.dataset_id, item.version)
     assert resolved.manifest.manifest_digest == item.manifest_digest
     assert resolved.artifacts[0].locations[0].generation == "1700000000000000"
 

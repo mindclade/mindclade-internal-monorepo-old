@@ -5,7 +5,7 @@
 
 """Behavioral coverage for deterministic, fail-closed release qualification."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -54,7 +54,9 @@ def rule(
 
 
 def observation(item: ThresholdRule, value: float) -> MetricObservation:
-    slices = tuple(SliceObservation(name=name, value=value, sample_count=10) for name in item.required_slices)
+    slices = tuple(
+        SliceObservation(name=name, value=value, sample_count=10) for name in item.required_slices
+    )
     return MetricObservation(
         name=item.name,
         value=value,
@@ -72,7 +74,7 @@ def plan_and_batch() -> tuple[EvaluationPlan, EvaluationBatch]:
     candidate = digest("candidate")
     scorer = digest("scorer")
     plan = EvaluationPlan("release-gate", candidate, scorer, rules)
-    started = datetime(2026, 8, 21, 12, tzinfo=timezone.utc)
+    started = datetime(2026, 8, 21, 12, tzinfo=UTC)
     batch = EvaluationBatch(
         candidate_digest=candidate,
         scorer_digest=scorer,
@@ -134,9 +136,12 @@ def test_missing_metric_and_scorer_failure_deny_release() -> None:
     assert not evidence.passed
     assert evidence.missing_outputs == 1
     assert not result.promotion.authorized
-    assert {"attestation-missing", "execution-failure", "missing-output", "threshold-failure"}.issubset(
-        result.promotion.reasons
-    )
+    assert {
+        "attestation-missing",
+        "execution-failure",
+        "missing-output",
+        "threshold-failure",
+    }.issubset(result.promotion.reasons)
 
 
 def test_attestation_must_bind_exact_evidence_and_policy() -> None:
@@ -181,7 +186,7 @@ def test_slice_and_baseline_regressions_fail_independently() -> None:
     candidate = digest("candidate")
     scorer = digest("scorer")
     plan = EvaluationPlan("baseline-gate", candidate, scorer, (item,))
-    started = datetime(2026, 8, 21, tzinfo=timezone.utc)
+    started = datetime(2026, 8, 21, tzinfo=UTC)
     observed = MetricObservation(
         name=item.name,
         value=0.84,
@@ -234,7 +239,7 @@ def test_candidate_scorer_and_undeclared_metric_mismatches_are_rejected() -> Non
         batch.scorer_digest,
         batch.runtime_image_digest,
         batch.source_revision,
-        batch.observations + (observation(extra_rule, 1.0),),
+        (*batch.observations, observation(extra_rule, 1.0)),
         0,
         0,
         batch.started_at,
