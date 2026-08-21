@@ -15,6 +15,9 @@ authorization/accounting invariant violation.
    credentials or request/response payloads.
 3. Determine whether the fault is repository availability, stale entitlement/budget state,
    idempotency-index divergence, quota-ledger drift, expiration backlog, or audit/outbox lag.
+   Compare bounded backlog size, oldest expired-but-reserved age, last successful sweep time, and
+   reconciliation drift. A reservation past `expires_at` is never valid authorization even if its
+   durable state has not yet been materialized as `expired`.
 4. For possible overspend or stale authorization, freeze new reservations for the affected budget
    and escalate to platform-control and security incident command.
 
@@ -24,8 +27,9 @@ authorization/accounting invariant violation.
    are forward-only; do not turn committed, released, or expired records back into reservations.
 2. Repair missing audit/outbox projections by replaying the canonical transaction evidence. Never
    synthesize a successful authorization from downstream provider or MLflow state.
-3. Run the bounded expiration sweeper and prove that expired capacity and idempotency records agree
-   before reopening the route.
+3. Restore the leader-gated bounded expiration sweeper; do not run an unleased ad-hoc writer.
+   Prove that the backlog reaches zero, the oldest-expired age returns below the 15-second
+   objective, and expired capacity and idempotency records agree before reopening the route.
 4. Apply schema or policy corrections through reviewed migrations with a new monotonic resource
    version. Roll forward after a partial migration; never roll durable state backward.
 
