@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export default function Trainingtimeline(): JSX.Element {
-  return <main data-scaffold="apps/console/src/components/TrainingTimeline.tsx" />;
+import { PreprocessingTimeline, type TimelineStage } from "./PreprocessingTimeline";
+
+export function TrainingTimeline({ stages }: { stages: readonly TimelineStage[] }): React.ReactNode {
+  return <section className="panel"><div className="panel-heading"><h2>Training timeline</h2></div><PreprocessingTimeline stages={stages} /></section>;
 }

@@ -84,6 +84,15 @@ def test_stages_every_file_and_writes_the_manifest(checkpoint: Path, tmp_path: P
     assert json.loads((out / "manifest.json").read_text())["name"] == "tiny"
 
 
+def test_records_specific_text_media_types(checkpoint: Path, tmp_path: Path):
+    (checkpoint / "README.md").write_text("model card\n")
+    (checkpoint / "NOTICE.txt").write_text("notice\n")
+    manifest = build(checkpoint, tmp_path / "out", name="tiny", schema_version=1)
+    media_types = {member["path"]: member["media_type"] for member in manifest["members"]}
+    assert media_types["README.md"] == "text/markdown; charset=utf-8"
+    assert media_types["NOTICE.txt"] == "text/plain; charset=utf-8"
+
+
 def test_bundle_digest_is_content_addressed_not_time_addressed(checkpoint: Path, tmp_path: Path):
     """Repacking the same weights must produce the same bundle digest.
 
@@ -159,3 +168,95 @@ def test_refuses_a_truncated_file(tmp_path: Path):
     path.write_bytes(b"\x00\x01\x02")
     with pytest.raises(ValueError, match="8-byte safetensors header"):
         validate_safetensors(path)
+
+
+def test_refuses_payload_offsets_beyond_file(tmp_path: Path):
+    path = write_safetensors(
+        tmp_path / "bad.safetensors",
+        tensors={"weight": {"dtype": "F32", "shape": [2], "data_offsets": [0, 8]}},
+        payload=b"\x00" * 4,
+    )
+    with pytest.raises(ValueError, match="offsets exceed"):
+        validate_safetensors(path)
+
+
+def test_refuses_dtype_shape_size_mismatch(tmp_path: Path):
+    path = write_safetensors(
+        tmp_path / "bad.safetensors",
+        tensors={"weight": {"dtype": "F32", "shape": [1], "data_offsets": [0, 8]}},
+        payload=b"\x00" * 8,
+    )
+    with pytest.raises(ValueError, match="dtype/shape require"):
+        validate_safetensors(path)
+
+
+def test_refuses_payload_gaps_and_trailing_bytes(tmp_path: Path):
+    gap = write_safetensors(
+        tmp_path / "gap.safetensors",
+        tensors={"weight": {"dtype": "F32", "shape": [1], "data_offsets": [4, 8]}},
+        payload=b"\x00" * 8,
+    )
+    with pytest.raises(ValueError, match="payload gap"):
+        validate_safetensors(gap)
+
+    trailing = write_safetensors(tmp_path / "trailing.safetensors", payload=b"\x00" * 20)
+    with pytest.raises(ValueError, match="offsets cover"):
+        validate_safetensors(trailing)
+
+
+def test_refuses_duplicate_header_keys(tmp_path: Path):
+    header = (
+        b'{"weight":{"dtype":"F32","shape":[1],"data_offsets":[0,4]},'
+        b'"weight":{"dtype":"F32","shape":[1],"data_offsets":[0,4]}}'
+    )
+    path = tmp_path / "duplicate.safetensors"
+    path.write_bytes(struct.pack("<Q", len(header)) + header + b"\x00" * 4)
+    with pytest.raises(ValueError, match="duplicate JSON key"):
+        validate_safetensors(path)
+
+
+def test_refuses_symlinked_members(checkpoint: Path, tmp_path: Path):
+    outside = tmp_path / "outside.json"
+    outside.write_text('{"secret": true}')
+    (checkpoint / "linked.json").symlink_to(outside)
+    with pytest.raises(ValueError, match="symbolic links"):
+        collect(checkpoint)
+
+
+def test_refuses_reserved_input_manifest(checkpoint: Path):
+    (checkpoint / "manifest.json").write_text("{}")
+    with pytest.raises(ValueError, match="reserved"):
+        collect(checkpoint)
+
+
+@pytest.mark.parametrize("schema_version", [0, 2, -1])
+def test_refuses_unsupported_schema_versions(checkpoint: Path, tmp_path: Path, schema_version: int):
+    with pytest.raises(ValueError, match="schema version"):
+        build(checkpoint, tmp_path / "out", name="tiny", schema_version=schema_version)
+
+
+@pytest.mark.parametrize("name", ["", "Tiny", "../tiny", "tiny//v1", "tiny/"])
+def test_refuses_noncanonical_model_names(checkpoint: Path, tmp_path: Path, name: str):
+    with pytest.raises(ValueError, match="model name"):
+        build(checkpoint, tmp_path / "out", name=name, schema_version=1)
+
+
+def test_refuses_overlapping_input_and_output(checkpoint: Path):
+    with pytest.raises(ValueError, match="must not overlap"):
+        build(checkpoint, checkpoint / "out", name="tiny", schema_version=1)
+
+
+def test_refuses_nonempty_output(checkpoint: Path, tmp_path: Path):
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / "stale.txt").write_text("stale")
+    with pytest.raises(ValueError, match="must not already contain"):
+        build(checkpoint, out, name="tiny", schema_version=1)
+
+
+def test_accepts_an_existing_empty_output_and_commits_atomically(checkpoint: Path, tmp_path: Path):
+    out = tmp_path / "out"
+    out.mkdir()
+    build(checkpoint, out, name="tiny", schema_version=1)
+    assert (out / "manifest.json").is_file()
+    assert not list(tmp_path.glob(".out.staging-*"))

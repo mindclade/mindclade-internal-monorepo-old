@@ -3,19 +3,55 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold test for training/core/tests/test_state.py."""
+"""Progress-state invariants."""
 
 import pytest
 
+from libs.python.errors import ResourceExhausted
+from training.contracts.state import MAXIMUM_PROGRESS_COUNTER, TrainingState
 
-# SKIPPED, not passing.
-#
-# A placeholder for tests that do not exist yet. It used to `assert True` — which pytest
-# reports as a pass, so the suite was green and the number it printed was not the number of
-# things actually verified. A vacuous gate is worse than no gate: it manufactures confidence.
-#
-# Write real tests here when there is an implementation to test, and lower SCAFFOLD_BASELINE
-# in tests/integration/test_python_scaffold.py in the same commit.
-@pytest.mark.scaffold
-def test_scaffold_contract() -> None:
-    pytest.skip("scaffold: no implementation to test yet")
+
+def test_state_advances_one_committed_optimizer_group_at_a_time() -> None:
+    initial = TrainingState()
+
+    first = initial.after_optimizer_step(microbatches=3, samples=7)
+    second = first.after_optimizer_step(microbatches=1, samples=2)
+
+    assert initial == TrainingState()
+    assert first == TrainingState(microbatches=3, optimizer_steps=1, samples=7)
+    assert second == TrainingState(microbatches=4, optimizer_steps=2, samples=9)
+
+
+@pytest.mark.parametrize(
+    "state",
+    [
+        {"microbatches": -1},
+        {"microbatches": 1, "optimizer_steps": 2, "samples": 1},
+        {"microbatches": 1, "optimizer_steps": 0, "samples": 1},
+        {"microbatches": 2, "optimizer_steps": 1, "samples": 1},
+        {"microbatches": True},
+    ],
+)
+def test_state_rejects_inconsistent_counters(state: dict[str, int]) -> None:
+    with pytest.raises(ValueError):
+        TrainingState(**state)
+
+
+@pytest.mark.parametrize(
+    ("microbatches", "samples"),
+    [(0, 1), (1, 0), (2, 1), (True, 1)],
+)
+def test_state_rejects_invalid_group_increments(microbatches: int, samples: int) -> None:
+    with pytest.raises(ValueError):
+        TrainingState().after_optimizer_step(microbatches=microbatches, samples=samples)
+
+
+def test_state_fails_closed_on_counter_overflow() -> None:
+    state = TrainingState(
+        microbatches=MAXIMUM_PROGRESS_COUNTER,
+        optimizer_steps=1,
+        samples=MAXIMUM_PROGRESS_COUNTER,
+    )
+
+    with pytest.raises(ResourceExhausted, match="counter exhausted"):
+        state.after_optimizer_step(microbatches=1, samples=1)

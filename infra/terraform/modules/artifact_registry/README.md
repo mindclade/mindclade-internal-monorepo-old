@@ -72,6 +72,7 @@ production-readiness evidence.
 | <a name="input_minimum_versions_to_keep"></a> [minimum\_versions\_to\_keep](#input\_minimum\_versions\_to\_keep) | Minimum most-recent versions retained for each package | `number` | `20` | no |
 | <a name="input_owner"></a> [owner](#input\_owner) | Accountable team governance label | `string` | n/a | yes |
 | <a name="input_project_id"></a> [project\_id](#input\_project\_id) | Google Cloud project that owns the repository | `string` | n/a | yes |
+| <a name="input_project_number"></a> [project\_number](#input\_project\_number) | Numeric project number used to authorize the Artifact Registry service agent on a cross-project CMEK | `string` | `null` | no |
 | <a name="input_repository_id"></a> [repository\_id](#input\_repository\_id) | Stable Docker repository ID within the selected project and location | `string` | n/a | yes |
 | <a name="input_untagged_retention_days"></a> [untagged\_retention\_days](#input\_untagged\_retention\_days) | Age in days after which untagged versions become cleanup candidates | `number` | `30` | no |
 

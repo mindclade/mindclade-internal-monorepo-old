@@ -3,4 +3,8 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export const SCAFFOLD_INDEX = "libs/ts/api_client/src/index.ts" as const;
+export * from "./client.js";
+export * from "./errors.js";
+export * from "./events.js";
+export * from "./pagination.js";
+export * from "./types.js";

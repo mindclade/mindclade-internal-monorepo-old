@@ -1,35 +1,13 @@
 # Serving / Safety
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Python/PyTorch reusable inference engines
+**Status:** implemented policy orchestration; detector qualification remains deployment evidence.
 
-## Purpose
+This package composes injected, independently qualified screeners under an immutable content-
+addressed policy. It bounds input and finding sizes, validates screener identity, fails closed when
+a required screener is missing, fails, or overproduces, and emits only input digests and bounded
+finding codes into its audit projection. Raw screened content is never part of an audit record.
 
-Reusable model-loading, batching, sampling, safety, rollout, and inference-runtime engines. Deployable network/process wiring stays under `services/`. This path specializes that domain for **safety**.
-
-## Boundary
-
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
-
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
-
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+No heuristic detector or policy content is embedded here. Detector models, thresholds, evaluation
+sets, policy approval, and human review operations belong to their owning safety domains. An
+`ALLOW` result means only that every required configured screener completed and produced no finding
+at or above the review threshold; it is not a general safety guarantee.

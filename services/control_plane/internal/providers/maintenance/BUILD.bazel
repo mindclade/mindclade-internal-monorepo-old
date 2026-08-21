@@ -16,6 +16,7 @@ go_library(
         "//libs/go/coordination/leadership",
         "//libs/go/coordination/workqueue",
         "//libs/go/faults",
+        "//libs/go/servicekit",
         "//libs/go/storage/lease",
         "//services/control_plane/internal/bootstrap",
         "//services/control_plane/internal/config",

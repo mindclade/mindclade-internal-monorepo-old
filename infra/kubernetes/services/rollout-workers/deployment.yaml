@@ -5,8 +5,8 @@
 
 ---
 # Rollout generation is durable batch work. Its accelerator envelope depends on
-# the signed workload ticket; the package currently has no runnable composition
-# root, so this template stays suspended.
+# the signed workload ticket. Its adapter and provider-neutral rollout mechanics
+# are implemented; engine/bridge qualification still blocks activation.
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -18,7 +18,7 @@ metadata:
     app.kubernetes.io/part-of: mindclade-platform
   annotations:
     mindclade.dev/deployment-status: disabled
-    mindclade.dev/activation-blocker: runnable-entrypoint-and-ticket-adapter-missing
+    mindclade.dev/activation-blocker: engine-and-rust-python-bridge-qualification-missing
     mindclade.dev/gpu-contract: per-workload-ticket
     mindclade.dev/template-only: "true"
 spec:

@@ -1,36 +1,18 @@
 # Rollout worker
 
-**Language:** Python/PyTorch  
-**Status in this archive:** target-state adapter scaffold; not production-ready.
+**Language:** Python scientific engine under Rust supervision
+**Status:** implemented adapter; connected engine and deployment qualification pending.
 
-## Role
+This composition root adapts the unified stage-worker protocol to versioned policy rollout and trajectory generation. It uses
+`libs/python/worker_runtime` for immutable envelopes, cooperative deadlines/cancellation,
+non-blocking concurrency admission, and exact drain accounting. Go retains durable DAG,
+attempt, retry, and publication state; `libs/rust/{worker_protocol,worker_runtime,python_bridge}`
+retains ticket verification, fencing, process/resource supervision, and bulk-buffer transport.
 
-Executes versioned policy rollouts, sampling, trajectories, and bounded policy-cache behavior for reinforcement/post-training systems.
+The owning scientific engine is injected and must checkpoint at safe interruption points. This
+adapter does not load provider credentials, construct a scheduler, verify signatures in Python,
+or publish artifacts. Output publication remains atomic and fencing-aware in the Rust/Go path.
 
-## Boundary
-
-The worker is a deployable adapter. Reusable semantics live in the owning
-`data/`, `preprocessing/`, `models/`, `serving/`, `training/`, or `evaluation/`
-package. It consumes immutable inputs and a signed execution ticket, reports
-versioned status, commits outputs atomically by digest/manifest, and honors
-cancellation, deadline, fencing, retry, and drain.
-
-It does not own:
-
-- learner durable state and global fleet policy;
-
-## Required operational behavior
-
-- validate ticket, bundle, artifact scope, attempt, and fencing before work;
-- reserve bounded CPU/RAM/disk/GPU/process/output resources;
-- make stage retries explicit and idempotent;
-- keep control RPCs small and place bulk data in files/shared memory/object refs;
-- preserve deterministic seeds/config/policy/reference/tool provenance;
-- reject late output/status commits after cancellation or claim loss;
-- emit bounded diagnostics and release resources during drain.
-
-## Limitations
-
-The checked-in source is an ownership/build scaffold. The actual engine,
-provider adapters, connected tests, performance limits, and qualification
-remain to be implemented before promotion.
+Hard local concurrency and drain ceilings are represented by `WorkerLimits`. The adapter rejects
+work before readiness, during drain, after deadline, for another stage kind, or when local
+concurrency is exhausted.

@@ -1,35 +1,25 @@
-# Kernels / Api
+# Kernel provider API
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Python provider APIs and TileLang accelerator implementations
+- **Status:** Implemented contract; individual accelerator implementations remain qualification-gated.
+- **Owner:** `biology-ml`
 
-## Purpose
+`KernelRequest` is the canonical dispatch key. It contains the operation,
+ordered tensor specifications, target, architecture, semantic attributes, and
+gradient/determinism requirements. Canonical JSON and SHA-256 digests prevent a
+qualification for one signature from authorizing another.
 
-Reference operations, provider dispatch, TileLang kernels, autotuning, target support, and signature-specific numerical/performance qualification. This path specializes that domain for **API**.
+`ImplementationIdentity` separately binds provider, source, compiler version,
+and schedule. `DeviceCapabilities` records runtime facts rather than inferring
+support from a marketing model name.
 
-## Boundary
+## Rules
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+- Shapes, dtypes, layouts, devices, and semantic attributes are explicit.
+- Unknown attributes or layouts are rejected by operation validation.
+- Provider eligibility is pure and returns a stable rejection reason.
+- PyTorch is the semantic reference; accelerator presence is not qualification.
+- Errors use stable `KernelErrorCode` values and redact runtime internals.
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
-
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+The API owns in-process Python contracts only. Cross-process schemas belong in
+`protocols/`, service lifecycle belongs in `services/`, and model selection
+policy belongs in `models/`.

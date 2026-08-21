@@ -1,14 +1,9 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
-"""Scaffold boundary for kernels/providers/tilelang/manifest.py.
+"""Pinned provider/toolchain contract."""
 
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
-
-from __future__ import annotations
-
-SCAFFOLD_PATH: str = "kernels/providers/tilelang/manifest.py"
+TILELANG_VERSION = "0.1.13"
+TVM_FFI_RANGE = ">=0.1.11,<0.1.13"
+PROVIDER_SCHEMA_VERSION = 1

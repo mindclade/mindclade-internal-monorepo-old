@@ -1,35 +1,13 @@
-# Kernels / Ops / Mixture-Of-Experts
+# Mixture-of-experts operation contracts
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Python provider APIs and TileLang accelerator implementations
+- **Implemented:** stable top-k routing, deterministic capacity assignment, padded grouped GEMM, and weighted combine references.
+- **TileLang candidate:** Qualification-gated expert-major padded grouped GEMM on CUDA targets.
 
-## Purpose
+Routing resolves equal scores by ascending expert index. Capacity overflow is
+explicit and deterministic; unused padded token rows must be zero. Grouped GEMM
+uses `tokens[E,capacity,K] @ weights[E,K,N]` and leaves routing, communication,
+and unpermutation outside the measured primitive.
 
-Reference operations, provider dispatch, TileLang kernels, autotuning, target support, and signature-specific numerical/performance qualification. This path specializes that domain for **mixture-of-experts**.
-
-## Boundary
-
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
-
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
-
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+The contract validates expert counts, shapes, capacities, dtypes, and routing
+indices. Distributed all-to-all and load-balancing policy remain model/runtime
+responsibilities and are not implied by this kernel implementation.

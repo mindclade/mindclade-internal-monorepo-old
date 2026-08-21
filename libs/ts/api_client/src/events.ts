@@ -3,4 +3,19 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export const SCAFFOLD_EVENTS = "libs/ts/api_client/src/events.ts" as const;
+import type { Listener, Unsubscribe } from "./types.js";
+
+export class EventChannel<T> {
+  private readonly listeners = new Set<Listener<T>>();
+
+  subscribe(listener: Listener<T>): Unsubscribe {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  emit(value: T): void {
+    for (const listener of this.listeners) listener(value);
+  }
+
+  clear(): void { this.listeners.clear(); }
+}

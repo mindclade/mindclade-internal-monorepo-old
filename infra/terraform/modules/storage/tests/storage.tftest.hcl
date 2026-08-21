@@ -82,6 +82,32 @@ run "reject_abort_with_object_state_filter" {
   expect_failures = [var.lifecycle_rules]
 }
 
+run "dedicated_access_log_sink_may_omit_recursive_logging" {
+  command = plan
+
+  variables {
+    project_id                  = "mindclade-security"
+    name                        = "mindclade-dr-evidence-access-logs"
+    location                    = "US"
+    environment                 = "global"
+    owner                       = "security"
+    data_classification         = "restricted"
+    retention_period_seconds    = 220752000
+    lock_retention_policy       = true
+    retention_lock_confirmation = "LOCKING A CLOUD STORAGE RETENTION POLICY IS IRREVERSIBLE"
+    object_creators             = ["group:cloud-storage-analytics@google.com"]
+  }
+
+  assert {
+    condition = (
+      length(google_storage_bucket.this.logging) == 0 &&
+      google_storage_bucket.this.retention_policy[0].retention_period == "220752000" &&
+      google_storage_bucket.this.retention_policy[0].is_locked == true
+    )
+    error_message = "A dedicated access-log sink may omit recursive server logging while retaining the seven-year locked contract."
+  }
+}
+
 run "nova_training_checkpoint_bucket_is_create_only" {
   command = plan
 

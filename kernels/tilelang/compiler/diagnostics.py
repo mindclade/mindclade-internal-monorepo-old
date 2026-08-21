@@ -1,14 +1,25 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
-"""Scaffold boundary for kernels/tilelang/compiler/diagnostics.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Bounded diagnostics that keep private source out of public error strings."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "kernels/tilelang/compiler/diagnostics.py"
+import hashlib
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True, slots=True)
+class CompilationDiagnostic:
+    phase: str
+    error_type: str
+    message_digest: str
+
+    @classmethod
+    def from_exception(cls, phase: str, error: BaseException) -> CompilationDiagnostic:
+        return cls(
+            phase=phase,
+            error_type=type(error).__name__,
+            message_digest=hashlib.sha256(str(error).encode()).hexdigest(),
+        )

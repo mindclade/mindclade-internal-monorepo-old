@@ -3,12 +3,16 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for services/workers/rollout/main.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Composition factory invoked by the Rust-supervised worker process."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "services/workers/rollout/main.py"
+from libs.python.worker_runtime import StageEngine, StageWorker, WorkerLimits
+
+from .executor import build_executor
+
+
+def build_worker(engine: StageEngine, limits: WorkerLimits | None = None) -> StageWorker:
+    worker = StageWorker(build_executor(engine), limits)
+    worker.ready()
+    return worker

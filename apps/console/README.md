@@ -1,11 +1,13 @@
-# Apps / Console
+# Mindclade Command
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
+- **Status:** Implemented application surface; authentication, live APIs, and deployment are not yet production-qualified.
 - **Primary implementation ownership:** TypeScript
 
-## Purpose
-
-Product-facing web applications. Product surfaces consume generated SDKs and public contracts; they never import deployable service implementations. This path specializes that domain for **console**.
+The product-facing operational cockpit for AI research and model systems. It
+turns runs, datasets, models, artifacts, and independent evaluations into one
+evidence-oriented workspace. Routes backed by the reviewed public contract use
+the TypeScript SDK directly. Reserved platform capabilities fail visibly at a
+contract boundary instead of displaying fabricated operational state.
 
 ## Boundary
 
@@ -18,18 +20,15 @@ This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
 ground. It may depend only in the direction documented by
 `docs/architecture/dependency-rules.md` and the accepted ADRs.
 
-## Materialization requirements
+## Runtime contract
 
-Before this scaffold boundary is treated as implemented, add:
+Set `NEXT_PUBLIC_API_BASE_URL` for a separate API origin; otherwise the browser
+uses its own origin and sends BFF session cookies. Optional telemetry requires
+`NEXT_PUBLIC_TELEMETRY_ENDPOINT`; no telemetry is sent when it is absent.
+Requests cancel on route/component disposal and time out after 15 seconds.
 
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+`pnpm --filter @mindclade/apps-console build` produces the optimized Next
+artifact. The interface includes loading, empty, error, reduced-motion,
+keyboard-focus, and narrow-viewport states. No model payloads, credentials, or
+policy decisions are stored in the application. Rollback redeploys the prior
+immutable web artifact; API compatibility is governed separately.

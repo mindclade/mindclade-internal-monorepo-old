@@ -3,12 +3,14 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for services/workers/evaluation/config.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Validated local limits for the evaluation adapter."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "services/workers/evaluation/config.py"
+from libs.python.worker_runtime import WorkerLimits
+
+
+def worker_limits(
+    *, maximum_concurrent_executions: int = 1, drain_timeout_millis: int = 30_000
+) -> WorkerLimits:
+    return WorkerLimits(maximum_concurrent_executions, drain_timeout_millis)

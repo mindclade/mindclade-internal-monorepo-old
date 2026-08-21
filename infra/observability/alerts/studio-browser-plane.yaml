@@ -1,203 +1,36 @@
----
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
-# The SLIs this design specifically needs.
-#
-# Generic golden signals are not the interesting part and are configured
-# elsewhere. What is here is the set whose ABSENCE would let a specific control in
-# this design fail silently.
-#
-# ===========================================================================================
-# The one that is easy to get backwards
-# ===========================================================================================
-# Under a resumable design a severed connection is NOT a failure. Connection-drop
-# rate is therefore the WRONG SLI: it will look alarming while nothing is wrong,
-# because every rolling deploy severs every open stream by design.
-#
-# Only never reaching the terminal event is failure. That is what
-# stream-completion-rate measures and why it is the first entry.
-schemaVersion: mindclade.dev/cloud-monitoring-alert-contract/v1alpha1
-name: studio-browser-plane
-owner: studio-platform
-deployment:
-  provider: google-cloud-monitoring
-  terraformModule: infra/terraform/modules/monitoring
-  deployableKubernetesResource: false
-
-alerts:
-  # -------------------------------------------------------------------------------------
-  # PAGE — a user-visible failure, or a security control silently off
-  # -------------------------------------------------------------------------------------
-  page:
-    - name: stream-completion-rate-below-slo
-      description: >-
-        Fraction of runs whose client received the terminal `done` event. THE metric the
-        resumable-stream design exists to protect. Do not replace this with connection-drop
-        rate: severance is routine and cheap here, and only a run that never reaches `done`
-        has actually failed a user.
-      metric: studio.stream.completion_rate
-      condition: below
-      threshold: 0.99
-      window: 15m
-
-    - name: served-certificate-expiring
-      description: >-
-        Days to expiry of the certificate ACTUALLY SERVED on the wire, measured by a TLS
-        handshake from inside the VPC — never read from cert-manager's status.
-        The failure that bites is a renewal that SUCCEEDS internally, updates the Secret, and
-        never reaches the Gateway. A controller metric reports health throughout that;
-        only the handshake sees the old chain still being served.
-      metric: studio.tls.served_cert_days_to_expiry
-      condition: below
-      threshold: 14
-      window: 1h
-
-    - name: session-decrypt-failures
-      description: >-
-        Cookies the BFF could not open. The SHAPE carries the diagnosis: a spike immediately
-        after a key rotation means the overlap is too short and the NEXT rotation will log
-        every user out simultaneously — which presents as a total outage. A non-zero rate at
-        any other time is a bug or someone probing with forged cookies.
-      metric: studio.session.decrypt_failures
-      condition: above
-      threshold: 10
-      window: 5m
-
-    - name: machine-plane-filter-canary-failing
-      description: >-
-        The canary endpoint in the ai namespace unconditionally sets Set-Cookie and CORS
-        headers; the edge filter must strip both. If they appear at the client, the filter is
-        NOT ATTACHED.
-        This is the check that distinguishes "the filter works" from "no service happens to
-        set these headers today" — without it, the invariant tests pass in a world where the
-        filter was never applied at all. A failure here is a security control silently off,
-        which is why it pages.
-      metric: studio.machine_plane.canary_headers_leaked
-      condition: above
-      threshold: 0
-      window: 5m
-
-  # -------------------------------------------------------------------------------------
-  # TICKET — needs attention, does not need waking anyone
-  # -------------------------------------------------------------------------------------
-  ticket:
-    - name: cert-manager-renewal-failed
-      description: >-
-        Deliberately a SECOND, INDEPENDENT signal from the on-the-wire gauge above. They fail
-        in different places: this one catches a renewal that never happened, the gauge catches
-        a renewal that happened and never reached the Gateway. Either alone leaves a blind
-        spot.
-      metric: certmanager.certificate.renewal_failures
-      condition: above
-      threshold: 0
-      window: 1h
-
-    - name: set-cookie-stripped-on-machine-plane
-      description: >-
-        Count of Set-Cookie headers the edge filter removed from an ai-plane response. Should
-        be exactly zero forever. Non-zero means a service TRIED to set one and the filter
-        caught it — a code bug the filter is masking, and the filter should not be the only
-        thing standing between a session and the machine plane.
-      metric: studio.machine_plane.set_cookie_stripped
-      condition: above
-      threshold: 0
-      window: 1h
-
-    - name: athens-upstream-fetch-failures
-      description: >-
-        The single chokepoint for every build in the organization. Builds fail loudly during
-        an outage by design — there is no ,direct fallback, so a proxy outage never becomes a
-        silent fan-out of go get traffic to the public internet carrying internal repo names.
-      metric: goproxy.upstream.fetch_failures
-      condition: above
-      threshold: 5
-      window: 15m
-
-    - name: handle-store-unavailable
-      description: >-
-        A TICKET, not a page, and that follows directly from the design: handoff redemption
-        fails while every other browser request keeps working. If this ever becomes
-        page-worthy, something has put the handle store on a path it was explicitly kept off.
-      metric: studio.handoff.store_errors
-      condition: above
-      threshold: 0
-      window: 15m
-
-  # -------------------------------------------------------------------------------------
-  # ENVELOPE TRIP-WIRES — alerts, not aspirations
-  # -------------------------------------------------------------------------------------
-  # These are what let the design state COMMITTED capacity targets rather than guesses. Each
-  # fires well before the corresponding limit, because each signals that the system is
-  # approaching the edge of what it was built for — a planning event with weeks of warning,
-  # not an incident. All four are tickets for that reason.
-  trip_wires:
-    - name: concurrent-streams-approaching-limit
-      description: >-
-        150 sustained concurrent streams against a 200 target. The response is a
-        connection-count HPA and a submission queue — NOT a bigger node pool. The streaming
-        tier holds long-lived, mostly-idle connections, so it scales on connections and a CPU
-        HPA under-scales it under exactly the load that matters.
-      metric: studio.stream.active_connections
-      condition: above
-      threshold: 150
-      window: 1h
-
-    - name: distinct-principals-approaching-limit
-      description: >-
-        400 distinct principals in a day against a 500 target. At that point the optional
-        hardening in the design — splitting Studio onto its own Gateway and VIP so a
-        serving-plane incident cannot affect the primary user-facing app — stops being
-        optional.
-      metric: studio.auth.distinct_principals_daily
-      condition: above
-      threshold: 400
-      window: 24h
-
-    - name: run-duration-p99-high
-      description: >-
-        p99 run duration over 45 minutes against a 1 hour assumption. Re-check the 900s
-        backend timeout against real runs. Resumability makes being wrong here cheap — a
-        reconnect rather than a lost run — but not free.
-      metric: studio.run.duration_p99
-      condition: above
-      threshold: 2700
-      window: 24h
-
-    - name: run-events-storage-share
-      description: >-
-        run_events past 40% of instance storage. It is the growth driver and the easiest of
-        the five tables to move: it has the loosest consistency requirement and the only
-        natural partition key already in place.
-      metric: studio.db.run_events_storage_fraction
-      condition: above
-      threshold: 0.4
-      window: 24h
-
-  # -------------------------------------------------------------------------------------
-  # Signals collected but not alerted on
-  # -------------------------------------------------------------------------------------
-  observe_only:
-    - name: stream-resume-rate
-      description: >-
-        Expected NON-ZERO: every rolling deploy produces resumes. A step change means
-        something new is severing connections. BASELINE THIS DURING A DEPLOY so that normal is
-        a known number — without a baseline the metric is unreadable, and "is this rate bad?"
-        has no answer.
-
-    - name: api-success-rate
-      description: >-
-        /api/* success rate EXCLUDING 302 and 401. Auth redirects are the flow working, not
-        errors; counting them makes the SLI move whenever the IAP session lifetime changes.
-
-    - name: iap-signin-redirect-rate
-      description: >-
-        A spike means the IAP session lifetime or the OAuth client changed underneath us.
-
-    - name: trace-propagation
-      description: >-
-        traceparent injected at the BFF and carried in the run_events payload. A failed run is
-        diagnosed across three hops and a datastore; without the trace id in the event, the
-        transcript and the trace cannot be joined after the fact.
+---
+{
+  "schemaVersion": "mindclade.dev/cloud-monitoring-alert-contract/v1alpha1",
+  "name": "studio-browser-plane",
+  "owner": "studio-platform",
+  "serviceClass": "frontend",
+  "availabilityProfile": "internal-interactive",
+  "deployment": {"provider": "google-cloud-monitoring", "terraformModule": "infra/terraform/modules/monitoring", "deployableKubernetesResource": false},
+  "requiredEnvironmentInputs": ["emailNotificationChannelResourceNames", "environment", "googleChatNotificationChannelResourceNames", "httpsRunbookUrl", "projectId", "qualificationEvidenceSha256"],
+  "signals": [
+    {"name": "athens-upstream-fetch-failures", "description": "The internal Go proxy cannot fetch required upstream modules and builds remain fail-closed without direct fallback.", "metric": "studio.goproxy.upstream_fetch_failures", "condition": "above", "threshold": 5, "duration": "15m", "severity": "ticket", "missingData": "no-op", "minimumSamples": 5, "runbookAnchor": "athens-upstream-fetch-failures"},
+    {"name": "cert-manager-renewal-failed", "description": "Certificate renewal failed independently of the on-wire certificate-expiry probe and needs operator review.", "metric": "certmanager.certificate.renewal_failures", "condition": "above", "threshold": 0, "duration": "1h", "severity": "ticket", "missingData": "no-op", "minimumSamples": 1, "runbookAnchor": "cert-manager-renewal-failed"},
+    {"name": "concurrent-streams-approaching-limit", "description": "Sustained browser streams approach the reviewed connection envelope and require capacity review.", "metric": "studio.stream.active_connections", "condition": "above", "threshold": 150, "duration": "1h", "severity": "ticket", "missingData": "no-op", "minimumSamples": 60, "runbookAnchor": "concurrent-streams-approaching-limit"},
+    {"name": "distinct-principals-approaching-limit", "description": "Daily principals approach the reviewed Studio isolation envelope and require architecture review.", "metric": "studio.auth.distinct_principals_daily", "condition": "above", "threshold": 400, "duration": "1d", "severity": "ticket", "missingData": "no-op", "minimumSamples": 1, "runbookAnchor": "distinct-principals-approaching-limit"},
+    {"name": "handle-store-unavailable", "description": "The browser handoff handle store is unavailable while unrelated browser operations remain healthy.", "metric": "studio.handoff.store_errors", "condition": "above", "threshold": 0, "duration": "15m", "severity": "ticket", "missingData": "no-op", "minimumSamples": 10, "runbookAnchor": "handle-store-unavailable"},
+    {"name": "machine-plane-filter-canary-failing", "description": "The machine-plane canary observed forbidden browser headers, indicating the edge filter is detached or broken.", "metric": "studio.machine_plane.canary_headers_leaked", "condition": "above", "threshold": 0, "duration": "5m", "severity": "page", "missingData": "fire", "minimumSamples": 1, "runbookAnchor": "machine-plane-filter-canary-failing"},
+    {"name": "run-duration-p99-high", "description": "Run duration p99 approaches the reviewed resumable-stream backend timeout assumption.", "metric": "studio.run.duration_p99_seconds", "condition": "above", "threshold": 2700, "duration": "1d", "severity": "ticket", "missingData": "no-op", "minimumSamples": 100, "runbookAnchor": "run-duration-p99-high"},
+    {"name": "run-events-storage-share", "description": "Run-event storage exceeds the reviewed share and requires retention or partitioning action.", "metric": "studio.db.run_events_storage_fraction", "condition": "above", "threshold": 0.4, "duration": "1d", "severity": "ticket", "missingData": "no-op", "minimumSamples": 1, "runbookAnchor": "run-events-storage-share"},
+    {"name": "served-certificate-expiring", "description": "The certificate observed by an actual TLS handshake is within the reviewed expiry window.", "metric": "studio.tls.served_cert_days_to_expiry", "condition": "below", "threshold": 14, "duration": "1h", "severity": "page", "missingData": "fire", "minimumSamples": 3, "runbookAnchor": "served-certificate-expiring"},
+    {"name": "session-decrypt-failures", "description": "Browser session decrypt failures exceed the reviewed rotation and forgery-detection threshold.", "metric": "studio.session.decrypt_failures", "condition": "above", "threshold": 10, "duration": "5m", "severity": "page", "missingData": "no-op", "minimumSamples": 10, "runbookAnchor": "session-decrypt-failures"},
+    {"name": "set-cookie-stripped-on-machine-plane", "description": "A service attempted to emit a browser session cookie on the machine plane and the edge filter stripped it.", "metric": "studio.machine_plane.set_cookie_stripped", "condition": "above", "threshold": 0, "duration": "1h", "severity": "ticket", "missingData": "no-op", "minimumSamples": 1, "runbookAnchor": "set-cookie-stripped-on-machine-plane"},
+    {"name": "stream-completion-rate-below-slo", "description": "The fraction of resumable browser runs reaching the terminal done event is below the configured objective.", "metric": "studio.stream.completion_rate", "condition": "below", "threshold": 0.99, "duration": "15m", "severity": "page", "missingData": "fire", "minimumSamples": 100, "runbookAnchor": "stream-completion-rate-below-slo"}
+  ],
+  "observedSignals": [
+    {"name": "api-success-rate", "description": "API success rate excludes expected authentication redirects so session policy does not distort service health.", "metric": "studio.api.success_rate"},
+    {"name": "iap-signin-redirect-rate", "description": "Sign-in redirect volume provides a baseline for IAP session-lifetime or OAuth-client changes.", "metric": "studio.iap.signin_redirect_rate"},
+    {"name": "stream-resume-rate", "description": "Stream resume rate is expected to be non-zero during deploys and is baselined before alert design.", "metric": "studio.stream.resume_rate"},
+    {"name": "trace-propagation", "description": "Trace propagation confirms browser, control-plane, and durable event records remain diagnosably joined.", "metric": "studio.trace.propagation_rate"}
+  ],
+  "cardinality": {"permittedDimensions": ["cluster", "environment", "location", "namespace", "result", "service"], "forbiddenDimensions": ["dataset", "feature", "label", "model", "molecule", "prompt", "request-id", "sequence", "tenant", "user"], "rawValuesInTelemetry": false},
+  "activationPolicy": {"enabledByDefault": false, "requiresSyntheticFireAndResolve": true, "requiresHealthyTelemetry": true, "requiresReviewedThresholds": true}
+}

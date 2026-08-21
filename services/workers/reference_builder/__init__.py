@@ -3,4 +3,11 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Mindclade scaffold package for services/workers/reference_builder."""
+"""Thin reference-builder service adapter."""
+
+from .config import worker_limits
+from .executor import build_executor
+from .lifecycle import Lifecycle, State
+from .main import build_worker
+
+__all__ = ["Lifecycle", "State", "build_executor", "build_worker", "worker_limits"]

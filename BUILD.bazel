@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
+load("@npm//:defs.bzl", "npm_link_all_packages")
 load("//tools/build/bazel:layers.bzl", "declare_bazel_layer_package_groups")
 
 package(default_visibility = ["//visibility:private"])
@@ -11,6 +13,14 @@ package(default_visibility = ["//visibility:private"])
 # consumed by tools/analysis/check_bazel_layers.py. Their membership is defined once in the
 # loaded module so BUILD visibility and the query-based CI gate cannot silently diverge.
 declare_bazel_layer_package_groups()
+
+npm_link_all_packages(name = "node_modules")
+
+ts_config(
+    name = "tsconfig_base",
+    src = "tsconfig.base.json",
+    visibility = ["//visibility:public"],
+)
 
 # Root metadata, in one list used twice: exports_files makes each path referenceable as a label
 # from another package, and the filegroups below bundle them for the targets that need the set.
@@ -27,6 +37,7 @@ declare_bazel_layer_package_groups()
 # them would imply a dependency edge that does not exist.
 
 _GOVERNANCE = [
+    "AGENTS.md",
     "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md",
     "GOVERNANCE.md",
@@ -55,7 +66,13 @@ _STATUS = [
 # applies the same markers, import mode and nightly deselection as `uv run pytest`. That is a
 # real dependency edge — without the file in the target's runfiles, pytest picks up different
 # configuration and the two runners disagree about what passing means.
-_TOOLING = ["pyproject.toml"]
+_TOOLING = [
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "pyproject.toml",
+    "tsconfig.base.json",
+]
 
 exports_files(_GOVERNANCE + _STATUS + _TOOLING)
 

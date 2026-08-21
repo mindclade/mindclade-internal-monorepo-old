@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "mindclade.dev/release/v1",
+  "releaseId": "v1.0.0-contract-fixture",
+  "subjectDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "sourceRevision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "artifacts": [
+    {
+      "name": "model-bundle",
+      "uri": "oci://us-central1-docker.pkg.dev/mindclade-fixtures/releases/model-bundle",
+      "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    }
+  ],
+  "evidence": {
+    "sbom": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "provenance": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "vulnerability": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "qualification": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "rollback": {
+    "previousReleaseId": "v0.9.0-contract-fixture",
+    "previousSubjectDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "procedureDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+  }
+}

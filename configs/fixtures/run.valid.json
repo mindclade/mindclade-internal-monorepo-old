@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "mindclade.dev/run/v1",
+  "runId": "contract-fixture",
+  "kind": "training",
+  "owner": "training-platform",
+  "sourceRevision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "resolvedConfigDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "toolchainDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "inputDigests": ["sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"],
+  "seed": 7,
+  "environmentProfile": "development",
+  "hardwareProfile": "h100-8x",
+  "createdAt": "2026-08-20T00:00:00Z"
+}

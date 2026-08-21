@@ -21,6 +21,7 @@ import (
 	"go.mindclade.dev/libs/go/coordination/leadership"
 	"go.mindclade.dev/libs/go/coordination/workqueue"
 	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/servicekit"
 	"go.mindclade.dev/libs/go/storage/lease"
 	"go.mindclade.dev/services/control_plane/internal/bootstrap"
 	"go.mindclade.dev/services/control_plane/internal/config"
@@ -154,25 +155,6 @@ func (factory *MaintenanceFactory) Create(ctx context.Context, profile bootstrap
 		return bootstrap.Runtime{}, err
 	}
 
-	elector, err := leadership.New(
-		leases,
-		leadership.Config{
-			Key:                    key,
-			Owner:                  owner,
-			TTL:                    leaseTTL,
-			RenewInterval:          leaseRenewInterval,
-			AcquireInterval:        leaseAcquireInterval,
-			ReleaseTimeout:         leaseReleaseTimeout,
-			RequireLeaderReadiness: leaderReadinessRequired,
-		},
-		holdLeadership,
-		leadership.WithClock(shared.Clock),
-		leadership.WithRetry(shared.Retry),
-	)
-	if err != nil {
-		return bootstrap.Runtime{}, err
-	}
-
 	handler := factory.housekeeper
 	if handler == nil {
 		handler = workqueue.HandlerFunc(refuseHousekeeping)
@@ -192,6 +174,31 @@ func (factory *MaintenanceFactory) Create(ctx context.Context, profile bootstrap
 		},
 		workqueue.WithClock(shared.Clock),
 		workqueue.WithRetry(shared.Retry),
+	)
+	if err != nil {
+		return bootstrap.Runtime{}, err
+	}
+	leaderHandler, workerComponent, err := leadership.GateComponent(
+		worker.Component("worker/" + housekeepingWorker),
+	)
+	if err != nil {
+		return bootstrap.Runtime{}, err
+	}
+	elector, err := leadership.New(
+		leases,
+		leadership.Config{
+			Key:                    key,
+			Owner:                  owner,
+			TTL:                    leaseTTL,
+			RenewInterval:          leaseRenewInterval,
+			AcquireInterval:        leaseAcquireInterval,
+			ReleaseTimeout:         leaseReleaseTimeout,
+			RequireLeaderReadiness: leaderReadinessRequired,
+			ExitOnLeadershipLoss:   true,
+		},
+		leaderHandler,
+		leadership.WithClock(shared.Clock),
+		leadership.WithRetry(shared.Retry),
 	)
 	if err != nil {
 		return bootstrap.Runtime{}, err
@@ -233,7 +240,7 @@ func (factory *MaintenanceFactory) Create(ctx context.Context, profile bootstrap
 			},
 			tasks.Mechanisms{
 				Queue:   queue,
-				Workers: map[string]*workqueue.Worker{housekeepingWorker: worker},
+				Workers: map[string]servicekit.Component{housekeepingWorker: workerComponent},
 			},
 		},
 	}, nil
@@ -250,14 +257,6 @@ func refuseHousekeeping(context.Context, workqueue.Item) (workqueue.Result, erro
 		faults.WithOperation("controlplane.maintenance.refuseHousekeeping"),
 		faults.WithRetryPolicy(faults.NoRetry()),
 	)
-}
-
-// holdLeadership is the elector's handler. The housekeeping worker runs as its
-// own lifecycle component, so this holds the lease and returns when leadership
-// is lost or the process is shutting down.
-func holdLeadership(ctx context.Context, _ leadership.Session) error {
-	<-ctx.Done()
-	return ctx.Err()
 }
 
 // leaseOwner identifies this process instance to the lease store. The hostname

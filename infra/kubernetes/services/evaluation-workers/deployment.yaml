@@ -18,7 +18,7 @@ metadata:
     app.kubernetes.io/part-of: mindclade-platform
   annotations:
     mindclade.dev/deployment-status: disabled
-    mindclade.dev/activation-blocker: runnable-entrypoint-and-ticket-adapter-missing
+    mindclade.dev/activation-blocker: engine-and-rust-python-bridge-qualification-missing
     mindclade.dev/gpu-contract: per-workload-ticket
     mindclade.dev/template-only: "true"
 spec:

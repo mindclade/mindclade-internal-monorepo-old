@@ -3,4 +3,8 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export const SCAFFOLD_INDEX = "libs/ts/design_system/src/index.ts" as const;
+export * from "./Button.js";
+export * from "./DataTable.js";
+export * from "./Metric.js";
+export * from "./StatusBadge.js";
+export * from "./theme.js";

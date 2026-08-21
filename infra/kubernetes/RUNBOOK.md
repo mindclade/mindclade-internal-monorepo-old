@@ -16,7 +16,7 @@ kustomize build "${KUBE_ROOT}"
 ```
 
 Expected foundation output contains the system namespace and the isolated CPU,
-H100, and H200 capacity namespaces; their identities, zero quotas,
+H100, and B200 capacity namespaces; their identities, zero quotas,
 workload-specific LimitRanges, default-deny policies, PriorityClasses, and the
 native admission policies/bindings. It contains no active Pod, RBAC grant,
 Secret, LoadBalancer, NodePort, or PVC.
@@ -41,7 +41,7 @@ namespace in the change ticket. Then verify rather than switch implicitly:
 KUBE_CONTEXT="approved-context-name"
 kubectl config current-context
 kubectl --context "${KUBE_CONTEXT}" get namespace mindclade-system
-for namespace in mindclade-system mindclade-batch-cpu mindclade-training-h100 mindclade-training-h200; do
+for namespace in mindclade-system mindclade-batch-cpu mindclade-training-h100 mindclade-training-b200; do
   kubectl --context "${KUBE_CONTEXT}" get resourcequota,limitrange,networkpolicy,serviceaccount \
     -n "${namespace}"
 done
@@ -66,7 +66,7 @@ approval.
 
 - Workload creation is rejected because `pods` and workload object counts are
   zero.
-- CPU, H100, and H200 queues are independently held with zero nominal CPU,
+- CPU, H100, and B200 queues are independently held with zero nominal CPU,
   memory, ephemeral-storage, Pod, and (where applicable) GPU quota.
 - LoadBalancer, NodePort, PVC, and GPU requests are rejected by quota.
 - Capacity workloads have no inferred DNS or dependency egress. An activation

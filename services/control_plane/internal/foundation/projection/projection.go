@@ -10,7 +10,6 @@ package projection
 import (
 	"go.mindclade.dev/libs/go/coordination/cursor"
 	"go.mindclade.dev/libs/go/coordination/inbox"
-	"go.mindclade.dev/libs/go/coordination/projector"
 	"go.mindclade.dev/libs/go/servicekit"
 	"go.mindclade.dev/libs/go/servicekit/production"
 	"go.mindclade.dev/services/control_plane/internal/foundation"
@@ -19,7 +18,7 @@ import (
 type Mechanisms struct {
 	Cursors    cursor.Store
 	Inbox      *inbox.Processor
-	Projectors map[string]*projector.Processor
+	Projectors map[string]servicekit.Component
 }
 
 func (mechanisms Mechanisms) declarations() []foundation.Declaration {
@@ -28,11 +27,10 @@ func (mechanisms Mechanisms) declarations() []foundation.Declaration {
 		{Capability: production.CapabilityInboxProcessor, Present: mechanisms.Inbox != nil},
 	}
 	for _, name := range foundation.SortedKeys(mechanisms.Projectors) {
-		processor := mechanisms.Projectors[name]
-		if processor == nil {
+		component := mechanisms.Projectors[name]
+		if component.Name == "" {
 			continue
 		}
-		component := processor.Component("projector/" + name)
 		declarations = append(declarations, foundation.Declaration{
 			Capability: production.CapabilityProjector,
 			Present:    true,

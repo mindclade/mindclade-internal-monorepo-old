@@ -1,35 +1,19 @@
 # Serving / Batch
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Python/PyTorch reusable inference engines
+**Status:** implemented provider-neutral runtime; connected engines and deployment qualification pending.
 
-## Purpose
+This package owns durable batch-inference mechanics below Go orchestration and Rust ticket,
+fencing, resource, process, and bulk-I/O enforcement. It provides validated immutable jobs,
+stable resource-aware partitioning, a bounded earliest-deadline-first queue, cooperative
+cancellation, deterministic retry classification, exact result cardinality, bounded model
+caching, low-cardinality metrics, and canonical output-lineage manifests.
 
-Reusable model-loading, batching, sampling, safety, rollout, and inference-runtime engines. Deployable network/process wiring stays under `services/`. This path specializes that domain for **batch**.
+Model loading, tensor memory estimation, and execution are injected interfaces. This package
+does not implement a scheduler, ticket verifier, artifact store, Kubernetes client, provider
+SDK, or scientific model. Go durably schedules retries; `retry.classify` only returns the
+decision and bounded delay. A result manifest is content-addressed but is not published until
+the Rust artifact path verifies the current fencing token and atomically commits it.
 
-## Boundary
-
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
-
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
-
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Hard limits are explicit in `BatchLimits`. Admission rejects expired jobs, duplicate requests,
+mixed bundle digests, oversized single requests, and full queues. Partitioning preserves input
+order, and execution accepts only exactly one ordered result per request.

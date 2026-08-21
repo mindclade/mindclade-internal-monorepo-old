@@ -1,35 +1,34 @@
-# Kernels / Providers / Tilelang
+# TileLang kernel provider
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Python provider APIs and TileLang accelerator implementations
+- **Status:** Implemented source candidates; no candidate is production-qualified without connected-GPU evidence.
+- **Pinned API:** TileLang `0.1.13`
+- **Owner:** `biology-ml`
 
-## Purpose
+The provider builds eager TileLang kernels lazily, so importing `kernels` does
+not require an accelerator toolchain. Import and version mismatches fail with a
+structured provider-unavailable error.
 
-Reference operations, provider dispatch, TileLang kernels, autotuning, target support, and signature-specific numerical/performance qualification. This path specializes that domain for **tilelang**.
+## Candidate families
 
-## Boundary
+- online-softmax dense/causal attention with tiled Q/K/V and FP32 accumulation;
+- pipelined FP16/BF16/FP8 scaled GEMM with runtime scales and fused activation;
+- fused SwiGLU and mask-aware Pairformer triangle multiplication;
+- deterministic, padded expert-major MoE grouped GEMM;
+- fused diffusion modulation, gate, and residual epilogue.
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+Schedules are bounded dataclasses with content digests and explicit shared
+memory, alignment, dtype, thread, and async-copy legality. Registration covers
+CUDA `sm_90`, `sm_100`, `sm_120` and HIP `gfx90a`, `gfx942`, `gfx950` only when
+the target capability model admits the schedule. Architecture defaults are
+starting points, never claimed winners.
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+## Dispatch and rollback
 
-## Materialization requirements
+Candidate source, compiler version, and schedule are hashed independently. An
+exact, non-revoked qualification record is mandatory before selection.
+`MINDCLADE_DISABLE_TILELANG=1` forces the PyTorch fallback without rebuilding.
 
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Connected-hardware qualification must compile the exact source, inspect codegen,
+run sanitizers and adversarial parity, then benchmark against the defined
+baseline. Until that evidence is checked in, the candidates remain unavailable
+to production dispatch by design.

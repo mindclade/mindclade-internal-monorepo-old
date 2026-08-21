@@ -3,4 +3,6 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export const SCAFFOLD_INDEX = "libs/ts/molecular_viewer/src/index.ts" as const;
+export * from "./MolecularViewer.js";
+export * from "./Selection.js";
+export * from "./StructureLoader.js";

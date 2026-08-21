@@ -17,7 +17,6 @@ package orchestration
 import (
 	crclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"go.mindclade.dev/libs/go/kubernetes/controller"
 	"go.mindclade.dev/libs/go/kubernetes/events"
 	"go.mindclade.dev/libs/go/servicekit"
 	"go.mindclade.dev/libs/go/servicekit/production"
@@ -35,14 +34,13 @@ const ManagerComponent = "kubernetes-manager"
 type Cluster struct {
 	Client  crclient.Client
 	Events  *events.Recorder
-	Manager *controller.ManagerRuntime
+	Manager *servicekit.Component
 }
 
 func (cluster Cluster) declarations() []foundation.Declaration {
 	var manager *servicekit.Component
 	if cluster.Manager != nil {
-		component := cluster.Manager.Component(ManagerComponent)
-		manager = &component
+		manager = cluster.Manager
 	}
 	// The recorder deliberately declares nothing. Event publication is not a
 	// capability in the production vocabulary: it is part of cluster access,

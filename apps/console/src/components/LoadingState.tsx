@@ -3,6 +3,6 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export default function Loadingstate(): JSX.Element {
-  return <main data-scaffold="apps/console/src/components/LoadingState.tsx" />;
+export function LoadingState({ label = "Loading workspace data" }: { label?: string }): React.ReactNode {
+  return <div className="loading-state" role="status"><span className="loading-orbit" aria-hidden="true"><i /><i /><i /></span><strong>{label}</strong><small>Resolving canonical state…</small></div>;
 }

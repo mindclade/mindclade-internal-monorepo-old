@@ -39,6 +39,8 @@ def check(root: Path) -> list[str]:
     # would break again the first time a formatter touched the line. Matched on structure now.
     if not re.search(r"""bazelw["']\s*\)\s*,\s*["']test["']""", pipeline):
         errors.append("presubmit pipeline must invoke bazelw with the test verb")
+    if '"--config=ci"' not in pipeline:
+        errors.append("presubmit Bazel tests must enforce the read-only CI configuration")
     if "fetch-depth: 0" not in workflow or "ci/presubmit/pipeline.py" not in workflow:
         errors.append("presubmit workflow must use full history and affected pipeline")
     return errors

@@ -13,7 +13,7 @@ than installing tools into the host environment:
 
 ```bash
 tools/dev/nixw develop .#default
-bazel test //...
+tools/dev/bazelw test //... --config=ci
 ```
 
 The default shell omits the large interactive `golang.org/x/tools` command suite because

@@ -5,8 +5,8 @@
 
 ---
 # Preprocessing pools require ticket-specific CPU, memory, and local-storage
-# envelopes. The package has no runnable queue consumer, so the declarative Job
-# remains suspended and does not pretend to be a warm service.
+# envelopes. Its Python adapter is implemented, but the scientific engine and
+# Rust/Python bridge are not connected, so the Job remains suspended.
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -18,7 +18,7 @@ metadata:
     app.kubernetes.io/part-of: mindclade-platform
   annotations:
     mindclade.dev/deployment-status: disabled
-    mindclade.dev/activation-blocker: runnable-entrypoint-and-queue-consumer-missing
+    mindclade.dev/activation-blocker: engine-and-rust-python-bridge-qualification-missing
     mindclade.dev/storage-contract: per-workload-ticket
     mindclade.dev/template-only: "true"
 spec:

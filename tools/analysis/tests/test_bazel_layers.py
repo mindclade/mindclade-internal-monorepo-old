@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import datetime as dt
 import importlib.util
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -106,6 +107,19 @@ def test_empty_query_cannot_pass_vacuously() -> None:
         assert "no internal rules" in str(error)
     else:
         raise AssertionError("empty query unexpectedly passed")
+
+
+def test_live_query_cannot_update_the_committed_module_lock(monkeypatch, tmp_path: Path) -> None:
+    recorded: list[str] = []
+
+    def run(command, **_kwargs):
+        recorded.extend(command)
+        return subprocess.CompletedProcess(command, 0, stdout=graph(isolated=("//libs/go:go",)))
+
+    monkeypatch.setattr(layers.subprocess, "run", run)
+    layers.query_graph(tmp_path, tmp_path / "tools/dev/bazelw")
+
+    assert "--lockfile_mode=error" in recorded
 
 
 def test_exceptions_must_be_exact_and_are_rejected_when_stale() -> None:

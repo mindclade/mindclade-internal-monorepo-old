@@ -14,7 +14,7 @@ data:
   transportLabel: mindclade.dev/distributed-transport=rdma
   deviceResource: unset-until-observed
   networkAttachment: unset-until-observed
-  h200Profile: gke-h200-a3-ultragpu-8g
+  b200Profile: gke-b200-a4-highgpu-8g
   privilegePolicy: no-host-devices-until-reviewed
 ---
 # Kubernetes NetworkPolicy is not treated as sufficient isolation for a directly attached RDMA

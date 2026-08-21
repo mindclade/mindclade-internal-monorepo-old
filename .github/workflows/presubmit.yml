@@ -232,7 +232,7 @@ jobs:
       # First, not last. It is the step most likely to fail on a toolchain change, and failing
       # before the shell is realised keeps the feedback short.
       - name: nix flake check
-        run: nix flake check --print-build-logs
+        run: nix flake check --no-update-lock-file --show-trace --print-build-logs
 
       # The flake exposes nixfmt-tree as its formatter; this is what makes that more than a
       # declaration. `--ci` is treefmt's check mode — fail on change, no cache — and the wrapper
@@ -246,11 +246,30 @@ jobs:
       - name: yamllint
         run: nix develop .#ci-lint --command yamllint --strict .
 
+      - name: Protobuf schema lint
+        run: nix develop .#ci-lint --command buf lint protocols
+
+      # The temporary against-config also makes the first migration from the
+      # previous placeholder buf.yaml comparable. It describes the base tree's
+      # location only; the FILE compatibility policy remains authoritative in
+      # the proposed tree's protocols/buf.yaml.
+      - name: Protobuf breaking-change detection
+        if: github.event_name == 'pull_request'
+        run: >-
+          nix develop .#ci-lint --command
+          buf breaking protocols
+          --against ".git#branch=${{ github.base_ref }}"
+          --against-config
+          '{"version":"v2","modules":[{"path":"protocols/proto"}]}'
+
       - name: Buildkite credential helper shellcheck
         run: nix develop .#ci-lint --command shellcheck .buildkite/scripts/wif-preflight.sh
 
       - name: Strict documentation build
         run: nix develop .#ci-lint --command mkdocs build -f docs/mkdocs.yml --strict
+
+      - name: Validate repository home
+        run: nix develop .#ci-lint --command python3 tools/docs/validate_repository_home.py --root .
 
   # ---------------------------------------------------------------------------------------
   # Terraform — infra/terraform
@@ -356,9 +375,10 @@ jobs:
     name: bazel graph, analysis, and tests
     runs-on: ubuntu-24.04
     # A cold hosted runner compiles the complete C++/protobuf tool graph before running tests.
-    # The exact-head qualification reached 264 passing tests but hit the old 45-minute ceiling
-    # while that upstream tool graph was still compiling. Keep a bounded ceiling with enough
-    # room for a cold cache; the BEP/profile artifact makes regressions diagnosable.
+    # Exact-head qualification reaches hundreds of tests and can spend most of a cold run
+    # compiling the upstream C++/protobuf tool graph. Keep a bounded ceiling with enough room
+    # for a cold cache; the BEP/profile artifact makes regressions diagnosable without a count
+    # that drifts every time a test target is added.
     timeout-minutes: 75
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -374,7 +394,8 @@ jobs:
       #
       # It was briefly held at 8.4.2 because rules_go 0.51 does not load under Bazel 9 —
       # `cross.bzl` uses APIs it removed. rules_go 0.63.0 lifted that, and the tree now loads
-      # the complete graph under 9.1.1.
+      # the complete graph under Bazel 9. The repository tracks the current active LTS minor
+      # through .bazelversion and tools/build/nix/versions.nix.
       - uses: bazel-contrib/setup-bazel@4fd964a13a440a8aeb0be47350db2fc640f19ca8  # v0.15.0
         with:
           bazelisk-cache: true
@@ -399,7 +420,7 @@ jobs:
       - name: Every BUILD file loads and every label resolves
         run: >-
           nix develop .#ci-bazel --command
-          tools/dev/bazelw query '//...' --output=label --curses=no --color=no
+          tools/dev/bazelw query '//...' --config=ci --output=label
           > /dev/null
 
       - name: Enforce Bazel dependency layers
@@ -409,7 +430,7 @@ jobs:
         run: |
           nix develop .#ci-bazel --command python3 tools/analysis/validate_cc_toolchain_bundle.py
           nix develop .#ci-bazel --command tools/dev/bazelw test \
-            //tools/build/bazel/toolchains/cc:smoke_test --test_output=errors
+            //tools/build/bazel/toolchains/cc:smoke_test --config=ci
           nix develop .#ci-bazel --command python3 tools/analysis/verify_cc_toolchain_selection.py
 
       - name: Analyze the complete configured graph
@@ -507,18 +528,11 @@ jobs:
   # ---------------------------------------------------------------------------------------
   # TypeScript / pnpm
   # ---------------------------------------------------------------------------------------
-  # WHAT THIS DOES NOT DO: typecheck. There is no TypeScript toolchain in this repository —
-  # pnpm-lock.yaml declares no dependencies, every workspace package's `build` and `test` are
-  # `echo scaffold`, and the ts BUILD.bazel files are filegroups rather than ts_project. A job
-  # running `tsc` here would either fail on a missing binary or, worse, pass having compiled
-  # nothing. That is the shape of gate this repository has just finished removing from its
-  # Python suite.
-  #
-  # What it does do is real and is the part that rots silently: the workspace manifest, the
-  # lockfile and the package tree agree. A package added to pnpm-workspace.yaml with no
-  # package.json, or a lockfile that no longer matches the manifests, fails here.
+  # Native TypeScript 7 compiles the SDK, shared libraries, and application source. Next uses
+  # the package-local TypeScript 6 compatibility API only for programmatic route generation.
+  # Generation, tests, architecture checks, and optimized application builds all fail closed.
   typescript:
-    name: pnpm workspace integrity
+    name: TypeScript contracts, tests, and production builds
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -562,3 +576,15 @@ jobs:
             fi
           done < <(grep -oE '^\s+- "[^"]+"' pnpm-workspace.yaml | sed -E 's/.*"(.*)"/\1/')
           exit "$failed"
+
+      - name: Generated clients match canonical contracts
+        run: pnpm run generate:check
+
+      - name: Architecture and native TypeScript 7 checks
+        run: pnpm run lint
+
+      - name: Unit tests
+        run: pnpm run test
+
+      - name: Optimized SDK, library, and Next builds
+        run: pnpm run build

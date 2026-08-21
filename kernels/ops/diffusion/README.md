@@ -1,35 +1,14 @@
-# Kernels / Ops / Diffusion
+# Diffusion operation contracts
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Python provider APIs and TileLang accelerator implementations
+- **Implemented:** adaptive modulation/gated residual and safe sparse neighbor-attention references.
+- **TileLang candidate:** Qualification-gated fused modulation/gate/residual epilogue.
 
-## Purpose
+The epilogue computes
+`residual + gate * (normalized * (1 + scale) + shift)` for `[B,T,C]` activations
+and `[B,C]` modulation tensors without materialized broadcasting in the TileLang
+candidate. Reduced-precision inputs evaluate the arithmetic in FP32.
 
-Reference operations, provider dispatch, TileLang kernels, autotuning, target support, and signature-specific numerical/performance qualification. This path specializes that domain for **diffusion**.
-
-## Boundary
-
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
-
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
-
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Sparse neighbor attention accepts `-1` as padding, rejects every other
+out-of-bounds index, applies softmax only over valid neighbors, and returns zero
+for rows with no valid neighbors. Sampling algorithms and model preconditioning
+policy are outside this primitive boundary.

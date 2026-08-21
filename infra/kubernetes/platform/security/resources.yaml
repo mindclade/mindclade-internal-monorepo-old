@@ -280,9 +280,9 @@ spec:
          (object.metadata.namespace == 'mindclade-training-h100' &&
           object.metadata.labels['kueue.x-k8s.io/queue-name'] == 'mindclade-training-h100' &&
           object.metadata.labels['mindclade.dev/workload-class'] == 'training-h100') ||
-         (object.metadata.namespace == 'mindclade-training-h200' &&
-          object.metadata.labels['kueue.x-k8s.io/queue-name'] == 'mindclade-training-h200' &&
-          object.metadata.labels['mindclade.dev/workload-class'] == 'training-h200'))
+         (object.metadata.namespace == 'mindclade-training-b200' &&
+          object.metadata.labels['kueue.x-k8s.io/queue-name'] == 'mindclade-training-b200' &&
+          object.metadata.labels['mindclade.dev/workload-class'] == 'training-b200'))
       message: A capacity workload must use its namespace-local queue and exact workload class.
 ---
 apiVersion: admissionregistration.k8s.io/v1
@@ -343,9 +343,9 @@ spec:
           (object.metadata.namespace == 'mindclade-training-h100' &&
            object.data['queueName'] == 'mindclade-training-h100' &&
            object.data['workloadClass'] == 'training-h100') ||
-          (object.metadata.namespace == 'mindclade-training-h200' &&
-           object.data['queueName'] == 'mindclade-training-h200' &&
-           object.data['workloadClass'] == 'training-h200')) &&
+          (object.metadata.namespace == 'mindclade-training-b200' &&
+           object.data['queueName'] == 'mindclade-training-b200' &&
+           object.data['workloadClass'] == 'training-b200')) &&
          'activationBundleDigest' in object.data &&
          object.data['activationBundleDigest'].matches('^sha256:[0-9a-f]{64}$') &&
          object.data['activationBundleDigest'] !=
@@ -420,7 +420,7 @@ spec:
       message: The mindclade-system namespace must retain its foundation-only admission, activation, ownership, and Pod Security labels.
     - expression: >-
         !(object.metadata.name in
-          ['mindclade-batch-cpu', 'mindclade-training-h100', 'mindclade-training-h200']) ||
+          ['mindclade-batch-cpu', 'mindclade-training-h100', 'mindclade-training-b200']) ||
         (has(object.metadata.labels) &&
          'mindclade.dev/admission' in object.metadata.labels &&
          object.metadata.labels['mindclade.dev/admission'] == 'enforced' &&
@@ -435,12 +435,12 @@ spec:
            object.metadata.labels['mindclade.dev/workload-class'] == 'batch-cpu') ||
           (object.metadata.name == 'mindclade-training-h100' &&
            object.metadata.labels['mindclade.dev/workload-class'] == 'training-h100') ||
-          (object.metadata.name == 'mindclade-training-h200' &&
-           object.metadata.labels['mindclade.dev/workload-class'] == 'training-h200')))
+          (object.metadata.name == 'mindclade-training-b200' &&
+           object.metadata.labels['mindclade.dev/workload-class'] == 'training-b200')))
       message: Capacity namespace names and workload-class labels must retain their exact mapping.
     - expression: >-
         !(object.metadata.name in
-          ['mindclade-batch-cpu', 'mindclade-training-h100', 'mindclade-training-h200']) ||
+          ['mindclade-batch-cpu', 'mindclade-training-h100', 'mindclade-training-b200']) ||
         (has(object.metadata.labels) &&
          'mindclade.dev/workload-activation' in object.metadata.labels &&
          'mindclade.dev/kueue-enabled' in object.metadata.labels &&

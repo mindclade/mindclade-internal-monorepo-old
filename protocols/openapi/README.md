@@ -1,6 +1,6 @@
-# Protocols / Openapi
+# OpenAPI projections
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
+- **Status:** Public v1 projection implemented; administrative projection remains scaffolded.
 - **Primary implementation ownership:** Protobuf, OpenAPI, event schemas, and compatibility policy
 
 ## Purpose
@@ -18,18 +18,11 @@ This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
 ground. It may depend only in the direction documented by
 `docs/architecture/dependency-rules.md` and the accepted ADRs.
 
-## Materialization requirements
+`public.openapi.yaml` is the stable browser/public-SDK contract for runs,
+datasets, models, artifacts, evaluations, and bounded inference. It uses bearer
+authentication, idempotency keys on retriable mutations, opaque pagination,
+structured problems, and content-addressed scientific payloads.
 
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Change the schema, regenerate with `pnpm run generate`, and run
+`pnpm run generate:check`. The administrative projection must remain
+non-operational until its independent authorization/audit contract is reviewed.

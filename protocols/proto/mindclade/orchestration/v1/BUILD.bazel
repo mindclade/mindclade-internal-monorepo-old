@@ -17,11 +17,37 @@ proto_library(
     ],
 )
 
+proto_library(
+    name = "run_proto",
+    srcs = ["run.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = [
+        "//protocols/proto/mindclade/common/v1:errors_proto",
+        "//protocols/proto/mindclade/common/v1:identifiers_proto",
+        "@protobuf//:timestamp_proto",
+    ],
+)
+
+proto_library(
+    name = "run_service_proto",
+    srcs = ["service.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = [
+        ":run_proto",
+        "//protocols/proto/mindclade/common/v1:identifiers_proto",
+        "//protocols/proto/mindclade/common/v1:pagination_proto",
+    ],
+)
+
 filegroup(
     name = "scaffold_files",
     srcs = glob(
         ["*.proto"],
-        exclude = ["stage.proto"],
+        exclude = [
+            "run.proto",
+            "service.proto",
+            "stage.proto",
+        ],
     ),
     visibility = ["//visibility:public"],
 )

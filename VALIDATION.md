@@ -133,8 +133,8 @@ Runnable outbox-to-broker event dispatcher                                     P
 Runnable ingestion leadership/workqueue/cursor/outbox slice                    PASS
 Representative control-plane role manifests                                    PASS
 Bazel loading and language-independent layer graph                              PASS
-Bzlmod lock closure and full configured analysis (975 targets)                  PASS
-Bazel //... test suite (243 non-manual tests, pinned macOS/Nix shell)            PASS
+Bzlmod lock closure and full configured analysis (1,079 targets)                PASS
+Bazel //... test suite (304 non-manual tests, pinned macOS/Nix shell)            PASS
 MkDocs strict site build (pinned Nix toolchain)                                 PASS
 ```
 

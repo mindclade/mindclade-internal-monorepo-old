@@ -225,8 +225,10 @@ func (factory *WebhookFactory) Create(ctx context.Context, profile bootstrap.Pro
 				Verifier:    shared.Verifier,
 			},
 			tasks.Mechanisms{
-				Queue:   queue,
-				Workers: map[string]*workqueue.Worker{deliveryWorker: worker},
+				Queue: queue,
+				Workers: map[string]servicekit.Component{
+					deliveryWorker: worker.Component("worker/" + deliveryWorker),
+				},
 			},
 			egress.Client{
 				Outbound: client,

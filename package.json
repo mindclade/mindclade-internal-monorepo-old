@@ -7,9 +7,22 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "bazel build //apps/... //libs/ts/... //sdk/typescript/...",
-    "test": "bazel test //apps/... //libs/ts/... //sdk/typescript/...",
-    "lint": "bazel test //tools/analysis/...",
-    "typecheck": "bazel test //apps/... //libs/ts/... //sdk/typescript/..."
+    "build": "pnpm -r --if-present build",
+    "generate": "pnpm --filter @mindclade/sdk-typescript generate",
+    "generate:check": "pnpm --filter @mindclade/sdk-typescript generate:check",
+    "test": "pnpm -r --if-present test",
+    "lint": "python3 tools/analysis/check_typescript.py && pnpm --filter @mindclade/sdk-typescript build && pnpm --filter './libs/ts/*' build && pnpm -r --if-present lint",
+    "typecheck": "pnpm --filter @mindclade/sdk-typescript build && pnpm --filter './libs/ts/*' build && pnpm -r --if-present typecheck"
+  },
+  "devDependencies": {
+    "@bufbuild/buf": "1.72.0",
+    "@bufbuild/protoc-gen-es": "2.14.0",
+    "@types/node": "22.18.0",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "@typescript/native": "npm:typescript@7.0.2",
+    "openapi-typescript": "7.13.0",
+    "tsx": "4.23.12",
+    "typescript": "5.9.3"
   }
 }

@@ -64,7 +64,7 @@ def main() -> int:
         print("Skipping full Rust qualification: no Rust/runtime/toolchain inputs changed")
     targets = affected.select(changed)
     print("Affected Bazel targets:", *targets, sep="\n  ")
-    return run([str(REPO / "tools/dev/bazelw"), "test", *targets])
+    return run([str(REPO / "tools/dev/bazelw"), "test", "--config=ci", *targets])
 
 
 if __name__ == "__main__":

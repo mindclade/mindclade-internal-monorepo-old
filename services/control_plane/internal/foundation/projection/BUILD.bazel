@@ -14,7 +14,6 @@ go_library(
     deps = [
         "//libs/go/coordination/cursor",
         "//libs/go/coordination/inbox",
-        "//libs/go/coordination/projector",
         "//libs/go/servicekit",
         "//libs/go/servicekit/production",
         "//services/control_plane/internal/foundation",

@@ -3,6 +3,19 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export default function Metric(): JSX.Element {
-  return <main data-scaffold="libs/ts/design_system/src/Metric.tsx" />;
+import type { ReactElement, ReactNode } from "react";
+
+export function Metric({ label, value, detail, trend }: {
+  label: string;
+  value: ReactNode;
+  detail?: ReactNode;
+  trend?: "up" | "down" | "flat";
+}): ReactElement {
+  return (
+    <div className="mc-metric">
+      <span className="mc-metric__label">{label}</span>
+      <strong className="mc-metric__value">{value}</strong>
+      {detail === undefined ? null : <span className="mc-metric__detail" data-trend={trend}>{detail}</span>}
+    </div>
+  );
 }

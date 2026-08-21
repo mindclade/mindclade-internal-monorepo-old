@@ -1,0 +1,208 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+schema_version = 2
+from_version = "0.1.1"
+to_version = "0.4.0"
+status = "planned"
+owner = "platform-control"
+summary = "Bootstrap the hardened module contracts, qualified GKE cohorts, typed live-estate compositions, and DR evidence boundaries developed after v0.1.1; this is interface evidence, not a release tag or authorization to apply."
+
+affected_modules = [
+  "access_transparency",
+  "audit_archive",
+  "bazel_remote_cache",
+  "bazel_remote_execution",
+  "binauthz",
+  "cpu_node_pool",
+  "dns",
+  "folder_factory",
+  "gke",
+  "gpu_node_pool",
+  "iap_access",
+  "internal_address",
+  "log_sink",
+  "nix_binary_cache",
+  "object_storage",
+  "observability",
+  "org_policy",
+  "organization",
+  "postgres",
+  "pubsub",
+  "scc",
+  "secret_manager",
+  "storage",
+  "workload_identity",
+]
+
+breaking_change_ids = [
+  "module:access_transparency:input:sink:type-changed",
+  "module:access_transparency:input:sink:validation_fingerprints-changed",
+  "module:audit_archive:input:access_log_bucket_name:added-required",
+  "module:audit_archive:input:bucket_name:added-required",
+  "module:audit_archive:input:environment:added-required",
+  "module:audit_archive:input:kms_key_name:added-required",
+  "module:audit_archive:input:location:added-required",
+  "module:audit_archive:input:owner:added-required",
+  "module:audit_archive:input:parent:added-required",
+  "module:audit_archive:input:project_id:added-required",
+  "module:audit_archive:input:retention_lock_confirmation:added-required",
+  "module:audit_archive:input:storage_service_agent_email:added-required",
+  "module:audit_archive:provider-contract:google:added",
+  "module:audit_archive:requirement:google:added",
+  "module:audit_archive:requirement:terraform:added",
+  "module:bazel_remote_cache:input:access_log_bucket:added-required",
+  "module:bazel_remote_cache:input:bucket_name:added-required",
+  "module:bazel_remote_cache:input:environment:added-required",
+  "module:bazel_remote_cache:input:kms_key_name:added-required",
+  "module:bazel_remote_cache:input:location:added-required",
+  "module:bazel_remote_cache:input:owner:added-required",
+  "module:bazel_remote_cache:input:project_id:added-required",
+  "module:bazel_remote_cache:input:writer_members:added-required",
+  "module:bazel_remote_cache:provider-contract:google:added",
+  "module:bazel_remote_cache:requirement:google:added",
+  "module:bazel_remote_cache:requirement:terraform:added",
+  "module:bazel_remote_execution:input:cache_bucket_name:added-required",
+  "module:bazel_remote_execution:input:cluster_name:added-required",
+  "module:bazel_remote_execution:input:environment:added-required",
+  "module:bazel_remote_execution:input:executor_image:added-required",
+  "module:bazel_remote_execution:input:node_locations:added-required",
+  "module:bazel_remote_execution:input:node_service_account_id:added-required",
+  "module:bazel_remote_execution:input:owner:added-required",
+  "module:bazel_remote_execution:input:pod_secondary_range_name:added-required",
+  "module:bazel_remote_execution:input:project_id:added-required",
+  "module:bazel_remote_execution:input:region:added-required",
+  "module:bazel_remote_execution:provider-contract:google:added",
+  "module:bazel_remote_execution:requirement:google:added",
+  "module:bazel_remote_execution:requirement:terraform:added",
+  "module:binauthz:input:attestor_signers:validation_fingerprints-changed",
+  "module:binauthz:input:project_number:added-required",
+  "module:binauthz:resource:google_binary_authorization_attestor_iam_member.signer:removed",
+  "module:cpu_node_pool:input:cluster_name:added-required",
+  "module:cpu_node_pool:input:environment:added-required",
+  "module:cpu_node_pool:input:name:added-required",
+  "module:cpu_node_pool:input:node_locations:added-required",
+  "module:cpu_node_pool:input:owner:added-required",
+  "module:cpu_node_pool:input:pod_secondary_range_name:added-required",
+  "module:cpu_node_pool:input:project_id:added-required",
+  "module:cpu_node_pool:input:region:added-required",
+  "module:cpu_node_pool:input:service_account_id:added-required",
+  "module:cpu_node_pool:provider-contract:google:added",
+  "module:cpu_node_pool:requirement:google:added",
+  "module:cpu_node_pool:requirement:terraform:added",
+  "module:dns:input:zones:type-changed",
+  "module:dns:input:zones:validation_fingerprints-changed",
+  "module:folder_factory:input:labels:removed",
+  "module:gke:input:kubernetes_version:default-changed",
+  "module:gke:input:kubernetes_version:validation_fingerprints-changed",
+  "module:gke:input:release_channel:validation_fingerprints-changed",
+  "module:gpu_node_pool:input:profile:validation_fingerprints-changed",
+  "module:iap_access:input:backend_services:validation_fingerprints-changed",
+  "module:iap_access:input:project_id:validation_fingerprints-changed",
+  "module:iap_access:resource:google_iap_web_backend_service_iam_binding.accessor:removed",
+  "module:internal_address:input:addresses:validation_fingerprints-changed",
+  "module:log_sink:input:default_sink_retention_days:validation_fingerprints-changed",
+  "module:log_sink:input:labels:validation_fingerprints-changed",
+  "module:log_sink:input:sinks:type-changed",
+  "module:log_sink:input:sinks:validation_fingerprints-changed",
+  "module:log_sink:output:sink_ids:value_fingerprint-changed",
+  "module:log_sink:output:writer_identities:value_fingerprint-changed",
+  "module:nix_binary_cache:input:access_log_bucket:added-required",
+  "module:nix_binary_cache:input:bucket_name:added-required",
+  "module:nix_binary_cache:input:environment:added-required",
+  "module:nix_binary_cache:input:kms_key_name:added-required",
+  "module:nix_binary_cache:input:location:added-required",
+  "module:nix_binary_cache:input:owner:added-required",
+  "module:nix_binary_cache:input:project_id:added-required",
+  "module:nix_binary_cache:input:writer_members:added-required",
+  "module:nix_binary_cache:provider-contract:google:added",
+  "module:nix_binary_cache:requirement:google:added",
+  "module:nix_binary_cache:requirement:terraform:added",
+  "module:object_storage:input:access_log_bucket:added-required",
+  "module:object_storage:input:environment:added-required",
+  "module:object_storage:input:owner:added-required",
+  "module:object_storage:input:project_id:added-required",
+  "module:object_storage:input:storage_service_agent_email:added-required",
+  "module:object_storage:input:upstream_access_log_bucket_name:added-required",
+  "module:object_storage:provider-contract:google:added",
+  "module:object_storage:requirement:google:added",
+  "module:object_storage:requirement:terraform:added",
+  "module:observability:input:metrics_scope_project_id:added-required",
+  "module:observability:input:services:added-required",
+  "module:observability:provider-contract:google:added",
+  "module:observability:requirement:google:added",
+  "module:observability:requirement:terraform:added",
+  "module:org_policy:input:labels:removed",
+  "module:organization:input:organization_id:added-required",
+  "module:organization:provider-contract:google:added",
+  "module:organization:requirement:google:added",
+  "module:organization:requirement:terraform:added",
+  "module:postgres:input:database_flags:validation_fingerprints-changed",
+  "module:pubsub:input:environment:added-required",
+  "module:pubsub:input:owner:added-required",
+  "module:pubsub:input:project_id:added-required",
+  "module:pubsub:input:pubsub_service_agent_email:added-required",
+  "module:pubsub:provider-contract:google:added",
+  "module:pubsub:requirement:google:added",
+  "module:pubsub:requirement:terraform:added",
+  "module:scc:input:bigquery_export:type-changed",
+  "module:scc:input:bigquery_export:validation_fingerprints-changed",
+  "module:scc:input:location:validation_fingerprints-changed",
+  "module:scc:input:mute_configs:type-changed",
+  "module:scc:input:mute_configs:validation_fingerprints-changed",
+  "module:scc:input:notifications:type-changed",
+  "module:scc:input:notifications:validation_fingerprints-changed",
+  "module:scc:input:project_number:added-required",
+  "module:secret_manager:input:environment:validation_fingerprints-changed",
+  "module:secret_manager:input:labels:validation_fingerprints-changed",
+  "module:secret_manager:input:owner:validation_fingerprints-changed",
+  "module:secret_manager:input:replication:validation_fingerprints-changed",
+  "module:secret_manager:input:secrets:type-changed",
+  "module:secret_manager:input:secrets:validation_fingerprints-changed",
+  "module:storage:input:access_log_bucket:validation_fingerprints-changed",
+  "module:storage:output:required_access_log_writer_grant:value_fingerprint-changed",
+  "module:workload_identity:input:project_id:added-required",
+  "module:workload_identity:input:project_number:added-required",
+  "module:workload_identity:provider-contract:google:added",
+  "module:workload_identity:requirement:google:added",
+  "module:workload_identity:requirement:terraform:added",
+]
+
+consumer_steps = [
+  "Keep existing roots pinned to v0.1.1 until their owners map every required input and changed object type in the generated module documentation.",
+  "For Binary Authorization and IAP, review a saved plan for the two removed IAM addresses; these are resource-model changes, not state-address renames, so no moved block is claimed.",
+  "Upgrade one isolated non-production root to the protected v0.4.0 tag only after the release operator publishes it, retain its plan JSON and policy reports, and require an empty post-apply drift plan before broader adoption.",
+  "Migrate aggregate live states only to their corresponding typed composition modules; review every address change in a saved plan and do not infer state moves from similar resource names.",
+  "Keep production GKE and accelerator promotion blocked until the development RAPID canary and staging capacity/failure-domain qualification are complete.",
+]
+
+rollback_steps = [
+  "Do not apply a v0.4.0 plan when the migration review is incomplete; continue resolving the module source at the previously applied immutable ref.",
+  "If a qualified non-production upgrade fails, restore the prior root inputs and v0.1.1 source reference, then review state and a saved rollback plan before any apply.",
+  "Never repair an address mismatch with terraform state commands unless a separately approved, backup-backed state migration runbook names the exact addresses.",
+]
+
+qualification_evidence = [
+  "infra/terraform/PRODUCTION_READINESS.md",
+  "docs/architecture/gcp-terraform-well-architected-review.md",
+]
+
+# No address rename is asserted in this bootstrap. The two removed IAM resources change
+# resource ownership shape and therefore require plan review rather than a same-type move.
+state_move = []
+
+[[intentional_removal]]
+module = "binauthz"
+address = "google_binary_authorization_attestor_iam_member.signer"
+reason = "Signer authority was split into explicit additive grants with stricter service-agent separation; the former singleton IAM-member address has no state-compatible successor."
+consumer_action = "Review the saved non-production plan and confirm each former signer is represented by the new attestor signer grants before approving destruction of the old address."
+rollback_action = "Keep the consuming root pinned to v0.1.1 and restore its prior signer inputs; do not use state commands to coerce the old address into the new ownership model."
+
+[[intentional_removal]]
+module = "iap_access"
+address = "google_iap_web_backend_service_iam_binding.accessor"
+reason = "The authoritative IAM binding was replaced by additive per-member grants so this module no longer removes principals owned by another authority; the resource types are not state-move compatible."
+consumer_action = "Review the saved non-production plan, verify every intended accessor has an additive member grant, and confirm no externally owned accessor is removed before approving the old binding deletion."
+rollback_action = "Keep the consuming root pinned to v0.1.1 and restore the prior accessor set if additive grants do not reproduce access; never move binding state into member resources."

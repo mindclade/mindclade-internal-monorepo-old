@@ -3,4 +3,8 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Mindclade scaffold package for training/tasks."""
+"""Implemented reference tasks; broader task families remain scaffolded."""
+
+from .supervised import SupervisedMSETask
+
+__all__ = ["SupervisedMSETask"]

@@ -61,7 +61,7 @@ import pytest
 # root and workflow paths with real content rather than stubs:
 #
 #   .bazelversion                        an unpinned launcher lets bazelisk pick a Bazel per
-#                                        machine. Pinned to 9.1.1, the version
+#                                        machine. Pinned to the version
 #                                        tools/build/nix/versions.nix declares.
 #   .github/workflows/release.yml        the image build, sign and attest chain. The filename
 #                                        is load-bearing: bootstrap binds the attestor

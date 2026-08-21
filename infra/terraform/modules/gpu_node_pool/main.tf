@@ -17,6 +17,12 @@ locals {
       fabric            = "GPUDirect-RDMA"
       machine_type      = "a3-ultragpu-8g"
     }
+    gke-b200-a4-highgpu-8g = {
+      accelerator_count = 8
+      accelerator_type  = "nvidia-b200"
+      fabric            = "GPUDirect-RDMA"
+      machine_type      = "a4-highgpu-8g"
+    }
   }
 
   selected_profile = local.gpu_profiles[var.profile]
@@ -229,8 +235,11 @@ resource "google_container_node_pool" "this" {
     }
 
     precondition {
-      condition     = var.profile != "gke-h200-a3-ultragpu-8g" || var.capacity_mode != "ON_DEMAND"
-      error_message = "The A3 Ultra H200 profile does not support the Standard on-demand provisioning model; select Spot, Flex Start, queued provisioning, or an approved reservation."
+      condition = !contains([
+        "gke-h200-a3-ultragpu-8g",
+        "gke-b200-a4-highgpu-8g",
+      ], var.profile) || var.capacity_mode != "ON_DEMAND"
+      error_message = "The A3 Ultra H200 and A4 B200 profiles require Spot, Flex Start, queued provisioning, or an approved reservation rather than Standard on-demand provisioning."
     }
 
     precondition {
@@ -253,7 +262,7 @@ resource "google_container_node_pool" "this" {
 
     precondition {
       condition     = var.boot_disk_kms_key == null || var.profile == "gke-h100-a3-megagpu-8g"
-      error_message = "Boot-disk CMEK is qualified only for the H100 profile with pd-ssd; GKE does not support it with the H200 profile's required Hyperdisk boot disk."
+      error_message = "Boot-disk CMEK is qualified only for the H100 profile with pd-ssd; the H200 and B200 profiles require Hyperdisk boot disks."
     }
 
     precondition {

@@ -3,6 +3,5 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export default function Page(): JSX.Element {
-  return <main data-scaffold="apps/console/src/app/safety/page.tsx" />;
-}
+import { OperationalPage } from "../../components/OperationalPage";
+export default function Page(): React.ReactNode { return <OperationalPage eyebrow="Governed assurance" title="Safety" description="Independent policy gates, holdouts, red-team evidence, and exceptions." capability="Safety evidence API" />; }

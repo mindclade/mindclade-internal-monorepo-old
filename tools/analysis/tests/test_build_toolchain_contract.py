@@ -78,6 +78,10 @@ def rust_fixture(root: Path) -> None:
         "  # toolchains/rust.nix builds the pinned toolchain from that overlay.\n}\n",
     )
     write(root, "tools/qualification/rust/common.py", f'EXPECTED = "{RUST_VERSION}"\n')
+    patterns = ",\n".join(
+        f'    "{pattern}"' for pattern in sorted(contract.REQUIRED_REPO_IGNORES)
+    )
+    write(root, "REPO.bazel", f"ignore_directories([\n{patterns},\n])\n")
 
 
 def run(files: dict[str, str]) -> list[str]:
@@ -147,3 +151,20 @@ def test_the_exemption_is_still_earned() -> None:
             f"{relative} no longer contains a forbidden pattern; drop it from "
             "CONTRACT_IMPLEMENTATIONS rather than leaving the scan blind to that path"
         )
+
+
+def test_repository_traversal_contract_requires_repo_policy() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        errors = contract.repository_traversal_contract(Path(directory))
+    assert errors == ["REPO.bazel is required for globbed generated-directory ignores"]
+
+
+def test_repository_traversal_contract_reports_each_missing_pattern() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        write(root, "REPO.bazel", "ignore_directories([])\n")
+        errors = contract.repository_traversal_contract(root)
+    assert errors == [
+        f"REPO.bazel must ignore generated directory pattern {pattern}"
+        for pattern in sorted(contract.REQUIRED_REPO_IGNORES)
+    ]

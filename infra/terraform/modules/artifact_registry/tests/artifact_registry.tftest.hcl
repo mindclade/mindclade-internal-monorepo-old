@@ -70,6 +70,28 @@ run "secure_repository_contract" {
   }
 }
 
+run "cmek_grants_only_the_repository_service_agent" {
+  command = plan
+
+  variables {
+    project_id     = "mindclade-common-ci"
+    project_number = "123456789012"
+    location       = "us-central1"
+    repository_id  = "releases"
+    environment    = "ci"
+    owner          = "platform"
+    kms_key_name   = "projects/mindclade-seed/locations/us-central1/keyRings/global/cryptoKeys/ci-artifacts"
+  }
+
+  assert {
+    condition = (
+      google_kms_crypto_key_iam_member.artifact_registry[0].role == "roles/cloudkms.cryptoKeyEncrypterDecrypter" &&
+      google_kms_crypto_key_iam_member.artifact_registry[0].member == "serviceAccount:service-123456789012@gcp-sa-artifactregistry.iam.gserviceaccount.com"
+    )
+    error_message = "CMEK use must be scoped to the exact Artifact Registry service agent."
+  }
+}
+
 run "cleanup_activation_requires_approval" {
   command = plan
 

@@ -55,11 +55,16 @@ The review uses the Google Cloud Well-Architected Framework's six pillars and AI
 | A-007 | Reusable presubmit and CodeQL workflows are SHA-pinned; external ruleset activation and release canary evidence remain unavailable locally. | Observed / Unknown | Inspect the reviewed workflow source, observe real check runs, and qualify the external ruleset/release path | Release Engineering |
 | A-008 | Current GKE version, accelerator availability, provider behavior, quotas, and support entitlements will remain available in selected regions. | Unknown | Connected qualification immediately before rollout | AI Platform |
 
-## 3. Current-state evidence
+## 3. Dated current-state evidence
+
+This table is an immutable review-time snapshot, not the current validation ledger. Historical
+module, configuration, suite, and run counts are retained as collected so later changes do not
+silently rewrite evidence. Current verified totals are maintained in
+[`infra/terraform/PRODUCTION_READINESS.md`](../../infra/terraform/PRODUCTION_READINESS.md).
 
 | Evidence ID | Source | Scope | Collected at | Redaction | Notes |
 |---|---|---|---|---|---|
-| E-001 | `infra/terraform/modules/**` | 32 module directories | 2026-08-20 | None | 22 substantive modules and 10 blueprint-named scaffolds at review start |
+| E-001 | `infra/terraform/modules/**` | Historical snapshot: 32 module directories | 2026-08-20 | None | 22 substantive modules and 10 blueprint-named scaffolds at review start; retained as historical evidence |
 | E-002 | `infra/terraform/environments/**` | Four roots | 2026-08-20 | None | Only `dns_hub` is materialized; development/staging/production remain non-deployable |
 | E-003 | `docs/blueprint/production-monorepo-blueprint.md` and `docs/architecture/**` | Workload and repository laws | 2026-08-20 | None | Bazel owns build/release; Nix owns toolchains; GKE is the documented AI execution substrate |
 | E-004 | `.github/workflows/presubmit.yml`, `security.yml`, `release.yml` | CI and release | 2026-08-20 | None | Terraform contracts, two-version compatibility, TFLint, Trivy, plan-policy fixtures, and interface drift run in CI; connected-plan, cost, nightly, and GPU evidence are incomplete |
@@ -71,8 +76,8 @@ The review uses the Google Cloud Well-Architected Framework's six pillars and AI
 | E-010 | [Cloud Monitoring metrics scopes](https://docs.cloud.google.com/monitoring/settings) | Multi-project observability | 2026-08-20 | N/A | Scoping projects can observe monitored projects without duplicating service SLO logic |
 | E-011 | [Cloud Audit Logs best practices](https://docs.cloud.google.com/logging/docs/audit/best-practices) | Audit/evidence | 2026-08-20 | N/A | Centralized routing and protected retention are required beyond default logs |
 | E-012 | [Pub/Sub exactly-once delivery](https://docs.cloud.google.com/pubsub/docs/exactly-once-delivery) and [retry policy](https://docs.cloud.google.com/pubsub/docs/subscription-retry-policy) | Event delivery | 2026-08-20 | N/A | Delivery semantics do not replace consumer idempotence and replay testing |
-| E-013 | Backendless Terraform initialization, provider-schema validation, and mock tests | 36 configurations / 33 suites | 2026-08-20 | None | 36/36 configurations validate; 237/237 mock runs pass; all 33 suites pass at Google 7.41.0 and 7.45.0 |
-| E-014 | TFLint 0.64.0, Checkov 3.3.0, Trivy 0.74.0, and Conftest 0.63.0 | Terraform static/security policy | 2026-08-20 | None | TFLint passed 36/36; Checkov reported 152 passed, 0 failed, 8 documented skips; Trivy reported zero unsuppressed findings with three expiring exceptions; 22/22 OPA tests and integration fixtures pass |
+| E-013 | Backendless Terraform initialization, provider-schema validation, and mock tests | Historical pre-v0.4 snapshot: 36 configurations / 33 suites | 2026-08-20 | None | Historical result retained verbatim: 36/36 configurations validate; 237/237 mock runs pass; all 33 suites pass at Google 7.41.0 and 7.45.0 |
+| E-014 | TFLint 0.64.0, Checkov 3.3.0, Trivy 0.74.0, and Conftest 0.63.0 | Historical pre-v0.4 Terraform static/security snapshot | 2026-08-20 | None | Historical result retained verbatim: TFLint passed 36/36; Checkov reported 152 passed, 0 failed, 8 documented skips; Trivy reported zero unsuppressed findings with three expiring exceptions; 22/22 OPA tests and integration fixtures pass |
 | E-015 | Actionlint, strict workflow YAML lint, diff check, Nix flake evaluation, and repository static presubmit | CI/repository integration | 2026-08-20 | None | Terraform/workflow checks pass and gates were strengthened; a final shared-worktree static rerun is blocked by unrelated concurrent Rust/Bazel dependency alignment changes |
 
 ## 4. Architecture and control assessment
@@ -234,4 +239,12 @@ yamllint --strict .github/workflows
 PYTHONDONTWRITEBYTECODE=1 python3 ci/presubmit/pipeline.py --static-only
 ```
 
-Observed local Terraform version: `1.15.8` on `darwin_arm64`. All 32 modules passed backendless provider-schema validation and 227 mock test runs; TFLint passed; Checkov reported 152 passed, 0 failed, and 8 documented skips; and Nix-pinned Trivy reported zero unsuppressed findings at every severity with three source-local exceptions and one module-scoped embedded-check exception, all expiring 2027-08-20. No `terraform apply`, import, refresh, state command, credential command, API enablement, IAM mutation, or other cloud-changing command was run. Live qualification remains governed by `infra/terraform/PRODUCTION_READINESS.md`.
+Historical 2026-08-20 pre-v0.4 snapshot: observed local Terraform version `1.15.8` on
+`darwin_arm64`. All 32 modules passed backendless provider-schema validation and the narrative
+recorded 227 mock test runs; TFLint passed; Checkov reported 152 passed, 0 failed, and 8 documented
+skips; and Nix-pinned Trivy reported zero unsuppressed findings at every severity with three
+source-local exceptions and one module-scoped embedded-check exception, all expiring 2027-08-20.
+E-013 separately recorded 237 mock runs; that historical discrepancy is preserved rather than
+silently corrected. No `terraform apply`, import, refresh, state command, credential command, API
+enablement, IAM mutation, or other cloud-changing command was run. Current totals and live
+qualification remain governed by `infra/terraform/PRODUCTION_READINESS.md`.

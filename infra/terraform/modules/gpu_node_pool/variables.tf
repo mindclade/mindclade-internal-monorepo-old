@@ -61,8 +61,9 @@ variable "profile" {
     condition = contains([
       "gke-h100-a3-megagpu-8g",
       "gke-h200-a3-ultragpu-8g",
+      "gke-b200-a4-highgpu-8g",
     ], var.profile)
-    error_message = "profile must be gke-h100-a3-megagpu-8g or gke-h200-a3-ultragpu-8g."
+    error_message = "profile must be gke-h100-a3-megagpu-8g, gke-h200-a3-ultragpu-8g, or gke-b200-a4-highgpu-8g."
   }
 }
 
@@ -300,7 +301,7 @@ variable "boot_disk_size_gb" {
 }
 
 variable "boot_disk_kms_key" {
-  description = "Optional regional Cloud KMS CryptoKey for H100 pd-ssd boot disks; unsupported for the H200 Hyperdisk profile"
+  description = "Optional regional Cloud KMS CryptoKey for H100 pd-ssd boot disks; unsupported for the H200 and B200 Hyperdisk profiles"
   type        = string
   default     = null
 

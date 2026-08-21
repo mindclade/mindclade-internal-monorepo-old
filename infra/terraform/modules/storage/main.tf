@@ -57,9 +57,12 @@ resource "google_storage_bucket" "this" {
     retention_duration_seconds = var.soft_delete_retention_days * 86400
   }
 
-  logging {
-    log_bucket        = var.access_log_bucket
-    log_object_prefix = var.access_log_object_prefix
+  dynamic "logging" {
+    for_each = var.access_log_bucket == null ? [] : [var.access_log_bucket]
+    content {
+      log_bucket        = logging.value
+      log_object_prefix = var.access_log_object_prefix
+    }
   }
 
   dynamic "retention_policy" {
@@ -100,7 +103,7 @@ resource "google_storage_bucket" "this" {
     }
 
     precondition {
-      condition     = var.access_log_bucket != var.name
+      condition     = var.access_log_bucket == null || var.access_log_bucket != var.name
       error_message = "access_log_bucket must be a separately governed bucket, not the bucket being logged."
     }
 

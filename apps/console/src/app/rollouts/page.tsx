@@ -3,6 +3,5 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export default function Page(): JSX.Element {
-  return <main data-scaffold="apps/console/src/app/rollouts/page.tsx" />;
-}
+import { OperationalPage } from "../../components/OperationalPage";
+export default function Page(): React.ReactNode { return <OperationalPage eyebrow="Deployment control" title="Rollouts" description="Progressive model delivery with health, evidence, and rollback identity." capability="Deployment rollout API" />; }

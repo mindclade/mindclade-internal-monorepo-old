@@ -36,7 +36,8 @@ record evidence.
 ## Implemented but not fully production-qualified
 
 The Rust runtime foundation, runtime gateway/host cores, Python preprocessing
-foundation, Terraform module library, and several cross-language contracts contain substantive source but
+foundation, TypeScript SDK/library layer, web application cores, Terraform
+module library, and several cross-language contracts contain substantive source but
 still require the pinned Rust/build toolchain, provider integration,
 performance, failure-injection, and/or cloud qualification described in
 `QUALIFICATION.md`.
@@ -44,7 +45,7 @@ performance, failure-injection, and/or cloud qualification described in
 ## Scaffolded or partial target-state areas
 
 Many model families, full training/evaluation/serving implementations,
-provider-specific scientific search adapters, TypeScript applications,
+provider-specific scientific search adapters, live TypeScript environment integrations,
 live environment Terraform roots/deployments, and scale-specific qualification paths remain
 partial or scaffolded unless their own component status states otherwise.
 

@@ -29,8 +29,9 @@ common --noenable_workspace
 # ---------------------------------------------------------------------------------------
 # Output
 # ---------------------------------------------------------------------------------------
-# CI parses Bazel's output and terminals do not exist there. presubmit.yml's bazel job passes
-# --curses=no --color=no on the command line today; both move here so every lane gets them.
+# Interactive invocations keep terminal output. The CI config below disables both features for
+# every command, including subprocess-driven query and aquery checks whose captured output must
+# remain plain text.
 common --curses=auto
 common --color=yes
 build --show_timestamps
@@ -66,6 +67,8 @@ build:macos --define=host_os=macos
 # ---------------------------------------------------------------------------------------
 # What the presubmit, nightly and release lanes add on top of the common lines.
 common:ci --announce_rc
+common:ci --color=no
+common:ci --curses=no
 common:ci --noshow_progress
 build:ci --keep_going
 

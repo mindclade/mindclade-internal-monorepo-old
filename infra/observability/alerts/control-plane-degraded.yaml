@@ -1,7 +1,20 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+{
+  "schemaVersion": "mindclade.dev/cloud-monitoring-alert-contract/v1alpha1",
+  "name": "control-plane-degraded",
+  "owner": "platform-control",
+  "serviceClass": "control-plane",
+  "availabilityProfile": "internal-interactive",
+  "deployment": {"provider": "google-cloud-monitoring", "terraformModule": "infra/terraform/modules/monitoring", "deployableKubernetesResource": false},
+  "requiredEnvironmentInputs": ["emailNotificationChannelResourceNames", "environment", "googleChatNotificationChannelResourceNames", "httpsRunbookUrl", "projectId", "qualificationEvidenceSha256"],
+  "signals": [
+    {"name": "control-plane-request-error-ratio", "description": "The control-plane request error ratio exceeds its reviewed operating envelope with sufficient traffic.", "metric": "mindclade.control_plane.request_error_ratio", "condition": "above", "threshold": 0.05, "duration": "10m", "severity": "page", "missingData": "fire", "minimumSamples": 100, "runbookAnchor": "control-plane-request-error-ratio"},
+    {"name": "control-plane-target-absent", "description": "The expected control-plane telemetry target is absent long enough to indicate loss of service visibility.", "metric": "mindclade.control_plane.target_up", "condition": "below", "threshold": 1, "duration": "10m", "severity": "page", "missingData": "fire", "minimumSamples": 1, "runbookAnchor": "control-plane-target-absent"}
+  ],
+  "cardinality": {"permittedDimensions": ["cluster", "environment", "location", "namespace", "result", "service"], "forbiddenDimensions": ["dataset", "feature", "label", "model", "molecule", "prompt", "request-id", "sequence", "tenant", "user"], "rawValuesInTelemetry": false},
+  "activationPolicy": {"enabledByDefault": false, "requiresSyntheticFireAndResolve": true, "requiresHealthyTelemetry": true, "requiresReviewedThresholds": true}
+}

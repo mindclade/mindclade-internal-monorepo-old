@@ -1,6 +1,6 @@
 # Models / Contracts
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
+- **Status:** Target-card core implemented; remaining model contracts are scaffolded.
 - **Primary implementation ownership:** Python/PyTorch
 
 ## Purpose
@@ -18,9 +18,17 @@ This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
 ground. It may depend only in the direction documented by
 `docs/architecture/dependency-rules.md` and the accepted ADRs.
 
-## Materialization requirements
+## Implemented target-card boundary
 
-Before this scaffold boundary is treated as implemented, add:
+`target_card.py` gives biology, diffusion, LLM, MoE, and multimodal families one fail-closed
+contract for immutable input/output schemas, proprietary dataset identities, evaluation gates,
+availability and hardware profiles, and activation evidence. A card defaults to `designed` and
+cannot enter `approved` without a canonical qualification-evidence digest. It does not choose
+scientific thresholds or claim that any family is implemented or qualified.
+
+## Remaining materialization requirements
+
+Before the remaining scaffold modules are treated as implemented, add:
 
 - a named owner and reviewed stable contract;
 - implementation with bounded resources, cancellation, and deterministic or

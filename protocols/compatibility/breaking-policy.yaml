@@ -4,4 +4,44 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+schema_version: 1
+authority: protocols/buf.yaml
+canonical_source: protocols/proto
+
+protobuf:
+  lint:
+    tool: buf
+    profile: STANDARD
+    ci_job: lint
+  breaking_changes:
+    tool: buf
+    profile: FILE
+    comparison: pull_request_base_branch
+    ci_job: lint
+
+# Buf generation is deliberately not enabled as an empty success. Language
+# bindings are Bazel-owned, and only the runtime subset currently has concrete
+# generation targets. Adding a language output requires its Bazel target,
+# committed/generated-output policy, and cross-language contract tests in the
+# same change.
+generation:
+  authority: bazel
+  status: partial
+  buf_generate_enabled: false
+
+# Published names are compatibility surface. These exceptions correspond
+# exactly to ignore_only entries in buf.yaml and must not be widened to a
+# directory or package.
+legacy_lint_exceptions:
+  - path: proto/mindclade/runtime/v1/execution_service.proto
+    rules:
+      - SERVICE_SUFFIX
+      - RPC_REQUEST_RESPONSE_UNIQUE
+      - RPC_REQUEST_STANDARD_NAME
+      - RPC_RESPONSE_STANDARD_NAME
+  - path: proto/mindclade/runtime/v1/service.proto
+    rules:
+      - SERVICE_SUFFIX
+      - RPC_REQUEST_RESPONSE_UNIQUE
+      - RPC_REQUEST_STANDARD_NAME
+      - RPC_RESPONSE_STANDARD_NAME

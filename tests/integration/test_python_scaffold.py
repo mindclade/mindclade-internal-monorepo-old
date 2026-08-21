@@ -81,7 +81,19 @@ import pytest
 # LOWERED 222 -> 220 by materializing config's loader and merge coverage.
 # LOWERED 220 -> 214 by materializing all six placeholder tests under artifacts, distributed,
 # geometry, observability, and testing.
-SCAFFOLD_BASELINE = 213
+# LOWERED 213 -> 211 by implementing bounded batch-serving mechanics and replacing both
+# serving/batch placeholder tests with behavioral coverage.
+# LOWERED 211 -> 198 by implementing the kernel provider API, PyTorch semantic references,
+# TileLang target/compiler/autotune/testing/qualification contracts, and replacing thirteen
+# package-local scaffold files with behavioral, numerical, gradient, and dispatch tests.
+# LOWERED 198 -> 197 by implementing versioned rollout mechanics and behavioral coverage.
+# LOWERED 197 -> 196 by implementing fail-closed safety policy orchestration and tests.
+# LOWERED 196 -> 195 by implementing deterministic serving test support and behavioral coverage.
+# LOWERED 195 -> 187 by implementing all eight Python stage-worker adapters and replacing their
+# placeholder smoke tests with shared-runtime composition and lifecycle coverage.
+# LOWERED 187 -> 186 by implementing the MLflow tracking/lineage mirror and replacing its
+# telemetry placeholder with behavioral and outage coverage.
+SCAFFOLD_BASELINE = 185
 
 # Gitignored tool directories. Every entry is something that can hold a copy of the tree
 # without being part of it, which this scan would otherwise count.

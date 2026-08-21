@@ -1,7 +1,19 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+{
+  "schemaVersion": "mindclade.dev/cloud-monitoring-alert-contract/v1alpha1",
+  "name": "kernel-regression",
+  "owner": "biology-ml",
+  "serviceClass": "release",
+  "availabilityProfile": "internal-interactive",
+  "deployment": {"provider": "google-cloud-monitoring", "terraformModule": "infra/terraform/modules/monitoring", "deployableKubernetesResource": false},
+  "requiredEnvironmentInputs": ["emailNotificationChannelResourceNames", "environment", "googleChatNotificationChannelResourceNames", "httpsRunbookUrl", "projectId", "qualificationEvidenceSha256"],
+  "signals": [
+    {"name": "qualified-kernel-revoked", "description": "A kernel signature selected by a release has been revoked or exceeded its qualified numerical budget.", "metric": "mindclade.kernel.revoked_selection_count", "condition": "above", "threshold": 0, "duration": "5m", "severity": "page", "missingData": "no-op", "minimumSamples": 1, "runbookAnchor": "qualified-kernel-revoked"}
+  ],
+  "cardinality": {"permittedDimensions": ["cluster", "environment", "location", "namespace", "result", "service"], "forbiddenDimensions": ["dataset", "feature", "label", "model", "molecule", "prompt", "request-id", "sequence", "tenant", "user"], "rawValuesInTelemetry": false},
+  "activationPolicy": {"enabledByDefault": false, "requiresSyntheticFireAndResolve": true, "requiresHealthyTelemetry": true, "requiresReviewedThresholds": true}
+}

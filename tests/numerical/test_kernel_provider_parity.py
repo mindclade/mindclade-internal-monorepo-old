@@ -3,19 +3,33 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold test for tests/numerical/test_kernel_provider_parity.py."""
+"""Cross-family CPU-safe numerical smoke tests; accelerator evidence is separate."""
 
-import pytest
+import torch
+
+from kernels.defaults import default_registry
+from kernels.manifest import QualificationManifest
+from kernels.ops.attention import attention_reference
+from kernels.ops.diffusion import modulated_residual_reference
+from kernels.ops.fp8 import scaled_gemm_reference
+from kernels.ops.fused import swiglu_reference
 
 
-# SKIPPED, not passing.
-#
-# A placeholder for tests that do not exist yet. It used to `assert True` — which pytest
-# reports as a pass, so the suite was green and the number it printed was not the number of
-# things actually verified. A vacuous gate is worse than no gate: it manufactures confidence.
-#
-# Write real tests here when there is an implementation to test, and lower SCAFFOLD_BASELINE
-# in tests/integration/test_python_scaffold.py in the same commit.
-@pytest.mark.scaffold
-def test_scaffold_contract() -> None:
-    pytest.skip("scaffold: no implementation to test yet")
+def test_reference_outputs_are_finite_for_adversarial_magnitude_buckets() -> None:
+    for magnitude in (1e-4, 1.0, 1e2):
+        q = torch.randn(1, 1, 5, 8) * magnitude
+        output = attention_reference(q, q, q)
+        assert torch.isfinite(output).all()
+
+        a = torch.randn(3, 8) * magnitude
+        b = torch.randn(8, 4) / max(magnitude, 1e-8)
+        gemm = scaled_gemm_reference(a, b, torch.ones(1), torch.ones(1), output_dtype=torch.float32)
+        assert torch.isfinite(gemm).all()
+
+
+def test_default_registry_is_fail_closed_without_promoted_manifest() -> None:
+    registry = default_registry()
+    assert registry.reference("attention.sdpa").invoke is attention_reference
+    assert registry.reference("fused.swiglu").invoke is swiglu_reference
+    assert registry.reference("diffusion.modulated_residual").invoke is modulated_residual_reference
+    assert QualificationManifest().records == ()

@@ -89,7 +89,10 @@ pytest_test(
 pytest_test(
     name = "cc_toolchain_bundle_test",
     srcs = ["tests/test_cc_toolchain_bundle.py"],
-    data = ["validate_cc_toolchain_bundle.py"],
+    data = [
+        "validate_cc_toolchain_bundle.py",
+        "verify_cc_toolchain_selection.py",
+    ],
 )
 
 pytest_test(
@@ -170,6 +173,11 @@ py_binary(
         ["*.py"],
         exclude = ["**/__pycache__/**"],
     ),
+    deps = [
+        "//configs:contract_validation",
+        "//infra/observability:alert_contracts",
+        "//tools/qualification:release_evidence",
+    ],
     main = "run_architecture_checks.py",
     visibility = ["//visibility:public"],
 )

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.mindclade.internal/ci/release-request.schema.json",
+  "additionalProperties": false,
+  "properties": {
+    "apiVersion": {"const": "release.mindclade.dev/v1beta1"},
+    "kind": {"const": "ReleaseRequest"},
+    "metadata": {
+      "additionalProperties": false,
+      "properties": {
+        "changeTicket": {"pattern": "^[A-Z][A-Z0-9]+-[1-9][0-9]*$", "type": "string"},
+        "name": {"pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$", "type": "string"}
+      },
+      "required": ["name", "changeTicket"],
+      "type": "object"
+    },
+    "spec": {
+      "additionalProperties": false,
+      "properties": {
+        "previousRelease": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {"pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$", "type": "string"},
+            "subjectDigest": {"pattern": "^sha256:[0-9a-f]{64}$", "type": "string"}
+          },
+          "required": ["id", "subjectDigest"],
+          "type": "object"
+        },
+        "target": {
+          "enum": ["go-vanity", "weights-fixture"],
+          "type": "string"
+        }
+      },
+      "required": ["target", "previousRelease"],
+      "type": "object"
+    }
+  },
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "type": "object"
+}

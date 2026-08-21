@@ -62,5 +62,7 @@ assert "timeout-minutes: 75" in bazel_job
 assert bazel_job.count("unset BAZELISK_GITHUB_TOKEN") == 2
 assert "--build_event_json_file=" in bazel_job
 assert "bazel-performance-${{ github.run_id }}-${{ github.run_attempt }}" in bazel_job
+assert "tools/dev/bazelw query '//...' --config=ci" in bazel_job
+assert re.search(r"smoke_test --config=ci\s*$", bazel_job, re.MULTILINE)
 
 print("Terraform workflow trust-boundary assertions passed.")

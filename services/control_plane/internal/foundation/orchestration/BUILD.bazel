@@ -12,7 +12,6 @@ go_library(
     srcs = ["orchestration.go"],
     importpath = "go.mindclade.dev/services/control_plane/internal/foundation/orchestration",
     deps = [
-        "//libs/go/kubernetes/controller",
         "//libs/go/kubernetes/events",
         "//libs/go/servicekit",
         "//libs/go/servicekit/production",

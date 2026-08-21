@@ -105,12 +105,14 @@ variable "kms_key_name" {
 }
 
 variable "access_log_bucket" {
-  description = "Existing separately governed bucket receiving Cloud Storage server-access logs"
+  description = "Existing separately governed bucket receiving server-access logs; null is allowed only for a dedicated access-log sink"
   type        = string
+  default     = null
+  nullable    = true
 
   validation {
-    condition     = length(var.access_log_bucket) >= 3 && length(var.access_log_bucket) <= 63 && can(regex("^[a-z0-9][a-z0-9._-]*[a-z0-9]$", var.access_log_bucket))
-    error_message = "access_log_bucket must be a valid 3-63 character bucket name."
+    condition     = var.access_log_bucket == null || (length(var.access_log_bucket) >= 3 && length(var.access_log_bucket) <= 63 && can(regex("^[a-z0-9][a-z0-9._-]*[a-z0-9]$", var.access_log_bucket)))
+    error_message = "access_log_bucket must be null or a valid 3-63 character bucket name."
   }
 }
 

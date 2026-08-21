@@ -156,6 +156,57 @@ slo = "docs/slo/runtime-model-worker.md"
 runbook = "docs/runbooks/runtime-model-worker.md"
 security_review = true
 
+# Durable workers are implemented but remain tier-2 until their deployment-specific SLOs and
+# incident runbooks are qualified. Security review is still mandatory because they process
+# model artifacts, governed datasets, or release decisions.
+[component."runtime.batch_inference_worker"]
+owner = "runtime-platform"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."runtime.curation_worker"]
+owner = "data-platform"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."runtime.evaluation_worker"]
+owner = "training-platform"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."runtime.preprocessing_worker"]
+owner = "biology-ml"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."runtime.reference_builder_worker"]
+owner = "data-platform"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."runtime.rollout_worker"]
+owner = "training-platform"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."runtime.simulation_worker"]
+owner = "biology-ml"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."runtime.training_worker"]
+owner = "training-platform"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
 [component."control.model_registry"]
 owner = "platform-control"
 criticality = "tier-1"
@@ -302,3 +353,63 @@ owner = "runtime-platform"
 criticality = "tier-2"
 language = "python"
 security_review = false
+
+# TypeScript libraries and applications are materialized source boundaries but
+# remain tier-2 until their live identity, API, security, accessibility, and
+# deployment evidence is qualified. The SDK and browser surfaces all cross a
+# trust boundary, so security review is explicit even before promotion.
+[component."sdk.typescript"]
+owner = "developer-platform"
+criticality = "tier-2"
+language = "typescript"
+security_review = true
+
+[component."libs.typescript"]
+owner = "frontend-platform"
+criticality = "tier-2"
+language = "typescript"
+security_review = true
+
+[component."apps.console"]
+owner = "product-engineering"
+criticality = "tier-2"
+language = "typescript"
+security_review = true
+
+[component."apps.admin"]
+owner = "security-platform"
+criticality = "tier-2"
+language = "typescript"
+security_review = true
+
+# These entries govern source contracts, not activated environment resources. They remain
+# tier-2 until connected qualification, operational ownership, and release evidence exist.
+[component."data.contracts"]
+owner = "data-platform"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."models.target_card"]
+owner = "modeling"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."configs.contracts"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."infra.observability_contracts"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."qualification.release_evidence"]
+owner = "release-engineering"
+criticality = "tier-2"
+language = "python"
+security_review = true

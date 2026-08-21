@@ -3,7 +3,65 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
+load("//tools/build:pytest.bzl", "pytest_test")
+
 package(default_visibility = ["//visibility:private"])
+
+py_library(
+    name = "alert_contracts",
+    srcs = ["alert_contracts.py"],
+    data = [
+        "alert-contract.schema.json",
+        "availability-profiles.schema.json",
+        "availability-profiles.yaml",
+    ] + glob(["alerts/*.yaml"]),
+    imports = ["../.."],
+    visibility = ["//visibility:public"],
+    deps = ["//configs:contract_validation"],
+)
+
+py_binary(
+    name = "validate_alert_contracts",
+    srcs = ["alert_contracts.py"],
+    data = [
+        "alert-contract.schema.json",
+        "availability-profiles.schema.json",
+        "availability-profiles.yaml",
+    ] + glob(["alerts/*.yaml"]),
+    deps = ["//configs:contract_validation"],
+)
+
+py_library(
+    name = "jobset_outcomes",
+    srcs = ["jobset_outcomes.py"],
+    imports = ["../.."],
+    visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "jobset_outcome_exporter",
+    srcs = ["jobset_outcomes.py"],
+)
+
+pytest_test(
+    name = "test_alert_contracts",
+    srcs = ["tests/test_alert_contracts.py"],
+    data = [
+        "alert-contract.schema.json",
+        "availability-profiles.schema.json",
+        "availability-profiles.yaml",
+    ] + glob(["alerts/*.yaml"]),
+    imports = ["../.."],
+    deps = [":alert_contracts"],
+)
+
+pytest_test(
+    name = "test_jobset_outcomes",
+    srcs = ["tests/test_jobset_outcomes.py"],
+    imports = ["../.."],
+    deps = [":jobset_outcomes"],
+)
 
 filegroup(
     name = "contracts",
@@ -14,7 +72,6 @@ filegroup(
     visibility = ["//visibility:public"],
 )
 
-# Compatibility alias for callers that consumed the original scaffold target.
 filegroup(
     name = "scaffold_files",
     srcs = [":contracts"],

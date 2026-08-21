@@ -19,6 +19,16 @@ FORBIDDEN = [
     re.compile(r"(?<![\w.-])/usr/bin/(?!env\b)"),
 ]
 SCAN = {".bzl", ".bazel", ".sh", ".py", ".yml", ".yaml", ".nix"}
+REQUIRED_REPO_IGNORES = frozenset(
+    {
+        "**/.mypy_cache",
+        "**/.pytest_cache",
+        "**/.ruff_cache",
+        "**/.terraform",
+        "**/__pycache__",
+        "**/node_modules",
+    }
+)
 
 # Files that ENFORCE this same contract, and therefore contain the forbidden strings as
 # pattern literals rather than as commands.
@@ -67,11 +77,27 @@ def rust_version_contract(root: Path) -> list[str]:
     return errors
 
 
+def repository_traversal_contract(root: Path) -> list[str]:
+    repo_policy = root / "REPO.bazel"
+    if not repo_policy.is_file():
+        return ["REPO.bazel is required for globbed generated-directory ignores"]
+
+    text = repo_policy.read_text(errors="replace")
+    errors = []
+    if "ignore_directories(" not in text:
+        errors.append("REPO.bazel must declare ignore_directories()")
+    for pattern in sorted(REQUIRED_REPO_IGNORES):
+        if f'"{pattern}"' not in text and f"'{pattern}'" not in text:
+            errors.append(f"REPO.bazel must ignore generated directory pattern {pattern}")
+    return errors
+
+
 def check(root: Path):
     errors = []
     if (root / "WORKSPACE").exists() or (root / "WORKSPACE.bazel").exists():
         errors.append("legacy WORKSPACE is forbidden; Bzlmod owns Bazel dependencies")
     errors.extend(rust_version_contract(root))
+    errors.extend(repository_traversal_contract(root))
     for p in root.rglob("*"):
         if (
             not p.is_file()

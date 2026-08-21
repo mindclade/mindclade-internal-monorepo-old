@@ -1,0 +1,16 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+# Bazel 8+ repository policy supports globbed directory ignores here. These
+# language-tool outputs can contain third-party BUILD files, platform symlinks,
+# or bytecode that broad source globs must never absorb. None are source inputs,
+# and traversing them can make `//...` fail before target analysis.
+ignore_directories([
+    "**/.mypy_cache",
+    "**/.pytest_cache",
+    "**/.ruff_cache",
+    "**/.terraform",
+    "**/__pycache__",
+    "**/node_modules",
+])

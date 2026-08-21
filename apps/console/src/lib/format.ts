@@ -3,4 +3,22 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export const SCAFFOLD_FORMAT = "apps/console/src/lib/format.ts" as const;
+const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+
+export function formatRelativeTime(value: string, now = Date.now()): string {
+  const seconds = Math.round((Date.parse(value) - now) / 1_000);
+  if (!Number.isFinite(seconds)) return "Unknown time";
+  if (Math.abs(seconds) < 60) return relative.format(seconds, "second");
+  const minutes = Math.round(seconds / 60);
+  if (Math.abs(minutes) < 60) return relative.format(minutes, "minute");
+  const hours = Math.round(minutes / 60);
+  if (Math.abs(hours) < 24) return relative.format(hours, "hour");
+  return relative.format(Math.round(hours / 24), "day");
+}
+
+export function formatBytes(value: number): string {
+  if (!Number.isFinite(value) || value < 0) return "—";
+  const units = ["B", "KiB", "MiB", "GiB", "TiB"];
+  const unit = Math.min(Math.floor(Math.log(Math.max(value, 1)) / Math.log(1024)), units.length - 1);
+  return `${(value / 1024 ** unit).toLocaleString("en", { maximumFractionDigits: unit === 0 ? 0 : 1 })} ${units[unit]}`;
+}

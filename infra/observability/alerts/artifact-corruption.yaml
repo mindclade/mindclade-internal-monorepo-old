@@ -1,7 +1,19 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+{
+  "schemaVersion": "mindclade.dev/cloud-monitoring-alert-contract/v1alpha1",
+  "name": "artifact-corruption",
+  "owner": "release-engineering",
+  "serviceClass": "release",
+  "availabilityProfile": "internal-interactive",
+  "deployment": {"provider": "google-cloud-monitoring", "terraformModule": "infra/terraform/modules/monitoring", "deployableKubernetesResource": false},
+  "requiredEnvironmentInputs": ["emailNotificationChannelResourceNames", "environment", "googleChatNotificationChannelResourceNames", "httpsRunbookUrl", "projectId", "qualificationEvidenceSha256"],
+  "signals": [
+    {"name": "artifact-integrity-failure", "description": "A content-addressed artifact failed checksum or signature verification and must be quarantined.", "metric": "mindclade.artifact.integrity_failures", "condition": "above", "threshold": 0, "duration": "5m", "severity": "page", "missingData": "no-op", "minimumSamples": 1, "runbookAnchor": "artifact-integrity-failure"}
+  ],
+  "cardinality": {"permittedDimensions": ["cluster", "environment", "location", "namespace", "result", "service"], "forbiddenDimensions": ["dataset", "feature", "label", "model", "molecule", "prompt", "request-id", "sequence", "tenant", "user"], "rawValuesInTelemetry": false},
+  "activationPolicy": {"enabledByDefault": false, "requiresSyntheticFireAndResolve": true, "requiresHealthyTelemetry": true, "requiresReviewedThresholds": true}
+}

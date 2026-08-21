@@ -3,13 +3,35 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-package(default_visibility = ["//visibility:private"])
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
+
+package(default_visibility = ["//visibility:public"])
+
+proto_library(
+    name = "artifact_proto",
+    srcs = ["artifact.proto"],
+    strip_import_prefix = "/protocols/proto",
+)
+
+proto_library(
+    name = "artifact_service_proto",
+    srcs = ["service.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = [
+        ":artifact_proto",
+        "//protocols/proto/mindclade/common/v1:identifiers_proto",
+        "//protocols/proto/mindclade/common/v1:pagination_proto",
+    ],
+)
 
 filegroup(
     name = "scaffold_files",
     srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
+        ["*.proto"],
+        exclude = [
+            "artifact.proto",
+            "service.proto",
+        ],
     ),
     visibility = ["//visibility:public"],
 )

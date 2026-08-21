@@ -3,6 +3,5 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export default function Page(): JSX.Element {
-  return <main data-scaffold="apps/console/src/app/preprocessing/page.tsx" />;
-}
+import { OperationalPage } from "../../components/OperationalPage";
+export default function Page(): React.ReactNode { return <OperationalPage eyebrow="Data operations" title="Preprocessing" description="Bounded transformations from source snapshots to immutable dataset releases." capability="Data pipeline run API" action="New pipeline" />; }

@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export default function Molecularresult(): JSX.Element {
-  return <main data-scaffold="apps/console/src/components/MolecularResult.tsx" />;
+import { MolecularViewer, type Structure } from "@mindclade/libs-ts-molecular-viewer";
+
+export function MolecularResult({ structure }: { structure: Structure }): React.ReactNode {
+  return <section className="panel"><div className="panel-heading"><div><h2>Predicted structure</h2><p>{structure.atoms.length.toLocaleString()} atoms · deterministic projection</p></div></div><MolecularViewer structure={structure} /></section>;
 }

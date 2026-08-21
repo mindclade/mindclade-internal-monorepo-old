@@ -42,7 +42,7 @@ promoted merely because the registry is ready.
       `docs/runbooks/control-model-registry.md`.
 
 - [x] **Repository-wide Bazel passes and is a required gate.** The 2026-08-20
-      local qualification analyzed 1,023 targets and all 264 tests passed with
+      local qualification analyzed 1,079 targets and all 304 tests passed with
       lockfile drift rejected. Presubmit runs the same complete repository
       graph through `tools/dev/bazelw test //... --config=ci`; scoped Go results
       are not a substitute.
@@ -91,3 +91,8 @@ successful work.
 - The control-plane failure matrix names database loss, transaction rollback,
   lease loss, duplicate replay, and retry exhaustion explicitly; CI executes
   the control-plane subset rather than accepting placeholder scenarios.
+- Singleton work loops are bound to the foundation leadership handler. Unit
+  tests prove standby scheduler, projector, and controller components have no
+  independent `Run` path, and lease-loss tests prove configured electors fail
+  stop rather than reusing a canceled loop. Connected multi-replica failover
+  and stale-leader rejection remain required before any held role is promoted.

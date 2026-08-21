@@ -9,11 +9,6 @@ package(default_visibility = ["//visibility:public"])
 
 py_library(
     name = "batching",
-    srcs = [
-        "__init__.py",
-        "compatibility.py",
-        "planner.py",
-        "tensor_batch.py",
-    ],
+    srcs = glob(["*.py"]),
     imports = ["../../.."],
 )

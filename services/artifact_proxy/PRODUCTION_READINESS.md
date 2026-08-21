@@ -1,14 +1,13 @@
 # Artifact proxy production readiness
 
-**Current status:** not promoted. The archive contains a target-state service
-scaffold and boundary documentation, not a qualified service binary.
+**Current status:** core implemented; composition binary and deployment are not promoted.
 
 ## Required implementation evidence
 
-- [ ] All source modules contain real behavior rather than scaffold constants.
-- [ ] Protocol compatibility and cross-language golden vectors pass.
-- [ ] Every queue/task/process/resource allocation is bounded and owned.
-- [ ] Liveness, readiness, drain, cancellation, deadline, and shutdown tests pass.
+- [x] Core source modules contain real provider-neutral behavior.
+- [x] Grant, range, publication/read, cache, and provider component tests pass.
+- [x] Core buffers, ranges, cache entries, and provider operations have explicit bounds.
+- [ ] Composed listener liveness, readiness, drain, cancellation, deadline, and shutdown pass.
 - [ ] Fencing, replay, stale authority, and revocation behavior pass fault tests.
 - [ ] Security and tenant-isolation review is complete.
 - [ ] Performance, peak-memory, file-descriptor, queue, and recovery budgets pass.
@@ -19,8 +18,8 @@ scaffold and boundary documentation, not a qualified service binary.
 
 | Evidence | Status | Location |
 |---|---|---|
-| Unit/component tests | missing | — |
-| Integration/failure tests | missing | — |
+| Unit/component tests | present | `services/artifact_proxy/tests/` |
+| Integration/failure tests | partial | `services/artifact_proxy/tests/integration.rs`, `provider.rs` |
 | Performance qualification | missing | — |
 | Security review | missing | — |
 | Build/provenance/SBOM | missing | — |

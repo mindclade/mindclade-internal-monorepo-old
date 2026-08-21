@@ -14,6 +14,7 @@ py_library(
         "__init__.py",
         "contracts.py",
         "executor.py",
+        "service.py",
         "workload.py",
     ],
     data = ["py.typed"],
@@ -39,6 +40,17 @@ pytest_test(
     srcs = ["tests/test_workload.py"],
     imports = ["../../.."],
     deps = [":worker_runtime"],
+)
+
+pytest_test(
+    name = "test_service",
+    srcs = ["tests/test_service.py"],
+    imports = ["../../.."],
+    deps = [
+        ":worker_runtime",
+        "//libs/python/errors",
+        "//libs/python/identifiers",
+    ],
 )
 
 pytest_test(

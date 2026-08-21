@@ -20,21 +20,27 @@ EXPECTED = (
 FORBIDDEN = ("/usr/bin/clang", "/opt/homebrew/", "CommandLineTools/usr/bin/")
 
 
+def aquery_command(repo: Path) -> list[str]:
+    """Return the read-only configured query used to verify toolchain selection."""
+    return [
+        str(repo / "tools/dev/bazelw"),
+        "aquery",
+        'mnemonic("CppCompile|CppLink", //tools/build/bazel/toolchains/cc:smoke_test)',
+        "--include_commandline",
+        "--output=textproto",
+        "--lockfile_mode=error",
+        "--curses=no",
+        "--color=no",
+    ]
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[2])
     args = parser.parse_args(argv)
     repo = args.repo.resolve()
     completed = subprocess.run(
-        [
-            str(repo / "tools/dev/bazelw"),
-            "aquery",
-            'mnemonic("CppCompile|CppLink", //tools/build/bazel/toolchains/cc:smoke_test)',
-            "--include_commandline",
-            "--output=textproto",
-            "--curses=no",
-            "--color=no",
-        ],
+        aquery_command(repo),
         cwd=repo,
         capture_output=True,
         check=False,

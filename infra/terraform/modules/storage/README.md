@@ -60,7 +60,7 @@ replication, alerting, or restore exercises are correct in a live project.
 
 | Name | Description | Type | Default | Required |
 | ---- | ----------- | ---- | ------- | :------: |
-| <a name="input_access_log_bucket"></a> [access\_log\_bucket](#input\_access\_log\_bucket) | Existing separately governed bucket receiving Cloud Storage server-access logs | `string` | n/a | yes |
+| <a name="input_access_log_bucket"></a> [access\_log\_bucket](#input\_access\_log\_bucket) | Existing separately governed bucket receiving server-access logs; null is allowed only for a dedicated access-log sink | `string` | `null` | no |
 | <a name="input_access_log_object_prefix"></a> [access\_log\_object\_prefix](#input\_access\_log\_object\_prefix) | Non-sensitive prefix for access-log objects | `string` | `"storage-access/"` | no |
 | <a name="input_create_only_workload"></a> [create\_only\_workload](#input\_create\_only\_workload) | Enforce the additive IAM/lifecycle boundary used by manifest-last NOVA training checkpoint publication; clients must still send ifGenerationMatch=0 | `bool` | `false` | no |
 | <a name="input_data_classification"></a> [data\_classification](#input\_data\_classification) | Data-classification governance label | `string` | `"confidential"` | no |

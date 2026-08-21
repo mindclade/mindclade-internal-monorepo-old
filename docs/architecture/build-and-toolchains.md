@@ -58,6 +58,12 @@ the exact version before accepting plain Bazel, moves execution to the workspace
 root, and passes arguments unchanged. It does not discover compilers, inject
 Darwin flags, or choose a configuration or target set.
 
+Repository traversal policy is split by syntax: `.bazelignore` owns literal
+root tool-output paths, while `REPO.bazel` uses Bazel 8+ glob semantics for
+nested generated trees. Node dependency trees, Python bytecode/tool caches, and
+Terraform provider caches stay out of `//...`; committed sources and lock files
+remain visible to Bazel governance targets.
+
 Every development and CI shell exports `MINDCLADE_CC_TOOLCHAIN_ROOT` from
 `packages.<system>.cc-toolchain-bundle`. The bundle records Clang and binutils,
 resource headers, target triple, platform constraints, system include paths,
@@ -75,18 +81,24 @@ registered toolchain and never through Command Line Tools or Homebrew.
 Validate the contract and resolution directly:
 
 ```bash
-nix develop .#ci --command python3 tools/analysis/validate_cc_toolchain_bundle.py
-nix develop .#ci --command tools/dev/bazelw test \
-  //tools/build/bazel/toolchains/cc:smoke_test
-nix develop .#ci --command python3 tools/analysis/verify_cc_toolchain_selection.py
+tools/dev/nixw develop .#ci-bazel --command \
+  python3 tools/analysis/validate_cc_toolchain_bundle.py
+tools/dev/nixw develop .#ci-bazel --command tools/dev/bazelw test \
+  //tools/build/bazel/toolchains/cc:smoke_test --config=ci
+tools/dev/nixw develop .#ci-bazel --command \
+  python3 tools/analysis/verify_cc_toolchain_selection.py
 ```
 
-The committed Bzlmod lock is enforced read-only by `--config=ci`. After an
-intentional module or extension change, regenerate and verify it explicitly:
+The committed Bzlmod lock is enforced read-only by `--config=ci`. The standalone layering and
+toolchain-selection checkers also pass `--lockfile_mode=error` themselves so invoking them
+cannot repair drift before the CI configuration sees it. After an intentional module or
+extension change, regenerate and verify the lock explicitly:
 
 ```bash
-tools/dev/bazelw mod deps --lockfile_mode=update
-tools/dev/bazelw build //... --nobuild --config=ci
+tools/dev/nixw develop .#ci-bazel --command \
+  tools/dev/bazelw mod deps --lockfile_mode=update
+tools/dev/nixw develop .#ci-bazel --command \
+  tools/dev/bazelw build //... --nobuild --config=ci
 ```
 
 Presubmit loads every BUILD file, checks the language-independent dependency

@@ -1,0 +1,7 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+# Intentionally no PodDisruptionBudget. Recovery is durable-stage and
+# checkpoint/retry aware, not replica-availability based.

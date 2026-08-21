@@ -3,12 +3,20 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for serving/batch/health.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Readiness projection for the batch composition root."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "serving/batch/health.py"
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True, slots=True)
+class BatchHealth:
+    ready: bool
+    draining: bool
+    queued_jobs: int
+    maximum_queued_jobs: int
+
+    @property
+    def saturated(self) -> bool:
+        return self.queued_jobs >= self.maximum_queued_jobs

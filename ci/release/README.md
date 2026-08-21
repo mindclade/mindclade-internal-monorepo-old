@@ -1,35 +1,49 @@
-# Ci / Release
+# Reviewed release requests
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** CI configuration and Bazel target selection
+Production artifact authority starts with a pull request that adds exactly one
+`ci/release/requests/vX.Y.Z.yaml` file. The file is immutable after merge and selects one name
+from `targets.yaml`; it cannot supply commands, registry paths, identities, or signing roots.
 
-## Purpose
+The `release.yml` push event is GitHub-platform-authenticated and restricted to protected
+`main`. It discovers one newly added request, validates it before WIF authentication, and then
+runs the ARC canary, build, independent qualification, protected deployment attestation, and
+review-only GitOps promotion proposal. There is no `workflow_dispatch`, tag, API dispatch, or
+caller-selected SHA authority path.
 
-CI entry points that select repository-owned Bazel qualification targets. Workflow files coordinate execution but do not duplicate build, test, or release logic. This path specializes that domain for **release**.
+Version `v1beta1` intentionally permits one target per request. Target catalog schema 2 binds
+that name to a release kind, GitOps application, rollout class, named image build/push targets,
+typed non-image artifact slots, and fixed qualification targets. GitHub reusable-workflow outputs
+remain singular; use separate release IDs for independently promotable subjects.
 
-## Boundary
+Every request names the exact previous release ID and subject digest. The pair is rollback
+lineage, not merely an image hint, and cannot be replaced with a mutable tag or a zero digest.
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+Example:
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+```yaml
+---
+apiVersion: release.mindclade.dev/v1beta1
+kind: ReleaseRequest
+metadata:
+  name: v0.2.0
+  changeTicket: PLATFORM-1234
+spec:
+  target: go-vanity
+  previousRelease:
+    id: v0.1.0
+    subjectDigest: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+```
 
-## Materialization requirements
+Validate without credentials:
 
-Before this scaffold boundary is treated as implemented, add:
+```sh
+python3 ci/release/release_request.py validate \
+  --request ci/release/requests/v0.2.0.yaml \
+  --source-sha 0123456789abcdef0123456789abcdef01234567
+```
 
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Adding a request does not make the source-only rollout active. The current immutable v4 promoter
+temporarily receives `previousRelease.subjectDigest` through its legacy `rollback-digest` input.
+Production activation requires the reviewed `.github` v5 release before the exact ID+digest pair
+can cross the promotion boundary, plus exact runner-group policy, capability-specific WIF,
+connected ARC canary evidence, and a ready GitOps receiver.

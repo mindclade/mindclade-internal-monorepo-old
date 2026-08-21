@@ -82,10 +82,10 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: mindclade-capacity-contract-schema-v1
-  namespace: mindclade-training-h200
+  namespace: mindclade-training-b200
   labels:
     app.kubernetes.io/component: capacity-contract
-    mindclade.dev/workload-class: training-h200
+    mindclade.dev/workload-class: training-b200
   annotations:
     mindclade.dev/activation-blocker: measured-capacity-contract-absent
     mindclade.dev/contains-secrets: "false"
@@ -97,9 +97,9 @@ data:
   contractObject: immutable-configmap
   contractSchema: mindclade.dev/capacity-activation/v1
   digestCanonicalization: sha256-of-utf8-jq-sort-keys-compact-json-data
-  queueName: mindclade-training-h200
+  queueName: mindclade-training-b200
   repositoryBasePolicy: blocked-zero-hold
   requiredEvidence: activation-bundle-digest,capacity-evidence-digest,release-evidence-digest
   requiredQuotaFields: pods,cpu,memory,ephemeral-storage,nvidia.com/gpu
   secretMaterial: forbidden
-  workloadClass: training-h200
+  workloadClass: training-b200

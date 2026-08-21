@@ -1,14 +1,9 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
-"""Scaffold boundary for kernels/ops/diffusion/modulation.py.
+from kernels.ops.diffusion.reference import modulated_residual_reference
 
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+modulated_residual = modulated_residual_reference
 
-from __future__ import annotations
-
-SCAFFOLD_PATH: str = "kernels/ops/diffusion/modulation.py"
+__all__ = ["modulated_residual", "modulated_residual_reference"]

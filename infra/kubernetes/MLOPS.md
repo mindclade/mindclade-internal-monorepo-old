@@ -21,7 +21,7 @@ controllers, CRDs, versions, hardware tuple, and rollback are qualified.
 The static capacity classes are deliberately explicit:
 
 - CPU ingestion and preprocessing use only `mindclade-batch-cpu`;
-- H100 and H200 training use distinct namespaces, queues, node flavors, and
+- H100 and B200 training use distinct namespaces, queues, node flavors, and
   quotas so capacity cannot cross hardware generations;
 - `1g-packed` requests one accelerator and permits Kueue topology-aware packing;
 - `8g-full` requests one complete eight-GPU A3 node per replica and requires a

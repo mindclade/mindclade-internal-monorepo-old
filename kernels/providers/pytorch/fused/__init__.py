@@ -1,6 +1,10 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
-"""Mindclade scaffold package for kernels/providers/pytorch/fused."""
+from kernels.providers.pytorch.fused.fused import (
+    swiglu_reference,
+    triangle_multiplication_reference,
+)
+
+__all__ = ["swiglu_reference", "triangle_multiplication_reference"]

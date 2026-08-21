@@ -1,35 +1,22 @@
-# Kernels / Tilelang / Compiler
+# TileLang compiler support
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Python provider APIs and TileLang accelerator implementations
+- **Status:** Implemented host-side contracts and diagnostics; device lowering requires a pinned accelerator environment.
 
-## Purpose
+This package owns target-independent legality and compilation records:
 
-Reference operations, provider dispatch, TileLang kernels, autotuning, target support, and signature-specific numerical/performance qualification. This path specializes that domain for **compiler**.
+- thread/layout coverage and vector-alignment checks;
+- shared-memory swizzle and TMA descriptor validation;
+- pipeline stage/resource rejection;
+- WGMMA and warp-specialization capability checks;
+- content-addressed generated-source capture and bounded compile caching;
+- redacted, stable compiler diagnostics.
 
-## Boundary
+`compile_kernel` records source and environment digests rather than treating a
+successful Python import as compilation evidence. Target-specific options are
+validated before invoking a backend. Generated source inspection is a required
+qualification input, especially for expected tensor-core, async-copy, and
+synchronization instructions.
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
-
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
-
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+These helpers do not silently downgrade TMA, warp specialization, or WGMMA.
+Unsupported mappings are rejected so the registry can select a separately
+identified portable schedule or the PyTorch fallback.

@@ -34,11 +34,18 @@ Scrape relabeling keeps only controller/runtime health and Kueue queue/admission
 JobSet's upstream terminal counters are deliberately excluded: they are partitioned by unique
 `jobset_name`, first appear at one during the terminal transition, and then remain at one. A range
 `increase()` therefore does not reliably observe an ordinary JobSet's only completion or failure,
-and retrying a conflicted status update can increment the counter again. Capacity remains blocked
-until a durable condition/event exporter supplies bounded JobSet outcome signals.
+and retrying a conflicted status update can increment the counter again.
+
+`infra/observability/jobset_outcomes.py` now supplies the provider-neutral exporter core: it
+deduplicates terminal conditions by a hashed UID, persists replay protection atomically, refuses
+lossy eviction at a configured bound, and emits only aggregate namespace/result/reason-class
+counters. The rules in this package derive bounded 15-minute outcome counts and failure ratios.
+Capacity remains blocked until an environment-owned watcher, ServiceAccount/RBAC, checkpoint
+volume, metrics endpoint, scrape target, replay/relist behavior, and failure/completion fixtures
+are qualified in a connected cluster.
 
 Recording rules retain only cluster, location, namespace, queue, result, and queue-status labels.
-Reconcile error ratios use counter increases and publish matching event counts so alert policies
+Reconcile error and terminal-outcome ratios use counter increases and publish matching event counts so alert policies
 can enforce minimum traffic without understating low-volume failures. Tenant, model, dataset,
 prompt, feature, label, request, and JobSet-name identifiers remain forbidden from recorded alert
 series.

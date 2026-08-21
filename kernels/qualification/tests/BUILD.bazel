@@ -1,15 +1,12 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
-package(default_visibility = ["//visibility:private"])
+load("//tools/build:pytest.bzl", "pytest_test")
 
-filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
-    visibility = ["//visibility:public"],
+pytest_test(
+    name = "test_qualification",
+    srcs = ["test_qualification.py"],
+    imports = ["../../.."],
+    deps = ["//kernels/qualification"],
 )

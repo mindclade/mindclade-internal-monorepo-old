@@ -1,12 +1,45 @@
 // Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 // Mindclade Proprietary and Confidential.
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-//
 
 syntax = "proto3";
 
 package mindclade.orchestration.v1;
 
+import "mindclade/common/v1/identifiers.proto";
+import "mindclade/common/v1/pagination.proto";
+import "mindclade/orchestration/v1/run.proto";
+
 message ServiceScaffold {
+  option deprecated = true;
   string reserved = 1;
+}
+
+message ListRunsRequest {
+  mindclade.common.v1.PageRequest page = 1;
+  optional RunState state = 2;
+}
+message ListRunsResponse {
+  repeated Run runs = 1;
+  mindclade.common.v1.PageResponse page = 2;
+}
+message GetRunRequest { mindclade.common.v1.ResourceId run_id = 1; }
+message GetRunResponse { Run run = 1; }
+message CreateRunRequest {
+  CreateRunSpec run = 1;
+  string idempotency_key = 2;
+}
+message CreateRunResponse { Run run = 1; }
+message CancelRunRequest {
+  mindclade.common.v1.ResourceId run_id = 1;
+  string idempotency_key = 2;
+  string reason = 3;
+}
+message CancelRunResponse { Run run = 1; }
+
+service RunService {
+  rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
+  rpc GetRun(GetRunRequest) returns (GetRunResponse);
+  rpc CreateRun(CreateRunRequest) returns (CreateRunResponse);
+  rpc CancelRun(CancelRunRequest) returns (CancelRunResponse);
 }

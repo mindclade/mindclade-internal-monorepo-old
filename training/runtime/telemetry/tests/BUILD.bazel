@@ -3,13 +3,11 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-package(default_visibility = ["//visibility:private"])
+load("//tools/build:pytest.bzl", "pytest_test")
 
-filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
-    visibility = ["//visibility:public"],
+pytest_test(
+    name = "test_mlflow_exporter",
+    srcs = ["test_telemetry.py"],
+    imports = ["../../../.."],
+    deps = ["//training/runtime/telemetry:mlflow_exporter"],
 )

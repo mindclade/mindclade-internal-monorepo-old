@@ -1,1 +1,44 @@
-{}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mindclade.com/contracts/config/serving-1.0.0.schema.json",
+  "title": "Mindclade serving target",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "serviceId", "owner", "modelDigest", "runtimeDigest", "inputSchemaDigest", "outputSchemaDigest", "availabilityProfile", "resources", "rollout"],
+  "properties": {
+    "schemaVersion": {"const": "mindclade.dev/serving/v1"},
+    "serviceId": {"$ref": "#/$defs/id"},
+    "owner": {"$ref": "#/$defs/id"},
+    "modelDigest": {"$ref": "#/$defs/digest"},
+    "runtimeDigest": {"$ref": "#/$defs/digest"},
+    "inputSchemaDigest": {"$ref": "#/$defs/digest"},
+    "outputSchemaDigest": {"$ref": "#/$defs/digest"},
+    "availabilityProfile": {"$ref": "#/$defs/id"},
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maximumConcurrency", "maximumBatchSize", "maximumInputBytes", "maximumOutputBytes", "shutdownSeconds"],
+      "properties": {
+        "maximumConcurrency": {"type": "integer", "minimum": 1, "maximum": 1000000},
+        "maximumBatchSize": {"type": "integer", "minimum": 1, "maximum": 65536},
+        "maximumInputBytes": {"type": "integer", "minimum": 1},
+        "maximumOutputBytes": {"type": "integer", "minimum": 1},
+        "shutdownSeconds": {"type": "integer", "minimum": 1, "maximum": 3600}
+      }
+    },
+    "rollout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy", "rollbackDigest", "automaticPromotion"],
+      "properties": {
+        "strategy": {"enum": ["canary", "blue-green", "shadow"]},
+        "rollbackDigest": {"$ref": "#/$defs/digest"},
+        "automaticPromotion": {"const": false}
+      }
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}

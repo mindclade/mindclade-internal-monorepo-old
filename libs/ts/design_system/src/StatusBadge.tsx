@@ -3,6 +3,14 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export default function Statusbadge(): JSX.Element {
-  return <main data-scaffold="libs/ts/design_system/src/StatusBadge.tsx" />;
+import type { ReactElement, ReactNode } from "react";
+
+export type StatusTone = "neutral" | "info" | "running" | "success" | "warning" | "danger";
+
+export function StatusBadge({ tone = "neutral", children, pulse = false }: {
+  tone?: StatusTone;
+  children: ReactNode;
+  pulse?: boolean;
+}): ReactElement {
+  return <span className="mc-status" data-tone={tone} data-pulse={pulse || undefined}><span aria-hidden="true" />{children}</span>;
 }

@@ -1,14 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
-"""Scaffold boundary for kernels/providers/pytorch/fp8/fp8.py.
+from kernels.ops.fp8.reference import scaled_gemm_reference
 
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
-
-from __future__ import annotations
-
-SCAFFOLD_PATH: str = "kernels/providers/pytorch/fp8/fp8.py"
+__all__ = ["scaled_gemm_reference"]

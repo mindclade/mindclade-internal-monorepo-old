@@ -16,7 +16,7 @@ profiles; there is no single-profile release mode:
 - a bounded run ID and absolute evidence output path.
 
 ```bash
-bazel run //tools/qualification/gke:run -- \
+tools/dev/bazelw run //tools/qualification/gke:run --config=ci -- \
   --context "$MINDCLADE_GKE_CLUSTER_CONTEXT" \
   --image "$MINDCLADE_QUALIFICATION_IMAGE" \
   --run-id "$MINDCLADE_QUALIFICATION_RUN_ID" \

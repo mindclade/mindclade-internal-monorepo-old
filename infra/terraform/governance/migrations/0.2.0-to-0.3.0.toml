@@ -8,10 +8,13 @@ from_version = "0.2.0"
 to_version = "0.3.0"
 status = "planned"
 owner = "platform-control"
-summary = "Remove the project-wide occurrence editor from the Binary Authorization module and expose the exact create/read-only live-IAM contract."
+summary = "Remove occurrence-editor privilege, establish environment GKE cohorts, and support the additive KMS and protected access-log boundaries required by DR evidence."
 
 affected_modules = [
   "binauthz",
+  "gke",
+  "kms",
+  "storage",
 ]
 
 breaking_change_ids = [
@@ -23,17 +26,25 @@ consumer_steps = [
   "Before upgrading an applied root, apply the authoritative infrastructure-live project-local custom role containing only containeranalysis.occurrences.create, containeranalysis.occurrences.get, and containeranalysis.occurrences.list plus its reviewed project-read permissions.",
   "Prove the build and qualification attestors can create, get, and list occurrences through that custom role and cannot update or delete occurrences.",
   "Review a saved plan for the exact consuming root and require destruction of google_project_iam_member.signer_occurrence_editor with no replacement roles/containeranalysis.occurrences.editor grant before approval.",
+  "Set GKE channel_policy CANARY only with development RAPID; use QUALIFIED with REGULAR for staging, production, and control clusters, then prove the upgrade in development before staging.",
+  "Keep KMS grants additive and scoped to exact CryptoKeys; verify the Cloud Storage service agent before planning either protected evidence bucket.",
+  "Use a null access_log_bucket only for the separately governed access-log sink. All other protected buckets must route server-access logs to that sink.",
 ]
 
 rollback_steps = [
   "Keep the consuming root pinned to the reviewed v0.2.0 source when the narrow custom role or its signing canary is not yet proven.",
   "If access regresses after the editor removal, repair the authoritative infrastructure-live custom role or binding through a reviewed forward change; do not restore the project-wide editor role.",
   "Do not use terraform state commands for this intentional resource removal; retain state backups and review a saved recovery plan before any corrective apply.",
+  "If the development RAPID canary is incompatible, stop promotion and repair or qualify a forward version; do not move staging or production off REGULAR as an emergency shortcut.",
+  "Before any evidence-bucket apply, a failed KMS, retention, or logging plan is rolled back by reverting source and retaining the prior module ref; never unlock retention or remove CMEK to force creation.",
 ]
 
 qualification_evidence = [
   "infra/terraform/PRODUCTION_READINESS.md",
   "infra/terraform/modules/binauthz/README.md",
+  "infra/terraform/modules/gke/README.md",
+  "infra/terraform/modules/kms/README.md",
+  "infra/terraform/modules/storage/README.md",
 ]
 
 # This privilege is intentionally removed rather than renamed, so no state move exists.

@@ -3,4 +3,15 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export const SCAFFOLD_EVENTS = "libs/ts/telemetry/src/events.ts" as const;
+export type TelemetryValue = string | number | boolean | null;
+
+export interface TelemetryEvent {
+  name: string;
+  occurredAt: string;
+  sessionId?: string;
+  properties?: Readonly<Record<string, TelemetryValue>>;
+}
+
+export function event(name: string, properties?: Readonly<Record<string, TelemetryValue>>): TelemetryEvent {
+  return { name, occurredAt: new Date().toISOString(), ...(properties === undefined ? {} : { properties }) };
+}

@@ -1,0 +1,69 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+# Durable ticket-scoped work. The Python adapter is implemented, but the owning
+# scientific engine and Rust/Python bridge lack connected qualification, so this
+# activation sentinel remains suspended and carries no generic accelerator claim.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: batch-inference-worker-template
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: batch-inference-worker
+    app.kubernetes.io/component: batch-worker
+    app.kubernetes.io/part-of: mindclade-platform
+  annotations:
+    mindclade.dev/deployment-status: disabled
+    mindclade.dev/activation-blocker: engine-and-rust-python-bridge-qualification-missing
+    mindclade.dev/resource-contract: per-workload-ticket
+    mindclade.dev/template-only: "true"
+spec:
+  suspend: true
+  backoffLimit: 0
+  activeDeadlineSeconds: 21600
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: batch-inference-worker
+        app.kubernetes.io/component: batch-worker
+        app.kubernetes.io/part-of: mindclade-platform
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      priorityClassName: mindclade-batch
+      restartPolicy: Never
+      serviceAccountName: batch-inference-worker
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: batch-inference-worker
+          image: registry.invalid/mindclade/batch-inference-worker@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          resources:
+            requests:
+              cpu: "1"
+              ephemeral-storage: 1Gi
+              memory: 2Gi
+            limits:
+              cpu: "4"
+              ephemeral-storage: 8Gi
+              memory: 8Gi

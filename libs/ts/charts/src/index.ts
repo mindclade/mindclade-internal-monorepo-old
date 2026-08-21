@@ -3,4 +3,7 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export const SCAFFOLD_INDEX = "libs/ts/charts/src/index.ts" as const;
+export * from "./Heatmap.js";
+export * from "./Histogram.js";
+export * from "./LineChart.js";
+export * from "./TopologyGraph.js";

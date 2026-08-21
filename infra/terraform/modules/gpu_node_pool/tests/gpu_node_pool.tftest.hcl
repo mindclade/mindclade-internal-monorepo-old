@@ -160,6 +160,41 @@ run "queued_capacity_contract" {
   }
 }
 
+run "b200_queued_capacity_contract" {
+  command = plan
+
+  variables {
+    name                     = "nova-b200-queued"
+    profile                  = "gke-b200-a4-highgpu-8g"
+    capacity_mode            = "QUEUED_PROVISIONING"
+    enable_compact_placement = false
+    max_run_duration         = "172800s"
+  }
+
+  assert {
+    condition = (
+      google_container_node_pool.this.node_config[0].machine_type == "a4-highgpu-8g" &&
+      google_container_node_pool.this.node_config[0].guest_accelerator[0].type == "nvidia-b200" &&
+      google_container_node_pool.this.node_config[0].guest_accelerator[0].count == 8 &&
+      google_container_node_pool.this.queued_provisioning[0].enabled == true &&
+      length(google_container_node_pool.this.placement_policy) == 0
+    )
+    error_message = "The B200 profile must select A4, eight B200 accelerators, queued capacity, and no incompatible compact placement."
+  }
+}
+
+run "reject_b200_standard_on_demand_capacity" {
+  command = plan
+
+  variables {
+    name          = "nova-b200-on-demand"
+    profile       = "gke-b200-a4-highgpu-8g"
+    capacity_mode = "ON_DEMAND"
+  }
+
+  expect_failures = [google_container_node_pool.this]
+}
+
 run "reject_standalone_flex_start_without_preview_approval" {
   command = plan
 

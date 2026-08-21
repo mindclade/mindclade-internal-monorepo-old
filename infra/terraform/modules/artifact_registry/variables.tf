@@ -13,6 +13,18 @@ variable "project_id" {
   }
 }
 
+variable "project_number" {
+  description = "Numeric project number used to authorize the Artifact Registry service agent on a cross-project CMEK"
+  type        = string
+  default     = null
+  nullable    = true
+
+  validation {
+    condition     = var.project_number == null || can(regex("^[0-9]{6,32}$", var.project_number))
+    error_message = "project_number must be null or a 6-32 digit Google Cloud project number."
+  }
+}
+
 variable "location" {
   description = "Regional or multi-regional Artifact Registry location"
   type        = string

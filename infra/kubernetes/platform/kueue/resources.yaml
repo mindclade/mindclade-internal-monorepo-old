@@ -57,12 +57,12 @@ spec:
 apiVersion: kueue.x-k8s.io/v1beta2
 kind: ResourceFlavor
 metadata:
-  name: mindclade-h200
+  name: mindclade-b200
   annotations:
     argocd.argoproj.io/sync-wave: "20"
 spec:
   nodeLabels:
-    mindclade.dev/gpu-profile: gke-h200-a3-ultragpu-8g
+    mindclade.dev/gpu-profile: gke-b200-a4-highgpu-8g
     mindclade.dev/node-pool: gpu
   nodeTaints:
     - effect: NoSchedule
@@ -176,15 +176,15 @@ spec:
 apiVersion: kueue.x-k8s.io/v1beta2
 kind: ClusterQueue
 metadata:
-  name: mindclade-training-h200
+  name: mindclade-training-b200
   annotations:
     argocd.argoproj.io/sync-wave: "21"
-    mindclade.dev/activation-blocker: held-and-zero-h200-quota
+    mindclade.dev/activation-blocker: held-and-zero-b200-quota
 spec:
   namespaceSelector:
     matchLabels:
       mindclade.dev/kueue-enabled: "true"
-      mindclade.dev/workload-class: training-h200
+      mindclade.dev/workload-class: training-b200
   preemption:
     reclaimWithinCohort: Never
     withinClusterQueue: Never
@@ -196,7 +196,7 @@ spec:
         - nvidia.com/gpu
         - pods
       flavors:
-        - name: mindclade-h200
+        - name: mindclade-b200
           resources:
             - name: cpu
               nominalQuota: "0"
@@ -213,11 +213,11 @@ spec:
 apiVersion: kueue.x-k8s.io/v1beta2
 kind: LocalQueue
 metadata:
-  name: mindclade-training-h200
-  namespace: mindclade-training-h200
+  name: mindclade-training-b200
+  namespace: mindclade-training-b200
   annotations:
     argocd.argoproj.io/sync-wave: "22"
     mindclade.dev/activation-blocker: held-clusterqueue-and-localqueue
 spec:
-  clusterQueue: mindclade-training-h200
+  clusterQueue: mindclade-training-b200
   stopPolicy: Hold

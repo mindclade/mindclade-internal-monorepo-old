@@ -1,35 +1,27 @@
-# Training / Core
+# Training core
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Python/PyTorch
+**Status:** deterministic single-process CPU reference trainer implemented;
+distributed, mixed-precision, compilation, checkpointing, and service execution
+remain separate scaffolds.
 
-## Purpose
+`Trainer` is the sole optimizer-lifecycle authority. It accepts a finite bounded
+sequence of `SupervisedBatch` values and groups them by a bounded accumulation
+window. Each group performs:
 
-Authoritative training contracts, core state machine, engine adapters, distributed plans, checkpoint orchestration, optimizers, runtime mechanisms, and task objectives. This path specializes that domain for **core**.
+1. `zero_grad(set_to_none=True)`;
+2. all bounded forwards and loss-sum collection;
+3. backward of each loss sum divided by the group's total denominator;
+4. required finite CPU float32 gradient validation;
+5. optional bounded norm clipping;
+6. optimizer step, then optional scheduler step;
+7. gradient clearing and atomic progress-counter advancement.
 
-## Boundary
+The final short accumulation group uses its own exact denominator. Cancellation
+is checked before and after forward/backward work and before optimizer mutation.
+Failed or canceled pre-step groups clear gradients and do not advance state.
+Evaluation uses `eval()` with `inference_mode()`, restores the caller's model mode,
+does not touch optimizer/scheduler/state, and returns detached totals.
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
-
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
-
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+The implementation is intentionally CPU float32 and single-owner. It makes no
+AMP, accelerator, distributed, checkpoint/resume, throughput, or production
+deployment claim.

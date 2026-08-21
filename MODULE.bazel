@@ -14,16 +14,26 @@ bazel_dep(name = "rules_python", version = "1.7.0")
 bazel_dep(name = "rules_rust", version = "0.73.0")
 bazel_dep(name = "rules_cc", version = "0.2.17")
 bazel_dep(name = "platforms", version = "1.1.0")
-
-# No JavaScript ruleset is declared here yet. The TypeScript packages under
-# libs/ts and apps carry scaffold filegroups only, and nothing loads JS rules.
-# The previous entry was `rules_js`, which the Bazel Central Registry does not
-# serve under that name at ANY version -- Aspect publishes it as
-# `aspect_rules_js` -- so module resolution failed and no Bazel target in the
-# repository could be queried or built at all. Reinstate it as `aspect_rules_js`,
-# at a version the registry actually has, when the TS packages get real rules.
+bazel_dep(name = "aspect_rules_js", version = "3.3.1")
+bazel_dep(name = "aspect_rules_ts", version = "3.9.2")
 bazel_dep(name = "rules_oci", version = "2.3.0")
 bazel_dep(name = "protobuf", version = "33.4")
+
+# pnpm owns dependency resolution; Bazel translates the committed lock into
+# lazy, integrity-checked repositories and links only declared package edges.
+npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm", dev_dependency = True)
+npm.npm_translate_lock(
+    name = "npm",
+    pnpm_lock = "//:pnpm-lock.yaml",
+)
+use_repo(npm, "npm")
+
+# Native TypeScript 7 is the compilation authority. Next retains a package-local
+# TypeScript 6 API only for programmatic route generation; it is not the Bazel
+# compiler and cannot silently lower this gate.
+rules_ts_ext = use_extension("@aspect_rules_ts//ts:extensions.bzl", "ext", dev_dependency = True)
+rules_ts_ext.deps(ts_version = "7.0.2")
+use_repo(rules_ts_ext, "npm_typescript")
 
 # Tar layers for oci_image. rules_oci deliberately does not build layers itself -- it composes
 # images from tarballs -- so an image target needs this alongside it.

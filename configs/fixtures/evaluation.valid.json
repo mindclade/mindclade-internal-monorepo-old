@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "mindclade.dev/evaluation/v1",
+  "evaluationId": "contract-fixture",
+  "owner": "evaluation-platform",
+  "candidateDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "datasetDigests": ["sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"],
+  "holdoutIsolation": {"enabled": true, "trainerAccess": "denied", "resultRedaction": "aggregate-only"},
+  "metrics": [
+    {
+      "name": "fixture.quality",
+      "direction": "at-least",
+      "threshold": 0.95,
+      "minimumSamples": 1000,
+      "datasetDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  ],
+  "promotionPolicy": {"automaticPromotion": false, "requireIndependentAttestor": true, "requireSafetyReview": true}
+}

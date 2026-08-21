@@ -1,11 +1,12 @@
-# Apps / Admin
+# Mindclade Governance
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
+- **Status:** Implemented fail-closed application surface; administrative API integration is not yet production-qualified.
 - **Primary implementation ownership:** TypeScript
 
-## Purpose
-
-Product-facing web applications. Product surfaces consume generated SDKs and public contracts; they never import deployable service implementations. This path specializes that domain for **admin**.
+The restricted control surface for identity, tenancy, quotas, independent gate
+approval, releases, sensitive model-weight access, immutable audit, and
+break-glass operations. High-impact components require an operational reason,
+explicit confirmation phrase, idempotency identity, and elevated approval.
 
 ## Boundary
 
@@ -18,18 +19,13 @@ This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
 ground. It may depend only in the direction documented by
 `docs/architecture/dependency-rules.md` and the accepted ADRs.
 
-## Materialization requirements
+The current routes deliberately remain read-only until the reviewed
+administrative HTTP contract is configured. The UI never infers privilege from
+presentation state; the server remains authoritative for policy and audit.
+`NEXT_PUBLIC_ENVIRONMENT` labels the target environment and optional telemetry
+uses `NEXT_PUBLIC_TELEMETRY_ENDPOINT` with sensitive-field redaction.
 
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+`pnpm --filter @mindclade/apps-admin build` produces the optimized Next artifact.
+Production promotion still requires elevated-session integration, tenant and
+policy tests, CSP/identity qualification, immutable audit verification, signed
+build provenance, and a tested deployment rollback.

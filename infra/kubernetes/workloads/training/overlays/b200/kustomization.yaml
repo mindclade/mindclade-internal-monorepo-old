@@ -6,7 +6,7 @@
 ---
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: mindclade-training-h200
+namespace: mindclade-training-b200
 
 components:
   - ../../base
@@ -20,7 +20,7 @@ patches:
     patch: |-
       - op: replace
         path: /metadata/labels/mindclade.dev~1workload-class
-        value: training-h200
+        value: training-b200
   - target:
       group: batch
       version: v1
@@ -29,22 +29,22 @@ patches:
     patch: |-
       - op: replace
         path: /metadata/name
-        value: mindclade-h200-1g-packed-template
+        value: mindclade-b200-1g-packed-template
       - op: replace
         path: /metadata/labels/kueue.x-k8s.io~1queue-name
-        value: mindclade-training-h200
+        value: mindclade-training-b200
       - op: replace
         path: /metadata/labels/mindclade.dev~1workload-class
-        value: training-h200
+        value: training-b200
       - op: replace
         path: /spec/template/metadata/labels/mindclade.dev~1workload-class
-        value: training-h200
+        value: training-b200
       - op: replace
         path: /spec/template/spec/nodeSelector/mindclade.dev~1gpu-profile
-        value: gke-h200-a3-ultragpu-8g
+        value: gke-b200-a4-highgpu-8g
       - op: replace
         path: /spec/template/spec/serviceAccountName
-        value: mindclade-training-h200
+        value: mindclade-training-b200
   - target:
       group: jobset.x-k8s.io
       version: v1alpha2
@@ -53,19 +53,19 @@ patches:
     patch: |-
       - op: replace
         path: /metadata/name
-        value: mindclade-h200-8g-full-template
+        value: mindclade-b200-8g-full-template
       - op: replace
         path: /metadata/labels/kueue.x-k8s.io~1queue-name
-        value: mindclade-training-h200
+        value: mindclade-training-b200
       - op: replace
         path: /metadata/labels/mindclade.dev~1workload-class
-        value: training-h200
+        value: training-b200
       - op: replace
         path: /spec/replicatedJobs/0/template/spec/template/metadata/labels/mindclade.dev~1workload-class
-        value: training-h200
+        value: training-b200
       - op: replace
         path: /spec/replicatedJobs/0/template/spec/template/spec/nodeSelector/mindclade.dev~1gpu-profile
-        value: gke-h200-a3-ultragpu-8g
+        value: gke-b200-a4-highgpu-8g
       - op: replace
         path: /spec/replicatedJobs/0/template/spec/template/spec/serviceAccountName
-        value: mindclade-training-h200
+        value: mindclade-training-b200

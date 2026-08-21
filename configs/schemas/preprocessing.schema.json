@@ -1,1 +1,42 @@
-{}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mindclade.com/contracts/config/preprocessing-1.0.0.schema.json",
+  "title": "Mindclade preprocessing plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "pipelineId", "owner", "inputSnapshotDigest", "referenceDigests", "stages", "determinism", "outputContractDigest"],
+  "properties": {
+    "schemaVersion": {"const": "mindclade.dev/preprocessing/v1"},
+    "pipelineId": {"$ref": "#/$defs/id"},
+    "owner": {"$ref": "#/$defs/id"},
+    "inputSnapshotDigest": {"$ref": "#/$defs/digest"},
+    "referenceDigests": {"type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/digest"}},
+    "stages": {"type": "array", "minItems": 1, "maxItems": 128, "items": {"$ref": "#/$defs/stage"}},
+    "determinism": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seed", "toolchainDigest", "resumePolicy"],
+      "properties": {
+        "seed": {"type": "integer", "minimum": 0},
+        "toolchainDigest": {"$ref": "#/$defs/digest"},
+        "resumePolicy": {"const": "content-addressed-safe-point"}
+      }
+    },
+    "outputContractDigest": {"$ref": "#/$defs/digest"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "implementationDigest", "inputContractDigest", "outputContractDigest"],
+      "properties": {
+        "name": {"$ref": "#/$defs/id"},
+        "implementationDigest": {"$ref": "#/$defs/digest"},
+        "inputContractDigest": {"$ref": "#/$defs/digest"},
+        "outputContractDigest": {"$ref": "#/$defs/digest"}
+      }
+    }
+  }
+}

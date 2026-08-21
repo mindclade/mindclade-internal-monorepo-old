@@ -1,1 +1,156 @@
-{}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mindclade.com/contracts/release/release-evidence-1.0.0.schema.json",
+  "title": "Mindclade release evidence producer handoff",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "release_id", "release_kind", "subject", "source_repository", "source_revision", "builder_identity", "build_invocation_id", "images", "artifacts", "vulnerability", "evidence", "attestations", "compatibility", "migration", "rollback", "created_at"],
+  "properties": {
+    "schema_version": {"const": "mindclade.dev/release-evidence/v1"},
+    "release_id": {"$ref": "#/$defs/releaseId"},
+    "release_kind": {"enum": ["application", "bundle", "dataset", "model", "pipeline", "platform"]},
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "digest"],
+      "properties": {
+        "name": {"$ref": "#/$defs/applicationName"},
+        "digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "source_repository": {"type": "string", "pattern": "^mindclade/[A-Za-z0-9_.-]+$"},
+    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "builder_identity": {"type": "string", "minLength": 3, "maxLength": 256},
+    "build_invocation_id": {"type": "string", "minLength": 3, "maxLength": 256},
+    "images": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 16,
+      "additionalProperties": {"type": "string", "pattern": "^.+@sha256:[0-9a-f]{64}$"}
+    },
+    "artifacts": {"type": "array", "minItems": 5, "maxItems": 64, "items": {"$ref": "#/$defs/artifact"}},
+    "vulnerability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result", "scanner", "scanner_version", "database_digest", "scanned_at", "finding_counts", "exception"],
+      "properties": {
+        "result": {"enum": ["pass", "approved-exception"]},
+        "scanner": {"$ref": "#/$defs/id"},
+        "scanner_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+        "database_digest": {"$ref": "#/$defs/digest"},
+        "scanned_at": {"type": "string", "format": "date-time"},
+        "finding_counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["critical", "high", "medium", "low", "unknown"],
+          "properties": {
+            "critical": {"type": "integer", "minimum": 0},
+            "high": {"type": "integer", "minimum": 0},
+            "medium": {"type": "integer", "minimum": 0},
+            "low": {"type": "integer", "minimum": 0},
+            "unknown": {"type": "integer", "minimum": 0}
+          }
+        },
+        "exception": {"type": ["object", "null"]}
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result", "policy", "qualification_epoch", "graph"],
+      "properties": {
+        "result": {"const": "pass"},
+        "policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "version", "digest"],
+          "properties": {
+            "id": {"$ref": "#/$defs/id"},
+            "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+            "digest": {"$ref": "#/$defs/digest"}
+          }
+        },
+        "qualification_epoch": {"type": "string", "format": "date-time"},
+        "graph": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"$ref": "#/$defs/evidenceEdge"}}
+      }
+    },
+    "attestations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["build", "qualification"],
+      "properties": {
+        "build": {"$ref": "#/$defs/attestor"},
+        "qualification": {"$ref": "#/$defs/attestor"}
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kubernetes", "platform_api", "required_capabilities"],
+      "properties": {
+        "kubernetes": {"type": "string", "pattern": "^>=1\\.[0-9]+\\.[0-9]+ <1\\.[0-9]+\\.[0-9]+$"},
+        "platform_api": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+        "required_capabilities": {"type": "array", "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}}
+      }
+    },
+    "migration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "artifact"],
+      "properties": {
+        "required": {"type": "boolean"},
+        "artifact": {"type": ["string", "null"], "pattern": "^[a-z][a-z0-9-]{1,62}$"}
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy", "previous_release_id", "previous_subject_digest", "artifact"],
+      "properties": {
+        "strategy": {"enum": ["bootstrap", "previous-release"]},
+        "previous_release_id": {"type": ["string", "null"], "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+(?:-[a-z0-9-]+)?$"},
+        "previous_subject_digest": {"type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$"},
+        "artifact": {"$ref": "#/$defs/id"}
+      }
+    },
+    "created_at": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$"},
+    "applicationName": {"type": "string", "pattern": "^(platform|serving|research|data|partner)-[a-z0-9][a-z0-9-]*$"},
+    "releaseId": {"type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+(?:-[a-z0-9-]+)?$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type", "uri", "digest", "media_type"],
+      "properties": {
+        "name": {"$ref": "#/$defs/id"},
+        "type": {"enum": ["checkpoint", "configuration", "dataset", "migration", "model", "provenance", "qualification", "rollback", "sbom", "vulnerability-scan"]},
+        "uri": {"type": "string", "pattern": "^(gs|https|oci)://.+$"},
+        "digest": {"$ref": "#/$defs/digest"},
+        "media_type": {"type": "string", "pattern": "^[a-z0-9][a-z0-9!#$&^_.+-]+/[a-z0-9][a-z0-9!#$&^_.+-]+$"}
+      }
+    },
+    "evidenceEdge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_digest", "predicate_type", "artifact", "result"],
+      "properties": {
+        "subject_digest": {"$ref": "#/$defs/digest"},
+        "predicate_type": {"enum": ["build-provenance", "qualification", "sbom", "vulnerability-scan"]},
+        "artifact": {"$ref": "#/$defs/id"},
+        "result": {"enum": ["approved", "pass"]}
+      }
+    },
+    "attestor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project", "attestor"],
+      "properties": {
+        "project": {"type": "string", "pattern": "^[a-z][a-z0-9-]{4,28}[a-z0-9]$"},
+        "attestor": {"$ref": "#/$defs/id"}
+      }
+    }
+  }
+}

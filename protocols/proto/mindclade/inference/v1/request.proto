@@ -1,12 +1,31 @@
 // Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 // Mindclade Proprietary and Confidential.
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-//
 
 syntax = "proto3";
 
 package mindclade.inference.v1;
 
+import "mindclade/common/v1/identifiers.proto";
+import "mindclade/inference/v1/model.proto";
+
 message RequestScaffold {
+  option deprecated = true;
   string reserved = 1;
+}
+
+message InferenceInput {
+  oneof value {
+    string sequence = 1;
+    mindclade.common.v1.ContentDigest artifact_digest = 2;
+  }
+}
+
+message InferenceRequest {
+  ModelSelection model = 1;
+  InferenceInput input = 2;
+  uint64 deadline_millis = 3;
+  optional uint64 seed = 4;
+  map<string, double> parameters = 5;
+  string idempotency_key = 6;
 }

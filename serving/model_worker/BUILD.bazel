@@ -9,16 +9,7 @@ package(default_visibility = ["//visibility:public"])
 
 py_library(
     name = "model_worker",
-    srcs = [
-        "__init__.py",
-        "config.py",
-        "health.py",
-        "model_loader.py",
-        "model_runner.py",
-        "protocol.py",
-        "reference.py",
-        "shutdown.py",
-    ],
+    srcs = glob(["*.py"]),
     imports = ["../.."],
     deps = [
         "//serving/model_worker/batching",

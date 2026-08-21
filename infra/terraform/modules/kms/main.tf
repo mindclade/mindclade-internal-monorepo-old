@@ -82,3 +82,22 @@ resource "google_kms_crypto_key" "signing" {
     }
   }
 }
+
+locals {
+  encrypter_decrypter_bindings = merge([
+    for key_name, members in var.encrypter_decrypters : {
+      for member in members : "${key_name}:${member}" => {
+        key_name = key_name
+        member   = member
+      }
+    }
+  ]...)
+}
+
+resource "google_kms_crypto_key_iam_member" "encrypter_decrypter" {
+  for_each = local.encrypter_decrypter_bindings
+
+  crypto_key_id = google_kms_crypto_key.this[each.value.key_name].id
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  member        = each.value.member
+}

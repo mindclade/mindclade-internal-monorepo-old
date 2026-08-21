@@ -3,6 +3,5 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export default function Page(): JSX.Element {
-  return <main data-scaffold="apps/console/src/app/models/page.tsx" />;
-}
+import { ResourcePage } from "../../components/ResourcePage";
+export default function Page(): React.ReactNode { return <ResourcePage kind="models" copy={{ eyebrow: "Registry", title: "Models", description: "Versioned bundles moving through qualification, deployment, and revocation.", emptyTitle: "No model bundles", emptyDetail: "Register an immutable bundle after its artifacts are verified." }} />; }

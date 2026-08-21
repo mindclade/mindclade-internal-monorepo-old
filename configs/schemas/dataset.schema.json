@@ -1,1 +1,53 @@
-{}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mindclade.com/contracts/config/dataset-1.0.0.schema.json",
+  "title": "Mindclade dataset contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "datasetId", "version", "owner", "classification", "schemaDigest", "primaryKeys", "eventTimeField", "ingestionTimeField", "freshnessSeconds", "retentionDays", "sources", "fields"],
+  "properties": {
+    "schemaVersion": {"const": "mindclade.dev/dataset/v1"},
+    "datasetId": {"$ref": "#/$defs/id"},
+    "version": {"$ref": "#/$defs/semver"},
+    "owner": {"$ref": "#/$defs/id"},
+    "classification": {"enum": ["internal", "proprietary-internal", "restricted"]},
+    "schemaDigest": {"$ref": "#/$defs/digest"},
+    "primaryKeys": {"type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": {"$ref": "#/$defs/fieldName"}},
+    "eventTimeField": {"$ref": "#/$defs/fieldName"},
+    "ingestionTimeField": {"$ref": "#/$defs/fieldName"},
+    "freshnessSeconds": {"type": "integer", "minimum": 1, "maximum": 31536000},
+    "retentionDays": {"type": "integer", "minimum": 1, "maximum": 36500},
+    "sources": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"$ref": "#/$defs/source"}},
+    "fields": {"type": "array", "minItems": 1, "maxItems": 1024, "items": {"$ref": "#/$defs/field"}}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$"},
+    "fieldName": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$"},
+    "semver": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uri", "digest", "capturedAt", "licenseRef", "useConstraints"],
+      "properties": {
+        "uri": {"type": "string", "pattern": "^(gs|s3)://[^?#\\s]+$"},
+        "digest": {"$ref": "#/$defs/digest"},
+        "capturedAt": {"type": "string", "format": "date-time"},
+        "licenseRef": {"type": "string", "minLength": 1, "maxLength": 256},
+        "useConstraints": {"type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 256}}
+      }
+    },
+    "field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type", "nullable", "sensitivity", "logPolicy"],
+      "properties": {
+        "name": {"$ref": "#/$defs/fieldName"},
+        "type": {"enum": ["boolean", "bytes", "float", "integer", "string", "timestamp"]},
+        "nullable": {"type": "boolean"},
+        "sensitivity": {"enum": ["public", "internal", "proprietary-internal", "restricted"]},
+        "logPolicy": {"enum": ["drop", "redact"]}
+      }
+    }
+  }
+}

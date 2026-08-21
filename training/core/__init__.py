@@ -3,4 +3,8 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Mindclade scaffold package for training/core."""
+"""Authoritative local training lifecycle."""
+
+from .trainer import CancellationCheck, Scheduler, Trainer, TrainerConfig
+
+__all__ = ["CancellationCheck", "Scheduler", "Trainer", "TrainerConfig"]

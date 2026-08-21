@@ -4,8 +4,26 @@ All notable changes to the repository architecture and released implementation
 surfaces are recorded here. Individual model, dataset, runtime, and service
 releases also carry immutable release manifests and evidence bundles.
 
+## 2026-08-20 — Bazel graph production hardening
+
+- retained the qualified Bazel 9.1.1/ruleset graph after testing the current LTS minor and
+  finding that its lock-format migration could not be regenerated in the available environment;
+- made every CI loading, layering, toolchain-selection, affected-test, and qualification
+  invocation read the committed module lock without updating it;
+- centralized noninteractive output under `--config=ci`, routed repository and documentation
+  commands through `tools/dev/bazelw`, and added regression assertions for those contracts.
+- added Bazel 8+ `REPO.bazel` traversal policy so nested Node, Python, and Terraform tool
+  output cannot inject third-party packages, bytecode, or provider symlinks into `//...`.
+
+This is local build-graph qualification, not remote-execution, connected-provider, artifact
+publication, deployment, or production-promotion evidence.
+
 ## 2026-08-20 — Terraform v0.3.0 candidate
 
+- added an explicit environment upgrade policy: development is the RAPID/CANARY cohort while
+  staging, production, and control clusters remain REGULAR/QUALIFIED;
+- added additive KMS encrypter/decrypter grants for live-owned service agents and allowed a
+  dedicated server-access-log sink bucket to terminate recursive logging safely;
 - removed the Binary Authorization module's project-wide
   `roles/containeranalysis.occurrences.editor` grant, which could update and delete release
   evidence, and exported the exact create/get/list occurrence contract for the authoritative
@@ -14,8 +32,8 @@ releases also carry immutable release manifests and evidence bundles.
   removal; v0.2.0 remained an unpublished planned contract and is not a production baseline.
 
 This entry describes a release candidate, not a published tag or production deployment.
-The live custom role, connected plan, signing canary, empty drift plan, recovery, cost, and
-operational evidence remain promotion blockers.
+The live custom role, current GKE channel/version availability, connected plans, WIF/storage
+canaries, empty drift plans, recovery, cost, and operational evidence remain promotion blockers.
 
 ## 2026-08-20 — Terraform v0.2.0 candidate (superseded before release)
 

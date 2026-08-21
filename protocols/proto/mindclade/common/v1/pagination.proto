@@ -1,12 +1,22 @@
 // Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 // Mindclade Proprietary and Confidential.
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-//
 
 syntax = "proto3";
 
 package mindclade.common.v1;
 
+// PaginationScaffold remains for wire compatibility with the reserved scaffold.
 message PaginationScaffold {
+  option deprecated = true;
   string reserved = 1;
+}
+
+message PageRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+}
+
+message PageResponse {
+  string next_page_token = 1;
 }

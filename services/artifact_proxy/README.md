@@ -1,7 +1,8 @@
 # Artifact proxy
 
 **Language:** Rust  
-**Status in this archive:** target-state composition scaffold; not a production implementation.
+**Status in this archive:** core implementation complete; provider/network composition and
+deployment qualification pending.
 
 ## Role
 
@@ -46,7 +47,8 @@ tokens cannot commit, and unverified bytes are never accepted.
 
 ## Limitations
 
-The Rust files in this scaffold reserve the intended package and build
-boundaries. Promotion requires actual runtime implementation, connected tests,
-fuzz/concurrency qualification, load and failure testing, security review, and
-evidence referenced from `PRODUCTION_READINESS.md`.
+The reusable core implements validated grants, bounded ranges, provider-backed publication/read,
+cache behavior, and component tests. The checked-in binary is deliberately a fail-closed
+composition seam: no listener starts until deployment wiring supplies a qualified object-store
+provider, network transport, identity, and telemetry exporter. Connected concurrency, load,
+failure, security, image, and rollback evidence remains required by `PRODUCTION_READINESS.md`.

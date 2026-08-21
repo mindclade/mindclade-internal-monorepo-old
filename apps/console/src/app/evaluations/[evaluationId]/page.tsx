@@ -3,6 +3,10 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export default function Page(): JSX.Element {
-  return <main data-scaffold="apps/console/src/app/evaluations/[evaluationId]/page.tsx" />;
+import Link from "next/link";
+import { EvaluationDetail } from "../../../components/EvaluationDetail";
+
+export default async function Page({ params }: { params: Promise<{ evaluationId: string }> }): Promise<React.ReactNode> {
+  const { evaluationId } = await params;
+  return <div className="page-stack"><header className="page-heading"><div><Link className="back-link" href="/evaluations">← Evaluations</Link><span className="eyebrow">Evaluation evidence</span><h1 className="identifier">{evaluationId}</h1><p>Independent gate results and immutable evidence identity.</p></div></header><EvaluationDetail evaluationId={evaluationId} /></div>;
 }

@@ -3,12 +3,9 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for services/workers/preprocessing/lifecycle.py.
+"""Shared lifecycle names exposed at the service boundary."""
 
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+from libs.python.worker_runtime import WorkerLifecycle as Lifecycle
+from libs.python.worker_runtime import WorkerState as State
 
-from __future__ import annotations
-
-SCAFFOLD_PATH: str = "services/workers/preprocessing/lifecycle.py"
+__all__ = ["Lifecycle", "State"]

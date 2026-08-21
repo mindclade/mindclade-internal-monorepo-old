@@ -5525,6 +5525,7 @@ The supplied `libs/go` tree is already implemented and is adopted immediately. T
 ├── pnpm-workspace.yaml
 ├── pyproject.toml
 ├── README.md
+├── REPO.bazel
 ├── rustfmt.toml
 ├── SECURITY.md
 ├── tsconfig.base.json
@@ -5535,7 +5536,7 @@ The supplied `libs/go` tree is already implemented and is adopted immediately. T
 
 ### Repository and build
 
-- `bazel test //...` succeeds in the pinned Nix environment.
+- `tools/dev/bazelw test //... --config=ci` succeeds in the pinned Nix environment.
 - Local and remote execution-platform manifests have identical digests.
 - Dependency-layer and visibility checks pass.
 - No undeclared host tools or network package installation occur in Bazel actions.

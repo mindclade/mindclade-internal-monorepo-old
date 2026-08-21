@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "mindclade.dev/dataset/v1",
+  "datasetId": "contract-fixture",
+  "version": "1.0.0",
+  "owner": "data-platform",
+  "classification": "proprietary-internal",
+  "schemaDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "primaryKeys": ["record_id"],
+  "eventTimeField": "event_time",
+  "ingestionTimeField": "ingestion_time",
+  "freshnessSeconds": 86400,
+  "retentionDays": 365,
+  "sources": [
+    {
+      "uri": "gs://mindclade-contract-fixtures/source",
+      "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "capturedAt": "2026-08-20T00:00:00Z",
+      "licenseRef": "Mindclade-internal-use",
+      "useConstraints": ["contract-testing-only"]
+    }
+  ],
+  "fields": [
+    {"name": "record_id", "type": "string", "nullable": false, "sensitivity": "internal", "logPolicy": "redact"},
+    {"name": "event_time", "type": "timestamp", "nullable": false, "sensitivity": "internal", "logPolicy": "redact"},
+    {"name": "ingestion_time", "type": "timestamp", "nullable": false, "sensitivity": "internal", "logPolicy": "redact"}
+  ]
+}

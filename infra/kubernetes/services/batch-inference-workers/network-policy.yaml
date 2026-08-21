@@ -1,0 +1,21 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: batch-inference-worker-default-deny
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: batch-inference-worker
+    app.kubernetes.io/part-of: mindclade-platform
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: batch-inference-worker
+  policyTypes:
+    - Ingress
+    - Egress

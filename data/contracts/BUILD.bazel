@@ -3,13 +3,21 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_python//python:defs.bzl", "py_library")
+
 package(default_visibility = ["//visibility:private"])
 
-filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
+py_library(
+    name = "contracts",
+    srcs = [
+        "__init__.py",
+        "dataset.py",
+        "record.py",
+        "shard.py",
+        "snapshot.py",
+        "source.py",
+        "validation.py",
+    ],
+    imports = ["../.."],
     visibility = ["//visibility:public"],
 )

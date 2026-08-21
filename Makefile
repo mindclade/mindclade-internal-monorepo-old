@@ -11,12 +11,7 @@ SHELL := /usr/bin/env bash
 DRY_RUN ?= 0
 CLEAN_CONFIRM ?= 0
 
-BAZEL := $(shell \
-	if command -v bazelisk >/dev/null 2>&1; then \
-		echo bazelisk; \
-	elif command -v bazel >/dev/null 2>&1; then \
-		echo bazel; \
-	fi)
+BAZEL := tools/dev/bazelw
 
 .PHONY: help \
 	check-root \
@@ -70,12 +65,12 @@ selfcheck: check-root
 		fi; \
 	done
 
-check-bazel:
-	@if [ -z "$(BAZEL)" ]; then \
-		echo "ERROR: bazelisk or bazel must be on PATH." >&2; \
+check-bazel: check-root
+	@if [ ! -x "$(BAZEL)" ]; then \
+		echo "ERROR: repository Bazel wrapper is not executable: $(BAZEL)" >&2; \
 		exit 1; \
 	fi
-	@echo "Using Bazel binary: $(BAZEL)"
+	@$(BAZEL) --version
 
 clean: selfcheck clean-soft clean-bazel
 

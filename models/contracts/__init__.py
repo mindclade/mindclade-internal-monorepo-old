@@ -3,4 +3,14 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Mindclade scaffold package for models/contracts."""
+"""Model contract package with a shared target-card core."""
+
+from .target_card import ActivationState, MetricDirection, MetricGate, ModelFamily, ModelTargetCard
+
+__all__ = [
+    "ActivationState",
+    "MetricDirection",
+    "MetricGate",
+    "ModelFamily",
+    "ModelTargetCard",
+]

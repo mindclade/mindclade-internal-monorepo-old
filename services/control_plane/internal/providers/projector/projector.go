@@ -179,6 +179,10 @@ func (factory *ProjectorFactory) Create(ctx context.Context, profile bootstrap.P
 		return bootstrap.Runtime{}, err
 	}
 
+	// The processor needs the elector's current fencing token, while the
+	// elector must own the processor's Run loop. The handler is bound below,
+	// after both mechanisms exist and before the runtime can start.
+	var leaderHandler leadership.Handler
 	elector, err := leadership.New(
 		leases,
 		leadership.Config{
@@ -189,8 +193,20 @@ func (factory *ProjectorFactory) Create(ctx context.Context, profile bootstrap.P
 			AcquireInterval:        leaseAcquireInterval,
 			ReleaseTimeout:         leaseReleaseTimeout,
 			RequireLeaderReadiness: leaderReadinessRequired,
+			ExitOnLeadershipLoss:   true,
 		},
-		holdLeadership,
+		func(ctx context.Context, session leadership.Session) error {
+			if leaderHandler == nil {
+				return faults.New(
+					faults.CodeFailedPrecondition,
+					"projector leadership handler is not configured",
+					faults.WithReason("projector_leadership_handler_not_configured"),
+					faults.WithOperation("controlplane.projector.ProjectorFactory.Create"),
+					faults.WithRetryPolicy(faults.NoRetry()),
+				)
+			}
+			return leaderHandler(ctx, session)
+		},
 		leadership.WithClock(shared.Clock),
 		leadership.WithRetry(shared.Retry),
 	)
@@ -223,6 +239,12 @@ func (factory *ProjectorFactory) Create(ctx context.Context, profile bootstrap.P
 			LeaseDuration: projectionLeaseDuration,
 		},
 		projector.WithClock(shared.Clock),
+	)
+	if err != nil {
+		return bootstrap.Runtime{}, err
+	}
+	leaderHandler, projectorComponent, err := leadership.GateComponent(
+		loop.Component("projector/" + projectionName),
 	)
 	if err != nil {
 		return bootstrap.Runtime{}, err
@@ -268,7 +290,7 @@ func (factory *ProjectorFactory) Create(ctx context.Context, profile bootstrap.P
 			projection.Mechanisms{
 				Cursors:    cursors,
 				Inbox:      processor,
-				Projectors: map[string]*projector.Processor{projectionName: loop},
+				Projectors: map[string]servicekit.Component{projectionName: projectorComponent},
 			},
 			// A subscription rather than a publisher: this role consumes the
 			// stream other roles produce, and writes no outbox of its own.
@@ -330,15 +352,6 @@ func electorFence(elector *leadership.Elector) func() (uint64, bool) {
 		}
 		return session.Fence(), true
 	}
-}
-
-// holdLeadership is the elector's handler. The projector loop runs as its own
-// lifecycle component and reads leadership through the fence, so this holds
-// the lease and returns when leadership is lost or the process is shutting
-// down.
-func holdLeadership(ctx context.Context, _ leadership.Session) error {
-	<-ctx.Done()
-	return ctx.Err()
 }
 
 // leaseOwner identifies this process instance to the lease store. The hostname

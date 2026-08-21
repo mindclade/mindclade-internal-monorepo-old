@@ -1,12 +1,32 @@
 // Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 // Mindclade Proprietary and Confidential.
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-//
 
 syntax = "proto3";
 
 package mindclade.artifact.v1;
 
+import "mindclade/artifact/v1/artifact.proto";
+import "mindclade/common/v1/identifiers.proto";
+import "mindclade/common/v1/pagination.proto";
+
 message ServiceScaffold {
+  option deprecated = true;
   string reserved = 1;
+}
+
+message ListArtifactsRequest {
+  mindclade.common.v1.PageRequest page = 1;
+  optional string logical_kind = 2;
+}
+message ListArtifactsResponse {
+  repeated ArtifactRef artifacts = 1;
+  mindclade.common.v1.PageResponse page = 2;
+}
+message GetArtifactRequest { mindclade.common.v1.ContentDigest digest = 1; }
+message GetArtifactResponse { ArtifactRef artifact = 1; }
+
+service ArtifactService {
+  rpc ListArtifacts(ListArtifactsRequest) returns (ListArtifactsResponse);
+  rpc GetArtifact(GetArtifactRequest) returns (GetArtifactResponse);
 }

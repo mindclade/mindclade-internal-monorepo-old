@@ -1,10 +1,29 @@
 {
   "name": "@mindclade/sdk-typescript",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
+  "sideEffects": false,
+  "files": ["dist", "README.md"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./protobuf/*": {
+      "types": "./dist/generated/proto/*.d.ts",
+      "import": "./dist/generated/proto/*.js"
+    }
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "2.14.0"
+  },
   "scripts": {
-    "build": "echo scaffold",
-    "test": "echo scaffold"
+    "build": "../../node_modules/@typescript/native/bin/tsc -p tsconfig.json",
+    "generate": "cd ../.. && buf generate protocols --template protocols/buf.gen.yaml && openapi-typescript protocols/openapi/public.openapi.yaml -o sdk/typescript/src/generated/api.ts",
+    "generate:check": "cd ../.. && python3 tools/codegen/generate_typescript_sdk.py --check",
+    "lint": "../../node_modules/@typescript/native/bin/tsc -p tsconfig.json --noEmit",
+    "test": "node --import tsx --test tests/**/*.test.ts",
+    "typecheck": "../../node_modules/@typescript/native/bin/tsc -p tsconfig.json --noEmit"
   }
 }

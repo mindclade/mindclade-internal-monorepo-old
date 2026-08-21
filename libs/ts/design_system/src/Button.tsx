@@ -3,6 +3,19 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export default function Button(): JSX.Element {
-  return <main data-scaffold="libs/ts/design_system/src/Button.tsx" />;
+import type { ButtonHTMLAttributes, ReactElement, ReactNode } from "react";
+
+export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  tone?: "primary" | "secondary" | "quiet" | "danger";
+  size?: "small" | "medium";
+  icon?: ReactNode;
+}
+
+export function Button({ tone = "secondary", size = "medium", icon, className = "", children, ...props }: ButtonProps): ReactElement {
+  return (
+    <button className={`mc-button mc-button--${tone} mc-button--${size} ${className}`.trim()} {...props}>
+      {icon === undefined ? null : <span className="mc-button__icon" aria-hidden="true">{icon}</span>}
+      <span>{children}</span>
+    </button>
+  );
 }

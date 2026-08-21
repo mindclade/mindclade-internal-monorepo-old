@@ -1,7 +1,535 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
----
-# Scaffold configuration; promotion requires schema validation.
+openapi: 3.1.1
+info:
+  title: Mindclade Public API
+  version: 1.0.0
+  description: |
+    Stable browser and public-SDK projection of Mindclade run, data, model,
+    artifact, evaluation, and inference contracts. Scientific payloads are
+    referenced by immutable artifacts rather than embedded in control messages.
+servers:
+  - url: https://api.mindclade.ai
+    description: Production
+security:
+  - bearerAuth: []
+tags:
+  - name: Runs
+  - name: Datasets
+  - name: Models
+  - name: Artifacts
+  - name: Evaluations
+  - name: Inference
+paths:
+  /v1/runs:
+    get:
+      operationId: listRuns
+      tags: [Runs]
+      parameters:
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/PageToken'
+        - name: state
+          in: query
+          schema: { $ref: '#/components/schemas/RunState' }
+      responses:
+        '200':
+          description: A page of runs visible to the caller.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListRunsResponse' }
+        default: { $ref: '#/components/responses/Error' }
+    post:
+      operationId: createRun
+      tags: [Runs]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateRunRequest' }
+      responses:
+        '201':
+          description: Run accepted for durable orchestration.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Run' }
+        default: { $ref: '#/components/responses/Error' }
+  /v1/runs/{runId}:
+    parameters:
+      - $ref: '#/components/parameters/RunId'
+    get:
+      operationId: getRun
+      tags: [Runs]
+      responses:
+        '200':
+          description: Run state and progress.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Run' }
+        default: { $ref: '#/components/responses/Error' }
+  /v1/runs/{runId}:cancel:
+    post:
+      operationId: cancelRun
+      tags: [Runs]
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string, maxLength: 512 }
+              additionalProperties: false
+      responses:
+        '200':
+          description: Cancellation recorded; in-flight stages drain cooperatively.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Run' }
+        default: { $ref: '#/components/responses/Error' }
+  /v1/datasets:
+    get:
+      operationId: listDatasets
+      tags: [Datasets]
+      parameters:
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/PageToken'
+      responses:
+        '200':
+          description: Immutable dataset releases.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListDatasetsResponse' }
+        default: { $ref: '#/components/responses/Error' }
+  /v1/datasets/{datasetId}:
+    get:
+      operationId: getDataset
+      tags: [Datasets]
+      parameters:
+        - name: datasetId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/ResourceId' }
+      responses:
+        '200':
+          description: Dataset metadata and immutable manifest identity.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Dataset' }
+        default: { $ref: '#/components/responses/Error' }
+  /v1/models:
+    get:
+      operationId: listModels
+      tags: [Models]
+      parameters:
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/PageToken'
+      responses:
+        '200':
+          description: Model bundles visible to the caller.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListModelsResponse' }
+        default: { $ref: '#/components/responses/Error' }
+  /v1/models/{modelId}:
+    get:
+      operationId: getModel
+      tags: [Models]
+      parameters:
+        - name: modelId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/ResourceId' }
+      responses:
+        '200':
+          description: Model bundle metadata and qualification state.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Model' }
+        default: { $ref: '#/components/responses/Error' }
+  /v1/artifacts:
+    get:
+      operationId: listArtifacts
+      tags: [Artifacts]
+      parameters:
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/PageToken'
+        - name: kind
+          in: query
+          schema: { type: string, maxLength: 64 }
+      responses:
+        '200':
+          description: Content-addressed artifacts and metadata.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListArtifactsResponse' }
+        default: { $ref: '#/components/responses/Error' }
+  /v1/artifacts/{digest}:
+    get:
+      operationId: getArtifact
+      tags: [Artifacts]
+      parameters:
+        - name: digest
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/Digest' }
+      responses:
+        '200':
+          description: Artifact metadata; bytes are transferred through a bounded grant.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Artifact' }
+        default: { $ref: '#/components/responses/Error' }
+  /v1/evaluations:
+    get:
+      operationId: listEvaluations
+      tags: [Evaluations]
+      parameters:
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/PageToken'
+      responses:
+        '200':
+          description: Independent evaluation records.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ListEvaluationsResponse' }
+        default: { $ref: '#/components/responses/Error' }
+  /v1/evaluations/{evaluationId}:
+    get:
+      operationId: getEvaluation
+      tags: [Evaluations]
+      parameters:
+        - name: evaluationId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/ResourceId' }
+      responses:
+        '200':
+          description: Evaluation result and evidence references.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Evaluation' }
+        default: { $ref: '#/components/responses/Error' }
+  /v1/inference:
+    post:
+      operationId: createInference
+      tags: [Inference]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InferenceRequest' }
+      responses:
+        '200':
+          description: Completed synchronous response for bounded requests.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InferenceResponse' }
+        '202':
+          description: Durable run created because execution exceeds the online envelope.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Run' }
+        default: { $ref: '#/components/responses/Error' }
+  /v1/inference:stream:
+    post:
+      operationId: streamInference
+      tags: [Inference]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InferenceRequest' }
+      responses:
+        '200':
+          description: Server-sent JSON InferenceStreamEvent values.
+          content:
+            text/event-stream:
+              schema: { type: string }
+        default: { $ref: '#/components/responses/Error' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: OIDC access token
+  parameters:
+    PageSize:
+      name: pageSize
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+    PageToken:
+      name: pageToken
+      in: query
+      schema: { type: string, maxLength: 4096 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 16, maxLength: 128 }
+    RunId:
+      name: runId
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/ResourceId' }
+  responses:
+    Error:
+      description: Structured API failure.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+  schemas:
+    ResourceId:
+      type: string
+      pattern: '^[a-z][a-z0-9_-]{2,127}$'
+    Digest:
+      type: string
+      pattern: '^sha256:[a-f0-9]{64}$'
+    Timestamp:
+      type: string
+      format: date-time
+    PageInfo:
+      type: object
+      required: [nextPageToken]
+      properties:
+        nextPageToken: { type: string }
+      additionalProperties: false
+    Problem:
+      type: object
+      required: [type, title, status, code, requestId]
+      properties:
+        type: { type: string, format: uri-reference }
+        title: { type: string }
+        status: { type: integer, minimum: 400, maximum: 599 }
+        detail: { type: string }
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]+$' }
+        requestId: { type: string }
+        retryAfterMs: { type: integer, minimum: 0 }
+        fieldViolations:
+          type: array
+          items:
+            type: object
+            required: [field, description]
+            properties:
+              field: { type: string }
+              description: { type: string }
+            additionalProperties: false
+      additionalProperties: false
+    RunState:
+      type: string
+      enum: [QUEUED, PREPARING, RUNNING, SUCCEEDED, FAILED, CANCELLING, CANCELLED]
+    RunKind:
+      type: string
+      enum: [PREPROCESSING, TRAINING, EVALUATION, BATCH_INFERENCE, ONLINE_INFERENCE, CURATION]
+    Run:
+      type: object
+      required: [id, name, kind, state, createdAt, updatedAt, progress, resourceVersion]
+      properties:
+        id: { $ref: '#/components/schemas/ResourceId' }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        kind: { $ref: '#/components/schemas/RunKind' }
+        state: { $ref: '#/components/schemas/RunState' }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+        progress: { type: number, minimum: 0, maximum: 1 }
+        currentStage: { type: string, maxLength: 120 }
+        owner: { type: string, maxLength: 200 }
+        modelId: { $ref: '#/components/schemas/ResourceId' }
+        outputArtifacts: { type: array, items: { $ref: '#/components/schemas/Digest' } }
+        resourceVersion: { type: string, minLength: 1, maxLength: 128 }
+        failure: { $ref: '#/components/schemas/Problem' }
+      additionalProperties: false
+    CreateRunRequest:
+      type: object
+      required: [name, kind, configurationDigest]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        kind: { $ref: '#/components/schemas/RunKind' }
+        configurationDigest: { $ref: '#/components/schemas/Digest' }
+        modelId: { $ref: '#/components/schemas/ResourceId' }
+        datasetId: { $ref: '#/components/schemas/ResourceId' }
+        labels:
+          type: object
+          additionalProperties: { type: string, maxLength: 128 }
+          maxProperties: 32
+      additionalProperties: false
+    ListRunsResponse:
+      type: object
+      required: [items, page]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Run' } }
+        page: { $ref: '#/components/schemas/PageInfo' }
+      additionalProperties: false
+    Dataset:
+      type: object
+      required: [id, name, version, manifestDigest, recordCount, sizeBytes, createdAt, status]
+      properties:
+        id: { $ref: '#/components/schemas/ResourceId' }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        version: { type: string, minLength: 1, maxLength: 128 }
+        manifestDigest: { $ref: '#/components/schemas/Digest' }
+        recordCount: { type: integer, minimum: 0 }
+        sizeBytes: { type: integer, minimum: 0 }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        status: { type: string, enum: [BUILDING, READY, DEPRECATED, QUARANTINED] }
+        license: { type: string, maxLength: 200 }
+        lineageSummary: { type: string, maxLength: 500 }
+      additionalProperties: false
+    ListDatasetsResponse:
+      type: object
+      required: [items, page]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Dataset' } }
+        page: { $ref: '#/components/schemas/PageInfo' }
+      additionalProperties: false
+    Model:
+      type: object
+      required: [id, name, version, family, bundleDigest, status, createdAt]
+      properties:
+        id: { $ref: '#/components/schemas/ResourceId' }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        version: { type: string, minLength: 1, maxLength: 128 }
+        family: { type: string, maxLength: 120 }
+        bundleDigest: { $ref: '#/components/schemas/Digest' }
+        status: { type: string, enum: [CANDIDATE, QUALIFIED, DEPLOYED, RETIRED, REVOKED] }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        capabilities: { type: array, items: { type: string }, maxItems: 64 }
+        parameterCount: { type: integer, minimum: 0 }
+      additionalProperties: false
+    ListModelsResponse:
+      type: object
+      required: [items, page]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Model' } }
+        page: { $ref: '#/components/schemas/PageInfo' }
+      additionalProperties: false
+    Artifact:
+      type: object
+      required: [digest, sizeBytes, mediaType, kind, schemaVersion, createdAt, verificationStatus]
+      properties:
+        digest: { $ref: '#/components/schemas/Digest' }
+        sizeBytes: { type: integer, minimum: 0 }
+        mediaType: { type: string, maxLength: 200 }
+        kind: { type: string, maxLength: 100 }
+        schemaVersion: { type: integer, minimum: 1 }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        verificationStatus: { type: string, enum: [PENDING, VERIFIED, QUARANTINED, REVOKED] }
+        lineageCount: { type: integer, minimum: 0 }
+      additionalProperties: false
+    ListArtifactsResponse:
+      type: object
+      required: [items, page]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Artifact' } }
+        page: { $ref: '#/components/schemas/PageInfo' }
+      additionalProperties: false
+    EvaluationMetric:
+      type: object
+      required: [name, value, unit, passed]
+      properties:
+        name: { type: string, maxLength: 120 }
+        value: { type: number }
+        unit: { type: string, maxLength: 32 }
+        threshold: { type: number }
+        passed: { type: boolean }
+      additionalProperties: false
+    Evaluation:
+      type: object
+      required: [id, modelId, suite, status, createdAt, metrics, evidenceDigest]
+      properties:
+        id: { $ref: '#/components/schemas/ResourceId' }
+        modelId: { $ref: '#/components/schemas/ResourceId' }
+        suite: { type: string, minLength: 1, maxLength: 160 }
+        status: { type: string, enum: [QUEUED, RUNNING, PASSED, FAILED, BLOCKED] }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        metrics: { type: array, items: { $ref: '#/components/schemas/EvaluationMetric' } }
+        evidenceDigest: { $ref: '#/components/schemas/Digest' }
+        holdoutProtected: { type: boolean, default: true }
+      additionalProperties: false
+    ListEvaluationsResponse:
+      type: object
+      required: [items, page]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Evaluation' } }
+        page: { $ref: '#/components/schemas/PageInfo' }
+      additionalProperties: false
+    InferenceInput:
+      oneOf:
+        - type: object
+          required: [sequence]
+          properties:
+            sequence: { type: string, minLength: 1, maxLength: 100000 }
+          additionalProperties: false
+        - type: object
+          required: [artifactDigest]
+          properties:
+            artifactDigest: { $ref: '#/components/schemas/Digest' }
+          additionalProperties: false
+    InferenceRequest:
+      type: object
+      required: [modelId, input]
+      properties:
+        modelId: { $ref: '#/components/schemas/ResourceId' }
+        input: { $ref: '#/components/schemas/InferenceInput' }
+        deadlineMs: { type: integer, minimum: 1000, maximum: 300000, default: 60000 }
+        seed: { type: integer, minimum: 0 }
+        parameters:
+          type: object
+          additionalProperties: { type: number }
+          maxProperties: 32
+      additionalProperties: false
+    InferenceResponse:
+      type: object
+      required: [requestId, modelId, modelVersion, artifacts, usage]
+      properties:
+        requestId: { type: string }
+        modelId: { $ref: '#/components/schemas/ResourceId' }
+        modelVersion: { type: string }
+        artifacts: { type: array, items: { $ref: '#/components/schemas/Artifact' } }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+        usage:
+          type: object
+          required: [inputUnits, outputUnits, wallTimeMs]
+          properties:
+            inputUnits: { type: integer, minimum: 0 }
+            outputUnits: { type: integer, minimum: 0 }
+            wallTimeMs: { type: integer, minimum: 0 }
+          additionalProperties: false
+      additionalProperties: false
+    InferenceStreamEvent:
+      oneOf:
+        - type: object
+          required: [type, requestId]
+          properties:
+            type: { const: accepted }
+            requestId: { type: string }
+          additionalProperties: false
+        - type: object
+          required: [type, progress, stage]
+          properties:
+            type: { const: progress }
+            progress: { type: number, minimum: 0, maximum: 1 }
+            stage: { type: string }
+          additionalProperties: false
+        - type: object
+          required: [type, result]
+          properties:
+            type: { const: result }
+            result: { $ref: '#/components/schemas/InferenceResponse' }
+          additionalProperties: false
+        - type: object
+          required: [type, error]
+          properties:
+            type: { const: error }
+            error: { $ref: '#/components/schemas/Problem' }
+          additionalProperties: false

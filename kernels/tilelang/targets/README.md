@@ -1,35 +1,16 @@
-# Kernels / Tilelang / Targets
+# TileLang accelerator targets
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Python provider APIs and TileLang accelerator implementations
+- **Status:** Implemented static capability models; runtime discovery still verifies the actual device.
 
-## Purpose
+The registry describes CUDA `sm_90`, `sm_100`, `sm_120` and AMD CDNA
+`gfx90a`, `gfx942`, `gfx950`. Each target records its TileLang target string,
+supported dtypes, shared-memory/thread limits, warp size, and availability of
+async copy, tensor cores, TMA, WGMMA, TMEM, and warp specialization.
 
-Reference operations, provider dispatch, TileLang kernels, autotuning, target support, and signature-specific numerical/performance qualification. This path specializes that domain for **targets**.
+Schedules express requirements through `TargetRequirement`. Rejection reasons
+are stable (`dtype`, `shared_memory`, `threads`, `async_copy`, `tma`, and so on)
+and are recorded by dispatch/tuning rather than hidden by a fallback inside a
+kernel factory.
 
-## Boundary
-
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
-
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
-
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Static models are allowlists, not runtime assertions. Driver/runtime identity,
+device UUID/model, and actual architecture remain part of qualification evidence.

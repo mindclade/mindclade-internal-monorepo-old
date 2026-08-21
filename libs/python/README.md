@@ -53,7 +53,7 @@ uv run --frozen pytest libs/python tests/integration/cross_language
 uv run --frozen ruff check libs/python
 uv run --frozen ruff format --check libs/python
 uv run --frozen mypy libs/python
-bazel test --config=ci //libs/python/...
+tools/dev/bazelw test //libs/python/... --config=ci
 ```
 
 These are libraries rather than deployment-facing code, so they do not carry an SLO, runbook,

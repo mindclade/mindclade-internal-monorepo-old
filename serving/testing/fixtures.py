@@ -3,12 +3,36 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for serving/testing/fixtures.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Validated deterministic serving fixtures."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "serving/testing/fixtures.py"
+from serving.contracts import InferenceRequest, InputDescriptor
+
+
+def inference_request(
+    request_id: str = "request-1",
+    *,
+    model_digest: str = "sha256:" + "a" * 64,
+    deadline_unix_millis: int = 10_000,
+) -> InferenceRequest:
+    descriptor = InputDescriptor(
+        "segment-1",
+        "sha256:" + "b" * 64,
+        "/buffers/input",
+        4,
+        1,
+        deadline_unix_millis + 1_000,
+    )
+    value = InferenceRequest(
+        request_id,
+        model_digest,
+        request_id.encode(),
+        (descriptor,),
+        (),
+        4,
+        4,
+        deadline_unix_millis,
+    )
+    value.validate(1_000)
+    return value

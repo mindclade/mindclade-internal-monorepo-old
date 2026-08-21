@@ -1,0 +1,152 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+"""Validate the provider-neutral alert catalog without a YAML runtime dependency."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any, cast
+
+from configs.contract_validation import load_json, validate
+
+_REQUIRED_ENVIRONMENT_INPUTS = {
+    "emailNotificationChannelResourceNames",
+    "environment",
+    "googleChatNotificationChannelResourceNames",
+    "httpsRunbookUrl",
+    "projectId",
+    "qualificationEvidenceSha256",
+}
+_FORBIDDEN_DIMENSIONS = {
+    "dataset",
+    "feature",
+    "label",
+    "model",
+    "molecule",
+    "prompt",
+    "request-id",
+    "sequence",
+    "tenant",
+    "user",
+}
+
+
+def _as_dict(value: object) -> dict[str, Any]:
+    return cast("dict[str, Any]", value) if isinstance(value, dict) else {}
+
+
+def _as_list(value: object) -> list[Any]:
+    return cast("list[Any]", value) if isinstance(value, list) else []
+
+
+def _as_string_set(value: object) -> set[str]:
+    items = _as_list(value)
+    return set(items) if all(isinstance(item, str) for item in items) else set()
+
+
+def load_json_yaml(path: Path) -> dict[str, Any]:
+    payload = "\n".join(
+        line
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if not line.startswith("#") and line.strip() != "---"
+    ).strip()
+    value = json.loads(payload)
+    if not isinstance(value, dict):
+        raise ValueError(f"{path}: expected one object")
+    return value
+
+
+def validate_catalog(root: Path) -> list[str]:
+    errors: list[str] = []
+    try:
+        alert_schema = load_json(root / "alert-contract.schema.json")
+        profile_schema = load_json(root / "availability-profiles.schema.json")
+        profile_document = load_json_yaml(root / "availability-profiles.yaml")
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        return [str(exc)]
+    errors.extend(
+        f"availability-profiles.yaml {failure.path}: {failure.message}"
+        for failure in validate(profile_document, profile_schema)
+    )
+    raw_profiles = _as_list(profile_document.get("profiles"))
+    profile_names = [str(item.get("name", "")) for item in raw_profiles if isinstance(item, dict)]
+    if profile_names != sorted(profile_names) or len(set(profile_names)) != len(profile_names):
+        errors.append("availability profiles must be sorted and unique")
+    profile_classes = {
+        str(item.get("name", "")): _as_string_set(item.get("serviceClasses"))
+        for item in raw_profiles
+        if isinstance(item, dict)
+    }
+    used_profiles: set[str] = set()
+    global_signals: set[str] = set()
+    alert_paths = sorted((root / "alerts").glob("*.yaml"))
+    if not alert_paths:
+        errors.append("alert catalog is empty")
+    for path in alert_paths:
+        try:
+            document = load_json_yaml(path)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            errors.append(f"{path.name}: {exc}")
+            continue
+        errors.extend(
+            f"{path.name} {failure.path}: {failure.message}"
+            for failure in validate(document, alert_schema)
+        )
+        if document.get("name") != path.stem:
+            errors.append(f"{path.name}: name must match the file stem")
+        environment_inputs = _as_string_set(document.get("requiredEnvironmentInputs"))
+        if environment_inputs != _REQUIRED_ENVIRONMENT_INPUTS:
+            errors.append(
+                f"{path.name}: Google Chat, email, runbook, project, environment, and evidence inputs are required"
+            )
+        profile = str(document.get("availabilityProfile", ""))
+        used_profiles.add(profile)
+        service_class = str(document.get("serviceClass", ""))
+        if service_class not in profile_classes.get(profile, set()):
+            errors.append(
+                f"{path.name}: availability profile does not permit service class {service_class!r}"
+            )
+        cardinality = _as_dict(document.get("cardinality"))
+        if not _FORBIDDEN_DIMENSIONS.issubset(
+            _as_string_set(cardinality.get("forbiddenDimensions"))
+        ):
+            errors.append(
+                f"{path.name}: sensitive/high-cardinality dimensions are not fully forbidden"
+            )
+        signals = _as_list(document.get("signals"))
+        names = [str(item.get("name", "")) for item in signals if isinstance(item, dict)]
+        if names != sorted(names) or len(set(names)) != len(names):
+            errors.append(f"{path.name}: signals must be sorted and unique")
+        observed = _as_list(document.get("observedSignals"))
+        observed_names = [str(item.get("name", "")) for item in observed if isinstance(item, dict)]
+        if observed_names != sorted(observed_names) or len(set(observed_names)) != len(
+            observed_names
+        ):
+            errors.append(f"{path.name}: observed signals must be sorted and unique")
+        for name in names + observed_names:
+            if name in global_signals:
+                errors.append(f"{path.name}: duplicate global signal name {name!r}")
+            global_signals.add(name)
+    unused = set(profile_names) - used_profiles
+    if unused:
+        errors.append(f"availability profiles have no alert consumer: {sorted(unused)}")
+    return sorted(set(errors))
+
+
+def main() -> int:
+    root = Path(__file__).resolve().parent
+    errors = validate_catalog(root)
+    for error in errors:
+        print(f"ERROR: {error}")
+    if errors:
+        return 1
+    print("observability alert contract validation passed")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

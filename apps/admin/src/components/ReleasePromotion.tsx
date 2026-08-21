@@ -3,6 +3,9 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export default function Releasepromotion(): JSX.Element {
-  return <main data-scaffold="apps/admin/src/components/ReleasePromotion.tsx" />;
+import type { ApprovalEvidence } from "../lib/types";
+import { ApprovalGate } from "./ApprovalGate";
+
+export function ReleasePromotion({ evidence, onApprove }: { evidence: ApprovalEvidence; onApprove?: (reason: string) => Promise<void> }): React.ReactNode {
+  return <ApprovalGate title="Promote model release" risk="Changes the deployment-eligible release pointer. Runtime rollout remains a separate, observable operation." evidence={evidence} confirmation="PROMOTE RELEASE" {...(onApprove === undefined ? {} : { onApprove })} />;
 }

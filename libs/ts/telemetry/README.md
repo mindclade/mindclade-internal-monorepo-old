@@ -1,11 +1,13 @@
-# Libs / Ts / Telemetry
+# TypeScript telemetry
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
+- **Status:** Implemented and unit tested; collector integration remains unqualified.
 - **Primary implementation ownership:** the language indicated by the second path segment
 
 ## Purpose
 
-Reusable mechanisms for one language. Libraries contain stable, broadly consumed behavior and no product-domain policy or executable composition roots. This path specializes that domain for **telemetry**.
+A bounded browser event queue with sensitive-field redaction, explicit flush,
+beacon support during page teardown, and fetch fallback. When no endpoint is
+configured, collection is disabled and no events leave the process.
 
 ## Boundary
 
@@ -18,18 +20,6 @@ This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
 ground. It may depend only in the direction documented by
 `docs/architecture/dependency-rules.md` and the accepted ADRs.
 
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Telemetry is best-effort and never part of a transaction or audit trail. Events
+must remain metadata-only: model payloads, credentials, prompts, molecular
+content, and unrestricted free text are outside the accepted contract.

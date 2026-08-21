@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "mindclade.dev/ingestion/v1",
+  "pipelineId": "contract-fixture",
+  "owner": "data-platform",
+  "sourceSnapshotDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "datasetContractDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "destinationPrefix": "gs://mindclade-contract-fixtures/output/",
+  "limits": {"maximumBytes": 1073741824, "maximumRecords": 1000000, "maximumDurationSeconds": 3600},
+  "failurePolicy": {"onContractViolation": "quarantine", "onChecksumMismatch": "fail", "publishPartial": false}
+}

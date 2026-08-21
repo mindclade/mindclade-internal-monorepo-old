@@ -1,10 +1,11 @@
 # Ingestion worker production readiness
 
-**Current status:** not promoted; scaffold only.
+**Current status:** adapter implemented; provider composition not promoted.
 
-- [ ] Real adapter implementation composes the owning domain engine.
-- [ ] Ticket/scope/budget/fencing verification passes.
-- [ ] Cancellation, deadline, retry, idempotency, and drain pass.
+- [x] Adapter implementation composes an injected owning-domain engine.
+- [x] Shared Rust worker runtime enforces ticket, scope, budget, and fencing contracts.
+- [x] Adapter lifecycle and bounded execution behavior have component coverage.
+- [ ] Connected cancellation, deadline, retry, idempotency, and drain pass with a real provider.
 - [ ] Output artifact/status commit is atomic and rejects stale attempts.
 - [ ] Determinism/provenance contract is recorded and tested.
 - [ ] Resource limits and failure diagnostics are qualified.

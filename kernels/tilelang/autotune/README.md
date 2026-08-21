@@ -1,35 +1,17 @@
-# Kernels / Tilelang / Autotune
+# Offline TileLang autotuning
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Python provider APIs and TileLang accelerator implementations
+- **Status:** Implemented bounded search and evidence records; no tuned winner is checked in yet.
 
-## Purpose
+Autotuning is offline and correctness-first. `SearchSpace` has an explicit
+maximum candidate count, `TuningBudget` limits compile and benchmark work, and
+every candidate receives a terminal status with a stable failure digest.
+Illegal schedules are rejected before compilation; compilable schedules must
+pass reference parity before timing.
 
-Reference operations, provider dispatch, TileLang kernels, autotuning, target support, and signature-specific numerical/performance qualification. This path specializes that domain for **autotune**.
+Latency is summarized with median and median absolute deviation. The tuning
+database binds results to request, source, schedule, target, device,
+driver/runtime, TileLang, compiler, and repository identities. A result from a
+different environment is a cache miss, not a near match.
 
-## Boundary
-
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
-
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
-
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Tuning output is machine-readable evidence. It never mutates dispatch defaults
+or publishes a qualification record; review and promotion are separate steps.

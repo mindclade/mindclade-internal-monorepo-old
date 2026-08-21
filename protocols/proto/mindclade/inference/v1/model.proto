@@ -1,11 +1,17 @@
 // Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 // Mindclade Proprietary and Confidential.
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-//
 
 syntax = "proto3";
 
 package mindclade.inference.v1;
+
+import "mindclade/common/v1/identifiers.proto";
+
+message ModelScaffold {
+  option deprecated = true;
+  string reserved = 1;
+}
 
 // Servable-model identity and the coarse execution declarations the online
 // inference path is allowed to reason about.
@@ -106,4 +112,9 @@ message ModelDescriptor {
   uint64 policy_epoch = 17;
   uint64 created_unix_millis = 18;
   uint64 expires_unix_millis = 19;
+}
+
+message ModelSelection {
+  mindclade.common.v1.ResourceId model_id = 1;
+  optional string version = 2;
 }

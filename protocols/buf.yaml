@@ -4,4 +4,38 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+version: v2
+
+# The repository is the authority for these internal wire contracts. Registry
+# publication is intentionally separate from local lint and compatibility
+# enforcement, so this module does not claim an unprovisioned BSR identity.
+modules:
+  - path: proto
+
+lint:
+  use:
+    - STANDARD
+  disallow_comment_ignores: true
+  # These two published runtime surfaces predate the repository-wide Buf gate.
+  # Renaming their services or RPC envelopes in place would be breaking. Keep
+  # the debt narrow and machine-readable; new files receive no exception.
+  ignore_only:
+    SERVICE_SUFFIX:
+      - proto/mindclade/runtime/v1/execution_service.proto
+      - proto/mindclade/runtime/v1/service.proto
+    RPC_REQUEST_RESPONSE_UNIQUE:
+      - proto/mindclade/runtime/v1/execution_service.proto
+      - proto/mindclade/runtime/v1/service.proto
+    RPC_REQUEST_STANDARD_NAME:
+      - proto/mindclade/runtime/v1/execution_service.proto
+      - proto/mindclade/runtime/v1/service.proto
+    RPC_RESPONSE_STANDARD_NAME:
+      - proto/mindclade/runtime/v1/execution_service.proto
+      - proto/mindclade/runtime/v1/service.proto
+
+# FILE prevents removal or incompatible reuse while still allowing an API to
+# move between packages only through an explicit migration rather than a
+# package-local comparison blind spot.
+breaking:
+  use:
+    - FILE

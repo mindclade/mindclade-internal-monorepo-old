@@ -13,7 +13,7 @@ data:
   activationState: blocked
   deviceResource: nvidia.com/gpu
   h100Profile: gke-h100-a3-megagpu-8g
-  h200Profile: gke-h200-a3-ultragpu-8g
+  b200Profile: gke-b200-a4-highgpu-8g
   nodePoolLabel: mindclade.dev/node-pool=gpu
   profileLabel: mindclade.dev/gpu-profile
   requiredTaint: nvidia.com/gpu=present:NoSchedule

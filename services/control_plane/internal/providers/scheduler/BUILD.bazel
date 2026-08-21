@@ -43,6 +43,7 @@ go_test(
         "//libs/go/config",
         "//libs/go/faults",
         "//services/control_plane/internal/bootstrap",
+        "//services/control_plane/internal/foundation/tasks",
         "@com_github_lib_pq//:pq",
     ],
 )
