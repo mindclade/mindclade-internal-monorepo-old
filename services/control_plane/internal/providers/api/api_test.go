@@ -57,6 +57,23 @@ func TestAPIFactoryBuildsThroughProductionLifecycle(t *testing.T) {
 	}
 }
 
+func TestRequestServingFactoryRefusesRoleMismatch(t *testing.T) {
+	admin, err := bootstrap.ProfileFor(bootstrap.RoleAdmin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewAPIFactory(apiSettings()).Create(context.Background(), admin); !faults.IsReason(err, "factory_profile_role_mismatch") {
+		t.Fatalf("API factory accepted admin profile: %v", err)
+	}
+	api, err := bootstrap.ProfileFor(bootstrap.RoleAPI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewAdminFactory(apiSettings()).Create(context.Background(), api); !faults.IsReason(err, "factory_profile_role_mismatch") {
+		t.Fatalf("admin factory accepted API profile: %v", err)
+	}
+}
+
 // The whole point of this role is that it mounts all three inbound surfaces.
 // The registry serves HTTP only, so these three capabilities together are what
 // bring the Connect and gRPC submodules into a production binary.

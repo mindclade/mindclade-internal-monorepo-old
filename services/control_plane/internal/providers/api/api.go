@@ -50,6 +50,7 @@ import (
 // deployment monitoring; it does not broaden the admin process by accident.
 type APIFactory struct {
 	sources []foundationconfig.Source
+	role    bootstrap.Role
 }
 
 // NewAPIFactory returns the API provider factory. With no sources the process
@@ -59,14 +60,17 @@ func NewAPIFactory(sources ...foundationconfig.Source) *APIFactory {
 	if len(sources) == 0 {
 		sources = []foundationconfig.Source{config.EnvironmentSource()}
 	}
-	return &APIFactory{sources: sources}
+	return &APIFactory{sources: sources, role: bootstrap.RoleAPI}
 }
 
 // NewAdminFactory returns the administrative provider factory. It shares the
 // API domain, identity, and transport construction; profile-specific auxiliary
 // components are still selected inside Create.
 func NewAdminFactory(sources ...foundationconfig.Source) *APIFactory {
-	return NewAPIFactory(sources...)
+	if len(sources) == 0 {
+		sources = []foundationconfig.Source{config.EnvironmentSource()}
+	}
+	return &APIFactory{sources: sources, role: bootstrap.RoleAdmin}
 }
 
 // Create resolves configuration and constructs every provider the API role
@@ -80,6 +84,18 @@ func (factory *APIFactory) Create(ctx context.Context, profile bootstrap.Profile
 			faults.CodeInvalidArgument,
 			"request-serving factory requires a context",
 			faults.WithReason("invalid_factory_request"),
+			faults.WithOperation("controlplane.api.APIFactory.Create"),
+			faults.WithRetryPolicy(faults.NoRetry()),
+		)
+	}
+	if err := profile.Validate(); err != nil {
+		return bootstrap.Runtime{}, err
+	}
+	if profile.Role != factory.role {
+		return bootstrap.Runtime{}, faults.New(
+			faults.CodeInvalidArgument,
+			"request-serving factory role does not match the process profile",
+			faults.WithReason("factory_profile_role_mismatch"),
 			faults.WithOperation("controlplane.api.APIFactory.Create"),
 			faults.WithRetryPolicy(faults.NoRetry()),
 		)
