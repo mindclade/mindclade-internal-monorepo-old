@@ -622,6 +622,74 @@ func TestFinalizationUsesStoreClockInsteadOfCallerTimestamp(t *testing.T) {
 	}
 }
 
+func TestFinalizationSamplesStoreClockAfterRowLock(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		finalize func(*Store, domainFixture) (admission.Reservation, bool, error)
+	}{
+		{
+			name: "commit",
+			finalize: func(store *Store, fixture domainFixture) (admission.Reservation, bool, error) {
+				return store.Commit(
+					context.Background(), fixture.reservation.ID, fixture.reservation.Version,
+					fixture.reservation.RequestDigest, fixture.reservation.Subject,
+					admission.Quota{
+						admission.UnitRequests: 1, admission.UnitInputTokens: 90,
+						admission.UnitOutputTokens: 40, admission.UnitCostMicros: 450,
+					}, testNow,
+				)
+			},
+		},
+		{
+			name: "release",
+			finalize: func(store *Store, fixture domainFixture) (admission.Reservation, bool, error) {
+				return store.Release(
+					context.Background(), fixture.reservation.ID, fixture.reservation.Version,
+					fixture.reservation.RequestDigest, fixture.reservation.Subject, testNow,
+				)
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			fixture := newDomainFixture(t)
+			document, _ := json.Marshal(fixture.reservation)
+			var persistedState string
+			var persistedFinalization time.Time
+			state := &sqltest.State{
+				Query: func(context.Context, string, []driver.NamedValue) (driver.Rows, error) {
+					if err := fixture.clock.Set(fixture.reservation.ExpiresAt); err != nil {
+						t.Fatal(err)
+					}
+					return sqltest.NewRows([]string{"document"}, []driver.Value{document}), nil
+				},
+				Exec: func(_ context.Context, query string, arguments []driver.NamedValue) (driver.Result, error) {
+					if !strings.Contains(query, "UPDATE "+DefaultReservationTable) {
+						t.Fatalf("unexpected finalization mutation: %s", query)
+					}
+					persistedState, _ = arguments[1].Value.(string)
+					persistedFinalization, _ = arguments[6].Value.(time.Time)
+					return driver.RowsAffected(1), nil
+				},
+			}
+			store, _ := newTestStore(t, state, fixture.clock, audit.NopRecorder{})
+			_, _, err := test.finalize(store, fixture)
+			if !faults.IsReason(err, "reservation_expired") {
+				t.Fatalf("post-lock expiry reason=%q error=%v", faults.ReasonOf(err), err)
+			}
+			if persistedState != string(admission.ReservationExpired) ||
+				!persistedFinalization.Equal(fixture.reservation.ExpiresAt) {
+				t.Fatalf(
+					"persisted state=%q finalized_at=%s, want expired at %s",
+					persistedState, persistedFinalization, fixture.reservation.ExpiresAt,
+				)
+			}
+			if state.Commits.Load() != 1 || state.Rollbacks.Load() != 0 {
+				t.Fatalf("commits=%d rollbacks=%d", state.Commits.Load(), state.Rollbacks.Load())
+			}
+		})
+	}
+}
+
 func TestPolicyMutationRollsBackWhenAuditFails(t *testing.T) {
 	fixture := newDomainFixture(t)
 	sentinel := errors.New("audit unavailable")
