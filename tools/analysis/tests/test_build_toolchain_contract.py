@@ -3,7 +3,9 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""The host-tool scan has narrow enforcement-file exemptions; these tests hold both edges.
+"""Regression tests for build-toolchain ownership and pytest runfiles safety.
+
+The host-tool scan has narrow enforcement-file exemptions; these tests hold both edges.
 
 CONTRACT_IMPLEMENTATIONS exists because checks that forbid host strings cannot avoid
 containing them. Two failure modes follow, and each has a test here:
@@ -53,6 +55,17 @@ MIRROR = "tools/build/nix/checks/no-host-tools.nix"
 SIBLING = "tools/build/nix/checks/vendored-toolchain.nix"
 
 RUST_VERSION = "1.99.0"
+PYTEST_MACRO = """\
+load("@rules_python//python:defs.bzl", "py_test")
+
+def pytest_test(name, srcs, legacy_create_init = {default}, **kwargs):
+    py_test(
+        name = name,
+        srcs = srcs,
+        legacy_create_init = {forwarded},
+        **kwargs
+    )
+"""
 
 
 def write(root: Path, relative: str, text: str) -> None:
@@ -61,13 +74,14 @@ def write(root: Path, relative: str, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
-def rust_fixture(root: Path) -> None:
-    """The four files check() reads before it ever walks the tree.
+def contract_fixture(root: Path) -> None:
+    """The files check() reads before it ever walks the tree.
 
     The pattern scan shares check() with the Rust version contract, which reads Cargo.toml,
-    versions.nix and flake.nix unguarded. Without these a fixture tree dies on FileNotFoundError
-    somewhere unrelated to what the test is about; with them the returned list is the scan's,
-    so a test can assert on the whole list instead of filtering it.
+    versions.nix and flake.nix unguarded, and with the pytest initializer contract. Without
+    these a fixture tree fails somewhere unrelated to what the test is about; with them the
+    returned list is the scan's, so a test can assert on the whole list instead of filtering
+    it.
     """
     write(root, "Cargo.toml", f'[workspace.package]\nrust-version = "{RUST_VERSION}"\n')
     write(root, "tools/build/nix/versions.nix", f'{{\n  rust = "{RUST_VERSION}";\n}}\n')
@@ -80,12 +94,17 @@ def rust_fixture(root: Path) -> None:
     write(root, "tools/qualification/rust/common.py", f'EXPECTED = "{RUST_VERSION}"\n')
     patterns = ",\n".join(f'    "{pattern}"' for pattern in sorted(contract.REQUIRED_REPO_IGNORES))
     write(root, "REPO.bazel", f"ignore_directories([\n{patterns},\n])\n")
+    write(
+        root,
+        contract.PYTEST_MACRO,
+        PYTEST_MACRO.format(default="False", forwarded="legacy_create_init"),
+    )
 
 
 def run(files: dict[str, str]) -> list[str]:
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
-        rust_fixture(root)
+        contract_fixture(root)
         for relative, text in files.items():
             write(root, relative, text)
         return contract.check(root)
@@ -165,4 +184,52 @@ def test_repository_traversal_contract_reports_each_missing_pattern() -> None:
     assert errors == [
         f"REPO.bazel must ignore generated directory pattern {pattern}"
         for pattern in sorted(contract.REQUIRED_REPO_IGNORES)
+    ]
+
+
+def test_pytest_init_contract_requires_the_shared_macro() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        errors = contract.pytest_init_contract(Path(directory))
+    assert errors == [
+        f"{contract.PYTEST_MACRO} is required for pytest package-initializer governance"
+    ]
+
+
+def test_pytest_init_contract_accepts_explicit_source_authority() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        write(
+            root,
+            contract.PYTEST_MACRO,
+            PYTEST_MACRO.format(default="False", forwarded="legacy_create_init"),
+        )
+        errors = contract.pytest_init_contract(root)
+    assert errors == []
+
+
+def test_pytest_init_contract_rejects_legacy_synthesis_by_default() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        write(
+            root,
+            contract.PYTEST_MACRO,
+            PYTEST_MACRO.format(default="True", forwarded="legacy_create_init"),
+        )
+        errors = contract.pytest_init_contract(root)
+    assert errors == [
+        f"{contract.PYTEST_MACRO}: pytest_test must default legacy_create_init to False"
+    ]
+
+
+def test_pytest_init_contract_rejects_a_non_forwarded_setting() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        write(
+            root,
+            contract.PYTEST_MACRO,
+            PYTEST_MACRO.format(default="False", forwarded="False"),
+        )
+        errors = contract.pytest_init_contract(root)
+    assert errors == [
+        f"{contract.PYTEST_MACRO}: pytest_test must forward legacy_create_init explicitly to py_test"
     ]

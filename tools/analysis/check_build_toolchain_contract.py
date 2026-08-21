@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import re
 import tomllib
 from pathlib import Path
@@ -29,6 +30,7 @@ REQUIRED_REPO_IGNORES = frozenset(
         "**/node_modules",
     }
 )
+PYTEST_MACRO = "tools/build/pytest.bzl"
 
 # Files that ENFORCE this same contract, and therefore contain the forbidden strings as
 # pattern literals rather than as commands.
@@ -92,12 +94,83 @@ def repository_traversal_contract(root: Path) -> list[str]:
     return errors
 
 
+def pytest_init_contract(root: Path) -> list[str]:
+    """Keep pytest runfiles source-authoritative.
+
+    rules_python's legacy initializer synthesis can create empty ``__init__.py`` files at
+    first-party runfiles paths. In a persistent runfiles tree, one of those paths can still be
+    a source symlink from an earlier action, so materializing the empty file can truncate the
+    tracked source. The shared pytest macro must therefore default synthesis off and pass that
+    decision explicitly to ``py_test``.
+
+    Parse the current Starlark as Python syntax instead of looking for strings: the macro is
+    deliberately Python-compatible, and structural checks cannot be satisfied by a comment or
+    docstring that merely describes the safe setting.
+    """
+
+    path = root / PYTEST_MACRO
+    if not path.is_file():
+        return [f"{PYTEST_MACRO} is required for pytest package-initializer governance"]
+
+    try:
+        module = ast.parse(path.read_text(errors="replace"), filename=PYTEST_MACRO)
+    except SyntaxError as error:
+        return [f"{PYTEST_MACRO} is not parseable for package-initializer governance: {error.msg}"]
+
+    definitions = [
+        node
+        for node in module.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "pytest_test"
+    ]
+    if len(definitions) != 1:
+        return [f"{PYTEST_MACRO} must define exactly one top-level pytest_test macro"]
+
+    macro = definitions[0]
+    positional = [*macro.args.posonlyargs, *macro.args.args]
+    defaults = {
+        argument.arg: default
+        for argument, default in zip(
+            positional[-len(macro.args.defaults) :], macro.args.defaults, strict=True
+        )
+    }
+    initializer_default = defaults.get("legacy_create_init")
+    errors = []
+    if not (isinstance(initializer_default, ast.Constant) and initializer_default.value is False):
+        errors.append(f"{PYTEST_MACRO}: pytest_test must default legacy_create_init to False")
+
+    py_test_calls = [
+        node
+        for node in ast.walk(macro)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "py_test"
+    ]
+    forwards_initializer = False
+    if len(py_test_calls) == 1:
+        initializer_keywords = [
+            keyword.value
+            for keyword in py_test_calls[0].keywords
+            if keyword.arg == "legacy_create_init"
+        ]
+        forwards_initializer = (
+            len(initializer_keywords) == 1
+            and isinstance(initializer_keywords[0], ast.Name)
+            and initializer_keywords[0].id == "legacy_create_init"
+        )
+    if not forwards_initializer:
+        errors.append(
+            f"{PYTEST_MACRO}: pytest_test must forward legacy_create_init explicitly to py_test"
+        )
+    return errors
+
+
 def check(root: Path):
     errors = []
     if (root / "WORKSPACE").exists() or (root / "WORKSPACE.bazel").exists():
         errors.append("legacy WORKSPACE is forbidden; Bzlmod owns Bazel dependencies")
     errors.extend(rust_version_contract(root))
     errors.extend(repository_traversal_contract(root))
+    errors.extend(pytest_init_contract(root))
     for p in root.rglob("*"):
         if (
             not p.is_file()
