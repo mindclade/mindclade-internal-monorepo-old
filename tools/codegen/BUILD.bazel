@@ -3,7 +3,25 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_python//python:defs.bzl", "py_binary", "py_test")
+
 package(default_visibility = ["//visibility:private"])
+
+py_binary(
+    name = "generate_event_catalog",
+    srcs = ["generate_event_catalog.py"],
+    main = "generate_event_catalog.py",
+    visibility = ["//visibility:public"],
+    deps = ["//protocols/events:contract_validation"],
+)
+
+py_test(
+    name = "event_catalog_generated_test",
+    srcs = ["generate_event_catalog.py"],
+    args = ["--check"],
+    main = "generate_event_catalog.py",
+    deps = ["//protocols/events:contract_validation"],
+)
 
 filegroup(
     name = "scaffold_files",

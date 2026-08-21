@@ -110,6 +110,18 @@ spec:
       controllerImageRepository: registry.k8s.io/kueue/kueue
       controllerName: kueue-controller-manager
 
+  # Application charts are qualified in both modes: repository defaults must render nothing, and
+  # the non-live fixture must render only namespaced, digest-pinned, policy-compliant resources.
+  # Unlike controller charts, these charts may not install RBAC, CRDs, Secrets, or storage claims.
+  applicationHelmReleases:
+    - chart: platform/mlflow/chart
+      release: mindclade
+      namespace: research-mlflow
+      values: platform/mlflow/qualification-values.yaml
+      runtimeImageLock: services/mlflow/runtime.lock.yaml
+      workloadName: mindclade-mlflow
+      expectedResourceCount: 8
+
   # Custom resources are rendered but do not use a core schema. Enumerating exact GVKs prevents a
   # typo or an unreviewed CRD dependency from being silently treated as "schema unavailable".
   allowedCustomGVKs:

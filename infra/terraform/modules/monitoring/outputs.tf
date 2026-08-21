@@ -28,6 +28,11 @@ output "slow_burn_alert_policy_names" {
   value       = { for slo_id, policy in google_monitoring_alert_policy.slow_burn : slo_id => policy.name }
 }
 
+output "signal_alert_policy_names" {
+  description = "Metric-threshold alert-policy resource names by governed signal ID"
+  value       = { for signal_id, policy in google_monitoring_alert_policy.signal : signal_id => policy.name }
+}
+
 output "dashboard_name" {
   description = "Cloud Monitoring dashboard resource name"
   value       = google_monitoring_dashboard.this.id

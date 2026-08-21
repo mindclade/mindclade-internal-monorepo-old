@@ -3,12 +3,36 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/quality/validators.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Composable validator protocol and function adapter."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/quality/validators.py"
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
+from typing import Protocol
+
+from data.sample import Sample
+
+from .report import QualityFinding
+
+
+class Validator(Protocol):
+    name: str
+
+    def validate(self, samples: Sequence[Sample]) -> tuple[QualityFinding, ...]: ...
+
+
+@dataclass(frozen=True, slots=True)
+class FunctionValidator:
+    name: str
+    function: Callable[[Sequence[Sample]], tuple[QualityFinding, ...]]
+
+    def __post_init__(self) -> None:
+        if not self.name or len(self.name) > 128 or not callable(self.function):
+            raise ValueError("quality function validator is invalid")
+
+    def validate(self, samples: Sequence[Sample]) -> tuple[QualityFinding, ...]:
+        findings = tuple(self.function(samples))
+        if any(not isinstance(item, QualityFinding) for item in findings):
+            raise TypeError("quality validator returned an invalid finding")
+        return findings

@@ -3,13 +3,19 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
+import { browserSecurityHeaders } from "@mindclade/libs-ts-browser-security";
 import type { NextConfig } from "next";
+
+const development = process.env.NODE_ENV !== "production";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  output: "standalone",
   transpilePackages: [
     "@mindclade/libs-ts-api-client",
+    "@mindclade/libs-ts-auth",
+    "@mindclade/libs-ts-browser-security",
     "@mindclade/libs-ts-design-system",
     "@mindclade/libs-ts-telemetry",
     "@mindclade/sdk-typescript",
@@ -21,13 +27,12 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/:path*",
-        headers: [
-          { key: "Cache-Control", value: "no-store" },
-          { key: "Referrer-Policy", value: "no-referrer" },
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "DENY" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-        ],
+        headers: [...browserSecurityHeaders({
+          development,
+          connectEndpoints: [process.env.NEXT_PUBLIC_TELEMETRY_ENDPOINT],
+          cacheControl: "no-store",
+          referrerPolicy: "no-referrer",
+        })],
       },
     ];
   },

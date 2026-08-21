@@ -3,12 +3,25 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/loaders/experience/sampling.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Priority weights for replay sampling."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/loaders/experience/sampling.py"
+import math
+
+
+def priority_weights(priorities: tuple[float, ...], *, exponent: float) -> tuple[float, ...]:
+    if (
+        not priorities
+        or isinstance(exponent, bool)
+        or not math.isfinite(exponent)
+        or exponent < 0
+        or any(
+            isinstance(value, bool) or not math.isfinite(value) or value <= 0
+            for value in priorities
+        )
+    ):
+        raise ValueError("replay priorities/exponent are invalid")
+    scaled = tuple(value**exponent for value in priorities)
+    total = sum(scaled)
+    return tuple(value / total for value in scaled)

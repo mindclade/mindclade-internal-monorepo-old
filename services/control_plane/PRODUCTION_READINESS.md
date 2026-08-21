@@ -63,20 +63,20 @@ that did not happen.
 
 | Role | Remaining domain or provider gate |
 |---|---|
-| `api`, `admin` | Business API handlers are not yet mounted. |
+| `api`, `admin` | AI Gateway reservation/create/commit/release is mounted with fail-closed authz, durable storage, schema readiness, and source-owned SLO/runbook contracts. A single-process connected PostgreSQL suite covers no-overspend and expiry-capacity recovery; protected-CI, multi-process/multi-replica, failure-injection, and restore evidence remain, as do policy administration, an enforcing Gateway proxy, and operational SLO approval. Other business APIs are not yet mounted. |
 | `scheduler` | Placement handler is not configured. |
 | `controller`, `operator` | Domain reconcilers are not registered. |
 | `event-projector` | Projection source and handler are not configured. |
 | `event-dispatcher` | A production Pub/Sub adapter is not present. |
 | `webhook-dispatcher` | Delivery handler is not configured. |
 | `ingestion-controller` | Staging handler is not configured. |
-| `maintenance` | Housekeeping handler is not configured. |
+| `maintenance` | Source tests cover admission-schema-gated readiness/startup, successive recurring buckets, collision-safe idempotency, durable handler lineage, bounded terminal retention, and bounded skip-locked expiry batches; source composition places the worker/scheduler behind the leadership gate. Migration v5 stays checksum-stable and the retention index is append-only v13. Protected connected execution of the current source/v13, multi-replica lease failover, long-running backlog/retention behavior, other housekeeping policies, and operational SLO approval remain. |
 
 These are independent promotion units, not hidden registry dependencies. Each
-must gain a concrete domain composition, connected qualification, SLO, and
-runbook before its deployment is enabled. Their default handlers continue to
-return stable `*_not_configured` faults so incomplete roles cannot report
-successful work.
+must gain its remaining concrete domain composition, connected qualification,
+SLO, and runbook before its deployment is enabled. Incomplete seams retain
+stable `*_not_configured` faults so they cannot report successful work; the
+maintenance Gateway-expiry seam is no longer one of those placeholders.
 
 ## Cross-role enforcement
 

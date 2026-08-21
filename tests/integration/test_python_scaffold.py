@@ -93,11 +93,21 @@ import pytest
 # placeholder smoke tests with shared-runtime composition and lifecycle coverage.
 # LOWERED 187 -> 186 by implementing the MLflow tracking/lineage mirror and replacing its
 # telemetry placeholder with behavioral and outage coverage.
-# RECONCILED 185 -> 177 after the same hardening batch materialized eight
-# additional contracts: data/contracts, models/{contracts,reference}, and
-# training/{contracts,core,engines/native,optim,tasks}. The AST scan is the
-# authoritative count and each former scaffold now has behavioral coverage.
-SCAFFOLD_BASELINE = 177
+# RECONCILED 186 -> 177 after the same hardening batch materialized nine additional data,
+# model, and training contracts: data/contracts, models/{contracts,reference},
+# training/{contracts,core,engines/native,optim,tasks}. The prior constant recorded only
+# one of those removals and omitted its ledger entry; the AST scan is the authoritative count.
+# LOWERED 177 -> 176 by replacing evaluation/qualification's skipped placeholder with
+# deterministic threshold, evidence, independent-attestation, and release-decision coverage.
+# LOWERED 176 -> 175 by materializing the train-to-serving integration parity contract and
+# moving its cross-layer dependencies under the test-support authority.
+# LOWERED 175 -> 164 by replacing eleven data-plane placeholders with behavioral coverage
+# across the dataset catalog/resolver, ingestion pipeline, loader, experience, packing,
+# sampling, sharding, streaming, and quality gate/integrity contracts. The AST scan and the
+# per-file marker diff agree on this bounded reduction.
+# LOWERED 164 -> 163 by replacing the local checkpoint/resume placeholder with exact-state,
+# identity, corruption, incomplete-commit, immutability, and fail-closed restore coverage.
+SCAFFOLD_BASELINE = 163
 
 # Gitignored tool directories. Every entry is something that can hold a copy of the tree
 # without being part of it, which this scan would otherwise count.

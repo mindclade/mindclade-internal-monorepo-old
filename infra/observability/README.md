@@ -39,6 +39,17 @@ OpenMetrics exposition without JobSet-name or UID labels. It is source behavior,
 watcher: Kubernetes watch identity, RBAC, storage, Service/PodMonitoring, restart/relist behavior,
 and synthetic connected evidence remain environment-owned activation gates.
 
+`alerts/control-admission-degraded.yaml` and `dashboards/control-plane.json` define the disabled
+99.95-percent availability, exact 100-millisecond latency compliance, diagnostic p99, paired
+5m+1h/30m+6h error-budget burn, expiration, sweep, and audit/outbox drift contracts. Their source
+GMP monitor and recording rules live with the control-plane workload under
+`infra/kubernetes/services/control-plane`. The base grants no metrics ingress and does not guess a
+managed collector identity. API and maintenance metrics have source-owned private listeners;
+maintenance sampling stays off the scrape path, is timeout-bounded, and reads only indexed recent
+state. Exact per-replica series inventories prevent partial exporters from silently shrinking the
+SLI. Connected migration receipts, representative volume, GMP, and alert evidence still block
+activation.
+
 ## Promotion requirements
 
 Before an observability contract is enabled in an environment, require:
@@ -50,6 +61,10 @@ Before an observability contract is enabled in an environment, require:
 - Cloud Monitoring alert fire-and-resolve evidence through a non-production channel;
 - an exact NetworkPolicy allowance for the observed managed collector identity; and
 - rollback evidence proving that disabling collection leaves workloads and controllers healthy.
+
+Correctness alerts use the minimum `1m` retest because missing-data evaluation requires a duration
+of at least 60 seconds in Cloud Monitoring. Every duration remains a positive whole number of
+minutes, hours, or days; scrape and rule-evaluation latency is accounted for separately.
 
 See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
 artifact-wide implementation status.

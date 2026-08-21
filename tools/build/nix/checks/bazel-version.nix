@@ -4,17 +4,14 @@
 #
 # ADR-0002: "Compatibility version files are generated from the Nix-owned source."
 #
-# `.bazelversion` is the compatibility file with the most leverage in this repository, because
-# bazelisk reads it and nothing else does. If it disagrees with tools/build/nix/versions.nix,
-# the Bazel that developers and CI actually run is not the Bazel the toolchain source claims to
-# pin, and every other hermeticity guarantee in the tree is asserted against the wrong binary.
+# `.bazelversion` is the Bazel/Bazelisk compatibility file. If it disagrees with
+# tools/build/nix/versions.nix, developers outside Nix and the Nix-owned Bazel package can run
+# different launchers, and every other hermeticity guarantee is asserted against the wrong binary.
 # That is not a hypothetical: versions.nix said 9.2.0 while .bazelversion said 8.4.2, and the
 # only reason nobody noticed is that this check was `{ ... }: { }`.
 #
-# Deliberately a pure text comparison rather than an invocation of Bazel. Running
-# `bazel --version` inside a check would need network access to fetch the release, which
-# `nix flake check` correctly does not have, and would make a build-graph tool a dependency of
-# the check that guards its version.
+# Deliberately a pure text comparison. The resolved `pkgs.bazel_9` version is also recorded in
+# the toolchain manifest, where `nix flake check` compares it with committed evidence.
 
 {
   pkgs,
@@ -27,11 +24,11 @@ pkgs.runCommand "mindclade-bazel-version" { } ''
   file="${root}/.bazelversion"
 
   test -f "$file" || {
-    echo "bazel-version: $file does not exist; bazelisk would fall back to its own default" >&2
+    echo "bazel-version: $file does not exist; external Bazelisk would fall back to its own default" >&2
     exit 1
   }
 
-  # tr rather than $(cat) alone: bazelisk tolerates a trailing newline and so must this, but a
+  # tr rather than $(cat) alone: Bazelisk tolerates a trailing newline and so must this, but a
   # file containing only whitespace must fail rather than compare equal to an empty pin.
   actual="$(tr -d '[:space:]' < "$file")"
 

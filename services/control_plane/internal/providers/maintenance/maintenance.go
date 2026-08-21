@@ -7,9 +7,10 @@
 // maintenance role: the process that runs periodic housekeeping over the
 // control plane's own state.
 //
-// It is the narrowest role that still holds a singleton lease. It publishes
-// nothing, serves nothing, and reaches no cluster; it claims work, does it
-// once, and records that it happened.
+// It is the narrowest role that still holds a singleton lease. It exposes only
+// a dedicated operational metrics listener and reaches no cluster; while
+// leader it schedules and claims bounded work, records every mutation, and
+// appends transactional outbox events for the separate dispatcher to publish.
 package maintenance
 
 import (
@@ -26,12 +27,14 @@ import (
 	"go.mindclade.dev/services/control_plane/internal/bootstrap"
 	"go.mindclade.dev/services/control_plane/internal/config"
 	"go.mindclade.dev/services/control_plane/internal/foundation"
+	"go.mindclade.dev/services/control_plane/internal/foundation/eventing"
 	"go.mindclade.dev/services/control_plane/internal/foundation/governance"
 	"go.mindclade.dev/services/control_plane/internal/foundation/leasing"
 	"go.mindclade.dev/services/control_plane/internal/foundation/persistence"
 	"go.mindclade.dev/services/control_plane/internal/foundation/tasks"
 	"go.mindclade.dev/services/control_plane/internal/providers"
 	"go.mindclade.dev/services/control_plane/internal/providers/durable"
+	admissionstore "go.mindclade.dev/services/control_plane/internal/store/postgres/admission"
 )
 
 // Leadership timings match the other singleton roles. The key differs because
@@ -77,14 +80,11 @@ func NewMaintenanceFactory(sources ...foundationconfig.Source) *MaintenanceFacto
 	return &MaintenanceFactory{sources: sources}
 }
 
-// WithHousekeepingHandler injects the domain handler that performs one unit of
-// housekeeping. It is the seam between this composition root and maintenance
-// policy: the root owns the lease, the queue, and the fencing, and the domain
-// owns what a sweep does.
-//
-// Left unset, the worker fails every item closed. Housekeeping that reports
-// success without running leaves the state it was meant to reclaim in place,
-// and nothing else notices.
+// WithHousekeepingHandler replaces the standard Gateway reservation expiry
+// handler. The recurring scheduler continues to emit the versioned
+// expire_gateway_reservations work contract, so replacements must implement
+// that exact contract. This seam exists for qualification and extensions; the
+// production default is fully configured and never reports synthetic success.
 func (factory *MaintenanceFactory) WithHousekeepingHandler(handler workqueue.Handler) *MaintenanceFactory {
 	if factory == nil {
 		return nil
@@ -154,10 +154,33 @@ func (factory *MaintenanceFactory) Create(ctx context.Context, profile bootstrap
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}
+	admissions, err := admissionstore.New(stores.DB, recorder, stores.Outbox,
+		admissionstore.WithClock(shared.Clock), admissionstore.WithGenerator(shared.IDs),
+		admissionstore.WithRetry(shared.Retry))
+	if err != nil {
+		return bootstrap.Runtime{}, err
+	}
+	snapshotSource, err := newPostgresMaintenanceSnapshotSource(stores.DB, maintenanceMetricTables{
+		reservations: admissionstore.DefaultReservationTable,
+		audit:        providers.AuditTable,
+		outbox:       providers.OutboxTable,
+		workQueue:    providers.WorkQueueTable,
+	})
+	if err != nil {
+		return bootstrap.Runtime{}, err
+	}
+	metrics, err := newMaintenanceMetrics(settings.MetricsAddress, settings.DrainTimeout, snapshotSource, shared.Clock)
+	if err != nil {
+		return bootstrap.Runtime{}, err
+	}
+	release = append(release, func() { _ = metrics.Close() })
 
 	handler := factory.housekeeper
 	if handler == nil {
-		handler = workqueue.HandlerFunc(refuseHousekeeping)
+		handler, err = newGatewayHousekeeper(admissions, shared.Clock)
+		if err != nil {
+			return bootstrap.Runtime{}, err
+		}
 	}
 	worker, err := workqueue.NewWorker(
 		queue,
@@ -178,8 +201,17 @@ func (factory *MaintenanceFactory) Create(ctx context.Context, profile bootstrap
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}
+	scheduler, err := newHousekeepingScheduler(queue, shared.Clock, shared.Retry)
+	if err != nil {
+		return bootstrap.Runtime{}, err
+	}
+	admissionSchema := admissions.Component("admission-schema")
+	workComponent, err := combinedLeaderWork(worker.Component("worker/"+housekeepingWorker), scheduler, admissionSchema.Readiness)
+	if err != nil {
+		return bootstrap.Runtime{}, err
+	}
 	leaderHandler, workerComponent, err := leadership.GateComponent(
-		worker.Component("worker/" + housekeepingWorker),
+		workComponent,
 	)
 	if err != nil {
 		return bootstrap.Runtime{}, err
@@ -234,6 +266,12 @@ func (factory *MaintenanceFactory) Create(ctx context.Context, profile bootstrap
 			governance.Controls{
 				Audit: recorder,
 			},
+			// Gateway expiry transitions append the same transaction-aware
+			// outbox events as request-path reservation mutations. The
+			// dispatcher remains the only publisher.
+			eventing.Mechanisms{
+				Outbox: stores.Outbox,
+			},
 			leasing.Mechanisms{
 				Leases: leases,
 				Leader: elector,
@@ -243,20 +281,13 @@ func (factory *MaintenanceFactory) Create(ctx context.Context, profile bootstrap
 				Workers: map[string]servicekit.Component{housekeepingWorker: workerComponent},
 			},
 		},
+		Components: bootstrap.Components{
+			Auxiliary: []bootstrap.StagedComponent{{
+				Stage: servicekit.StageServing, Component: metrics.serverComponent(),
+			}},
+			Work: []servicekit.Component{metrics.samplerComponent()},
+		},
 	}, nil
-}
-
-// refuseHousekeeping is the default handler. What a sweep does is domain
-// policy, so until a handler is injected the worker fails items closed rather
-// than reporting that housekeeping ran.
-func refuseHousekeeping(context.Context, workqueue.Item) (workqueue.Result, error) {
-	return workqueue.Result{}, faults.New(
-		faults.CodeNotImplemented,
-		"maintenance housekeeping policy is not configured",
-		faults.WithReason("housekeeping_handler_not_configured"),
-		faults.WithOperation("controlplane.maintenance.refuseHousekeeping"),
-		faults.WithRetryPolicy(faults.NoRetry()),
-	)
 }
 
 // leaseOwner identifies this process instance to the lease store. The hostname

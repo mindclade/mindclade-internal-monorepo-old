@@ -33,3 +33,13 @@ Before this scaffold boundary is treated as implemented, add:
 
 See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
 artifact-wide implementation status.
+
+## MLflow projection
+
+`exporters/mlflow.py` and `exporters/mlflow_tracing.py` are implemented mirror adapters. They
+project immutable Mindclade run/dataset/artifact/model/evidence identity into MLflow while keeping
+CAS, release, scheduling, and serving authority outside MLflow. Trace projection is payload-free:
+only bounded `mindclade.*` identity attributes are accepted, and request inputs and outputs are
+always omitted. Optional mode counts mirror failures without failing authoritative work; required
+mode preserves the original client failure for workflows whose own policy explicitly requires the
+projection.

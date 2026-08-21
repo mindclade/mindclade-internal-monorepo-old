@@ -3,13 +3,33 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("//tools/build:pytest.bzl", "pytest_test")
+
 package(default_visibility = ["//visibility:private"])
+
+pytest_test(
+    name = "test_training_serving_parity",
+    srcs = ["test_training_serving_parity.py"],
+    imports = ["../../.."],
+    deps = [
+        "//models/reference:affine",
+        "//serving/model_worker",
+        "//tools/release:build_model_bundle_lib",
+        "//training/contracts",
+        "//training/core:trainer",
+        "//training/optim:factory",
+        "//training/tasks:supervised",
+        "@pypi//numpy",
+        "@pypi//torch",
+    ],
+)
 
 filegroup(
     name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
+    srcs = [
+        "test_batch_pipeline.py",
+        "test_runtime_gateway.py",
+        "test_runtime_host.py",
+    ],
     visibility = ["//visibility:public"],
 )

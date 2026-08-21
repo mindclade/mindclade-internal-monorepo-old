@@ -1,35 +1,62 @@
 # Tools / Build / Nix
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Bazel/Nix/Python/Go/Rust development and qualification tooling
+- **Status:** Source implementation complete for the exported native toolchain surface;
+  connected Linux/remote-execution qualification remains a promotion gate.
+- **Owner:** `@mindclade/platform` through the repository ownership catalog.
+- **Decision:** [ADR-0002](../../../docs/design/adr-0002-nix-owned-toolchains.md).
 
-## Purpose
+## Implemented surface
 
-Repository-owned code generation, analysis, developer, qualification, and release tools. Tools are invoked through Bazel targets in production/CI paths. This path specializes that domain for **nix**.
+`flake.nix` and `flake.lock` are the public interface. They export native shells, checks,
+the normalized C/C++ bundle, and the toolchain manifest for `x86_64-linux`,
+`aarch64-linux`, and `aarch64-darwin`. Bazel 9.1.1, the language toolchains, and CI tools
+come from the pinned Nix closure; `.bazelversion` remains a verified compatibility pin.
 
-## Boundary
+The enterprise control repositories use the stable `nixos-26.05` branch. This monorepo has a
+narrow, reviewed exception: its lock pins one immutable `nixos-unstable` commit because the
+current 26.05 revision supplies Bazel 9.1.0 while the build graph is qualified on the 9.1.1 LTS
+patch. The exact Nixpkgs revision and resolved package versions are committed in the manifest,
+so evaluation never follows a moving channel. Reconsider the exception when 26.05 carries the
+required patch or during the 26.11 release qualification; do not add a second Nixpkgs input to
+work around individual packages.
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+The active implementation is intentionally small:
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+- `versions.nix`, `manifest.nix`, and `toolchain-manifest.json` own reviewed version evidence;
+- `toolchains/cc.nix` and `toolchains/rust.nix` construct the normalized compiler closures;
+- `checks/` rejects lock, version, manifest, generated-file, and host-tool drift;
+- the root flake assembles minimal lane-specific shells and exports the C/C++ bundle consumed
+  by `tools/build/bazel/extensions/nix_toolchains.bzl`.
 
-## Materialization requirements
+The other target-state files under `bundles/`, `images/`, `lib/`, `platforms/`, `shells/`, and
+`toolchains/` remain explicit six-line scaffolds and are not imported or exported. Their
+presence in the blueprint is not evidence that those capabilities exist.
 
-Before this scaffold boundary is treated as implemented, add:
+## Authority and unsupported outputs
 
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
+This repository owns developer/CI toolchains and remote-execution bases; Bazel owns build,
+test, application OCI images, release bundles, and promotion. It does not own workstation or
+server lifecycle, so it exports no NixOS, nix-darwin, or Home Manager configurations.
 
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+All current outputs are native. Cross compilation is not silently inferred from an evaluable
+foreign-system attribute. `x86_64-darwin` is intentionally unsupported, and CUDA is exported
+only for native `x86_64-linux`; ROCm and TileLang closures are not exported. Remote-execution
+image files remain scaffolded until an owning worker deployment, immutable image digest, and
+local/remote manifest parity evidence exist. Unsupported requests fail by absent attributes
+rather than falling back to host tools.
+
+## Qualification
+
+Source qualification:
+
+```bash
+nix flake show --all-systems --no-write-lock-file
+nix flake check --no-update-lock-file
+nix develop --no-update-lock-file --ignore-environment .#ci-bazel --command \
+  tools/dev/bazelw build //... --nobuild --config=ci
+```
+
+These commands do not prove remote execution, Linux runtime parity from a Darwin host, CUDA,
+ROCm, cache availability, or production deployment. Those claims require connected evidence
+from the exact native worker/runtime and remain blocked until that evidence is attached to a
+release qualification record.

@@ -3,13 +3,39 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_python//python:defs.bzl", "py_library")
+load("//tools/build:pytest.bzl", "pytest_test")
+
 package(default_visibility = ["//visibility:private"])
 
-filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
-    visibility = ["//visibility:public"],
+py_library(
+    name = "fixtures",
+    srcs = [
+        "__init__.py",
+        "fixtures.py",
+    ],
+    imports = ["../../.."],
+    deps = [
+        "//data",
+        "//data/contracts",
+        "//data/datasets",
+    ],
 )
+
+[
+    pytest_test(
+        name = name,
+        srcs = [name + ".py"],
+        imports = ["../../.."],
+        deps = [
+            ":fixtures",
+            "//data",
+            "//data/contracts",
+            "//data/datasets",
+        ],
+    )
+    for name in [
+        "test_catalog",
+        "test_resolver",
+    ]
+]

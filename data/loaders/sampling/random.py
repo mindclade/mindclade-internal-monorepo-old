@@ -3,12 +3,20 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/loaders/sampling/random.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Local deterministic random sampling without global RNG state."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/loaders/sampling/random.py"
+import random
+
+
+def sample_indices(population: int, count: int, *, seed: int) -> tuple[int, ...]:
+    if (
+        any(
+            isinstance(value, bool) or not isinstance(value, int) or value < 0
+            for value in (population, count, seed)
+        )
+        or count > population
+    ):
+        raise ValueError("random sampling bounds are invalid")
+    return tuple(random.Random(seed).sample(range(population), count))

@@ -23,12 +23,24 @@ ground. It may depend only in the direction documented by
 ## Runtime contract
 
 Set `NEXT_PUBLIC_API_BASE_URL` for a separate API origin; otherwise the browser
-uses its own origin and sends BFF session cookies. Optional telemetry requires
-`NEXT_PUBLIC_TELEMETRY_ENDPOINT`; no telemetry is sent when it is absent.
-Requests cancel on route/component disposal and time out after 15 seconds.
+uses its own origin and sends BFF session cookies. Production endpoint policy
+rejects credentials and non-HTTPS non-loopback origins. The shell verifies
+`/auth/session` before displaying a principal and fails closed on an expired,
+malformed, unavailable, or anonymous session. It does not infer authorization.
+
+Optional telemetry requires `NEXT_PUBLIC_TELEMETRY_ENDPOINT`; no telemetry is
+sent when it is absent. Requests cancel on route/component disposal, share one
+overall retry deadline, and bound JSON, event-stream, parser, and telemetry
+queue memory. Shared CSP and response headers are generated from the exact API
+and telemetry origins; HTML is request-rendered with a fresh script/style nonce.
 
 `pnpm --filter @mindclade/apps-console build` produces the optimized Next
-artifact. The interface includes loading, empty, error, reduced-motion,
-keyboard-focus, and narrow-viewport states. No model payloads, credentials, or
-policy decisions are stored in the application. Rollback redeploys the prior
-immutable web artifact; API compatibility is governed separately.
+artifact. `bazel build //apps/console:release_archive --config=ci` produces the
+deterministic standalone release input; provenance, SBOM, signing, image
+assembly, and promotion remain protected release-lane responsibilities. The
+interface includes loading, empty, error, reduced-motion, keyboard-focus, and
+narrow-viewport states. No model payloads, credentials, or policy decisions are
+stored in the application. API compatibility is governed separately.
+
+See the [browser application runbook](../../docs/runbooks/typescript-applications.md)
+and [source qualification record](../../docs/qualification/typescript-applications.md).

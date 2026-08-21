@@ -30,7 +30,7 @@ config.Settings
 | `operator` | `controller.NewOperatorFactory` | PostgreSQL, broker, Kubernetes + manager |
 | `admin` | `api.NewAdminFactory` | PostgreSQL, HTTP + Connect + gRPC |
 | `ingestion-controller` | `NewIngestionFactory` | PostgreSQL, GCS, Redis, broker, Kubernetes |
-| `maintenance` | `NewMaintenanceFactory` | PostgreSQL |
+| `maintenance` | `NewMaintenanceFactory` | PostgreSQL admission store, leases, recurring durable work |
 
 ## Shared provider packages
 
@@ -97,7 +97,9 @@ Maintenance is the narrowest role that still holds a lease. It runs no
 migration runner despite `CONSUMPTION.md` naming it the intended migration
 process: the registry owns the manifest today, and two runners against one
 database would race for the same version ordering. Moving that ownership is a
-deployment change, not a composition change.
+deployment change, not a composition change. Its production default schedules
+one deterministic Gateway-expiry item per five-second UTC bucket and drains
+bounded skip-locked reservation batches only while leadership is held.
 
 The admin role shares the api factory, and the operator shares the controller's. The two roles have identical
 capability profiles, so they are one composition claiming a different lease and

@@ -111,3 +111,23 @@ spec:
     - Egress
   ingress: []
   egress: []
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: research-mlflow
+  labels:
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/data-plane: metadata-mirror
+  annotations:
+    mindclade.dev/activation-blocker: exact-auth-database-artifact-and-client-flows-unqualified
+    mindclade.dev/failure-mode: fail-closed
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+  egress: []

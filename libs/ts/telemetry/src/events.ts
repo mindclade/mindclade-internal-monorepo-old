@@ -13,5 +13,6 @@ export interface TelemetryEvent {
 }
 
 export function event(name: string, properties?: Readonly<Record<string, TelemetryValue>>): TelemetryEvent {
+  if (!/^[a-z][a-z0-9_.-]{0,127}$/i.test(name)) throw new TypeError("Telemetry event name must be 1-128 safe characters");
   return { name, occurredAt: new Date().toISOString(), ...(properties === undefined ? {} : { properties }) };
 }

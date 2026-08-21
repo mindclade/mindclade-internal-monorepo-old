@@ -4,8 +4,9 @@
 #
 
 ---
-# Only the three roles with implemented listeners receive Services. Background
-# consumers/controllers expose no fabricated port.
+# Only the three roles with implemented application transport listeners receive
+# Services. Private PodMonitoring metrics listeners do not create Services, and
+# background consumers/controllers expose no fabricated application port.
 apiVersion: v1
 kind: Service
 metadata:

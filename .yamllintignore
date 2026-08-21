@@ -1,0 +1,8 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+# Vendored skill metadata is validated by its upstream package. Helm templates are rendered
+# and validated as Kubernetes resources; their Go-template control flow is not raw YAML.
+.agents/skills/**/*.yaml
+infra/kubernetes/platform/mlflow/chart/templates/*.yaml

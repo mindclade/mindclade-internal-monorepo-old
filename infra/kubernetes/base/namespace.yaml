@@ -114,3 +114,31 @@ metadata:
     mindclade.dev/deployment-status: capacity-foundation-only
     mindclade.dev/environment: unbound
     mindclade.dev/release-evidence-digest: blocked
+---
+# MLflow is a metadata mirror, isolated from training, serving, and held-out evaluation data.
+# The namespace exists in the platform foundation so the research AppProject does not need
+# cluster-scoped Namespace authority. Pod capacity stays zero until the complete server,
+# database, artifact, identity, auth, backup, and release bundle is reviewed.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: research-mlflow
+  labels:
+    app.kubernetes.io/part-of: mindclade-platform
+    kubernetes.io/metadata.name: research-mlflow
+    mindclade.dev/admission: enforced
+    mindclade.dev/data-plane: metadata-mirror
+    mindclade.dev/owner: ml-platform
+    mindclade.dev/workload-activation: blocked
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: v1.36
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.36
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: v1.36
+  annotations:
+    mindclade.dev/activation-blocker: mlflow-external-prerequisites-and-release-unqualified
+    mindclade.dev/deployment-status: foundation-only
+    mindclade.dev/environment: unbound
+    mindclade.dev/release-evidence-digest: blocked
+    mindclade.dev/storage-authority: external-sql-and-object-store

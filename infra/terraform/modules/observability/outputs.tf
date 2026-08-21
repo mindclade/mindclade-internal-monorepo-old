@@ -39,6 +39,11 @@ output "slow_burn_alert_policy_names" {
   value       = { for service_id, service in module.service : service_id => service.slow_burn_alert_policy_names }
 }
 
+output "signal_alert_policy_names" {
+  description = "Metric-threshold alert-policy names keyed first by service ID and then governed signal ID"
+  value       = { for service_id, service in module.service : service_id => service.signal_alert_policy_names }
+}
+
 output "dashboard_names" {
   description = "Protected Monitoring dashboard names keyed by service ID"
   value       = { for service_id, service in module.service : service_id => service.dashboard_name }

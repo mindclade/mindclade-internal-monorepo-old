@@ -3,4 +3,4 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Mindclade scaffold package for training/checkpointing/tests."""
+"""Tests for local resume; distributed reshard coverage remains scaffolded."""

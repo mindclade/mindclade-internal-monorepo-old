@@ -7,6 +7,7 @@
   "schemaVersion": "mindclade.dev/availability-profiles/v1",
   "approvalStatus": "proposed",
   "profiles": [
+    {"name": "control-admission-critical", "serviceClasses": ["control-plane"], "sli": "availability", "objective": 0.9995, "window": "30d", "minimumEvents": 1000, "fastBurn": 14.4, "slowBurn": 6.0},
     {"name": "critical-serving", "serviceClasses": ["model-serving"], "sli": "availability", "objective": 0.999, "window": "30d", "minimumEvents": 1000, "fastBurn": 14.4, "slowBurn": 6.0},
     {"name": "frontier-training-completion", "serviceClasses": ["training"], "sli": "completion", "objective": 0.99, "window": "28d", "minimumEvents": 20, "fastBurn": 10.0, "slowBurn": 4.0},
     {"name": "internal-interactive", "serviceClasses": ["control-plane", "frontend", "release"], "sli": "availability", "objective": 0.99, "window": "28d", "minimumEvents": 100, "fastBurn": 10.0, "slowBurn": 4.0},

@@ -1,0 +1,120 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
+load("@mlflow_pypi//:requirements.bzl", "requirement")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("@rules_python//python:defs.bzl", "py_binary", "py_test")
+
+package(default_visibility = ["//visibility:private"])
+
+filegroup(
+    name = "runtime_lock",
+    srcs = ["runtime.lock.yaml"],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "runtime_qualification_inputs",
+    srcs = [
+        "requirements.lock.txt",
+        "runtime.lock.yaml",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "server",
+    srcs = ["server.py"],
+    main = "server.py",
+    deps = [
+        # rules_python models wheel metadata, not the extras selected by requirements.in. Keep
+        # every auth/genai and uvicorn[standard] root explicit so the image runfiles cannot omit
+        # an optional runtime dependency while the lock still appears complete.
+        requirement("boto3"),
+        requirement("fastapi"),
+        requirement("flask-wtf"),
+        requirement("google-cloud-storage"),
+        requirement("httptools"),
+        requirement("mlflow"),
+        requirement("psycopg2-binary"),
+        requirement("python-dotenv"),
+        requirement("pyyaml"),
+        requirement("redis"),
+        requirement("slowapi"),
+        requirement("tiktoken"),
+        requirement("uvicorn"),
+        requirement("uvloop"),
+        requirement("watchfiles"),
+        requirement("websockets"),
+    ],
+)
+
+# Package the executable and its exact Bazel runfiles graph. This neither invokes pip nor resolves
+# a dependency during the image build; MODULE.bazel consumes the hash-locked requirements file.
+pkg_tar(
+    name = "layer",
+    srcs = [":server"],
+    include_runfiles = True,
+    mode = "0555",
+    package_dir = "/opt/mindclade",
+    strip_prefix = "services/mlflow",
+)
+
+oci_image(
+    name = "image_linux_amd64_impl",
+    base = "@python_slim_linux_amd64",
+    entrypoint = ["/opt/mindclade/services/mlflow/server"],
+    env = {
+        "HOME": "/tmp/mlflow",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONNOUSERSITE": "1",
+        "PYTHONUNBUFFERED": "1",
+    },
+    exposed_ports = ["5000/tcp"],
+    labels = {
+        "dev.mindclade.authority": "metadata-mirror",
+        "org.opencontainers.image.source": "https://github.com/mindclade/mindclade-internal-monorepo",
+        "org.opencontainers.image.title": "Mindclade MLflow server",
+        "org.opencontainers.image.version": "3.15.1",
+    },
+    tars = [":layer"],
+    user = "65532:65532",
+)
+
+platform_transition_filegroup(
+    name = "image",
+    srcs = [":image_linux_amd64_impl"],
+    target_platform = "//tools/build/bazel/platforms:linux_amd64",
+    visibility = ["//visibility:public"],
+)
+
+oci_load(
+    name = "load",
+    image = ":image",
+    repo_tags = ["mindclade-mlflow:local"],
+)
+
+# The environment-specific Artifact Registry repository is supplied by the protected release job.
+oci_push(
+    name = "push",
+    image = ":image",
+    repository = "localhost/mindclade/mlflow-server",
+    visibility = ["//visibility:public"],
+)
+
+py_test(
+    name = "validate_image",
+    srcs = ["validate_image_test.py"],
+    args = [
+        "--image=$(rootpath :image)",
+        "--lock=$(rootpath :runtime_lock)",
+    ],
+    data = [
+        ":image",
+        ":runtime_lock",
+    ],
+    main = "validate_image_test.py",
+)

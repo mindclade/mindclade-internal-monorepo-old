@@ -129,7 +129,7 @@ import pytest
 # This number is now a tight floor rather than 90 counts of slack. The assertion below is
 # two-sided on purpose: lower it as these close, and do not raise it without saying which
 # movement raised it.
-MATERIALIZATION_BASELINE = 1
+MATERIALIZATION_BASELINE = 0
 
 
 def _load_checker(root: Path):

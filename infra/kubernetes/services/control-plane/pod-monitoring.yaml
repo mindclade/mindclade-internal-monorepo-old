@@ -1,0 +1,44 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: control-admission
+  namespace: mindclade-system
+  annotations:
+    mindclade.dev/activation-blocker: >-
+      exact-gmp-collector-network-identity-and-connected-scrape-unqualified
+    mindclade.dev/required-network-policy-overlay: >-
+      allow-observed-managed-collector-identity-to-tcp-9464-only
+spec:
+  selector:
+    matchLabels:
+      observability.mindclade.dev/control-admission: "true"
+  endpoints:
+    - port: metrics
+      scheme: http
+      path: /metrics
+      interval: 30s
+      timeout: 10s
+      metricRelabeling:
+        - sourceLabels:
+            - __name__
+          regex: >-
+            ^(up|mindclade_control_admission_(decisions_total|decision_duration_seconds_(bucket|count|sum)|expiration_backlog|oldest_expired_reservation_age_seconds|last_successful_sweep_timestamp_seconds|consecutive_backlogged_sweeps|event_drift|snapshot_last_success_timestamp_seconds|snapshot_success))$
+          action: keep
+  targetLabels:
+    fromPod:
+      - from: mindclade.dev/control-plane-role
+        to: role
+      - from: observability.mindclade.dev/service
+        to: service
+  limits:
+    samples: 500
+    labels: 24
+    labelNameLength: 128
+    labelValueLength: 256
+  filterRunning: true

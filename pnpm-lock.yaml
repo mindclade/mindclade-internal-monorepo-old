@@ -41,6 +41,12 @@ importers:
       '@mindclade/libs-ts-api-client':
         specifier: workspace:*
         version: link:../../libs/ts/api_client
+      '@mindclade/libs-ts-auth':
+        specifier: workspace:*
+        version: link:../../libs/ts/auth
+      '@mindclade/libs-ts-browser-security':
+        specifier: workspace:*
+        version: link:../../libs/ts/browser_security
       '@mindclade/libs-ts-design-system':
         specifier: workspace:*
         version: link:../../libs/ts/design_system
@@ -78,6 +84,12 @@ importers:
       '@mindclade/libs-ts-api-client':
         specifier: workspace:*
         version: link:../../libs/ts/api_client
+      '@mindclade/libs-ts-auth':
+        specifier: workspace:*
+        version: link:../../libs/ts/auth
+      '@mindclade/libs-ts-browser-security':
+        specifier: workspace:*
+        version: link:../../libs/ts/browser_security
       '@mindclade/libs-ts-charts':
         specifier: workspace:*
         version: link:../../libs/ts/charts
@@ -131,6 +143,8 @@ importers:
         specifier: 19.2.8
         version: 19.2.8
 
+  libs/ts/browser_security: {}
+
   libs/ts/charts:
     devDependencies:
       '@types/react':
@@ -142,13 +156,13 @@ importers:
 
   libs/ts/design_system:
     dependencies:
-      '@types/react':
-        specifier: 19.2.18
-        version: 19.2.18
-    devDependencies:
       react:
         specifier: 19.2.8
         version: 19.2.8
+    devDependencies:
+      '@types/react':
+        specifier: 19.2.18
+        version: 19.2.18
 
   libs/ts/molecular_viewer:
     devDependencies:

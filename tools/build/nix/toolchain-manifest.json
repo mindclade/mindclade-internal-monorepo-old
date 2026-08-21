@@ -36,7 +36,7 @@
   },
   "schema": 1,
   "tools": {
-    "bazelisk": "1.29.0",
+    "bazel": "9.1.1",
     "buf": "1.72.0",
     "buildifier": "8.5.1",
     "go": "1.26.6",

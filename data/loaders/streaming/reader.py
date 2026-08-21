@@ -3,12 +3,17 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/loaders/streaming/reader.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Reader protocol keeps object clients worker-local and provider-owned."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/loaders/streaming/reader.py"
+from collections.abc import Iterator
+from typing import Protocol
+
+from data.sample import Sample
+
+
+class SampleReader(Protocol):
+    def open(self, *, start_index: int = 0) -> Iterator[Sample]: ...
+
+    def close(self) -> None: ...

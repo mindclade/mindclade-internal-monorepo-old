@@ -38,6 +38,7 @@ import (
 	"go.mindclade.dev/libs/go/servicekit/production"
 	"go.mindclade.dev/services/control_plane/internal/bootstrap"
 	"go.mindclade.dev/services/control_plane/internal/config"
+	"go.mindclade.dev/services/control_plane/internal/providers/admissionmetrics"
 	"go.mindclade.dev/services/control_plane/internal/transport"
 )
 
@@ -58,7 +59,7 @@ type serving struct {
 	bind       func(*production.Runtime) error
 }
 
-func newServing(settings config.Settings, telemetry *observability.Runtime, authenticator auth.Authenticator) (result serving, err error) {
+func newServing(settings config.Settings, telemetry *observability.Runtime, authenticator auth.Authenticator, admissions admissionEngine, metrics *admissionmetrics.Runtime) (result serving, err error) {
 	value := &transport.Prober{}
 
 	closers := make([]func(), 0, 2)
@@ -77,7 +78,7 @@ func newServing(settings config.Settings, telemetry *observability.Runtime, auth
 	}
 	closers = append(closers, func() { _ = httpListener.Close() })
 
-	handler, connectMounted, err := newHandler(value, telemetry, authenticator)
+	handler, connectMounted, err := newHandler(value, telemetry, authenticator, admissions, metrics)
 	if err != nil {
 		return serving{}, err
 	}
@@ -122,6 +123,8 @@ func newHandler(
 	value *transport.Prober,
 	telemetry *observability.Runtime,
 	authenticator auth.Authenticator,
+	admissions admissionEngine,
+	metrics *admissionmetrics.Runtime,
 ) (http.Handler, bool, error) {
 	root := http.NewServeMux()
 	root.Handle("/livez", health.NewHandler(value, health.Config{}))
@@ -151,16 +154,25 @@ func newHandler(
 		return nil, false, err
 	}
 
-	guarded := middleware.Server(http.NewServeMux(), middleware.StackConfig{
+	api, err := newAdmissionMux(admissions, metrics)
+	if err != nil {
+		return nil, false, err
+	}
+	guarded := middleware.Server(api, middleware.StackConfig{
 		OperationResolver: middleware.OperationResolverFunc(resolveOperation),
 		AccessObserver:    accessObserver(telemetry),
 		PanicObserver:     panicObserver(telemetry),
 		Security:          middleware.SecurityHeadersConfig{},
 		MaximumBodyBytes:  maximumRequestBody,
 		Authentication:    &middleware.AuthenticationConfig{Authenticator: authenticator},
-		Authorization:     &middleware.AuthorizationConfig{Authorizer: auth.PermissionAuthorizer{}},
-		Additional:        []middleware.Middleware{transport.Preconditions()},
+		Authorization: &middleware.AuthorizationConfig{
+			Authorizer:     auth.PermissionAuthorizer{},
+			Resolver:       middleware.AuthorizationResolverFunc(resolveAdmissionAuthorization),
+			RequireMapping: true,
+		},
+		Additional: []middleware.Middleware{transport.Preconditions()},
 	})
+	guarded = metrics.Middleware(guarded)
 	root.Handle("/", guarded)
 
 	// Deliberately not wrapped in httpx/otel. The Connect handlers above are

@@ -3,7 +3,17 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-// Package lineage reserves the boundary defined by the production blueprint.
 package lineage
 
-const scaffold_repository = "control/lineage/repository.go"
+import (
+	"context"
+
+	"go.mindclade.dev/libs/go/identifiers"
+)
+
+// Repository persists immutable graphs. Implementations must make Put idempotent
+// for the same digest and reject any attempt to bind different bytes to it.
+type Repository interface {
+	Put(context.Context, identifiers.Digest, Graph) error
+	Get(context.Context, identifiers.Digest) (Graph, error)
+}

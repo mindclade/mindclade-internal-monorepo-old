@@ -108,11 +108,11 @@ variable "slos" {
   validation {
     condition = alltrue([
       for slo in values(var.slos) :
-      slo.goal > 0 && slo.goal <= 0.999 &&
+      slo.goal > 0 && slo.goal <= 0.9999 &&
       floor(slo.rolling_period_days) == slo.rolling_period_days &&
       slo.rolling_period_days >= 1 && slo.rolling_period_days <= 30
     ])
-    error_message = "Each SLO goal must be greater than 0 and no more than 0.999, with a whole rolling period from 1 through 30 days."
+    error_message = "Each SLO goal must be greater than 0 and no more than 0.9999, with a whole rolling period from 1 through 30 days."
   }
 
   validation {
@@ -142,6 +142,102 @@ variable "slos" {
       slo.slow_burn.short_lookback != slo.slow_burn.long_lookback
     ])
     error_message = "Burn-rate thresholds must be greater than 1 and no more than 1000; each short/long lookback must be a distinct positive s, m, or h duration. Resource preconditions additionally enforce duration and ordering semantics."
+  }
+}
+
+variable "signal_alerts" {
+  description = "Bounded metric-threshold alerts for correctness, freshness, saturation, and dependency signals"
+  type = map(object({
+    display_name            = string
+    filter                  = string
+    comparison              = string
+    threshold_value         = number
+    duration                = optional(string, "60s")
+    severity                = optional(string, "WARNING")
+    alignment_period        = optional(string, "60s")
+    per_series_aligner      = optional(string, "ALIGN_MAX")
+    cross_series_reducer    = optional(string, "REDUCE_MAX")
+    group_by_fields         = optional(set(string), [])
+    evaluation_missing_data = optional(string, "EVALUATION_MISSING_DATA_ACTIVE")
+    trigger_count           = optional(number, 1)
+    minimum_samples = optional(object({
+      filter               = string
+      threshold_value      = number
+      duration             = optional(string, "60s")
+      alignment_period     = optional(string, "60s")
+      per_series_aligner   = optional(string, "ALIGN_MAX")
+      cross_series_reducer = optional(string, "REDUCE_SUM")
+      group_by_fields      = optional(set(string), [])
+    }), null)
+  }))
+  default  = {}
+  nullable = false
+
+  validation {
+    condition = length(var.signal_alerts) <= 25 && alltrue([
+      for signal_id, signal in var.signal_alerts :
+      can(regex("^[a-z][a-z0-9-]{1,61}[a-z0-9]$", signal_id)) &&
+      length(trimspace(signal.display_name)) >= 3 && length(signal.display_name) <= 128
+    ])
+    error_message = "signal_alerts may contain at most 25 alerts with stable 3-63 character IDs and 3-128 character display names."
+  }
+
+  validation {
+    condition = alltrue([
+      for signal in values(var.signal_alerts) :
+      length(trimspace(signal.filter)) >= 1 && length(signal.filter) <= 2048 &&
+      can(regex("^[[:space:]]*[A-Za-z_][A-Za-z0-9_.-]*[[:space:]]*=[[:space:]]*\"[^\"\\r\\n]+\"([[:space:]]+AND[[:space:]]+[A-Za-z_][A-Za-z0-9_.-]*[[:space:]]*=[[:space:]]*\"[^\"\\r\\n]+\")*[[:space:]]*$", signal.filter)) &&
+      length(regexall("(^|[[:space:]()])metric\\.type[[:space:]]*=[[:space:]]*\"[^\"]+\"", signal.filter)) == 1 &&
+      length(regexall("(^|[[:space:]()])resource\\.type[[:space:]]*=[[:space:]]*\"[^\"]+\"", signal.filter)) == 1 &&
+      contains(["COMPARISON_GT", "COMPARISON_LT"], signal.comparison) &&
+      signal.threshold_value >= -1000000000000000 && signal.threshold_value <= 1000000000000000 &&
+      contains(["CRITICAL", "ERROR", "WARNING"], signal.severity) &&
+      contains([
+        "EVALUATION_MISSING_DATA_ACTIVE",
+        "EVALUATION_MISSING_DATA_INACTIVE",
+        "EVALUATION_MISSING_DATA_NO_OP",
+      ], signal.evaluation_missing_data)
+    ])
+    error_message = "Each signal alert requires a complete AND-only conjunction of string equalities with exactly one metric.type and resource.type selector, an API-supported GT/LT comparison, a governed severity, and explicit missing-data behavior."
+  }
+
+  validation {
+    condition = alltrue([
+      for signal in values(var.signal_alerts) :
+      can(regex("^[1-9][0-9]*(s|m|h)$", signal.duration)) &&
+      can(regex("^[1-9][0-9]*(s|m|h)$", signal.alignment_period)) &&
+      contains(["ALIGN_MIN", "ALIGN_MAX", "ALIGN_MEAN", "ALIGN_SUM", "ALIGN_RATE", "ALIGN_PERCENTILE_99", "ALIGN_NEXT_OLDER"], signal.per_series_aligner) &&
+      contains(["REDUCE_MIN", "REDUCE_MAX", "REDUCE_MEAN", "REDUCE_SUM", "REDUCE_PERCENTILE_99"], signal.cross_series_reducer) &&
+      floor(signal.trigger_count) == signal.trigger_count && signal.trigger_count >= 1 && signal.trigger_count <= 1000 &&
+      length(signal.group_by_fields) <= 8 && alltrue([
+        for field in signal.group_by_fields :
+        can(regex("^(resource\\.type|resource\\.label\\.[A-Za-z0-9_]+|metric\\.label\\.[A-Za-z0-9_]+)$", field))
+      ])
+    ])
+    error_message = "Signal windows must be positive s/m/h durations; aligners, reducers, trigger counts, and up to eight grouping fields must use the bounded Monitoring contract."
+  }
+
+  validation {
+    condition = alltrue([
+      for signal in values(var.signal_alerts) : signal.minimum_samples == null || (
+        length(trimspace(signal.minimum_samples.filter)) >= 1 &&
+        length(signal.minimum_samples.filter) <= 2048 &&
+        can(regex("^[[:space:]]*[A-Za-z_][A-Za-z0-9_.-]*[[:space:]]*=[[:space:]]*\"[^\"\\r\\n]+\"([[:space:]]+AND[[:space:]]+[A-Za-z_][A-Za-z0-9_.-]*[[:space:]]*=[[:space:]]*\"[^\"\\r\\n]+\")*[[:space:]]*$", signal.minimum_samples.filter)) &&
+        length(regexall("(^|[[:space:]()])metric\\.type[[:space:]]*=[[:space:]]*\"[^\"]+\"", signal.minimum_samples.filter)) == 1 &&
+        length(regexall("(^|[[:space:]()])resource\\.type[[:space:]]*=[[:space:]]*\"[^\"]+\"", signal.minimum_samples.filter)) == 1 &&
+        signal.minimum_samples.threshold_value > 0 &&
+        can(regex("^[1-9][0-9]*(s|m|h)$", signal.minimum_samples.duration)) &&
+        can(regex("^[1-9][0-9]*(s|m|h)$", signal.minimum_samples.alignment_period)) &&
+        contains(["ALIGN_MIN", "ALIGN_MAX", "ALIGN_MEAN", "ALIGN_SUM", "ALIGN_RATE", "ALIGN_NEXT_OLDER"], signal.minimum_samples.per_series_aligner) &&
+        contains(["REDUCE_MIN", "REDUCE_MAX", "REDUCE_MEAN", "REDUCE_SUM"], signal.minimum_samples.cross_series_reducer) &&
+        signal.minimum_samples.threshold_value <= 1000000000000000 &&
+        length(signal.minimum_samples.group_by_fields) <= 8 && alltrue([
+          for field in signal.minimum_samples.group_by_fields :
+          can(regex("^(resource\\.type|resource\\.label\\.[A-Za-z0-9_]+|metric\\.label\\.[A-Za-z0-9_]+)$", field))
+        ])
+      )
+    ])
+    error_message = "A minimum-sample guard requires a complete AND-only conjunction of string equalities with exactly one metric.type and resource.type selector, a positive threshold, valid durations, and bounded aggregation."
   }
 }
 

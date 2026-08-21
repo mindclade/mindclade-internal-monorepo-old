@@ -288,8 +288,10 @@ done < <(
   find "${kubernetes_root}" \( -type f -o -type l \) -name Chart.yaml -print |
     LC_ALL=C sort
 ) >"${actual_charts}"
-yq eval -r '.spec.helmReleases[].chart' "${validation_config}" | LC_ALL=C sort -u \
-  >"${expected_charts}"
+{
+  yq eval -r '.spec.helmReleases[]?.chart' "${validation_config}"
+  yq eval -r '.spec.applicationHelmReleases[]?.chart' "${validation_config}"
+} | LC_ALL=C sort -u >"${expected_charts}"
 if ! diff -u "${expected_charts}" "${actual_charts}"; then
   fail "Helm inventory drifted; declare release, namespace, archive, and controller locks"
 fi
@@ -412,6 +414,138 @@ done < <(
   ] | @tsv' "${validation_config}"
 )
 [[ "${chart_count}" != "0" ]] || printf 'No Helm charts declared; Kustomize remains the source format.\n'
+
+application_chart_count=0
+while IFS=$'\t' read -r chart_name release_name release_namespace values_name lock_name \
+  workload_name expected_resource_count; do
+  [[ -n "${chart_name}" ]] || continue
+  application_chart_count=$((application_chart_count + 1))
+  chart_dir="${kubernetes_root}/${chart_name}"
+  values_file="${kubernetes_root}/${values_name}"
+  lock_file="${repository_root}/${lock_name}"
+  disabled_output="${validation_tmp_dir}/application-helm-disabled-${application_chart_count}.yaml"
+  chart_output="${validation_tmp_dir}/application-helm-${application_chart_count}.yaml"
+
+  [[ -f "${chart_dir}/Chart.yaml" ]] || fail "declared application Helm chart is missing: ${chart_name}"
+  [[ -f "${values_file}" ]] || fail "${chart_name}: qualification values are missing"
+  [[ -f "${lock_file}" ]] || fail "${chart_name}: runtime image lock is missing"
+  [[ "${release_name}" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]] ||
+    fail "${chart_name}: release name is not a DNS label"
+  [[ "${release_namespace}" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]] ||
+    fail "${chart_name}: release namespace is not a DNS label"
+  [[ "${workload_name}" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]] ||
+    fail "${chart_name}: workload name is not a DNS label"
+  [[ "${expected_resource_count}" =~ ^[1-9][0-9]*$ ]] ||
+    fail "${chart_name}: expected resource count is invalid"
+
+  dependency_count="$(yq eval -r '(.dependencies // []) | length' "${chart_dir}/Chart.yaml")"
+  [[ "${dependency_count}" == "0" ]] ||
+    fail "${chart_name}: application chart dependencies must be vendored and explicitly locked"
+
+  [[ "$(yq eval -r '.kind' "${lock_file}")" == "RuntimeImageQualificationLock" ]] ||
+    fail "${chart_name}: runtime image lock kind is invalid"
+  locked_target="$(yq eval -r '.spec.target' "${lock_file}")"
+  locked_platform="$(yq eval -r '.spec.platform' "${lock_file}")"
+  locked_repository_suffix="$(yq eval -r '.spec.repositorySuffix' "${lock_file}")"
+  locked_digest="$(yq eval -r '.spec.imageDigest' "${lock_file}")"
+  locked_version="$(yq eval -r '.spec.mlflow.version' "${lock_file}")"
+  locked_requirements_name="$(yq eval -r '.spec.mlflow.requirementsLock' "${lock_file}")"
+  locked_requirements_digest="$(yq eval -r '.spec.mlflow.requirementsDigest' "${lock_file}")"
+  [[ "${locked_target}" == "//services/mlflow:image" ]] ||
+    fail "${chart_name}: runtime image lock target is invalid"
+  [[ "${locked_platform}" == "linux/amd64" ]] ||
+    fail "${chart_name}: runtime image lock platform is invalid"
+  [[ "${locked_repository_suffix}" == "/mlflow-server" ]] ||
+    fail "${chart_name}: runtime image lock repository suffix is invalid"
+  [[ "${locked_digest}" =~ ^sha256:[0-9a-f]{64}$ ]] ||
+    fail "${chart_name}: runtime image lock has an invalid digest"
+  [[ "$(yq eval -r '.appVersion' "${chart_dir}/Chart.yaml")" == "${locked_version}" ]] ||
+    fail "${chart_name}: Chart appVersion does not match the runtime image lock"
+  [[ "${locked_requirements_name}" =~ ^services/mlflow/[A-Za-z0-9._/-]+$ &&
+    "${locked_requirements_name}" != *"../"* ]] ||
+    fail "${chart_name}: requirements lock path is unsafe"
+  requirements_lock_file="${repository_root}/${locked_requirements_name}"
+  [[ -f "${requirements_lock_file}" ]] ||
+    fail "${chart_name}: declared requirements lock is missing"
+  [[ "${locked_requirements_digest}" =~ ^sha256:[0-9a-f]{64}$ ]] ||
+    fail "${chart_name}: requirements lock digest is invalid"
+  actual_requirements_digest="sha256:$(sha256_file "${requirements_lock_file}")"
+  [[ "${actual_requirements_digest}" == "${locked_requirements_digest}" ]] ||
+    fail "${chart_name}: requirements lock digest drifted"
+  qualification_repository="$(yq eval -r '.image.repository' "${values_file}")"
+  [[ "${qualification_repository}" == *"${locked_repository_suffix}" ]] ||
+    fail "${chart_name}: qualification values do not select the Mindclade wrapper image"
+  expected_image="${qualification_repository}@${locked_digest}"
+
+  helm lint --strict "${chart_dir}"
+  helm template "${release_name}" "${chart_dir}" \
+    --namespace "${release_namespace}" >"${disabled_output}"
+  disabled_resource_count="$(
+    yq eval-all '[.] | flatten | map(select(.kind != null and .apiVersion != null)) | length' \
+      "${disabled_output}"
+  )"
+  [[ "${disabled_resource_count}" == "0" ]] ||
+    fail "${chart_name}: default application values must render zero resources"
+
+  helm lint --strict "${chart_dir}" --values "${values_file}"
+  helm template "${release_name}" "${chart_dir}" \
+    --namespace "${release_namespace}" \
+    --values "${values_file}" >"${chart_output}"
+  chart_resource_count="$(
+    yq eval-all '[.] | flatten | map(select(.kind != null and .apiVersion != null)) | length' \
+      "${chart_output}"
+  )"
+  [[ "${chart_resource_count}" == "${expected_resource_count}" ]] ||
+    fail "${chart_name}: expected ${expected_resource_count} qualified resources, found ${chart_resource_count}"
+
+  deployment_count="$(yq eval-all '[.] | flatten | map(select(
+    .apiVersion == "apps/v1" and .kind == "Deployment" and
+    .metadata.namespace == "'"${release_namespace}"'" and
+    .metadata.name == "'"${workload_name}"'"
+  )) | length' "${chart_output}")"
+  [[ "${deployment_count}" == "1" ]] ||
+    fail "${chart_name}: expected exactly one ${workload_name} Deployment"
+  deployment_image="$(yq eval -r 'select(
+    .apiVersion == "apps/v1" and .kind == "Deployment" and
+    .metadata.namespace == "'"${release_namespace}"'" and
+    .metadata.name == "'"${workload_name}"'"
+  ) | .spec.template.spec.containers[] | select(.name == "mlflow") | .image' "${chart_output}")"
+  [[ "${deployment_image}" == "${expected_image}" ]] ||
+    fail "${chart_name}: workload image does not exactly match ${expected_image}"
+  release_evidence_digest="$(yq eval -r 'select(
+    .apiVersion == "apps/v1" and .kind == "Deployment" and
+    .metadata.namespace == "'"${release_namespace}"'" and
+    .metadata.name == "'"${workload_name}"'"
+  ) | .spec.template.metadata.annotations."mindclade.dev/release-evidence-digest"' "${chart_output}")"
+  [[ "${release_evidence_digest}" =~ ^sha256:[0-9a-f]{64}$ &&
+    "${release_evidence_digest}" != "sha256:0000000000000000000000000000000000000000000000000000000000000000" ]] ||
+    fail "${chart_name}: activation requires a nonzero release evidence digest"
+
+  forbidden_resource_count="$(yq eval-all '[.] | flatten | map(select(
+    .kind == "Secret" or .kind == "PersistentVolumeClaim" or
+    .kind == "Role" or .kind == "RoleBinding" or
+    .kind == "ClusterRole" or .kind == "ClusterRoleBinding" or
+    .kind == "CustomResourceDefinition" or .kind == "Namespace" or
+    (.kind == "Service" and (.spec.type == "LoadBalancer" or .spec.type == "NodePort" or .spec.type == "ExternalName"))
+  )) | length' "${chart_output}")"
+  [[ "${forbidden_resource_count}" == "0" ]] ||
+    fail "${chart_name}: application chart rendered a secret, storage claim, RBAC, cluster-scoped object, or external service"
+
+  append_rendered_yaml "${chart_output}"
+  printf '%s\t%s\n' "${chart_name}" "${chart_output}" >>"${helm_policy_outputs}"
+  printf 'HELM-APPLICATION  %-65s %s resources (default: blocked)\n' \
+    "${chart_name}" "${chart_resource_count}"
+done < <(
+  yq eval -r '.spec.applicationHelmReleases[]? | [
+    .chart,
+    .release,
+    .namespace,
+    .values,
+    .runtimeImageLock,
+    .workloadName,
+    .expectedResourceCount
+  ] | @tsv' "${validation_config}"
+)
 
 note "checking custom-resource kinds against the explicit allowlist"
 while IFS=$'\t' read -r api_version resource_kind; do
@@ -889,14 +1023,28 @@ python3 "${script_dir}/capacity_contract.py" \
 note "checking GMP selectors, ports, and Prometheus recording rules"
 
 observability_render="${validation_tmp_dir}/platform__observability.yaml"
+control_plane_render="${validation_tmp_dir}/services__control-plane.yaml"
 prometheus_rules="${validation_tmp_dir}/gmp-recording-rules.yaml"
 prometheus_tests="${validation_tmp_dir}/promtool-tests.yaml"
 [[ -s "${observability_render}" ]] || fail "platform/observability did not produce a render"
+[[ -s "${control_plane_render}" ]] || fail "services/control-plane did not produce a render"
 
 pod_monitor_count="$(yq eval-all '[.] | flatten | map(select(
   .apiVersion == "monitoring.googleapis.com/v1" and .kind == "PodMonitoring")) | length' \
   "${observability_render}")"
 [[ "${pod_monitor_count}" == "2" ]] || fail "expected exactly two operator PodMonitoring resources"
+
+control_plane_pod_monitor_count="$(yq eval-all '[.] | flatten | map(select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "PodMonitoring")) | length' \
+  "${control_plane_render}")"
+[[ "${control_plane_pod_monitor_count}" == "1" ]] ||
+  fail "services/control-plane must contain exactly one PodMonitoring resource"
+control_admission_monitor_count="$(yq eval-all '[.] | flatten | map(select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "PodMonitoring" and
+  .metadata.name == "control-admission" and .metadata.namespace == "mindclade-system")) | length' \
+  "${control_plane_render}")"
+[[ "${control_admission_monitor_count}" == "1" ]] ||
+  fail "expected exactly one namespaced control-admission PodMonitoring resource"
 
 pod_monitor_endpoint_value() {
   local monitor_name="$1"
@@ -965,19 +1113,165 @@ jobset_metric_keep_regex="$(pod_monitor_endpoint_value jobset-controller \
   "${jobset_metric_keep_regex}" != *"jobset_completed"* ]] ||
   fail "unreliable per-name JobSet terminal counters may not drive windowed outcome alerts"
 
+control_admission_endpoint_value() {
+  local value_path="$1"
+  yq eval-all -r \
+    "select(.apiVersion == \"monitoring.googleapis.com/v1\" and
+      .kind == \"PodMonitoring\" and .metadata.name == \"control-admission\") |
+      .spec.endpoints[0].${value_path}" \
+    "${control_plane_render}"
+}
+
+control_admission_endpoint_count="$(yq eval-all '[select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "PodMonitoring" and
+  .metadata.name == "control-admission") | .spec.endpoints[]] | length' \
+  "${control_plane_render}")"
+[[ "${control_admission_endpoint_count}" == "1" ]] ||
+  fail "control-admission must define exactly one scrape endpoint"
+[[ "$(control_admission_endpoint_value port)" == "metrics" &&
+  "$(control_admission_endpoint_value scheme)" == "http" &&
+  "$(control_admission_endpoint_value path)" == "/metrics" &&
+  "$(control_admission_endpoint_value interval)" == "30s" &&
+  "$(control_admission_endpoint_value timeout)" == "10s" ]] ||
+  fail "control-admission scrape endpoint contract drifted"
+[[ "$(control_admission_endpoint_value authorization)" == "null" &&
+  "$(control_admission_endpoint_value tls)" == "null" ]] ||
+  fail "control-admission must rely on exact collector NetworkPolicy identity, not guessed scrape credentials"
+
+control_admission_selector="$(yq eval-all -r 'select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "PodMonitoring" and
+  .metadata.name == "control-admission") |
+  .spec.selector.matchLabels."observability.mindclade.dev/control-admission"' \
+  "${control_plane_render}")"
+[[ "${control_admission_selector}" == "true" ]] ||
+  fail "control-admission PodMonitoring selector must use the dedicated bounded telemetry label"
+[[ "$(control_admission_endpoint_value 'metricRelabeling[] | select(.action == "keep") | .regex')" == \
+  '^(up|mindclade_control_admission_(decisions_total|decision_duration_seconds_(bucket|count|sum)|expiration_backlog|oldest_expired_reservation_age_seconds|last_successful_sweep_timestamp_seconds|consecutive_backlogged_sweeps|event_drift|snapshot_last_success_timestamp_seconds|snapshot_success))$' ]] ||
+  fail "control-admission scrape allowlist drifted"
+
+control_admission_role_source="$(yq eval-all -r 'select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "PodMonitoring" and
+  .metadata.name == "control-admission") | .spec.targetLabels.fromPod[0].from' \
+  "${control_plane_render}")"
+control_admission_role_target="$(yq eval-all -r 'select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "PodMonitoring" and
+  .metadata.name == "control-admission") | .spec.targetLabels.fromPod[0].to' \
+  "${control_plane_render}")"
+control_admission_service_source="$(yq eval-all -r 'select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "PodMonitoring" and
+  .metadata.name == "control-admission") | .spec.targetLabels.fromPod[1].from' \
+  "${control_plane_render}")"
+control_admission_service_target="$(yq eval-all -r 'select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "PodMonitoring" and
+  .metadata.name == "control-admission") | .spec.targetLabels.fromPod[1].to' \
+  "${control_plane_render}")"
+[[ "${control_admission_role_source}" == "mindclade.dev/control-plane-role" &&
+  "${control_admission_role_target}" == "role" &&
+  "${control_admission_service_source}" == "observability.mindclade.dev/service" &&
+  "${control_admission_service_target}" == "service" ]] ||
+  fail "control-admission must map the bounded process role and fixed service target labels"
+control_admission_target_label_count="$(yq eval-all '[select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "PodMonitoring" and
+  .metadata.name == "control-admission") | .spec.targetLabels.fromPod[]] | length' \
+  "${control_plane_render}")"
+[[ "${control_admission_target_label_count}" == "2" ]] ||
+  fail "control-admission must expose exactly the role and service target labels"
+
+control_admission_metrics_address="$(yq eval-all -r 'select(
+  .kind == "ConfigMap" and .metadata.name == "control-plane-runtime-config") |
+  .data.MINDCLADE_METRICS_ADDRESS' "${control_plane_render}")"
+[[ "${control_admission_metrics_address}" == "0.0.0.0:9464" ]] ||
+  fail "control-plane metrics listener must bind the declared TCP 9464 port"
+control_admission_deployment_count="$(yq eval-all '[.] | flatten | map(select(
+  .kind == "Deployment" and
+  .spec.template.metadata.labels."observability.mindclade.dev/control-admission" == "true" and
+  .spec.template.metadata.labels."observability.mindclade.dev/service" == "control-admission")) | length' \
+  "${control_plane_render}")"
+[[ "${control_admission_deployment_count}" == "2" ]] ||
+  fail "exactly the API and maintenance Deployments must declare control-admission telemetry"
+control_admission_deployment_names="$(yq eval-all -r '[.] | flatten | map(select(
+  .kind == "Deployment" and
+  .spec.template.metadata.labels."observability.mindclade.dev/control-admission" == "true" and
+  .spec.template.metadata.labels."observability.mindclade.dev/service" == "control-admission")) |
+  map(.metadata.name) | sort | join(",")' "${control_plane_render}")"
+[[ "${control_admission_deployment_names}" == "control-plane-api,control-plane-maintenance" ]] ||
+  fail "control-admission telemetry selectors may belong only to API and maintenance"
+control_admission_metrics_port_violation_count="$(yq eval-all '[.] | flatten |
+  map(select(.kind == "Deployment" and
+    .spec.template.metadata.labels."observability.mindclade.dev/control-admission" == "true")) |
+  map(select(([.spec.template.spec.containers[].ports[]? |
+    select(.name == "metrics" and .containerPort == 9464 and .protocol == "TCP")] | length) != 1)) |
+  length' "${control_plane_render}")"
+[[ "${control_admission_metrics_port_violation_count}" == "0" ]] ||
+  fail "every selected control-admission Pod must expose exactly one named TCP metrics port"
+control_admission_metrics_port_owner_count="$(yq eval-all '[.] | flatten |
+  map(select(.kind == "Deployment")) |
+  map(select([.spec.template.spec.containers[].ports[]? |
+    select(.name == "metrics" or .containerPort == 9464)] | length > 0)) |
+  length' "${control_plane_render}")"
+[[ "${control_admission_metrics_port_owner_count}" == "2" ]] ||
+  fail "only the source-owned API and maintenance listeners may expose a control-admission metrics port"
+
+control_admission_base_metrics_ingress_count="$(yq eval-all '[.] | flatten |
+  [ .[] | select(.kind == "NetworkPolicy") | .spec.ingress[]?.ports[]? |
+    select(.port == 9464 or .port == "metrics") ] | length' "${control_plane_render}")"
+[[ "${control_admission_base_metrics_ingress_count}" == "0" ]] ||
+  fail "base control-plane policy may not guess a GMP collector identity or allow metrics ingress"
+control_admission_activation_blocker="$(yq eval-all -r 'select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "PodMonitoring" and
+  .metadata.name == "control-admission") | .metadata.annotations."mindclade.dev/activation-blocker"' \
+  "${control_plane_render}")"
+[[ "${control_admission_activation_blocker}" == \
+  "exact-gmp-collector-network-identity-and-connected-scrape-unqualified" ]] ||
+  fail "control-admission PodMonitoring must remain activation-blocked on collector identity and connected evidence"
+control_admission_api_rules_blocker="$(yq eval-all -r 'select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "Rules" and
+  .metadata.name == "control-admission-api-recording") |
+  .metadata.annotations."mindclade.dev/activation-blocker"' "${control_plane_render}")"
+[[ "${control_admission_api_rules_blocker}" == \
+  "connected-gmp-rule-and-alert-translation-qualification-missing" ]] ||
+  fail "control-admission API rules must remain blocked on connected rule and alert translation evidence"
+control_admission_api_metrics_contract="$(yq eval-all -r 'select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "Rules" and
+  .metadata.name == "control-admission-api-recording") |
+  .metadata.annotations."mindclade.dev/metrics-contract"' "${control_plane_render}")"
+[[ "${control_admission_api_metrics_contract}" == \
+  "admission-api-v1:30-decision-counters:36-histogram-buckets:3-histogram-counts:3-histogram-sums-per-replica" ]] ||
+  fail "control-admission API rules must pin the exact v1 per-replica metric inventory"
+control_admission_maintenance_rules_blocker="$(yq eval-all -r 'select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "Rules" and
+  .metadata.name == "control-admission-maintenance-recording") |
+  .metadata.annotations."mindclade.dev/activation-blocker"' "${control_plane_render}")"
+[[ "${control_admission_maintenance_rules_blocker}" == \
+  "connected-gmp-rule-alert-and-representative-postgresql-qualification-missing" ]] ||
+  fail "control-admission maintenance rules must remain blocked on connected database, GMP, and alert evidence"
+control_admission_maintenance_metrics_contract="$(yq eval-all -r 'select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "Rules" and
+  .metadata.name == "control-admission-maintenance-recording") |
+  .metadata.annotations."mindclade.dev/metrics-contract"' "${control_plane_render}")"
+[[ "${control_admission_maintenance_metrics_contract}" == \
+  "admission-maintenance-v1:four-scalars:three-drift-kinds:two-snapshot-timestamps:two-snapshot-outcomes-per-replica" ]] ||
+  fail "control-admission maintenance rules must pin the exact v1 per-replica metric inventory"
+control_admission_rules_document_count="$(yq eval-all '[.] | flatten | map(select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "Rules")) | length' \
+  "${control_plane_render}")"
+[[ "${control_admission_rules_document_count}" == "2" ]] ||
+  fail "control-plane must keep API and activation-blocked maintenance rules in exactly two resources"
+
 yq eval-all -o=yaml -I=2 \
   '[.] | flatten |
   map(select(.apiVersion == "monitoring.googleapis.com/v1" and .kind == "Rules")) |
-  map(.spec.groups[]) | {"groups": .}' "${observability_render}" >"${prometheus_rules}"
+  map(.spec.groups[]) | {"groups": .}' \
+  "${observability_render}" "${control_plane_render}" >"${prometheus_rules}"
 rules_document_count="$(yq eval-all '[.] | flatten | map(select(.kind == "Rules")) | length' \
-  "${observability_render}")"
+  "${observability_render}" "${control_plane_render}")"
 rules_group_count="$(yq eval '.groups | length' "${prometheus_rules}")"
-[[ "${rules_document_count}" == "2" && "${rules_group_count}" == "2" ]] ||
-  fail "expected both GMP Rules documents to contribute exactly one Prometheus group"
+[[ "${rules_document_count}" == "4" && "${rules_group_count}" == "4" ]] ||
+  fail "expected all four GMP Rules documents to contribute exactly one Prometheus group"
 promtool check rules "${prometheus_rules}"
 sed "s|__RULE_FILE__|${prometheus_rules}|g" "${script_dir}/promtool-tests.yaml" >"${prometheus_tests}"
 promtool test rules "${prometheus_tests}"
 
 note "Kubernetes validation passed"
-printf 'Validated %s built-in rendered resources, %s Helm chart(s), and every declared Kustomize root.\n' \
-  "${core_resource_count}" "${chart_count}"
+printf 'Validated %s built-in rendered resources, %s operator Helm chart(s), %s application Helm chart(s), and every declared Kustomize root.\n' \
+  "${core_resource_count}" "${chart_count}" "${application_chart_count}"

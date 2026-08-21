@@ -53,11 +53,11 @@ refresh, plan against GCP, apply, import, state mutation, or cloud API operation
   misconfigurations; the three source-local exceptions document generic encryption or
   audit-policy ownership and expire 2027-08-20.
 - Conftest 0.63.0 / OPA 1.9.0: 22/22 unit tests plus saved-plan integration fixtures pass.
-- Terraform interface governance: 44 units, 361 changes from v0.1.1, including 130 breaking
+- Terraform interface governance: 44 units, 366 changes from v0.1.1, including 131 breaking
   changes covered by the planned v0.4.0 migration record; both hermetic Bazel tests pass.
 - Actionlint, strict workflow YAML lint, `git diff --check`, and
   `nix flake check --no-build`: pass.
-- `python3 ci/presubmit/pipeline.py --static-only`: all 19 repository checks pass.
+- `python3 ci/presubmit/pipeline.py --static-only`: all 21 repository checks pass.
 - Strict MkDocs build and `nix fmt -- --ci`: pass.
 
 The `lint` and `terraform` workflow jobs now have stable names. Their sibling

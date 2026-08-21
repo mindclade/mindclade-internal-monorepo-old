@@ -12,6 +12,7 @@ py_library(
     srcs = [
         "exporters/__init__.py",
         "exporters/mlflow.py",
+        "exporters/mlflow_tracing.py",
     ],
     imports = ["../../.."],
 )
@@ -24,6 +25,7 @@ filegroup(
             "BUILD.bazel",
             "exporters/__init__.py",
             "exporters/mlflow.py",
+            "exporters/mlflow_tracing.py",
             "tests/**",
         ],
     ),

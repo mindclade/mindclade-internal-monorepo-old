@@ -1,0 +1,95 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+activation:
+  enabled: false
+  releaseEvidenceDigest: blocked
+
+image:
+  repository: localhost/mindclade/mlflow-server
+  digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+server:
+  port: 5000
+  workers: 2
+  allowedHosts: []
+  corsAllowedOrigins: []
+  xFrameOptions: DENY
+  secretsCacheTTLSeconds: 30
+  secretsCacheMaxSize: 1000
+  terminationGracePeriodSeconds: 60
+  gatewayBudgetRefreshIntervalSeconds: 30
+
+auth:
+  existingSecret: SET_BY_ACTIVATION_BUNDLE
+  authConfigKey: auth-config.ini
+  backendStoreURIKey: backend-store-uri
+  flaskSecretKey: flask-secret-key
+  gatewayBudgetRedisURIKey: gateway-budget-redis-uri
+  traceArchivalConfigKey: trace-archival.yaml
+
+artifacts:
+  destination: SET_BY_ACTIVATION_BUNDLE
+  modelVersionSourceValidationRegex: SET_BY_ACTIVATION_BUNDLE
+
+serviceAccount:
+  name: mlflow-server
+  gcpServiceAccount: SET_BY_ACTIVATION_BUNDLE
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+    ephemeral-storage: 512Mi
+  limits:
+    cpu: "2"
+    memory: 4Gi
+    ephemeral-storage: 4Gi
+
+autoscaling:
+  enabled: true
+  minimumReplicas: 2
+  maximumReplicas: 6
+  targetCPUUtilizationPercentage: 65
+
+podDisruptionBudget:
+  enabled: true
+  maxUnavailable: 1
+
+migration:
+  enabled: false
+  activeDeadlineSeconds: 900
+  backoffLimit: 1
+
+networkPolicy:
+  ingressNamespaceNames: []
+  database:
+    port: 5432
+    cidrs: []
+  redis:
+    port: 6379
+    cidrs: []
+  httpsCIDRs: []
+  workloadIdentityMetadata: true
+
+monitoring:
+  enabled: true
+  collectorNamespaceNames: []
+  interval: 30s
+  timeout: 10s
+
+nodeSelector:
+  mindclade.dev/node-pool: system
+
+tolerations: []
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway

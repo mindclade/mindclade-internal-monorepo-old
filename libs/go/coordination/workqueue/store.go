@@ -7,9 +7,34 @@ package workqueue
 
 import (
 	"context"
-	"go.mindclade.dev/libs/go/identifiers"
+	"strings"
 	"time"
+
+	"go.mindclade.dev/libs/go/identifiers"
 )
+
+// MaximumPruneLimit caps terminal records removed by one store operation.
+const MaximumPruneLimit = 1000
+
+// PruneRequest bounds deletion to old terminal records in one queue. Pending
+// and leased work is never eligible for retention pruning. Deleting a terminal
+// record also removes its duplicate-ID tombstone, so CompletedBefore must be
+// later than the producer's retry/replay horizon unless the effect is
+// independently idempotent.
+type PruneRequest struct {
+	Queue           string
+	CompletedBefore time.Time
+	Limit           int
+}
+
+func (request PruneRequest) Validate() error {
+	if request.Queue == "" || request.Queue != strings.TrimSpace(request.Queue) ||
+		len(request.Queue) > MaximumQueueBytes || request.CompletedBefore.IsZero() ||
+		request.Limit <= 0 || request.Limit > MaximumPruneLimit {
+		return invalid("invalid_work_prune_request", "invalid work prune request", "workqueue.PruneRequest.Validate")
+	}
+	return nil
+}
 
 type ClaimRequest struct {
 	Owner         string
@@ -51,4 +76,5 @@ type Store interface {
 	Fail(context.Context, Claim, Failure, time.Time) error
 	Cancel(context.Context, identifiers.ID, string, time.Time) error
 	Lookup(context.Context, identifiers.ID) (Record, error)
+	PruneTerminal(context.Context, PruneRequest) (int, error)
 }

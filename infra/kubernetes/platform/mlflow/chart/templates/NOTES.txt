@@ -1,0 +1,7 @@
+{{- if .Values.activation.enabled -}}
+MLflow is rendered for {{ .Release.Namespace }}. This is a metadata mirror, not model-serving or
+promotion authority. Verify the external SQL, object-store, identity, secret, synthetic workflow,
+backup/restore, schema migration, and rollback evidence before sync.
+{{- else -}}
+MLflow activation is blocked. The chart intentionally rendered no workload resources.
+{{- end -}}

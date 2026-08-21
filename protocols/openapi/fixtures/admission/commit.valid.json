@@ -1,0 +1,9 @@
+{
+  "request_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "actual": {
+    "requests": 1,
+    "input_tokens": 90,
+    "output_tokens": 40,
+    "cost_micros": 450
+  }
+}

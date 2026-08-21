@@ -122,6 +122,7 @@ class Trainer:
         self._config = resolved_config
         self._scheduler = scheduler
         self._state = resolved_state
+        self._failure_reason: str | None = None
         self._optimizer_parameters = _validate_optimizer_ownership(model, optimizer)
         _validate_cpu_float32_model(model)
 
@@ -134,8 +135,26 @@ class Trainer:
         return self._state
 
     @property
+    def optimizer(self) -> torch.optim.Optimizer:
+        return self._optimizer
+
+    @property
+    def scheduler(self) -> Scheduler | None:
+        return self._scheduler
+
+    @property
     def config(self) -> TrainerConfig:
         return self._config
+
+    @property
+    def healthy(self) -> bool:
+        """Whether no possibly-partial optimizer transaction has failed."""
+
+        return self._failure_reason is None
+
+    @property
+    def failure_reason(self) -> str | None:
+        return self._failure_reason
 
     def train(
         self,
@@ -145,6 +164,7 @@ class Trainer:
     ) -> tuple[StepResult, ...]:
         """Train on a finite sequence and return one result per optimizer step."""
 
+        self._ensure_healthy()
         resolved_batches = _validate_batches(batches, self._config.maximum_microbatches_per_call)
         _validate_cancellation_check(cancellation_check)
         _validate_cpu_float32_model(self._model)
@@ -170,6 +190,7 @@ class Trainer:
     ) -> StepResult:
         """Evaluate without changing model mode, parameters, gradients, or state."""
 
+        self._ensure_healthy()
         resolved_batches = _validate_batches(batches, self._config.maximum_microbatches_per_call)
         _validate_cancellation_check(cancellation_check)
         _validate_cpu_float32_model(self._model)
@@ -211,6 +232,7 @@ class Trainer:
     ) -> StepResult:
         _check_cancellation(cancellation_check, operation="optimizer_group")
         self._optimizer.zero_grad(set_to_none=True)
+        optimizer_attempted = False
         try:
             task_results: list[TaskResult] = []
             denominator = 0
@@ -236,19 +258,27 @@ class Trainer:
                 total_loss_sum += float(task_result.loss_sum.detach().item())
                 _check_cancellation(cancellation_check, operation="train_backward")
 
+            # Validate the prospective counters before crossing the non-transactional
+            # optimizer boundary. The immutable value is published only after the optimizer
+            # and scheduler both succeed.
+            next_state = self._state.after_optimizer_step(
+                microbatches=len(group),
+                samples=samples,
+            )
             _validate_finite_gradients(self._optimizer_parameters)
             gradient_norm = self._clip_gradients()
             _check_cancellation(cancellation_check, operation="optimizer_step")
+            # Optimizer implementations are not transactional. From this point onward any
+            # exception may have left parameters or optimizer/scheduler state partially
+            # mutated, so these live objects cannot be retried safely.
+            optimizer_attempted = True
             self._optimizer.step()
             _validate_finite_parameters(self._optimizer_parameters)
             if self._scheduler is not None:
                 self._scheduler.step()
             self._optimizer.zero_grad(set_to_none=True)
 
-            self._state = self._state.after_optimizer_step(
-                microbatches=len(group),
-                samples=samples,
-            )
+            self._state = next_state
             metrics = {"loss": total_loss_sum / denominator}
             if gradient_norm is not None:
                 metrics["gradient_norm"] = gradient_norm
@@ -261,7 +291,11 @@ class Trainer:
                 optimizer_step=True,
                 metrics=metrics,
             )
-        except BaseException:
+        except BaseException as error:
+            if optimizer_attempted:
+                self._failure_reason = (
+                    f"optimizer transaction failed after mutation began: {type(error).__name__}"
+                )
             self._optimizer.zero_grad(set_to_none=True)
             raise
 
@@ -291,6 +325,15 @@ class Trainer:
         if not math.isfinite(value):
             raise FloatingPointError("gradient norm is not finite")
         return value
+
+    def _ensure_healthy(self) -> None:
+        if self._failure_reason is not None:
+            raise FailedPrecondition(
+                "trainer is poisoned by a possibly partial optimizer transaction; restore a "
+                "verified checkpoint into fresh objects before continuing",
+                reason="training_optimizer_transaction_partial",
+                fields={"failure": self._failure_reason},
+            )
 
 
 def _validate_batches(batches: object, maximum: int) -> tuple[SupervisedBatch, ...]:
@@ -322,7 +365,9 @@ def _validate_batches(batches: object, maximum: int) -> tuple[SupervisedBatch, .
 def _validate_optimizer_ownership(
     model: nn.Module, optimizer: torch.optim.Optimizer
 ) -> tuple[nn.Parameter, ...]:
-    model_parameters = {id(parameter): parameter for parameter in model.parameters()}
+    model_parameters = {
+        id(parameter): parameter for parameter in model.parameters() if parameter.requires_grad
+    }
     optimized: list[nn.Parameter] = []
     identities: set[int] = set()
     for group in optimizer.param_groups:
@@ -354,6 +399,13 @@ def _validate_optimizer_ownership(
         raise InvalidArgument(
             "trainer optimizer has no parameters",
             reason="training_optimizer_parameter_empty",
+        )
+    missing = set(model_parameters) - identities
+    if missing:
+        raise InvalidArgument(
+            "trainer optimizer must own every trainable model parameter",
+            reason="training_optimizer_parameter_missing",
+            fields={"missing_count": str(len(missing))},
         )
     return tuple(optimized)
 

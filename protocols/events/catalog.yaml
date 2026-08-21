@@ -4,4 +4,58 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+{
+  "schema_version": 1,
+  "authority": "protocols/events/catalog.yaml",
+  "default_content_type": "application/json",
+  "events": [
+    {
+      "channel": "gatewayBudgetPolicy",
+      "topic": "control.admission.budget.v1",
+      "message": "GatewayBudgetPolicyEvent",
+      "title": "AI gateway budget policy",
+      "summary": "Publishes an immutable-versioned workspace budget after its transactional policy write.",
+      "schema": "schemas/admission/v1/budget-event.schema.json",
+      "schema_version": 1,
+      "content_type": "application/json",
+      "producer": "services/control_plane/internal/store/postgres/admission/events.go",
+      "partition_key": "workspace",
+      "delivery": "at_least_once",
+      "ordering": "per_partition",
+      "compatibility": "additive_only",
+      "sensitive_fields": []
+    },
+    {
+      "channel": "gatewayEntitlementPolicy",
+      "topic": "control.admission.entitlement.v1",
+      "message": "GatewayEntitlementPolicyEvent",
+      "title": "AI gateway entitlement policy",
+      "summary": "Publishes a subject-bound entitlement after its transactional policy write.",
+      "schema": "schemas/admission/v1/entitlement-event.schema.json",
+      "schema_version": 1,
+      "content_type": "application/json",
+      "producer": "services/control_plane/internal/store/postgres/admission/events.go",
+      "partition_key": "workspace",
+      "delivery": "at_least_once",
+      "ordering": "per_partition",
+      "compatibility": "additive_only",
+      "sensitive_fields": ["subject"]
+    },
+    {
+      "channel": "gatewayReservationLifecycle",
+      "topic": "control.admission.reservation.v1",
+      "message": "GatewayReservationEvent",
+      "title": "AI gateway reservation lifecycle",
+      "summary": "Publishes reserved, committed, released, and expired reservation versions atomically with ledger mutations.",
+      "schema": "schemas/admission/v1/reservation-event.schema.json",
+      "schema_version": 1,
+      "content_type": "application/json",
+      "producer": "services/control_plane/internal/store/postgres/admission/events.go",
+      "partition_key": "workspace",
+      "delivery": "at_least_once",
+      "ordering": "per_partition",
+      "compatibility": "additive_only",
+      "sensitive_fields": ["subject"]
+    }
+  ]
+}

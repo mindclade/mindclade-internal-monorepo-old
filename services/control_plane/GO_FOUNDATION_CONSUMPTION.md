@@ -21,10 +21,11 @@ constructs real provider adapters. `bootstrap.UnconfiguredFactory` remains for
 a role added before its providers exist — it fails closed with exit 78 — and
 `internal/bootstrap/promotion_test.go` enforces that no command reaches it.
 
-The registry supplies concrete model-publication and release-promotion policy.
-Roles listed under "Domain seams" still expose injectable handlers with
-fail-closed defaults, so those processes assemble and validate but refuse work
-until their own domain composition is supplied.
+The registry supplies concrete model-publication and release-promotion policy,
+and maintenance supplies recurring Gateway-reservation expiry. Roles listed
+under "Domain seams" still expose injectable handlers with fail-closed
+defaults, so those processes assemble and validate but refuse work until their
+own domain composition is supplied.
 
 ## Process roles
 
@@ -40,7 +41,7 @@ until their own domain composition is supplied.
 | `event_projector` | Event projector | inbox, idempotency, cursor, leadership, projector loop |
 | `event_dispatcher` | Dispatcher | outbox store and fenced dispatcher loop |
 | `webhook_dispatcher` | Webhook dispatcher | idempotency, work queue, audit, outbox, policy-bound outbound HTTP |
-| `maintenance` | Maintenance | leases, leadership, work queue, audit |
+| `maintenance` | Maintenance | leases, leadership, deterministic recurring work queue, Gateway reservation expiry, audit, outbox |
 
 All roles also consume clock, identifiers, request metadata, structured faults,
 retry, observability, `servicekit`, and `servicekit/production`.
@@ -63,7 +64,6 @@ process that silently does nothing is the failure that takes longest to notice.
 | `event_projector` | `WithProjection` (source and handler) | `projection_source_not_configured` |
 | `webhook_dispatcher` | `WithDeliveryHandler` | `delivery_handler_not_configured` |
 | `ingestion_controller` | `WithStagingHandler` | `staging_handler_not_configured` |
-| `maintenance` | `WithHousekeepingHandler` | `housekeeping_handler_not_configured` |
 
 ## Provider packages
 
@@ -87,10 +87,11 @@ role materialization.
 
 ## Domain storage
 
-`internal/store/postgres` implements the repository contracts the domain
-declares — `control/registry/models.Repository` and
-`control/registry/releases.Repository` — rather than contracts of its own. The
-domain owns the seam; storage implements it, so the two cannot drift.
+`internal/store/postgres` implements the registry repository contracts the
+domain declares. Its `admission` subpackage implements
+`control/admission.Repository`, including serializable policy locks, atomic
+quota reservations, audit/outbox publication, and bounded expiration. The
+domain owns each seam; storage implements it, so the two cannot drift.
 
 Concurrency control follows each record's own model rather than one policy
 imposed across both. A `models.Descriptor` is content-addressed, since
@@ -107,6 +108,32 @@ to `models.Service` and `releases.Service`. Release promotion wraps evidence and
 release writes in one serializable transaction. The HTTP adapter depends only
 on narrow domain interfaces, keeping provider selection out of reusable domain
 packages and out of the command.
+
+`internal/providers/api.APIFactory` binds the admission store to
+`control/admission.Service` and mounts create/commit/release HTTP procedures.
+Authentication supplies the reservation subject, authorization mappings are
+required for every route, create requires an idempotency key, and finalization
+requires an exact resource-version precondition. The registry role remains the
+single owner of the shared migration manifest, now including admission policy
+and reservation tables.
+
+`internal/providers/maintenance.MaintenanceFactory` binds the same admission
+store to a leader-gated expiry handler. One deterministic work identity is
+derived for each five-second UTC bucket, making same-bucket enqueue replay
+idempotent only when the stored immutable payload and lineage match; an
+identity collision with different work fails closed. Each item drains a bounded number of
+`FOR UPDATE SKIP LOCKED` batches and preserves the store's transaction-aware
+audit/outbox writes. The scheduler deletes at most 1,000 terminal records older
+than seven days from its own queue per cycle, so five-second scheduling does not
+create permanently unbounded completed-row growth. Pending and leased work and
+other queues are outside that retention scope. Each bucket derives stable
+request and correlation metadata from its work UUID, and the generic worker
+restores that envelope into the expiry handler context. The leader-managed
+worker/scheduler runs only after the admission store's metadata-only schema
+probe succeeds, and that same probe participates in process readiness. Pruning
+releases duplicate-ID tombstones after seven days; replaying an older expiry
+sweep remains effect-idempotent because it only materializes already-overdue
+terminal transitions.
 
 ## Durable coordination contracts
 

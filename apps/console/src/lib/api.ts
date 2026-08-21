@@ -4,6 +4,7 @@
 //
 
 import { createApiClient } from "@mindclade/libs-ts-api-client";
+import { resolveBrowserBaseUrl } from "@mindclade/libs-ts-browser-security";
 import type { MindcladeClient } from "@mindclade/sdk-typescript";
 import type { PublicResourceKind, ResourceRow } from "./types";
 
@@ -11,8 +12,8 @@ let client: MindcladeClient | undefined;
 
 export function apiClient(): MindcladeClient {
   if (client !== undefined) return client;
-  const configured = process.env.NEXT_PUBLIC_API_BASE_URL;
-  const baseUrl = configured ?? (typeof window === "undefined" ? "http://localhost" : window.location.origin);
+  const browserOrigin = typeof window === "undefined" ? "http://localhost" : window.location.origin;
+  const baseUrl = resolveBrowserBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL, browserOrigin, process.env.NODE_ENV !== "production");
   client = createApiClient({ baseUrl, credentials: "include", timeoutMs: 15_000 });
   return client;
 }

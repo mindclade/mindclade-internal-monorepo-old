@@ -19,9 +19,11 @@ package api
 import (
 	"context"
 
+	"go.mindclade.dev/control/admission"
 	"go.mindclade.dev/libs/go/auth"
 	foundationconfig "go.mindclade.dev/libs/go/config"
 	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/servicekit"
 	"go.mindclade.dev/services/control_plane/internal/bootstrap"
 	"go.mindclade.dev/services/control_plane/internal/config"
 	"go.mindclade.dev/services/control_plane/internal/foundation"
@@ -30,22 +32,25 @@ import (
 	"go.mindclade.dev/services/control_plane/internal/foundation/identity"
 	"go.mindclade.dev/services/control_plane/internal/foundation/persistence"
 	"go.mindclade.dev/services/control_plane/internal/providers"
+	"go.mindclade.dev/services/control_plane/internal/providers/admissionmetrics"
 	"go.mindclade.dev/services/control_plane/internal/providers/apikeys"
 	"go.mindclade.dev/services/control_plane/internal/providers/durable"
+	admissionstore "go.mindclade.dev/services/control_plane/internal/store/postgres/admission"
 )
 
 // APIFactory assembles a request-serving control-plane process: the durable
 // PostgreSQL mechanisms, the service-identity stack, and the inbound HTTP,
 // Connect, and gRPC transports.
 //
-// The api and admin roles have identical capability profiles, so they are the
-// same composition rather than two copies of it. They are separate processes
-// because they are separately deployed and separately addressed -- an
-// administrative surface reachable on the same endpoint as the public API is a
-// surface that cannot be firewalled off from it -- and each reads its own
-// listener addresses from its own environment.
+// The api and admin roles share one domain and transport composition rather
+// than duplicating it. They remain separate processes because they are
+// separately deployed and addressed -- an administrative surface reachable on
+// the same endpoint as the public API cannot be firewalled off from it. The API
+// profile alone adds the bounded admission-metrics slice consumed by its
+// deployment monitoring; it does not broaden the admin process by accident.
 type APIFactory struct {
 	sources []foundationconfig.Source
+	role    bootstrap.Role
 }
 
 // NewAPIFactory returns the API provider factory. With no sources the process
@@ -55,15 +60,17 @@ func NewAPIFactory(sources ...foundationconfig.Source) *APIFactory {
 	if len(sources) == 0 {
 		sources = []foundationconfig.Source{config.EnvironmentSource()}
 	}
-	return &APIFactory{sources: sources}
+	return &APIFactory{sources: sources, role: bootstrap.RoleAPI}
 }
 
-// NewAdminFactory returns the administrative provider factory. It is the API
-// composition: the admin role requires exactly the same capabilities, and
-// giving it a second implementation would mean two places to keep the identity
-// and transport stacks correct.
+// NewAdminFactory returns the administrative provider factory. It shares the
+// API domain, identity, and transport construction; profile-specific auxiliary
+// components are still selected inside Create.
 func NewAdminFactory(sources ...foundationconfig.Source) *APIFactory {
-	return NewAPIFactory(sources...)
+	if len(sources) == 0 {
+		sources = []foundationconfig.Source{config.EnvironmentSource()}
+	}
+	return &APIFactory{sources: sources, role: bootstrap.RoleAdmin}
 }
 
 // Create resolves configuration and constructs every provider the API role
@@ -77,6 +84,18 @@ func (factory *APIFactory) Create(ctx context.Context, profile bootstrap.Profile
 			faults.CodeInvalidArgument,
 			"request-serving factory requires a context",
 			faults.WithReason("invalid_factory_request"),
+			faults.WithOperation("controlplane.api.APIFactory.Create"),
+			faults.WithRetryPolicy(faults.NoRetry()),
+		)
+	}
+	if err := profile.Validate(); err != nil {
+		return bootstrap.Runtime{}, err
+	}
+	if profile.Role != factory.role {
+		return bootstrap.Runtime{}, faults.New(
+			faults.CodeInvalidArgument,
+			"request-serving factory role does not match the process profile",
+			faults.WithReason("factory_profile_role_mismatch"),
 			faults.WithOperation("controlplane.api.APIFactory.Create"),
 			faults.WithRetryPolicy(faults.NoRetry()),
 		)
@@ -96,7 +115,7 @@ func (factory *APIFactory) Create(ctx context.Context, profile bootstrap.Profile
 		return bootstrap.Runtime{}, err
 	}
 
-	release := make([]func(), 0, 1)
+	release := make([]func(), 0, 2)
 	defer func() {
 		if err == nil {
 			return
@@ -120,10 +139,34 @@ func (factory *APIFactory) Create(ctx context.Context, profile bootstrap.Profile
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}
-
-	inbound, err := newServing(settings, shared.Observability, authenticator)
+	admissions, err := admissionstore.New(stores.DB, recorder, stores.Outbox,
+		admissionstore.WithClock(shared.Clock), admissionstore.WithGenerator(shared.IDs),
+		admissionstore.WithRetry(shared.Retry))
 	if err != nil {
 		return bootstrap.Runtime{}, err
+	}
+
+	engine := admissionEngine(admission.Service{
+		Repository: admissions,
+		Clock:      shared.Clock,
+	})
+	var metrics *admissionmetrics.Runtime
+	if profile.Role == bootstrap.RoleAPI {
+		metrics, err = admissionmetrics.New(settings.MetricsAddress, settings.DrainTimeout)
+		if err != nil {
+			return bootstrap.Runtime{}, err
+		}
+		release = append(release, func() { _ = metrics.Close() })
+	}
+
+	inbound, err := newServing(settings, shared.Observability, authenticator, engine, metrics)
+	if err != nil {
+		return bootstrap.Runtime{}, err
+	}
+	inbound.components.Work = append(inbound.components.Work, admissions.Component("admission-schema"))
+	if metrics != nil {
+		inbound.components.Auxiliary = append(inbound.components.Auxiliary,
+			bootstrap.StagedComponent{Stage: servicekit.StageServing, Component: metrics.Component()})
 	}
 
 	return bootstrap.Runtime{

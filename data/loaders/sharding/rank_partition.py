@@ -3,12 +3,17 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/loaders/sharding/rank_partition.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Disjoint rank partition for finite iterable sources."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/loaders/sharding/rank_partition.py"
+
+def rank_indices(length: int, rank: int, world_size: int) -> tuple[int, ...]:
+    if any(
+        isinstance(value, bool) or not isinstance(value, int)
+        for value in (length, rank, world_size)
+    ):
+        raise ValueError("rank partition values must be integers")
+    if length < 0 or world_size < 1 or not 0 <= rank < world_size:
+        raise ValueError("rank partition bounds are invalid")
+    return tuple(range(rank, length, world_size))

@@ -3,12 +3,32 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/ingestion/validation.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Stable rejection evidence for canonical ingestion records."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/ingestion/validation.py"
+from dataclasses import dataclass
+
+from data.contracts import DatasetContract, ValidationIssue, validate_record
+
+from .record import CanonicalRecord
+
+
+@dataclass(frozen=True, slots=True, order=True)
+class RejectedRecord:
+    source_record_digest: str
+    issues: tuple[ValidationIssue, ...]
+
+    def __post_init__(self) -> None:
+        if not self.issues:
+            raise ValueError("rejected record requires at least one issue")
+
+
+def validate_canonical(
+    record: CanonicalRecord, contract: DatasetContract
+) -> tuple[ValidationIssue, ...]:
+    if not isinstance(record, CanonicalRecord):
+        raise TypeError("record must be a CanonicalRecord")
+    if not isinstance(contract, DatasetContract):
+        raise TypeError("contract must be a DatasetContract")
+    return validate_record(record.values, contract)

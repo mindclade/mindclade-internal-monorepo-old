@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import math
 from collections.abc import Mapping
+from contextlib import suppress
 from dataclasses import dataclass
 from threading import Lock
 from typing import Protocol
@@ -77,15 +78,37 @@ class DatasetReference:
 class RunLineage:
     mindclade_run_id: str
     resolved_config_digest: str
+    source_revision: str
+    runtime_image_digest: str
+    attempt: int
     model_digest: str | None = None
+    resume_checkpoint_digest: str | None = None
+    classification: str = "internal"
     datasets: tuple[DatasetReference, ...] = ()
     artifacts: tuple[str, ...] = ()
 
     def validate(self) -> None:
         _text(self.mindclade_run_id, name="Mindclade run id", maximum=256)
         _digest(self.resolved_config_digest, name="resolved config digest")
+        if (
+            not isinstance(self.source_revision, str)
+            or len(self.source_revision) not in {40, 64}
+            or any(character not in "0123456789abcdef" for character in self.source_revision)
+        ):
+            raise ValueError("source revision must be an exact lowercase Git object id")
+        _digest(self.runtime_image_digest, name="runtime image digest")
+        if (
+            isinstance(self.attempt, bool)
+            or not isinstance(self.attempt, int)
+            or not 1 <= self.attempt <= 1_000_000
+        ):
+            raise ValueError("execution attempt is outside bounds")
         if self.model_digest is not None:
             _digest(self.model_digest, name="model digest")
+        if self.resume_checkpoint_digest is not None:
+            _digest(self.resume_checkpoint_digest, name="resume checkpoint digest")
+        if self.classification not in {"public", "internal", "confidential", "restricted"}:
+            raise ValueError("MLflow lineage classification is invalid")
         if len(self.datasets) > MAXIMUM_DATASETS or len(self.artifacts) > MAXIMUM_DATASETS:
             raise ValueError("MLflow lineage reference count exceeds bounds")
         dataset_identities = {(item.name, item.role) for item in self.datasets}
@@ -104,7 +127,12 @@ class RunLineage:
             "schema_version": 1,
             "mindclade_run_id": self.mindclade_run_id,
             "resolved_config_digest": self.resolved_config_digest,
+            "source_revision": self.source_revision,
+            "runtime_image_digest": self.runtime_image_digest,
+            "attempt": self.attempt,
             "model_digest": self.model_digest,
+            "resume_checkpoint_digest": self.resume_checkpoint_digest,
+            "classification": self.classification,
             "datasets": [
                 {"name": item.name, "digest": item.digest, "role": item.role}
                 for item in self.datasets
@@ -149,10 +177,16 @@ class MLflowExporter:
         tags = {
             "mindclade.run_id": lineage.mindclade_run_id,
             "mindclade.config_digest": lineage.resolved_config_digest,
+            "mindclade.source_revision": lineage.source_revision,
+            "mindclade.runtime_image_digest": lineage.runtime_image_digest,
+            "mindclade.attempt": str(lineage.attempt),
+            "mindclade.classification": lineage.classification,
             "mindclade.authority": "mirror",
         }
         if lineage.model_digest is not None:
             tags["mindclade.model_digest"] = lineage.model_digest
+        if lineage.resume_checkpoint_digest is not None:
+            tags["mindclade.resume_checkpoint_digest"] = lineage.resume_checkpoint_digest
 
         def operation() -> None:
             if self._run_id is not None:
@@ -160,8 +194,15 @@ class MLflowExporter:
             run = self._client.create_run(self._experiment_id, tags=tags, run_name=run_name)
             run_id = run.info.run_id
             _text(run_id, name="MLflow run id", maximum=256)
+            try:
+                self._client.log_text(
+                    run_id, lineage.canonical_document(), "mindclade/lineage.json"
+                )
+            except Exception:
+                with suppress(Exception):
+                    self._client.set_terminated(run_id, status="FAILED")
+                raise
             self._run_id = run_id
-            self._client.log_text(run_id, lineage.canonical_document(), "mindclade/lineage.json")
 
         return self._call(operation)
 

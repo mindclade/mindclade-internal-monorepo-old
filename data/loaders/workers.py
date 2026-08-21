@@ -3,12 +3,21 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/loaders/workers.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Importable worker initialization with explicit derived randomness."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/loaders/workers.py"
+import random
+
+import numpy as np
+import torch
+
+
+def seed_worker(worker_id: int) -> None:
+    """Derive Python and NumPy seeds from PyTorch's worker-local seed."""
+
+    if isinstance(worker_id, bool) or not isinstance(worker_id, int) or worker_id < 0:
+        raise ValueError("worker id must be a non-negative integer")
+    worker_seed = torch.initial_seed() % 2**32
+    random.seed(worker_seed)
+    np.random.seed(worker_seed)

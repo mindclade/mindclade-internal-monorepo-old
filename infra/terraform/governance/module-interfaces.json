@@ -4039,6 +4039,20 @@
             "sha256:d3cd09201f21fb5bbcfa05d3fc3c4416350c796912240d2117a80863ad7ea02f"
           ]
         },
+        "signal_alerts": {
+          "default": {},
+          "ephemeral": false,
+          "nullable": false,
+          "required": false,
+          "sensitive": false,
+          "type": "map(object({ display_name = string filter = string comparison = string threshold_value = number duration = optional(string, \"60s\") severity = optional(string, \"WARNING\") alignment_period = optional(string, \"60s\") per_series_aligner = optional(string, \"ALIGN_MAX\") cross_series_reducer = optional(string, \"REDUCE_MAX\") group_by_fields = optional(set(string), []) evaluation_missing_data = optional(string, \"EVALUATION_MISSING_DATA_ACTIVE\") trigger_count = optional(number, 1) minimum_samples = optional(object({ filter = string threshold_value = number duration = optional(string, \"60s\") alignment_period = optional(string, \"60s\") per_series_aligner = optional(string, \"ALIGN_MAX\") cross_series_reducer = optional(string, \"REDUCE_SUM\") group_by_fields = optional(set(string), []) }), null) }))",
+          "validation_fingerprints": [
+            "sha256:3e0b0d97a82d2fd2240062b4faddca6dbad97248bc50d0ba6306654dbf5e0427",
+            "sha256:6fef2a203126b507bba3097761c3cddb5e9226870db3eb7b57a84a4e25cbe46d",
+            "sha256:9ea42157add2ff7ec6258cbccdb117004d69da41c53b387eb22ab509a0105e93",
+            "sha256:b9c39c45a68fface04463227dad6ac7194349a3536ebaa63c0d41beb4d0406e9"
+          ]
+        },
         "slos": {
           "default": null,
           "ephemeral": false,
@@ -4048,14 +4062,15 @@
           "type": "map(object({ display_name = string goal = number rolling_period_days = optional(number, 28) good_service_filter = string total_service_filter = string fast_burn = optional(object({ threshold = optional(number, 14.4) short_lookback = optional(string, \"300s\") long_lookback = optional(string, \"3600s\") }), {}) slow_burn = optional(object({ threshold = optional(number, 6) short_lookback = optional(string, \"1800s\") long_lookback = optional(string, \"21600s\") }), {}) }))",
           "validation_fingerprints": [
             "sha256:39e304b5c982dcad709a3d6a2b911c5d2b1ad1c77fcec437041bbdd95ea88586",
+            "sha256:52d07594dda410955651daced725290fd66719307700f71514c5ef0ec53a3458",
             "sha256:6630e14240504d92e6d2505b188dd9f487b60c4957c32234b4481f9a84de76bb",
-            "sha256:aee7e0ebb0c664173fe44df4d699b1dccbea246dd0ac334ece50f6aff1802e80",
-            "sha256:d28444425b5cd2885ba72a3465295c66ed25e76d63a9b4e4b023a93e0604400e"
+            "sha256:aee7e0ebb0c664173fe44df4d699b1dccbea246dd0ac334ece50f6aff1802e80"
           ]
         }
       },
       "managed_resource_addresses": [
         "google_monitoring_alert_policy.fast_burn",
+        "google_monitoring_alert_policy.signal",
         "google_monitoring_alert_policy.slow_burn",
         "google_monitoring_custom_service.this",
         "google_monitoring_dashboard.this",
@@ -4088,6 +4103,11 @@
           "ephemeral": false,
           "sensitive": false,
           "value_fingerprint": "sha256:2815fb2dd03de59ed96c47029d551753eaca9092b58fc2e03feab969bc6f239b"
+        },
+        "signal_alert_policy_names": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:bf41ae809a3684f33abbe53b0aa9177e8409ded0376de5c8bea3ff4508f850ad"
         },
         "slo_contracts": {
           "ephemeral": false,
@@ -4653,9 +4673,10 @@
           "nullable": true,
           "required": true,
           "sensitive": false,
-          "type": "map(object({ environment = string owner = string service_display_name = string runbook_url = string notification_channels = set(string) slos = map(object({ display_name = string goal = number rolling_period_days = optional(number, 28) good_service_filter = string total_service_filter = string fast_burn = optional(object({ threshold = optional(number, 14.4) short_lookback = optional(string, \"300s\") long_lookback = optional(string, \"3600s\") }), {}) slow_burn = optional(object({ threshold = optional(number, 6) short_lookback = optional(string, \"1800s\") long_lookback = optional(string, \"21600s\") }), {}) })) labels = optional(map(string), {}) alert_auto_close_seconds = optional(number, 604800) }))",
+          "type": "map(object({ environment = string owner = string service_display_name = string runbook_url = string notification_channels = set(string) slos = map(object({ display_name = string goal = number rolling_period_days = optional(number, 28) good_service_filter = string total_service_filter = string fast_burn = optional(object({ threshold = optional(number, 14.4) short_lookback = optional(string, \"300s\") long_lookback = optional(string, \"3600s\") }), {}) slow_burn = optional(object({ threshold = optional(number, 6) short_lookback = optional(string, \"1800s\") long_lookback = optional(string, \"21600s\") }), {}) })) signal_alerts = optional(map(object({ display_name = string filter = string comparison = string threshold_value = number duration = optional(string, \"60s\") severity = optional(string, \"WARNING\") alignment_period = optional(string, \"60s\") per_series_aligner = optional(string, \"ALIGN_MAX\") cross_series_reducer = optional(string, \"REDUCE_MAX\") group_by_fields = optional(set(string), []) evaluation_missing_data = optional(string, \"EVALUATION_MISSING_DATA_ACTIVE\") trigger_count = optional(number, 1) minimum_samples = optional(object({ filter = string threshold_value = number duration = optional(string, \"60s\") alignment_period = optional(string, \"60s\") per_series_aligner = optional(string, \"ALIGN_MAX\") cross_series_reducer = optional(string, \"REDUCE_SUM\") group_by_fields = optional(set(string), []) }), null) })), {}) labels = optional(map(string), {}) alert_auto_close_seconds = optional(number, 604800) }))",
           "validation_fingerprints": [
             "sha256:49c9ee801aecbc7be7da9191e0a98a1415a4842be7e0d10cb56366b3c2c8bfeb",
+            "sha256:5a9e6607caf8832eca0a5ee51e79b8a36bec015e2a91b2a8621c49cbc8bbf674",
             "sha256:e8a7a2aed7ec4861e40ebc8062c7dd0a055078f0420329f83a1d54bf89a245d2"
           ]
         }
@@ -4700,6 +4721,11 @@
           "ephemeral": false,
           "sensitive": false,
           "value_fingerprint": "sha256:71ea52654ce593956e5fb9981232f8c77cc9c624f24eba2ef324e7e3c79c8eb4"
+        },
+        "signal_alert_policy_names": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:e9df99edfc2c160b798b767514de581d07c570ecc567f77484e90ac50ae85344"
         },
         "slo_contracts": {
           "ephemeral": false,

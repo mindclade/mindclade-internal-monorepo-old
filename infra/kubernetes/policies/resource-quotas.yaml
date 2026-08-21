@@ -263,3 +263,64 @@ spec:
         ephemeral-storage: 64Gi
         memory: 128Gi
         nvidia.com/gpu: "8"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: research-mlflow-capacity
+  namespace: research-mlflow
+  labels:
+    app.kubernetes.io/component: capacity-policy
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/data-plane: metadata-mirror
+  annotations:
+    mindclade.dev/activation-blocker: all-mlflow-workload-capacity-is-zero
+    mindclade.dev/capacity-status: fail-closed
+spec:
+  hard:
+    configmaps: "10"
+    count/cronjobs.batch: "0"
+    count/deployments.apps: "0"
+    count/jobs.batch: "0"
+    count/statefulsets.apps: "0"
+    limits.cpu: "0"
+    limits.ephemeral-storage: "0"
+    limits.memory: "0"
+    persistentvolumeclaims: "0"
+    pods: "0"
+    requests.cpu: "0"
+    requests.ephemeral-storage: "0"
+    requests.memory: "0"
+    requests.storage: "0"
+    secrets: "0"
+    services: "0"
+    services.loadbalancers: "0"
+    services.nodeports: "0"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: research-mlflow-bounds
+  namespace: research-mlflow
+  labels:
+    app.kubernetes.io/component: capacity-policy
+    app.kubernetes.io/part-of: mindclade-platform
+    mindclade.dev/data-plane: metadata-mirror
+  annotations:
+    mindclade.dev/defaulting-policy: forbidden-explicit-resources-required
+spec:
+  limits:
+    - type: Container
+      max:
+        cpu: "4"
+        ephemeral-storage: 8Gi
+        memory: 8Gi
+      min:
+        cpu: 10m
+        ephemeral-storage: 16Mi
+        memory: 32Mi
+    - type: Pod
+      max:
+        cpu: "4"
+        ephemeral-storage: 8Gi
+        memory: 8Gi

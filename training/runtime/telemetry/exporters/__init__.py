@@ -6,5 +6,22 @@
 """Optional training telemetry exporters."""
 
 from .mlflow import DatasetReference, MLflowExporter, RunLineage, TrackingClient
+from .mlflow_tracing import (
+    MLflowTraceExporter,
+    SpanHandle,
+    TraceClient,
+    TraceHandle,
+    TraceIdentity,
+)
 
-__all__ = ["DatasetReference", "MLflowExporter", "RunLineage", "TrackingClient"]
+__all__ = [
+    "DatasetReference",
+    "MLflowExporter",
+    "MLflowTraceExporter",
+    "RunLineage",
+    "SpanHandle",
+    "TraceClient",
+    "TraceHandle",
+    "TraceIdentity",
+    "TrackingClient",
+]

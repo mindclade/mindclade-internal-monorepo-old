@@ -1,0 +1,233 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+---
+{
+  "parameters": {
+    "ReservationId": {
+      "name": "reservationId",
+      "in": "path",
+      "required": true,
+      "schema": { "$ref": "#/schemas/ReservationId" }
+    },
+    "IfMatchReservationVersion": {
+      "name": "If-Match",
+      "in": "header",
+      "required": true,
+      "description": "Exact strong ETag returned by the preceding reservation mutation.",
+      "schema": {
+        "type": "string",
+        "pattern": "^\\\"rv1:[1-9][0-9]*:sha256:[0-9a-f]{64}\\\"$",
+        "maxLength": 128
+      }
+    }
+  },
+  "headers": {
+    "ReservationETag": {
+      "description": "Strong resource-version ETag for conditional finalization.",
+      "schema": {
+        "type": "string",
+        "pattern": "^\\\"rv1:[1-9][0-9]*:sha256:[0-9a-f]{64}\\\"$",
+        "maxLength": 128
+      }
+    },
+    "ReservationLocation": {
+      "description": "Canonical path of the reservation.",
+      "schema": {
+        "type": "string",
+        "pattern": "^/v1/ai-gateway/reservations/reservation_[0-9a-f]{12}7[0-9a-f]{3}[89ab][0-9a-f]{15}$",
+        "maxLength": 96
+      }
+    },
+    "NoStore": {
+      "description": "Admission decisions must not be cached.",
+      "schema": { "type": "string", "const": "no-store" }
+    }
+  },
+  "schemas": {
+    "GatewayName": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9._-]{0,127}$",
+      "maxLength": 128
+    },
+    "ReservationId": {
+      "type": "string",
+      "pattern": "^reservation_[0-9a-f]{12}7[0-9a-f]{3}[89ab][0-9a-f]{15}$",
+      "maxLength": 64
+    },
+    "EntitlementId": {
+      "type": "string",
+      "pattern": "^entitlement_[0-9a-f]{12}7[0-9a-f]{3}[89ab][0-9a-f]{15}$",
+      "maxLength": 64
+    },
+    "BudgetId": {
+      "type": "string",
+      "pattern": "^budget_[0-9a-f]{12}7[0-9a-f]{3}[89ab][0-9a-f]{15}$",
+      "maxLength": 64
+    },
+    "Digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "maxLength": 71
+    },
+    "ResourceVersion": {
+      "type": "string",
+      "pattern": "^rv1:[1-9][0-9]*:sha256:[0-9a-f]{64}$",
+      "maxLength": 128
+    },
+    "Timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "maxLength": 35
+    },
+    "PolicyEpoch": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9223372036854775807
+    },
+    "GatewayRoute": {
+      "type": "object",
+      "required": ["endpoint", "provider", "model"],
+      "properties": {
+        "endpoint": { "$ref": "#/schemas/GatewayName" },
+        "provider": { "$ref": "#/schemas/GatewayName" },
+        "model": { "$ref": "#/schemas/GatewayName" }
+      },
+      "additionalProperties": false
+    },
+    "GatewayQuota": {
+      "type": "object",
+      "required": ["requests"],
+      "properties": {
+        "requests": { "type": "integer", "const": 1 },
+        "input_tokens": { "type": "integer", "minimum": 0, "maximum": 1000000000000000000 },
+        "output_tokens": { "type": "integer", "minimum": 0, "maximum": 1000000000000000000 },
+        "cost_micros": { "type": "integer", "minimum": 0, "maximum": 1000000000000000000 }
+      },
+      "minProperties": 1,
+      "maxProperties": 4,
+      "additionalProperties": false
+    },
+    "GatewayReservationState": {
+      "type": "string",
+      "enum": ["reserved", "committed", "released", "expired"]
+    },
+    "CreateGatewayReservationRequest": {
+      "type": "object",
+      "required": ["request_digest", "workspace", "route", "policy_epoch", "requested", "ttl_seconds"],
+      "properties": {
+        "request_digest": { "$ref": "#/schemas/Digest" },
+        "workspace": { "$ref": "#/schemas/GatewayName" },
+        "route": { "$ref": "#/schemas/GatewayRoute" },
+        "policy_epoch": { "$ref": "#/schemas/PolicyEpoch" },
+        "requested": { "$ref": "#/schemas/GatewayQuota" },
+        "ttl_seconds": { "type": "integer", "minimum": 1, "maximum": 86400 }
+      },
+      "additionalProperties": false
+    },
+    "CommitGatewayReservationRequest": {
+      "type": "object",
+      "required": ["request_digest", "actual"],
+      "properties": {
+        "request_digest": { "$ref": "#/schemas/Digest" },
+        "actual": { "$ref": "#/schemas/GatewayQuota" }
+      },
+      "additionalProperties": false
+    },
+    "ReleaseGatewayReservationRequest": {
+      "type": "object",
+      "required": ["request_digest"],
+      "properties": {
+        "request_digest": { "$ref": "#/schemas/Digest" }
+      },
+      "additionalProperties": false
+    },
+    "GatewayReservation": {
+      "type": "object",
+      "required": [
+        "id",
+        "workspace",
+        "route",
+        "policy_epoch",
+        "entitlement_id",
+        "entitlement_version",
+        "budget_id",
+        "budget_version",
+        "reserved",
+        "state",
+        "created_at",
+        "expires_at",
+        "resource_version"
+      ],
+      "properties": {
+        "id": { "$ref": "#/schemas/ReservationId" },
+        "workspace": { "$ref": "#/schemas/GatewayName" },
+        "route": { "$ref": "#/schemas/GatewayRoute" },
+        "policy_epoch": { "$ref": "#/schemas/PolicyEpoch" },
+        "entitlement_id": { "$ref": "#/schemas/EntitlementId" },
+        "entitlement_version": { "$ref": "#/schemas/ResourceVersion" },
+        "budget_id": { "$ref": "#/schemas/BudgetId" },
+        "budget_version": { "$ref": "#/schemas/ResourceVersion" },
+        "reserved": { "$ref": "#/schemas/GatewayQuota" },
+        "actual": { "$ref": "#/schemas/GatewayQuota" },
+        "state": { "$ref": "#/schemas/GatewayReservationState" },
+        "created_at": { "$ref": "#/schemas/Timestamp" },
+        "expires_at": { "$ref": "#/schemas/Timestamp" },
+        "finalized_at": { "$ref": "#/schemas/Timestamp" },
+        "resource_version": { "$ref": "#/schemas/ResourceVersion" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "state": { "const": "committed" } },
+            "required": ["state"]
+          },
+          "then": { "required": ["actual", "finalized_at"] }
+        },
+        {
+          "if": {
+            "properties": { "state": { "enum": ["reserved", "released", "expired"] } },
+            "required": ["state"]
+          },
+          "then": { "not": { "required": ["actual"] } }
+        },
+        {
+          "if": {
+            "properties": { "state": { "enum": ["released", "expired"] } },
+            "required": ["state"]
+          },
+          "then": { "required": ["finalized_at"] }
+        },
+        {
+          "if": {
+            "properties": { "state": { "const": "reserved" } },
+            "required": ["state"]
+          },
+          "then": {
+            "properties": { "resource_version": { "pattern": "^rv1:1:" } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "state": { "enum": ["committed", "released", "expired"] } },
+            "required": ["state"]
+          },
+          "then": {
+            "properties": { "resource_version": { "pattern": "^rv1:2:" } }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "GatewayReservationDecision": {
+      "type": "object",
+      "required": ["reservation", "replayed"],
+      "properties": {
+        "reservation": { "$ref": "#/schemas/GatewayReservation" },
+        "replayed": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

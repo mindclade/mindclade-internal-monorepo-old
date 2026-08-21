@@ -3,13 +3,39 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
 package(default_visibility = ["//visibility:private"])
 
-filegroup(
-    name = "scaffold_files",
+go_library(
+    name = "admission",
     srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
+        ["*.go"],
+        exclude = ["*_test.go"],
     ),
-    visibility = ["//visibility:public"],
+    importpath = "go.mindclade.dev/control/admission",
+    visibility = [
+        "//control:__subpackages__",
+        "//services:__subpackages__",
+    ],
+    deps = [
+        "//libs/go/clock",
+        "//libs/go/faults",
+        "//libs/go/idempotency",
+        "//libs/go/identifiers",
+        "//libs/go/resourceversion",
+    ],
+)
+
+go_test(
+    name = "admission_test",
+    srcs = ["admission_test.go"],
+    embed = [":admission"],
+    deps = [
+        "//libs/go/clock",
+        "//libs/go/faults",
+        "//libs/go/idempotency",
+        "//libs/go/identifiers",
+        "//libs/go/resourceversion",
+    ],
 )

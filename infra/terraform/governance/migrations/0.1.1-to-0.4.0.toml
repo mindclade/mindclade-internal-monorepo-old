@@ -24,6 +24,7 @@ affected_modules = [
   "iap_access",
   "internal_address",
   "log_sink",
+  "monitoring",
   "nix_binary_cache",
   "object_storage",
   "observability",
@@ -109,6 +110,7 @@ breaking_change_ids = [
   "module:log_sink:input:sinks:validation_fingerprints-changed",
   "module:log_sink:output:sink_ids:value_fingerprint-changed",
   "module:log_sink:output:writer_identities:value_fingerprint-changed",
+  "module:monitoring:input:slos:validation_fingerprints-changed",
   "module:nix_binary_cache:input:access_log_bucket:added-required",
   "module:nix_binary_cache:input:bucket_name:added-required",
   "module:nix_binary_cache:input:environment:added-required",
@@ -176,6 +178,7 @@ consumer_steps = [
   "Upgrade one isolated non-production root to the protected v0.4.0 tag only after the release operator publishes it, retain its plan JSON and policy reports, and require an empty post-apply drift plan before broader adoption.",
   "Migrate aggregate live states only to their corresponding typed composition modules; review every address change in a saved plan and do not infer state moves from similar resource names.",
   "Keep production GKE and accelerator promotion blocked until the development RAPID canary and staging capacity/failure-domain qualification are complete.",
+  "Treat the monitoring SLO validation change as an intentional relaxation from 99.9% to a bounded 99.99% ceiling; approve any objective above 99.9% from measured user-visible reliability evidence before applying it.",
 ]
 
 rollback_steps = [

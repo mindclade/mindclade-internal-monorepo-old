@@ -34,6 +34,7 @@ data:
   MINDCLADE_ENVIRONMENT: production
   MINDCLADE_HTTP_ADDRESS: 0.0.0.0:8080
   MINDCLADE_GRPC_ADDRESS: 0.0.0.0:9090
+  MINDCLADE_METRICS_ADDRESS: 0.0.0.0:9464
   MINDCLADE_LOG_LEVEL: info
   MINDCLADE_SHUTDOWN_TIMEOUT: 30s
   MINDCLADE_DRAIN_TIMEOUT: 20s
@@ -58,6 +59,8 @@ metadata:
     app.kubernetes.io/component: api
     app.kubernetes.io/part-of: mindclade-platform
     mindclade.dev/control-plane-role: api
+    observability.mindclade.dev/control-admission: "true"
+    observability.mindclade.dev/service: control-admission
   annotations:
     mindclade.dev/deployment-status: disabled
     mindclade.dev/activation-blocker: oci-release-and-provider-egress-contracts-missing
@@ -80,6 +83,8 @@ spec:
         app.kubernetes.io/component: api
         app.kubernetes.io/part-of: mindclade-platform
         mindclade.dev/control-plane-role: api
+        observability.mindclade.dev/control-admission: "true"
+        observability.mindclade.dev/service: control-admission
     spec:
       automountServiceAccountToken: false
       enableServiceLinks: false
@@ -98,6 +103,7 @@ spec:
           ports:
             - { name: http, containerPort: 8080, protocol: TCP }
             - { name: grpc, containerPort: 9090, protocol: TCP }
+            - { name: metrics, containerPort: 9464, protocol: TCP }
           envFrom:
             - configMapRef:
                 name: control-plane-runtime-config
@@ -762,9 +768,12 @@ metadata:
     app.kubernetes.io/component: maintenance
     app.kubernetes.io/part-of: mindclade-platform
     mindclade.dev/control-plane-role: maintenance
+    observability.mindclade.dev/control-admission: "true"
+    observability.mindclade.dev/service: control-admission
   annotations:
     mindclade.dev/deployment-status: disabled
-    mindclade.dev/activation-blocker: maintenance-handler-and-oci-release-missing
+    mindclade.dev/activation-blocker: >-
+      immutable-oci-v14-migration-receipt-connected-postgresql-and-gmp-collector-ingress-unqualified
 spec:
   replicas: 0
   revisionHistoryLimit: 5
@@ -779,6 +788,8 @@ spec:
         app.kubernetes.io/component: maintenance
         app.kubernetes.io/part-of: mindclade-platform
         mindclade.dev/control-plane-role: maintenance
+        observability.mindclade.dev/control-admission: "true"
+        observability.mindclade.dev/service: control-admission
     spec:
       automountServiceAccountToken: false
       enableServiceLinks: false
@@ -794,6 +805,8 @@ spec:
         - name: maintenance
           image: registry.invalid/mindclade/control-plane-maintenance@sha256:0000000000000000000000000000000000000000000000000000000000000000
           imagePullPolicy: IfNotPresent
+          ports:
+            - { name: metrics, containerPort: 9464, protocol: TCP }
           envFrom:
             - configMapRef: { name: control-plane-runtime-config }
           env:

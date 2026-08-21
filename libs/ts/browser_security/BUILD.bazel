@@ -1,0 +1,46 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+load("@aspect_rules_js//npm:defs.bzl", "npm_package")
+load("@aspect_rules_ts//ts:defs.bzl", "ts_config", "ts_project")
+load("//tools/build/bazel/rules:typescript.bzl", "typescript_test")
+
+package(default_visibility = ["//visibility:private"])
+
+ts_config(
+    name = "tsconfig_chain",
+    src = "tsconfig.json",
+    deps = ["//:tsconfig_base"],
+)
+
+ts_project(
+    name = "typescript",
+    srcs = glob(["src/**/*.ts"]),
+    declaration = True,
+    declaration_map = True,
+    out_dir = "dist",
+    root_dir = "src",
+    source_map = True,
+    transpiler = "tsc",
+    tsconfig = ":tsconfig_chain",
+    visibility = ["//visibility:public"],
+)
+
+npm_package(
+    name = "pkg",
+    srcs = [
+        "package.json",
+        ":typescript",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+typescript_test(
+    name = "unit_tests",
+    srcs = glob([
+        "src/**/*.ts",
+        "tests/**/*.ts",
+    ]),
+    entry_point = "tests/run-tests.ts",
+)

@@ -3,12 +3,25 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/loaders/experience/policy_version.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Immutable policy identity for rollout trajectories."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/loaders/experience/policy_version.py"
+import re
+from dataclasses import dataclass
+
+_DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
+
+
+@dataclass(frozen=True, slots=True)
+class PolicyVersion:
+    model_digest: str
+    runtime_digest: str
+    configuration_digest: str
+
+    def __post_init__(self) -> None:
+        if any(
+            not isinstance(value, str) or not _DIGEST.fullmatch(value)
+            for value in (self.model_digest, self.runtime_digest, self.configuration_digest)
+        ):
+            raise ValueError("policy version digests are invalid")

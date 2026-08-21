@@ -20,3 +20,24 @@ test("boundedPageSize enforces safe limits", () => {
   assert.equal(boundedPageSize(0), 1);
   assert.equal(boundedPageSize(1_000, 80), 80);
 });
+
+test("ResourceStore aborts superseded and invalidated loads", async () => {
+  const store = new ResourceStore<string>();
+  let superseded = false;
+  const first = store.load(async (signal) => await new Promise<string>((_resolve, reject) => {
+    signal.addEventListener("abort", () => { superseded = true; reject(signal.reason); }, { once: true });
+  }));
+  await store.load(async () => "new");
+  await first;
+  assert.equal(superseded, true);
+  assert.equal(store.getSnapshot().status, "ready");
+
+  let invalidated = false;
+  const pending = store.load(async (signal) => await new Promise<string>((_resolve, reject) => {
+    signal.addEventListener("abort", () => { invalidated = true; reject(signal.reason); }, { once: true });
+  }));
+  store.invalidate();
+  await pending;
+  assert.equal(invalidated, true);
+  assert.equal(store.getSnapshot().status, "idle");
+});

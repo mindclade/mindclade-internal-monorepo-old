@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "reservation_id": "reservation_019c0000000070008000000000000001",
+  "workspace": "research-team",
+  "subject": "gateway-client",
+  "route": {
+    "endpoint": "chat-primary",
+    "provider": "vertex",
+    "model": "gemini-pro"
+  },
+  "policy_epoch": 11,
+  "entitlement_id": "entitlement_019c0000000070008000000000000002",
+  "entitlement_version": "rv1:1:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "budget_id": "budget_019c0000000070008000000000000003",
+  "budget_version": "rv1:1:sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "reserved": {
+    "requests": 1,
+    "input_tokens": 100,
+    "output_tokens": 50,
+    "cost_micros": 500
+  },
+  "requested_ttl": "1m0s",
+  "state": "reserved",
+  "expires_at": "2026-08-21T09:01:00Z",
+  "resource_version": "rv1:1:sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+}

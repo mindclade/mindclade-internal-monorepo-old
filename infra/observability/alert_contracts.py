@@ -33,6 +33,19 @@ _FORBIDDEN_DIMENSIONS = {
     "tenant",
     "user",
 }
+_DASHBOARD_VARIABLES = {"cluster", "environment", "location", "namespace"}
+_CONTROL_ADMISSION_FORBIDDEN_DIMENSIONS = {
+    "idempotency-key",
+    "model",
+    "provider",
+    "reason",
+    "request-id",
+    "reservation-id",
+    "route",
+    "subject",
+    "tenant",
+    "workspace",
+}
 
 
 def _as_dict(value: object) -> dict[str, Any]:
@@ -66,11 +79,17 @@ def validate_catalog(root: Path) -> list[str]:
         alert_schema = load_json(root / "alert-contract.schema.json")
         profile_schema = load_json(root / "availability-profiles.schema.json")
         profile_document = load_json_yaml(root / "availability-profiles.yaml")
+        dashboard_schema = load_json(root / "dashboard-contract.schema.json")
+        dashboard_document = load_json(root / "dashboards/control-plane.json")
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         return [str(exc)]
     errors.extend(
         f"availability-profiles.yaml {failure.path}: {failure.message}"
         for failure in validate(profile_document, profile_schema)
+    )
+    errors.extend(
+        f"dashboards/control-plane.json {failure.path}: {failure.message}"
+        for failure in validate(dashboard_document, dashboard_schema)
     )
     raw_profiles = _as_list(profile_document.get("profiles"))
     profile_names = [str(item.get("name", "")) for item in raw_profiles if isinstance(item, dict)]
@@ -83,6 +102,7 @@ def validate_catalog(root: Path) -> list[str]:
     }
     used_profiles: set[str] = set()
     global_signals: set[str] = set()
+    alert_documents: dict[str, dict[str, Any]] = {}
     alert_paths = sorted((root / "alerts").glob("*.yaml"))
     if not alert_paths:
         errors.append("alert catalog is empty")
@@ -98,6 +118,7 @@ def validate_catalog(root: Path) -> list[str]:
         )
         if document.get("name") != path.stem:
             errors.append(f"{path.name}: name must match the file stem")
+        alert_documents[path.stem] = document
         environment_inputs = _as_string_set(document.get("requiredEnvironmentInputs"))
         if environment_inputs != _REQUIRED_ENVIRONMENT_INPUTS:
             errors.append(
@@ -117,6 +138,12 @@ def validate_catalog(root: Path) -> list[str]:
             errors.append(
                 f"{path.name}: sensitive/high-cardinality dimensions are not fully forbidden"
             )
+        if path.stem == "control-admission-degraded" and not (
+            _CONTROL_ADMISSION_FORBIDDEN_DIMENSIONS
+        ).issubset(_as_string_set(cardinality.get("forbiddenDimensions"))):
+            errors.append(
+                "control-admission-degraded.yaml: backend-sensitive dimensions are not fully forbidden"
+            )
         signals = _as_list(document.get("signals"))
         names = [str(item.get("name", "")) for item in signals if isinstance(item, dict)]
         if names != sorted(names) or len(set(names)) != len(names):
@@ -134,6 +161,106 @@ def validate_catalog(root: Path) -> list[str]:
     unused = set(profile_names) - used_profiles
     if unused:
         errors.append(f"availability profiles have no alert consumer: {sorted(unused)}")
+
+    dashboard_environment_inputs = _as_string_set(
+        dashboard_document.get("requiredEnvironmentInputs")
+    )
+    if dashboard_document.get("name") != "control-plane":
+        errors.append("control-plane dashboard name must match its file stem")
+    if dashboard_environment_inputs != _REQUIRED_ENVIRONMENT_INPUTS:
+        errors.append(
+            "control-plane dashboard requires Google Chat, email, runbook, project, environment, and evidence inputs"
+        )
+    dashboard_variables = _as_list(dashboard_document.get("variables"))
+    if (
+        dashboard_variables != sorted(dashboard_variables)
+        or set(dashboard_variables) != _DASHBOARD_VARIABLES
+    ):
+        errors.append(
+            "control-plane dashboard variables must be the sorted bounded environment dimensions"
+        )
+    panels = _as_list(dashboard_document.get("panels"))
+    panel_signals = [str(item.get("signal", "")) for item in panels if isinstance(item, dict)]
+    if panel_signals != sorted(panel_signals) or len(set(panel_signals)) != len(panel_signals):
+        errors.append("control-plane dashboard panel signals must be sorted and unique")
+
+    admission_contract = _as_dict(alert_documents.get("control-admission-degraded"))
+    admission_items = _as_list(admission_contract.get("signals")) + _as_list(
+        admission_contract.get("observedSignals")
+    )
+    admission_signals = {
+        str(item.get("name", "")): item
+        for item in _as_list(admission_contract.get("signals"))
+        if isinstance(item, dict)
+    }
+    expected_admission_semantics = {
+        "control-admission-api-metric-contract-incomplete": (
+            "mindclade.control_admission.api_metric_contract_complete",
+            "below",
+            1,
+        ),
+        "control-admission-decision-latency-slo-breached": (
+            "mindclade.control_admission.decision_latency_objective_ratio_5m",
+            "below",
+            0.99,
+        ),
+        "control-admission-fast-error-budget-burn": (
+            "mindclade.control_admission.error_budget_fast_burn_pair",
+            "above",
+            14.4,
+        ),
+        "control-admission-maintenance-metric-contract-incomplete": (
+            "mindclade.control_admission.maintenance_metric_contract_complete",
+            "below",
+            1,
+        ),
+        "control-admission-slow-error-budget-burn": (
+            "mindclade.control_admission.error_budget_slow_burn_pair",
+            "above",
+            6.0,
+        ),
+    }
+    for signal, (metric, condition, threshold) in expected_admission_semantics.items():
+        item = _as_dict(admission_signals.get(signal))
+        if (
+            item.get("metric") != metric
+            or item.get("condition") != condition
+            or item.get("threshold") != threshold
+        ):
+            errors.append(
+                f"control-admission-degraded.yaml: paired burn/latency semantics drifted for {signal!r}"
+            )
+    if "control-admission-decision-p99" in admission_signals:
+        errors.append(
+            "control-admission-degraded.yaml: interpolated p99 must remain diagnostic, not actionable"
+        )
+    admission_metrics = {
+        str(item.get("name", "")): str(item.get("metric", ""))
+        for item in admission_items
+        if isinstance(item, dict)
+    }
+    if admission_metrics.get("control-admission-decision-p99") != (
+        "mindclade.control_admission.decision_p99_seconds"
+    ):
+        errors.append(
+            "control-admission-degraded.yaml: diagnostic p99 signal is missing or drifted"
+        )
+    dashboard_panels = {
+        str(item.get("signal", "")): item for item in panels if isinstance(item, dict)
+    }
+    if set(dashboard_panels) != set(admission_metrics):
+        errors.append(
+            "control-plane dashboard must cover every actionable and observed control-admission signal exactly once"
+        )
+    for signal, metric in sorted(admission_metrics.items()):
+        panel = _as_dict(dashboard_panels.get(signal))
+        if panel.get("metric") != metric:
+            errors.append(f"control-plane dashboard metric drifted for signal {signal!r}")
+        recording_rule = str(panel.get("recordingRule", ""))
+        if not recording_rule.startswith("mindclade:control_admission_"):
+            errors.append(
+                f"control-plane dashboard recording rule is not admission-owned for {signal!r}"
+            )
     return sorted(set(errors))
 
 

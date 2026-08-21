@@ -53,9 +53,10 @@ tools/dev/nixw develop .#gpu --command tools/dev/bazelw test --config=cuda //tes
 tools/dev/nixw develop .#default --command mkdocs build -f docs/mkdocs.yml --strict
 ```
 
-`tools/dev/bazelw` is the repository entry point. It prefers Bazelisk, verifies
-the exact version before accepting plain Bazel, moves execution to the workspace
-root, and passes arguments unchanged. It does not discover compilers, inject
+`tools/dev/bazelw` is the repository entry point. The Nix shells provide Bazel 9.1.1 as a
+fixed-output package from the pinned Nixpkgs revision; the wrapper verifies that exact binary
+before use and accepts Bazelisk only as a compatibility fallback outside Nix. It moves execution
+to the workspace root and passes arguments unchanged. It does not discover compilers, inject
 Darwin flags, or choose a configuration or target set.
 
 Repository traversal policy is split by syntax: `.bazelignore` owns literal
@@ -77,6 +78,15 @@ adapter for rules_python repository materialization. It exposes a
 CommandLineTools-shaped path whose SDK is a symlink to the pinned Nix SDK; it
 does not select the C/C++ compiler. Compile and link actions resolve through the
 registered toolchain and never through Command Line Tools or Homebrew.
+
+The root Bzlmod module also declares the rules_rust compiler version and Rust
+2024 edition explicitly. Root extension tags take precedence over rules_rust's
+transitive default, so a rules_rust update cannot silently choose a different
+compiler. The build-toolchain contract requires that Bazel version to equal the
+Cargo and Nix pin; `MODULE.bazel.lock` binds its downloaded artifacts. Replacing
+this parity bridge with the Nix Rust derivation remains part of local/remote
+toolchain unification and is required before release qualification can claim
+one physical Rust closure across both build paths.
 
 Validate the contract and resolution directly:
 

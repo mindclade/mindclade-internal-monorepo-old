@@ -2,7 +2,7 @@
 
 **Decision:** foundation implemented; workload activation blocked; not approved
 for production apply.  
-**Last repository review:** 2026-08-20.  
+**Last repository review:** 2026-08-21.
 **Contract version:** `1`, as recorded in `versions.env`.
 
 ## Current evidence
@@ -31,6 +31,7 @@ for production apply.
 | Operator transaction and CRD retention | PARTIAL | Byte-locked distinct CRD/controller phases, no-prune CRDs, server-side apply, sync order, and paused GitOps are declared; connected install/upgrade evidence is missing |
 | Queue and GPU/RDMA/NCCL activation | BLOCKED | Queues are held with zero quota; hardware, topology, transport, checkpoint, and rollback qualification is missing |
 | Operator observability source contract | PARTIAL | GMP PodMonitoring and namespaced recording Rules exist; external rotating auth/trust, exact RBAC, collector network access, and durable JobSet outcome telemetry remain blocked |
+| Control-admission observability source contract | PARTIAL | API and maintenance own private metrics listeners, named ports, fixed-cardinality exporters, exact per-replica inventory gates, bounded PodMonitoring, aggregate rules, and promtool fixtures; v14 receipt, representative PostgreSQL, exact collector ingress, connected scrape/rule, and alert fire/resolve evidence remain blocked |
 | Observability operation and MLOps | BLOCKED | Collector reachability, target/rule health, Cloud Monitoring policies/channels, SLO tests, and data/model-quality evidence |
 | Connected non-production qualification | MISSING | Server-side validation, rollout, failure injection, and recovery exercise |
 

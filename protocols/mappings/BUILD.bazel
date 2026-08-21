@@ -6,10 +6,26 @@
 package(default_visibility = ["//visibility:private"])
 
 filegroup(
-    name = "scaffold_files",
+    name = "admission_contract",
+    srcs = [
+        "admission.schema.json",
+        "admission.yaml",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "contracts",
     srcs = glob(
         ["**"],
         exclude = ["BUILD.bazel"],
     ),
+    visibility = ["//visibility:public"],
+)
+
+# Compatibility target retained for callers of the originally materialized package.
+filegroup(
+    name = "scaffold_files",
+    srcs = [":contracts"],
     visibility = ["//visibility:public"],
 )

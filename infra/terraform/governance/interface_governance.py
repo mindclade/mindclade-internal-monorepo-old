@@ -1243,6 +1243,8 @@ def _verify_manifest_shape(value: dict[str, Any], label: str) -> None:
             f"found {value.get('schema_version')!r}"
         )
     _parse_semver(str(value.get("contract_version", "")), f"{label} contract_version")
+    if value.get("status") not in {"planned", "released"}:
+        raise GovernanceError(f"{label} status must be planned or released")
     if not isinstance(value.get("modules"), dict):
         raise GovernanceError(f"{label} modules must be an object")
 
@@ -1354,6 +1356,50 @@ def _base_manifest(
     return value
 
 
+def _compatibility_baseline(
+    repo: Path,
+    base: dict[str, Any],
+    current: dict[str, Any],
+    policy: dict[str, Any],
+    executable: str,
+) -> dict[str, Any]:
+    """Select the immutable interface against which compatibility is enforced.
+
+    A planned contract is a mutable release candidate, not a published SemVer
+    baseline. When a pull request evolves the same planned version found at its
+    verified base, compare the complete candidate to the authenticated released
+    fallback instead. This keeps cumulative migration coverage mandatory without
+    manufacturing a new version for every pre-release review iteration.
+
+    Released contracts and status/version transitions never take this path; they
+    remain subject to the normal base-to-current SemVer rules.
+    """
+
+    current_version = str(current.get("contract_version", ""))
+    current_status = str(current.get("status", ""))
+    policy_version = str(policy.get("contract_version", ""))
+    policy_status = str(policy.get("status", ""))
+    if (current_version, current_status) != (policy_version, policy_status):
+        raise GovernanceError(
+            "generated interface version/status differs from version.toml: "
+            f"{current_version!r}/{current_status!r} != "
+            f"{policy_version!r}/{policy_status!r}"
+        )
+
+    if (
+        base.get("contract_version") == current_version
+        and base.get("status") == "planned"
+        and current_status == "planned"
+    ):
+        fallback = _verified_fallback_manifest(repo, policy, executable)
+        if _parse_semver(str(fallback["contract_version"])) >= _parse_semver(current_version):
+            raise GovernanceError(
+                "planned interface version must be newer than its immutable released baseline"
+            )
+        return fallback
+    return base
+
+
 def check(repo: Path, executable: str, base_ref: str | None) -> None:
     policy = _policy(repo)
     _enforce_tool_version(repo, executable)
@@ -1379,7 +1425,8 @@ def check(repo: Path, executable: str, base_ref: str | None) -> None:
             "Terraform interface manifest drift: infra/terraform/governance/module-interfaces.json "
             "(run infra/terraform/governance/generate.sh)"
         )
-    baseline = _base_manifest(repo, base_ref, policy, executable)
+    base = _base_manifest(repo, base_ref, policy, executable)
+    baseline = _compatibility_baseline(repo, base, expected_manifest, policy, executable)
     changes = classify_interfaces(baseline, expected_manifest)
     errors.extend(_validate_version_change(baseline, expected_manifest, changes))
     errors.extend(_validate_migrations(repo, baseline, expected_manifest, changes))

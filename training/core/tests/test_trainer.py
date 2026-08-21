@@ -12,7 +12,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from libs.python.errors import Canceled
+from libs.python.errors import Canceled, FailedPrecondition, ResourceExhausted
 from training.contracts import SupervisedBatch, TaskResult, TrainingState
 from training.core import Trainer, TrainerConfig
 from training.optim import SGDConfig, build_optimizer
@@ -229,6 +229,64 @@ def test_optimizer_and_scheduler_order_is_explicit() -> None:
     trainer.train((batch([1.0], [0.0]),))
 
     assert events == ["zero_grad", "forward", "backward", "optimizer", "scheduler", "zero_grad"]
+
+
+def test_optimizer_must_own_every_trainable_model_parameter() -> None:
+    model = linear_model()
+    optimizer = torch.optim.SGD([model.weight], lr=0.1, foreach=False)
+
+    with pytest.raises(ValueError, match="every trainable"):
+        Trainer(model, SupervisedMSETask(), optimizer)
+
+
+def test_failure_after_optimizer_attempt_poisons_trainer_until_fresh_restore() -> None:
+    class FailingScheduler:
+        def step(self) -> None:
+            raise RuntimeError("scheduler state unavailable")
+
+    model = linear_model(bias=False)
+    trainer = Trainer(
+        model,
+        SupervisedMSETask(),
+        build_optimizer(model.parameters(), SGDConfig(learning_rate=0.1)),
+        scheduler=FailingScheduler(),
+    )
+    before = model.weight.detach().clone()
+
+    with pytest.raises(RuntimeError, match="scheduler state"):
+        trainer.train((batch([1.0], [2.0]),))
+
+    assert not trainer.healthy
+    assert trainer.failure_reason is not None
+    assert trainer.state == TrainingState()
+    assert not torch.equal(model.weight.detach(), before)
+    with pytest.raises(FailedPrecondition, match="poisoned"):
+        trainer.train((batch([1.0], [2.0]),))
+    with pytest.raises(FailedPrecondition, match="poisoned"):
+        trainer.evaluate((batch([1.0], [2.0]),))
+
+
+def test_progress_overflow_fails_before_optimizer_mutation() -> None:
+    model = linear_model(bias=False)
+    maximum = (1 << 63) - 1
+    trainer = Trainer(
+        model,
+        SupervisedMSETask(),
+        build_optimizer(model.parameters(), SGDConfig(learning_rate=0.1)),
+        state=TrainingState(
+            microbatches=maximum,
+            optimizer_steps=maximum,
+            samples=maximum,
+        ),
+    )
+    before = model.weight.detach().clone()
+
+    with pytest.raises(ResourceExhausted, match="counter"):
+        trainer.train((batch([1.0], [2.0]),))
+
+    assert trainer.healthy
+    assert trainer.state.optimizer_steps == maximum
+    torch.testing.assert_close(model.weight.detach(), before, rtol=0.0, atol=0.0)
 
 
 def test_optional_gradient_clipping_reports_preclip_norm_and_bounds_update() -> None:

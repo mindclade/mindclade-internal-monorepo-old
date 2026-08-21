@@ -1,0 +1,69 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+---
+{
+  "schema_version": 1,
+  "wire_authority": {
+    "rest": "protocols/openapi/components/admission.yaml",
+    "events": [
+      "protocols/events/schemas/admission/v1/budget-event.schema.json",
+      "protocols/events/schemas/admission/v1/entitlement-event.schema.json",
+      "protocols/events/schemas/admission/v1/reservation-event.schema.json"
+    ]
+  },
+  "rest": [
+    {
+      "operation_id": "commitGatewayReservation",
+      "method": "POST",
+      "path": "/v1/ai-gateway/reservations/{reservationId}/commit",
+      "request_schema": "#/components/schemas/CommitGatewayReservationRequest",
+      "response_schema": "#/components/schemas/GatewayReservationDecision",
+      "implementation": "services/control_plane/internal/providers/api/admission.go",
+      "domain_operation": "control/admission.Service.Commit"
+    },
+    {
+      "operation_id": "createGatewayReservation",
+      "method": "POST",
+      "path": "/v1/ai-gateway/reservations",
+      "request_schema": "#/components/schemas/CreateGatewayReservationRequest",
+      "response_schema": "#/components/schemas/GatewayReservationDecision",
+      "implementation": "services/control_plane/internal/providers/api/admission.go",
+      "domain_operation": "control/admission.Service.Admit"
+    },
+    {
+      "operation_id": "releaseGatewayReservation",
+      "method": "POST",
+      "path": "/v1/ai-gateway/reservations/{reservationId}/release",
+      "request_schema": "#/components/schemas/ReleaseGatewayReservationRequest",
+      "response_schema": "#/components/schemas/GatewayReservationDecision",
+      "implementation": "services/control_plane/internal/providers/api/admission.go",
+      "domain_operation": "control/admission.Service.Release"
+    }
+  ],
+  "events": [
+    {
+      "topic": "control.admission.budget.v1",
+      "payload_schema": "schemas/admission/v1/budget-event.schema.json",
+      "producer": "services/control_plane/internal/store/postgres/admission/events.go",
+      "domain_projection": "control/admission.Budget"
+    },
+    {
+      "topic": "control.admission.entitlement.v1",
+      "payload_schema": "schemas/admission/v1/entitlement-event.schema.json",
+      "producer": "services/control_plane/internal/store/postgres/admission/events.go",
+      "domain_projection": "control/admission.Entitlement"
+    },
+    {
+      "topic": "control.admission.reservation.v1",
+      "payload_schema": "schemas/admission/v1/reservation-event.schema.json",
+      "producer": "services/control_plane/internal/store/postgres/admission/events.go",
+      "domain_projection": "services/control_plane/internal/store/postgres/admission.reservationEvent"
+    }
+  ],
+  "protobuf_projection": {
+    "status": "not_defined",
+    "reason": "Admission v1 is a JSON REST and outbox surface. A Protobuf projection requires an additive canonical message and an explicit field mapping before it may be served."
+  }
+}

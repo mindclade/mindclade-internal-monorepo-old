@@ -37,6 +37,27 @@ backoff; other mutations are never retried implicitly. Failures are
 `MindcladeError` values carrying stable code, HTTP status, request identity, and
 structured problem details when supplied.
 
+The request deadline covers credential resolution, all attempts, and retry
+delays. JSON responses are streamed through an 8 MiB decoded-byte limit by
+default (`maxResponseBytes` changes it), while inference events are capped at 1
+MiB each. Pagination detects token cycles and stops after 10,000 pages unless a
+lower `maxPages` is supplied to the pagination helper. Base URLs must be
+absolute HTTP(S) URLs without embedded credentials, query, or fragment.
+
+Generated Protobuf-ES modules are exported as stable subpaths for consumers
+that need canonical binary contracts:
+
+```ts
+import { ModelDescriptorSchema } from
+  "@mindclade/sdk-typescript/protobuf/mindclade/inference/v1/model_pb";
+```
+
+These modules reflect the canonical schema exactly, including deliberately
+reserved `*Scaffold` messages. They do not promote scaffolded server domains or
+provide policy decisions. Most public web consumers should use the typed HTTP
+client; internal event/RPC adapters should use protobuf subpaths only when the
+wire contract requires them.
+
 ## Generation and compatibility
 
 Run `pnpm run generate` after changing a canonical schema and commit the derived

@@ -214,10 +214,116 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ai-gateway/reservations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reserve bounded AI-gateway usage.
+         * @description Atomically binds one request to the current entitlement and budget
+         *     versions. Reusing an idempotency key with the same request returns the
+         *     original decision; reusing it with a different request fails closed.
+         */
+        post: operations["createGatewayReservation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ai-gateway/reservations/{reservationId}/commit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Commit actual usage against a reservation. */
+        post: operations["commitGatewayReservation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ai-gateway/reservations/{reservationId}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Release an unused reservation. */
+        post: operations["releaseGatewayReservation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        CreateGatewayReservationRequest: {
+            request_digest: components["schemas"]["schemas-Digest"];
+            workspace: components["schemas"]["GatewayName"];
+            route: components["schemas"]["GatewayRoute"];
+            policy_epoch: components["schemas"]["PolicyEpoch"];
+            requested: components["schemas"]["GatewayQuota"];
+            ttl_seconds: number;
+        };
+        CommitGatewayReservationRequest: {
+            request_digest: components["schemas"]["schemas-Digest"];
+            actual: components["schemas"]["GatewayQuota"];
+        };
+        ReleaseGatewayReservationRequest: {
+            request_digest: components["schemas"]["schemas-Digest"];
+        };
+        GatewayReservationDecision: {
+            reservation: components["schemas"]["GatewayReservation"];
+            replayed: boolean;
+        };
+        GatewayReservation: {
+            id: components["schemas"]["ReservationId"];
+            workspace: components["schemas"]["GatewayName"];
+            route: components["schemas"]["GatewayRoute"];
+            policy_epoch: components["schemas"]["PolicyEpoch"];
+            entitlement_id: components["schemas"]["EntitlementId"];
+            entitlement_version: components["schemas"]["ResourceVersion"];
+            budget_id: components["schemas"]["BudgetId"];
+            budget_version: components["schemas"]["ResourceVersion"];
+            reserved: components["schemas"]["GatewayQuota"];
+            actual?: components["schemas"]["GatewayQuota"];
+            state: components["schemas"]["GatewayReservationState"];
+            created_at: components["schemas"]["schemas-Timestamp"];
+            expires_at: components["schemas"]["schemas-Timestamp"];
+            finalized_at?: components["schemas"]["schemas-Timestamp"];
+            resource_version: components["schemas"]["ResourceVersion"];
+        } & (unknown & unknown & unknown & unknown & unknown);
+        GatewayRoute: {
+            endpoint: components["schemas"]["GatewayName"];
+            provider: components["schemas"]["GatewayName"];
+            model: components["schemas"]["GatewayName"];
+        };
+        GatewayQuota: {
+            /** @constant */
+            requests: 1;
+            input_tokens?: number;
+            output_tokens?: number;
+            cost_micros?: number;
+        };
+        /** @enum {string} */
+        GatewayReservationState: "reserved" | "committed" | "released" | "expired";
         ResourceId: string;
         Digest: string;
         /** Format: date-time */
@@ -388,6 +494,15 @@ export interface components {
             type: "error";
             error: components["schemas"]["Problem"];
         };
+        "schemas-Digest": string;
+        GatewayName: string;
+        PolicyEpoch: number;
+        ReservationId: string;
+        EntitlementId: string;
+        ResourceVersion: string;
+        BudgetId: string;
+        /** Format: date-time */
+        "schemas-Timestamp": string;
     };
     responses: {
         /** @description Structured API failure. */
@@ -405,9 +520,23 @@ export interface components {
         PageToken: string;
         IdempotencyKey: string;
         RunId: components["schemas"]["ResourceId"];
+        GatewayReservationId: string;
+        /** @description Exact strong ETag returned by the preceding reservation mutation. */
+        IfMatchReservationVersion: string;
+        ReservationId: components["schemas"]["ReservationId"];
     };
     requestBodies: never;
-    headers: never;
+    headers: {
+        GatewayAdmissionNoStore: unknown;
+        GatewayReservationETag: unknown;
+        GatewayReservationLocation: unknown;
+        /** @description Admission decisions must not be cached. */
+        NoStore: "no-store";
+        /** @description Strong resource-version ETag for conditional finalization. */
+        ReservationETag: string;
+        /** @description Canonical path of the reservation. */
+        ReservationLocation: string;
+    };
     pathItems: never;
 }
 export type $defs = Record<string, never>;
@@ -765,6 +894,112 @@ export interface operations {
                 };
                 content: {
                     "text/event-stream": string;
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    createGatewayReservation: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateGatewayReservationRequest"];
+            };
+        };
+        responses: {
+            /** @description The original decision was returned for an idempotent replay. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    ETag: components["headers"]["ReservationETag"];
+                    Location: components["headers"]["ReservationLocation"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GatewayReservationDecision"];
+                };
+            };
+            /** @description A new reservation was durably created. */
+            201: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    ETag: components["headers"]["ReservationETag"];
+                    Location: components["headers"]["ReservationLocation"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GatewayReservationDecision"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    commitGatewayReservation: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact strong ETag returned by the preceding reservation mutation. */
+                "If-Match": components["parameters"]["IfMatchReservationVersion"];
+            };
+            path: {
+                reservationId: components["parameters"]["ReservationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommitGatewayReservationRequest"];
+            };
+        };
+        responses: {
+            /** @description Usage was committed or the identical finalization was replayed. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    ETag: components["headers"]["ReservationETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GatewayReservationDecision"];
+                };
+            };
+            default: components["responses"]["Error"];
+        };
+    };
+    releaseGatewayReservation: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Exact strong ETag returned by the preceding reservation mutation. */
+                "If-Match": components["parameters"]["IfMatchReservationVersion"];
+            };
+            path: {
+                reservationId: components["parameters"]["ReservationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReleaseGatewayReservationRequest"];
+            };
+        };
+        responses: {
+            /** @description The reservation was released or the identical finalization was replayed. */
+            200: {
+                headers: {
+                    "Cache-Control": components["headers"]["NoStore"];
+                    ETag: components["headers"]["ReservationETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GatewayReservationDecision"];
                 };
             };
             default: components["responses"]["Error"];

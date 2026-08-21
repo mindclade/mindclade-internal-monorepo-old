@@ -30,6 +30,7 @@ module "service" {
   runbook_url              = each.value.runbook_url
   notification_channels    = each.value.notification_channels
   slos                     = each.value.slos
+  signal_alerts            = each.value.signal_alerts
   labels                   = each.value.labels
   alert_auto_close_seconds = each.value.alert_auto_close_seconds
 

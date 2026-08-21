@@ -26,8 +26,14 @@ from typing import Any
 import torch
 from safetensors.torch import load_file
 
-REFERENCE_MODEL_NAME = "reference-affine-v1"
-REFERENCE_OPERATION = "reference.affine.v1"
+from models.reference import (
+    REFERENCE_AFFINE_MODEL_NAME,
+    REFERENCE_AFFINE_OPERATION,
+    ReferenceAffine,
+)
+
+REFERENCE_MODEL_NAME = REFERENCE_AFFINE_MODEL_NAME
+REFERENCE_OPERATION = REFERENCE_AFFINE_OPERATION
 MANIFEST_MEDIA_TYPE = "application/vnd.mindclade.model.manifest.v1+json"
 SAFETENSORS_MEDIA_TYPE = "application/vnd.mindclade.model.weights.v1+safetensors"
 MAX_MANIFEST_BYTES = 1 << 20
@@ -94,17 +100,17 @@ class ReferenceEngine:
             raise RuntimeError("CUDA worker requested but torch reports no CUDA device")
         self._device = torch.device(config.device)
         weights = _load_verified_bundle(config.model_bundle_root, config.expected_bundle_digest)
+        self._model = ReferenceAffine().to(self._device)
         try:
-            scale = weights["scale"]
-            bias = weights["bias"]
-        except KeyError as error:
-            raise ValueError("reference bundle must contain scale and bias tensors") from error
-        if scale.dtype != torch.float32 or bias.dtype != torch.float32:
-            raise ValueError("reference scale and bias must be float32")
-        if scale.numel() != 1 or bias.numel() != 1:
-            raise ValueError("reference scale and bias must each contain one value")
-        self._scale = scale.reshape(()).to(self._device)
-        self._bias = bias.reshape(()).to(self._device)
+            incompatible = self._model.load_state_dict(weights, strict=True)
+        except RuntimeError as error:
+            raise ValueError(
+                "reference bundle state is incompatible with the affine model"
+            ) from error
+        if incompatible.missing_keys or incompatible.unexpected_keys:
+            raise ValueError("reference bundle must contain exactly scale and bias tensors")
+        self._model.validate_state()
+        self._model.eval()
 
     def execute(self, request: ReferenceRequest, cancelled: Event) -> ReferenceOutput:
         _validate_request(request, self._config)
@@ -112,6 +118,8 @@ class ReferenceEngine:
         payload = _read_verified_input(request.input, request.maximum_input_bytes, self._config)
         values = torch.frombuffer(bytearray(payload), dtype=torch.float32)
         values = values.reshape(request.input.shape)
+        if not torch.isfinite(values).all().item():
+            raise ValueError("reference input must contain only finite values")
 
         chunks: list[torch.Tensor] = []
         with torch.inference_mode():
@@ -121,7 +129,7 @@ class ReferenceEngine:
                 chunk = flattened[start : start + self._config.chunk_elements].to(self._device)
                 for _ in range(self._config.iterations):
                     _check_cancelled(cancelled, request.deadline_unix_millis)
-                    chunk = torch.add(torch.mul(chunk, self._scale), self._bias)
+                    chunk = self._model.compute(chunk)
                 chunks.append(chunk.to("cpu"))
         result = torch.cat(chunks).reshape(request.input.shape).contiguous().numpy().tobytes()
         if len(result) > request.maximum_output_bytes:

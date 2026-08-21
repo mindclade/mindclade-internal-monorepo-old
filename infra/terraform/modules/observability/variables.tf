@@ -57,6 +57,29 @@ variable "services" {
         long_lookback  = optional(string, "21600s")
       }), {})
     }))
+    signal_alerts = optional(map(object({
+      display_name            = string
+      filter                  = string
+      comparison              = string
+      threshold_value         = number
+      duration                = optional(string, "60s")
+      severity                = optional(string, "WARNING")
+      alignment_period        = optional(string, "60s")
+      per_series_aligner      = optional(string, "ALIGN_MAX")
+      cross_series_reducer    = optional(string, "REDUCE_MAX")
+      group_by_fields         = optional(set(string), [])
+      evaluation_missing_data = optional(string, "EVALUATION_MISSING_DATA_ACTIVE")
+      trigger_count           = optional(number, 1)
+      minimum_samples = optional(object({
+        filter               = string
+        threshold_value      = number
+        duration             = optional(string, "60s")
+        alignment_period     = optional(string, "60s")
+        per_series_aligner   = optional(string, "ALIGN_MAX")
+        cross_series_reducer = optional(string, "REDUCE_SUM")
+        group_by_fields      = optional(set(string), [])
+      }), null)
+    })), {})
     labels                   = optional(map(string), {})
     alert_auto_close_seconds = optional(number, 604800)
   }))
@@ -78,5 +101,19 @@ variable "services" {
       ]
     ]))
     error_message = "Every good and total service filter must explicitly select a project to prevent accidental cross-project SLO aggregation."
+  }
+
+  validation {
+    condition = alltrue(flatten([
+      for service in values(var.services) : [
+        for signal in values(service.signal_alerts) :
+        length(regexall("(^|[[:space:]()])project[[:space:]]*=[[:space:]]*\"[a-z][a-z0-9-]{4,28}[a-z0-9]\"", signal.filter)) == 1 &&
+        (
+          signal.minimum_samples == null ||
+          length(regexall("(^|[[:space:]()])project[[:space:]]*=[[:space:]]*\"[a-z][a-z0-9-]{4,28}[a-z0-9]\"", signal.minimum_samples.filter)) == 1
+        )
+      ]
+    ]))
+    error_message = "Every signal and minimum-sample filter must contain exactly one explicit project selector to prevent accidental cross-project alert aggregation."
   }
 }

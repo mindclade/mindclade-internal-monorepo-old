@@ -3,19 +3,31 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold test for data/loaders/streaming/tests/test_streaming.py."""
+from __future__ import annotations
 
-import pytest
+from data.loaders.streaming import ShardedSampleStream, StreamCheckpoint, buffered_shuffle
+from data.sample import Sample
+
+DIGEST = "sha256:" + "a" * 64
 
 
-# SKIPPED, not passing.
-#
-# A placeholder for tests that do not exist yet. It used to `assert True` — which pytest
-# reports as a pass, so the suite was green and the number it printed was not the number of
-# things actually verified. A vacuous gate is worse than no gate: it manufactures confidence.
-#
-# Write real tests here when there is an implementation to test, and lower SCAFFOLD_BASELINE
-# in tests/integration/test_python_scaffold.py in the same commit.
-@pytest.mark.scaffold
-def test_scaffold_contract() -> None:
-    pytest.skip("scaffold: no implementation to test yet")
+def samples() -> tuple[Sample, ...]:
+    return tuple(Sample(f"s-{index}", {"value": index}, DIGEST) for index in range(11))
+
+
+def test_rank_streams_are_disjoint_complete_and_resumable() -> None:
+    values = samples()
+    partitions = [tuple(ShardedSampleStream(values, rank=rank, world_size=3)) for rank in range(3)]
+    identities = [sample.sample_id for partition in partitions for sample in partition]
+    assert sorted(identities) == sorted(sample.sample_id for sample in values)
+    assert len(set(identities)) == len(values)
+    resumed = tuple(ShardedSampleStream(values, start_index=5))
+    assert [sample.sample_id for sample in resumed] == [f"s-{index}" for index in range(5, 11)]
+    assert StreamCheckpoint(DIGEST, 5, 0, 7).next_index == 5
+
+
+def test_bounded_shuffle_is_seeded_and_preserves_coverage() -> None:
+    first = tuple(buffered_shuffle(range(20), buffer_size=4, seed=3))
+    second = tuple(buffered_shuffle(range(20), buffer_size=4, seed=3))
+    assert first == second
+    assert sorted(first) == list(range(20))

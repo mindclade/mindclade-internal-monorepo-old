@@ -194,6 +194,14 @@
             else
               null;
           baseShellHook = ''
+            # Reusable qualification invokes the shell with `--ignore-environment`. Bazel's
+            # output/cache resolver requires HOME even when the binary itself is repository
+            # pinned, so provide an isolated disposable home instead of inheriting developer
+            # state or failing before the wrapper can verify .bazelversion.
+            if [ -z "''${HOME:-}" ]; then
+              export HOME="''${TMPDIR:?}/mindclade-nix-home"
+              mkdir -p "$HOME"
+            fi
             export MINDCLADE_REPO_ROOT="$PWD"
             export PYTHONNOUSERSITE=1
           '';
@@ -207,7 +215,7 @@
             '';
           defaultPackages =
             (with pkgs; [
-              bazelisk
+              bazel_9
               buildifier
               buf
               go
@@ -278,7 +286,7 @@
             shellHook = baseShellHook;
           };
           ci-infra = pkgs.mkShell {
-            packages = [ pkgs.bazelisk ] ++ infraValidationPackages;
+            packages = [ pkgs.bazel_9 ] ++ infraValidationPackages;
             shellHook = standardShellHook;
           };
           ci-bazel = pkgs.mkShell {
@@ -287,7 +295,7 @@
             # uses Bazel-registered language toolchains.
             packages =
               (with pkgs; [
-                bazelisk
+                bazel_9
                 buildifier
                 python312
               ])
@@ -305,7 +313,7 @@
               with pkgs;
               [
                 actionlint
-                bazelisk
+                bazel_9
                 buildifier
                 buf
                 cargo-deny
@@ -358,7 +366,7 @@
           gpu = pkgs.mkShell {
             packages =
               (with pkgs; [
-                bazelisk
+                bazel_9
                 buildifier
                 go
                 protobuf

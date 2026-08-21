@@ -22,6 +22,7 @@ import (
 	"go.mindclade.dev/services/control_plane/internal/providers"
 	"go.mindclade.dev/services/control_plane/internal/providers/durable"
 	registrystore "go.mindclade.dev/services/control_plane/internal/store/postgres"
+	admissionstore "go.mindclade.dev/services/control_plane/internal/store/postgres/admission"
 )
 
 // Migration versions are owned by the role that owns the schema, because one
@@ -41,12 +42,17 @@ const (
 	migrationRegistryDescriptors
 	migrationRegistryReleases
 	migrationRegistryEvidenceGraphs
+	migrationGatewayEntitlements
+	migrationGatewayBudgets
+	migrationGatewayReservations
+	migrationWorkQueueTerminalRetention
+	migrationGatewayAdmissionObservability
 )
 
-// newMigrationRunner applies the schemas the shared adapters declare for the
+// newMigrationManifest orders the schemas the shared adapters declare for the
 // tables this process configures. The service owns the version numbers; each
 // adapter owns its own DDL.
-func newMigrationRunner() (*migrate.Runner, error) {
+func newMigrationManifest() (*migrate.Manifest, error) {
 	auditDDL, err := auditpostgres.DDL(providers.AuditTable)
 	if err != nil {
 		return nil, err
@@ -67,6 +73,19 @@ func newMigrationRunner() (*migrate.Runner, error) {
 	if err != nil {
 		return nil, err
 	}
+	workQueueTerminalRetentionDDL, err := workqueuepostgres.TerminalRetentionDDL(providers.WorkQueueTable)
+	if err != nil {
+		return nil, err
+	}
+	admissionObservabilityDDL, err := admissionstore.ObservabilityDDL(
+		admissionstore.DefaultReservationTable,
+		providers.AuditTable,
+		providers.OutboxTable,
+		providers.WorkQueueTable,
+	)
+	if err != nil {
+		return nil, err
+	}
 	cursorDDL, err := cursorpostgres.DDL(providers.CursorTable)
 	if err != nil {
 		return nil, err
@@ -75,6 +94,14 @@ func newMigrationRunner() (*migrate.Runner, error) {
 		registrystore.DefaultDescriptorTable,
 		registrystore.DefaultReleaseTable,
 		registrystore.DefaultEvidenceGraphTable,
+	)
+	if err != nil {
+		return nil, err
+	}
+	admissionDDL, err := admissionstore.DDL(
+		admissionstore.DefaultEntitlementTable,
+		admissionstore.DefaultBudgetTable,
+		admissionstore.DefaultReservationTable,
 	)
 	if err != nil {
 		return nil, err
@@ -89,11 +116,24 @@ func newMigrationRunner() (*migrate.Runner, error) {
 		migrate.Migration{Version: migrationRegistryDescriptors, Name: "registry_model_descriptors", Up: registryDDL[0]},
 		migrate.Migration{Version: migrationRegistryReleases, Name: "registry_releases", Up: registryDDL[1]},
 		migrate.Migration{Version: migrationRegistryEvidenceGraphs, Name: "registry_evidence_graphs", Up: registryDDL[2]},
+		migrate.Migration{Version: migrationGatewayEntitlements, Name: "gateway_entitlements", Up: admissionDDL[0]},
+		migrate.Migration{Version: migrationGatewayBudgets, Name: "gateway_budgets", Up: admissionDDL[1]},
+		migrate.Migration{Version: migrationGatewayReservations, Name: "gateway_reservations", Up: admissionDDL[2]},
+		migrate.Migration{Version: migrationWorkQueueTerminalRetention, Name: "work_items_terminal_retention", Up: workQueueTerminalRetentionDDL},
+		migrate.Migration{Version: migrationGatewayAdmissionObservability, Name: "gateway_admission_observability", Up: admissionObservabilityDDL},
 	)
 	if err != nil {
 		return nil, err
 	}
-	return migrate.NewRunner(manifest, migrate.Options{})
+	return &manifest, nil
+}
+
+func newMigrationRunner() (*migrate.Runner, error) {
+	manifest, err := newMigrationManifest()
+	if err != nil {
+		return nil, err
+	}
+	return migrate.NewRunner(*manifest, migrate.Options{})
 }
 
 func newAuditRecorder(db *sql.DB) (audit.Recorder, error) {

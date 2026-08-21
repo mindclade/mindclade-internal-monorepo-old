@@ -3,13 +3,29 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
 package(default_visibility = ["//visibility:private"])
 
-filegroup(
-    name = "scaffold_files",
+go_library(
+    name = "lineage",
     srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
+        ["*.go"],
+        exclude = ["*_test.go"],
     ),
-    visibility = ["//visibility:public"],
+    importpath = "go.mindclade.dev/control/lineage",
+    visibility = [
+        "//control:__subpackages__",
+        "//services:__subpackages__",
+    ],
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+    ],
+)
+
+go_test(
+    name = "lineage_test",
+    srcs = ["lineage_test.go"],
+    embed = [":lineage"],
 )

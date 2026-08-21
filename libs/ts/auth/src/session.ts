@@ -4,6 +4,7 @@
 //
 
 import type { Session, SessionState } from "./types.js";
+import type { AuthClient } from "./client.js";
 
 export class SessionStore {
   private state: SessionState = { status: "loading" };
@@ -23,6 +24,18 @@ export class SessionStore {
   setError(cause: unknown): void {
     this.state = { status: "error", error: cause instanceof Error ? cause : new Error("Session request failed", { cause }) };
     this.emit();
+  }
+
+  async refresh(client: AuthClient, signal?: AbortSignal): Promise<void> {
+    this.state = { status: "loading" };
+    this.emit();
+    try {
+      const session = await client.session(signal);
+      if (signal?.aborted) return;
+      this.setSession(session === undefined || sessionIsExpired(session) ? undefined : session);
+    } catch (cause) {
+      if (!signal?.aborted) this.setError(cause);
+    }
   }
 
   private emit(): void { for (const listener of this.listeners) listener(); }

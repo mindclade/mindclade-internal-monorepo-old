@@ -25,7 +25,21 @@ presentation state; the server remains authoritative for policy and audit.
 `NEXT_PUBLIC_ENVIRONMENT` labels the target environment and optional telemetry
 uses `NEXT_PUBLIC_TELEMETRY_ENDPOINT` with sensitive-field redaction.
 
+The shell verifies the same-origin `/auth/session` contract and displays only a
+validated, unexpired principal. Administrative request helpers bound deadlines
+and decoded response bytes, reject redirects, require an idempotency key and
+operational reason for mutations, and parse structured problem responses.
+Approval controls additionally require immutable evidence by default, exact
+confirmation, mutation authority, and single-flight submission. These browser
+controls are defense in depth and never replace server authorization or audit.
+HTML is request-rendered with a fresh CSP nonce and no-store policy.
+
 `pnpm --filter @mindclade/apps-admin build` produces the optimized Next artifact.
+`bazel build //apps/admin:release_archive --config=ci` produces the deterministic
+standalone release input; protected release automation must still attach the
+SBOM, provenance, signature, image, and immutable promotion record.
 Production promotion still requires elevated-session integration, tenant and
-policy tests, CSP/identity qualification, immutable audit verification, signed
-build provenance, and a tested deployment rollback.
+policy tests, ingress CSP/identity qualification, immutable audit verification,
+and a tested deployment rollback. See the
+[browser application runbook](../../docs/runbooks/typescript-applications.md)
+and [source qualification record](../../docs/qualification/typescript-applications.md).

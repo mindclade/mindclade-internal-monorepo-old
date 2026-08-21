@@ -9,8 +9,9 @@ info:
   version: 1.0.0
   description: |
     Stable browser and public-SDK projection of Mindclade run, data, model,
-    artifact, evaluation, and inference contracts. Scientific payloads are
-    referenced by immutable artifacts rather than embedded in control messages.
+    artifact, evaluation, inference, and AI-gateway admission contracts.
+    Scientific payloads are referenced by immutable artifacts rather than
+    embedded in control messages.
 servers:
   - url: https://api.mindclade.ai
     description: Production
@@ -23,6 +24,7 @@ tags:
   - name: Artifacts
   - name: Evaluations
   - name: Inference
+  - name: AI Gateway Admission
 paths:
   /v1/runs:
     get:
@@ -258,6 +260,88 @@ paths:
             text/event-stream:
               schema: { type: string }
         default: { $ref: '#/components/responses/Error' }
+  /v1/ai-gateway/reservations:
+    post:
+      operationId: createGatewayReservation
+      tags: [AI Gateway Admission]
+      summary: Reserve bounded AI-gateway usage.
+      description: |
+        Atomically binds one request to the current entitlement and budget
+        versions. Reusing an idempotency key with the same request returns the
+        original decision; reusing it with a different request fails closed.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateGatewayReservationRequest' }
+      responses:
+        '201':
+          description: A new reservation was durably created.
+          headers:
+            Cache-Control: { $ref: '#/components/headers/GatewayAdmissionNoStore' }
+            ETag: { $ref: '#/components/headers/GatewayReservationETag' }
+            Location: { $ref: '#/components/headers/GatewayReservationLocation' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GatewayReservationDecision' }
+        '200':
+          description: The original decision was returned for an idempotent replay.
+          headers:
+            Cache-Control: { $ref: '#/components/headers/GatewayAdmissionNoStore' }
+            ETag: { $ref: '#/components/headers/GatewayReservationETag' }
+            Location: { $ref: '#/components/headers/GatewayReservationLocation' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GatewayReservationDecision' }
+        default: { $ref: '#/components/responses/Error' }
+  /v1/ai-gateway/reservations/{reservationId}/commit:
+    post:
+      operationId: commitGatewayReservation
+      tags: [AI Gateway Admission]
+      summary: Commit actual usage against a reservation.
+      parameters:
+        - $ref: '#/components/parameters/GatewayReservationId'
+        - $ref: '#/components/parameters/IfMatchReservationVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CommitGatewayReservationRequest' }
+      responses:
+        '200':
+          description: Usage was committed or the identical finalization was replayed.
+          headers:
+            Cache-Control: { $ref: '#/components/headers/GatewayAdmissionNoStore' }
+            ETag: { $ref: '#/components/headers/GatewayReservationETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GatewayReservationDecision' }
+        default: { $ref: '#/components/responses/Error' }
+  /v1/ai-gateway/reservations/{reservationId}/release:
+    post:
+      operationId: releaseGatewayReservation
+      tags: [AI Gateway Admission]
+      summary: Release an unused reservation.
+      parameters:
+        - $ref: '#/components/parameters/GatewayReservationId'
+        - $ref: '#/components/parameters/IfMatchReservationVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReleaseGatewayReservationRequest' }
+      responses:
+        '200':
+          description: The reservation was released or the identical finalization was replayed.
+          headers:
+            Cache-Control: { $ref: '#/components/headers/GatewayAdmissionNoStore' }
+            ETag: { $ref: '#/components/headers/GatewayReservationETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GatewayReservationDecision' }
+        default: { $ref: '#/components/responses/Error' }
 components:
   securitySchemes:
     bearerAuth:
@@ -277,12 +361,27 @@ components:
       name: Idempotency-Key
       in: header
       required: true
-      schema: { type: string, minLength: 16, maxLength: 128 }
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 200
+        pattern: '^[!-~]+$'
     RunId:
       name: runId
       in: path
       required: true
       schema: { $ref: '#/components/schemas/ResourceId' }
+    GatewayReservationId:
+      $ref: './components/admission.yaml#/parameters/ReservationId'
+    IfMatchReservationVersion:
+      $ref: './components/admission.yaml#/parameters/IfMatchReservationVersion'
+  headers:
+    GatewayAdmissionNoStore:
+      $ref: './components/admission.yaml#/headers/NoStore'
+    GatewayReservationETag:
+      $ref: './components/admission.yaml#/headers/ReservationETag'
+    GatewayReservationLocation:
+      $ref: './components/admission.yaml#/headers/ReservationLocation'
   responses:
     Error:
       description: Structured API failure.
@@ -290,6 +389,22 @@ components:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
   schemas:
+    CreateGatewayReservationRequest:
+      $ref: './components/admission.yaml#/schemas/CreateGatewayReservationRequest'
+    CommitGatewayReservationRequest:
+      $ref: './components/admission.yaml#/schemas/CommitGatewayReservationRequest'
+    ReleaseGatewayReservationRequest:
+      $ref: './components/admission.yaml#/schemas/ReleaseGatewayReservationRequest'
+    GatewayReservationDecision:
+      $ref: './components/admission.yaml#/schemas/GatewayReservationDecision'
+    GatewayReservation:
+      $ref: './components/admission.yaml#/schemas/GatewayReservation'
+    GatewayRoute:
+      $ref: './components/admission.yaml#/schemas/GatewayRoute'
+    GatewayQuota:
+      $ref: './components/admission.yaml#/schemas/GatewayQuota'
+    GatewayReservationState:
+      $ref: './components/admission.yaml#/schemas/GatewayReservationState'
     ResourceId:
       type: string
       pattern: '^[a-z][a-z0-9_-]{2,127}$'

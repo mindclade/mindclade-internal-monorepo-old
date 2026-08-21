@@ -392,6 +392,7 @@ rollback_action = "restore the prior module source and inputs"
                 "modules": {},
                 "schema_version": governance.MANIFEST_SCHEMA_VERSION,
                 "source_revision": commit,
+                "status": "released",
             }
             baseline_path.write_text(governance._json_text(expected), encoding="utf-8")
             policy = {
@@ -464,6 +465,187 @@ rollback_action = "restore the prior module source and inputs"
                 self.assertRaisesRegex(governance.GovernanceError, "content does not match"),
             ):
                 governance._base_manifest(repo, commit, policy, "terraform-docs")
+
+    def test_same_planned_candidate_uses_immutable_cumulative_baseline(self) -> None:
+        released = {
+            "contract_version": "0.1.1",
+            "modules": {"example": _unit()},
+            "schema_version": governance.MANIFEST_SCHEMA_VERSION,
+            "source_revision": "a" * 40,
+            "status": "released",
+        }
+        base = copy.deepcopy(released)
+        base.update(
+            {
+                "contract_version": "0.4.0",
+                "source_revision": "working-tree",
+                "status": "planned",
+            }
+        )
+        current = copy.deepcopy(base)
+        current["modules"]["example"]["inputs"]["optional"]["validation_fingerprints"] = [
+            "sha256:new"
+        ]
+        policy = {"contract_version": "0.4.0", "status": "planned"}
+
+        with patch.object(
+            governance, "_verified_fallback_manifest", return_value=released
+        ) as fallback:
+            selected = governance._compatibility_baseline(
+                Path("/unused"), base, current, policy, "terraform-docs"
+            )
+
+        fallback.assert_called_once()
+        self.assertIs(selected, released)
+        changes = classify_interfaces(selected, current)
+        self.assertIn(
+            "module:example:input:optional:validation_fingerprints-changed",
+            {change["id"] for change in changes if change["breaking"]},
+        )
+        self.assertEqual([], governance._validate_version_change(selected, current, changes))
+
+    def test_same_planned_candidate_rejects_uncovered_cumulative_breaking_change(self) -> None:
+        released = {
+            "contract_version": "0.1.1",
+            "modules": {"example": _unit()},
+            "schema_version": governance.MANIFEST_SCHEMA_VERSION,
+            "source_revision": "a" * 40,
+            "status": "released",
+        }
+        base = copy.deepcopy(released)
+        base.update(
+            {
+                "contract_version": "0.4.0",
+                "source_revision": "working-tree",
+                "status": "planned",
+            }
+        )
+        base["modules"]["example"]["inputs"]["optional"]["default"] = "candidate"
+        current = copy.deepcopy(base)
+        current["modules"]["example"]["inputs"]["optional"]["validation_fingerprints"] = [
+            "sha256:new"
+        ]
+        policy = {"contract_version": "0.4.0", "status": "planned"}
+
+        with (
+            tempfile.TemporaryDirectory() as raw_temp,
+            patch.object(governance, "_verified_fallback_manifest", return_value=released),
+        ):
+            repo = Path(raw_temp)
+            migrations = repo / "infra/terraform/governance/migrations"
+            migrations.mkdir(parents=True)
+            (repo / "evidence.md").write_text("fixture\n", encoding="utf-8")
+            (migrations / "0.1.1-to-0.4.0.toml").write_text(
+                f"""schema_version = {governance.MIGRATION_SCHEMA_VERSION}
+from_version = "0.1.1"
+to_version = "0.4.0"
+status = "planned"
+owner = "platform-control"
+summary = "incomplete cumulative fixture"
+affected_modules = ["example"]
+breaking_change_ids = [
+  "module:example:input:optional:default-changed",
+]
+consumer_steps = ["review the complete candidate"]
+rollback_steps = ["retain the released source pin"]
+qualification_evidence = ["evidence.md"]
+""",
+                encoding="utf-8",
+            )
+            selected = governance._compatibility_baseline(
+                repo, base, current, policy, "terraform-docs"
+            )
+            changes = classify_interfaces(selected, current)
+            errors = governance._validate_migrations(repo, selected, current, changes)
+
+        self.assertTrue(
+            any(
+                "module:example:input:optional:validation_fingerprints-changed" in error
+                for error in errors
+            ),
+            errors,
+        )
+
+    def test_released_same_version_mutation_cannot_use_planned_fallback(self) -> None:
+        base = {
+            "contract_version": "0.4.0",
+            "modules": {"example": _unit()},
+            "schema_version": governance.MANIFEST_SCHEMA_VERSION,
+            "source_revision": "a" * 40,
+            "status": "released",
+        }
+        current = copy.deepcopy(base)
+        current["modules"]["example"]["inputs"]["optional"]["default"] = "new"
+        policy = {"contract_version": "0.4.0", "status": "released"}
+
+        with patch.object(governance, "_verified_fallback_manifest") as fallback:
+            selected = governance._compatibility_baseline(
+                Path("/unused"), base, current, policy, "terraform-docs"
+            )
+
+        fallback.assert_not_called()
+        changes = classify_interfaces(selected, current)
+        self.assertIn(
+            "interface changes require a version increment: 0.4.0 -> 0.4.0",
+            governance._validate_version_change(selected, current, changes),
+        )
+
+    def test_planned_to_released_transition_cannot_bundle_interface_change(self) -> None:
+        base = {
+            "contract_version": "0.4.0",
+            "modules": {"example": _unit()},
+            "schema_version": governance.MANIFEST_SCHEMA_VERSION,
+            "source_revision": "working-tree",
+            "status": "planned",
+        }
+        current = copy.deepcopy(base)
+        current["status"] = "released"
+        current["modules"]["example"]["inputs"]["optional"]["default"] = "new"
+        policy = {"contract_version": "0.4.0", "status": "released"}
+
+        with patch.object(governance, "_verified_fallback_manifest") as fallback:
+            selected = governance._compatibility_baseline(
+                Path("/unused"), base, current, policy, "terraform-docs"
+            )
+
+        fallback.assert_not_called()
+        changes = classify_interfaces(selected, current)
+        self.assertIn(
+            "interface changes require a version increment: 0.4.0 -> 0.4.0",
+            governance._validate_version_change(selected, current, changes),
+        )
+
+    def test_planned_candidate_requires_policy_version_and_status_parity(self) -> None:
+        base = {
+            "contract_version": "0.4.0",
+            "modules": {},
+            "schema_version": governance.MANIFEST_SCHEMA_VERSION,
+            "source_revision": "working-tree",
+            "status": "planned",
+        }
+        current = copy.deepcopy(base)
+        for policy in (
+            {"contract_version": "0.5.0", "status": "planned"},
+            {"contract_version": "0.4.0", "status": "released"},
+        ):
+            with (
+                self.subTest(policy=policy),
+                self.assertRaisesRegex(governance.GovernanceError, "differs from version.toml"),
+            ):
+                governance._compatibility_baseline(
+                    Path("/unused"), base, current, policy, "terraform-docs"
+                )
+
+    def test_manifest_status_is_fail_closed(self) -> None:
+        manifest = {
+            "contract_version": "0.4.0",
+            "modules": {},
+            "schema_version": governance.MANIFEST_SCHEMA_VERSION,
+            "source_revision": "working-tree",
+            "status": "mutable",
+        }
+        with self.assertRaisesRegex(governance.GovernanceError, "status must be"):
+            governance._verify_manifest_shape(manifest, "fixture")
 
 
 if __name__ == "__main__":

@@ -45,7 +45,7 @@ let
   # step: a tool added to the shell and not to this list is a tool whose version can move
   # without evidence.
   tools = {
-    bazelisk = pkgs.bazelisk.version;
+    bazel = pkgs.bazel_9.version;
     buf = pkgs.buf.version;
     buildifier = pkgs.buildifier.version;
     go = pkgs.go.version;

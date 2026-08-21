@@ -5,6 +5,7 @@
 
 import "@mindclade/libs-ts-design-system/theme.css";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import type { ReactNode } from "react";
 import { AppShell } from "../components/AppShell";
 import { ErrorBoundary } from "../components/ErrorBoundary";
@@ -15,6 +16,9 @@ export const metadata: Metadata = {
   description: "Operational command surface for AI research and model systems.",
 };
 
-export default function Layout({ children }: Readonly<{ children: ReactNode }>): ReactNode {
+export default async function Layout({ children }: Readonly<{ children: ReactNode }>): Promise<ReactNode> {
+  // Request-bound rendering is required so Next can apply the proxy's nonce to
+  // framework and inline hydration assets.
+  await headers();
   return <html lang="en"><body><ErrorBoundary><AppShell>{children}</AppShell></ErrorBoundary></body></html>;
 }

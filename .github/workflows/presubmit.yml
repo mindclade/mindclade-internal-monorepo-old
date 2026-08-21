@@ -21,6 +21,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Required checks must be emitted for the synthetic merge result used by merge queue.
+  # Omitting this event leaves every queued change waiting forever on contexts that can only
+  # exist on pull_request heads.
+  merge_group:
 
 # Read-only at the top level. No lane here writes anything; CodeQL's security-events: write
 # lives in security.yml, scoped to the job that needs it.
@@ -89,12 +93,14 @@ jobs:
       # to survive a gate; a threshold that fails on day one gets disabled on day two.
       coverage-threshold: 0
 
-  # Real PostgreSQL qualification for the registry composition boundary. Unit
-  # tests use sqltest to force edge conditions; this lane proves the same DDL,
-  # JSONB round trip, transaction rollback, SQLSTATE qualification, and lease
-  # fencing against the actual lib/pq driver and PostgreSQL server.
+  # Real PostgreSQL qualification for the registry and AI Gateway admission
+  # composition boundaries. Unit tests use sqltest to force edge conditions;
+  # this lane proves the same DDL, JSONB round trip, transaction rollback,
+  # SQLSTATE qualification, lease fencing, atomic audit/outbox writes, bounded
+  # serializable retries, and no-overspend behavior against the actual lib/pq
+  # driver and PostgreSQL server.
   go-postgres-qualification:
-    name: Go registry / live PostgreSQL and failure injection
+    name: Go registry + admission / live PostgreSQL and failure injection
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     services:
@@ -120,11 +126,15 @@ jobs:
           go-version: "1.26.6"
           cache-dependency-path: go.sum
 
-      - name: Live registry and fault qualification
+      - name: Live registry, admission, and fault qualification
         env:
           GOTOOLCHAIN: local
           MINDCLADE_TEST_POSTGRES_DSN: postgres://postgres:postgres@127.0.0.1:5432/mindclade_test?sslmode=disable
-        run: go test -race -count=1 -v ./services/control_plane/internal/store/postgres
+        run: >-
+          go test -race -count=1 -v
+          ./services/control_plane/internal/providers/maintenance
+          ./services/control_plane/internal/store/postgres
+          ./services/control_plane/internal/store/postgres/admission
 
       - name: Execute the declared failure-injection matrix
         env:
@@ -392,9 +402,9 @@ jobs:
       - name: Prepare GitHub-hosted runner disk for Nix
         run: ci/common/prepare_nix_runner.sh
 
-      # Reads .bazelversion, which tools/build/nix/versions.nix owns and
-      # checks/bazel-version.nix asserts. Without the pin bazelisk picks a Bazel per machine,
-      # and the version that gates a PR stops being the version anyone runs locally.
+      # Provides Bazel disk/repository cache integration. The launcher itself comes from
+      # .#ci-bazel as pkgs.bazel_9 and is verified against .bazelversion by tools/dev/bazelw;
+      # the action-installed Bazelisk is a compatibility fallback, not toolchain authority.
       #
       # It was briefly held at 8.4.2 because rules_go 0.51 does not load under Bazel 9 —
       # `cross.bzl` uses APIs it removed. rules_go 0.63.0 lifted that, and the tree now loads
@@ -441,9 +451,9 @@ jobs:
         run: |
           evidence="${RUNNER_TEMP}/bazel-evidence"
           mkdir -p "${evidence}"
-          # setup-bazel exports a short-lived download token. Bazel records every client env
-          # value in the raw BEP command metadata, which this job uploads as evidence, so the
-          # token must leave the environment before either evidence-producing invocation.
+          # setup-bazel exports a short-lived download token for its fallback launcher. Bazel
+          # records every client env value in raw BEP metadata, so the token must leave the
+          # environment before either evidence-producing invocation.
           unset BAZELISK_GITHUB_TOKEN
           set +e
           nix develop .#ci-bazel --command tools/dev/bazelw build //... --nobuild --config=ci \

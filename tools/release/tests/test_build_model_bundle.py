@@ -14,14 +14,11 @@ from __future__ import annotations
 import json
 import pickle
 import struct
-import sys
 from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from build_model_bundle import build, collect, validate_safetensors
+from tools.release.build_model_bundle import build, collect, validate_safetensors
 
 
 def write_safetensors(

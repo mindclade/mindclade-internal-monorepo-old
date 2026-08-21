@@ -12,7 +12,7 @@ test function and exits 0, which is indistinguishable in a green run from a test
 
 load("@rules_python//python:defs.bzl", "py_test")
 
-def pytest_test(name, srcs, deps = [], data = [], imports = [], **kwargs):
+def pytest_test(name, srcs, deps = [], data = [], imports = [], legacy_create_init = False, **kwargs):
     """Run `srcs` under pytest with the repository's own pytest configuration.
 
     Args:
@@ -21,12 +21,20 @@ def pytest_test(name, srcs, deps = [], data = [], imports = [], **kwargs):
       deps: libraries under test. `@pypi//pytest` is added here, never by the caller.
       data: extra runfiles. pyproject.toml is added here.
       imports: sys.path roots, relative to this package, as for py_library.
+      legacy_create_init: whether rules_python may synthesize package initializers. Defaults
+        false so test runfiles cannot shadow first-party package authority.
       **kwargs: forwarded to py_test.
     """
     py_test(
         name = name,
         srcs = srcs + ["//tools/build:pytest_runner.py"],
         main = "//tools/build:pytest_runner.py",
+        # Every first-party package owns its real __init__.py (or is an
+        # intentional namespace package). Synthesizing empty parent packages
+        # makes test imports differ from shipped imports and, under a wide
+        # concurrent graph, can collide with a real source artifact at the
+        # same runfiles path. Keep the runfiles tree source-authoritative.
+        legacy_create_init = legacy_create_init,
         # $(location) so the runner is handed runfiles paths rather than source paths, which
         # are not where the files are when the test executes.
         args = ["$(location %s)" % src for src in srcs],
