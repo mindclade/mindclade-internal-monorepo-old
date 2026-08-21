@@ -11,7 +11,6 @@ import json
 import re
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE_ROOTS = (ROOT / "apps", ROOT / "libs" / "ts", ROOT / "sdk" / "typescript")
 IGNORED_DIRECTORIES = {".next", "dist", "generated", "node_modules"}
@@ -40,20 +39,28 @@ def main() -> int:
                 if path.suffix in TS_SUFFIXES and re.search(r"\bas\s+any\b|:\s*any\b", text):
                     errors.append(f"{path.relative_to(ROOT)}: uses explicit any")
 
-        for manifest in source_root.glob("*/package.json") if source_root.name != "typescript" else [source_root / "package.json"]:
+        for manifest in (
+            source_root.glob("*/package.json")
+            if source_root.name != "typescript"
+            else [source_root / "package.json"]
+        ):
             if not manifest.exists():
                 continue
             data = json.loads(manifest.read_text(encoding="utf-8"))
             missing = sorted(REQUIRED_SCRIPTS - set(data.get("scripts", {})))
             if missing:
-                errors.append(f"{manifest.relative_to(ROOT)}: missing scripts: {', '.join(missing)}")
+                errors.append(
+                    f"{manifest.relative_to(ROOT)}: missing scripts: {', '.join(missing)}"
+                )
 
     generated_api = ROOT / "sdk/typescript/src/generated/api.ts"
     generated_proto = ROOT / "sdk/typescript/src/generated/proto"
     if not generated_api.exists():
         errors.append("sdk/typescript/src/generated/api.ts: generated OpenAPI types are missing")
     if not generated_proto.exists() or not any(generated_proto.rglob("*_pb.ts")):
-        errors.append("sdk/typescript/src/generated/proto: generated Protobuf-ES bindings are missing")
+        errors.append(
+            "sdk/typescript/src/generated/proto: generated Protobuf-ES bindings are missing"
+        )
 
     for error in errors:
         print(error)

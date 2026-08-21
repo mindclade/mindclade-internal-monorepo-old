@@ -11,7 +11,10 @@ package(default_visibility = ["//visibility:private"])
 py_library(
     name = "contract_validation",
     srcs = ["contract_validation.py"],
-    data = glob(["schemas/*.json", "fixtures/*.json"]),
+    data = glob([
+        "schemas/*.json",
+        "fixtures/*.json",
+    ]),
     imports = [".."],
     visibility = ["//visibility:public"],
 )
@@ -25,7 +28,10 @@ py_binary(
 pytest_test(
     name = "test_contracts",
     srcs = ["tests/test_contracts.py"],
-    data = glob(["schemas/*.json", "fixtures/*.json"]),
+    data = glob([
+        "schemas/*.json",
+        "fixtures/*.json",
+    ]),
     imports = [".."],
     deps = [":contract_validation"],
 )

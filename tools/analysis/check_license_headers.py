@@ -78,6 +78,7 @@ SKIP_DIRS = frozenset(
         ".pytest_cache",
         ".ruff_cache",
         ".venv",
+        "bazel-dist",
         "node_modules",
         "dist",
         "target",
@@ -87,6 +88,7 @@ SKIP_DIRS = frozenset(
 # Paths that are generated or vendored and therefore exempt, matched as path prefixes
 # relative to the repository root. Each one is a file nobody in this repository authored.
 SKIP_PREFIXES: tuple[str, ...] = (
+    ".agents/skills/",
     "docs/blueprint/",
     "infra/gitops/vendor/",
     "research/notebooks/",

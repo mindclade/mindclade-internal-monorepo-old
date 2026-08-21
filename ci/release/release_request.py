@@ -31,9 +31,7 @@ TICKET_RE = re.compile(r"^[A-Z][A-Z0-9]+-[1-9][0-9]*$")
 HOST_RE = re.compile(r"^[a-z0-9][a-z0-9.-]*-docker\.pkg\.dev$")
 PROJECT_RE = re.compile(r"^[a-z][a-z0-9-]{4,28}[a-z0-9]$")
 ATTESTOR_RE = re.compile(r"^[a-z][a-z0-9-]{0,61}[a-z0-9]$")
-APPLICATION_RE = re.compile(
-    r"^(?:platform|serving|research|data|partner)-[a-z0-9][a-z0-9-]*$"
-)
+APPLICATION_RE = re.compile(r"^(?:platform|serving|research|data|partner)-[a-z0-9][a-z0-9-]*$")
 CATALOG_NAME_RE = re.compile(r"^[a-z][a-z0-9-]{1,62}$")
 BAZEL_TARGET_RE = re.compile(r"^//[A-Za-z0-9_./+-]+(?::[A-Za-z0-9_./+-]+)?(?:/\.\.\.)?$")
 RELEASE_KINDS = {"application", "bundle", "dataset", "model", "pipeline", "platform"}
@@ -56,9 +54,7 @@ def _mapping(value: Any, label: str) -> dict[str, Any]:
 
 def _exact_keys(value: dict[str, Any], expected: set[str], label: str) -> None:
     if set(value) != expected:
-        raise ContractError(
-            f"{label} keys must be exactly {sorted(expected)}; got {sorted(value)}"
-        )
+        raise ContractError(f"{label} keys must be exactly {sorted(expected)}; got {sorted(value)}")
 
 
 def _semver_tuple(value: str) -> tuple[int, int, int]:
@@ -144,9 +140,7 @@ def load_catalog() -> dict[str, dict[str, Any]]:
         if not re.fullmatch(r"[a-z0-9._/-]+", str(image["repository"])):
             raise ContractError(f"target {name} has an invalid image repository")
         for label in ("buildTarget", "pushTarget"):
-            if not isinstance(image[label], str) or not BAZEL_TARGET_RE.fullmatch(
-                image[label]
-            ):
+            if not isinstance(image[label], str) or not BAZEL_TARGET_RE.fullmatch(image[label]):
                 raise ContractError(f"target {name} has an invalid {label}")
         artifacts = target["artifacts"]
         if not isinstance(artifacts, list):
@@ -159,16 +153,11 @@ def load_catalog() -> dict[str, dict[str, Any]]:
             raise ContractError(f"target {name} qualificationMode must be build or test")
         qualification = target["qualificationTargets"]
         if not isinstance(qualification, list) or not qualification:
-            raise ContractError(
-                f"target {name} qualificationTargets must be a nonempty list"
-            )
+            raise ContractError(f"target {name} qualificationTargets must be a nonempty list")
         if len(set(qualification)) != len(qualification) or not all(
-            isinstance(item, str) and BAZEL_TARGET_RE.fullmatch(item)
-            for item in qualification
+            isinstance(item, str) and BAZEL_TARGET_RE.fullmatch(item) for item in qualification
         ):
-            raise ContractError(
-                f"target {name} qualificationTargets must be unique Bazel labels"
-            )
+            raise ContractError(f"target {name} qualificationTargets must be unique Bazel labels")
     return targets
 
 
@@ -203,9 +192,7 @@ def validate_request(raw_path: str, source_sha: str) -> dict[str, Any]:
     previous = _mapping(spec["previousRelease"], "spec.previousRelease")
     _exact_keys(previous, {"id", "subjectDigest"}, "spec.previousRelease")
     previous_release_id = previous["id"]
-    if not isinstance(previous_release_id, str) or not RELEASE_RE.fullmatch(
-        previous_release_id
-    ):
+    if not isinstance(previous_release_id, str) or not RELEASE_RE.fullmatch(previous_release_id):
         raise ContractError("previousRelease.id must be a full vX.Y.Z release identifier")
     if _semver_tuple(previous_release_id) >= _semver_tuple(release_id):
         raise ContractError("previousRelease.id must be older than the requested release")
@@ -274,12 +261,7 @@ def _write_json(path: Path, value: dict[str, Any]) -> None:
 
 
 def _now() -> str:
-    return (
-        dt.datetime.now(dt.timezone.utc)
-        .replace(microsecond=0)
-        .isoformat()
-        .replace("+00:00", "Z")
-    )
+    return dt.datetime.now(dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _timestamp(value: Any, label: str) -> None:

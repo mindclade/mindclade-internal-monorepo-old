@@ -29,6 +29,7 @@ py_binary(
         "availability-profiles.schema.json",
         "availability-profiles.yaml",
     ] + glob(["alerts/*.yaml"]),
+    main = "alert_contracts.py",
     deps = ["//configs:contract_validation"],
 )
 
@@ -42,6 +43,7 @@ py_library(
 py_binary(
     name = "jobset_outcome_exporter",
     srcs = ["jobset_outcomes.py"],
+    main = "jobset_outcomes.py",
 )
 
 pytest_test(

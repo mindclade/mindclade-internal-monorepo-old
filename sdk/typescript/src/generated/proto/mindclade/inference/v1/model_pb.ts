@@ -6,8 +6,8 @@
 // @generated from file mindclade/inference/v1/model.proto (package mindclade.inference.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { ResourceId } from "../../common/v1/identifiers_pb.js";
 import { file_mindclade_common_v1_identifiers } from "../../common/v1/identifiers_pb.js";
 import type { Message } from "@bufbuild/protobuf";
@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file mindclade/inference/v1/model.proto.
  */
 export const file_mindclade_inference_v1_model: GenFile = /*@__PURE__*/
-  fileDesc("CiJtaW5kY2xhZGUvaW5mZXJlbmNlL3YxL21vZGVsLnByb3RvEhZtaW5kY2xhZGUuaW5mZXJlbmNlLnYxIiUKDU1vZGVsU2NhZmZvbGQSEAoIcmVzZXJ2ZWQYASABKAk6AhgBImUKDk1vZGVsU2VsZWN0aW9uEjEKCG1vZGVsX2lkGAEgASgLMh8ubWluZGNsYWRlLmNvbW1vbi52MS5SZXNvdXJjZUlkEhQKB3ZlcnNpb24YAiABKAlIAIgBAUIKCghfdmVyc2lvbmIGcHJvdG8z", [file_mindclade_common_v1_identifiers]);
+  fileDesc("CiJtaW5kY2xhZGUvaW5mZXJlbmNlL3YxL21vZGVsLnByb3RvEhZtaW5kY2xhZGUuaW5mZXJlbmNlLnYxIiUKDU1vZGVsU2NhZmZvbGQSEAoIcmVzZXJ2ZWQYASABKAk6AhgBIrICChJDb21wYXRpYmlsaXR5Q2xhc3MSEAoIY2xhc3NfaWQYASABKAkSPQoOZXhlY3V0aW9uX2tpbmQYAiABKA4yJS5taW5kY2xhZGUuaW5mZXJlbmNlLnYxLkV4ZWN1dGlvbktpbmQSOQoJcHJlY2lzaW9uGAMgASgOMiYubWluZGNsYWRlLmluZmVyZW5jZS52MS5Nb2RlbFByZWNpc2lvbhIUCgxzaGFwZV9idWNrZXQYBCABKAkSHgoWbWF4aW11bV9iYXRjaF9yZXF1ZXN0cxgFIAEoDRIfChdtYXhpbXVtX2JhdGNoX2dwdV9ieXRlcxgGIAEoBBIbChNtYXhpbXVtX2lucHV0X3VuaXRzGAcgASgEEhwKFG1heGltdW1fb3V0cHV0X3VuaXRzGAggASgEIvoBChVNb2RlbFJlc291cmNlRW52ZWxvcGUSHgoWd2VpZ2h0c19yZXNpZGVudF9ieXRlcxgBIAEoBBIZChFob3N0X21lbW9yeV9ieXRlcxgCIAEoBBIeChZncHVfbWVtb3J5X2Zsb29yX2J5dGVzGAMgASgEEiQKHGdwdV9tZW1vcnlfcGVyX3JlcXVlc3RfYnl0ZXMYBCABKAQSIwobbWF4aW11bV9jb25jdXJyZW50X3JlcXVlc3RzGAUgASgNEhwKFGxvYWRfZGVhZGxpbmVfbWlsbGlzGAYgASgNEh0KFWRyYWluX2RlYWRsaW5lX21pbGxpcxgHIAEoDSL+BAoPTW9kZWxEZXNjcmlwdG9yEhkKEWRlc2NyaXB0b3JfZGlnZXN0GAEgASgJEhAKCG1vZGVsX2lkGAIgASgJEg4KBmZhbWlseRgDIAEoCRIPCgd2ZXJzaW9uGAQgASgJEjkKCWxpZmVjeWNsZRgFIAEoDjImLm1pbmRjbGFkZS5pbmZlcmVuY2UudjEuTW9kZWxMaWZlY3ljbGUSGwoTbW9kZWxfYnVuZGxlX2RpZ2VzdBgGIAEoCRIcChRlbmdpbmVfYnVuZGxlX2RpZ2VzdBgHIAEoCRIeChZyZXNvbHZlZF9jb25maWdfZGlnZXN0GAggASgJEh4KFmtlcm5lbF9tYW5pZmVzdF9kaWdlc3QYCSABKAkSHAoUc2FmZXR5X3BvbGljeV9kaWdlc3QYCiABKAkSFAoMY2FwYWJpbGl0aWVzGAsgAygJEkkKFWNvbXBhdGliaWxpdHlfY2xhc3NlcxgMIAMoCzIqLm1pbmRjbGFkZS5pbmZlcmVuY2UudjEuQ29tcGF0aWJpbGl0eUNsYXNzEj8KCGVudmVsb3BlGA0gASgLMi0ubWluZGNsYWRlLmluZmVyZW5jZS52MS5Nb2RlbFJlc291cmNlRW52ZWxvcGUSHgoWYWNjZWxlcmF0b3JfY2FwYWJpbGl0eRgOIAEoCRIfChdtaW5pbXVtX3J1bnRpbWVfdmVyc2lvbhgPIAEoCRIWCg5zY2hlbWFfdmVyc2lvbhgQIAEoDRIUCgxwb2xpY3lfZXBvY2gYESABKAQSGwoTY3JlYXRlZF91bml4X21pbGxpcxgSIAEoBBIbChNleHBpcmVzX3VuaXhfbWlsbGlzGBMgASgEImUKDk1vZGVsU2VsZWN0aW9uEjEKCG1vZGVsX2lkGAEgASgLMh8ubWluZGNsYWRlLmNvbW1vbi52MS5SZXNvdXJjZUlkEhQKB3ZlcnNpb24YAiABKAlIAIgBAUIKCghfdmVyc2lvbiqyAQoOTW9kZWxQcmVjaXNpb24SHwobTU9ERUxfUFJFQ0lTSU9OX1VOU1BFQ0lGSUVEEAASGAoUTU9ERUxfUFJFQ0lTSU9OX0ZQMzIQARIYChRNT0RFTF9QUkVDSVNJT05fVEYzMhACEhgKFE1PREVMX1BSRUNJU0lPTl9CRjE2EAMSGAoUTU9ERUxfUFJFQ0lTSU9OX0ZQMTYQBBIXChNNT0RFTF9QUkVDSVNJT05fRlA4EAUqqgEKDUV4ZWN1dGlvbktpbmQSHgoaRVhFQ1VUSU9OX0tJTkRfVU5TUEVDSUZJRUQQABIaChZFWEVDVVRJT05fS0lORF9GT1JXQVJEEAESIwofRVhFQ1VUSU9OX0tJTkRfRElGRlVTSU9OX1NBTVBMRRACEhwKGEVYRUNVVElPTl9LSU5EX0VNQkVERElORxADEhoKFkVYRUNVVElPTl9LSU5EX1NDT1JJTkcQBCrFAQoOTW9kZWxMaWZlY3ljbGUSHwobTU9ERUxfTElGRUNZQ0xFX1VOU1BFQ0lGSUVEEAASGQoVTU9ERUxfTElGRUNZQ0xFX0RSQUZUEAESHQoZTU9ERUxfTElGRUNZQ0xFX1FVQUxJRklFRBACEhsKF01PREVMX0xJRkVDWUNMRV9TRVJWSU5HEAMSHgoaTU9ERUxfTElGRUNZQ0xFX0RFUFJFQ0FURUQQBBIbChdNT0RFTF9MSUZFQ1lDTEVfUkVWT0tFRBAFYgZwcm90bzM", [file_mindclade_common_v1_identifiers]);
 
 /**
  * @generated from message mindclade.inference.v1.ModelScaffold
@@ -38,6 +38,230 @@ export const ModelScaffoldSchema: GenMessage<ModelScaffold> = /*@__PURE__*/
   messageDesc(file_mindclade_inference_v1_model, 0);
 
 /**
+ * CompatibilityClass is a coarse, model-declared batching class. It is the only
+ * batching vocabulary the runtime data plane is permitted to interpret; Python
+ * decides which requests may actually share tensors within a class.
+ *
+ * @generated from message mindclade.inference.v1.CompatibilityClass
+ */
+export type CompatibilityClass = Message<"mindclade.inference.v1.CompatibilityClass"> & {
+  /**
+   * @generated from field: string class_id = 1;
+   */
+  classId: string;
+
+  /**
+   * @generated from field: mindclade.inference.v1.ExecutionKind execution_kind = 2;
+   */
+  executionKind: ExecutionKind;
+
+  /**
+   * @generated from field: mindclade.inference.v1.ModelPrecision precision = 3;
+   */
+  precision: ModelPrecision;
+
+  /**
+   * @generated from field: string shape_bucket = 4;
+   */
+  shapeBucket: string;
+
+  /**
+   * @generated from field: uint32 maximum_batch_requests = 5;
+   */
+  maximumBatchRequests: number;
+
+  /**
+   * @generated from field: uint64 maximum_batch_gpu_bytes = 6;
+   */
+  maximumBatchGpuBytes: bigint;
+
+  /**
+   * @generated from field: uint64 maximum_input_units = 7;
+   */
+  maximumInputUnits: bigint;
+
+  /**
+   * @generated from field: uint64 maximum_output_units = 8;
+   */
+  maximumOutputUnits: bigint;
+};
+
+/**
+ * Describes the message mindclade.inference.v1.CompatibilityClass.
+ * Use `create(CompatibilityClassSchema)` to create a new message.
+ */
+export const CompatibilityClassSchema: GenMessage<CompatibilityClass> = /*@__PURE__*/
+  messageDesc(file_mindclade_inference_v1_model, 1);
+
+/**
+ * ModelResourceEnvelope is the reservation the runtime host makes before a
+ * Python worker forms a batch. Values are declared floors and per-request
+ * increments, not measured usage.
+ *
+ * @generated from message mindclade.inference.v1.ModelResourceEnvelope
+ */
+export type ModelResourceEnvelope = Message<"mindclade.inference.v1.ModelResourceEnvelope"> & {
+  /**
+   * @generated from field: uint64 weights_resident_bytes = 1;
+   */
+  weightsResidentBytes: bigint;
+
+  /**
+   * @generated from field: uint64 host_memory_bytes = 2;
+   */
+  hostMemoryBytes: bigint;
+
+  /**
+   * @generated from field: uint64 gpu_memory_floor_bytes = 3;
+   */
+  gpuMemoryFloorBytes: bigint;
+
+  /**
+   * @generated from field: uint64 gpu_memory_per_request_bytes = 4;
+   */
+  gpuMemoryPerRequestBytes: bigint;
+
+  /**
+   * @generated from field: uint32 maximum_concurrent_requests = 5;
+   */
+  maximumConcurrentRequests: number;
+
+  /**
+   * @generated from field: uint32 load_deadline_millis = 6;
+   */
+  loadDeadlineMillis: number;
+
+  /**
+   * @generated from field: uint32 drain_deadline_millis = 7;
+   */
+  drainDeadlineMillis: number;
+};
+
+/**
+ * Describes the message mindclade.inference.v1.ModelResourceEnvelope.
+ * Use `create(ModelResourceEnvelopeSchema)` to create a new message.
+ */
+export const ModelResourceEnvelopeSchema: GenMessage<ModelResourceEnvelope> = /*@__PURE__*/
+  messageDesc(file_mindclade_inference_v1_model, 2);
+
+/**
+ * ModelDescriptor is immutable published catalog state for one servable model.
+ *
+ * `descriptor_digest` is sealed by the control plane over the canonical
+ * encoding of every other field. The encoding is the newline-framed
+ * `inference-model-descriptor/v1` document defined in
+ * docs/architecture/serving.md; it is reproduced by Go (writer) and Python
+ * (verifier), and no field may contain a newline or a vertical bar so the
+ * encoding stays injective. Consumers that cannot recompute the digest must
+ * treat the descriptor as opaque and trust the transport that carried it.
+ *
+ * @generated from message mindclade.inference.v1.ModelDescriptor
+ */
+export type ModelDescriptor = Message<"mindclade.inference.v1.ModelDescriptor"> & {
+  /**
+   * @generated from field: string descriptor_digest = 1;
+   */
+  descriptorDigest: string;
+
+  /**
+   * @generated from field: string model_id = 2;
+   */
+  modelId: string;
+
+  /**
+   * @generated from field: string family = 3;
+   */
+  family: string;
+
+  /**
+   * @generated from field: string version = 4;
+   */
+  version: string;
+
+  /**
+   * @generated from field: mindclade.inference.v1.ModelLifecycle lifecycle = 5;
+   */
+  lifecycle: ModelLifecycle;
+
+  /**
+   * @generated from field: string model_bundle_digest = 6;
+   */
+  modelBundleDigest: string;
+
+  /**
+   * @generated from field: string engine_bundle_digest = 7;
+   */
+  engineBundleDigest: string;
+
+  /**
+   * @generated from field: string resolved_config_digest = 8;
+   */
+  resolvedConfigDigest: string;
+
+  /**
+   * @generated from field: string kernel_manifest_digest = 9;
+   */
+  kernelManifestDigest: string;
+
+  /**
+   * @generated from field: string safety_policy_digest = 10;
+   */
+  safetyPolicyDigest: string;
+
+  /**
+   * @generated from field: repeated string capabilities = 11;
+   */
+  capabilities: string[];
+
+  /**
+   * @generated from field: repeated mindclade.inference.v1.CompatibilityClass compatibility_classes = 12;
+   */
+  compatibilityClasses: CompatibilityClass[];
+
+  /**
+   * @generated from field: mindclade.inference.v1.ModelResourceEnvelope envelope = 13;
+   */
+  envelope?: ModelResourceEnvelope | undefined;
+
+  /**
+   * @generated from field: string accelerator_capability = 14;
+   */
+  acceleratorCapability: string;
+
+  /**
+   * @generated from field: string minimum_runtime_version = 15;
+   */
+  minimumRuntimeVersion: string;
+
+  /**
+   * @generated from field: uint32 schema_version = 16;
+   */
+  schemaVersion: number;
+
+  /**
+   * @generated from field: uint64 policy_epoch = 17;
+   */
+  policyEpoch: bigint;
+
+  /**
+   * @generated from field: uint64 created_unix_millis = 18;
+   */
+  createdUnixMillis: bigint;
+
+  /**
+   * @generated from field: uint64 expires_unix_millis = 19;
+   */
+  expiresUnixMillis: bigint;
+};
+
+/**
+ * Describes the message mindclade.inference.v1.ModelDescriptor.
+ * Use `create(ModelDescriptorSchema)` to create a new message.
+ */
+export const ModelDescriptorSchema: GenMessage<ModelDescriptor> = /*@__PURE__*/
+  messageDesc(file_mindclade_inference_v1_model, 3);
+
+/**
  * @generated from message mindclade.inference.v1.ModelSelection
  */
 export type ModelSelection = Message<"mindclade.inference.v1.ModelSelection"> & {
@@ -57,5 +281,123 @@ export type ModelSelection = Message<"mindclade.inference.v1.ModelSelection"> & 
  * Use `create(ModelSelectionSchema)` to create a new message.
  */
 export const ModelSelectionSchema: GenMessage<ModelSelection> = /*@__PURE__*/
-  messageDesc(file_mindclade_inference_v1_model, 1);
+  messageDesc(file_mindclade_inference_v1_model, 4);
+
+/**
+ * @generated from enum mindclade.inference.v1.ModelPrecision
+ */
+export enum ModelPrecision {
+  /**
+   * @generated from enum value: MODEL_PRECISION_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: MODEL_PRECISION_FP32 = 1;
+   */
+  FP32 = 1,
+
+  /**
+   * @generated from enum value: MODEL_PRECISION_TF32 = 2;
+   */
+  TF32 = 2,
+
+  /**
+   * @generated from enum value: MODEL_PRECISION_BF16 = 3;
+   */
+  BF16 = 3,
+
+  /**
+   * @generated from enum value: MODEL_PRECISION_FP16 = 4;
+   */
+  FP16 = 4,
+
+  /**
+   * @generated from enum value: MODEL_PRECISION_FP8 = 5;
+   */
+  FP8 = 5,
+}
+
+/**
+ * Describes the enum mindclade.inference.v1.ModelPrecision.
+ */
+export const ModelPrecisionSchema: GenEnum<ModelPrecision> = /*@__PURE__*/
+  enumDesc(file_mindclade_inference_v1_model, 0);
+
+/**
+ * @generated from enum mindclade.inference.v1.ExecutionKind
+ */
+export enum ExecutionKind {
+  /**
+   * @generated from enum value: EXECUTION_KIND_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: EXECUTION_KIND_FORWARD = 1;
+   */
+  FORWARD = 1,
+
+  /**
+   * @generated from enum value: EXECUTION_KIND_DIFFUSION_SAMPLE = 2;
+   */
+  DIFFUSION_SAMPLE = 2,
+
+  /**
+   * @generated from enum value: EXECUTION_KIND_EMBEDDING = 3;
+   */
+  EMBEDDING = 3,
+
+  /**
+   * @generated from enum value: EXECUTION_KIND_SCORING = 4;
+   */
+  SCORING = 4,
+}
+
+/**
+ * Describes the enum mindclade.inference.v1.ExecutionKind.
+ */
+export const ExecutionKindSchema: GenEnum<ExecutionKind> = /*@__PURE__*/
+  enumDesc(file_mindclade_inference_v1_model, 1);
+
+/**
+ * @generated from enum mindclade.inference.v1.ModelLifecycle
+ */
+export enum ModelLifecycle {
+  /**
+   * @generated from enum value: MODEL_LIFECYCLE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: MODEL_LIFECYCLE_DRAFT = 1;
+   */
+  DRAFT = 1,
+
+  /**
+   * @generated from enum value: MODEL_LIFECYCLE_QUALIFIED = 2;
+   */
+  QUALIFIED = 2,
+
+  /**
+   * @generated from enum value: MODEL_LIFECYCLE_SERVING = 3;
+   */
+  SERVING = 3,
+
+  /**
+   * @generated from enum value: MODEL_LIFECYCLE_DEPRECATED = 4;
+   */
+  DEPRECATED = 4,
+
+  /**
+   * @generated from enum value: MODEL_LIFECYCLE_REVOKED = 5;
+   */
+  REVOKED = 5,
+}
+
+/**
+ * Describes the enum mindclade.inference.v1.ModelLifecycle.
+ */
+export const ModelLifecycleSchema: GenEnum<ModelLifecycle> = /*@__PURE__*/
+  enumDesc(file_mindclade_inference_v1_model, 2);
 

@@ -60,7 +60,7 @@ The review uses the Google Cloud Well-Architected Framework's six pillars and AI
 This table is an immutable review-time snapshot, not the current validation ledger. Historical
 module, configuration, suite, and run counts are retained as collected so later changes do not
 silently rewrite evidence. Current verified totals are maintained in
-[`infra/terraform/PRODUCTION_READINESS.md`](../../infra/terraform/PRODUCTION_READINESS.md).
+`infra/terraform/PRODUCTION_READINESS.md`, outside the MkDocs content root.
 
 | Evidence ID | Source | Scope | Collected at | Redaction | Notes |
 |---|---|---|---|---|---|

@@ -69,7 +69,7 @@ targets:
     ) -> Path:
         path = self.requests / "v0.2.0.yaml"
         path.write_text(
-            """---
+            f"""---
 apiVersion: release.mindclade.dev/v1beta1
 kind: ReleaseRequest
 metadata:
@@ -78,23 +78,16 @@ metadata:
 spec:
   target: go-vanity
   previousRelease:
-    id: %s
-    subjectDigest: %s
-%s"""
-            % (
-                previous_id,
-                previous_digest or "sha256:" + "1" * 64,
-                extra,
-            ),
+    id: {previous_id}
+    subjectDigest: {previous_digest or "sha256:" + "1" * 64}
+{extra}""",
             encoding="utf-8",
         )
         return path
 
     def test_valid_request_uses_closed_catalog(self) -> None:
         self.write_request()
-        result = release_request.validate_request(
-            "ci/release/requests/v0.2.0.yaml", "a" * 40
-        )
+        result = release_request.validate_request("ci/release/requests/v0.2.0.yaml", "a" * 40)
         self.assertEqual(result["target"], "go-vanity")
         self.assertEqual(result["previousReleaseId"], "v0.1.0")
         self.assertEqual(
@@ -105,12 +98,9 @@ spec:
     def test_inspect_exports_exact_catalog_identity_and_lineage(self) -> None:
         self.write_request()
         output = self.root / "github-output"
-        release_request.inspect_request(
-            "ci/release/requests/v0.2.0.yaml", "a" * 40, output
-        )
+        release_request.inspect_request("ci/release/requests/v0.2.0.yaml", "a" * 40, output)
         values = dict(
-            line.split("=", 1)
-            for line in output.read_text(encoding="utf-8").splitlines()
+            line.split("=", 1) for line in output.read_text(encoding="utf-8").splitlines()
         )
         self.assertEqual(values["application"], "platform-go-vanity")
         self.assertEqual(values["release-kind"], "application")
@@ -127,16 +117,12 @@ spec:
     def test_zero_previous_subject_digest_is_rejected(self) -> None:
         self.write_request(previous_digest="sha256:" + "0" * 64)
         with self.assertRaisesRegex(release_request.ContractError, "zero digest"):
-            release_request.validate_request(
-                "ci/release/requests/v0.2.0.yaml", "a" * 40
-            )
+            release_request.validate_request("ci/release/requests/v0.2.0.yaml", "a" * 40)
 
     def test_request_cannot_inject_a_command(self) -> None:
         self.write_request(extra="  command: [sh, -c, whoami]\n")
         with self.assertRaisesRegex(release_request.ContractError, "keys must be exactly"):
-            release_request.validate_request(
-                "ci/release/requests/v0.2.0.yaml", "a" * 40
-            )
+            release_request.validate_request("ci/release/requests/v0.2.0.yaml", "a" * 40)
 
     def test_candidate_rejects_tampered_evidence(self) -> None:
         evidence = self.root / "artifact"
@@ -184,27 +170,20 @@ spec:
     def test_previous_release_id_must_be_older_than_candidate(self) -> None:
         self.write_request(previous_id="v0.2.0")
         with self.assertRaisesRegex(release_request.ContractError, "must be older"):
-            release_request.validate_request(
-                "ci/release/requests/v0.2.0.yaml", "a" * 40
-            )
+            release_request.validate_request("ci/release/requests/v0.2.0.yaml", "a" * 40)
         self.write_request(previous_id="v0.3.0")
         with self.assertRaisesRegex(release_request.ContractError, "must be older"):
-            release_request.validate_request(
-                "ci/release/requests/v0.2.0.yaml", "a" * 40
-            )
+            release_request.validate_request("ci/release/requests/v0.2.0.yaml", "a" * 40)
 
     def test_catalog_cannot_inject_a_qualification_command(self) -> None:
         catalog = self.root / "ci/release/targets.yaml"
         catalog.write_text(
-            catalog.read_text(encoding="utf-8")
-            + "    command: [sh, -c, whoami]\n",
+            catalog.read_text(encoding="utf-8") + "    command: [sh, -c, whoami]\n",
             encoding="utf-8",
         )
         self.write_request()
         with self.assertRaisesRegex(release_request.ContractError, "keys must be exactly"):
-            release_request.validate_request(
-                "ci/release/requests/v0.2.0.yaml", "a" * 40
-            )
+            release_request.validate_request("ci/release/requests/v0.2.0.yaml", "a" * 40)
 
 
 if __name__ == "__main__":

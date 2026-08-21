@@ -78,9 +78,7 @@ def rust_fixture(root: Path) -> None:
         "  # toolchains/rust.nix builds the pinned toolchain from that overlay.\n}\n",
     )
     write(root, "tools/qualification/rust/common.py", f'EXPECTED = "{RUST_VERSION}"\n')
-    patterns = ",\n".join(
-        f'    "{pattern}"' for pattern in sorted(contract.REQUIRED_REPO_IGNORES)
-    )
+    patterns = ",\n".join(f'    "{pattern}"' for pattern in sorted(contract.REQUIRED_REPO_IGNORES))
     write(root, "REPO.bazel", f"ignore_directories([\n{patterns},\n])\n")
 
 

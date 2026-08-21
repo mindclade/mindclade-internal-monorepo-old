@@ -173,13 +173,13 @@ py_binary(
         ["*.py"],
         exclude = ["**/__pycache__/**"],
     ),
+    main = "run_architecture_checks.py",
+    visibility = ["//visibility:public"],
     deps = [
         "//configs:contract_validation",
         "//infra/observability:alert_contracts",
         "//tools/qualification:release_evidence",
     ],
-    main = "run_architecture_checks.py",
-    visibility = ["//visibility:public"],
 )
 
 # The two files this check compares are data, not srcs: the point of the test is
