@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-// Package admission reserves the boundary defined by the production blueprint.
+// Package admission owns global, policy-versioned admission and quota
+// reservations for external AI Gateway calls. It deliberately does not own
+// provider credentials, request payloads, model releases, or node-local
+// scheduling decisions.
 package admission
-
-const scaffold_doc = "control/admission/doc.go"
