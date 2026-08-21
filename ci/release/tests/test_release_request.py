@@ -70,16 +70,18 @@ targets:
         path = self.requests / "v0.2.0.yaml"
         path.write_text(
             f"""---
-apiVersion: release.mindclade.dev/v1beta1
+apiVersion: release.mindclade.dev/v1beta2
 kind: ReleaseRequest
 metadata:
   name: v0.2.0
   changeTicket: PLATFORM-1234
 spec:
   target: go-vanity
-  previousRelease:
-    id: {previous_id}
-    subjectDigest: {previous_digest or 'sha256:' + '1' * 64}
+  rollback:
+    strategy: previous-release
+    previousRelease:
+      id: {previous_id}
+      subjectDigest: {previous_digest or 'sha256:' + '1' * 64}
 {extra}""",
             encoding="utf-8",
         )
@@ -107,6 +109,7 @@ spec:
         self.assertEqual(values["rollout-class"], "stateless")
         self.assertEqual(values["previous-release-id"], "v0.1.0")
         self.assertEqual(values["previous-subject-digest"], "sha256:" + "1" * 64)
+        self.assertNotIn("rollback-digest", values)
 
     def test_request_cannot_escape_authorized_directory(self) -> None:
         outside = self.root / "release.yaml"
@@ -129,14 +132,18 @@ spec:
         evidence.mkdir()
         sbom = evidence / "sbom.spdx.json"
         provenance = evidence / "provenance.json"
+        vulnerability = evidence / "vulnerability.json"
+        rollback = evidence / "rollback.json"
         sbom.write_text("{}\n", encoding="utf-8")
         provenance.write_text("{}\n", encoding="utf-8")
+        vulnerability.write_text("{}\n", encoding="utf-8")
+        rollback.write_text("{}\n", encoding="utf-8")
         candidate = evidence / "candidate.json"
         image_digest = "sha256:" + "2" * 64
         candidate.write_text(
             json.dumps(
                 {
-                    "schemaVersion": 2,
+                    "schemaVersion": 3,
                     "releaseKind": "application",
                     "application": "platform-go-vanity",
                     "rolloutClass": "stateless",
@@ -144,8 +151,14 @@ spec:
                     "changeTicket": "PLATFORM-1234",
                     "sourceSha": "a" * 40,
                     "target": "go-vanity",
-                    "previousReleaseId": "v0.1.0",
-                    "previousSubjectDigest": "sha256:" + "1" * 64,
+                    "rollback": {
+                        "schemaVersion": 1,
+                        "releaseId": "v0.2.0",
+                        "strategy": "previous-release",
+                        "previousReleaseId": "v0.1.0",
+                        "previousSubjectDigest": "sha256:" + "1" * 64,
+                        "bootstrapAction": None,
+                    },
                     "createdAt": "2026-08-20T00:00:00Z",
                     "artifact": {
                         "imageRef": "us-docker.pkg.dev/example/releases/go-vanity@" + image_digest,
@@ -156,6 +169,14 @@ spec:
                         "provenance": {
                             "path": provenance.name,
                             "sha256": release_request._sha256(provenance),
+                        },
+                        "vulnerability": {
+                            "path": vulnerability.name,
+                            "sha256": release_request._sha256(vulnerability),
+                        },
+                        "rollback": {
+                            "path": rollback.name,
+                            "sha256": release_request._sha256(rollback),
                         },
                         "buildAttestor": "projects/example/attestors/build",
                     },

@@ -91,7 +91,7 @@ def test_gitops_handoff_adds_only_governed_deployment_root() -> None:
         value,
         deployment_project="mc-production-security",
         deployment_attestor="deployment-attestor",
-        signer_workflow_ref="mindclade/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v4.0.0",
+        signer_workflow_ref="mindclade/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v5.0.0",
     )
     assert "schema_version" not in record
     assert record["contract_version"] == "4.0.0"
@@ -117,7 +117,7 @@ def test_invalid_evidence_cannot_enter_gitops_handoff() -> None:
             value,
             deployment_project="mc-production-security",
             deployment_attestor="deployment-attestor",
-            signer_workflow_ref="mindclade/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v4.0.0",
+            signer_workflow_ref="mindclade/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v5.0.0",
         )
 
 
@@ -127,5 +127,5 @@ def test_deployment_attestor_must_be_independent() -> None:
             fixture(),
             deployment_project="mc-build-security",
             deployment_attestor="build-attestor",
-            signer_workflow_ref="mindclade/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v4.0.0",
+            signer_workflow_ref="mindclade/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v5.0.0",
         )
