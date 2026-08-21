@@ -231,6 +231,48 @@ func TestLivePostgresAdmissionRoundTripIsAtomicAndRedacted(t *testing.T) {
 	}
 }
 
+func TestLivePostgresAdmissionOutboxFailureRollsBackMutationAndAudit(t *testing.T) {
+	live := newLiveAdmissionStore(t)
+	route := live.seedPolicy(t, 1)
+	request := liveAdmitRequest(route, "request-live-rollback-0001", "rollback-payload", time.Minute)
+
+	const constraint = "reject_reservation_events_for_qualification"
+	if _, err := live.db.Exec(
+		"ALTER TABLE " + live.outboxTable + " ADD CONSTRAINT " + constraint +
+			" CHECK (topic <> 'control.admission.reservation.v1')",
+	); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := live.service.Admit(context.Background(), request); err == nil {
+		t.Fatal("admission unexpectedly succeeded while the durable outbox rejected its event")
+	}
+
+	for table, want := range map[string]int64{
+		live.auditTable: 2, live.outboxTable: 2, live.reservationTable: 0,
+	} {
+		var count int64
+		if err := live.db.QueryRow("SELECT count(*) FROM " + table).Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		if count != want {
+			t.Fatalf("%s count after failed mutation=%d, want %d", table, count, want)
+		}
+	}
+
+	if _, err := live.db.Exec(
+		"ALTER TABLE " + live.outboxTable + " DROP CONSTRAINT " + constraint,
+	); err != nil {
+		t.Fatal(err)
+	}
+	decision, err := live.service.Admit(context.Background(), request)
+	if err != nil {
+		t.Fatalf("same idempotency key was not reusable after rollback: %v", err)
+	}
+	if decision.Replayed || decision.Reservation.State != admission.ReservationReserved {
+		t.Fatalf("post-rollback decision=%+v", decision)
+	}
+}
+
 func TestLivePostgresAdmissionConcurrentPressureNeverOverspends(t *testing.T) {
 	live := newLiveAdmissionStore(t)
 	const (
