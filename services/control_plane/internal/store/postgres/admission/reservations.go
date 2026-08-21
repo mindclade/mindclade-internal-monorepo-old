@@ -29,12 +29,7 @@ func (store *Store) Reserve(ctx context.Context, snapshot admission.PolicySnapsh
 	if _, err := sqlUint(candidate.PolicyEpoch, "policy_epoch"); err != nil {
 		return admission.Reservation{}, false, err
 	}
-	// lockPolicy takes row locks on the entitlement and budget that define this
-	// decision. READ COMMITTED lets a waiter observe the preceding reservation's
-	// committed ledger after acquiring those locks; SERIALIZABLE fixes its snapshot
-	// before the wait and turns an otherwise bounded burst into a SQLSTATE 40001
-	// retry cascade.
-	result, err := runMutationAtIsolation(ctx, store, operation, sql.LevelReadCommitted, func(txContext context.Context) (reserveResult, error) {
+	result, err := runMutation(ctx, store, operation, func(txContext context.Context) (reserveResult, error) {
 		if existing, found, lookupErr := store.lookupIdempotency(txContext, candidate); lookupErr != nil {
 			return reserveResult{}, lookupErr
 		} else if found {

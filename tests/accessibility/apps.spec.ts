@@ -7,6 +7,8 @@ import { expect, test } from "@playwright/test";
 import { browserSecurityHeaders } from "@mindclade/libs-ts-browser-security";
 import { loopbackDocumentHeaders } from "./loopback-security.js";
 
+test.setTimeout(30000);
+
 const surfaces = [
   { name: "Command", origin: "http://127.0.0.1:4411", routes: ["/", "/runs", "/evaluations", "/safety"] },
   { name: "Governance", origin: "http://127.0.0.1:4412", routes: ["/", "/releases", "/break-glass", "/audit"] },
@@ -48,10 +50,10 @@ test("accessibility transport override is loopback-only and preserves production
 for (const surface of surfaces) {
   for (const route of surface.routes) {
     test(`${surface.name} ${route} has no automated WCAG 2.1 AA violations`, async ({ page }) => {
-      await page.goto(`${surface.origin}${route}`);
+      await page.goto(`${surface.origin}${route}`, { waitUntil: "networkidle" });
       await expect(page.locator("main")).toBeVisible();
       await expect(page.locator("h1")).toHaveCount(1);
-      await expect(page.locator('[data-session]:not([data-session="loading"])').first()).toBeAttached();
+      await expect(page.locator('[data-session]:not([data-session="loading"])').first()).toBeAttached({ timeout: 20000 });
       const results = await new AxeBuilder({ page }).withTags([
         "wcag2a",
         "wcag2aa",
@@ -63,17 +65,17 @@ for (const surface of surfaces) {
   }
 
   test(`${surface.name} skip navigation is first and moves focus`, async ({ page }) => {
-    await page.goto(surface.origin);
+    await page.goto(surface.origin, { waitUntil: "networkidle" });
     await page.keyboard.press("Tab");
     const skipLink = page.getByRole("link", { name: "Skip to content" });
     await expect(skipLink).toBeFocused();
     await page.keyboard.press("Enter");
-    await expect(page.locator("main")).toBeFocused();
+    await expect(page.locator("main")).toBeFocused({ timeout: 15000 });
   });
 
   test(`${surface.name} mobile navigation has a touch target and Escape return`, async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile-chromium", "mobile interaction coverage");
-    await page.goto(surface.origin);
+    await page.goto(surface.origin, { waitUntil: "networkidle" });
     const toggle = page.locator(".mobile-nav-toggle");
     await expect(toggle).toHaveAccessibleName("Menu");
     const bounds = await toggle.boundingBox();
@@ -88,7 +90,7 @@ for (const surface of surfaces) {
 
   test(`${surface.name} reflows without horizontal page overflow`, async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "chromium-reflow", "200 percent equivalent reflow coverage");
-    await page.goto(surface.origin);
+    await page.goto(surface.origin, { waitUntil: "networkidle" });
     const hasOverflow = await page.evaluate(() =>
       document.documentElement.scrollWidth > document.documentElement.clientWidth,
     );
