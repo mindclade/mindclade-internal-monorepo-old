@@ -35,9 +35,7 @@ import json
 import struct
 from pathlib import Path
 
-# A normal import, not a sys.path insertion: //tools/release:build_model_bundle_lib sets
-# `imports` so its directory is an import root, and this package depends on it.
-from build_model_bundle import build
+from tools.release.build_model_bundle import build
 
 # 4 tensors, 1024 float32 values each. Large enough that the artifact is a real multi-layer
 # pull rather than a rounding error, small enough that nobody waits for it.

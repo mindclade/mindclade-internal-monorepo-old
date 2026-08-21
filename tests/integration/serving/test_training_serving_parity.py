@@ -15,7 +15,6 @@ from threading import Event
 
 import numpy as np
 import torch
-from build_model_bundle import build
 
 from models.reference import (
     REFERENCE_AFFINE_MODEL_NAME,
@@ -29,6 +28,7 @@ from serving.model_worker.reference import (
     ReferenceInput,
     ReferenceRequest,
 )
+from tools.release.build_model_bundle import build
 from training.contracts import SupervisedBatch
 from training.core import Trainer
 from training.optim import SGDConfig, build_optimizer

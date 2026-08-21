@@ -20,6 +20,19 @@ bazel_dep(name = "bazel_lib", version = "3.2.2")
 bazel_dep(name = "rules_oci", version = "2.3.0")
 bazel_dep(name = "protobuf", version = "33.4")
 
+# rules_rust registers a default toolchain from its own module when the root is silent. That
+# default happens to match today, but its version is not repository policy and can move with a
+# rules_rust update. Root-module tags take precedence, so pin the Bazel compiler explicitly to
+# the same version Cargo and Nix declare and make the Rust 2024 default unambiguous.
+rust_toolchains = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust_toolchains.toolchain(
+    edition = "2024",
+    versions = ["1.97.1"],
+)
+use_repo(rust_toolchains, "rust_toolchains")
+
+register_toolchains("@rust_toolchains//:all")
+
 # pnpm owns dependency resolution; Bazel translates the committed lock into
 # lazy, integrity-checked repositories and links only declared package edges.
 npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm", dev_dependency = True)

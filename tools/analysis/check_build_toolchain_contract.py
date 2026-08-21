@@ -62,6 +62,7 @@ def rust_version_contract(root: Path) -> list[str]:
     expected = cargo.get("workspace", {}).get("package", {}).get("rust-version")
     nix = (root / "tools/build/nix/versions.nix").read_text(errors="replace")
     flake = (root / "flake.nix").read_text(errors="replace")
+    module = (root / "MODULE.bazel").read_text(errors="replace")
     qualify = (
         (root / "tools/qualification/rust/common.py").read_text(errors="replace")
         if (root / "tools/qualification/rust/common.py").exists()
@@ -76,6 +77,44 @@ def rust_version_contract(root: Path) -> list[str]:
         errors.append("flake.nix must construct the pinned Rust toolchain through rust-overlay")
     if expected not in qualify:
         errors.append("Rust qualification expected-version does not match Cargo rust-version")
+
+    extension = re.search(
+        r"(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*use_extension\(\s*"
+        r'"@rules_rust//rust:extensions\.bzl"\s*,\s*"rust"\s*\)',
+        module,
+    )
+    if extension is None:
+        errors.append("MODULE.bazel must configure the root rules_rust toolchain extension")
+        return errors
+
+    extension_name = extension.group("name")
+    toolchain = re.search(
+        rf"\b{re.escape(extension_name)}\.toolchain\s*\((?P<body>.*?)\n\)",
+        module,
+        re.DOTALL,
+    )
+    if toolchain is None:
+        errors.append("MODULE.bazel must declare the root rules_rust toolchain")
+        return errors
+
+    body = toolchain.group("body")
+    if not re.search(
+        rf'versions\s*=\s*\[\s*"{re.escape(expected)}"\s*,?\s*\]',
+        body,
+    ):
+        errors.append("Bazel rules_rust version does not match Cargo rust-version")
+    if not re.search(r'edition\s*=\s*"2024"', body):
+        errors.append("Bazel rules_rust default edition must be 2024")
+    if not re.search(
+        rf'use_repo\(\s*{re.escape(extension_name)}\s*,\s*"rust_toolchains"\s*,?\s*\)',
+        module,
+    ):
+        errors.append("MODULE.bazel must import the pinned rules_rust toolchain repository")
+    if not re.search(
+        r'register_toolchains\(\s*"@rust_toolchains//:all"\s*,?\s*\)',
+        module,
+    ):
+        errors.append("MODULE.bazel must register the pinned rules_rust toolchains")
     return errors
 
 

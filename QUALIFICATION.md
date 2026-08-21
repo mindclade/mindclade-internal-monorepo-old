@@ -14,7 +14,7 @@ connected-provider qualification, and production promotion.
 - Representative Go durable-policy/domain contracts under `control/`.
 - Runnable control-plane API, event-dispatcher, and ingestion-coordinator vertical slices.
 - Bzlmod lock closure, full Bazel configured analysis, dependency-layer graph,
-  and all 304 non-manual Bazel tests in the pinned local macOS/Nix environment.
+  and the complete non-manual Bazel test graph in the pinned local macOS/Nix environment.
 - Complete target-state path materialization, accepted decision register, Go module cookbook, security documentation, and operating runbooks.
 - Structured validation of 87 JSON, 185 TOML, 195 YAML/YML, 548 Markdown files, and internal relative links.
 

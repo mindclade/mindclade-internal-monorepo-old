@@ -66,6 +66,15 @@ def pytest_test(name, srcs, legacy_create_init = {default}, **kwargs):
         **kwargs
     )
 """
+MODULE = """\
+rust_toolchains = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust_toolchains.toolchain(
+    edition = "2024",
+    versions = ["{version}"],
+)
+use_repo(rust_toolchains, "rust_toolchains")
+register_toolchains("@rust_toolchains//:all")
+"""
 
 
 def write(root: Path, relative: str, text: str) -> None:
@@ -92,6 +101,7 @@ def contract_fixture(root: Path) -> None:
         "  # toolchains/rust.nix builds the pinned toolchain from that overlay.\n}\n",
     )
     write(root, "tools/qualification/rust/common.py", f'EXPECTED = "{RUST_VERSION}"\n')
+    write(root, "MODULE.bazel", MODULE.format(version=RUST_VERSION))
     patterns = ",\n".join(f'    "{pattern}"' for pattern in sorted(contract.REQUIRED_REPO_IGNORES))
     write(root, "REPO.bazel", f"ignore_directories([\n{patterns},\n])\n")
     write(
@@ -185,6 +195,24 @@ def test_repository_traversal_contract_reports_each_missing_pattern() -> None:
         f"REPO.bazel must ignore generated directory pattern {pattern}"
         for pattern in sorted(contract.REQUIRED_REPO_IGNORES)
     ]
+
+
+def test_rust_version_contract_rejects_an_implicit_bazel_toolchain() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        contract_fixture(root)
+        write(root, "MODULE.bazel", 'module(name = "fixture")\n')
+        errors = contract.rust_version_contract(root)
+    assert errors == ["MODULE.bazel must configure the root rules_rust toolchain extension"]
+
+
+def test_rust_version_contract_rejects_bazel_version_drift() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        contract_fixture(root)
+        write(root, "MODULE.bazel", MODULE.format(version="9.99.9"))
+        errors = contract.rust_version_contract(root)
+    assert errors == ["Bazel rules_rust version does not match Cargo rust-version"]
 
 
 def test_pytest_init_contract_requires_the_shared_macro() -> None:
