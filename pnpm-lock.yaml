@@ -141,10 +141,11 @@ importers:
         version: 19.2.8
 
   libs/ts/design_system:
-    devDependencies:
+    dependencies:
       '@types/react':
         specifier: 19.2.18
         version: 19.2.18
+    devDependencies:
       react:
         specifier: 19.2.8
         version: 19.2.8
