@@ -1,7 +1,7 @@
 # MLflow production readiness
 
-**Decision:** implementation present; activation blocked; not approved for cluster reconciliation.  
-**Review date:** 2026-08-21.  
+**Decision:** implementation present; activation blocked; not approved for cluster reconciliation.
+**Review date:** 2026-08-21.
 **Target upstream:** MLflow 3.15.1.
 
 Evidence classes are explicit: **Observed** means repository or command evidence was inspected;
