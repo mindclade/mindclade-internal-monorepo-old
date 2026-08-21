@@ -43,7 +43,7 @@ module "control_plane_monitoring" {
   slos = {
     availability = {
       display_name = "Request availability"
-      goal         = 0.999
+      goal         = 0.9995
       good_service_filter  = "metric.type=\"custom.googleapis.com/http/good_requests\" AND resource.type=\"generic_task\""
       total_service_filter = "metric.type=\"custom.googleapis.com/http/requests\" AND resource.type=\"generic_task\""
     }

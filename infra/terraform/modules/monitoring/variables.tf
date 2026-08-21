@@ -108,11 +108,11 @@ variable "slos" {
   validation {
     condition = alltrue([
       for slo in values(var.slos) :
-      slo.goal > 0 && slo.goal <= 0.999 &&
+      slo.goal > 0 && slo.goal <= 0.9999 &&
       floor(slo.rolling_period_days) == slo.rolling_period_days &&
       slo.rolling_period_days >= 1 && slo.rolling_period_days <= 30
     ])
-    error_message = "Each SLO goal must be greater than 0 and no more than 0.999, with a whole rolling period from 1 through 30 days."
+    error_message = "Each SLO goal must be greater than 0 and no more than 0.9999, with a whole rolling period from 1 through 30 days."
   }
 
   validation {

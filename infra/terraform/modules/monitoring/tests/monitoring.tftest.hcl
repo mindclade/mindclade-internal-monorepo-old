@@ -21,7 +21,7 @@ run "actionable_slo_contract" {
     slos = {
       availability = {
         display_name         = "Request availability"
-        goal                 = 0.999
+        goal                 = 0.9995
         good_service_filter  = "metric.type=\"custom.googleapis.com/http/good_requests\" AND resource.type=\"generic_task\""
         total_service_filter = "metric.type=\"custom.googleapis.com/http/requests\" AND resource.type=\"generic_task\""
       }
@@ -99,7 +99,7 @@ run "actionable_slo_contract" {
 
   assert {
     condition = (
-      google_monitoring_slo.this["availability"].goal == 0.999 &&
+      google_monitoring_slo.this["availability"].goal == 0.9995 &&
       google_monitoring_slo.this["availability"].rolling_period_days == 28 &&
       google_monitoring_slo.this["availability"].deletion_policy == "PREVENT"
     )

@@ -4062,9 +4062,9 @@
           "type": "map(object({ display_name = string goal = number rolling_period_days = optional(number, 28) good_service_filter = string total_service_filter = string fast_burn = optional(object({ threshold = optional(number, 14.4) short_lookback = optional(string, \"300s\") long_lookback = optional(string, \"3600s\") }), {}) slow_burn = optional(object({ threshold = optional(number, 6) short_lookback = optional(string, \"1800s\") long_lookback = optional(string, \"21600s\") }), {}) }))",
           "validation_fingerprints": [
             "sha256:39e304b5c982dcad709a3d6a2b911c5d2b1ad1c77fcec437041bbdd95ea88586",
+            "sha256:52d07594dda410955651daced725290fd66719307700f71514c5ef0ec53a3458",
             "sha256:6630e14240504d92e6d2505b188dd9f487b60c4957c32234b4481f9a84de76bb",
-            "sha256:aee7e0ebb0c664173fe44df4d699b1dccbea246dd0ac334ece50f6aff1802e80",
-            "sha256:d28444425b5cd2885ba72a3465295c66ed25e76d63a9b4e4b023a93e0604400e"
+            "sha256:aee7e0ebb0c664173fe44df4d699b1dccbea246dd0ac334ece50f6aff1802e80"
           ]
         }
       },
