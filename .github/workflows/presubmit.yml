@@ -209,6 +209,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Prepare GitHub-hosted runner disk for Nix
@@ -255,12 +256,15 @@ jobs:
       # the proposed tree's protocols/buf.yaml.
       - name: Protobuf breaking-change detection
         if: github.event_name == 'pull_request'
-        run: >-
-          nix develop .#ci-lint --command
-          buf breaking protocols
-          --against ".git#branch=${{ github.base_ref }}"
-          --against-config
-          '{"version":"v2","modules":[{"path":"protocols/proto"}]}'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git branch --force buf-breaking-base "${BASE_SHA}"
+          nix develop .#ci-lint --command \
+            buf breaking protocols \
+            --against ".git#branch=buf-breaking-base" \
+            --against-config \
+            '{"version":"v2","modules":[{"path":"protocols/proto"}]}'
 
       - name: Buildkite credential helper shellcheck
         run: nix develop .#ci-lint --command shellcheck .buildkite/scripts/wif-preflight.sh
