@@ -163,11 +163,11 @@ impl Budget {
             }
         }
 
-        Ok(Reservation {
-            budget: Arc::downgrade(self),
-            resources: requested,
-            parent: parent_reservation,
-        })
+        Ok(Reservation::new(
+            Arc::downgrade(self),
+            requested,
+            parent_reservation,
+        ))
     }
 
     #[must_use]
@@ -210,37 +210,11 @@ impl Budget {
     }
 }
 
-#[derive(Debug)]
-pub struct Reservation {
-    budget: Weak<Budget>,
-    resources: ResourceVector,
-    parent: Option<Box<Reservation>>,
-}
-
-impl Drop for Reservation {
-    fn drop(&mut self) {
-        if let Some(budget) = self.budget.upgrade() {
-            let mut state = budget
-                .state
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            for (kind, amount) in self.resources.iter() {
-                if let Some(next) = state.used.get(kind).checked_sub(amount) {
-                    state.used.0.insert(kind, next);
-                } else {
-                    state.corrupted = true;
-                    state.used.0.insert(kind, 0);
-                }
-            }
-        }
-        let _ = self.parent.take();
-    }
-}
-
 pub mod account;
 pub mod allocation;
 pub mod hierarchy;
 pub mod limits;
+mod reservation;
 pub mod snapshot;
 pub mod tracker;
 
@@ -248,5 +222,6 @@ pub use account::ResourceAccount;
 pub use allocation::{Allocation, AllocationRequest};
 pub use hierarchy::BudgetHierarchy;
 pub use limits::ResourceLimits;
+pub use reservation::Reservation;
 pub use snapshot::{BudgetSnapshot, BudgetTreeSnapshot};
 pub use tracker::ResourceTracker;

@@ -6,6 +6,7 @@
 package admissionpostgres
 
 import (
+	"context"
 	"database/sql"
 	"reflect"
 
@@ -20,9 +21,10 @@ import (
 )
 
 const (
-	DefaultEntitlementTable = "mindclade_gateway_entitlements"
-	DefaultBudgetTable      = "mindclade_gateway_budgets"
-	DefaultReservationTable = "mindclade_gateway_reservations"
+	DefaultEntitlementTable      = "mindclade_gateway_entitlements"
+	DefaultBudgetTable           = "mindclade_gateway_budgets"
+	DefaultReservationTable      = "mindclade_gateway_reservations"
+	admissionMutationMaxAttempts = 8
 )
 
 type Option func(*Store) error
@@ -114,13 +116,22 @@ func New(db *sql.DB, recorder audit.Recorder, messages outbox.Store, options ...
 	if store.generator == nil {
 		generator, err := identifiers.NewGenerator(identifiers.WithTimeSource(store.clock.Now))
 		if err != nil {
-			return nil, internal(nil, err, "admission.postgres.New", "admission_generator_failed")
+			return nil, internal(context.Background(), err, "admission.postgres.New", "admission_generator_failed")
 		}
 		store.generator = generator
 	}
 	var err error
 	if store.retries == nil {
-		store.retries, err = retry.NewExecutor(retry.DefaultPolicy(), retry.WithClock(store.clock))
+		// A reservation serializes on policy and quota rows. The package-wide three-attempt
+		// default is intentionally conservative, but it is too small for a bounded burst of
+		// otherwise valid contenders: PostgreSQL correctly returns SQLSTATE 40001 until the
+		// winning transactions become visible. Keep the adapter-specific budget finite while
+		// allowing jittered backoff to drain that contention.
+		policy, policyErr := retry.NewPolicy(retry.WithMaxAttempts(admissionMutationMaxAttempts))
+		if policyErr != nil {
+			return nil, policyErr
+		}
+		store.retries, err = retry.NewExecutor(policy, retry.WithClock(store.clock))
 		if err != nil {
 			return nil, err
 		}

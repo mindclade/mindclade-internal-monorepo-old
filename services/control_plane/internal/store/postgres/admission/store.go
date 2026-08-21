@@ -98,7 +98,7 @@ func runMutation[T any](ctx context.Context, store *Store, operation string, fun
 		if faults.IsCode(attemptErr, faults.CodeAborted) && faults.IsReason(attemptErr, "sql_transaction_failed") {
 			return faults.Wrap(attemptErr, faults.CodeAborted, "serializable admission transaction must be retried",
 				faults.WithReason("admission_serialization_retry"), faults.WithOperation(operation),
-				faults.WithRetryPolicy(faults.BackoffRetry(3)), faults.WithContextMetadata(attemptContext))
+				faults.WithRetryPolicy(faults.BackoffRetry(admissionMutationMaxAttempts)), faults.WithContextMetadata(attemptContext))
 		}
 		return attemptErr
 	})
