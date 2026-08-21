@@ -29,8 +29,11 @@ hash-locked Python graph. A platform transition forces Linux/amd64 wheels even w
 builds on macOS. The image contains MLflow 3.15.1 with basic-auth, AI Gateway, PostgreSQL, GCS, and
 Redis support. `//services/mlflow:validate_image` binds the OCI output to `runtime.lock.yaml` and
 rejects a wrong platform, runtime identity, entrypoint, missing extra, or Darwin-native binary.
-GitOps must replace the chart image with the protected release record's exact Artifact Registry
-digest.
+The committed manifest digest is produced and enforced on Linux, matching the protected release
+executor. Non-Linux development hosts still run every structural and content assertion, but do
+not claim byte identity: Bazel's generated Python launcher makes the assembled application layer
+executor-host-dependent. `//services/mlflow:push` is therefore Linux-only. GitOps must replace the
+chart image with the protected release record's exact Artifact Registry digest.
 
 ## External prerequisites
 

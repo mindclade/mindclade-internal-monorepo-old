@@ -10,6 +10,7 @@ import argparse
 import json
 import os
 import re
+import sys
 import tarfile
 from pathlib import Path
 
@@ -43,7 +44,7 @@ def resolve_runfile(value: str) -> Path:
     return Path(os.environ["RUNFILES_DIR"]) / os.environ["TEST_WORKSPACE"] / path
 
 
-def validate(image: Path, lock_path: Path) -> str:
+def validate(image: Path, lock_path: Path, *, enforce_lock_digest: bool) -> str:
     index = document(image / "index.json")
     manifests = index.get("manifests")
     if not isinstance(manifests, list) or len(manifests) != 1:
@@ -55,12 +56,17 @@ def validate(image: Path, lock_path: Path) -> str:
     required_lock_lines = (
         "  target: //services/mlflow:image",
         "  platform: linux/amd64",
-        f"  imageDigest: {manifest_reference}",
         "    version: 3.15.1",
     )
     for required_line in required_lock_lines:
         if lock_text.splitlines().count(required_line) != 1:
             raise AssertionError(f"runtime image lock drifted: {required_line.strip()}")
+    digest_match = re.search(r"^  imageDigest: (sha256:[0-9a-f]{64})$", lock_text, re.MULTILINE)
+    if digest_match is None:
+        raise AssertionError("runtime image lock has no valid image digest")
+    locked_digest = digest_match.group(1)
+    if enforce_lock_digest and locked_digest != manifest_reference:
+        raise AssertionError(f"runtime image lock drifted: imageDigest: {manifest_reference}")
     manifest = document(blob(image, manifest_reference, "manifest"))
     config = document(blob(image, (manifest.get("config") or {}).get("digest"), "config"))
 
@@ -110,9 +116,18 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--image", required=True)
     parser.add_argument("--lock", required=True)
+    parser.add_argument("--enforce-lock-digest", action="store_true")
     args = parser.parse_args()
-    manifest = validate(resolve_runfile(args.image), resolve_runfile(args.lock))
-    print(f"MLflow OCI layout passed ({manifest})")
+    executor_is_linux = sys.platform.startswith("linux")
+    if args.enforce_lock_digest != executor_is_linux:
+        raise AssertionError("Bazel digest enforcement does not match the executor platform")
+    manifest = validate(
+        resolve_runfile(args.image),
+        resolve_runfile(args.lock),
+        enforce_lock_digest=args.enforce_lock_digest,
+    )
+    mode = "digest-bound" if args.enforce_lock_digest else "structure-only"
+    print(f"MLflow OCI layout passed ({manifest}; {mode})")
     return 0
 
 

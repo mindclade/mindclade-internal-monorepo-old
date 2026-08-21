@@ -19,7 +19,7 @@ Evidence classes are explicit: **Observed** means repository or command evidence
 | Observed | Gateway budget consistency | PASS | Redis URI is mandatory and network egress is explicit |
 | Observed | Database upgrade ordering | PASS | single PreSync Job gates rollout and keeps the URI out of manifest argv |
 | Observed | Runtime dependency graph | PASS | separate hash lock includes explicit auth/genai, PostgreSQL, GCS, Redis, and uvicorn-standard roots |
-| Observed | Target platform | PASS | OCI lock test proves Linux/amd64, non-root identity, entrypoint, required extras, and Linux native extensions |
+| Observed | Target platform | PASS | Linux CI binds the OCI digest; every host checks Linux/amd64, non-root identity, entrypoint, required extras, and Linux native extensions |
 | Observed | Trace privacy contract | PASS | Python exporter sends digest identity and bounded attributes, never inputs/outputs |
 | Inferred | CRD/operator need | NOT JUSTIFIED | upstream server and namespaced resources cover the requirement |
 | Proposed | Cloud SQL | BLOCKED | no observed instance, database, TLS, private CIDR, PITR, restore, or connection budget |
