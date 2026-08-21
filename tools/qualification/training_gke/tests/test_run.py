@@ -36,7 +36,11 @@ def _queue(quota: int = 8) -> dict:
     return {
         "spec": {
             "resourceGroups": [
-                {"flavors": [{"resources": [{"name": "nvidia.com/gpu", "nominalQuota": str(quota)}]}]}
+                {
+                    "flavors": [
+                        {"resources": [{"name": "nvidia.com/gpu", "nominalQuota": str(quota)}]}
+                    ]
+                }
             ]
         }
     }

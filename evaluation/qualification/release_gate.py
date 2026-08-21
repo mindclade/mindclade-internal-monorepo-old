@@ -100,7 +100,10 @@ class EvaluationBatch:
             for value in (self.candidate_digest, self.scorer_digest, self.runtime_image_digest)
         ):
             raise _invalid("evaluation batch digest is invalid", "batch_digest")
-        if not isinstance(self.source_revision, str) or _REVISION.fullmatch(self.source_revision) is None:
+        if (
+            not isinstance(self.source_revision, str)
+            or _REVISION.fullmatch(self.source_revision) is None
+        ):
             raise _invalid("source revision must be an exact commit", "source_revision")
         if len(self.observations) > MAXIMUM_METRICS:
             raise _invalid("observation count is outside bounds", "observation_count")

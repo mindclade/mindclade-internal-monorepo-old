@@ -13,6 +13,7 @@ py_test(
         "release_request.py",
         "tests/test_release_request.py",
     ],
+    data = ["release-request.schema.json"],
     main = "tests/test_release_request.py",
     deps = ["@pypi//pyyaml"],
 )

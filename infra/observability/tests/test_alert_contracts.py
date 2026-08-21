@@ -66,9 +66,7 @@ def test_control_admission_contract_is_bounded_and_fail_closed() -> None:
         "mindclade.control_admission.error_budget_slow_burn_pair"
     )
     latency = signals["control-admission-decision-latency-slo-breached"]
-    assert latency["metric"] == (
-        "mindclade.control_admission.decision_latency_objective_ratio_5m"
-    )
+    assert latency["metric"] == ("mindclade.control_admission.decision_latency_objective_ratio_5m")
     assert latency["condition"] == "below"
     assert latency["threshold"] == 0.99
     assert signals["control-admission-api-metric-contract-incomplete"]["metric"] == (

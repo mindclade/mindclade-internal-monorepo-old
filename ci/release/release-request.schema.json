@@ -3,7 +3,7 @@
   "$id": "https://schemas.mindclade.internal/ci/release-request.schema.json",
   "additionalProperties": false,
   "properties": {
-    "apiVersion": {"const": "release.mindclade.dev/v1beta1"},
+    "apiVersion": {"const": "release.mindclade.dev/v1beta2"},
     "kind": {"const": "ReleaseRequest"},
     "metadata": {
       "additionalProperties": false,
@@ -17,13 +17,31 @@
     "spec": {
       "additionalProperties": false,
       "properties": {
-        "previousRelease": {
+        "rollback": {
           "additionalProperties": false,
           "properties": {
-            "id": {"pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$", "type": "string"},
-            "subjectDigest": {"pattern": "^sha256:[0-9a-f]{64}$", "type": "string"}
+            "previousRelease": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {"pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$", "type": "string"},
+                "subjectDigest": {"pattern": "^sha256:[0-9a-f]{64}$", "type": "string"}
+              },
+              "required": ["id", "subjectDigest"],
+              "type": "object"
+            },
+            "strategy": {"enum": ["bootstrap", "previous-release"], "type": "string"}
           },
-          "required": ["id", "subjectDigest"],
+          "required": ["strategy"],
+          "allOf": [
+            {
+              "if": {"properties": {"strategy": {"const": "bootstrap"}}},
+              "then": {"not": {"required": ["previousRelease"]}}
+            },
+            {
+              "if": {"properties": {"strategy": {"const": "previous-release"}}},
+              "then": {"required": ["previousRelease"]}
+            }
+          ],
           "type": "object"
         },
         "target": {
@@ -31,7 +49,7 @@
           "type": "string"
         }
       },
-      "required": ["target", "previousRelease"],
+      "required": ["target", "rollback"],
       "type": "object"
     }
   },

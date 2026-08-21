@@ -113,7 +113,9 @@ def validate_catalog(root: Path) -> list[str]:
                 errors.append(f"{path.name}: {label} must be sorted")
 
         if not any(not source.startswith("infra/security/") for source in sources):
-            errors.append(f"{path.name}: at least one enforcement source must be independently owned")
+            errors.append(
+                f"{path.name}: at least one enforcement source must be independently owned"
+            )
         for label, values in (("enforcementSources", sources), ("testSources", tests)):
             for raw in values:
                 candidate = _safe_repository_path(root, raw)

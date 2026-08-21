@@ -11,6 +11,7 @@ import unittest
 from pathlib import Path
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "release_request.py"
+SCHEMA_PATH = Path(__file__).resolve().parents[1] / "release-request.schema.json"
 SPEC = importlib.util.spec_from_file_location("release_request", MODULE_PATH)
 assert SPEC and SPEC.loader
 release_request = importlib.util.module_from_spec(SPEC)
@@ -81,7 +82,7 @@ spec:
     strategy: previous-release
     previousRelease:
       id: {previous_id}
-      subjectDigest: {previous_digest or 'sha256:' + '1' * 64}
+      subjectDigest: {previous_digest or "sha256:" + "1" * 64}
 {extra}""",
             encoding="utf-8",
         )
@@ -96,6 +97,23 @@ spec:
             result["catalog"]["images"]["primary"]["pushTarget"],
             "//services/go_vanity:push",
         )
+
+    def test_json_schema_matches_runtime_contract(self) -> None:
+        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+        self.assertEqual(
+            schema["properties"]["apiVersion"]["const"],
+            "release.mindclade.dev/v1beta2",
+        )
+        spec = schema["properties"]["spec"]
+        self.assertEqual(set(spec["required"]), {"target", "rollback"})
+        rollback = spec["properties"]["rollback"]
+        self.assertEqual(set(rollback["required"]), {"strategy"})
+        self.assertEqual(
+            set(rollback["properties"]["strategy"]["enum"]),
+            {"bootstrap", "previous-release"},
+        )
+        previous = rollback["properties"]["previousRelease"]
+        self.assertEqual(set(previous["required"]), {"id", "subjectDigest"})
 
     def test_inspect_exports_exact_catalog_identity_and_lineage(self) -> None:
         self.write_request()

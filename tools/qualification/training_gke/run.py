@@ -33,9 +33,7 @@ NODE_PROFILE: Final = "gke-h100-a3-megagpu-8g"
 ZERO_DIGEST: Final = "sha256:" + "0" * 64
 ZERO_TRAINER_IMAGE: Final = "registry.invalid/mindclade/training-worker@" + ZERO_DIGEST
 ZERO_CHECKPOINT_IMAGE: Final = "registry.invalid/mindclade/checkpoint-agent@" + ZERO_DIGEST
-PINNED_IMAGE: Final = re.compile(
-    r"^[a-z0-9][a-z0-9._/:~-]*@sha256:(?!0{64}$)[0-9a-f]{64}$"
-)
+PINNED_IMAGE: Final = re.compile(r"^[a-z0-9][a-z0-9._/:~-]*@sha256:(?!0{64}$)[0-9a-f]{64}$")
 RUN_ID: Final = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$")
 DIGEST: Final = re.compile(r"^sha256:(?!0{64}$)[0-9a-f]{64}$")
 
@@ -280,7 +278,10 @@ def preflight(kubectl: Kubectl, context: str, phase: Phase) -> None:
         raise RuntimeError(f"kubectl current context {current!r} does not match {context!r}")
     plural = "jobs.batch" if phase.kind == "Job" else "jobsets.jobset.x-k8s.io"
     for verb, resource in (("create", plural), ("get", "pods"), ("get", "nodes")):
-        if kubectl.run("auth", "can-i", verb, resource, "--namespace", NAMESPACE).stdout.strip() != "yes":
+        if (
+            kubectl.run("auth", "can-i", verb, resource, "--namespace", NAMESPACE).stdout.strip()
+            != "yes"
+        ):
             raise RuntimeError(f"Kubernetes credentials cannot {verb} {resource}")
     validate_live_capacity(
         phase,
@@ -297,7 +298,9 @@ def preflight(kubectl: Kubectl, context: str, phase: Phase) -> None:
 
 def _result_logs(kubectl: Kubectl, phase: Phase, name: str) -> str:
     if phase.kind == "Job":
-        return kubectl.run("logs", f"job/{name}", "--namespace", NAMESPACE, "--container", "trainer").stdout
+        return kubectl.run(
+            "logs", f"job/{name}", "--namespace", NAMESPACE, "--container", "trainer"
+        ).stdout
     pods = kubectl.json(
         "get",
         "pods",
@@ -306,12 +309,12 @@ def _result_logs(kubectl: Kubectl, phase: Phase, name: str) -> str:
         "-l",
         f"jobset.sigs.k8s.io/jobset-name={name}",
     ).get("items", [])
-    names = sorted(
-        pod.get("metadata", {}).get("name", "") for pod in pods if isinstance(pod, dict)
-    )
+    names = sorted(pod.get("metadata", {}).get("name", "") for pod in pods if isinstance(pod, dict))
     if len(names) != 1 or not names[0]:
         raise RuntimeError("single-node JobSet did not create exactly one trainer Pod")
-    return kubectl.run("logs", f"pod/{names[0]}", "--namespace", NAMESPACE, "--container", "trainer").stdout
+    return kubectl.run(
+        "logs", f"pod/{names[0]}", "--namespace", NAMESPACE, "--container", "trainer"
+    ).stdout
 
 
 def execute_phase(
@@ -331,7 +334,9 @@ def execute_phase(
         NAMESPACE,
         f"--timeout={timeout_seconds}s",
     )
-    lines = [line for line in _result_logs(kubectl, phase, name).splitlines() if line.startswith("{")]
+    lines = [
+        line for line in _result_logs(kubectl, phase, name).splitlines() if line.startswith("{")
+    ]
     if len(lines) != 1:
         raise RuntimeError("training qualification must emit exactly one JSON result")
     return validate_phase_evidence(phase, json.loads(lines[0]))
@@ -393,7 +398,9 @@ def main() -> int:
                 arguments.output,
             )
         ):
-            raise ValueError("live qualification requires phase, context, both images, run id, and output")
+            raise ValueError(
+                "live qualification requires phase, context, both images, run id, and output"
+            )
         if not 60 <= arguments.timeout_seconds <= 14_400:
             raise ValueError("qualification timeout must be in [60, 14400] seconds")
         phase = phase_named(arguments.phase)

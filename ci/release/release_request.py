@@ -330,7 +330,10 @@ def build(request_path: str, source_sha: str, output: Path) -> None:
     )
     if not DIGEST_RE.fullmatch(digest):
         raise ContractError("Artifact Registry did not return a canonical image digest")
-    if contract["previousSubjectDigest"] is not None and digest == contract["previousSubjectDigest"]:
+    if (
+        contract["previousSubjectDigest"] is not None
+        and digest == contract["previousSubjectDigest"]
+    ):
         raise ContractError("candidate digest must differ from the previous release subject")
     image_ref = f"{repository}@{digest}"
 
