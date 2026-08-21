@@ -145,6 +145,7 @@ nav:
       - Overview: qualification/README.md
       - Foundation freeze: qualification/foundation-freeze.md
       - Go qualification: qualification/go/README.md
+      - AI Gateway admission: qualification/go/ai-gateway-admission.md
       - Control-plane registry: qualification/go/control-plane-registry.md
       - TypeScript applications: qualification/typescript-applications.md
   - Examples:
