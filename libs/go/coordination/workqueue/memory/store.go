@@ -208,6 +208,41 @@ func (store *Store) Lookup(ctx context.Context, id identifiers.ID) (workqueue.Re
 	}
 	return value.record.Clone(), nil
 }
+func (store *Store) PruneTerminal(ctx context.Context, request workqueue.PruneRequest) (int, error) {
+	if ctx == nil || store == nil {
+		return 0, invalid(ctx)
+	}
+	if err := request.Validate(); err != nil {
+		return 0, err
+	}
+	type candidate struct {
+		id          identifiers.ID
+		completedAt time.Time
+	}
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	candidates := make([]candidate, 0, request.Limit)
+	for id, value := range store.values {
+		if value.record.Item.Queue != request.Queue || !value.record.State.Terminal() ||
+			value.record.CompletedAt.IsZero() || !value.record.CompletedAt.Before(request.CompletedBefore) {
+			continue
+		}
+		candidates = append(candidates, candidate{id: id, completedAt: value.record.CompletedAt})
+	}
+	sort.Slice(candidates, func(i, j int) bool {
+		if !candidates[i].completedAt.Equal(candidates[j].completedAt) {
+			return candidates[i].completedAt.Before(candidates[j].completedAt)
+		}
+		return candidates[i].id.Less(candidates[j].id)
+	})
+	if len(candidates) > request.Limit {
+		candidates = candidates[:request.Limit]
+	}
+	for _, candidate := range candidates {
+		delete(store.values, candidate.id)
+	}
+	return len(candidates), nil
+}
 func invalid(ctx context.Context) error {
 	return faults.Wrap(workqueue.ErrInvalidRequest, faults.CodeInvalidArgument, "invalid in-memory work request", faults.WithReason("invalid_work_request"), faults.WithContextMetadata(ctx), faults.WithRetryPolicy(faults.NoRetry()))
 }

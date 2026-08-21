@@ -51,6 +51,18 @@ result_content_type TEXT, result_payload BYTEA, last_error TEXT, claim_token TEX
 CREATE INDEX IF NOT EXISTS %s_pending_idx ON %s(queue,priority DESC,available_at,item_id) WHERE state='pending';
 CREATE INDEX IF NOT EXISTS %s_lease_idx ON %s(claim_expires_at,item_id) WHERE state='leased';`, name, indexBase(name), name, indexBase(name), name), nil
 }
+
+// TerminalRetentionDDL returns the additive index used by bounded terminal
+// pruning. It is deliberately separate from DDL because the table migration is
+// checksummed and may already have been applied.
+func TerminalRetentionDDL(table string) (string, error) {
+	name, err := sqlpostgres.QualifiedIdentifier(table)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("CREATE INDEX %s_terminal_retention_idx ON %s(queue,completed_at,item_id) WHERE state IN ('completed','failed','cancelled');", indexBase(name), name), nil
+}
+
 func indexBase(table string) string {
 	for i := len(table) - 1; i >= 0; i-- {
 		if table[i] == '.' {
@@ -216,6 +228,32 @@ func (store *Store) Lookup(ctx context.Context, id identifiers.ID) (workqueue.Re
 		return workqueue.Record{}, faults.Wrap(workqueue.ErrNotFound, faults.CodeNotFound, "work item not found", faults.WithReason("work_item_not_found"), faults.WithField("work_item_id", id.String()), faults.WithRetryPolicy(faults.NoRetry()))
 	}
 	return record, err
+}
+func (store *Store) PruneTerminal(ctx context.Context, request workqueue.PruneRequest) (int, error) {
+	if ctx == nil || store == nil || store.db == nil {
+		return 0, invalid(ctx, "workqueue.postgres.PruneTerminal")
+	}
+	if err := request.Validate(); err != nil {
+		return 0, err
+	}
+	query := fmt.Sprintf(`WITH candidates AS (
+SELECT item_id FROM %s
+WHERE queue=$1 AND state IN ('completed','failed','cancelled') AND completed_at < $2
+ORDER BY completed_at,item_id
+FOR UPDATE SKIP LOCKED
+LIMIT $3
+)
+DELETE FROM %s AS work USING candidates
+WHERE work.item_id=candidates.item_id`, store.table, store.table)
+	result, err := store.exec(ctx).ExecContext(ctx, query, request.Queue, request.CompletedBefore.Round(0).UTC(), request.Limit)
+	if err != nil {
+		return 0, sqlpostgres.Qualify(ctx, err, "workqueue.postgres.PruneTerminal")
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return 0, sqlpostgres.Qualify(ctx, err, "workqueue.postgres.PruneTerminal")
+	}
+	return int(affected), nil
 }
 func (store *Store) transition(ctx context.Context, query string, args ...any) error {
 	result, err := store.exec(ctx).ExecContext(ctx, query, args...)

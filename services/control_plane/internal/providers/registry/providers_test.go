@@ -24,6 +24,10 @@ import (
 
 const testAPIKey = "registry-client-secret-value"
 
+// Version 5 is already eligible to exist in connected databases. Its SQL is
+// immutable; retention support must remain a later append-only migration.
+const connectedWorkQueueMigrationChecksum = "16c6c1b9b95d0b4813e6f463cb4e6718bca29621892105613d54f0ecd65dd3c7"
+
 func testSettings(t *testing.T) foundationconfig.MapSource {
 	t.Helper()
 	digest := sha256.Sum256([]byte(testAPIKey))
@@ -105,6 +109,33 @@ func TestMigrationRunnerCarriesEveryAdapterSchema(t *testing.T) {
 	}
 	if runner == nil {
 		t.Fatal("nil migration runner")
+	}
+}
+
+func TestMigrationManifestPreservesWorkQueueV5AndAppendsRetentionV13(t *testing.T) {
+	manifest, err := newMigrationManifest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	migrations := manifest.Migrations()
+	if len(migrations) != int(migrationWorkQueueTerminalRetention) {
+		t.Fatalf("migration count = %d, want %d", len(migrations), migrationWorkQueueTerminalRetention)
+	}
+	for index, migration := range migrations {
+		if migration.Version != uint64(index+1) {
+			t.Fatalf("migration[%d].Version = %d, want %d", index, migration.Version, index+1)
+		}
+	}
+	workQueue := migrations[migrationWorkQueue-1]
+	if workQueue.Name != "work_items" || workQueue.Checksum() != connectedWorkQueueMigrationChecksum {
+		t.Fatalf("work queue v5 = %s/%s, want work_items/%s", workQueue.Name, workQueue.Checksum(), connectedWorkQueueMigrationChecksum)
+	}
+	retention := migrations[migrationWorkQueueTerminalRetention-1]
+	if retention.Name != "work_items_terminal_retention" ||
+		!strings.Contains(retention.Up, "mindclade_work_items_terminal_retention_idx") ||
+		!strings.Contains(retention.Up, "(queue,completed_at,item_id)") ||
+		!strings.Contains(retention.Up, "WHERE state IN ('completed','failed','cancelled')") {
+		t.Fatalf("work queue retention v13 = %+v", retention)
 	}
 }
 

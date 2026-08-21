@@ -19,7 +19,26 @@ import (
 
 func TestWorkerCompletesItem(t *testing.T) {
 	store := memory.New()
-	item, err := workqueue.NewItem("controller", []byte(`{"resource":"run_1"}`), 0, time.Time{}, 3, requestmeta.Metadata{})
+	requestID, err := requestmeta.NewRequestIDAt(time.Date(2026, time.August, 21, 12, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	correlationID, err := requestmeta.ParseCorrelationID("controller-flow-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	causationID, err := requestmeta.ParseCausationID("scheduler-tick-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	operation, err := requestmeta.ParseOperation("controller.reconcile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantMetadata := requestmeta.Metadata{
+		RequestID: requestID, CorrelationID: correlationID, CausationID: causationID, Operation: operation,
+	}
+	item, err := workqueue.NewItem("controller", []byte(`{"resource":"run_1"}`), 0, time.Time{}, 3, wantMetadata)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,10 +46,13 @@ func TestWorkerCompletesItem(t *testing.T) {
 		t.Fatal(err)
 	}
 	var calls atomic.Int32
+	seenMetadata := make(chan requestmeta.Metadata, 1)
 	worker, err := workqueue.NewWorker(
 		store,
-		workqueue.HandlerFunc(func(context.Context, workqueue.Item) (workqueue.Result, error) {
+		workqueue.HandlerFunc(func(ctx context.Context, _ workqueue.Item) (workqueue.Result, error) {
 			calls.Add(1)
+			metadata, _ := requestmeta.FromContext(ctx)
+			seenMetadata <- metadata
 			return workqueue.Result{ContentType: "application/json", Payload: []byte(`{"ok":true}`)}, nil
 		}),
 		workqueue.WorkerConfig{
@@ -59,6 +81,13 @@ func TestWorkerCompletesItem(t *testing.T) {
 			}
 			if calls.Load() != 1 {
 				t.Fatalf("calls=%d", calls.Load())
+			}
+			metadata := <-seenMetadata
+			if metadata.RequestID.String() != wantMetadata.RequestID.String() ||
+				metadata.CorrelationID.String() != wantMetadata.CorrelationID.String() ||
+				metadata.CausationID.String() != wantMetadata.CausationID.String() ||
+				metadata.Operation.String() != wantMetadata.Operation.String() {
+				t.Fatalf("handler metadata = %+v, want %+v", metadata, wantMetadata)
 			}
 			return
 		}

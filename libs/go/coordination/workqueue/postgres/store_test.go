@@ -28,6 +28,20 @@ func TestDDL(t *testing.T) {
 	}
 }
 
+func TestTerminalRetentionDDLIsAdditiveAndPartial(t *testing.T) {
+	ddl, err := TerminalRetentionDDL("control.work_items")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "CREATE INDEX work_items_terminal_retention_idx ON control.work_items(queue,completed_at,item_id) WHERE state IN ('completed','failed','cancelled');"
+	if ddl != want {
+		t.Fatalf("TerminalRetentionDDL() = %q, want %q", ddl, want)
+	}
+	if _, err := TerminalRetentionDDL("control.work-items"); err == nil {
+		t.Fatal("TerminalRetentionDDL accepted an invalid table name")
+	}
+}
+
 func TestLookupRejectsMalformedRequestMetadata(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)
@@ -76,6 +90,67 @@ func TestCancelReturnsRowsAffectedError(t *testing.T) {
 	}
 	if err = store.Cancel(context.Background(), id, "cancelled by test", time.Now().UTC()); !errors.Is(err, want) {
 		t.Fatalf("Cancel() error = %v, want %v", err, want)
+	}
+}
+
+func TestPruneTerminalIsBoundedQueueScopedAndSkipLocked(t *testing.T) {
+	t.Parallel()
+	cutoff := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	var query string
+	var arguments []driver.NamedValue
+	state := &sqltest.State{Exec: func(_ context.Context, value string, values []driver.NamedValue) (driver.Result, error) {
+		query = value
+		arguments = values
+		return driver.RowsAffected(7), nil
+	}}
+	db, err := sqltest.Open(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	store, err := New(db, "control.work_items")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pruned, err := store.PruneTerminal(context.Background(), workqueue.PruneRequest{
+		Queue: "control-plane/maintenance", CompletedBefore: cutoff, Limit: 17,
+	})
+	if err != nil || pruned != 7 {
+		t.Fatalf("PruneTerminal() = %d, %v, want 7, nil", pruned, err)
+	}
+	for _, fragment := range []string{
+		"queue=$1", "state IN ('completed','failed','cancelled')", "completed_at < $2",
+		"ORDER BY completed_at,item_id", "FOR UPDATE SKIP LOCKED", "LIMIT $3", "DELETE FROM control.work_items",
+	} {
+		if !strings.Contains(query, fragment) {
+			t.Fatalf("prune query does not contain %q: %s", fragment, query)
+		}
+	}
+	if len(arguments) != 3 || arguments[0].Value != "control-plane/maintenance" ||
+		arguments[1].Value != cutoff || arguments[2].Value != int64(17) {
+		t.Fatalf("prune arguments = %#v", arguments)
+	}
+}
+
+func TestPruneTerminalRejectsInvalidRequestWithoutQuery(t *testing.T) {
+	t.Parallel()
+	state := &sqltest.State{Exec: func(context.Context, string, []driver.NamedValue) (driver.Result, error) {
+		t.Fatal("invalid request reached the database")
+		return nil, nil
+	}}
+	db, err := sqltest.Open(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	store, err := New(db, "control.work_items")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.PruneTerminal(context.Background(), workqueue.PruneRequest{
+		Queue: "control-plane/maintenance", CompletedBefore: time.Now().UTC(), Limit: workqueue.MaximumPruneLimit + 1,
+	}); !errors.Is(err, workqueue.ErrInvalidRequest) {
+		t.Fatalf("PruneTerminal() error = %v, want invalid request", err)
 	}
 }
 

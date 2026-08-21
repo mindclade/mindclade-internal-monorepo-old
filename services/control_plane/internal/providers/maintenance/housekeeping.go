@@ -20,6 +20,7 @@ import (
 	"go.mindclade.dev/libs/go/coordination/workqueue"
 	"go.mindclade.dev/libs/go/faults"
 	"go.mindclade.dev/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/requestmeta"
 	"go.mindclade.dev/libs/go/retry"
 	"go.mindclade.dev/libs/go/servicekit"
 	"go.mindclade.dev/services/control_plane/internal/foundation"
@@ -34,6 +35,8 @@ const (
 	expirationMaximumBatchSize      = 1000
 	expirationMaximumBatchesPerItem = 64
 	expirationWorkMaximumAttempts   = 100
+	expirationTerminalRetention     = 7 * 24 * time.Hour
+	expirationPruneBatchSize        = 1000
 	housekeepingJoinTimeout         = 10 * time.Second
 )
 
@@ -184,9 +187,13 @@ func (scheduler *housekeepingScheduler) enqueue(ctx context.Context, now time.Ti
 	if err != nil {
 		return maintenanceFault(faults.CodeInternal, "housekeeping_payload_encoding_failed", "housekeeping payload could not be encoded", operation)
 	}
+	request, err := expirationRequestMetadata(id)
+	if err != nil {
+		return err
+	}
 	item := workqueue.Item{
 		ID: id, Queue: housekeepingQueue, Payload: payload, AvailableAt: bucket,
-		MaxAttempts: expirationWorkMaximumAttempts, CreatedAt: now.Round(0).UTC(),
+		MaxAttempts: expirationWorkMaximumAttempts, CreatedAt: now.Round(0).UTC(), Request: request,
 	}
 	if err := item.Validate(); err != nil {
 		return err
@@ -194,11 +201,56 @@ func (scheduler *housekeepingScheduler) enqueue(ctx context.Context, now time.Ti
 	_, err = scheduler.retry.Do(ctx, "maintenance.housekeeping.enqueue", func(attemptCtx context.Context, _ retry.Attempt) error {
 		enqueueErr := scheduler.store.Enqueue(attemptCtx, item)
 		if errors.Is(enqueueErr, workqueue.ErrAlreadyExists) || faults.IsCode(enqueueErr, faults.CodeAlreadyExists) {
+			record, lookupErr := scheduler.store.Lookup(attemptCtx, item.ID)
+			if lookupErr != nil {
+				return lookupErr
+			}
+			if !sameScheduledWork(record.Item, item) {
+				return maintenanceFault(faults.CodeDataLoss, "housekeeping_schedule_collision", "housekeeping schedule identity collided with different work", operation)
+			}
 			return nil
 		}
 		return enqueueErr
 	})
+	if err != nil {
+		return err
+	}
+	_, err = scheduler.retry.Do(ctx, "maintenance.housekeeping.prune", func(attemptCtx context.Context, _ retry.Attempt) error {
+		_, pruneErr := scheduler.store.PruneTerminal(attemptCtx, workqueue.PruneRequest{
+			Queue:           housekeepingQueue,
+			CompletedBefore: now.Round(0).UTC().Add(-expirationTerminalRetention),
+			Limit:           expirationPruneBatchSize,
+		})
+		return pruneErr
+	})
 	return err
+}
+
+func sameScheduledWork(existing, expected workqueue.Item) bool {
+	return existing.ID == expected.ID && existing.Queue == expected.Queue &&
+		bytes.Equal(existing.Payload, expected.Payload) && existing.Priority == expected.Priority &&
+		existing.AvailableAt.Equal(expected.AvailableAt) && existing.MaxAttempts == expected.MaxAttempts &&
+		existing.Request == expected.Request
+}
+
+func expirationRequestMetadata(id identifiers.ID) (requestmeta.Metadata, error) {
+	requestResource, err := identifiers.IDFromUUID(requestmeta.RequestIDKind, id.UUID())
+	if err != nil {
+		return requestmeta.Metadata{}, err
+	}
+	requestID, err := requestmeta.RequestIDFromID(requestResource)
+	if err != nil {
+		return requestmeta.Metadata{}, err
+	}
+	correlationID, err := requestmeta.CorrelationIDFromRequestID(requestID)
+	if err != nil {
+		return requestmeta.Metadata{}, err
+	}
+	operation, err := requestmeta.ParseOperation("controlplane.maintenance.expire_gateway_reservations")
+	if err != nil {
+		return requestmeta.Metadata{}, err
+	}
+	return requestmeta.Metadata{RequestID: requestID, CorrelationID: correlationID, Operation: operation}, nil
 }
 
 func expirationWorkID(bucket time.Time) (identifiers.ID, error) {
@@ -225,12 +277,15 @@ func expirationWorkID(bucket time.Time) (identifiers.ID, error) {
 	return identifiers.IDFromUUID(workqueue.ItemIDKind, uuid)
 }
 
-func combinedLeaderWork(worker servicekit.Component, scheduler *housekeepingScheduler) (servicekit.Component, error) {
-	if worker.Name == "" || worker.Run == nil || scheduler == nil {
+func combinedLeaderWork(worker servicekit.Component, scheduler *housekeepingScheduler, prerequisite servicekit.Probe) (servicekit.Component, error) {
+	if worker.Name == "" || worker.Run == nil || scheduler == nil || prerequisite == nil {
 		return servicekit.Component{}, maintenanceFault(faults.CodeInvalidArgument, "housekeeping_component_invalid", "housekeeping leader work is invalid", "controlplane.maintenance.combinedLeaderWork")
 	}
 	workerRun := worker.Run
 	worker.Run = func(ctx context.Context) error {
+		if err := prerequisite(ctx); err != nil {
+			return err
+		}
 		group, err := servicekit.NewTaskGroup("maintenance-leader", nil)
 		if err != nil {
 			return err
@@ -261,6 +316,9 @@ func combinedLeaderWork(worker servicekit.Component, scheduler *housekeepingSche
 	}
 	workerReadiness := worker.Readiness
 	worker.Readiness = func(ctx context.Context) error {
+		if err := prerequisite(ctx); err != nil {
+			return err
+		}
 		if workerReadiness != nil {
 			if err := workerReadiness(ctx); err != nil {
 				return err

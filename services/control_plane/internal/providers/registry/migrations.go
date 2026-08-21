@@ -45,12 +45,13 @@ const (
 	migrationGatewayEntitlements
 	migrationGatewayBudgets
 	migrationGatewayReservations
+	migrationWorkQueueTerminalRetention
 )
 
-// newMigrationRunner applies the schemas the shared adapters declare for the
+// newMigrationManifest orders the schemas the shared adapters declare for the
 // tables this process configures. The service owns the version numbers; each
 // adapter owns its own DDL.
-func newMigrationRunner() (*migrate.Runner, error) {
+func newMigrationManifest() (*migrate.Manifest, error) {
 	auditDDL, err := auditpostgres.DDL(providers.AuditTable)
 	if err != nil {
 		return nil, err
@@ -68,6 +69,10 @@ func newMigrationRunner() (*migrate.Runner, error) {
 		return nil, err
 	}
 	workQueueDDL, err := workqueuepostgres.DDL(providers.WorkQueueTable)
+	if err != nil {
+		return nil, err
+	}
+	workQueueTerminalRetentionDDL, err := workqueuepostgres.TerminalRetentionDDL(providers.WorkQueueTable)
 	if err != nil {
 		return nil, err
 	}
@@ -104,11 +109,20 @@ func newMigrationRunner() (*migrate.Runner, error) {
 		migrate.Migration{Version: migrationGatewayEntitlements, Name: "gateway_entitlements", Up: admissionDDL[0]},
 		migrate.Migration{Version: migrationGatewayBudgets, Name: "gateway_budgets", Up: admissionDDL[1]},
 		migrate.Migration{Version: migrationGatewayReservations, Name: "gateway_reservations", Up: admissionDDL[2]},
+		migrate.Migration{Version: migrationWorkQueueTerminalRetention, Name: "work_items_terminal_retention", Up: workQueueTerminalRetentionDDL},
 	)
 	if err != nil {
 		return nil, err
 	}
-	return migrate.NewRunner(manifest, migrate.Options{})
+	return &manifest, nil
+}
+
+func newMigrationRunner() (*migrate.Runner, error) {
+	manifest, err := newMigrationManifest()
+	if err != nil {
+		return nil, err
+	}
+	return migrate.NewRunner(*manifest, migrate.Options{})
 }
 
 func newAuditRecorder(db *sql.DB) (audit.Recorder, error) {

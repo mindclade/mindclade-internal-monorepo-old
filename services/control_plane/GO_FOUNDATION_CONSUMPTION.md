@@ -119,10 +119,21 @@ and reservation tables.
 
 `internal/providers/maintenance.MaintenanceFactory` binds the same admission
 store to a leader-gated expiry handler. One deterministic work identity is
-derived for each five-second UTC bucket, making leadership reacquisition and
-process restarts idempotent. Each item drains a bounded number of
+derived for each five-second UTC bucket, making same-bucket enqueue replay
+idempotent only when the stored immutable payload and lineage match; an
+identity collision with different work fails closed. Each item drains a bounded number of
 `FOR UPDATE SKIP LOCKED` batches and preserves the store's transaction-aware
-audit/outbox writes.
+audit/outbox writes. The scheduler deletes at most 1,000 terminal records older
+than seven days from its own queue per cycle, so five-second scheduling does not
+create permanently unbounded completed-row growth. Pending and leased work and
+other queues are outside that retention scope. Each bucket derives stable
+request and correlation metadata from its work UUID, and the generic worker
+restores that envelope into the expiry handler context. The leader-managed
+worker/scheduler runs only after the admission store's metadata-only schema
+probe succeeds, and that same probe participates in process readiness. Pruning
+releases duplicate-ID tombstones after seven days; replaying an older expiry
+sweep remains effect-idempotent because it only materializes already-overdue
+terminal transitions.
 
 ## Durable coordination contracts
 

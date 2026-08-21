@@ -70,8 +70,11 @@ guard, not accounting truth.
 
 The connected PostgreSQL qualification proves atomic audit/outbox writes, idempotent replay,
 64-way concurrent pressure without budget overspend, and capacity recovery after materialized
-expiry. The maintenance role schedules that expiry through deterministic, leader-gated durable
-work and bounded skip-locked batches.
+expiry in one process. The maintenance source wiring places deterministic durable work behind the
+leadership gate and implements bounded skip-locked batches, fail-closed schedule collision checks,
+and bounded terminal-record retention. Protected connected execution, leadership behavior,
+multi-replica failover, and long-running retention remain activation evidence, not source-proven
+facts.
 
 This protocol is not yet a bypass-proof data path: no qualified Gateway proxy currently forces
 every provider call through reservation and finalization. Direct MLflow client ingress must

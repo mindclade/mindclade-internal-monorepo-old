@@ -7,20 +7,28 @@ package maintenance
 
 import (
 	"context"
+	"database/sql/driver"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
 	_ "github.com/lib/pq"
 
 	"go.mindclade.dev/control/admission"
+	"go.mindclade.dev/libs/go/audit"
 	"go.mindclade.dev/libs/go/clock"
 	foundationconfig "go.mindclade.dev/libs/go/config"
+	outboxmemory "go.mindclade.dev/libs/go/coordination/outbox/memory"
 	"go.mindclade.dev/libs/go/coordination/workqueue"
 	workqueuememory "go.mindclade.dev/libs/go/coordination/workqueue/memory"
 	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/identifiers"
 	"go.mindclade.dev/libs/go/retry"
+	"go.mindclade.dev/libs/go/servicekit"
+	"go.mindclade.dev/libs/go/storage/sql/sqltest"
 	"go.mindclade.dev/services/control_plane/internal/bootstrap"
+	admissionstore "go.mindclade.dev/services/control_plane/internal/store/postgres/admission"
 )
 
 func maintenanceSettings() foundationconfig.MapSource {
@@ -75,6 +83,56 @@ func TestMaintenanceComposesOnlyWhatItsRoleNeeds(t *testing.T) {
 		if _, found := present[absent]; found {
 			t.Fatalf("maintenance composes %q, which its role does not require", absent)
 		}
+	}
+}
+
+func TestLeaderManagedWorkReadinessRequiresAdmissionSchema(t *testing.T) {
+	queryCount := 0
+	state := &sqltest.State{Query: func(_ context.Context, _ string, _ []driver.NamedValue) (driver.Rows, error) {
+		queryCount++
+		if queryCount == 2 {
+			return nil, errors.New("required budget column is missing")
+		}
+		return sqltest.NewRows([]string{"shape"}), nil
+	}}
+	database, err := sqltest.Open(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	now := time.Date(2026, time.August, 21, 12, 0, 0, 0, time.UTC)
+	value := clock.NewFake(now)
+	messages, err := outboxmemory.New(outboxmemory.WithClock(value))
+	if err != nil {
+		t.Fatal(err)
+	}
+	policy, err := retry.NewPolicy(retry.WithMaxAttempts(1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	retries, err := retry.NewExecutor(policy, retry.WithClock(value))
+	if err != nil {
+		t.Fatal(err)
+	}
+	admissions, err := admissionstore.New(database, audit.NopRecorder{}, messages,
+		admissionstore.WithClock(value), admissionstore.WithRetry(retries))
+	if err != nil {
+		t.Fatal(err)
+	}
+	scheduler := newTestHousekeepingScheduler(t, workqueuememory.New(), value)
+	scheduler.ready.Store(true)
+	component, err := combinedLeaderWork(servicekit.Component{
+		Name: "worker/housekeeping", Run: func(context.Context) error { return nil },
+		Readiness: func(context.Context) error { return nil },
+	}, scheduler, admissions.Component("admission-schema").Readiness)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := component.Readiness(context.Background()); err == nil {
+		t.Fatal("leader-managed work reported ready with a missing admission column")
+	}
+	if queryCount != 2 {
+		t.Fatalf("admission readiness queries = %d, want 2", queryCount)
 	}
 }
 
@@ -188,6 +246,11 @@ func TestRecurringScheduleUsesStableTimeBucketIdentity(t *testing.T) {
 	if record.Item.Queue != housekeepingQueue || record.Item.MaxAttempts != expirationWorkMaximumAttempts {
 		t.Fatalf("scheduled item=%+v", record.Item)
 	}
+	if record.Item.Request.RequestID.ID().UUID() != id.UUID() ||
+		record.Item.Request.CorrelationID.String() != record.Item.Request.RequestID.String() ||
+		record.Item.Request.Operation.String() != "controlplane.maintenance.expire_gateway_reservations" {
+		t.Fatalf("scheduled request metadata=%+v", record.Item.Request)
+	}
 	next, err := expirationWorkID(now.Truncate(expirationScheduleInterval).Add(expirationScheduleInterval))
 	if err != nil {
 		t.Fatal(err)
@@ -195,4 +258,164 @@ func TestRecurringScheduleUsesStableTimeBucketIdentity(t *testing.T) {
 	if next.String() == id.String() {
 		t.Fatal("adjacent schedule buckets produced the same identity")
 	}
+}
+
+func TestRecurringScheduleRunsSuccessiveBuckets(t *testing.T) {
+	now := time.Date(2026, time.August, 21, 12, 0, 0, 0, time.UTC)
+	value := clock.NewFake(now)
+	store := workqueuememory.New()
+	scheduler := newTestHousekeepingScheduler(t, store, value)
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- scheduler.Run(ctx) }()
+	waitCtx, stopWaiting := context.WithTimeout(context.Background(), time.Second)
+	defer stopWaiting()
+	if err := value.BlockUntil(waitCtx, 1); err != nil {
+		t.Fatal(err)
+	}
+	first, err := expirationWorkID(now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Lookup(context.Background(), first); err != nil {
+		t.Fatalf("first scheduled bucket: %v", err)
+	}
+	if err := value.Advance(expirationScheduleInterval); err != nil {
+		t.Fatal(err)
+	}
+	if err := value.BlockUntil(waitCtx, 1); err != nil {
+		t.Fatal(err)
+	}
+	second, err := expirationWorkID(now.Add(expirationScheduleInterval))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Lookup(context.Background(), second); err != nil {
+		t.Fatalf("second scheduled bucket: %v", err)
+	}
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Run() error = %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("scheduler did not stop after cancellation")
+	}
+}
+
+func TestRecurringScheduleRejectsIdentityPayloadCollision(t *testing.T) {
+	now := time.Date(2026, time.August, 21, 12, 0, 2, 0, time.UTC)
+	value := clock.NewFake(now)
+	store := workqueuememory.New()
+	scheduler := newTestHousekeepingScheduler(t, store, value)
+	id, err := expirationWorkID(now.Truncate(expirationScheduleInterval))
+	if err != nil {
+		t.Fatal(err)
+	}
+	colliding := workqueue.Item{
+		ID: id, Queue: housekeepingQueue, Payload: json.RawMessage(`{"schema_version":1,"operation":"different"}`),
+		AvailableAt: now.Truncate(expirationScheduleInterval), MaxAttempts: expirationWorkMaximumAttempts, CreatedAt: now,
+	}
+	if err := store.Enqueue(context.Background(), colliding); err != nil {
+		t.Fatal(err)
+	}
+	if err := scheduler.enqueue(context.Background(), now); !faults.IsCode(err, faults.CodeDataLoss) ||
+		faults.ReasonOf(err) != "housekeeping_schedule_collision" {
+		t.Fatalf("enqueue collision error = %v, want data-loss housekeeping_schedule_collision", err)
+	}
+}
+
+func TestRecurringScheduleRejectsIdentityAvailableAtCollision(t *testing.T) {
+	now := time.Date(2026, time.August, 21, 12, 0, 2, 0, time.UTC)
+	bucket := now.Truncate(expirationScheduleInterval)
+	value := clock.NewFake(now)
+	store := workqueuememory.New()
+	scheduler := newTestHousekeepingScheduler(t, store, value)
+	id, err := expirationWorkID(bucket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload, err := json.Marshal(housekeepingRequest{
+		SchemaVersion: housekeepingSchemaVersion, Operation: expireReservationsOperation,
+		BatchSize: expirationBatchSize, MaximumBatches: expirationMaximumBatches,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request, err := expirationRequestMetadata(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	colliding := workqueue.Item{
+		ID: id, Queue: housekeepingQueue, Payload: payload, AvailableAt: bucket.Add(time.Hour),
+		MaxAttempts: expirationWorkMaximumAttempts, CreatedAt: now, Request: request,
+	}
+	if err := store.Enqueue(context.Background(), colliding); err != nil {
+		t.Fatal(err)
+	}
+	if err := scheduler.enqueue(context.Background(), now); !faults.IsCode(err, faults.CodeDataLoss) ||
+		faults.ReasonOf(err) != "housekeeping_schedule_collision" {
+		t.Fatalf("enqueue availability collision error = %v, want data-loss housekeeping_schedule_collision", err)
+	}
+}
+
+func TestRecurringSchedulePrunesOnlyExpiredTerminalHistory(t *testing.T) {
+	now := time.Now().UTC().Round(0)
+	value := clock.NewFake(now)
+	store := workqueuememory.New()
+	old := enqueueCompletedHousekeepingItem(t, store, now.Add(-expirationTerminalRetention-time.Hour))
+	recent := enqueueCompletedHousekeepingItem(t, store, now.Add(-expirationTerminalRetention+time.Hour))
+	scheduler := newTestHousekeepingScheduler(t, store, value)
+	if err := scheduler.enqueue(context.Background(), now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Lookup(context.Background(), old); !errors.Is(err, workqueue.ErrNotFound) {
+		t.Fatalf("old terminal item lookup error = %v, want not found", err)
+	}
+	if _, err := store.Lookup(context.Background(), recent); err != nil {
+		t.Fatalf("recent terminal item was pruned: %v", err)
+	}
+}
+
+func newTestHousekeepingScheduler(t *testing.T, store workqueue.Store, value *clock.FakeClock) *housekeepingScheduler {
+	t.Helper()
+	policy, err := retry.NewPolicy(retry.WithMaxAttempts(1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	retries, err := retry.NewExecutor(policy, retry.WithClock(value))
+	if err != nil {
+		t.Fatal(err)
+	}
+	scheduler, err := newHousekeepingScheduler(store, value, retries)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return scheduler
+}
+
+func enqueueCompletedHousekeepingItem(t *testing.T, store *workqueuememory.Store, completedAt time.Time) identifiers.ID {
+	t.Helper()
+	id, err := expirationWorkID(completedAt.Truncate(expirationScheduleInterval))
+	if err != nil {
+		t.Fatal(err)
+	}
+	item := workqueue.Item{
+		ID: id, Queue: housekeepingQueue, Payload: json.RawMessage(`{"schema_version":1,"operation":"expire_gateway_reservations","batch_size":256,"maximum_batches":16}`),
+		AvailableAt: time.Now().UTC().Add(-time.Minute), MaxAttempts: expirationWorkMaximumAttempts, CreatedAt: completedAt.Add(-time.Second),
+	}
+	if err := store.Enqueue(context.Background(), item); err != nil {
+		t.Fatal(err)
+	}
+	claims, err := store.Claim(context.Background(), workqueue.ClaimRequest{
+		Owner: "retention-test", Queues: []string{housekeepingQueue}, Limit: 1, LeaseDuration: time.Minute,
+	})
+	if err != nil || len(claims) != 1 {
+		t.Fatalf("Claim() = %d, %v, want 1, nil", len(claims), err)
+	}
+	if err := store.Complete(context.Background(), claims[0], workqueue.Result{}, completedAt); err != nil {
+		t.Fatal(err)
+	}
+	return id
 }

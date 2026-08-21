@@ -191,7 +191,8 @@ func (factory *MaintenanceFactory) Create(ctx context.Context, profile bootstrap
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}
-	workComponent, err := combinedLeaderWork(worker.Component("worker/"+housekeepingWorker), scheduler)
+	admissionSchema := admissions.Component("admission-schema")
+	workComponent, err := combinedLeaderWork(worker.Component("worker/"+housekeepingWorker), scheduler, admissionSchema.Readiness)
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}

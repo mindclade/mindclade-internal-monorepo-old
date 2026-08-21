@@ -15,6 +15,7 @@ import (
 
 	mcclock "go.mindclade.dev/libs/go/clock"
 	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/requestmeta"
 	"go.mindclade.dev/libs/go/retry"
 	"go.mindclade.dev/libs/go/servicekit"
 )
@@ -313,7 +314,11 @@ func (worker *Worker) process(parent context.Context, initial Claim) {
 		}
 	}()
 
-	result, handlerErr := worker.handler.Handle(ctx, initial.Item())
+	handlerCtx, handlerErr := requestmeta.WithMetadata(ctx, initial.Record.Item.Request)
+	var result Result
+	if handlerErr == nil {
+		result, handlerErr = worker.handler.Handle(handlerCtx, initial.Item())
+	}
 	cancel(handlerErr)
 	<-heartbeatDone
 

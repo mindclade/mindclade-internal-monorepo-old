@@ -39,7 +39,7 @@ nix develop .#ci --command tools/dev/bazelw test \
 ```
 
 The connected PostgreSQL suite is part of `go-postgres-qualification` and
-covers real JSONB/DDL behavior, audit/outbox atomicity, response/event
+the local run covers real JSONB/DDL behavior, audit/outbox atomicity, event
 redaction, idempotent replay, 64-way concurrent reservation pressure with an
 exact budget ceiling, and expiry capacity recovery. See
 `docs/qualification/go/ai-gateway-admission.md`.
@@ -48,5 +48,12 @@ Production activation still requires multi-process and multi-replica failover,
 forced database loss during each mutation phase, migration rollback,
 backup/restore, the enforcing Gateway proxy, policy administration, and the
 operationally approved SLO/runbook. Policy provisioning must be wired to an
-approved authority; the expiry worker is already leader-gated and recurring.
+approved authority. Source tests exercise the scheduler loop's recurring
+buckets, durable request lineage, duplicate collision checks, and bounded
+seven-day terminal retention. The supporting index is append-only migration 13,
+leaving already-connectable work-queue migration 5 checksum-stable. Source
+wiring places that loop behind the leadership gate, but connected execution of
+the current source/v13, leadership failover, and long-running retention remain
+unqualified. The maintenance leader-managed work also consumes this store's
+metadata-only schema readiness probe before starting and while reporting ready.
 Until that evidence exists, MLflow activation remains blocked.
