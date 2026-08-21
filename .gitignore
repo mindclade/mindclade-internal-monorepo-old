@@ -40,6 +40,7 @@ node_modules/
 .pnpm-store/
 *.tsbuildinfo
 /apps/*/dist/
+/apps/*/bazel-dist/
 /apps/*/.next/
 /sdk/typescript/dist/
 /libs/ts/*/dist/
