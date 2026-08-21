@@ -273,6 +273,47 @@ func TestLivePostgresAdmissionOutboxFailureRollsBackMutationAndAudit(t *testing.
 	}
 }
 
+func TestLivePostgresAdmissionRetriesSerializationFailure(t *testing.T) {
+	live := newLiveAdmissionStore(t)
+	route := live.seedPolicy(t, 1)
+	request := liveAdmitRequest(route, "request-live-serialization-0001", "serialization-payload", time.Minute)
+
+	schema := strings.TrimSuffix(live.reservationTable, ".gateway_reservations")
+	sequence := schema + ".admission_serialization_probe"
+	function := schema + ".raise_once_admission_serialization_failure"
+	statement := fmt.Sprintf(`
+CREATE SEQUENCE %s START 1;
+CREATE FUNCTION %s() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF nextval('%s') = 1 THEN
+        RAISE EXCEPTION 'qualification serialization failure' USING ERRCODE = '40001';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+CREATE TRIGGER admission_serialization_probe
+BEFORE INSERT ON %s
+FOR EACH ROW EXECUTE FUNCTION %s();`, sequence, function, sequence, live.reservationTable, function)
+	if _, err := live.db.Exec(statement); err != nil {
+		t.Fatal(err)
+	}
+
+	decision, err := live.service.Admit(context.Background(), request)
+	if err != nil {
+		t.Fatalf("admission did not recover from SQLSTATE 40001: %v", err)
+	}
+	if decision.Replayed || decision.Reservation.State != admission.ReservationReserved {
+		t.Fatalf("post-retry decision=%+v", decision)
+	}
+	var attempts int64
+	if err := live.db.QueryRow("SELECT last_value FROM " + sequence).Scan(&attempts); err != nil {
+		t.Fatal(err)
+	}
+	if attempts != 2 {
+		t.Fatalf("serialization attempts=%d, want 2", attempts)
+	}
+}
+
 func TestLivePostgresAdmissionConcurrentPressureNeverOverspends(t *testing.T) {
 	live := newLiveAdmissionStore(t)
 	const (
