@@ -13,6 +13,7 @@ pytest_test(
     imports = ["../../.."],
     deps = [
         "//models/reference:affine",
+        "@pypi//numpy",
         "@pypi//safetensors",
         "@pypi//torch",
     ],
