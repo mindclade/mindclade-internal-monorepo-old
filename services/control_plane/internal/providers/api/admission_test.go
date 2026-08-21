@@ -17,7 +17,9 @@ import (
 	"go.mindclade.dev/control/admission"
 	"go.mindclade.dev/libs/go/auth"
 	"go.mindclade.dev/libs/go/clock"
+	"go.mindclade.dev/libs/go/faults"
 	"go.mindclade.dev/libs/go/httpx"
+	"go.mindclade.dev/libs/go/httpx/middleware"
 	"go.mindclade.dev/libs/go/identifiers"
 	"go.mindclade.dev/services/control_plane/internal/transport"
 )
@@ -98,18 +100,76 @@ func (fixture admissionHTTPFixture) call(t *testing.T, method, path string, body
 	if err != nil {
 		t.Fatal(err)
 	}
-	request := httptest.NewRequest(method, path, bytes.NewReader(payload))
-	request.Header.Set("Content-Type", "application/json")
+	requestHeaders := make(http.Header, len(headers)+1)
+	requestHeaders.Set("Content-Type", "application/json")
 	for name, value := range headers {
-		request.Header.Set(name, value)
+		requestHeaders.Set(name, value)
 	}
-	ctx, err := auth.WithPrincipal(request.Context(), principal)
+	return callAdmissionHTTP(t, fixture.handler, method, path, payload, requestHeaders, &principal)
+}
+
+func callAdmissionHTTP(t *testing.T, handler http.Handler, method, path string, payload []byte, headers http.Header, principal *auth.Principal) *httptest.ResponseRecorder {
+	t.Helper()
+	request := httptest.NewRequest(method, path, bytes.NewReader(payload))
+	request.Header = headers.Clone()
+	if principal != nil {
+		ctx, err := auth.WithPrincipal(request.Context(), *principal)
+		if err != nil {
+			t.Fatal(err)
+		}
+		request = request.WithContext(ctx)
+	}
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	return response
+}
+
+func admissionProblem(t *testing.T, response *httptest.ResponseRecorder) httpx.Problem {
+	t.Helper()
+	var problem httpx.Problem
+	if err := json.Unmarshal(response.Body.Bytes(), &problem); err != nil {
+		t.Fatalf("decode problem: %v; body=%s", err, response.Body.String())
+	}
+	return problem
+}
+
+func (fixture admissionHTTPFixture) guardedHandler(t *testing.T) http.Handler {
+	t.Helper()
+	admissionPermissions, err := auth.NewPermissionSet(auth.MustParsePermission("ai_gateway.reservations.*"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	response := httptest.NewRecorder()
-	fixture.handler.ServeHTTP(response, request.WithContext(ctx))
-	return response
+	deniedPermissions, err := auth.NewPermissionSet(auth.MustParsePermission("artifacts.read"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	principal := func(subject string, permissions auth.PermissionSet) auth.Principal {
+		value, err := auth.NewPrincipal(auth.PrincipalKindService, subject,
+			auth.WithIssuer("admission-http-test"), auth.WithPermissions(permissions))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return value
+	}
+	principals := map[string]auth.Principal{
+		"owner-token":   principal("gateway-client", admissionPermissions),
+		"foreign-token": principal("other-client", admissionPermissions),
+		"denied-token":  principal("gateway-client", deniedPermissions),
+	}
+	authenticator := auth.AuthenticatorFunc(func(_ context.Context, credential auth.Credential) (auth.Principal, error) {
+		resolved, ok := principals[string(credential.Value())]
+		if !ok {
+			return auth.Principal{}, faults.New(faults.CodeUnauthenticated, "authentication failed", faults.WithReason("test_credential_unknown"))
+		}
+		return resolved, nil
+	})
+	return middleware.Server(fixture.handler, middleware.StackConfig{
+		MaximumBodyBytes: maximumRequestBody,
+		Authentication:   &middleware.AuthenticationConfig{Authenticator: authenticator},
+		Authorization: &middleware.AuthorizationConfig{
+			Authorizer: auth.PermissionAuthorizer{}, Resolver: middleware.AuthorizationResolverFunc(resolveAdmissionAuthorization), RequireMapping: true,
+		},
+	})
 }
 
 func TestAdmissionHTTPReserveReplayAndCommit(t *testing.T) {
@@ -121,6 +181,9 @@ func TestAdmissionHTTPReserveReplayAndCommit(t *testing.T) {
 	}
 	if bytes.Contains(created.Body.Bytes(), []byte("request_digest")) || bytes.Contains(created.Body.Bytes(), []byte("idempotency")) {
 		t.Fatalf("ownership proof leaked into response: %s", created.Body.String())
+	}
+	if bytes.Contains(created.Body.Bytes(), []byte("finalized_at")) {
+		t.Fatalf("reserved response included terminal timestamp: %s", created.Body.String())
 	}
 	var decision admission.Decision
 	if err := json.Unmarshal(created.Body.Bytes(), &decision); err != nil {
@@ -156,6 +219,9 @@ func TestAdmissionHTTPReserveReplayAndCommit(t *testing.T) {
 	}
 	if terminal.Reservation.State != admission.ReservationCommitted || terminal.Reservation.Version.Generation() != 2 {
 		t.Fatalf("unexpected terminal reservation: %+v", terminal.Reservation)
+	}
+	if terminal.Reservation.FinalizedAt.IsZero() || !bytes.Contains(committed.Body.Bytes(), []byte("finalized_at")) {
+		t.Fatalf("terminal response omitted finalization timestamp: %s", committed.Body.String())
 	}
 }
 
@@ -197,8 +263,195 @@ func TestAdmissionAuthorizationIsExplicitAndUnknownRoutesStayUnmapped(t *testing
 	if err != nil || !mapped || target.Permission.String() != "ai_gateway.reservations.create" {
 		t.Fatalf("target=%+v mapped=%t error=%v", target, mapped, err)
 	}
+	if !target.Resource.ID().IsZero() {
+		t.Fatalf("collection authorization unexpectedly targeted ID %s", target.Resource.ID())
+	}
+	reservationID := admissionHTTPID(t, "reservation", admissionHTTPNow)
+	for _, action := range []string{"commit", "release"} {
+		request = httptest.NewRequest(http.MethodPost, reservationPrefix+reservationID.String()+"/"+action, nil)
+		target, mapped, err = resolveAdmissionAuthorization(request)
+		if err != nil || !mapped || target.Resource.ID().String() != reservationID.String() {
+			t.Fatalf("%s target=%+v mapped=%t error=%v", action, target, mapped, err)
+		}
+	}
+	invalid := httptest.NewRequest(http.MethodPost, reservationPrefix+"not-a-reservation/commit", nil)
+	if _, mapped, err := resolveAdmissionAuthorization(invalid); err == nil || mapped || faults.ReasonOf(err) != "reservation_id_invalid" {
+		t.Fatalf("invalid reservation target mapped=%t error=%v", mapped, err)
+	}
+	nested := httptest.NewRequest(http.MethodPost, reservationPrefix+reservationID.String()+"/nested/commit", nil)
+	if _, mapped, err := resolveAdmissionAuthorization(nested); err != nil || mapped {
+		t.Fatalf("nested route mapped=%t error=%v", mapped, err)
+	}
 	unknown := httptest.NewRequest(http.MethodGet, "/v1/unknown", nil)
 	if _, mapped, err := resolveAdmissionAuthorization(unknown); err != nil || mapped {
 		t.Fatalf("unknown mapped=%t error=%v", mapped, err)
+	}
+}
+
+func TestAdmissionHTTPAuthenticationAuthorizationAndOwnershipFailClosed(t *testing.T) {
+	fixture := newAdmissionHTTPFixture(t)
+	handler := fixture.guardedHandler(t)
+	payload, err := json.Marshal(fixture.request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	headers := http.Header{"Content-Type": {"application/json"}, httpx.HeaderIdempotencyKey: {"guarded-request-0001"}}
+	missing := callAdmissionHTTP(t, handler, http.MethodPost, reservationsPath, payload, headers, nil)
+	if missing.Code != http.StatusUnauthorized {
+		t.Fatalf("missing credential status=%d body=%s", missing.Code, missing.Body.String())
+	}
+
+	deniedHeaders := headers.Clone()
+	deniedHeaders.Set("Authorization", "Bearer denied-token")
+	denied := callAdmissionHTTP(t, handler, http.MethodPost, reservationsPath, payload, deniedHeaders, nil)
+	if denied.Code != http.StatusForbidden || admissionProblem(t, denied).Reason != "permission_not_granted" {
+		t.Fatalf("missing permission status=%d body=%s", denied.Code, denied.Body.String())
+	}
+
+	wrongWorkspace := fixture.request
+	wrongWorkspace.Workspace = "other-team"
+	wrongWorkspacePayload, err := json.Marshal(wrongWorkspace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wrongWorkspaceHeaders := headers.Clone()
+	wrongWorkspaceHeaders.Set(httpx.HeaderIdempotencyKey, "guarded-request-0002")
+	wrongWorkspaceHeaders.Set("Authorization", "Bearer owner-token")
+	workspaceDenied := callAdmissionHTTP(t, handler, http.MethodPost, reservationsPath, wrongWorkspacePayload, wrongWorkspaceHeaders, nil)
+	if workspaceDenied.Code != http.StatusNotFound || admissionProblem(t, workspaceDenied).Reason != "entitlement_not_found" {
+		t.Fatalf("cross-workspace status=%d body=%s", workspaceDenied.Code, workspaceDenied.Body.String())
+	}
+
+	allowedHeaders := headers.Clone()
+	allowedHeaders.Set("Authorization", "Bearer owner-token")
+	created := callAdmissionHTTP(t, handler, http.MethodPost, reservationsPath, payload, allowedHeaders, nil)
+	if created.Code != http.StatusCreated {
+		t.Fatalf("allowed create status=%d body=%s", created.Code, created.Body.String())
+	}
+	var decision admission.Decision
+	if err := json.Unmarshal(created.Body.Bytes(), &decision); err != nil {
+		t.Fatal(err)
+	}
+	finalizePayload, err := json.Marshal(finalizeHTTPRequest{RequestDigest: fixture.request.RequestDigest})
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreignHeaders := http.Header{
+		"Content-Type":  {"application/json"},
+		"Authorization": {"Bearer foreign-token"},
+		"If-Match":      {decision.Reservation.Version.ETag()},
+	}
+	releasePath := reservationPrefix + decision.Reservation.ID.String() + "/release"
+	foreign := callAdmissionHTTP(t, handler, http.MethodPost, releasePath, finalizePayload, foreignHeaders, nil)
+	if foreign.Code != http.StatusForbidden || admissionProblem(t, foreign).Reason != "reservation_subject_mismatch" {
+		t.Fatalf("foreign finalization status=%d body=%s", foreign.Code, foreign.Body.String())
+	}
+	stored, err := fixture.repository.Get(context.Background(), decision.Reservation.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.State != admission.ReservationReserved {
+		t.Fatalf("foreign authorized caller changed reservation state to %s", stored.State)
+	}
+}
+
+func TestAdmissionHTTPRejectsAmbiguousConditionalHeaders(t *testing.T) {
+	fixture := newAdmissionHTTPFixture(t)
+	created := fixture.call(t, http.MethodPost, reservationsPath, fixture.request,
+		map[string]string{httpx.HeaderIdempotencyKey: "conditional-request-0001"}, fixture.principal)
+	var decision admission.Decision
+	if err := json.Unmarshal(created.Body.Bytes(), &decision); err != nil {
+		t.Fatal(err)
+	}
+	payload, err := json.Marshal(finalizeHTTPRequest{RequestDigest: fixture.request.RequestDigest})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := reservationPrefix + decision.Reservation.ID.String() + "/release"
+	for _, header := range []string{"If-Match", "If-None-Match"} {
+		t.Run(header, func(t *testing.T) {
+			headers := http.Header{"Content-Type": {"application/json"}}
+			value := decision.Reservation.Version.ETag()
+			if header == "If-None-Match" {
+				value = "*"
+			}
+			headers.Add(header, value)
+			headers.Add(header, value)
+			response := callAdmissionHTTP(t, fixture.handler, http.MethodPost, path, payload, headers, &fixture.principal)
+			if response.Code != http.StatusBadRequest || admissionProblem(t, response).Reason != "conditional_header_ambiguous" {
+				t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+			}
+		})
+	}
+	stored, err := fixture.repository.Get(context.Background(), decision.Reservation.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.State != admission.ReservationReserved {
+		t.Fatalf("ambiguous precondition changed reservation state to %s", stored.State)
+	}
+}
+
+func TestAdmissionHTTPRejectsAmbiguousIdempotencyHeaderBeforeMutation(t *testing.T) {
+	fixture := newAdmissionHTTPFixture(t)
+	payload, err := json.Marshal(fixture.request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	headers := http.Header{"Content-Type": {"application/json"}}
+	headers.Add(httpx.HeaderIdempotencyKey, "ambiguous-idempotency-0001")
+	headers.Add(httpx.HeaderIdempotencyKey, "ambiguous-idempotency-0001")
+	response := callAdmissionHTTP(t, fixture.handler, http.MethodPost, reservationsPath, payload, headers, &fixture.principal)
+	if response.Code != http.StatusBadRequest || admissionProblem(t, response).Reason != "idempotency_key_required" {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+
+	validHeaders := http.Header{
+		"Content-Type":             {"application/json"},
+		httpx.HeaderIdempotencyKey: {"ambiguous-idempotency-0001"},
+	}
+	created := callAdmissionHTTP(t, fixture.handler, http.MethodPost, reservationsPath, payload, validHeaders, &fixture.principal)
+	if created.Code != http.StatusCreated {
+		t.Fatalf("ambiguous header consumed idempotency key: status=%d body=%s", created.Code, created.Body.String())
+	}
+}
+
+func TestAdmissionHTTPRejectsInvalidTransportBodiesBeforeMutation(t *testing.T) {
+	fixture := newAdmissionHTTPFixture(t)
+	validPayload, err := json.Marshal(fixture.request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unknownPayload := append([]byte{}, validPayload[:len(validPayload)-1]...)
+	unknownPayload = append(unknownPayload, []byte(`,"unexpected":true}`)...)
+	oversizedRequest := fixture.request
+	oversizedRequest.Workspace = string(bytes.Repeat([]byte{'w'}, maximumAdmissionBody))
+	oversizedPayload, err := json.Marshal(oversizedRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name, contentType, reason, key string
+		payload                        []byte
+		status                         int
+	}{
+		{name: "unsupported content type", contentType: "text/plain", payload: validPayload, status: http.StatusBadRequest, reason: "unsupported_media_type", key: "transport-negative-0001"},
+		{name: "unknown field", contentType: "application/json", payload: unknownPayload, status: http.StatusBadRequest, reason: "invalid_json", key: "transport-negative-0002"},
+		{name: "multiple values", contentType: "application/json", payload: append(append([]byte{}, validPayload...), validPayload...), status: http.StatusBadRequest, reason: "multiple_json_values", key: "transport-negative-0003"},
+		{name: "oversized body", contentType: "application/json", payload: oversizedPayload, status: http.StatusTooManyRequests, reason: "request_body_too_large", key: "transport-negative-0004"},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			headers := http.Header{"Content-Type": {testCase.contentType}, httpx.HeaderIdempotencyKey: {testCase.key}}
+			response := callAdmissionHTTP(t, fixture.handler, http.MethodPost, reservationsPath, testCase.payload, headers, &fixture.principal)
+			if response.Code != testCase.status || admissionProblem(t, response).Reason != testCase.reason {
+				t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+			}
+			validHeaders := http.Header{"Content-Type": {"application/json"}, httpx.HeaderIdempotencyKey: {testCase.key}}
+			created := callAdmissionHTTP(t, fixture.handler, http.MethodPost, reservationsPath, validPayload, validHeaders, &fixture.principal)
+			if created.Code != http.StatusCreated {
+				t.Fatalf("invalid body consumed idempotency key: status=%d body=%s", created.Code, created.Body.String())
+			}
+		})
 	}
 }

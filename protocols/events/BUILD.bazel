@@ -3,13 +3,65 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
+load("//tools/build:pytest.bzl", "pytest_test")
+
 package(default_visibility = ["//visibility:private"])
 
 filegroup(
-    name = "scaffold_files",
+    name = "admission_schemas",
+    srcs = glob([
+        "fixtures/admission/v1/*.json",
+        "schemas/admission/v1/*.json",
+    ]),
+    visibility = ["//visibility:public"],
+)
+
+py_library(
+    name = "contract_validation",
+    srcs = ["validate_contracts.py"],
+    data = [
+        "asyncapi.yaml",
+        "catalog.schema.json",
+        "catalog.yaml",
+        ":admission_schemas",
+        "//protocols/mappings:admission_contract",
+    ],
+    imports = ["../.."],
+    visibility = ["//visibility:public"],
+    deps = ["//configs:contract_validation"],
+)
+
+py_binary(
+    name = "validate_contracts",
+    srcs = ["validate_contracts.py"],
+    main = "validate_contracts.py",
+    deps = [":contract_validation"],
+)
+
+pytest_test(
+    name = "test_contracts",
+    srcs = ["tests/test_contracts.py"],
+    data = [":admission_schemas"],
+    imports = ["../.."],
+    deps = [
+        ":contract_validation",
+        "//configs:contract_validation",
+    ],
+)
+
+filegroup(
+    name = "contracts",
     srcs = glob(
         ["**"],
         exclude = ["BUILD.bazel"],
     ),
+    visibility = ["//visibility:public"],
+)
+
+# Compatibility target retained for callers of the originally materialized package.
+filegroup(
+    name = "scaffold_files",
+    srcs = [":contracts"],
     visibility = ["//visibility:public"],
 )

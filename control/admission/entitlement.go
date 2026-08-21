@@ -87,6 +87,9 @@ func (e Entitlement) validateBody() error {
 	if err := e.MaximumRequest.Validate(true); err != nil {
 		return err
 	}
+	if e.MaximumRequest[UnitRequests] != 1 {
+		return invalid("entitlement_request_count_invalid", "a gateway entitlement must authorize exactly one request per reservation", nil)
+	}
 	if e.NotBefore.IsZero() || !e.ExpiresAt.After(e.NotBefore) {
 		return invalid("entitlement_window_invalid", "entitlement window is invalid", nil)
 	}

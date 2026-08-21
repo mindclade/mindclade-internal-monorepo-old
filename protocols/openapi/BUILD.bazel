@@ -3,7 +3,42 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
+load("//tools/build:pytest.bzl", "pytest_test")
+
 package(default_visibility = ["//visibility:private"])
+
+py_library(
+    name = "contract_validation",
+    srcs = ["validate_contracts.py"],
+    data = [
+        "components/admission.yaml",
+        "public.openapi.yaml",
+        "//protocols/events:admission_schemas",
+        "//protocols/mappings:admission_contract",
+    ] + glob(["fixtures/admission/*.json"]),
+    imports = ["../.."],
+    visibility = ["//visibility:public"],
+    deps = ["//configs:contract_validation"],
+)
+
+py_binary(
+    name = "validate_contracts",
+    srcs = ["validate_contracts.py"],
+    main = "validate_contracts.py",
+    deps = [":contract_validation"],
+)
+
+pytest_test(
+    name = "test_admission_contracts",
+    srcs = ["tests/test_admission_contracts.py"],
+    data = glob(["fixtures/admission/*.json"]),
+    imports = ["../.."],
+    deps = [
+        ":contract_validation",
+        "//configs:contract_validation",
+    ],
+)
 
 filegroup(
     name = "contracts",

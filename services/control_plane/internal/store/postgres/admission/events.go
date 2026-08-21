@@ -13,6 +13,7 @@ import (
 
 	"go.mindclade.dev/control/admission"
 	"go.mindclade.dev/libs/go/audit"
+	"go.mindclade.dev/libs/go/auth"
 	"go.mindclade.dev/libs/go/identifiers"
 	"go.mindclade.dev/libs/go/requestmeta"
 )
@@ -72,8 +73,20 @@ func (store *Store) emit(ctx context.Context, action, targetType string, id iden
 	if err != nil {
 		return err
 	}
-	event, err := store.audits.Create(audit.MustParseAction(action), store.actor, target,
-		audit.OutcomeSucceeded, audit.WithFields(fields))
+	actor := store.actor
+	if principal, ok := auth.PrincipalFromContext(ctx); ok {
+		actor, err = audit.ActorFromPrincipal(principal)
+		if err != nil {
+			return err
+		}
+	}
+	metadata, hasMetadata := requestmeta.FromContext(ctx)
+	options := []audit.EventOption{audit.WithFields(fields)}
+	if hasMetadata {
+		options = append(options, audit.WithRequestMetadata(metadata))
+	}
+	event, err := store.audits.Create(audit.MustParseAction(action), actor, target,
+		audit.OutcomeSucceeded, options...)
 	if err != nil {
 		return err
 	}
@@ -81,7 +94,7 @@ func (store *Store) emit(ctx context.Context, action, targetType string, id iden
 		return err
 	}
 	message, err := store.events.Create(topic, partitionKey, "application/json", payload,
-		map[string]string{"schema-version": "1"}, requestmeta.Metadata{}, time.Time{})
+		map[string]string{"schema-version": "1"}, metadata, time.Time{})
 	if err != nil {
 		return err
 	}

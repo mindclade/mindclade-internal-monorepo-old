@@ -15,6 +15,7 @@ import (
 	"go.mindclade.dev/libs/go/faults"
 	"go.mindclade.dev/libs/go/identifiers"
 	"go.mindclade.dev/libs/go/retry"
+	"go.mindclade.dev/libs/go/servicekit"
 	sqlpostgres "go.mindclade.dev/libs/go/storage/sql/postgres"
 )
 
@@ -71,8 +72,8 @@ func WithTables(entitlements, budgets, reservations string) Option {
 }
 
 // Store is a serializable PostgreSQL implementation of the admission domain.
-// Every mutation writes domain state, audit, and outbox records in one SQL
-// transaction. It is safe for concurrent use.
+// In the production composition, its PostgreSQL audit and outbox dependencies
+// join the same SQL transaction as domain state. It is safe for concurrent use.
 type Store struct {
 	db           *sql.DB
 	clock        clock.Clock
@@ -86,6 +87,12 @@ type Store struct {
 	entitlements string
 	budgets      string
 	reservations string
+}
+
+// Component exposes schema readiness without taking lifecycle ownership of the
+// shared database pool.
+func (store *Store) Component(name string) servicekit.Component {
+	return servicekit.Component{Name: name, Readiness: store.Readiness}
 }
 
 func New(db *sql.DB, recorder audit.Recorder, messages outbox.Store, options ...Option) (*Store, error) {

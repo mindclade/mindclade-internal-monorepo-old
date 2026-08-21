@@ -366,13 +366,14 @@ func TestFinalizationRejectsStaleVersionForeignDigestAndOverspend(t *testing.T) 
 		t.Fatal(err)
 	}
 	stale := testVersion(t, 99, "stale")
-	if _, err := fixture.service.Commit(ctx, decision.Reservation.ID, stale, decision.Reservation.RequestDigest, "service-account", nil); !faults.IsReason(err, "reservation_version_stale") {
+	validActual := Quota{UnitRequests: 1}
+	if _, err := fixture.service.Commit(ctx, decision.Reservation.ID, stale, decision.Reservation.RequestDigest, "service-account", validActual); !faults.IsReason(err, "reservation_version_stale") {
 		t.Fatalf("expected stale version, got %v", err)
 	}
-	if _, err := fixture.service.Commit(ctx, decision.Reservation.ID, decision.Reservation.Version, identifiers.SHA256String("foreign"), "service-account", nil); !faults.IsReason(err, "request_digest_mismatch") {
+	if _, err := fixture.service.Commit(ctx, decision.Reservation.ID, decision.Reservation.Version, identifiers.SHA256String("foreign"), "service-account", validActual); !faults.IsReason(err, "request_digest_mismatch") {
 		t.Fatalf("expected foreign digest rejection, got %v", err)
 	}
-	actual := Quota{UnitRequests: 2}
+	actual := Quota{UnitRequests: 1, UnitInputTokens: 101}
 	if _, err := fixture.service.Commit(ctx, decision.Reservation.ID, decision.Reservation.Version, decision.Reservation.RequestDigest, "service-account", actual); !faults.IsReason(err, "actual_exceeds_reservation") {
 		t.Fatalf("expected actual-usage rejection, got %v", err)
 	}
@@ -488,16 +489,101 @@ func TestAdmissionRejectsNonUnitRequestCount(t *testing.T) {
 	}
 }
 
+func TestCommitRequiresOneActualRequestAndRetainsCapacityOnRejection(t *testing.T) {
+	fixture := newFixture(t, 1)
+	decision, err := fixture.service.Admit(context.Background(), request(1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.service.Commit(context.Background(), decision.Reservation.ID,
+		decision.Reservation.Version, decision.Reservation.RequestDigest, "service-account",
+		Quota{UnitInputTokens: 80}); !faults.IsReason(err, "actual_request_count_invalid") {
+		t.Fatalf("expected zero-request commit rejection, got %v", err)
+	}
+	if _, err := fixture.service.Admit(context.Background(), request(2)); !faults.IsReason(err, "budget_exhausted") {
+		t.Fatalf("rejected commit released request capacity: %v", err)
+	}
+}
+
 func TestTypedNilDependenciesFailClosed(t *testing.T) {
 	var repository *MemoryRepository
-	if _, err := (Service{Repository: repository}).Admit(context.Background(), request(1)); !faults.IsReason(err, "repository_unavailable") {
-		t.Fatalf("typed-nil repository was not rejected: %v", err)
+	service := Service{Repository: repository}
+	if _, err := service.Admit(context.Background(), request(1)); !faults.IsReason(err, "repository_unavailable") {
+		t.Fatalf("typed-nil repository on Admit was not rejected: %v", err)
+	}
+	if _, err := service.Commit(context.Background(), identifiers.ID{}, resourceversion.Version{}, identifiers.Digest{}, "service-account", Quota{UnitRequests: 1}); !faults.IsReason(err, "repository_unavailable") {
+		t.Fatalf("typed-nil repository on Commit was not rejected: %v", err)
+	}
+	if _, err := service.Release(context.Background(), identifiers.ID{}, resourceversion.Version{}, identifiers.Digest{}, "service-account"); !faults.IsReason(err, "repository_unavailable") {
+		t.Fatalf("typed-nil repository on Release was not rejected: %v", err)
 	}
 	fixture := newFixture(t, 1)
 	var typedClock *clock.FakeClock
 	fixture.service.Clock = typedClock
 	if _, err := fixture.service.Admit(context.Background(), request(1)); !faults.IsReason(err, "clock_unavailable") {
-		t.Fatalf("typed-nil clock was not rejected: %v", err)
+		t.Fatalf("typed-nil clock on Admit was not rejected: %v", err)
+	}
+	if _, err := fixture.service.Commit(context.Background(), identifiers.ID{}, resourceversion.Version{}, identifiers.Digest{}, "service-account", Quota{UnitRequests: 1}); !faults.IsReason(err, "clock_unavailable") {
+		t.Fatalf("typed-nil clock on Commit was not rejected: %v", err)
+	}
+	if _, err := fixture.service.Release(context.Background(), identifiers.ID{}, resourceversion.Version{}, identifiers.Digest{}, "service-account"); !faults.IsReason(err, "clock_unavailable") {
+		t.Fatalf("typed-nil clock on Release was not rejected: %v", err)
+	}
+}
+
+func TestReservationVersionSealAndStateUsageAreValidated(t *testing.T) {
+	fixture := newFixture(t, 2)
+	decision, err := fixture.service.Admit(context.Background(), request(1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tampered := decision.Reservation.clone()
+	tampered.Workspace = "other-workspace"
+	if err := tampered.Validate(); !faults.IsReason(err, "reservation_version_digest_mismatch") {
+		t.Fatalf("reserved content tamper was not rejected: %v", err)
+	}
+	withActual := decision.Reservation.clone()
+	withActual.Actual = Quota{UnitRequests: 1}
+	if err := withActual.Validate(); !faults.IsReason(err, "reservation_actual_unexpected") {
+		t.Fatalf("reserved actual usage was not rejected: %v", err)
+	}
+	committed, err := decision.Reservation.Commit(Quota{UnitRequests: 1, UnitInputTokens: 80}, fixture.clock.Now().Add(time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	committed.Actual[UnitInputTokens]++
+	if err := committed.Validate(); !faults.IsReason(err, "reservation_version_digest_mismatch") {
+		t.Fatalf("terminal content tamper was not rejected: %v", err)
+	}
+}
+
+func TestRepeatedLateFinalizationReturnsStableExpiration(t *testing.T) {
+	for _, operation := range []string{"commit", "release"} {
+		t.Run(operation, func(t *testing.T) {
+			fixture := newFixture(t, 1)
+			decision, err := fixture.service.Admit(context.Background(), request(1))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := fixture.clock.Advance(decision.Reservation.RequestedTTL); err != nil {
+				t.Fatal(err)
+			}
+			finalize := func() error {
+				if operation == "commit" {
+					_, err := fixture.service.Commit(context.Background(), decision.Reservation.ID,
+						decision.Reservation.Version, decision.Reservation.RequestDigest, "service-account", Quota{UnitRequests: 1})
+					return err
+				}
+				_, err := fixture.service.Release(context.Background(), decision.Reservation.ID,
+					decision.Reservation.Version, decision.Reservation.RequestDigest, "service-account")
+				return err
+			}
+			for attempt := 0; attempt < 2; attempt++ {
+				if err := finalize(); !faults.IsReason(err, "reservation_expired") {
+					t.Fatalf("attempt %d returned unstable expiration: %v", attempt+1, err)
+				}
+			}
+		})
 	}
 }
 

@@ -66,7 +66,7 @@ type reservationHTTPResponse struct {
 	State              admission.ReservationState `json:"state"`
 	CreatedAt          time.Time                  `json:"created_at"`
 	ExpiresAt          time.Time                  `json:"expires_at"`
-	FinalizedAt        time.Time                  `json:"finalized_at,omitempty"`
+	FinalizedAt        *time.Time                 `json:"finalized_at,omitempty"`
 	Version            resourceversion.Version    `json:"resource_version"`
 }
 
@@ -168,6 +168,10 @@ func newAdmissionMux(engine admissionEngine) (http.Handler, error) {
 
 func decodeFinalizationRequest(request *http.Request) (identifiers.ID, resourceversion.Version, finalizeHTTPRequest, error) {
 	var input finalizeHTTPRequest
+	if len(request.Header.Values("If-Match")) > 1 || len(request.Header.Values("If-None-Match")) > 1 {
+		return identifiers.ID{}, resourceversion.Version{}, input,
+			admissionHTTPError(faults.CodeInvalidArgument, "conditional_header_ambiguous", "conditional request headers must not be repeated")
+	}
 	id, err := identifiers.ParseIDKind(request.PathValue("reservationID"), identifiers.MustParseKind("reservation"))
 	if err != nil {
 		return identifiers.ID{}, resourceversion.Version{}, input,
@@ -198,6 +202,11 @@ func writeFinalization(writer http.ResponseWriter, request *http.Request, decisi
 
 func projectDecision(decision admission.Decision) decisionHTTPResponse {
 	reservation := decision.Reservation
+	var finalizedAt *time.Time
+	if !reservation.FinalizedAt.IsZero() {
+		value := reservation.FinalizedAt
+		finalizedAt = &value
+	}
 	return decisionHTTPResponse{
 		Reservation: reservationHTTPResponse{
 			ID: reservation.ID, Workspace: reservation.Workspace, Route: reservation.Route,
@@ -205,7 +214,7 @@ func projectDecision(decision admission.Decision) decisionHTTPResponse {
 			EntitlementVersion: reservation.EntitlementVersion, BudgetID: reservation.BudgetID,
 			BudgetVersion: reservation.BudgetVersion, Reserved: reservation.Reserved.Clone(),
 			Actual: reservation.Actual.Clone(), State: reservation.State, CreatedAt: reservation.CreatedAt,
-			ExpiresAt: reservation.ExpiresAt, FinalizedAt: reservation.FinalizedAt, Version: reservation.Version,
+			ExpiresAt: reservation.ExpiresAt, FinalizedAt: finalizedAt, Version: reservation.Version,
 		},
 		Replayed: decision.Replayed,
 	}
@@ -229,13 +238,24 @@ func resolveAdmissionAuthorization(request *http.Request) (middleware.Authorizat
 		return middleware.AuthorizationTarget{}, false, admissionHTTPError(faults.CodeInvalidArgument, "authorization_request_nil", "authorization request is invalid")
 	}
 	permission := ""
+	var resourceOptions []auth.ResourceOption
 	switch {
 	case request.Method == http.MethodPost && request.URL.Path == reservationsPath:
 		permission = "ai_gateway.reservations.create"
-	case request.Method == http.MethodPost && strings.HasPrefix(request.URL.Path, reservationPrefix) && strings.HasSuffix(request.URL.Path, "/commit"):
+	case request.Method == http.MethodPost && matchesAdmissionActionPath(request.URL.Path, "commit"):
 		permission = "ai_gateway.reservations.commit"
-	case request.Method == http.MethodPost && strings.HasPrefix(request.URL.Path, reservationPrefix) && strings.HasSuffix(request.URL.Path, "/release"):
+		reservationID, err := admissionAuthorizationReservationID(request.URL.Path, "commit")
+		if err != nil {
+			return middleware.AuthorizationTarget{}, false, err
+		}
+		resourceOptions = append(resourceOptions, auth.WithResourceID(reservationID))
+	case request.Method == http.MethodPost && matchesAdmissionActionPath(request.URL.Path, "release"):
 		permission = "ai_gateway.reservations.release"
+		reservationID, err := admissionAuthorizationReservationID(request.URL.Path, "release")
+		if err != nil {
+			return middleware.AuthorizationTarget{}, false, err
+		}
+		resourceOptions = append(resourceOptions, auth.WithResourceID(reservationID))
 	default:
 		return middleware.AuthorizationTarget{}, false, nil
 	}
@@ -247,11 +267,28 @@ func resolveAdmissionAuthorization(request *http.Request) (middleware.Authorizat
 	if err != nil {
 		return middleware.AuthorizationTarget{}, false, err
 	}
-	resource, err := auth.NewResource(resourceType)
+	resource, err := auth.NewResource(resourceType, resourceOptions...)
 	if err != nil {
 		return middleware.AuthorizationTarget{}, false, err
 	}
 	return middleware.AuthorizationTarget{Permission: parsedPermission, Resource: resource}, true, nil
+}
+
+func matchesAdmissionActionPath(path, action string) bool {
+	if !strings.HasPrefix(path, reservationPrefix) || !strings.HasSuffix(path, "/"+action) {
+		return false
+	}
+	reservationID := strings.TrimSuffix(strings.TrimPrefix(path, reservationPrefix), "/"+action)
+	return reservationID != "" && !strings.Contains(reservationID, "/")
+}
+
+func admissionAuthorizationReservationID(path, action string) (identifiers.ID, error) {
+	value := strings.TrimSuffix(strings.TrimPrefix(path, reservationPrefix), "/"+action)
+	reservationID, err := identifiers.ParseIDKind(value, identifiers.MustParseKind("reservation"))
+	if err != nil {
+		return identifiers.ID{}, admissionHTTPError(faults.CodeInvalidArgument, "reservation_id_invalid", "reservation ID is invalid")
+	}
+	return reservationID, nil
 }
 
 func withAdmissionOperation(request *http.Request, name string) *http.Request {

@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.mindclade.dev/events/admission/v1/entitlement-event.json",
+  "title": "AI gateway entitlement policy event",
+  "type": "object",
+  "required": [
+    "id",
+    "subject",
+    "workspace",
+    "policy_epoch",
+    "routes",
+    "maximum_request",
+    "not_before",
+    "expires_at",
+    "resource_version"
+  ],
+  "properties": {
+    "id": { "$ref": "#/$defs/EntitlementId" },
+    "subject": { "$ref": "#/$defs/GatewayName" },
+    "workspace": { "$ref": "#/$defs/GatewayName" },
+    "policy_epoch": { "$ref": "#/$defs/PolicyEpoch" },
+    "routes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/GatewayRoute" }
+    },
+    "maximum_request": { "$ref": "#/$defs/SingleRequestQuota" },
+    "not_before": { "$ref": "#/$defs/Timestamp" },
+    "expires_at": { "$ref": "#/$defs/Timestamp" },
+    "resource_version": { "$ref": "#/$defs/ResourceVersion" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "EntitlementId": {
+      "type": "string",
+      "pattern": "^entitlement_[0-9a-f]{12}7[0-9a-f]{3}[89ab][0-9a-f]{15}$",
+      "maxLength": 64
+    },
+    "GatewayName": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9._-]{0,127}$",
+      "maxLength": 128
+    },
+    "PolicyEpoch": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9223372036854775807
+    },
+    "ResourceVersion": {
+      "type": "string",
+      "pattern": "^rv1:[1-9][0-9]*:sha256:[0-9a-f]{64}$",
+      "maxLength": 128
+    },
+    "Timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "maxLength": 35
+    },
+    "GatewayRoute": {
+      "type": "object",
+      "required": ["endpoint", "provider", "model"],
+      "properties": {
+        "endpoint": { "$ref": "#/$defs/GatewayName" },
+        "provider": { "$ref": "#/$defs/GatewayName" },
+        "model": { "$ref": "#/$defs/GatewayName" }
+      },
+      "additionalProperties": false
+    },
+    "SingleRequestQuota": {
+      "type": "object",
+      "required": ["requests"],
+      "properties": {
+        "requests": { "type": "integer", "const": 1 },
+        "input_tokens": { "type": "integer", "minimum": 0, "maximum": 1000000000000000000 },
+        "output_tokens": { "type": "integer", "minimum": 0, "maximum": 1000000000000000000 },
+        "cost_micros": { "type": "integer", "minimum": 0, "maximum": 1000000000000000000 }
+      },
+      "minProperties": 1,
+      "maxProperties": 4,
+      "additionalProperties": false
+    }
+  }
+}

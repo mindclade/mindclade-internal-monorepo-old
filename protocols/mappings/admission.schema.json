@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.mindclade.dev/protocol-mappings/admission-v1.json",
+  "title": "Admission wire projection mapping",
+  "type": "object",
+  "required": ["schema_version", "wire_authority", "rest", "events", "protobuf_projection"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "wire_authority": {
+      "type": "object",
+      "required": ["rest", "events"],
+      "properties": {
+        "rest": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "events": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 256 }
+        }
+      },
+      "additionalProperties": false
+    },
+    "rest": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "required": [
+          "operation_id",
+          "method",
+          "path",
+          "request_schema",
+          "response_schema",
+          "implementation",
+          "domain_operation"
+        ],
+        "properties": {
+          "operation_id": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]{2,127}$", "maxLength": 128 },
+          "method": { "type": "string", "enum": ["POST"] },
+          "path": { "type": "string", "pattern": "^/v1/ai-gateway/reservations", "maxLength": 160 },
+          "request_schema": { "type": "string", "pattern": "^#/components/schemas/[A-Za-z][A-Za-z0-9]+$", "maxLength": 160 },
+          "response_schema": { "type": "string", "pattern": "^#/components/schemas/[A-Za-z][A-Za-z0-9]+$", "maxLength": 160 },
+          "implementation": { "type": "string", "minLength": 1, "maxLength": 256 },
+          "domain_operation": { "type": "string", "minLength": 1, "maxLength": 128 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "events": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "required": ["topic", "payload_schema", "producer", "domain_projection"],
+        "properties": {
+          "topic": { "type": "string", "pattern": "^control\\.admission\\.[a-z]+\\.v1$", "maxLength": 128 },
+          "payload_schema": { "type": "string", "pattern": "^schemas/admission/v1/[a-z-]+\\.schema\\.json$", "maxLength": 160 },
+          "producer": { "type": "string", "minLength": 1, "maxLength": 256 },
+          "domain_projection": { "type": "string", "minLength": 1, "maxLength": 256 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "protobuf_projection": {
+      "type": "object",
+      "required": ["status", "reason"],
+      "properties": {
+        "status": { "type": "string", "const": "not_defined" },
+        "reason": { "type": "string", "minLength": 1, "maxLength": 512 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

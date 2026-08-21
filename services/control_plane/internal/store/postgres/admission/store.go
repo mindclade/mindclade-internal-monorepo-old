@@ -27,6 +27,35 @@ type executor interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
+// Readiness verifies that every table and security/accounting column used by
+// the adapter is queryable. It intentionally does not treat an empty policy
+// catalog as healthy authorization; missing policy still fails each decision
+// closed with the domain's entitlement/budget errors.
+func (store *Store) Readiness(ctx context.Context) error {
+	const operation = "admission.postgres.Readiness"
+	if err := store.validate(ctx, operation); err != nil {
+		return err
+	}
+	queries := []string{
+		fmt.Sprintf(`SELECT subject,workspace,entitlement_id,policy_epoch,resource_version,resource_generation,not_before,expires_at,document,written_at FROM %s LIMIT 0`, store.entitlements),
+		fmt.Sprintf(`SELECT workspace,budget_id,resource_version,resource_generation,starts_at,expires_at,document,written_at FROM %s LIMIT 0`, store.budgets),
+		fmt.Sprintf(`SELECT reservation_id,idempotency_scope,idempotency_key,request_digest,subject,workspace,budget_id,state,
+reserved_requests,reserved_input_tokens,reserved_output_tokens,reserved_cost_micros,
+actual_requests,actual_input_tokens,actual_output_tokens,actual_cost_micros,
+created_at,expires_at,finalized_at,resource_version,resource_generation,document,written_at FROM %s LIMIT 0`, store.reservations),
+	}
+	for _, query := range queries {
+		rows, err := store.db.QueryContext(ctx, query)
+		if err != nil {
+			return provider(ctx, err, operation)
+		}
+		if err := rows.Close(); err != nil {
+			return provider(ctx, err, operation)
+		}
+	}
+	return nil
+}
+
 func (store *Store) executor(ctx context.Context) executor {
 	if tx, ok := transaction.FromContext(ctx); ok {
 		return tx
@@ -56,7 +85,9 @@ func runMutation[T any](ctx context.Context, store *Store, operation string, fun
 		return zero, err
 	}
 	if _, nested := transaction.FromContext(ctx); nested {
-		return function(ctx)
+		return zero, domainError(ctx, faults.CodeFailedPrecondition,
+			"admission_nested_transaction_unsupported",
+			"admission mutations require their own serializable transaction", operation)
 	}
 	var result T
 	_, err := store.retries.Do(ctx, operation, func(attemptContext context.Context, _ retry.Attempt) error {

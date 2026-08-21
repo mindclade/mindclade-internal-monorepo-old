@@ -4,13 +4,20 @@ This package is the durable adapter for `control/admission.Repository`. It owns
 three migration-managed tables: sealed entitlements, sealed budget windows,
 and versioned reservations.
 
-Every mutation runs at PostgreSQL serializable isolation unless it joins an
-existing control-plane transaction. Reservation creation locks the exact
+Every mutation owns a PostgreSQL serializable transaction; callers carrying an
+outer transaction are rejected because its isolation and retry contract cannot
+be proven. Reservation creation locks the exact
 entitlement and budget rows, sums committed plus unexpired reserved usage, and
-inserts only when all integer quota dimensions fit. Commit, release, and expiry
+inserts only when all integer quota dimensions fit. Concurrent identical
+inserts retry from a fresh serializable snapshot and replay the winner. Commit, release, and expiry
 lock one reservation and compare its authenticated subject, request digest,
 and resource version before a terminal transition. Audit and outbox adapters
 receive the same transaction context.
+
+The unapplied admission migrations fail on pre-existing table names instead of
+silently accepting an unknown shape. Relational accounting columns are bound to
+the sealed JSON document by database checks, including identity, state, quota,
+time window, and resource version fields.
 
 `ExpireReservations` uses a bounded ordered `FOR UPDATE SKIP LOCKED` batch so
 multiple maintenance workers can reconcile without duplicate ownership.
@@ -40,5 +47,6 @@ exact budget ceiling, and expiry capacity recovery. See
 Production activation still requires multi-process and multi-replica failover,
 forced database loss during each mutation phase, migration rollback,
 backup/restore, the enforcing Gateway proxy, policy administration, and the
-approved SLO/runbook. Until that evidence exists, MLflow activation remains
-blocked.
+operationally approved SLO/runbook. Policy provisioning must be wired to an
+approved authority; the expiry worker is already leader-gated and recurring.
+Until that evidence exists, MLflow activation remains blocked.

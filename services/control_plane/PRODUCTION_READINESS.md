@@ -63,7 +63,7 @@ that did not happen.
 
 | Role | Remaining domain or provider gate |
 |---|---|
-| `api`, `admin` | AI Gateway reservation/create/commit/release is mounted with fail-closed authz and durable storage. Connected PostgreSQL no-overspend qualification and recurring expiry are complete; policy administration, Gateway proxy enforcement, and an approved SLO/runbook are still required. Other business APIs are not yet mounted. |
+| `api`, `admin` | AI Gateway reservation/create/commit/release is mounted with fail-closed authz, durable storage, schema readiness, and source-owned SLO/runbook contracts. Connected PostgreSQL no-overspend qualification and recurring expiry are complete; policy administration, enforcing Gateway proxy, multi-replica/failure-injection/restore qualification, and operational SLO approval remain. Other business APIs are not yet mounted. |
 | `scheduler` | Placement handler is not configured. |
 | `controller`, `operator` | Domain reconcilers are not registered. |
 | `event-projector` | Projection source and handler are not configured. |

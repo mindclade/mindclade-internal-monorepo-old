@@ -158,7 +158,7 @@ func (repository *MemoryRepository) Reserve(ctx context.Context, snapshot Policy
 		if !found {
 			return Reservation{}, false, unavailable("idempotency_index_corrupt", "idempotency index references a missing reservation", nil)
 		}
-		if !sameAdmission(existing, candidate) {
+		if !existing.SameAdmissionRequest(candidate) {
 			return Reservation{}, false, conflict("idempotency_payload_mismatch", "idempotency key was reused for a different request")
 		}
 		if existing.State == ReservationReserved && !now.Before(existing.ExpiresAt) {
@@ -271,6 +271,9 @@ func (repository *MemoryRepository) finalize(ctx context.Context, id identifiers
 	if current.Subject != subject {
 		return Reservation{}, false, denied("reservation_subject_mismatch", "subject does not own reservation")
 	}
+	if current.State == ReservationExpired {
+		return Reservation{}, false, failedPrecondition("reservation_expired", "reservation has expired")
+	}
 	if current.State == target && (target != ReservationCommitted || current.Actual.Equal(actual)) {
 		return current.clone(), true, nil
 	}
@@ -318,11 +321,4 @@ func (repository *MemoryRepository) Get(ctx context.Context, id identifiers.ID) 
 		return Reservation{}, notFound("reservation_not_found", "reservation was not found")
 	}
 	return reservation.clone(), nil
-}
-
-func sameAdmission(left, right Reservation) bool {
-	return left.RequestDigest.Equal(right.RequestDigest) && left.Subject == right.Subject &&
-		left.Workspace == right.Workspace && left.Route == right.Route &&
-		left.PolicyEpoch == right.PolicyEpoch && left.Reserved.Equal(right.Reserved) &&
-		left.RequestedTTL == right.RequestedTTL
 }

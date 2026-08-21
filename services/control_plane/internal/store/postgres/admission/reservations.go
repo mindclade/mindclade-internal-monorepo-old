@@ -33,15 +33,16 @@ func (store *Store) Reserve(ctx context.Context, snapshot admission.PolicySnapsh
 		if existing, found, lookupErr := store.lookupIdempotency(txContext, candidate); lookupErr != nil {
 			return reserveResult{}, lookupErr
 		} else if found {
-			if !sameAdmission(existing, candidate) {
+			decisionNow := store.clock.Now().Round(0).UTC()
+			if !existing.SameAdmissionRequest(candidate) {
 				return reserveResult{}, domainError(txContext, faults.CodeConflict, "idempotency_payload_mismatch", "idempotency key was reused for a different request", operation)
 			}
-			if existing.State == admission.ReservationReserved && !now.Before(existing.ExpiresAt) {
-				expired, transitionErr := existing.Expire(now)
+			if existing.State == admission.ReservationReserved && !decisionNow.Before(existing.ExpiresAt) {
+				expired, transitionErr := existing.Expire(decisionNow)
 				if transitionErr != nil {
 					return reserveResult{}, transitionErr
 				}
-				if persistErr := store.updateReservation(txContext, existing.Version, expired, now); persistErr != nil {
+				if persistErr := store.updateReservation(txContext, existing.Version, expired, decisionNow); persistErr != nil {
 					return reserveResult{}, persistErr
 				}
 				if emitErr := store.emitReservation(txContext, "ai_gateway.reservation.expire", expired); emitErr != nil {
@@ -68,22 +69,35 @@ func (store *Store) Reserve(ctx context.Context, snapshot admission.PolicySnapsh
 		if validationErr := candidate.ValidateInitial(current, now); validationErr != nil {
 			return reserveResult{}, validationErr
 		}
-		if !current.Entitlement.ActiveAt(now) || !current.Budget.ActiveAt(now) {
+		decisionNow := store.clock.Now().Round(0).UTC()
+		if decisionNow.Before(candidate.CreatedAt) {
+			return reserveResult{}, internal(txContext, errors.New("admission clock moved before candidate creation"), operation, "admission_clock_regressed")
+		}
+		if !decisionNow.Before(candidate.ExpiresAt) {
+			return reserveResult{}, domainError(txContext, faults.CodeFailedPrecondition, "reservation_window_elapsed", "reservation window elapsed before persistence", operation)
+		}
+		if !current.Entitlement.ActiveAt(decisionNow) || !current.Budget.ActiveAt(decisionNow) {
 			return reserveResult{}, domainError(txContext, faults.CodeFailedPrecondition, "policy_window_inactive", "policy window is inactive", operation)
 		}
 		if current.Entitlement.PolicyEpoch != candidate.PolicyEpoch ||
 			!current.Entitlement.Allows(candidate.Route) || !candidate.Reserved.Fits(current.Entitlement.MaximumRequest) {
 			return reserveResult{}, domainError(txContext, faults.CodePermissionDenied, "entitlement_changed", "entitlement no longer allows the request", operation)
 		}
-		used, usageErr := store.usedQuota(txContext, current.Budget.ID, now)
+		used, usageErr := store.usedQuota(txContext, current.Budget.ID, decisionNow)
 		if usageErr != nil {
 			return reserveResult{}, usageErr
 		}
 		if !canAdd(used, candidate.Reserved, current.Budget.Limit) {
 			return reserveResult{}, domainError(txContext, faults.CodeResourceExhausted, "budget_exhausted", "budget cannot satisfy the reservation", operation)
 		}
-		if insertErr := store.insertReservation(txContext, candidate, now); insertErr != nil {
+		inserted, insertErr := store.insertReservation(txContext, candidate, decisionNow)
+		if insertErr != nil {
 			return reserveResult{}, insertErr
+		}
+		if !inserted {
+			return reserveResult{}, faults.New(faults.CodeAborted, "concurrent idempotent reservation must be retried",
+				faults.WithReason("admission_idempotency_race"), faults.WithOperation(operation),
+				faults.WithRetryPolicy(faults.ImmediateRetry(3)), faults.WithContextMetadata(txContext))
 		}
 		if emitErr := store.emitReservation(txContext, "ai_gateway.reservation.reserve", candidate); emitErr != nil {
 			return reserveResult{}, emitErr
@@ -185,22 +199,23 @@ func canAdd(used, requested, limit admission.Quota) bool {
 	return true
 }
 
-func (store *Store) insertReservation(ctx context.Context, reservation admission.Reservation, now time.Time) error {
+func (store *Store) insertReservation(ctx context.Context, reservation admission.Reservation, now time.Time) (bool, error) {
 	document, err := marshalDocument(ctx, reservation, "admission.postgres.Reserve")
 	if err != nil {
-		return err
+		return false, err
 	}
 	generation, err := sqlUint(reservation.Version.Generation(), "resource_generation")
 	if err != nil {
-		return err
+		return false, err
 	}
 	query := fmt.Sprintf(`INSERT INTO %s (
 reservation_id,idempotency_scope,idempotency_key,request_digest,subject,workspace,budget_id,state,
 reserved_requests,reserved_input_tokens,reserved_output_tokens,reserved_cost_micros,
 actual_requests,actual_input_tokens,actual_output_tokens,actual_cost_micros,
 created_at,expires_at,finalized_at,resource_version,resource_generation,document,written_at
-) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,0,0,0,0,$13,$14,NULL,$15,$16,$17::jsonb,$18)`, store.reservations)
-	_, err = store.executor(ctx).ExecContext(ctx, query,
+) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,0,0,0,0,$13,$14,NULL,$15,$16,$17::jsonb,$18)
+ON CONFLICT (idempotency_scope,idempotency_key) DO NOTHING`, store.reservations)
+	result, err := store.executor(ctx).ExecContext(ctx, query,
 		reservation.ID.String(), reservation.Idempotency.Scope.String(), reservation.Idempotency.Key.String(),
 		reservation.RequestDigest.String(), reservation.Subject, reservation.Workspace, reservation.BudgetID.String(),
 		string(reservation.State), int64(reservation.Reserved[admission.UnitRequests]),
@@ -208,18 +223,16 @@ created_at,expires_at,finalized_at,resource_version,resource_generation,document
 		int64(reservation.Reserved[admission.UnitCostMicros]), reservation.CreatedAt, reservation.ExpiresAt,
 		reservation.Version.String(), generation, document, now)
 	if err != nil {
-		return provider(ctx, err, "admission.postgres.Reserve.Insert")
+		return false, provider(ctx, err, "admission.postgres.Reserve.Insert")
 	}
-	return nil
-}
-
-func sameAdmission(left, right admission.Reservation) bool {
-	return left.RequestDigest.Equal(right.RequestDigest) && left.Subject == right.Subject &&
-		left.Workspace == right.Workspace && left.Route == right.Route && left.PolicyEpoch == right.PolicyEpoch &&
-		left.EntitlementID.String() == right.EntitlementID.String() &&
-		left.EntitlementVersion.String() == right.EntitlementVersion.String() &&
-		left.BudgetID.String() == right.BudgetID.String() && left.BudgetVersion.String() == right.BudgetVersion.String() &&
-		left.Reserved.Equal(right.Reserved) && left.RequestedTTL == right.RequestedTTL
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return false, provider(ctx, err, "admission.postgres.Reserve.Insert.RowsAffected")
+	}
+	if affected < 0 || affected > 1 {
+		return false, internal(ctx, fmt.Errorf("reservation insert affected %d rows", affected), "admission.postgres.Reserve.Insert", "admission_insert_cardinality_invalid")
+	}
+	return affected == 1, nil
 }
 
 func (store *Store) Commit(ctx context.Context, id identifiers.ID, expected resourceversion.Version, digest identifiers.Digest, subject string, actual admission.Quota, now time.Time) (admission.Reservation, bool, error) {
@@ -236,7 +249,7 @@ type finalizationResult struct {
 	semantic    error
 }
 
-func (store *Store) finalize(ctx context.Context, id identifiers.ID, expected resourceversion.Version, digest identifiers.Digest, subject string, actual admission.Quota, target admission.ReservationState, now time.Time) (admission.Reservation, bool, error) {
+func (store *Store) finalize(ctx context.Context, id identifiers.ID, expected resourceversion.Version, digest identifiers.Digest, subject string, actual admission.Quota, target admission.ReservationState, _ time.Time) (admission.Reservation, bool, error) {
 	const operation = "admission.postgres.Finalize"
 	if err := id.Validate(); err != nil || id.Kind().String() != "reservation" || expected.Validate() != nil || !digest.Valid() {
 		return admission.Reservation{}, false, domainError(ctx, faults.CodeInvalidArgument, "finalization_identity_invalid", "finalization identity is invalid", operation)
@@ -246,11 +259,15 @@ func (store *Store) finalize(ctx context.Context, id identifiers.ID, expected re
 		if loadErr != nil {
 			return finalizationResult{}, loadErr
 		}
+		decisionNow := store.clock.Now().Round(0).UTC()
 		if !current.RequestDigest.Equal(digest) {
 			return finalizationResult{}, domainError(txContext, faults.CodePermissionDenied, "request_digest_mismatch", "request digest does not own reservation", operation)
 		}
 		if current.Subject != subject {
 			return finalizationResult{}, domainError(txContext, faults.CodePermissionDenied, "reservation_subject_mismatch", "subject does not own reservation", operation)
+		}
+		if current.State == admission.ReservationExpired {
+			return finalizationResult{semantic: domainError(txContext, faults.CodeFailedPrecondition, "reservation_expired", "reservation has expired", operation)}, nil
 		}
 		if current.State == target && (target != admission.ReservationCommitted || current.Actual.Equal(actual)) {
 			return finalizationResult{reservation: current, replayed: true}, nil
@@ -261,12 +278,12 @@ func (store *Store) finalize(ctx context.Context, id identifiers.ID, expected re
 		if current.Version.String() != expected.String() {
 			return finalizationResult{}, domainError(txContext, faults.CodeConflict, "reservation_version_stale", "reservation version is stale", operation)
 		}
-		if !now.Before(current.ExpiresAt) {
-			expired, transitionErr := current.Expire(now)
+		if !decisionNow.Before(current.ExpiresAt) {
+			expired, transitionErr := current.Expire(decisionNow)
 			if transitionErr != nil {
 				return finalizationResult{}, transitionErr
 			}
-			if persistErr := store.updateReservation(txContext, current.Version, expired, now); persistErr != nil {
+			if persistErr := store.updateReservation(txContext, current.Version, expired, decisionNow); persistErr != nil {
 				return finalizationResult{}, persistErr
 			}
 			if emitErr := store.emitReservation(txContext, "ai_gateway.reservation.expire", expired); emitErr != nil {
@@ -277,14 +294,14 @@ func (store *Store) finalize(ctx context.Context, id identifiers.ID, expected re
 		var updated admission.Reservation
 		var transitionErr error
 		if target == admission.ReservationCommitted {
-			updated, transitionErr = current.Commit(actual, now)
+			updated, transitionErr = current.Commit(actual, decisionNow)
 		} else {
-			updated, transitionErr = current.Release(now)
+			updated, transitionErr = current.Release(decisionNow)
 		}
 		if transitionErr != nil {
 			return finalizationResult{}, transitionErr
 		}
-		if persistErr := store.updateReservation(txContext, current.Version, updated, now); persistErr != nil {
+		if persistErr := store.updateReservation(txContext, current.Version, updated, decisionNow); persistErr != nil {
 			return finalizationResult{}, persistErr
 		}
 		action := "ai_gateway.reservation.commit"
@@ -372,15 +389,16 @@ func (store *Store) Get(ctx context.Context, id identifiers.ID) (admission.Reser
 
 // ExpireReservations materializes overdue terminal transitions in bounded,
 // skip-locked batches so multiple maintenance workers can sweep safely.
-func (store *Store) ExpireReservations(ctx context.Context, limit int, now time.Time) ([]admission.Reservation, error) {
+func (store *Store) ExpireReservations(ctx context.Context, limit int, _ time.Time) ([]admission.Reservation, error) {
 	const operation = "admission.postgres.ExpireReservations"
 	if limit <= 0 || limit > 1000 {
 		return nil, domainError(ctx, faults.CodeInvalidArgument, "expiration_limit_invalid", "expiration limit is outside bounds", operation)
 	}
 	return runMutation(ctx, store, operation, func(txContext context.Context) ([]admission.Reservation, error) {
+		decisionNow := store.clock.Now().Round(0).UTC()
 		rows, err := store.executor(txContext).QueryContext(txContext,
 			fmt.Sprintf(`SELECT document FROM %s WHERE state='reserved' AND expires_at<=$1 ORDER BY expires_at,reservation_id FOR UPDATE SKIP LOCKED LIMIT $2`, store.reservations),
-			now, limit)
+			decisionNow, limit)
 		if err != nil {
 			return nil, provider(txContext, err, operation)
 		}
@@ -402,11 +420,11 @@ func (store *Store) ExpireReservations(ctx context.Context, limit int, now time.
 		}
 		expired := make([]admission.Reservation, 0, len(current))
 		for _, reservation := range current {
-			updated, transitionErr := reservation.Expire(now)
+			updated, transitionErr := reservation.Expire(decisionNow)
 			if transitionErr != nil {
 				return nil, transitionErr
 			}
-			if persistErr := store.updateReservation(txContext, reservation.Version, updated, now); persistErr != nil {
+			if persistErr := store.updateReservation(txContext, reservation.Version, updated, decisionNow); persistErr != nil {
 				return nil, persistErr
 			}
 			if emitErr := store.emitReservation(txContext, "ai_gateway.reservation.expire", updated); emitErr != nil {

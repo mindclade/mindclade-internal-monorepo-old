@@ -1,0 +1,17 @@
+{
+  "request_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "workspace": "research-team",
+  "route": {
+    "endpoint": "chat-primary",
+    "provider": "vertex",
+    "model": "gemini-pro"
+  },
+  "policy_epoch": 11,
+  "requested": {
+    "requests": 1,
+    "input_tokens": 100,
+    "output_tokens": 50,
+    "cost_micros": 500
+  },
+  "ttl_seconds": 60
+}

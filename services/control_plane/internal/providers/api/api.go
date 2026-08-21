@@ -136,6 +136,7 @@ func (factory *APIFactory) Create(ctx context.Context, profile bootstrap.Profile
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}
+	inbound.components.Work = append(inbound.components.Work, admissions.Component("admission-schema"))
 
 	return bootstrap.Runtime{
 		// The aggregate list is the role's capability profile, written out.

@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.mindclade.dev/events/admission/v1/budget-event.json",
+  "title": "AI gateway budget policy event",
+  "type": "object",
+  "required": ["id", "workspace", "limit", "starts_at", "expires_at", "resource_version"],
+  "properties": {
+    "id": { "$ref": "#/$defs/BudgetId" },
+    "workspace": { "$ref": "#/$defs/GatewayName" },
+    "limit": { "$ref": "#/$defs/Quota" },
+    "starts_at": { "$ref": "#/$defs/Timestamp" },
+    "expires_at": { "$ref": "#/$defs/Timestamp" },
+    "resource_version": { "$ref": "#/$defs/ResourceVersion" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "BudgetId": {
+      "type": "string",
+      "pattern": "^budget_[0-9a-f]{12}7[0-9a-f]{3}[89ab][0-9a-f]{15}$",
+      "maxLength": 64
+    },
+    "GatewayName": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9._-]{0,127}$",
+      "maxLength": 128
+    },
+    "ResourceVersion": {
+      "type": "string",
+      "pattern": "^rv1:[1-9][0-9]*:sha256:[0-9a-f]{64}$",
+      "maxLength": 128
+    },
+    "Timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "maxLength": 35
+    },
+    "Quota": {
+      "type": "object",
+      "properties": {
+        "requests": { "type": "integer", "minimum": 0, "maximum": 1000000000000000000 },
+        "input_tokens": { "type": "integer", "minimum": 0, "maximum": 1000000000000000000 },
+        "output_tokens": { "type": "integer", "minimum": 0, "maximum": 1000000000000000000 },
+        "cost_micros": { "type": "integer", "minimum": 0, "maximum": 1000000000000000000 }
+      },
+      "minProperties": 1,
+      "maxProperties": 4,
+      "anyOf": [
+        { "required": ["requests"], "properties": { "requests": { "minimum": 1 } } },
+        { "required": ["input_tokens"], "properties": { "input_tokens": { "minimum": 1 } } },
+        { "required": ["output_tokens"], "properties": { "output_tokens": { "minimum": 1 } } },
+        { "required": ["cost_micros"], "properties": { "cost_micros": { "minimum": 1 } } }
+      ],
+      "additionalProperties": false
+    }
+  }
+}

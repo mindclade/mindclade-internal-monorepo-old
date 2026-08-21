@@ -182,6 +182,9 @@ func (service Service) Commit(ctx context.Context, id identifiers.ID, expected r
 	if err := actual.Validate(false); err != nil {
 		return Decision{}, err
 	}
+	if actual[UnitRequests] != 1 {
+		return Decision{}, invalid("actual_request_count_invalid", "committed gateway usage must contain exactly one request", nil)
+	}
 	reservation, replayed, err := service.Repository.Commit(ctx, id, expected, requestDigest, subject, actual, service.now())
 	return Decision{Reservation: reservation, Replayed: replayed}, err
 }

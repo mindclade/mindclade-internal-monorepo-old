@@ -106,6 +106,9 @@ func (r Reservation) Validate() error {
 		return invalid("reservation_window_invalid", "reservation window is invalid", nil)
 	}
 	if r.State == ReservationReserved {
+		if len(r.Actual) != 0 {
+			return invalid("reservation_actual_unexpected", "reserved reservation has actual usage", nil)
+		}
 		if !r.FinalizedAt.IsZero() {
 			return invalid("reservation_finalized_at_unexpected", "reserved reservation has a finalization time", nil)
 		}
@@ -113,7 +116,7 @@ func (r Reservation) Validate() error {
 		if err := r.Actual.Validate(false); err != nil {
 			return err
 		}
-		if !r.Actual.Fits(r.Reserved) || r.FinalizedAt.IsZero() {
+		if r.Actual[UnitRequests] != 1 || !r.Actual.Fits(r.Reserved) || r.FinalizedAt.IsZero() {
 			return invalid("reservation_actual_invalid", "committed amount is invalid", nil)
 		}
 	} else if len(r.Actual) != 0 {
@@ -131,6 +134,16 @@ func (r Reservation) Validate() error {
 	}
 	if err := r.Version.Validate(); err != nil {
 		return invalid("reservation_version_invalid", "reservation version is invalid", err)
+	}
+	expectedGeneration := uint64(1)
+	if r.State != ReservationReserved {
+		expectedGeneration = 2
+	}
+	if r.Version.Generation() != expectedGeneration {
+		return invalid("reservation_version_generation_invalid", "reservation generation does not match its state", nil)
+	}
+	if !r.Version.Digest().Equal(reservationDigest(r)) {
+		return invalid("reservation_version_digest_mismatch", "reservation version does not seal its content", nil)
 	}
 	return nil
 }
@@ -193,6 +206,9 @@ func (r Reservation) Commit(actual Quota, finalizedAt time.Time) (Reservation, e
 	if !actual.Fits(r.Reserved) {
 		return Reservation{}, invalid("actual_exceeds_reservation", "actual usage exceeds reservation", nil)
 	}
+	if actual[UnitRequests] != 1 {
+		return Reservation{}, invalid("actual_request_count_invalid", "committed gateway usage must contain exactly one request", nil)
+	}
 	return r.transition(ReservationCommitted, actual, finalizedAt)
 }
 
@@ -214,6 +230,9 @@ func (r Reservation) Expire(finalizedAt time.Time) (Reservation, error) {
 func (r Reservation) transition(state ReservationState, actual Quota, finalizedAt time.Time) (Reservation, error) {
 	if err := r.Validate(); err != nil {
 		return Reservation{}, err
+	}
+	if r.State == ReservationExpired {
+		return Reservation{}, failedPrecondition("reservation_expired", "reservation has expired")
 	}
 	if r.State != ReservationReserved {
 		return Reservation{}, conflict("reservation_terminal", "reservation is already terminal")
@@ -244,7 +263,7 @@ func (r Reservation) transition(state ReservationState, actual Quota, finalizedA
 
 func reservationDigest(r Reservation) identifiers.Digest {
 	return identifiers.SHA256String(canonicalJoin(
-		r.ID.String(), r.Idempotency.Scope.String(), r.Idempotency.Key.String(),
+		"gateway-reservation-v1", r.ID.String(), r.Idempotency.Scope.String(), r.Idempotency.Key.String(),
 		r.RequestDigest.String(), r.Subject, r.Workspace, r.Route.Endpoint, r.Route.Provider,
 		r.Route.Model, strconv.FormatUint(r.PolicyEpoch, 10), r.EntitlementID.String(),
 		r.EntitlementVersion.String(), r.BudgetID.String(), r.BudgetVersion.String(),
@@ -253,6 +272,16 @@ func reservationDigest(r Reservation) identifiers.Digest {
 		r.CreatedAt.UTC().Format(time.RFC3339Nano), r.ExpiresAt.UTC().Format(time.RFC3339Nano),
 		r.FinalizedAt.UTC().Format(time.RFC3339Nano),
 	))
+}
+
+// SameAdmissionRequest compares only caller-owned fields bound to an idempotency key. Generated
+// identity, transaction timestamps, and server-resolved policy versions are deliberately excluded
+// so a retry after policy rotation returns the original decision.
+func (r Reservation) SameAdmissionRequest(other Reservation) bool {
+	return r.RequestDigest.Equal(other.RequestDigest) && r.Subject == other.Subject &&
+		r.Workspace == other.Workspace && r.Route == other.Route &&
+		r.PolicyEpoch == other.PolicyEpoch && r.Reserved.Equal(other.Reserved) &&
+		r.RequestedTTL == other.RequestedTTL
 }
 
 func versionReservation(r Reservation, generation uint64) (Reservation, error) {

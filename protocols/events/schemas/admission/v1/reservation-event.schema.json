@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.mindclade.dev/events/admission/v1/reservation-event.json",
+  "title": "AI gateway reservation lifecycle event",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "reservation_id",
+    "workspace",
+    "subject",
+    "route",
+    "policy_epoch",
+    "entitlement_id",
+    "entitlement_version",
+    "budget_id",
+    "budget_version",
+    "reserved",
+    "requested_ttl",
+    "state",
+    "expires_at",
+    "resource_version"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "reservation_id": { "$ref": "#/$defs/ReservationId" },
+    "workspace": { "$ref": "#/$defs/GatewayName" },
+    "subject": { "$ref": "#/$defs/GatewayName" },
+    "route": { "$ref": "#/$defs/GatewayRoute" },
+    "policy_epoch": { "$ref": "#/$defs/PolicyEpoch" },
+    "entitlement_id": { "$ref": "#/$defs/EntitlementId" },
+    "entitlement_version": { "$ref": "#/$defs/ResourceVersion" },
+    "budget_id": { "$ref": "#/$defs/BudgetId" },
+    "budget_version": { "$ref": "#/$defs/ResourceVersion" },
+    "reserved": { "$ref": "#/$defs/SingleRequestQuota" },
+    "requested_ttl": {
+      "type": "string",
+      "pattern": "^[0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h)(?:[0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))*$",
+      "minLength": 2,
+      "maxLength": 32
+    },
+    "actual": { "$ref": "#/$defs/SingleRequestQuota" },
+    "state": { "$ref": "#/$defs/ReservationState" },
+    "expires_at": { "$ref": "#/$defs/Timestamp" },
+    "finalized_at": { "$ref": "#/$defs/Timestamp" },
+    "resource_version": { "$ref": "#/$defs/ResourceVersion" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "state": { "const": "committed" } },
+        "required": ["state"]
+      },
+      "then": { "required": ["actual", "finalized_at"] }
+    },
+    {
+      "if": {
+        "properties": { "state": { "enum": ["reserved", "released", "expired"] } },
+        "required": ["state"]
+      },
+      "then": { "not": { "required": ["actual"] } }
+    },
+    {
+      "if": {
+        "properties": { "state": { "enum": ["released", "expired"] } },
+        "required": ["state"]
+      },
+      "then": { "required": ["finalized_at"] }
+    },
+    {
+      "if": {
+        "properties": { "state": { "const": "reserved" } },
+        "required": ["state"]
+      },
+      "then": {
+        "not": { "required": ["finalized_at"] },
+        "properties": { "resource_version": { "pattern": "^rv1:1:" } }
+      }
+    },
+    {
+      "if": {
+        "properties": { "state": { "enum": ["committed", "released", "expired"] } },
+        "required": ["state"]
+      },
+      "then": {
+        "properties": { "resource_version": { "pattern": "^rv1:2:" } }
+      }
+    }
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "ReservationId": {
+      "type": "string",
+      "pattern": "^reservation_[0-9a-f]{12}7[0-9a-f]{3}[89ab][0-9a-f]{15}$",
+      "maxLength": 64
+    },
+    "EntitlementId": {
+      "type": "string",
+      "pattern": "^entitlement_[0-9a-f]{12}7[0-9a-f]{3}[89ab][0-9a-f]{15}$",
+      "maxLength": 64
+    },
+    "BudgetId": {
+      "type": "string",
+      "pattern": "^budget_[0-9a-f]{12}7[0-9a-f]{3}[89ab][0-9a-f]{15}$",
+      "maxLength": 64
+    },
+    "GatewayName": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9._-]{0,127}$",
+      "maxLength": 128
+    },
+    "PolicyEpoch": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9223372036854775807
+    },
+    "ResourceVersion": {
+      "type": "string",
+      "pattern": "^rv1:[1-9][0-9]*:sha256:[0-9a-f]{64}$",
+      "maxLength": 128
+    },
+    "Timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "maxLength": 35
+    },
+    "GatewayRoute": {
+      "type": "object",
+      "required": ["endpoint", "provider", "model"],
+      "properties": {
+        "endpoint": { "$ref": "#/$defs/GatewayName" },
+        "provider": { "$ref": "#/$defs/GatewayName" },
+        "model": { "$ref": "#/$defs/GatewayName" }
+      },
+      "additionalProperties": false
+    },
+    "SingleRequestQuota": {
+      "type": "object",
+      "required": ["requests"],
+      "properties": {
+        "requests": { "type": "integer", "const": 1 },
+        "input_tokens": { "type": "integer", "minimum": 0, "maximum": 1000000000000000000 },
+        "output_tokens": { "type": "integer", "minimum": 0, "maximum": 1000000000000000000 },
+        "cost_micros": { "type": "integer", "minimum": 0, "maximum": 1000000000000000000 }
+      },
+      "minProperties": 1,
+      "maxProperties": 4,
+      "additionalProperties": false
+    },
+    "ReservationState": {
+      "type": "string",
+      "enum": ["reserved", "committed", "released", "expired"]
+    }
+  }
+}

@@ -7,6 +7,7 @@ package admissionpostgres
 
 import (
 	"context"
+	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
@@ -17,14 +18,17 @@ import (
 
 	"go.mindclade.dev/control/admission"
 	"go.mindclade.dev/libs/go/audit"
+	"go.mindclade.dev/libs/go/auth"
 	"go.mindclade.dev/libs/go/clock"
 	"go.mindclade.dev/libs/go/coordination/outbox"
 	"go.mindclade.dev/libs/go/coordination/outbox/memory"
 	"go.mindclade.dev/libs/go/faults"
 	"go.mindclade.dev/libs/go/idempotency"
 	"go.mindclade.dev/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/requestmeta"
 	"go.mindclade.dev/libs/go/retry"
 	"go.mindclade.dev/libs/go/storage/sql/sqltest"
+	"go.mindclade.dev/libs/go/storage/sql/transaction"
 )
 
 var testNow = time.Date(2026, time.August, 21, 8, 0, 0, 0, time.UTC)
@@ -127,13 +131,19 @@ func TestDDLIsCompleteAndRejectsUnsafeIdentifiers(t *testing.T) {
 		t.Fatalf("DDL statements=%d", len(statements))
 	}
 	joined := strings.Join(statements, "\n")
-	for _, required := range []string{"UNIQUE (idempotency_scope, idempotency_key)", "FOR UPDATE", "budget_id, state, expires_at"} {
-		if required == "FOR UPDATE" {
-			continue
-		}
+	for _, required := range []string{
+		"UNIQUE (idempotency_scope, idempotency_key)",
+		"budget_id, state, expires_at",
+		"document->>'request_digest' IS NOT DISTINCT FROM request_digest",
+		"document#>>'{reserved,requests}'",
+		"reserved_requests = 1",
+	} {
 		if !strings.Contains(joined, required) {
 			t.Fatalf("DDL lacks %q", required)
 		}
+	}
+	if strings.Contains(joined, "CREATE TABLE IF NOT EXISTS") {
+		t.Fatal("admission migrations silently accept pre-existing table shapes")
 	}
 	if _, err := DDL("safe; DROP TABLE users", DefaultBudgetTable, DefaultReservationTable); err == nil {
 		t.Fatal("unsafe table identifier was accepted")
@@ -173,6 +183,44 @@ func TestSnapshotRevalidatesStoredPolicySeals(t *testing.T) {
 	}
 }
 
+func TestReadinessRequiresEveryAdmissionTableShape(t *testing.T) {
+	fixture := newDomainFixture(t)
+	queryIndex := 0
+	state := &sqltest.State{Query: func(_ context.Context, query string, _ []driver.NamedValue) (driver.Rows, error) {
+		queryIndex++
+		if !strings.Contains(query, "LIMIT 0") {
+			t.Fatalf("readiness query is not metadata-only: %s", query)
+		}
+		if queryIndex == 2 {
+			return nil, errors.New("budget table missing")
+		}
+		return sqltest.NewRows([]string{"shape"}), nil
+	}}
+	store, _ := newTestStore(t, state, fixture.clock, audit.NopRecorder{})
+	if err := store.Readiness(context.Background()); err == nil {
+		t.Fatal("readiness accepted a missing admission table")
+	}
+	if queryIndex != 2 {
+		t.Fatalf("readiness queries=%d", queryIndex)
+	}
+
+	queryIndex = 0
+	state.Query = func(_ context.Context, query string, _ []driver.NamedValue) (driver.Rows, error) {
+		queryIndex++
+		return sqltest.NewRows([]string{"shape"}), nil
+	}
+	if err := store.Readiness(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if queryIndex != 3 {
+		t.Fatalf("readiness queries=%d", queryIndex)
+	}
+	component := store.Component("admission-schema")
+	if component.Readiness == nil || component.Start != nil || component.Run != nil {
+		t.Fatalf("readiness component=%#v", component)
+	}
+}
+
 func TestReserveRunsOneSerializableMutationAndEmitsOutbox(t *testing.T) {
 	fixture := newDomainFixture(t)
 	entitlementDocument, _ := json.Marshal(fixture.snapshot.Entitlement)
@@ -201,8 +249,33 @@ func TestReserveRunsOneSerializableMutationAndEmitsOutbox(t *testing.T) {
 			return driver.RowsAffected(1), nil
 		},
 	}
-	store, messages := newTestStore(t, state, fixture.clock, audit.NopRecorder{})
-	reservation, replayed, err := store.Reserve(context.Background(), fixture.snapshot, fixture.reservation, testNow)
+	var recorded audit.Event
+	recorder := audit.RecorderFunc(func(_ context.Context, event audit.Event) error {
+		recorded = event
+		return nil
+	})
+	store, messages := newTestStore(t, state, fixture.clock, recorder)
+	requestID, err := requestmeta.NewRequestIDAt(testNow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	metadata := requestmeta.Metadata{
+		RequestID: requestID,
+		Operation: requestmeta.MustParseOperation("ai_gateway.reservations.create"),
+	}
+	ctx, err := requestmeta.WithMetadata(context.Background(), metadata)
+	if err != nil {
+		t.Fatal(err)
+	}
+	principal, err := auth.NewPrincipal(auth.PrincipalKindService, "service-account", auth.WithIssuer("test-issuer"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err = auth.WithPrincipal(ctx, principal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reservation, replayed, err := store.Reserve(ctx, fixture.snapshot, fixture.reservation, testNow)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -221,6 +294,13 @@ func TestReserveRunsOneSerializableMutationAndEmitsOutbox(t *testing.T) {
 	}
 	if len(claims) != 1 || claims[0].Message().Topic() != "control.admission.reservation.v1" {
 		t.Fatalf("outbox claims=%d", len(claims))
+	}
+	if recorded.Actor().Subject() != principal.Subject() || recorded.Actor().Issuer() != principal.Issuer() {
+		t.Fatalf("audit actor=%s issuer=%s", recorded.Actor().Subject(), recorded.Actor().Issuer())
+	}
+	auditMetadata, ok := recorded.RequestMetadata()
+	if !ok || auditMetadata.RequestID != requestID || claims[0].Message().Request().RequestID != requestID {
+		t.Fatalf("request lineage missing from audit/outbox: audit=%#v outbox=%#v", auditMetadata, claims[0].Message().Request())
 	}
 }
 
@@ -258,6 +338,140 @@ func TestReserveRollsBackWhenBudgetIsExhausted(t *testing.T) {
 	}
 }
 
+func TestReserveRetriesConcurrentIdempotencyWinner(t *testing.T) {
+	fixture := newDomainFixture(t)
+	entitlementDocument, _ := json.Marshal(fixture.snapshot.Entitlement)
+	budgetDocument, _ := json.Marshal(fixture.snapshot.Budget)
+	reservationDocument, _ := json.Marshal(fixture.reservation)
+	queryIndex := 0
+	state := &sqltest.State{
+		Query: func(_ context.Context, _ string, _ []driver.NamedValue) (driver.Rows, error) {
+			queryIndex++
+			switch queryIndex {
+			case 1:
+				return sqltest.NewRows([]string{"document"}), nil
+			case 2:
+				return sqltest.NewRows([]string{"document"}, []driver.Value{entitlementDocument}), nil
+			case 3:
+				return sqltest.NewRows([]string{"document"}, []driver.Value{budgetDocument}), nil
+			case 4:
+				return sqltest.NewRows([]string{"requests", "input", "output", "cost"}, []driver.Value{int64(0), int64(0), int64(0), int64(0)}), nil
+			case 5:
+				return sqltest.NewRows([]string{"document"}, []driver.Value{reservationDocument}), nil
+			default:
+				return nil, fmt.Errorf("unexpected query %d", queryIndex)
+			}
+		},
+		Exec: func(_ context.Context, query string, _ []driver.NamedValue) (driver.Result, error) {
+			if !strings.Contains(query, "ON CONFLICT (idempotency_scope,idempotency_key) DO NOTHING") {
+				t.Fatalf("idempotency insert is not conflict-safe: %s", query)
+			}
+			return driver.RowsAffected(0), nil
+		},
+	}
+	store, _ := newTestStore(t, state, fixture.clock, audit.NopRecorder{})
+	policy, err := retry.NewPolicy(retry.WithMaxAttempts(2), retry.WithoutJitter())
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.retries, err = retry.NewExecutor(policy, retry.WithClock(fixture.clock))
+	if err != nil {
+		t.Fatal(err)
+	}
+	reservation, replayed, err := store.Reserve(context.Background(), fixture.snapshot, fixture.reservation, testNow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !replayed || reservation.ID.String() != fixture.reservation.ID.String() {
+		t.Fatalf("reservation=%s replayed=%t", reservation.ID, replayed)
+	}
+	if state.Begins.Load() != 2 || state.Rollbacks.Load() != 1 || state.Commits.Load() != 1 {
+		t.Fatalf("begins=%d rollbacks=%d commits=%d", state.Begins.Load(), state.Rollbacks.Load(), state.Commits.Load())
+	}
+}
+
+func TestReserveUsesFreshClockAfterPolicyLocks(t *testing.T) {
+	fixture := newDomainFixture(t)
+	entitlementDocument, _ := json.Marshal(fixture.snapshot.Entitlement)
+	budgetDocument, _ := json.Marshal(fixture.snapshot.Budget)
+	queryIndex := 0
+	state := &sqltest.State{
+		Query: func(_ context.Context, _ string, _ []driver.NamedValue) (driver.Rows, error) {
+			queryIndex++
+			switch queryIndex {
+			case 1:
+				return sqltest.NewRows([]string{"document"}), nil
+			case 2:
+				return sqltest.NewRows([]string{"document"}, []driver.Value{entitlementDocument}), nil
+			case 3:
+				if err := fixture.clock.Set(fixture.reservation.ExpiresAt); err != nil {
+					t.Fatal(err)
+				}
+				return sqltest.NewRows([]string{"document"}, []driver.Value{budgetDocument}), nil
+			default:
+				return nil, fmt.Errorf("stale decision reached query %d", queryIndex)
+			}
+		},
+		Exec: func(context.Context, string, []driver.NamedValue) (driver.Result, error) {
+			t.Fatal("elapsed reservation reached persistence")
+			return nil, nil
+		},
+	}
+	store, _ := newTestStore(t, state, fixture.clock, audit.NopRecorder{})
+	_, _, err := store.Reserve(context.Background(), fixture.snapshot, fixture.reservation, testNow)
+	if !faults.IsReason(err, "reservation_window_elapsed") {
+		t.Fatalf("stale-time reason=%q error=%v", faults.ReasonOf(err), err)
+	}
+	if state.Commits.Load() != 0 || state.Rollbacks.Load() != 1 {
+		t.Fatalf("commits=%d rollbacks=%d", state.Commits.Load(), state.Rollbacks.Load())
+	}
+}
+
+func TestReserveReplaysAcrossServerPolicyRotation(t *testing.T) {
+	fixture := newDomainFixture(t)
+	rotatedEntitlement, err := fixture.snapshot.Entitlement.Seal(2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rotatedBudget, err := fixture.snapshot.Budget.Seal(2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	repository := admission.NewMemoryRepository(10)
+	if err := repository.PutEntitlement(context.Background(), rotatedEntitlement); err != nil {
+		t.Fatal(err)
+	}
+	if err := repository.PutBudget(context.Background(), rotatedBudget); err != nil {
+		t.Fatal(err)
+	}
+	decision, err := (admission.Service{Repository: repository, Clock: fixture.clock}).Admit(context.Background(), admission.AdmitRequest{
+		Idempotency: fixture.reservation.Idempotency, RequestDigest: fixture.reservation.RequestDigest,
+		Subject: fixture.reservation.Subject, Workspace: fixture.reservation.Workspace,
+		Route: fixture.reservation.Route, PolicyEpoch: fixture.reservation.PolicyEpoch,
+		Requested: fixture.reservation.Reserved.Clone(), TTL: fixture.reservation.RequestedTTL,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decision.Reservation.EntitlementVersion.String() == fixture.reservation.EntitlementVersion.String() ||
+		decision.Reservation.BudgetVersion.String() == fixture.reservation.BudgetVersion.String() {
+		t.Fatal("rotated fixture did not change server-owned policy versions")
+	}
+	document, _ := json.Marshal(fixture.reservation)
+	state := &sqltest.State{Query: func(context.Context, string, []driver.NamedValue) (driver.Rows, error) {
+		return sqltest.NewRows([]string{"document"}, []driver.Value{document}), nil
+	}}
+	store, _ := newTestStore(t, state, fixture.clock, audit.NopRecorder{})
+	replayed, wasReplay, err := store.Reserve(context.Background(),
+		admission.PolicySnapshot{Entitlement: rotatedEntitlement, Budget: rotatedBudget}, decision.Reservation, testNow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !wasReplay || replayed.Version.String() != fixture.reservation.Version.String() {
+		t.Fatalf("replayed=%t version=%s", wasReplay, replayed.Version)
+	}
+}
+
 func TestExpiredIdempotencyReplayCommitsExpirationAndFails(t *testing.T) {
 	fixture := newDomainFixture(t)
 	document, _ := json.Marshal(fixture.reservation)
@@ -276,6 +490,9 @@ func TestExpiredIdempotencyReplayCommitsExpirationAndFails(t *testing.T) {
 		},
 	}
 	store, messages := newTestStore(t, state, fixture.clock, audit.NopRecorder{})
+	if err := fixture.clock.Set(fixture.reservation.ExpiresAt); err != nil {
+		t.Fatal(err)
+	}
 	_, _, err := store.Reserve(context.Background(), fixture.snapshot, fixture.reservation, fixture.reservation.ExpiresAt)
 	if !faults.IsReason(err, "reservation_expired") {
 		t.Fatalf("expected expired replay, got %v", err)
@@ -288,6 +505,23 @@ func TestExpiredIdempotencyReplayCommitsExpirationAndFails(t *testing.T) {
 	})
 	if err != nil || len(claims) != 1 {
 		t.Fatalf("expiration outbox claims=%d error=%v", len(claims), err)
+	}
+}
+
+func TestMutationRejectsUnqualifiedOuterTransaction(t *testing.T) {
+	fixture := newDomainFixture(t)
+	state := &sqltest.State{}
+	store, _ := newTestStore(t, state, fixture.clock, audit.NopRecorder{})
+	_, err := transaction.Run(context.Background(), store.db,
+		transaction.Options{Isolation: 0},
+		func(ctx context.Context, _ *sql.Tx) (struct{}, error) {
+			return struct{}{}, store.PutBudget(ctx, fixture.snapshot.Budget)
+		})
+	if !faults.IsReason(err, "admission_nested_transaction_unsupported") {
+		t.Fatalf("nested transaction reason=%q error=%v", faults.ReasonOf(err), err)
+	}
+	if state.Executions.Load() != 0 || state.Commits.Load() != 0 || state.Rollbacks.Load() != 1 {
+		t.Fatalf("executions=%d commits=%d rollbacks=%d", state.Executions.Load(), state.Commits.Load(), state.Rollbacks.Load())
 	}
 }
 
