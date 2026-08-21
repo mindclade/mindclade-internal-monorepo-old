@@ -43,6 +43,7 @@ func DDL(entitlementTable, budgetTable, reservationTable string) ([]string, erro
     CHECK (document->>'workspace' IS NOT DISTINCT FROM workspace),
     CHECK ((document->>'policy_epoch')::NUMERIC IS NOT DISTINCT FROM policy_epoch),
     CHECK (document->>'resource_version' IS NOT DISTINCT FROM resource_version),
+    CHECK (split_part(resource_version, ':', 2)::NUMERIC IS NOT DISTINCT FROM resource_generation),
     CHECK ((document->>'not_before')::TIMESTAMPTZ IS NOT DISTINCT FROM not_before),
     CHECK ((document->>'expires_at')::TIMESTAMPTZ IS NOT DISTINCT FROM expires_at)
 );
@@ -62,6 +63,7 @@ CREATE INDEX %s ON %s (workspace, expires_at);`, entitlementTable,
     CHECK (document->>'id' IS NOT DISTINCT FROM budget_id),
     CHECK (document->>'workspace' IS NOT DISTINCT FROM workspace),
     CHECK (document->>'resource_version' IS NOT DISTINCT FROM resource_version),
+    CHECK (split_part(resource_version, ':', 2)::NUMERIC IS NOT DISTINCT FROM resource_generation),
     CHECK ((document->>'starts_at')::TIMESTAMPTZ IS NOT DISTINCT FROM starts_at),
     CHECK ((document->>'expires_at')::TIMESTAMPTZ IS NOT DISTINCT FROM expires_at)
 );

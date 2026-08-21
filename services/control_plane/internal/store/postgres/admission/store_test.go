@@ -137,10 +137,15 @@ func TestDDLIsCompleteAndRejectsUnsafeIdentifiers(t *testing.T) {
 		"document->>'request_digest' IS NOT DISTINCT FROM request_digest",
 		"document#>>'{reserved,requests}'",
 		"reserved_requests = 1",
+		"split_part(resource_version, ':', 2)::NUMERIC IS NOT DISTINCT FROM resource_generation",
 	} {
 		if !strings.Contains(joined, required) {
 			t.Fatalf("DDL lacks %q", required)
 		}
+	}
+	const generationParity = "split_part(resource_version, ':', 2)::NUMERIC IS NOT DISTINCT FROM resource_generation"
+	if count := strings.Count(joined, generationParity); count != 3 {
+		t.Fatalf("DDL generation parity checks=%d, want 3", count)
 	}
 	if strings.Contains(joined, "CREATE TABLE IF NOT EXISTS") {
 		t.Fatal("admission migrations silently accept pre-existing table shapes")

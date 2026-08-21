@@ -21,6 +21,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Required checks must be emitted for the synthetic merge result used by merge queue.
+  # Omitting this event leaves every queued change waiting forever on contexts that can only
+  # exist on pull_request heads.
+  merge_group:
 
 # Read-only at the top level. No lane here writes anything; CodeQL's security-events: write
 # lives in security.yml, scoped to the job that needs it.

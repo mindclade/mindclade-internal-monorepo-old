@@ -38,6 +38,8 @@ type liveAdmissionStore struct {
 	db               *sql.DB
 	auditTable       string
 	outboxTable      string
+	entitlementTable string
+	budgetTable      string
 	reservationTable string
 }
 
@@ -118,7 +120,8 @@ func newLiveAdmissionStoreWithClock(t *testing.T, valueClock clock.Clock) liveAd
 	}
 	return liveAdmissionStore{
 		store: store, service: admission.Service{Repository: store, Clock: valueClock}, clock: valueClock, db: db,
-		auditTable: auditTable, outboxTable: outboxTable, reservationTable: reservationTable,
+		auditTable: auditTable, outboxTable: outboxTable, entitlementTable: entitlementTable,
+		budgetTable: budgetTable, reservationTable: reservationTable,
 	}
 }
 
@@ -311,6 +314,23 @@ FOR EACH ROW EXECUTE FUNCTION %s();`, sequence, function, sequence, live.reserva
 	}
 	if attempts != 2 {
 		t.Fatalf("serialization attempts=%d, want 2", attempts)
+	}
+}
+
+func TestLivePostgresAdmissionRejectsVersionGenerationDrift(t *testing.T) {
+	live := newLiveAdmissionStore(t)
+	route := live.seedPolicy(t, 1)
+	request := liveAdmitRequest(route, "request-live-generation-0001", "generation-payload", time.Minute)
+	if _, err := live.service.Admit(context.Background(), request); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, table := range []string{live.entitlementTable, live.budgetTable, live.reservationTable} {
+		if _, err := live.db.Exec(
+			"UPDATE " + table + " SET resource_generation = resource_generation + 1",
+		); err == nil {
+			t.Fatalf("%s accepted resource generation drift from its sealed document", table)
+		}
 	}
 }
 
