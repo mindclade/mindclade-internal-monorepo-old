@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
 import { browserSecurityHeaders } from "@mindclade/libs-ts-browser-security";
+import { expect, test } from "@playwright/test";
 import { loopbackDocumentHeaders } from "./loopback-security.js";
 
 test.setTimeout(30000);
@@ -64,9 +64,9 @@ for (const surface of surfaces) {
     });
   }
 
-  test(`${surface.name} skip navigation is first and moves focus`, async ({ page }) => {
+  test(`${surface.name} skip navigation is first and moves focus`, async ({ browserName, page }) => {
     await page.goto(surface.origin, { waitUntil: "networkidle" });
-    await page.keyboard.press("Tab");
+    await page.keyboard.press(browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab");
     const skipLink = page.getByRole("link", { name: "Skip to content" });
     await expect(skipLink).toBeFocused();
     await page.keyboard.press("Enter");
