@@ -42,8 +42,8 @@ func (snapshot PolicySnapshot) clone() PolicySnapshot {
 type Repository interface {
 	Snapshot(context.Context, string, string) (PolicySnapshot, error)
 	Reserve(context.Context, PolicySnapshot, Reservation, time.Time) (Reservation, bool, error)
-	Commit(context.Context, identifiers.ID, resourceversion.Version, identifiers.Digest, Quota, time.Time) (Reservation, bool, error)
-	Release(context.Context, identifiers.ID, resourceversion.Version, identifiers.Digest, time.Time) (Reservation, bool, error)
+	Commit(context.Context, identifiers.ID, resourceversion.Version, identifiers.Digest, string, Quota, time.Time) (Reservation, bool, error)
+	Release(context.Context, identifiers.ID, resourceversion.Version, identifiers.Digest, string, time.Time) (Reservation, bool, error)
 	Get(context.Context, identifiers.ID) (Reservation, error)
 }
 
@@ -154,9 +154,23 @@ func (repository *MemoryRepository) Reserve(ctx context.Context, snapshot Policy
 
 	idempotency := idempotencyKey(candidate)
 	if existingID, exists := repository.byIdempotency[idempotency]; exists {
-		existing := repository.reservations[existingID]
+		existing, found := repository.reservations[existingID]
+		if !found {
+			return Reservation{}, false, unavailable("idempotency_index_corrupt", "idempotency index references a missing reservation", nil)
+		}
 		if !sameAdmission(existing, candidate) {
 			return Reservation{}, false, conflict("idempotency_payload_mismatch", "idempotency key was reused for a different request")
+		}
+		if existing.State == ReservationReserved && !now.Before(existing.ExpiresAt) {
+			updated, err := existing.Expire(now)
+			if err != nil {
+				return Reservation{}, false, err
+			}
+			repository.reservations[existingID] = updated
+			existing = updated
+		}
+		if existing.State == ReservationExpired {
+			return Reservation{}, false, failedPrecondition("reservation_expired", "idempotent reservation has expired")
 		}
 		return existing.clone(), true, nil
 	}
@@ -168,9 +182,15 @@ func (repository *MemoryRepository) Reserve(ctx context.Context, snapshot Policy
 	if !entitled || !budgeted {
 		return Reservation{}, false, conflict("policy_snapshot_stale", "policy snapshot is stale")
 	}
-	if currentEntitlement.Version.String() != snapshot.Entitlement.Version.String() ||
+	if currentEntitlement.ID.String() != snapshot.Entitlement.ID.String() ||
+		currentEntitlement.Version.String() != snapshot.Entitlement.Version.String() ||
+		currentBudget.ID.String() != snapshot.Budget.ID.String() ||
 		currentBudget.Version.String() != snapshot.Budget.Version.String() {
 		return Reservation{}, false, conflict("policy_snapshot_stale", "policy snapshot is stale")
+	}
+	currentSnapshot := PolicySnapshot{Entitlement: currentEntitlement, Budget: currentBudget}
+	if err := candidate.ValidateInitial(currentSnapshot, now); err != nil {
+		return Reservation{}, false, err
 	}
 	if !currentEntitlement.ActiveAt(now) || !currentBudget.ActiveAt(now) {
 		return Reservation{}, false, failedPrecondition("policy_window_inactive", "policy window is inactive")
@@ -178,6 +198,9 @@ func (repository *MemoryRepository) Reserve(ctx context.Context, snapshot Policy
 	if currentEntitlement.PolicyEpoch != candidate.PolicyEpoch || !currentEntitlement.Allows(candidate.Route) ||
 		!candidate.Reserved.Fits(currentEntitlement.MaximumRequest) {
 		return Reservation{}, false, denied("entitlement_changed", "entitlement no longer allows the request")
+	}
+	if _, exists := repository.reservations[candidate.ID.String()]; exists {
+		return Reservation{}, false, conflict("reservation_id_conflict", "reservation ID already exists")
 	}
 
 	used := make(Quota)
@@ -215,15 +238,15 @@ func (repository *MemoryRepository) Reserve(ctx context.Context, snapshot Policy
 	return candidate.clone(), false, nil
 }
 
-func (repository *MemoryRepository) Commit(ctx context.Context, id identifiers.ID, expected resourceversion.Version, requestDigest identifiers.Digest, actual Quota, now time.Time) (Reservation, bool, error) {
-	return repository.finalize(ctx, id, expected, requestDigest, actual, ReservationCommitted, now)
+func (repository *MemoryRepository) Commit(ctx context.Context, id identifiers.ID, expected resourceversion.Version, requestDigest identifiers.Digest, subject string, actual Quota, now time.Time) (Reservation, bool, error) {
+	return repository.finalize(ctx, id, expected, requestDigest, subject, actual, ReservationCommitted, now)
 }
 
-func (repository *MemoryRepository) Release(ctx context.Context, id identifiers.ID, expected resourceversion.Version, requestDigest identifiers.Digest, now time.Time) (Reservation, bool, error) {
-	return repository.finalize(ctx, id, expected, requestDigest, nil, ReservationReleased, now)
+func (repository *MemoryRepository) Release(ctx context.Context, id identifiers.ID, expected resourceversion.Version, requestDigest identifiers.Digest, subject string, now time.Time) (Reservation, bool, error) {
+	return repository.finalize(ctx, id, expected, requestDigest, subject, nil, ReservationReleased, now)
 }
 
-func (repository *MemoryRepository) finalize(ctx context.Context, id identifiers.ID, expected resourceversion.Version, requestDigest identifiers.Digest, actual Quota, target ReservationState, now time.Time) (Reservation, bool, error) {
+func (repository *MemoryRepository) finalize(ctx context.Context, id identifiers.ID, expected resourceversion.Version, requestDigest identifiers.Digest, subject string, actual Quota, target ReservationState, now time.Time) (Reservation, bool, error) {
 	if ctx == nil {
 		return Reservation{}, false, invalid("context_nil", "context is required", nil)
 	}
@@ -244,6 +267,9 @@ func (repository *MemoryRepository) finalize(ctx context.Context, id identifiers
 	}
 	if !current.RequestDigest.Equal(requestDigest) {
 		return Reservation{}, false, denied("request_digest_mismatch", "request digest does not own reservation")
+	}
+	if current.Subject != subject {
+		return Reservation{}, false, denied("reservation_subject_mismatch", "subject does not own reservation")
 	}
 	if current.State == target && (target != ReservationCommitted || current.Actual.Equal(actual)) {
 		return current.clone(), true, nil
@@ -297,5 +323,6 @@ func (repository *MemoryRepository) Get(ctx context.Context, id identifiers.ID) 
 func sameAdmission(left, right Reservation) bool {
 	return left.RequestDigest.Equal(right.RequestDigest) && left.Subject == right.Subject &&
 		left.Workspace == right.Workspace && left.Route == right.Route &&
-		left.PolicyEpoch == right.PolicyEpoch && left.Reserved.Equal(right.Reserved)
+		left.PolicyEpoch == right.PolicyEpoch && left.Reserved.Equal(right.Reserved) &&
+		left.RequestedTTL == right.RequestedTTL
 }

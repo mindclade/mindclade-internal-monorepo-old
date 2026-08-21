@@ -104,6 +104,7 @@ nav:
       - Ticket key rotation: runbooks/ticket-key-rotation.md
       - Release rollback: runbooks/release-rollback.md
       - TypeScript applications: runbooks/typescript-applications.md
+      - Control admission: runbooks/control-admission.md
       - Control ingestion: runbooks/control-ingestion.md
       - Control model registry: runbooks/control-model-registry.md
       - Control reference databases: runbooks/control-reference-databases.md
@@ -119,6 +120,7 @@ nav:
   - Service objectives:
       - Artifact control: slo/artifact-control.md
       - Artifact proxy: slo/artifact-proxy.md
+      - Control admission: slo/control-admission.md
       - Control ingestion: slo/control-ingestion.md
       - Control model registry: slo/control-model-registry.md
       - Control reference databases: slo/control-reference-databases.md

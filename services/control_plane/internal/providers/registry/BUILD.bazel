@@ -55,6 +55,7 @@ go_library(
         "//services/control_plane/internal/providers/durable",
         "//services/control_plane/internal/providers/objects",
         "//services/control_plane/internal/store/postgres",
+        "//services/control_plane/internal/store/postgres/admission",
         "//services/control_plane/internal/transport",
     ],
 )

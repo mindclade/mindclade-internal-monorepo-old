@@ -22,6 +22,7 @@ import (
 	"go.mindclade.dev/services/control_plane/internal/providers"
 	"go.mindclade.dev/services/control_plane/internal/providers/durable"
 	registrystore "go.mindclade.dev/services/control_plane/internal/store/postgres"
+	admissionstore "go.mindclade.dev/services/control_plane/internal/store/postgres/admission"
 )
 
 // Migration versions are owned by the role that owns the schema, because one
@@ -41,6 +42,9 @@ const (
 	migrationRegistryDescriptors
 	migrationRegistryReleases
 	migrationRegistryEvidenceGraphs
+	migrationGatewayEntitlements
+	migrationGatewayBudgets
+	migrationGatewayReservations
 )
 
 // newMigrationRunner applies the schemas the shared adapters declare for the
@@ -79,6 +83,14 @@ func newMigrationRunner() (*migrate.Runner, error) {
 	if err != nil {
 		return nil, err
 	}
+	admissionDDL, err := admissionstore.DDL(
+		admissionstore.DefaultEntitlementTable,
+		admissionstore.DefaultBudgetTable,
+		admissionstore.DefaultReservationTable,
+	)
+	if err != nil {
+		return nil, err
+	}
 	manifest, err := migrate.NewManifest(
 		migrate.Migration{Version: migrationAudit, Name: "audit_events", Up: auditDDL},
 		migrate.Migration{Version: migrationIdempotency, Name: "idempotency_records", Up: idempotencyDDL},
@@ -89,6 +101,9 @@ func newMigrationRunner() (*migrate.Runner, error) {
 		migrate.Migration{Version: migrationRegistryDescriptors, Name: "registry_model_descriptors", Up: registryDDL[0]},
 		migrate.Migration{Version: migrationRegistryReleases, Name: "registry_releases", Up: registryDDL[1]},
 		migrate.Migration{Version: migrationRegistryEvidenceGraphs, Name: "registry_evidence_graphs", Up: registryDDL[2]},
+		migrate.Migration{Version: migrationGatewayEntitlements, Name: "gateway_entitlements", Up: admissionDDL[0]},
+		migrate.Migration{Version: migrationGatewayBudgets, Name: "gateway_budgets", Up: admissionDDL[1]},
+		migrate.Migration{Version: migrationGatewayReservations, Name: "gateway_reservations", Up: admissionDDL[2]},
 	)
 	if err != nil {
 		return nil, err

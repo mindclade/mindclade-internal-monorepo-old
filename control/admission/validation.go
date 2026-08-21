@@ -6,6 +6,7 @@
 package admission
 
 import (
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -83,3 +84,16 @@ func unavailable(reason, message string, cause error) error {
 }
 
 func canonicalJoin(values ...string) string { return strings.Join(values, "\x1f") }
+
+func nilInterface(value any) bool {
+	if value == nil {
+		return true
+	}
+	reflected := reflect.ValueOf(value)
+	switch reflected.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return reflected.IsNil()
+	default:
+		return false
+	}
+}

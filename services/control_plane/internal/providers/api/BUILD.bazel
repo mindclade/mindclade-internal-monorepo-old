@@ -10,11 +10,13 @@ package(default_visibility = ["//services/control_plane:__subpackages__"])
 go_library(
     name = "api",
     srcs = [
+        "admission.go",
         "api.go",
         "serving.go",
     ],
     importpath = "go.mindclade.dev/services/control_plane/internal/providers/api",
     deps = [
+        "//control/admission",
         "//libs/go/auth",
         "//libs/go/config",
         "//libs/go/connectx",
@@ -32,8 +34,10 @@ go_library(
         "//libs/go/httpx",
         "//libs/go/httpx/health",
         "//libs/go/httpx/middleware",
+        "//libs/go/idempotency",
         "//libs/go/observability",
         "//libs/go/requestmeta",
+        "//libs/go/resourceversion",
         "//libs/go/servicekit/production",
         "//services/control_plane/internal/bootstrap",
         "//services/control_plane/internal/config",
@@ -45,6 +49,7 @@ go_library(
         "//services/control_plane/internal/providers",
         "//services/control_plane/internal/providers/apikeys",
         "//services/control_plane/internal/providers/durable",
+        "//services/control_plane/internal/store/postgres/admission",
         "//services/control_plane/internal/transport",
         "@com_connectrpc_connect//:connect",
         "@org_golang_google_grpc//:grpc",
@@ -54,13 +59,22 @@ go_library(
 
 go_test(
     name = "api_test",
-    srcs = ["api_test.go"],
+    srcs = [
+        "admission_test.go",
+        "api_test.go",
+    ],
     embed = [":api"],
     deps = [
+        "//control/admission",
+        "//libs/go/auth",
+        "//libs/go/clock",
         "//libs/go/config",
         "//libs/go/faults",
+        "//libs/go/httpx",
+        "//libs/go/identifiers",
         "//services/control_plane/internal/bootstrap",
         "//services/control_plane/internal/config",
+        "//services/control_plane/internal/transport",
         "@com_github_lib_pq//:pq",
     ],
 )

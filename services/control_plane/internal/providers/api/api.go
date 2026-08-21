@@ -19,6 +19,7 @@ package api
 import (
 	"context"
 
+	"go.mindclade.dev/control/admission"
 	"go.mindclade.dev/libs/go/auth"
 	foundationconfig "go.mindclade.dev/libs/go/config"
 	"go.mindclade.dev/libs/go/faults"
@@ -32,6 +33,7 @@ import (
 	"go.mindclade.dev/services/control_plane/internal/providers"
 	"go.mindclade.dev/services/control_plane/internal/providers/apikeys"
 	"go.mindclade.dev/services/control_plane/internal/providers/durable"
+	admissionstore "go.mindclade.dev/services/control_plane/internal/store/postgres/admission"
 )
 
 // APIFactory assembles a request-serving control-plane process: the durable
@@ -120,8 +122,17 @@ func (factory *APIFactory) Create(ctx context.Context, profile bootstrap.Profile
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}
+	admissions, err := admissionstore.New(stores.DB, recorder, stores.Outbox,
+		admissionstore.WithClock(shared.Clock), admissionstore.WithGenerator(shared.IDs),
+		admissionstore.WithRetry(shared.Retry))
+	if err != nil {
+		return bootstrap.Runtime{}, err
+	}
 
-	inbound, err := newServing(settings, shared.Observability, authenticator)
+	inbound, err := newServing(settings, shared.Observability, authenticator, admission.Service{
+		Repository: admissions,
+		Clock:      shared.Clock,
+	})
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}

@@ -1,0 +1,57 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//services/control_plane:__subpackages__"])
+
+filegroup(
+    name = "docs",
+    srcs = ["README.md"],
+)
+
+go_library(
+    name = "admission",
+    srcs = [
+        "config.go",
+        "ddl.go",
+        "errors.go",
+        "events.go",
+        "reservations.go",
+        "store.go",
+    ],
+    importpath = "go.mindclade.dev/services/control_plane/internal/store/postgres/admission",
+    deps = [
+        "//control/admission",
+        "//libs/go/audit",
+        "//libs/go/clock",
+        "//libs/go/coordination/outbox",
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+        "//libs/go/requestmeta",
+        "//libs/go/resourceversion",
+        "//libs/go/retry",
+        "//libs/go/storage/sql/postgres",
+        "//libs/go/storage/sql/transaction",
+    ],
+)
+
+go_test(
+    name = "admission_test",
+    srcs = ["store_test.go"],
+    embed = [":admission"],
+    deps = [
+        "//control/admission",
+        "//libs/go/audit",
+        "//libs/go/clock",
+        "//libs/go/coordination/outbox",
+        "//libs/go/coordination/outbox/memory",
+        "//libs/go/faults",
+        "//libs/go/idempotency",
+        "//libs/go/identifiers",
+        "//libs/go/retry",
+        "//libs/go/storage/sql/sqltest",
+    ],
+)

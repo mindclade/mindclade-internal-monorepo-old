@@ -35,24 +35,25 @@ func (state ReservationState) Valid() bool {
 // Reservation is the immutable-versioned authorization consumed by a Gateway caller. It does
 // not contain a provider credential or authorize a Mindclade model release/deployment.
 type Reservation struct {
-	ID                 identifiers.ID
-	Idempotency        idempotency.Identity
-	RequestDigest      identifiers.Digest
-	Subject            string
-	Workspace          string
-	Route              GatewayRoute
-	PolicyEpoch        uint64
-	EntitlementID      identifiers.ID
-	EntitlementVersion resourceversion.Version
-	BudgetID           identifiers.ID
-	BudgetVersion      resourceversion.Version
-	Reserved           Quota
-	Actual             Quota
-	State              ReservationState
-	CreatedAt          time.Time
-	ExpiresAt          time.Time
-	FinalizedAt        time.Time
-	Version            resourceversion.Version
+	ID                 identifiers.ID          `json:"id"`
+	Idempotency        idempotency.Identity    `json:"idempotency"`
+	RequestDigest      identifiers.Digest      `json:"request_digest"`
+	Subject            string                  `json:"subject"`
+	Workspace          string                  `json:"workspace"`
+	Route              GatewayRoute            `json:"route"`
+	PolicyEpoch        uint64                  `json:"policy_epoch"`
+	EntitlementID      identifiers.ID          `json:"entitlement_id"`
+	EntitlementVersion resourceversion.Version `json:"entitlement_version"`
+	BudgetID           identifiers.ID          `json:"budget_id"`
+	BudgetVersion      resourceversion.Version `json:"budget_version"`
+	Reserved           Quota                   `json:"reserved"`
+	RequestedTTL       time.Duration           `json:"requested_ttl_nanoseconds"`
+	Actual             Quota                   `json:"actual,omitempty"`
+	State              ReservationState        `json:"state"`
+	CreatedAt          time.Time               `json:"created_at"`
+	ExpiresAt          time.Time               `json:"expires_at"`
+	FinalizedAt        time.Time               `json:"finalized_at,omitempty"`
+	Version            resourceversion.Version `json:"resource_version"`
 }
 
 func (r Reservation) Validate() error {
@@ -92,13 +93,23 @@ func (r Reservation) Validate() error {
 	if err := r.Reserved.Validate(true); err != nil {
 		return err
 	}
+	if r.Reserved[UnitRequests] != 1 {
+		return invalid("reservation_request_count_invalid", "a gateway reservation must authorize exactly one request", nil)
+	}
+	if r.RequestedTTL < MinimumReservationTTL || r.RequestedTTL > 24*time.Hour {
+		return invalid("reservation_ttl_invalid", "reservation TTL is outside bounds", nil)
+	}
 	if !r.State.Valid() {
 		return invalid("reservation_state_invalid", "reservation state is invalid", nil)
 	}
 	if r.CreatedAt.IsZero() || !r.ExpiresAt.After(r.CreatedAt) {
 		return invalid("reservation_window_invalid", "reservation window is invalid", nil)
 	}
-	if r.State == ReservationCommitted {
+	if r.State == ReservationReserved {
+		if !r.FinalizedAt.IsZero() {
+			return invalid("reservation_finalized_at_unexpected", "reserved reservation has a finalization time", nil)
+		}
+	} else if r.State == ReservationCommitted {
 		if err := r.Actual.Validate(false); err != nil {
 			return err
 		}
@@ -111,6 +122,13 @@ func (r Reservation) Validate() error {
 	if r.State != ReservationReserved && r.FinalizedAt.IsZero() {
 		return invalid("reservation_finalized_at_missing", "terminal reservation lacks finalization time", nil)
 	}
+	if r.State == ReservationExpired {
+		if r.FinalizedAt.Before(r.ExpiresAt) {
+			return invalid("reservation_expiration_time_invalid", "expired reservation was finalized before its deadline", nil)
+		}
+	} else if r.State != ReservationReserved && !r.FinalizedAt.Before(r.ExpiresAt) {
+		return invalid("reservation_finalized_after_expiry", "reservation was finalized at or after its deadline", nil)
+	}
 	if err := r.Version.Validate(); err != nil {
 		return invalid("reservation_version_invalid", "reservation version is invalid", err)
 	}
@@ -121,6 +139,48 @@ func (r Reservation) clone() Reservation {
 	r.Reserved = r.Reserved.Clone()
 	r.Actual = r.Actual.Clone()
 	return r
+}
+
+// ValidateInitial verifies that a newly created reservation is an exact,
+// generation-one projection of the policy snapshot at the transaction time.
+// Repository implementations call this after locking the current policy.
+func (r Reservation) ValidateInitial(snapshot PolicySnapshot, now time.Time) error {
+	if err := snapshot.Validate(); err != nil {
+		return err
+	}
+	if err := r.Validate(); err != nil {
+		return err
+	}
+	if r.EntitlementID.String() != snapshot.Entitlement.ID.String() ||
+		r.EntitlementVersion.String() != snapshot.Entitlement.Version.String() ||
+		r.BudgetID.String() != snapshot.Budget.ID.String() ||
+		r.BudgetVersion.String() != snapshot.Budget.Version.String() {
+		return conflict("reservation_policy_mismatch", "reservation is not bound to the current policy")
+	}
+	if r.State != ReservationReserved || len(r.Actual) != 0 || !r.FinalizedAt.IsZero() {
+		return invalid("reservation_initial_state_invalid", "reservation is not in its initial state", nil)
+	}
+	if !r.CreatedAt.Equal(now) {
+		return invalid("reservation_created_at_invalid", "reservation creation time does not match the transaction time", nil)
+	}
+	expectedExpiry := now.Add(r.RequestedTTL)
+	if snapshot.Entitlement.ExpiresAt.Before(expectedExpiry) {
+		expectedExpiry = snapshot.Entitlement.ExpiresAt
+	}
+	if snapshot.Budget.ExpiresAt.Before(expectedExpiry) {
+		expectedExpiry = snapshot.Budget.ExpiresAt
+	}
+	if !r.ExpiresAt.Equal(expectedExpiry) {
+		return invalid("reservation_expiry_invalid", "reservation expiry does not match the authorized window", nil)
+	}
+	expected, err := versionReservation(r, 1)
+	if err != nil {
+		return unavailable("reservation_version_unavailable", "reservation version is unavailable", err)
+	}
+	if r.Version.String() != expected.Version.String() {
+		return invalid("reservation_version_invalid", "reservation initial version does not bind its content", nil)
+	}
+	return nil
 }
 
 // Commit returns the next immutable reservation version with actual usage
@@ -161,6 +221,14 @@ func (r Reservation) transition(state ReservationState, actual Quota, finalizedA
 	if finalizedAt.IsZero() || finalizedAt.Before(r.CreatedAt) {
 		return Reservation{}, invalid("reservation_finalized_at_invalid", "reservation finalization time is invalid", nil)
 	}
+	if state == ReservationExpired {
+		if finalizedAt.Before(r.ExpiresAt) {
+			return Reservation{}, failedPrecondition("reservation_not_expired", "reservation has not expired")
+		}
+	} else if !finalizedAt.Before(r.ExpiresAt) {
+		return Reservation{}, failedPrecondition("reservation_expired", "reservation has expired")
+	}
+	r = r.clone()
 	r.State = state
 	r.Actual = actual.Clone()
 	r.FinalizedAt = finalizedAt.Round(0).UTC()
@@ -180,7 +248,8 @@ func reservationDigest(r Reservation) identifiers.Digest {
 		r.RequestDigest.String(), r.Subject, r.Workspace, r.Route.Endpoint, r.Route.Provider,
 		r.Route.Model, strconv.FormatUint(r.PolicyEpoch, 10), r.EntitlementID.String(),
 		r.EntitlementVersion.String(), r.BudgetID.String(), r.BudgetVersion.String(),
-		r.Reserved.canonical(), r.Actual.canonical(), string(r.State),
+		r.Reserved.canonical(), strconv.FormatInt(int64(r.RequestedTTL), 10),
+		r.Actual.canonical(), string(r.State),
 		r.CreatedAt.UTC().Format(time.RFC3339Nano), r.ExpiresAt.UTC().Format(time.RFC3339Nano),
 		r.FinalizedAt.UTC().Format(time.RFC3339Nano),
 	))

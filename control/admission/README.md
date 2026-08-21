@@ -37,22 +37,34 @@ before making a terminal transition. Durable adapters must append the audit
 record and outbox event in the same transaction as each state mutation.
 
 The included `MemoryRepository` is a bounded, concurrency-safe reference
-adapter for unit tests and local composition. It prevents process-local
-overspend but is not a durable production backend. A deployment must remain
-blocked until a SQL adapter has passed concurrent transaction, retry,
-reconciliation, backup/restore, and migration qualification.
+adapter for unit tests and local composition. The control-plane PostgreSQL
+adapter lives under `services/control_plane/internal/store/postgres/admission`.
+It uses serializable transactions, locks exact policy rows, persists audit and
+outbox records atomically, and exposes a bounded skip-locked expiry sweep.
+
+Deployment remains blocked until that adapter has passed connected PostgreSQL
+overspend, serialization-retry, migration, reconciliation, backup/restore, and
+multi-replica qualification. Unit and deterministic SQL-driver tests establish
+source behavior, not a production environment claim.
 
 Expired reservations stop consuming quota when the repository observes them.
-A durable provider must also run a bounded sweeper so dormant expired rows
-become explicit `expired` transitions and produce audit/outbox events.
+The PostgreSQL adapter's `ExpireReservations` method materializes dormant
+expired rows in bounded `FOR UPDATE SKIP LOCKED` batches and produces the same
+audit/outbox events as request-driven expiration. The maintenance role still
+needs to schedule that method before activation.
 
 ## Foundation consumption
 
 The domain consumes `libs/go/clock`, `faults`, `idempotency`, `identifiers`, and
-`resourceversion`. Service adapters must derive `Subject` and `Workspace` from
-authenticated server context, construct the exact idempotency scope
-`<workspace>/mlflow-gateway/<subject>`, and enforce request-size limits before
+`resourceversion`. The control-plane HTTP adapter derives `Subject` from its
+authenticated server context, constructs the exact idempotency scope
+`<workspace>/mlflow-gateway/<subject>`, and enforces request-size limits before
 hashing any provider payload.
+
+`POST /v1/ai-gateway/reservations` creates or replays one reservation. Exact
+`If-Match` mutations commit or release it. Finalization binds both the request
+digest and authenticated subject, and response projections omit both the
+digest and idempotency key.
 
 Metrics should report decisions, reason codes, reservation latency, budget
 utilization, expirations, and reconciliation lag with bounded labels. Logs and
@@ -63,4 +75,6 @@ amounts, but never payloads or credentials.
 
 Run `go test -race ./control/admission` for the local concurrency contract and
 `tools/dev/bazelw test //control/admission:admission_test --config=ci` for the
-hermetic repository target.
+hermetic domain target. The SQL and HTTP adapters are covered by
+`//services/control_plane/internal/store/postgres/admission:admission_test` and
+`//services/control_plane/internal/providers/api:api_test`.

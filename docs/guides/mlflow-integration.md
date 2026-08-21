@@ -61,6 +61,19 @@ workspace, provider/model allowlist, credential owner, usage tracing, rejecting 
 policy where required, and rollback record. Upstream endpoint changes take effect dynamically, so
 production edits require the same two-person review and evidence capture as a deployment.
 
+The Go control plane now implements the authoritative pre-call reservation protocol at
+`POST /v1/ai-gateway/reservations` plus exact-version commit and release procedures. Reservations
+bind authenticated subject, workspace, exact provider/model route, policy epoch, content digest,
+integer token/request/cost ceilings, and an expiry window. PostgreSQL mutation, audit, and outbox
+publication are one serializable transaction; MLflow's Redis budget remains a secondary local
+guard, not accounting truth.
+
+This protocol is not yet a bypass-proof data path: no qualified Gateway proxy currently forces
+every provider call through reservation and finalization, and the maintenance role does not yet
+schedule the expiry sweep. Direct MLflow client ingress must therefore remain disabled in an
+activation bundle until the proxy, NetworkPolicy edge, connected overspend/reconciliation tests,
+and SLO/runbook evidence are complete.
+
 MLflow model serving and AI Gateway are not the Mindclade online serving authority. Models are
 admitted by signed Mindclade descriptors and tickets and run through the Rust gateway/host plus
 Python model worker. Any mirrored deployment record must point to the immutable Mindclade

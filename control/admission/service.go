@@ -59,6 +59,9 @@ func (request AdmitRequest) Validate(maximumTTL time.Duration) error {
 	if err := request.Requested.Validate(true); err != nil {
 		return err
 	}
+	if request.Requested[UnitRequests] != 1 {
+		return invalid("request_count_invalid", "a gateway admission must represent exactly one request", nil)
+	}
 	if request.TTL < MinimumReservationTTL || request.TTL > maximumTTL {
 		return invalid("reservation_ttl_invalid", "reservation TTL is outside bounds", nil)
 	}
@@ -66,8 +69,8 @@ func (request AdmitRequest) Validate(maximumTTL time.Duration) error {
 }
 
 type Decision struct {
-	Reservation Reservation
-	Replayed    bool
+	Reservation Reservation `json:"reservation"`
+	Replayed    bool        `json:"replayed"`
 }
 
 type Service struct {
@@ -80,8 +83,11 @@ func (service Service) Admit(ctx context.Context, request AdmitRequest) (Decisio
 	if ctx == nil {
 		return Decision{}, invalid("context_nil", "context is required", nil)
 	}
-	if service.Repository == nil {
+	if nilInterface(service.Repository) {
 		return Decision{}, unavailable("repository_unavailable", "admission repository is unavailable", nil)
+	}
+	if service.Clock != nil && nilInterface(service.Clock) {
+		return Decision{}, unavailable("clock_unavailable", "admission clock is unavailable", nil)
 	}
 	maximumTTL := service.MaximumTTL
 	if maximumTTL == 0 {
@@ -144,6 +150,7 @@ func (service Service) Admit(ctx context.Context, request AdmitRequest) (Decisio
 		BudgetID:           snapshot.Budget.ID,
 		BudgetVersion:      snapshot.Budget.Version,
 		Reserved:           request.Requested.Clone(),
+		RequestedTTL:       request.TTL,
 		State:              ReservationReserved,
 		CreatedAt:          now,
 		ExpiresAt:          expiresAt,
@@ -159,34 +166,46 @@ func (service Service) Admit(ctx context.Context, request AdmitRequest) (Decisio
 	return Decision{Reservation: reservation, Replayed: replayed}, nil
 }
 
-func (service Service) Commit(ctx context.Context, id identifiers.ID, expected resourceversion.Version, requestDigest identifiers.Digest, actual Quota) (Decision, error) {
+func (service Service) Commit(ctx context.Context, id identifiers.ID, expected resourceversion.Version, requestDigest identifiers.Digest, subject string, actual Quota) (Decision, error) {
 	if ctx == nil {
 		return Decision{}, invalid("context_nil", "context is required", nil)
 	}
-	if service.Repository == nil {
+	if nilInterface(service.Repository) {
 		return Decision{}, unavailable("repository_unavailable", "admission repository is unavailable", nil)
+	}
+	if service.Clock != nil && nilInterface(service.Clock) {
+		return Decision{}, unavailable("clock_unavailable", "admission clock is unavailable", nil)
+	}
+	if err := validateName(subject, "subject"); err != nil {
+		return Decision{}, err
 	}
 	if err := actual.Validate(false); err != nil {
 		return Decision{}, err
 	}
-	reservation, replayed, err := service.Repository.Commit(ctx, id, expected, requestDigest, actual, service.now())
+	reservation, replayed, err := service.Repository.Commit(ctx, id, expected, requestDigest, subject, actual, service.now())
 	return Decision{Reservation: reservation, Replayed: replayed}, err
 }
 
-func (service Service) Release(ctx context.Context, id identifiers.ID, expected resourceversion.Version, requestDigest identifiers.Digest) (Decision, error) {
+func (service Service) Release(ctx context.Context, id identifiers.ID, expected resourceversion.Version, requestDigest identifiers.Digest, subject string) (Decision, error) {
 	if ctx == nil {
 		return Decision{}, invalid("context_nil", "context is required", nil)
 	}
-	if service.Repository == nil {
+	if nilInterface(service.Repository) {
 		return Decision{}, unavailable("repository_unavailable", "admission repository is unavailable", nil)
 	}
-	reservation, replayed, err := service.Repository.Release(ctx, id, expected, requestDigest, service.now())
+	if service.Clock != nil && nilInterface(service.Clock) {
+		return Decision{}, unavailable("clock_unavailable", "admission clock is unavailable", nil)
+	}
+	if err := validateName(subject, "subject"); err != nil {
+		return Decision{}, err
+	}
+	reservation, replayed, err := service.Repository.Release(ctx, id, expected, requestDigest, subject, service.now())
 	return Decision{Reservation: reservation, Replayed: replayed}, err
 }
 
 func (service Service) now() time.Time {
 	if service.Clock == nil {
-		return clock.RealClock{}.Now().UTC()
+		return clock.RealClock{}.Now().Round(0).UTC()
 	}
-	return service.Clock.Now().UTC()
+	return service.Clock.Now().Round(0).UTC()
 }

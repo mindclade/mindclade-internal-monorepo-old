@@ -45,6 +45,14 @@ slo = "docs/slo/artifact-control.md"
 runbook = "docs/runbooks/artifact-corruption.md"
 security_review = true
 
+[component."control.admission"]
+owner = "platform-control"
+criticality = "tier-1"
+language = "go"
+slo = "docs/slo/control-admission.md"
+runbook = "docs/runbooks/control-admission.md"
+security_review = true
+
 [component."control.reference_databases"]
 owner = "data-platform"
 criticality = "tier-1"

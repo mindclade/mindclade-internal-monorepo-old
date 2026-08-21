@@ -1,0 +1,419 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
+package admissionpostgres
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"time"
+
+	"go.mindclade.dev/control/admission"
+	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/resourceversion"
+)
+
+func (store *Store) Reserve(ctx context.Context, snapshot admission.PolicySnapshot, candidate admission.Reservation, now time.Time) (admission.Reservation, bool, error) {
+	const operation = "admission.postgres.Reserve"
+	if err := snapshot.Validate(); err != nil {
+		return admission.Reservation{}, false, err
+	}
+	if err := candidate.Validate(); err != nil {
+		return admission.Reservation{}, false, err
+	}
+	if _, err := sqlUint(candidate.PolicyEpoch, "policy_epoch"); err != nil {
+		return admission.Reservation{}, false, err
+	}
+	result, err := runMutation(ctx, store, operation, func(txContext context.Context) (reserveResult, error) {
+		if existing, found, lookupErr := store.lookupIdempotency(txContext, candidate); lookupErr != nil {
+			return reserveResult{}, lookupErr
+		} else if found {
+			if !sameAdmission(existing, candidate) {
+				return reserveResult{}, domainError(txContext, faults.CodeConflict, "idempotency_payload_mismatch", "idempotency key was reused for a different request", operation)
+			}
+			if existing.State == admission.ReservationReserved && !now.Before(existing.ExpiresAt) {
+				expired, transitionErr := existing.Expire(now)
+				if transitionErr != nil {
+					return reserveResult{}, transitionErr
+				}
+				if persistErr := store.updateReservation(txContext, existing.Version, expired, now); persistErr != nil {
+					return reserveResult{}, persistErr
+				}
+				if emitErr := store.emitReservation(txContext, "ai_gateway.reservation.expire", expired); emitErr != nil {
+					return reserveResult{}, emitErr
+				}
+				existing = expired
+			}
+			if existing.State == admission.ReservationExpired {
+				return reserveResult{semantic: domainError(txContext, faults.CodeFailedPrecondition, "reservation_expired", "idempotent reservation has expired", operation)}, nil
+			}
+			return reserveResult{reservation: existing, replayed: true}, nil
+		}
+
+		current, lockErr := store.lockPolicy(txContext, candidate.Subject, candidate.Workspace)
+		if lockErr != nil {
+			return reserveResult{}, lockErr
+		}
+		if current.Entitlement.ID.String() != snapshot.Entitlement.ID.String() ||
+			current.Entitlement.Version.String() != snapshot.Entitlement.Version.String() ||
+			current.Budget.ID.String() != snapshot.Budget.ID.String() ||
+			current.Budget.Version.String() != snapshot.Budget.Version.String() {
+			return reserveResult{}, domainError(txContext, faults.CodeConflict, "policy_snapshot_stale", "policy snapshot is stale", operation)
+		}
+		if validationErr := candidate.ValidateInitial(current, now); validationErr != nil {
+			return reserveResult{}, validationErr
+		}
+		if !current.Entitlement.ActiveAt(now) || !current.Budget.ActiveAt(now) {
+			return reserveResult{}, domainError(txContext, faults.CodeFailedPrecondition, "policy_window_inactive", "policy window is inactive", operation)
+		}
+		if current.Entitlement.PolicyEpoch != candidate.PolicyEpoch ||
+			!current.Entitlement.Allows(candidate.Route) || !candidate.Reserved.Fits(current.Entitlement.MaximumRequest) {
+			return reserveResult{}, domainError(txContext, faults.CodePermissionDenied, "entitlement_changed", "entitlement no longer allows the request", operation)
+		}
+		used, usageErr := store.usedQuota(txContext, current.Budget.ID, now)
+		if usageErr != nil {
+			return reserveResult{}, usageErr
+		}
+		if !canAdd(used, candidate.Reserved, current.Budget.Limit) {
+			return reserveResult{}, domainError(txContext, faults.CodeResourceExhausted, "budget_exhausted", "budget cannot satisfy the reservation", operation)
+		}
+		if insertErr := store.insertReservation(txContext, candidate, now); insertErr != nil {
+			return reserveResult{}, insertErr
+		}
+		if emitErr := store.emitReservation(txContext, "ai_gateway.reservation.reserve", candidate); emitErr != nil {
+			return reserveResult{}, emitErr
+		}
+		return reserveResult{reservation: candidate}, nil
+	})
+	if err != nil {
+		return admission.Reservation{}, false, err
+	}
+	if result.semantic != nil {
+		return admission.Reservation{}, false, result.semantic
+	}
+	return result.reservation, result.replayed, nil
+}
+
+type reserveResult struct {
+	reservation admission.Reservation
+	replayed    bool
+	semantic    error
+}
+
+func (store *Store) lookupIdempotency(ctx context.Context, candidate admission.Reservation) (admission.Reservation, bool, error) {
+	var document []byte
+	err := store.executor(ctx).QueryRowContext(ctx,
+		fmt.Sprintf(`SELECT document FROM %s WHERE idempotency_scope=$1 AND idempotency_key=$2 FOR UPDATE`, store.reservations),
+		candidate.Idempotency.Scope.String(), candidate.Idempotency.Key.String()).Scan(&document)
+	if errors.Is(err, sql.ErrNoRows) {
+		return admission.Reservation{}, false, nil
+	}
+	if err != nil {
+		return admission.Reservation{}, false, provider(ctx, err, "admission.postgres.Reserve.LookupIdempotency")
+	}
+	reservation, err := decodeDocument[admission.Reservation](ctx, document, "admission.postgres.Reserve.LookupIdempotency")
+	return reservation, true, err
+}
+
+func (store *Store) lockPolicy(ctx context.Context, subject, workspace string) (admission.PolicySnapshot, error) {
+	var entitlementDocument []byte
+	err := store.executor(ctx).QueryRowContext(ctx,
+		fmt.Sprintf(`SELECT document FROM %s WHERE subject=$1 AND workspace=$2 FOR UPDATE`, store.entitlements),
+		subject, workspace).Scan(&entitlementDocument)
+	if errors.Is(err, sql.ErrNoRows) {
+		return admission.PolicySnapshot{}, domainError(ctx, faults.CodeConflict, "policy_snapshot_stale", "policy snapshot is stale", "admission.postgres.Reserve")
+	}
+	if err != nil {
+		return admission.PolicySnapshot{}, provider(ctx, err, "admission.postgres.Reserve.LockEntitlement")
+	}
+	entitlement, err := decodeDocument[admission.Entitlement](ctx, entitlementDocument, "admission.postgres.Reserve.LockEntitlement")
+	if err != nil {
+		return admission.PolicySnapshot{}, err
+	}
+	var budgetDocument []byte
+	err = store.executor(ctx).QueryRowContext(ctx,
+		fmt.Sprintf(`SELECT document FROM %s WHERE workspace=$1 FOR UPDATE`, store.budgets), workspace).Scan(&budgetDocument)
+	if errors.Is(err, sql.ErrNoRows) {
+		return admission.PolicySnapshot{}, domainError(ctx, faults.CodeConflict, "policy_snapshot_stale", "policy snapshot is stale", "admission.postgres.Reserve")
+	}
+	if err != nil {
+		return admission.PolicySnapshot{}, provider(ctx, err, "admission.postgres.Reserve.LockBudget")
+	}
+	budget, err := decodeDocument[admission.Budget](ctx, budgetDocument, "admission.postgres.Reserve.LockBudget")
+	if err != nil {
+		return admission.PolicySnapshot{}, err
+	}
+	snapshot := admission.PolicySnapshot{Entitlement: entitlement, Budget: budget}
+	if err := snapshot.Validate(); err != nil {
+		return admission.PolicySnapshot{}, internal(ctx, err, "admission.postgres.Reserve", "admission_policy_snapshot_invalid")
+	}
+	return snapshot, nil
+}
+
+func (store *Store) usedQuota(ctx context.Context, budgetID identifiers.ID, now time.Time) (admission.Quota, error) {
+	query := fmt.Sprintf(`SELECT
+COALESCE(SUM(CASE WHEN state='committed' THEN actual_requests ELSE reserved_requests END),0),
+COALESCE(SUM(CASE WHEN state='committed' THEN actual_input_tokens ELSE reserved_input_tokens END),0),
+COALESCE(SUM(CASE WHEN state='committed' THEN actual_output_tokens ELSE reserved_output_tokens END),0),
+COALESCE(SUM(CASE WHEN state='committed' THEN actual_cost_micros ELSE reserved_cost_micros END),0)
+FROM %s WHERE budget_id=$1 AND (state='committed' OR (state='reserved' AND expires_at>$2))`, store.reservations)
+	var requests, inputTokens, outputTokens, costMicros int64
+	if err := store.executor(ctx).QueryRowContext(ctx, query, budgetID.String(), now).Scan(
+		&requests, &inputTokens, &outputTokens, &costMicros); err != nil {
+		return nil, provider(ctx, err, "admission.postgres.Reserve.SumBudget")
+	}
+	if requests < 0 || inputTokens < 0 || outputTokens < 0 || costMicros < 0 {
+		return nil, internal(ctx, errors.New("negative quota aggregate"), "admission.postgres.Reserve.SumBudget", "admission_budget_ledger_corrupt")
+	}
+	return admission.Quota{
+		admission.UnitRequests: uint64(requests), admission.UnitInputTokens: uint64(inputTokens),
+		admission.UnitOutputTokens: uint64(outputTokens), admission.UnitCostMicros: uint64(costMicros),
+	}, nil
+}
+
+func canAdd(used, requested, limit admission.Quota) bool {
+	for _, unit := range []admission.Unit{admission.UnitRequests, admission.UnitInputTokens, admission.UnitOutputTokens, admission.UnitCostMicros} {
+		if requested[unit] > limit[unit] || used[unit] > limit[unit]-requested[unit] {
+			return false
+		}
+	}
+	return true
+}
+
+func (store *Store) insertReservation(ctx context.Context, reservation admission.Reservation, now time.Time) error {
+	document, err := marshalDocument(ctx, reservation, "admission.postgres.Reserve")
+	if err != nil {
+		return err
+	}
+	generation, err := sqlUint(reservation.Version.Generation(), "resource_generation")
+	if err != nil {
+		return err
+	}
+	query := fmt.Sprintf(`INSERT INTO %s (
+reservation_id,idempotency_scope,idempotency_key,request_digest,subject,workspace,budget_id,state,
+reserved_requests,reserved_input_tokens,reserved_output_tokens,reserved_cost_micros,
+actual_requests,actual_input_tokens,actual_output_tokens,actual_cost_micros,
+created_at,expires_at,finalized_at,resource_version,resource_generation,document,written_at
+) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,0,0,0,0,$13,$14,NULL,$15,$16,$17::jsonb,$18)`, store.reservations)
+	_, err = store.executor(ctx).ExecContext(ctx, query,
+		reservation.ID.String(), reservation.Idempotency.Scope.String(), reservation.Idempotency.Key.String(),
+		reservation.RequestDigest.String(), reservation.Subject, reservation.Workspace, reservation.BudgetID.String(),
+		string(reservation.State), int64(reservation.Reserved[admission.UnitRequests]),
+		int64(reservation.Reserved[admission.UnitInputTokens]), int64(reservation.Reserved[admission.UnitOutputTokens]),
+		int64(reservation.Reserved[admission.UnitCostMicros]), reservation.CreatedAt, reservation.ExpiresAt,
+		reservation.Version.String(), generation, document, now)
+	if err != nil {
+		return provider(ctx, err, "admission.postgres.Reserve.Insert")
+	}
+	return nil
+}
+
+func sameAdmission(left, right admission.Reservation) bool {
+	return left.RequestDigest.Equal(right.RequestDigest) && left.Subject == right.Subject &&
+		left.Workspace == right.Workspace && left.Route == right.Route && left.PolicyEpoch == right.PolicyEpoch &&
+		left.EntitlementID.String() == right.EntitlementID.String() &&
+		left.EntitlementVersion.String() == right.EntitlementVersion.String() &&
+		left.BudgetID.String() == right.BudgetID.String() && left.BudgetVersion.String() == right.BudgetVersion.String() &&
+		left.Reserved.Equal(right.Reserved) && left.RequestedTTL == right.RequestedTTL
+}
+
+func (store *Store) Commit(ctx context.Context, id identifiers.ID, expected resourceversion.Version, digest identifiers.Digest, subject string, actual admission.Quota, now time.Time) (admission.Reservation, bool, error) {
+	return store.finalize(ctx, id, expected, digest, subject, actual, admission.ReservationCommitted, now)
+}
+
+func (store *Store) Release(ctx context.Context, id identifiers.ID, expected resourceversion.Version, digest identifiers.Digest, subject string, now time.Time) (admission.Reservation, bool, error) {
+	return store.finalize(ctx, id, expected, digest, subject, nil, admission.ReservationReleased, now)
+}
+
+type finalizationResult struct {
+	reservation admission.Reservation
+	replayed    bool
+	semantic    error
+}
+
+func (store *Store) finalize(ctx context.Context, id identifiers.ID, expected resourceversion.Version, digest identifiers.Digest, subject string, actual admission.Quota, target admission.ReservationState, now time.Time) (admission.Reservation, bool, error) {
+	const operation = "admission.postgres.Finalize"
+	if err := id.Validate(); err != nil || id.Kind().String() != "reservation" || expected.Validate() != nil || !digest.Valid() {
+		return admission.Reservation{}, false, domainError(ctx, faults.CodeInvalidArgument, "finalization_identity_invalid", "finalization identity is invalid", operation)
+	}
+	result, err := runMutation(ctx, store, operation, func(txContext context.Context) (finalizationResult, error) {
+		current, loadErr := store.lockReservation(txContext, id)
+		if loadErr != nil {
+			return finalizationResult{}, loadErr
+		}
+		if !current.RequestDigest.Equal(digest) {
+			return finalizationResult{}, domainError(txContext, faults.CodePermissionDenied, "request_digest_mismatch", "request digest does not own reservation", operation)
+		}
+		if current.Subject != subject {
+			return finalizationResult{}, domainError(txContext, faults.CodePermissionDenied, "reservation_subject_mismatch", "subject does not own reservation", operation)
+		}
+		if current.State == target && (target != admission.ReservationCommitted || current.Actual.Equal(actual)) {
+			return finalizationResult{reservation: current, replayed: true}, nil
+		}
+		if current.State != admission.ReservationReserved {
+			return finalizationResult{}, domainError(txContext, faults.CodeConflict, "reservation_terminal", "reservation is already terminal", operation)
+		}
+		if current.Version.String() != expected.String() {
+			return finalizationResult{}, domainError(txContext, faults.CodeConflict, "reservation_version_stale", "reservation version is stale", operation)
+		}
+		if !now.Before(current.ExpiresAt) {
+			expired, transitionErr := current.Expire(now)
+			if transitionErr != nil {
+				return finalizationResult{}, transitionErr
+			}
+			if persistErr := store.updateReservation(txContext, current.Version, expired, now); persistErr != nil {
+				return finalizationResult{}, persistErr
+			}
+			if emitErr := store.emitReservation(txContext, "ai_gateway.reservation.expire", expired); emitErr != nil {
+				return finalizationResult{}, emitErr
+			}
+			return finalizationResult{semantic: domainError(txContext, faults.CodeFailedPrecondition, "reservation_expired", "reservation has expired", operation)}, nil
+		}
+		var updated admission.Reservation
+		var transitionErr error
+		if target == admission.ReservationCommitted {
+			updated, transitionErr = current.Commit(actual, now)
+		} else {
+			updated, transitionErr = current.Release(now)
+		}
+		if transitionErr != nil {
+			return finalizationResult{}, transitionErr
+		}
+		if persistErr := store.updateReservation(txContext, current.Version, updated, now); persistErr != nil {
+			return finalizationResult{}, persistErr
+		}
+		action := "ai_gateway.reservation.commit"
+		if target == admission.ReservationReleased {
+			action = "ai_gateway.reservation.release"
+		}
+		if emitErr := store.emitReservation(txContext, action, updated); emitErr != nil {
+			return finalizationResult{}, emitErr
+		}
+		return finalizationResult{reservation: updated}, nil
+	})
+	if err != nil {
+		return admission.Reservation{}, false, err
+	}
+	if result.semantic != nil {
+		return admission.Reservation{}, false, result.semantic
+	}
+	return result.reservation, result.replayed, nil
+}
+
+func (store *Store) lockReservation(ctx context.Context, id identifiers.ID) (admission.Reservation, error) {
+	var document []byte
+	err := store.executor(ctx).QueryRowContext(ctx,
+		fmt.Sprintf(`SELECT document FROM %s WHERE reservation_id=$1 FOR UPDATE`, store.reservations),
+		id.String()).Scan(&document)
+	if errors.Is(err, sql.ErrNoRows) {
+		return admission.Reservation{}, domainError(ctx, faults.CodeNotFound, "reservation_not_found", "reservation was not found", "admission.postgres.Finalize")
+	}
+	if err != nil {
+		return admission.Reservation{}, provider(ctx, err, "admission.postgres.Finalize.Lock")
+	}
+	return decodeDocument[admission.Reservation](ctx, document, "admission.postgres.Finalize.Lock")
+}
+
+func (store *Store) updateReservation(ctx context.Context, expected resourceversion.Version, reservation admission.Reservation, now time.Time) error {
+	document, err := marshalDocument(ctx, reservation, "admission.postgres.UpdateReservation")
+	if err != nil {
+		return err
+	}
+	generation, err := sqlUint(reservation.Version.Generation(), "resource_generation")
+	if err != nil {
+		return err
+	}
+	query := fmt.Sprintf(`UPDATE %s SET state=$2,
+actual_requests=$3,actual_input_tokens=$4,actual_output_tokens=$5,actual_cost_micros=$6,
+finalized_at=$7,resource_version=$8,resource_generation=$9,document=$10::jsonb,written_at=$11
+WHERE reservation_id=$1 AND resource_version=$12`, store.reservations)
+	result, err := store.executor(ctx).ExecContext(ctx, query,
+		reservation.ID.String(), string(reservation.State), int64(reservation.Actual[admission.UnitRequests]),
+		int64(reservation.Actual[admission.UnitInputTokens]), int64(reservation.Actual[admission.UnitOutputTokens]),
+		int64(reservation.Actual[admission.UnitCostMicros]), reservation.FinalizedAt, reservation.Version.String(),
+		generation, document, now, expected.String())
+	if err != nil {
+		return provider(ctx, err, "admission.postgres.UpdateReservation")
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return provider(ctx, err, "admission.postgres.UpdateReservation.RowsAffected")
+	}
+	if affected != 1 {
+		return domainError(ctx, faults.CodeConflict, "reservation_version_stale", "reservation version is stale", "admission.postgres.UpdateReservation")
+	}
+	return nil
+}
+
+func (store *Store) Get(ctx context.Context, id identifiers.ID) (admission.Reservation, error) {
+	const operation = "admission.postgres.Get"
+	if err := store.validate(ctx, operation); err != nil {
+		return admission.Reservation{}, err
+	}
+	if err := id.Validate(); err != nil || id.Kind().String() != "reservation" {
+		return admission.Reservation{}, domainError(ctx, faults.CodeInvalidArgument, "reservation_id_invalid", "reservation ID is invalid", operation)
+	}
+	var document []byte
+	err := store.db.QueryRowContext(ctx,
+		fmt.Sprintf(`SELECT document FROM %s WHERE reservation_id=$1`, store.reservations), id.String()).Scan(&document)
+	if errors.Is(err, sql.ErrNoRows) {
+		return admission.Reservation{}, domainError(ctx, faults.CodeNotFound, "reservation_not_found", "reservation was not found", operation)
+	}
+	if err != nil {
+		return admission.Reservation{}, provider(ctx, err, operation)
+	}
+	return decodeDocument[admission.Reservation](ctx, document, operation)
+}
+
+// ExpireReservations materializes overdue terminal transitions in bounded,
+// skip-locked batches so multiple maintenance workers can sweep safely.
+func (store *Store) ExpireReservations(ctx context.Context, limit int, now time.Time) ([]admission.Reservation, error) {
+	const operation = "admission.postgres.ExpireReservations"
+	if limit <= 0 || limit > 1000 {
+		return nil, domainError(ctx, faults.CodeInvalidArgument, "expiration_limit_invalid", "expiration limit is outside bounds", operation)
+	}
+	return runMutation(ctx, store, operation, func(txContext context.Context) ([]admission.Reservation, error) {
+		rows, err := store.executor(txContext).QueryContext(txContext,
+			fmt.Sprintf(`SELECT document FROM %s WHERE state='reserved' AND expires_at<=$1 ORDER BY expires_at,reservation_id FOR UPDATE SKIP LOCKED LIMIT $2`, store.reservations),
+			now, limit)
+		if err != nil {
+			return nil, provider(txContext, err, operation)
+		}
+		defer rows.Close()
+		current := make([]admission.Reservation, 0, limit)
+		for rows.Next() {
+			var document []byte
+			if scanErr := rows.Scan(&document); scanErr != nil {
+				return nil, provider(txContext, scanErr, operation+".Scan")
+			}
+			reservation, decodeErr := decodeDocument[admission.Reservation](txContext, document, operation)
+			if decodeErr != nil {
+				return nil, decodeErr
+			}
+			current = append(current, reservation)
+		}
+		if err := rows.Err(); err != nil {
+			return nil, provider(txContext, err, operation+".Rows")
+		}
+		expired := make([]admission.Reservation, 0, len(current))
+		for _, reservation := range current {
+			updated, transitionErr := reservation.Expire(now)
+			if transitionErr != nil {
+				return nil, transitionErr
+			}
+			if persistErr := store.updateReservation(txContext, reservation.Version, updated, now); persistErr != nil {
+				return nil, persistErr
+			}
+			if emitErr := store.emitReservation(txContext, "ai_gateway.reservation.expire", updated); emitErr != nil {
+				return nil, emitErr
+			}
+			expired = append(expired, updated)
+		}
+		return expired, nil
+	})
+}

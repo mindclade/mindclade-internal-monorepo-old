@@ -58,7 +58,7 @@ type serving struct {
 	bind       func(*production.Runtime) error
 }
 
-func newServing(settings config.Settings, telemetry *observability.Runtime, authenticator auth.Authenticator) (result serving, err error) {
+func newServing(settings config.Settings, telemetry *observability.Runtime, authenticator auth.Authenticator, admissions admissionEngine) (result serving, err error) {
 	value := &transport.Prober{}
 
 	closers := make([]func(), 0, 2)
@@ -77,7 +77,7 @@ func newServing(settings config.Settings, telemetry *observability.Runtime, auth
 	}
 	closers = append(closers, func() { _ = httpListener.Close() })
 
-	handler, connectMounted, err := newHandler(value, telemetry, authenticator)
+	handler, connectMounted, err := newHandler(value, telemetry, authenticator, admissions)
 	if err != nil {
 		return serving{}, err
 	}
@@ -122,6 +122,7 @@ func newHandler(
 	value *transport.Prober,
 	telemetry *observability.Runtime,
 	authenticator auth.Authenticator,
+	admissions admissionEngine,
 ) (http.Handler, bool, error) {
 	root := http.NewServeMux()
 	root.Handle("/livez", health.NewHandler(value, health.Config{}))
@@ -151,15 +152,23 @@ func newHandler(
 		return nil, false, err
 	}
 
-	guarded := middleware.Server(http.NewServeMux(), middleware.StackConfig{
+	api, err := newAdmissionMux(admissions)
+	if err != nil {
+		return nil, false, err
+	}
+	guarded := middleware.Server(api, middleware.StackConfig{
 		OperationResolver: middleware.OperationResolverFunc(resolveOperation),
 		AccessObserver:    accessObserver(telemetry),
 		PanicObserver:     panicObserver(telemetry),
 		Security:          middleware.SecurityHeadersConfig{},
 		MaximumBodyBytes:  maximumRequestBody,
 		Authentication:    &middleware.AuthenticationConfig{Authenticator: authenticator},
-		Authorization:     &middleware.AuthorizationConfig{Authorizer: auth.PermissionAuthorizer{}},
-		Additional:        []middleware.Middleware{transport.Preconditions()},
+		Authorization: &middleware.AuthorizationConfig{
+			Authorizer:     auth.PermissionAuthorizer{},
+			Resolver:       middleware.AuthorizationResolverFunc(resolveAdmissionAuthorization),
+			RequireMapping: true,
+		},
+		Additional: []middleware.Middleware{transport.Preconditions()},
 	})
 	root.Handle("/", guarded)
 

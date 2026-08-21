@@ -87,10 +87,11 @@ role materialization.
 
 ## Domain storage
 
-`internal/store/postgres` implements the repository contracts the domain
-declares — `control/registry/models.Repository` and
-`control/registry/releases.Repository` — rather than contracts of its own. The
-domain owns the seam; storage implements it, so the two cannot drift.
+`internal/store/postgres` implements the registry repository contracts the
+domain declares. Its `admission` subpackage implements
+`control/admission.Repository`, including serializable policy locks, atomic
+quota reservations, audit/outbox publication, and bounded expiration. The
+domain owns each seam; storage implements it, so the two cannot drift.
 
 Concurrency control follows each record's own model rather than one policy
 imposed across both. A `models.Descriptor` is content-addressed, since
@@ -107,6 +108,14 @@ to `models.Service` and `releases.Service`. Release promotion wraps evidence and
 release writes in one serializable transaction. The HTTP adapter depends only
 on narrow domain interfaces, keeping provider selection out of reusable domain
 packages and out of the command.
+
+`internal/providers/api.APIFactory` binds the admission store to
+`control/admission.Service` and mounts create/commit/release HTTP procedures.
+Authentication supplies the reservation subject, authorization mappings are
+required for every route, create requires an idempotency key, and finalization
+requires an exact resource-version precondition. The registry role remains the
+single owner of the shared migration manifest, now including admission policy
+and reservation tables.
 
 ## Durable coordination contracts
 

@@ -63,7 +63,7 @@ that did not happen.
 
 | Role | Remaining domain or provider gate |
 |---|---|
-| `api`, `admin` | Business API handlers are not yet mounted. |
+| `api`, `admin` | AI Gateway reservation/create/commit/release is mounted with fail-closed authz and durable storage, but policy administration, connected concurrent-overspend qualification, expiry-worker wiring, Gateway proxy enforcement, and an approved SLO/runbook are still required. Other business APIs are not yet mounted. |
 | `scheduler` | Placement handler is not configured. |
 | `controller`, `operator` | Domain reconcilers are not registered. |
 | `event-projector` | Projection source and handler are not configured. |
