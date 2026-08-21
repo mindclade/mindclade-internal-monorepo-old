@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-import type { ButtonHTMLAttributes, ReactElement, ReactNode } from "react";
+import type { ComponentPropsWithoutRef, ReactElement, ReactNode } from "react";
 
-export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+export type ButtonProps = ComponentPropsWithoutRef<"button"> & {
   tone?: "primary" | "secondary" | "quiet" | "danger";
   size?: "small" | "medium";
   icon?: ReactNode;
-}
+};
 
 export function Button({ tone = "secondary", size = "medium", icon, className = "", children, ...props }: ButtonProps): ReactElement {
   return (

@@ -10,12 +10,13 @@
     },
     "./theme.css": "./src/theme.css"
   },
+  "peerDependencies": {
+    "react": ">=19.2.0"
+  },
   "dependencies": {
-    "@types/react": "19.2.18",
-    "react": "19.2.8"
+    "@types/react": "19.2.18"
   },
   "devDependencies": {
-    "@types/react": "19.2.18",
     "react": "19.2.8"
   },
   "scripts": {

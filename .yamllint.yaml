@@ -25,6 +25,7 @@ rules:
     present: true
     ignore: |
       pnpm-lock.yaml
+      .agents/skills/**
   line-length: disable
   # The Kubernetes manifests use spaced flow mappings — `{ type: RuntimeDefault }` — which is
   # a deliberate readability choice and not a defect. yamllint's default forbids the inner

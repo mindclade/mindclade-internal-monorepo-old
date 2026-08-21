@@ -214,6 +214,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Prepare GitHub-hosted runner disk for Nix
@@ -260,12 +261,15 @@ jobs:
       # the proposed tree's protocols/buf.yaml.
       - name: Protobuf breaking-change detection
         if: github.event_name == 'pull_request'
-        run: >-
-          nix develop .#ci-lint --command
-          buf breaking protocols
-          --against ".git#branch=${{ github.base_ref }}"
-          --against-config
-          '{"version":"v2","modules":[{"path":"protocols/proto"}]}'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git branch --force buf-breaking-base "${BASE_SHA}"
+          nix develop .#ci-lint --command \
+            buf breaking protocols \
+            --against ".git#branch=buf-breaking-base" \
+            --against-config \
+            '{"version":"v2","modules":[{"path":"protocols/proto"}]}'
 
       - name: Buildkite credential helper shellcheck
         run: nix develop .#ci-lint --command shellcheck .buildkite/scripts/wif-preflight.sh
@@ -545,9 +549,9 @@ jobs:
         with:
           persist-credentials: false
 
-      # package.json is the single pnpm-version authority; duplicating it here caused the action
-      # to reject the v11 workspace when a stale workflow field still requested v10.
-      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda  # v4.1.0
+      # package.json remains the single pnpm-version authority. v6 runs on Node 24, avoiding
+      # GitHub's deprecated Node 20 action shim while retaining the approved action identity.
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86  # v6.0.10
 
       - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903  # v6
         with:
