@@ -68,11 +68,16 @@ integer token/request/cost ceilings, and an expiry window. PostgreSQL mutation, 
 publication are one serializable transaction; MLflow's Redis budget remains a secondary local
 guard, not accounting truth.
 
+The connected PostgreSQL qualification proves atomic audit/outbox writes, idempotent replay,
+64-way concurrent pressure without budget overspend, and capacity recovery after materialized
+expiry. The maintenance role schedules that expiry through deterministic, leader-gated durable
+work and bounded skip-locked batches.
+
 This protocol is not yet a bypass-proof data path: no qualified Gateway proxy currently forces
-every provider call through reservation and finalization, and the maintenance role does not yet
-schedule the expiry sweep. Direct MLflow client ingress must therefore remain disabled in an
-activation bundle until the proxy, NetworkPolicy edge, connected overspend/reconciliation tests,
-and SLO/runbook evidence are complete.
+every provider call through reservation and finalization. Direct MLflow client ingress must
+therefore remain disabled in an activation bundle until policy administration, the proxy and
+NetworkPolicy edge, proxy/provider failure reconciliation, multi-replica failover, and SLO/runbook
+evidence are complete.
 
 MLflow model serving and AI Gateway are not the Mindclade online serving authority. Models are
 admitted by signed Mindclade descriptors and tickets and run through the Rust gateway/host plus

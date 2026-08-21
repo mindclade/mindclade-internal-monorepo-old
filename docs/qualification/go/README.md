@@ -5,6 +5,8 @@ This directory captures the qualification evidence shipped with the scaffold.
 - `offline-validation.txt` is the successful output of
   `tools/qualification/go/validate.sh offline`.
 - `control-plane-api-race.txt` records the race-enabled API integration test.
+- `ai-gateway-admission.md` records the connected PostgreSQL admission and
+  maintenance qualification.
 - `api-profile.json`, `scheduler-profile.json`, and
   `ingestion-controller-profile.json` are executable capability manifests
   emitted by the standardized control-plane bootstrap.

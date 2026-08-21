@@ -89,12 +89,14 @@ jobs:
       # to survive a gate; a threshold that fails on day one gets disabled on day two.
       coverage-threshold: 0
 
-  # Real PostgreSQL qualification for the registry composition boundary. Unit
-  # tests use sqltest to force edge conditions; this lane proves the same DDL,
-  # JSONB round trip, transaction rollback, SQLSTATE qualification, and lease
-  # fencing against the actual lib/pq driver and PostgreSQL server.
+  # Real PostgreSQL qualification for the registry and AI Gateway admission
+  # composition boundaries. Unit tests use sqltest to force edge conditions;
+  # this lane proves the same DDL, JSONB round trip, transaction rollback,
+  # SQLSTATE qualification, lease fencing, atomic audit/outbox writes, bounded
+  # serializable retries, and no-overspend behavior against the actual lib/pq
+  # driver and PostgreSQL server.
   go-postgres-qualification:
-    name: Go registry / live PostgreSQL and failure injection
+    name: Go registry + admission / live PostgreSQL and failure injection
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     services:
@@ -120,11 +122,14 @@ jobs:
           go-version: "1.26.6"
           cache-dependency-path: go.sum
 
-      - name: Live registry and fault qualification
+      - name: Live registry, admission, and fault qualification
         env:
           GOTOOLCHAIN: local
           MINDCLADE_TEST_POSTGRES_DSN: postgres://postgres:postgres@127.0.0.1:5432/mindclade_test?sslmode=disable
-        run: go test -race -count=1 -v ./services/control_plane/internal/store/postgres
+        run: >-
+          go test -race -count=1 -v
+          ./services/control_plane/internal/store/postgres
+          ./services/control_plane/internal/store/postgres/admission
 
       - name: Execute the declared failure-injection matrix
         env:

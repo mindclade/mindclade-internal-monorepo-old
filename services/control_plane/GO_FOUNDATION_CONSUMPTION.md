@@ -21,10 +21,11 @@ constructs real provider adapters. `bootstrap.UnconfiguredFactory` remains for
 a role added before its providers exist — it fails closed with exit 78 — and
 `internal/bootstrap/promotion_test.go` enforces that no command reaches it.
 
-The registry supplies concrete model-publication and release-promotion policy.
-Roles listed under "Domain seams" still expose injectable handlers with
-fail-closed defaults, so those processes assemble and validate but refuse work
-until their own domain composition is supplied.
+The registry supplies concrete model-publication and release-promotion policy,
+and maintenance supplies recurring Gateway-reservation expiry. Roles listed
+under "Domain seams" still expose injectable handlers with fail-closed
+defaults, so those processes assemble and validate but refuse work until their
+own domain composition is supplied.
 
 ## Process roles
 
@@ -40,7 +41,7 @@ until their own domain composition is supplied.
 | `event_projector` | Event projector | inbox, idempotency, cursor, leadership, projector loop |
 | `event_dispatcher` | Dispatcher | outbox store and fenced dispatcher loop |
 | `webhook_dispatcher` | Webhook dispatcher | idempotency, work queue, audit, outbox, policy-bound outbound HTTP |
-| `maintenance` | Maintenance | leases, leadership, work queue, audit |
+| `maintenance` | Maintenance | leases, leadership, deterministic recurring work queue, Gateway reservation expiry, audit, outbox |
 
 All roles also consume clock, identifiers, request metadata, structured faults,
 retry, observability, `servicekit`, and `servicekit/production`.
@@ -63,7 +64,6 @@ process that silently does nothing is the failure that takes longest to notice.
 | `event_projector` | `WithProjection` (source and handler) | `projection_source_not_configured` |
 | `webhook_dispatcher` | `WithDeliveryHandler` | `delivery_handler_not_configured` |
 | `ingestion_controller` | `WithStagingHandler` | `staging_handler_not_configured` |
-| `maintenance` | `WithHousekeepingHandler` | `housekeeping_handler_not_configured` |
 
 ## Provider packages
 
@@ -116,6 +116,13 @@ required for every route, create requires an idempotency key, and finalization
 requires an exact resource-version precondition. The registry role remains the
 single owner of the shared migration manifest, now including admission policy
 and reservation tables.
+
+`internal/providers/maintenance.MaintenanceFactory` binds the same admission
+store to a leader-gated expiry handler. One deterministic work identity is
+derived for each five-second UTC bucket, making leadership reacquisition and
+process restarts idempotent. Each item drains a bounded number of
+`FOR UPDATE SKIP LOCKED` batches and preserves the store's transaction-aware
+audit/outbox writes.
 
 ## Durable coordination contracts
 

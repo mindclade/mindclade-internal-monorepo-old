@@ -81,7 +81,7 @@ func (store *Store) emit(ctx context.Context, action, targetType string, id iden
 		return err
 	}
 	message, err := store.events.Create(topic, partitionKey, "application/json", payload,
-		map[string]string{"schema-version": "1"}, requestmeta.Metadata{}, store.clock.Now().Round(0).UTC())
+		map[string]string{"schema-version": "1"}, requestmeta.Metadata{}, time.Time{})
 	if err != nil {
 		return err
 	}

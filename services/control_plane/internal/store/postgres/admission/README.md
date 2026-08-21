@@ -31,7 +31,14 @@ nix develop .#ci --command tools/dev/bazelw test \
   --config=ci
 ```
 
-Production activation additionally requires a connected PostgreSQL test with
-concurrent processes, forced serialization failures, migration rollback,
-backup/restore, audit/outbox atomicity, expiry reconciliation, and database
-loss. Until that evidence exists, the MLflow activation remains blocked.
+The connected PostgreSQL suite is part of `go-postgres-qualification` and
+covers real JSONB/DDL behavior, audit/outbox atomicity, response/event
+redaction, idempotent replay, 64-way concurrent reservation pressure with an
+exact budget ceiling, and expiry capacity recovery. See
+`docs/qualification/go/ai-gateway-admission.md`.
+
+Production activation still requires multi-process and multi-replica failover,
+forced database loss during each mutation phase, migration rollback,
+backup/restore, the enforcing Gateway proxy, policy administration, and the
+approved SLO/runbook. Until that evidence exists, MLflow activation remains
+blocked.
