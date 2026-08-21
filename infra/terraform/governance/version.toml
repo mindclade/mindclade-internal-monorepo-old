@@ -4,7 +4,7 @@
 #
 
 schema_version = 1
-contract_version = "0.3.0"
+contract_version = "0.4.0"
 status = "planned"
 baseline_version = "0.1.1"
 baseline_commit = "94c5d262f6731b77d2c750c34ce909ea3448d061"

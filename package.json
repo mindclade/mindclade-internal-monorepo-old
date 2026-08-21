@@ -11,8 +11,8 @@
     "generate": "pnpm --filter @mindclade/sdk-typescript generate",
     "generate:check": "pnpm --filter @mindclade/sdk-typescript generate:check",
     "test": "pnpm -r --if-present test",
-    "lint": "python3 tools/analysis/check_typescript.py && pnpm -r --if-present lint",
-    "typecheck": "pnpm -r --if-present typecheck"
+    "lint": "python3 tools/analysis/check_typescript.py && pnpm --filter @mindclade/sdk-typescript build && pnpm --filter './libs/ts/*' build && pnpm -r --if-present lint",
+    "typecheck": "pnpm --filter @mindclade/sdk-typescript build && pnpm --filter './libs/ts/*' build && pnpm -r --if-present typecheck"
   },
   "devDependencies": {
     "@bufbuild/buf": "1.72.0",
@@ -23,6 +23,6 @@
     "@typescript/native": "npm:typescript@7.0.2",
     "openapi-typescript": "7.13.0",
     "tsx": "4.23.12",
-    "typescript": "npm:@typescript/typescript6@6.0.3"
+    "typescript": "5.9.3"
   }
 }

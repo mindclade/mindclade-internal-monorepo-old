@@ -1,1 +1,40 @@
-{}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mindclade.com/contracts/config/ingestion-1.0.0.schema.json",
+  "title": "Mindclade ingestion plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "pipelineId", "owner", "sourceSnapshotDigest", "datasetContractDigest", "destinationPrefix", "limits", "failurePolicy"],
+  "properties": {
+    "schemaVersion": {"const": "mindclade.dev/ingestion/v1"},
+    "pipelineId": {"$ref": "#/$defs/id"},
+    "owner": {"$ref": "#/$defs/id"},
+    "sourceSnapshotDigest": {"$ref": "#/$defs/digest"},
+    "datasetContractDigest": {"$ref": "#/$defs/digest"},
+    "destinationPrefix": {"type": "string", "pattern": "^gs://[^?#\\s]+/$"},
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maximumBytes", "maximumRecords", "maximumDurationSeconds"],
+      "properties": {
+        "maximumBytes": {"type": "integer", "minimum": 1},
+        "maximumRecords": {"type": "integer", "minimum": 1},
+        "maximumDurationSeconds": {"type": "integer", "minimum": 1, "maximum": 604800}
+      }
+    },
+    "failurePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["onContractViolation", "onChecksumMismatch", "publishPartial"],
+      "properties": {
+        "onContractViolation": {"const": "quarantine"},
+        "onChecksumMismatch": {"const": "fail"},
+        "publishPartial": {"const": false}
+      }
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}

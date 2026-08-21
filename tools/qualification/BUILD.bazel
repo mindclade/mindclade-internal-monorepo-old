@@ -3,7 +3,40 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
+load("//tools/build:pytest.bzl", "pytest_test")
+
 package(default_visibility = ["//visibility:private"])
+
+py_library(
+    name = "release_evidence",
+    srcs = ["evidence.py"],
+    data = [
+        "fixtures/release-evidence.valid.json",
+        "schemas/release-evidence.schema.json",
+    ],
+    imports = ["../.."],
+    visibility = ["//visibility:public"],
+    deps = ["//configs:contract_validation"],
+)
+
+py_binary(
+    name = "verify_release",
+    srcs = ["verify_release.py"],
+    data = ["schemas/release-evidence.schema.json"],
+    deps = [":release_evidence"],
+)
+
+pytest_test(
+    name = "test_release_evidence",
+    srcs = ["tests/test_release_evidence.py"],
+    data = [
+        "fixtures/release-evidence.valid.json",
+        "schemas/release-evidence.schema.json",
+    ],
+    imports = ["../.."],
+    deps = [":release_evidence"],
+)
 
 filegroup(
     name = "scaffold_files",

@@ -49,20 +49,23 @@ spec:
     - platform/security
     - policies
     - services/artifact-proxy
+    - services/batch-inference-workers
     - services/control-plane
     - services/curation-workers
     - services/evaluation-workers
     - services/ingestion-workers
     - services/node-agent
     - services/preprocessing-workers
+    - services/reference-builder-workers
     - services/rollout-workers
     - services/runtime-gateway
     - services/runtime-host
+    - services/simulation-workers
     - services/training-workers
     - workloads/ingestion
     - workloads/preprocessing
     - workloads/training/overlays/h100
-    - workloads/training/overlays/h200
+    - workloads/training/overlays/b200
 
   # There are no intentionally empty roots. Keep this list explicit so adding a future
   # activation-gated module requires an inventory review instead of receiving a vacuous pass.
@@ -206,20 +209,23 @@ spec:
     - platform/jobset
     - platform/qualification
     - services/artifact-proxy
+    - services/batch-inference-workers
     - services/control-plane
     - services/curation-workers
     - services/evaluation-workers
     - services/ingestion-workers
     - services/node-agent
     - services/preprocessing-workers
+    - services/reference-builder-workers
     - services/rollout-workers
     - services/runtime-gateway
     - services/runtime-host
+    - services/simulation-workers
     - services/training-workers
     - workloads/ingestion
     - workloads/preprocessing
     - workloads/training/overlays/h100
-    - workloads/training/overlays/h200
+    - workloads/training/overlays/b200
 
   # Standalone workload templates inherit the namespace-wide policies above when instantiated.
   # These roots must carry a local ingress-and-egress default deny because they are deployable
@@ -237,15 +243,18 @@ spec:
     - planes/studio/overlays/production
     - planes/studio/overlays/staging
     - services/artifact-proxy
+    - services/batch-inference-workers
     - services/control-plane
     - services/curation-workers
     - services/evaluation-workers
     - services/ingestion-workers
     - services/node-agent
     - services/preprocessing-workers
+    - services/reference-builder-workers
     - services/rollout-workers
     - services/runtime-gateway
     - services/runtime-host
+    - services/simulation-workers
     - services/training-workers
 
   # Complete namespace compositions must carry a namespace-wide deny. Standalone service modules

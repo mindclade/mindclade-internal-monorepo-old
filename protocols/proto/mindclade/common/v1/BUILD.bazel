@@ -13,11 +13,34 @@ proto_library(
     strip_import_prefix = "/protocols/proto",
 )
 
+proto_library(
+    name = "errors_proto",
+    srcs = ["errors.proto"],
+    strip_import_prefix = "/protocols/proto",
+)
+
+proto_library(
+    name = "identifiers_proto",
+    srcs = ["identifiers.proto"],
+    strip_import_prefix = "/protocols/proto",
+)
+
+proto_library(
+    name = "pagination_proto",
+    srcs = ["pagination.proto"],
+    strip_import_prefix = "/protocols/proto",
+)
+
 filegroup(
     name = "scaffold_files",
     srcs = glob(
         ["*.proto"],
-        exclude = ["artifact_ref.proto"],
+        exclude = [
+            "artifact_ref.proto",
+            "errors.proto",
+            "identifiers.proto",
+            "pagination.proto",
+        ],
     ),
     visibility = ["//visibility:public"],
 )

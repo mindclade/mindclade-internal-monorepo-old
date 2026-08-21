@@ -19,11 +19,11 @@
     "@bufbuild/protobuf": "2.14.0"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "../../node_modules/@typescript/native/bin/tsc -p tsconfig.json",
     "generate": "cd ../.. && buf generate protocols --template protocols/buf.gen.yaml && openapi-typescript protocols/openapi/public.openapi.yaml -o sdk/typescript/src/generated/api.ts",
     "generate:check": "cd ../.. && python3 tools/codegen/generate_typescript_sdk.py --check",
-    "lint": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx --test tests/**/*.test.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "lint": "../../node_modules/@typescript/native/bin/tsc -p tsconfig.json --noEmit",
+    "test": "node --import tsx --test tests/**/*.test.ts",
+    "typecheck": "../../node_modules/@typescript/native/bin/tsc -p tsconfig.json --noEmit"
   }
 }

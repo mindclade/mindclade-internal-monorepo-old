@@ -145,6 +145,62 @@ status = "implemented"
 owner = "runtime-platform"
 tests = ["services/workers/model_worker/tests/test_smoke.py"]
 
+[[component]]
+name = "runtime.batch_inference_worker"
+path = "services/workers/batch_inference"
+status = "implemented"
+owner = "runtime-platform"
+tests = ["services/workers/batch_inference/tests/test_smoke.py"]
+
+[[component]]
+name = "runtime.curation_worker"
+path = "services/workers/curation"
+status = "implemented"
+owner = "data-platform"
+tests = ["services/workers/curation/tests/test_smoke.py"]
+
+[[component]]
+name = "runtime.evaluation_worker"
+path = "services/workers/evaluation"
+status = "implemented"
+owner = "training-platform"
+tests = ["services/workers/evaluation/tests/test_smoke.py"]
+
+[[component]]
+name = "runtime.preprocessing_worker"
+path = "services/workers/preprocessing"
+status = "implemented"
+owner = "biology-ml"
+tests = ["services/workers/preprocessing/tests/test_smoke.py"]
+
+[[component]]
+name = "runtime.reference_builder_worker"
+path = "services/workers/reference_builder"
+status = "implemented"
+owner = "data-platform"
+tests = ["services/workers/reference_builder/tests/test_smoke.py"]
+
+[[component]]
+name = "runtime.rollout_worker"
+path = "services/workers/rollout"
+status = "implemented"
+owner = "training-platform"
+tests = ["services/workers/rollout/tests/test_smoke.py"]
+
+[[component]]
+name = "runtime.simulation_worker"
+path = "services/workers/simulation"
+status = "implemented"
+owner = "biology-ml"
+tests = ["services/workers/simulation/tests/test_smoke.py"]
+
+[[component]]
+name = "runtime.training_worker"
+path = "services/workers/training"
+status = "implemented"
+owner = "training-platform"
+tests = ["services/workers/training/tests/test_smoke.py"]
+
 
 [[component]]
 name = "control.model_registry"
@@ -195,9 +251,9 @@ status = "scaffolded"
 owner = "biology-ml"
 
 # The `data` umbrella, not `data/curation`. Curation is the one implemented package in this
-# tree and stays declared separately above as `data.curation`; everything else under `data/`
-# — connectors, contracts, datasets, ingestion, loaders, quality, reference, tokenizers and
-# the root modules — is reserved space.
+# tree and stays declared separately above as `data.curation`; `data.contracts` is also declared
+# below. The umbrella records the still-reserved connectors, datasets, ingestion, loaders,
+# quality, reference, tokenizers, and root modules without promoting them by association.
 [[component]]
 name = "data"
 path = "data"
@@ -229,6 +285,7 @@ owner = "platform-control"
 tests = [
     "libs/python/worker_runtime/tests/test_executor.py",
     "libs/python/worker_runtime/tests/test_properties.py",
+    "libs/python/worker_runtime/tests/test_service.py",
     "libs/python/worker_runtime/tests/test_workload.py",
 ]
 
@@ -336,6 +393,7 @@ path = "serving/model_worker"
 status = "implemented"
 owner = "runtime-platform"
 tests = [
+    "serving/model_worker/tests/test_advanced_runtime.py",
     "serving/model_worker/tests/test_batching.py",
     "serving/model_worker/tests/test_model_loader.py",
     "serving/model_worker/tests/test_training_parity.py",
@@ -345,23 +403,121 @@ tests = [
 [[component]]
 name = "serving.batch"
 path = "serving/batch"
-status = "scaffolded"
+status = "implemented"
 owner = "runtime-platform"
+tests = [
+    "serving/batch/tests/test_batching.py",
+    "serving/batch/tests/test_cancellation.py",
+]
 
 [[component]]
 name = "serving.rollouts"
 path = "serving/rollouts"
-status = "scaffolded"
+status = "implemented"
 owner = "runtime-platform"
+tests = ["serving/rollouts/tests/test_rollouts.py"]
 
 [[component]]
 name = "serving.safety"
 path = "serving/safety"
-status = "scaffolded"
+status = "implemented"
 owner = "runtime-platform"
+tests = ["serving/safety/tests/test_safety.py"]
 
 [[component]]
 name = "serving.testing"
 path = "serving/testing"
-status = "scaffolded"
+status = "implemented"
 owner = "runtime-platform"
+tests = ["serving/testing/tests/test_harness.py"]
+
+# ---------------------------------------------------------------------------------------
+# TypeScript consumer and product surfaces
+# ---------------------------------------------------------------------------------------
+
+[[component]]
+name = "sdk.typescript"
+path = "sdk/typescript"
+status = "implemented"
+owner = "developer-platform"
+tests = [
+    "sdk/typescript/tests/client.test.ts",
+    "sdk/typescript/tests/streaming.test.ts",
+]
+qualification = "sdk/typescript/README.md"
+
+[[component]]
+name = "libs.typescript"
+path = "libs/ts"
+status = "implemented"
+owner = "frontend-platform"
+tests = [
+    "libs/ts/api_client/tests/client.test.ts",
+    "libs/ts/auth/tests/auth.test.ts",
+    "libs/ts/charts/tests/histogram.test.ts",
+    "libs/ts/design_system/tests/theme.test.tsx",
+    "libs/ts/molecular_viewer/tests/structure.test.ts",
+    "libs/ts/telemetry/tests/redaction.test.ts",
+]
+qualification = "libs/ts/README.md"
+
+[[component]]
+name = "apps.console"
+path = "apps/console"
+status = "experimental"
+owner = "product-engineering"
+tests = ["apps/console/tests/format.test.tsx"]
+qualification = "apps/console/PRODUCTION_READINESS.md"
+
+[[component]]
+name = "apps.admin"
+path = "apps/admin"
+status = "experimental"
+owner = "security-platform"
+tests = ["apps/admin/tests/format.test.tsx"]
+qualification = "apps/admin/PRODUCTION_READINESS.md"
+
+# ---------------------------------------------------------------------------------------
+# MLOps source contracts
+# ---------------------------------------------------------------------------------------
+# `implemented` here means deterministic source behavior with owning Bazel tests. It does not
+# mean an environment has approved SLO values, configured notification channels, attached a
+# Kubernetes watcher, accepted a release, or produced connected qualification evidence.
+
+[[component]]
+name = "data.contracts"
+path = "data/contracts"
+status = "implemented"
+owner = "data-platform"
+tests = ["data/contracts/tests/test_contracts.py"]
+
+[[component]]
+name = "models.target_card"
+path = "models/contracts"
+status = "implemented"
+owner = "modeling"
+tests = ["models/contracts/tests/test_contracts.py"]
+
+[[component]]
+name = "configs.contracts"
+path = "configs"
+status = "implemented"
+owner = "platform-control"
+tests = ["configs/tests/test_contracts.py"]
+
+[[component]]
+name = "infra.observability_contracts"
+path = "infra/observability"
+status = "implemented"
+owner = "platform-control"
+tests = [
+    "infra/observability/tests/test_alert_contracts.py",
+    "infra/observability/tests/test_jobset_outcomes.py",
+]
+
+[[component]]
+name = "qualification.release_evidence"
+path = "tools/qualification"
+status = "implemented"
+owner = "release-engineering"
+tests = ["tools/qualification/tests/test_release_evidence.py"]

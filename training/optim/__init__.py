@@ -3,4 +3,8 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Mindclade scaffold package for training/optim."""
+"""Validated optimizer construction for the local reference trainer."""
+
+from .factory import AdamWConfig, OptimizerConfig, SGDConfig, build_optimizer
+
+__all__ = ["AdamWConfig", "OptimizerConfig", "SGDConfig", "build_optimizer"]

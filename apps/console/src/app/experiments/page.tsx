@@ -3,6 +3,5 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export default function Page(): JSX.Element {
-  return <main data-scaffold="apps/console/src/app/experiments/page.tsx" />;
-}
+import { OperationalPage } from "../../components/OperationalPage";
+export default function Page(): React.ReactNode { return <OperationalPage eyebrow="Research workspace" title="Experiments" description="Comparable hypotheses, configurations, metrics, and produced artifacts." capability="Experiment tracking API" action="New experiment" />; }

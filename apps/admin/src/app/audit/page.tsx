@@ -3,6 +3,5 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export default function Page(): JSX.Element {
-  return <main data-scaffold="apps/admin/src/app/audit/page.tsx" />;
-}
+import { GovernancePage } from "../../components/GovernancePage";
+export default function Page(): React.ReactNode { return <GovernancePage eyebrow="Immutable record" title="Audit trail" description="Identity-bound administrative decisions and their outcomes." boundary="Security audit query API" />; }

@@ -15,6 +15,27 @@ proto_library(
 )
 
 proto_library(
+    name = "model_bundle_proto",
+    srcs = ["model_bundle.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = [
+        "//protocols/proto/mindclade/common/v1:identifiers_proto",
+        "@protobuf//:timestamp_proto",
+    ],
+)
+
+proto_library(
+    name = "model_service_proto",
+    srcs = ["service.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = [
+        ":model_bundle_proto",
+        "//protocols/proto/mindclade/common/v1:identifiers_proto",
+        "//protocols/proto/mindclade/common/v1:pagination_proto",
+    ],
+)
+
+proto_library(
     name = "release_proto",
     srcs = ["release.proto"],
     strip_import_prefix = "/protocols/proto",
@@ -28,6 +49,8 @@ filegroup(
         exclude = [
             "reference_database.proto",
             "release.proto",
+            "model_bundle.proto",
+            "service.proto",
         ],
     ),
     visibility = ["//visibility:public"],

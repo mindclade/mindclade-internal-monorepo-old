@@ -12,28 +12,41 @@ import json
 from collections.abc import Callable
 from dataclasses import asdict, is_dataclass
 from functools import partial
+from typing import Literal
 
 from kernels.api.specs import ImplementationIdentity, Provider
 from kernels.providers.tilelang.attention import (
     baseline_schedule as attention_schedule,
+)
+from kernels.providers.tilelang.attention import (
     make_flash_attention_kernel,
 )
+from kernels.providers.tilelang.attention.schedules import FlashAttentionSchedule
 from kernels.providers.tilelang.diffusion import (
     BASELINE_DIFFUSION_EPILOGUE,
     make_modulated_residual_kernel,
 )
+from kernels.providers.tilelang.diffusion.schedules import DiffusionEpilogueSchedule
 from kernels.providers.tilelang.fp8 import (
     baseline_schedule as gemm_schedule,
+)
+from kernels.providers.tilelang.fp8 import (
     make_scaled_gemm_kernel,
 )
+from kernels.providers.tilelang.fp8.schedules import GemmSchedule
 from kernels.providers.tilelang.fused import (
     BASELINE_ELEMENTWISE,
     BASELINE_TRIANGLE,
     make_swiglu_kernel,
     make_triangle_multiplication_kernel,
 )
+from kernels.providers.tilelang.fused.schedules import ElementwiseSchedule, TriangleSchedule
 from kernels.providers.tilelang.manifest import TILELANG_VERSION
-from kernels.providers.tilelang.moe import BASELINE_GROUPED_GEMM, make_grouped_gemm_kernel
+from kernels.providers.tilelang.moe import (
+    BASELINE_GROUPED_GEMM,
+    GroupedGemmSchedule,
+    make_grouped_gemm_kernel,
+)
 from kernels.providers.tilelang.policy import attention_shape, exact_eligibility, gemm_shape
 from kernels.registry import Eligibility, KernelImplementation, KernelRegistry
 from kernels.tilelang.targets import TARGETS, TargetSpec
@@ -54,7 +67,7 @@ def implementation_identity(
 
 
 def schedule_identity(schedule: object) -> str:
-    payload = asdict(schedule) if is_dataclass(schedule) else repr(schedule)
+    payload = asdict(schedule) if is_dataclass(schedule) else repr(schedule)  # type: ignore[arg-type]
     return hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
@@ -98,13 +111,11 @@ def _invoke_triangle(
     right: object,
     mask: object,
     *,
-    schedule: object,
-    orientation: str,
-    target: object,
+    schedule: TriangleSchedule,
+    orientation: Literal["incoming", "outgoing"],
+    target: str | dict[str, str] | None,
 ) -> object:
-    kernel = make_triangle_multiplication_kernel(
-        schedule, orientation=orientation, target=target
-    )
+    kernel = make_triangle_multiplication_kernel(schedule, orientation=orientation, target=target)
     return kernel(left, right, mask)
 
 
@@ -113,8 +124,8 @@ def _invoke_attention(
     k: object,
     v: object,
     *,
-    schedule: object,
-    target: object,
+    schedule: FlashAttentionSchedule,
+    target: str | dict[str, str] | None,
 ) -> object:
     kernel = make_flash_attention_kernel(schedule, target=target)
     return kernel(q, k, v, causal=False)
@@ -126,15 +137,19 @@ def _invoke_scaled_gemm(
     a_scale: object,
     b_scale: object,
     *,
-    schedule: object,
-    target: object,
+    schedule: GemmSchedule,
+    target: str | dict[str, str] | None,
 ) -> object:
     kernel = make_scaled_gemm_kernel(schedule, target=target)
     return kernel(a, b, a_scale, b_scale)
 
 
 def _invoke_swiglu(
-    gate: object, up: object, *, schedule: object, target: object
+    gate: object,
+    up: object,
+    *,
+    schedule: ElementwiseSchedule,
+    target: str | dict[str, str] | None,
 ) -> object:
     kernel = make_swiglu_kernel(schedule, dtype="bfloat16", target=target)
     return kernel(gate, up)
@@ -147,12 +162,10 @@ def _invoke_modulated_residual(
     shift: object,
     gate: object,
     *,
-    schedule: object,
-    target: object,
+    schedule: DiffusionEpilogueSchedule,
+    target: str | dict[str, str] | None,
 ) -> object:
-    kernel = make_modulated_residual_kernel(
-        schedule, dtype="bfloat16", target=target
-    )
+    kernel = make_modulated_residual_kernel(schedule, dtype="bfloat16", target=target)
     return kernel(normalized, residual, scale, shift, gate)
 
 
@@ -160,8 +173,8 @@ def _invoke_grouped_gemm(
     tokens: object,
     weights: object,
     *,
-    schedule: object,
-    target: object,
+    schedule: GroupedGemmSchedule,
+    target: str | dict[str, str] | None,
 ) -> object:
     kernel = make_grouped_gemm_kernel(schedule, target=target)
     return kernel(tokens, weights)
@@ -186,9 +199,7 @@ def register_tilelang_candidates(registry: KernelRegistry) -> None:
                             schedule=attention,
                             target=target_config,
                         ),
-                        eligibility=_target_eligibility(
-                            target, dtype, shape_check=attention_shape
-                        ),
+                        eligibility=_target_eligibility(target, dtype, shape_check=attention_shape),
                         priority=100,
                     )
                 )
@@ -214,15 +225,13 @@ def register_tilelang_candidates(registry: KernelRegistry) -> None:
                 )
             if triangle.rejection_reason(target, 64) is None:
                 for orientation in ("incoming", "outgoing"):
-                    factory = make_triangle_multiplication_kernel
                     registry.register(
                         registration(
                             operation=f"pairformer.triangle_{orientation}",
                             name=(
-                                f"tilelang.pairformer.{orientation}."
-                                f"{target.architecture}.{dtype}"
+                                f"tilelang.pairformer.{orientation}.{target.architecture}.{dtype}"
                             ),
-                            factory=factory,
+                            factory=make_triangle_multiplication_kernel,
                             schedule_digest=triangle.digest,
                             invoke=partial(
                                 _invoke_triangle,
@@ -257,37 +266,48 @@ def register_tilelang_candidates(registry: KernelRegistry) -> None:
                 )
             )
 
-        generic_candidates = (
-            (
-                "fused.swiglu",
-                make_swiglu_kernel,
-                BASELINE_ELEMENTWISE,
-                _invoke_swiglu,
-            ),
-            (
-                "diffusion.modulated_residual",
-                make_modulated_residual_kernel,
-                BASELINE_DIFFUSION_EPILOGUE,
-                _invoke_modulated_residual,
-            ),
+        registry.register(
+            registration(
+                operation="fused.swiglu",
+                name=f"tilelang.fused.swiglu.{target.architecture}",
+                factory=make_swiglu_kernel,
+                schedule_digest=schedule_identity(BASELINE_ELEMENTWISE),
+                invoke=partial(
+                    _invoke_swiglu,
+                    schedule=BASELINE_ELEMENTWISE,
+                    target=target_config,
+                ),
+                eligibility=_target_eligibility(target, "bfloat16"),
+                priority=80,
+            )
+        )
+        registry.register(
+            registration(
+                operation="diffusion.modulated_residual",
+                name=f"tilelang.diffusion.modulated_residual.{target.architecture}",
+                factory=make_modulated_residual_kernel,
+                schedule_digest=schedule_identity(BASELINE_DIFFUSION_EPILOGUE),
+                invoke=partial(
+                    _invoke_modulated_residual,
+                    schedule=BASELINE_DIFFUSION_EPILOGUE,
+                    target=target_config,
+                ),
+                eligibility=_target_eligibility(target, "bfloat16"),
+                priority=80,
+            )
         )
         if target.kind == "cuda":
-            generic_candidates += (
-                (
-                    "moe.grouped_gemm",
-                    make_grouped_gemm_kernel,
-                    BASELINE_GROUPED_GEMM,
-                    _invoke_grouped_gemm,
-                ),
-            )
-        for operation, factory, schedule, invoke in generic_candidates:
             registry.register(
                 registration(
-                    operation=operation,
-                    name=f"tilelang.{operation}.{target.architecture}",
-                    factory=factory,
-                    schedule_digest=schedule_identity(schedule),
-                    invoke=partial(invoke, schedule=schedule, target=target_config),
+                    operation="moe.grouped_gemm",
+                    name=f"tilelang.moe.grouped_gemm.{target.architecture}",
+                    factory=make_grouped_gemm_kernel,
+                    schedule_digest=schedule_identity(BASELINE_GROUPED_GEMM),
+                    invoke=partial(
+                        _invoke_grouped_gemm,
+                        schedule=BASELINE_GROUPED_GEMM,
+                        target=target_config,
+                    ),
                     eligibility=_target_eligibility(target, "bfloat16"),
                     priority=80,
                 )

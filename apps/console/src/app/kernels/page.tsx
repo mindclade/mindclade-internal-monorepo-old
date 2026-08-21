@@ -3,6 +3,5 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export default function Page(): JSX.Element {
-  return <main data-scaffold="apps/console/src/app/kernels/page.tsx" />;
-}
+import { OperationalPage } from "../../components/OperationalPage";
+export default function Page(): React.ReactNode { return <OperationalPage eyebrow="Runtime qualification" title="Kernels" description="Correctness, numerical variance, and performance evidence by hardware target." capability="Kernel qualification API" />; }

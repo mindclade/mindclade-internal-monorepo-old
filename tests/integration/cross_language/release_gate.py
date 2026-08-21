@@ -21,6 +21,7 @@ def main() -> int:
         "tests/integration/cross_language/test_identifiers.py",
         "tests/integration/cross_language/test_resource_versions.py",
         "tests/integration/cross_language/test_execution_ticket_golden.py",
+        "tests/integration/cross_language/test_model_descriptor_golden.py",
         "tests/integration/cross_language/test_event_envelopes.py",
         "tests/integration/cross_language/test_worker_protocol.py",
         "tests/integration/cross_language/test_wire_compatibility.py",

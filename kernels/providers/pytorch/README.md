@@ -1,35 +1,18 @@
-# Kernels / Providers / Pytorch
+# PyTorch kernel provider
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Python provider APIs and TileLang accelerator implementations
+- **Status:** Implemented semantic reference and fallback provider.
+- **Owner:** `biology-ml`
 
-## Purpose
+This provider registers independent PyTorch implementations for attention,
+scaled FP8 GEMM, SwiGLU, Pairformer triangle multiplication, deterministic MoE
+primitives, and diffusion epilogues/neighbor attention. Numerically sensitive
+reductions use FP32 for FP8/FP16/BF16 inputs and preserve FP64 for gradient
+checking.
 
-Reference operations, provider dispatch, TileLang kernels, autotuning, target support, and signature-specific numerical/performance qualification. This path specializes that domain for **pytorch**.
+Reference functions validate ranks, shapes, mask meaning, index bounds, dtypes,
+and empty/all-masked cases. They are intentionally straightforward: they define
+semantics and provide a safe fallback, not an accelerator performance baseline.
 
-## Boundary
-
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
-
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
-
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+`register_pytorch_references` installs exactly one reference per operation. A
+reference may be used when every accelerator candidate is ineligible,
+unqualified, revoked, or disabled by the TileLang kill switch.

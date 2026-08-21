@@ -5,9 +5,9 @@
 
 ---
 # Production training is expected to be created as a Kueue-admitted JobSet with
-# ticket-specific GPU, topology, and checkpoint resources. No runnable training
-# entrypoint exists yet; this single-pod contract is an intentionally suspended
-# activation sentinel, not a substitute for that distributed topology.
+# ticket-specific GPU, topology, and checkpoint resources. The Python adapter is
+# implemented, but the engine/bridge and distributed qualification are missing;
+# this sentinel is not a substitute for that distributed topology.
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -19,7 +19,7 @@ metadata:
     app.kubernetes.io/part-of: mindclade-platform
   annotations:
     mindclade.dev/deployment-status: disabled
-    mindclade.dev/activation-blocker: runnable-entrypoint-jobset-and-kueue-contract-missing
+    mindclade.dev/activation-blocker: engine-bridge-jobset-and-kueue-qualification-missing
     mindclade.dev/gpu-contract: per-workload-ticket
     mindclade.dev/intended-workload-kind: JobSet
     mindclade.dev/template-only: "true"

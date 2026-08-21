@@ -33,7 +33,6 @@ HEADER = (
     "Copyright © 2026 Mindclade, LLC. All Rights Reserved.",
     "Mindclade Proprietary and Confidential.",
     "SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary",
-    "",
 )
 
 # Extension to comment prefix. A file type absent here is not checked — adding one is a
@@ -75,10 +74,12 @@ SKIP_DIRS = frozenset(
         ".git",
         ".generated",
         ".mypy_cache",
+        ".next",
         ".pytest_cache",
         ".ruff_cache",
         ".venv",
         "node_modules",
+        "dist",
         "target",
     }
 )
@@ -89,6 +90,7 @@ SKIP_PREFIXES: tuple[str, ...] = (
     "docs/blueprint/",
     "infra/gitops/vendor/",
     "research/notebooks/",
+    "sdk/typescript/src/generated/",
 )
 
 # Lock files and machine-written manifests. Rewriting them inserts a header the generator
@@ -100,6 +102,7 @@ SKIP_SUFFIXES: tuple[str, ...] = (
     "MODULE.bazel.lock",
     "Cargo.lock",
     "pnpm-lock.yaml",
+    "next-env.d.ts",
     "uv.lock",
 )
 
@@ -117,8 +120,8 @@ def is_skipped(rel: str) -> bool:
 def expected_block(prefix: str) -> list[str]:
     """The header as it appears in a file of this comment style.
 
-    The fourth line is a bare comment marker with no trailing space — `#` and `//` — which is
-    what every existing file in the estate carries.
+    The three proprietary lines are exact. A blank line or a legacy bare comment marker may
+    separate them from the source so verbatim first-party mirrors can retain byte parity.
     """
     return [f"{prefix} {line}".rstrip() for line in HEADER]
 
@@ -141,7 +144,12 @@ def has_header(text: str, prefix: str) -> bool:
     start, lines = leading_lines(text)
     want = expected_block(prefix)
     got = [line.rstrip("\r") for line in lines[start : start + len(want)]]
-    return got == want
+    separator_index = start + len(want)
+    return (
+        got == want
+        and separator_index < len(lines)
+        and lines[separator_index].rstrip("\r") in {"", prefix}
+    )
 
 
 def insert_header(text: str, prefix: str) -> str:

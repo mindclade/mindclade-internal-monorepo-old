@@ -13,7 +13,7 @@ resources:
   - policy.yaml
   - cpu-job.json
   - h100-job.json
-  - h200-job.json
+  - b200-job.json
 
 labels:
   - includeSelectors: false
@@ -21,4 +21,3 @@ labels:
       app.kubernetes.io/managed-by: kustomize
       app.kubernetes.io/part-of: mindclade-platform
       mindclade.dev/owner: platform-qualification
-

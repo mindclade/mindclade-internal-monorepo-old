@@ -867,7 +867,7 @@ for capacity_workload_root in \
   workloads/ingestion \
   workloads/preprocessing \
   workloads/training/overlays/h100 \
-  workloads/training/overlays/h200; do
+  workloads/training/overlays/b200; do
   capacity_workload_name="${capacity_workload_root//\//__}"
   capacity_workload_json="${validation_tmp_dir}/${capacity_workload_name}.json"
   yq eval-all -o=json -I=0 '[.] | flatten | map(select(.kind != null and .apiVersion != null))' \

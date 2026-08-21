@@ -3,6 +3,10 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export default function Statusbadge(): JSX.Element {
-  return <main data-scaffold="apps/console/src/components/StatusBadge.tsx" />;
+import { StatusBadge as Badge, type StatusTone } from "@mindclade/libs-ts-design-system";
+
+export function StatusBadge({ status }: { status: string }): React.ReactNode {
+  const value = status.toLowerCase();
+  const tone: StatusTone = ["failed", "revoked"].includes(value) ? "danger" : ["ready", "passed", "succeeded"].includes(value) ? "success" : value === "running" ? "running" : "neutral";
+  return <Badge tone={tone} pulse={value === "running"}>{status}</Badge>;
 }

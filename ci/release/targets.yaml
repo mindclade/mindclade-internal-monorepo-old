@@ -5,23 +5,31 @@
 #
 # Closed target catalog. A release request selects a name; it cannot inject commands, labels,
 # registry locations, attestors, or service accounts.
-schemaVersion: 1
+schemaVersion: 2
 targets:
   go-vanity:
-    imageRepository: releases/go-vanity
-    imageTarget: //services/go_vanity:image
-    pushTarget: //services/go_vanity:push
-    qualification:
-      - tools/dev/bazelw
-      - test
+    releaseKind: application
+    application: platform-go-vanity
+    rolloutClass: stateless
+    images:
+      primary:
+        repository: releases/go-vanity
+        buildTarget: //services/go_vanity:image
+        pushTarget: //services/go_vanity:push
+    artifacts: []
+    qualificationMode: test
+    qualificationTargets:
       - //services/go_vanity/...
-      - --config=ci
   weights-fixture:
-    imageRepository: releases/weights-fixture
-    imageTarget: //models/reference/weights_fixture:fixture_image
-    pushTarget: //models/reference/weights_fixture:fixture_push
-    qualification:
-      - tools/dev/bazelw
-      - build
+    releaseKind: model
+    application: research-weights-fixture
+    rolloutClass: model-bundle
+    images:
+      primary:
+        repository: releases/weights-fixture
+        buildTarget: //models/reference/weights_fixture:fixture_image
+        pushTarget: //models/reference/weights_fixture:fixture_push
+    artifacts: []
+    qualificationMode: build
+    qualificationTargets:
       - //models/reference/weights_fixture:fixture_image
-      - --config=ci

@@ -42,7 +42,7 @@ promoted merely because the registry is ready.
       `docs/runbooks/control-model-registry.md`.
 
 - [x] **Repository-wide Bazel passes and is a required gate.** The 2026-08-20
-      local qualification analyzed 1,023 targets and all 264 tests passed with
+      local qualification analyzed 1,079 targets and all 304 tests passed with
       lockfile drift rejected. Presubmit runs the same complete repository
       graph through `tools/dev/bazelw test //... --config=ci`; scoped Go results
       are not a substitute.

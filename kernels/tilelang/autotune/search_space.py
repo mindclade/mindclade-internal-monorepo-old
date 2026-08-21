@@ -28,7 +28,7 @@ def bounded_candidates(
         raise ValueError("every autotune dimension must have at least one value")
     candidates: list[Candidate] = []
     for values in itertools.product(*(dimensions[name] for name in names)):
-        config = dict(zip(names, values))
+        config = dict(zip(names, values, strict=True))
         if legality(config) is not None:
             continue
         candidates.append(

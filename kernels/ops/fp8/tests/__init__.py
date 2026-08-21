@@ -1,6 +1,5 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
-"""Mindclade scaffold package for kernels/ops/fp8/tests."""
+"""Tests for FP8 formats, scaling, and GEMM semantics."""

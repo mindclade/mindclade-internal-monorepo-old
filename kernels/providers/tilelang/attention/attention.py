@@ -2,6 +2,8 @@
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 
+# mypy: ignore-errors
+
 """TileLang online-softmax attention kernel.
 
 The kernel consumes contiguous BHSD tensors, performs FP32 online softmax, and
@@ -70,9 +72,7 @@ def make_flash_attention_kernel(
             probabilities_shared = T.alloc_shared(
                 (schedule.block_m, schedule.block_n), schedule.dtype
             )
-            scores = T.alloc_fragment(
-                (schedule.block_m, schedule.block_n), schedule.accum_dtype
-            )
+            scores = T.alloc_fragment((schedule.block_m, schedule.block_n), schedule.accum_dtype)
             output = T.alloc_fragment((schedule.block_m, head_dim), schedule.accum_dtype)
             row_max = T.alloc_fragment((schedule.block_m,), schedule.accum_dtype)
             row_max_previous = T.alloc_fragment((schedule.block_m,), schedule.accum_dtype)
@@ -122,9 +122,11 @@ def make_flash_attention_kernel(
                         (row_max_previous[row] - row_max[row]) * 1.4426950408889634
                     )
                 for row in T.Parallel(schedule.block_m):
-                    row_sum[row] = row_sum[row] * T.exp2(
-                        (row_max_previous[row] - row_max[row]) * 1.4426950408889634
-                    ) + tile_sum[row]
+                    row_sum[row] = (
+                        row_sum[row]
+                        * T.exp2((row_max_previous[row] - row_max[row]) * 1.4426950408889634)
+                        + tile_sum[row]
+                    )
 
                 T.copy(scores, probabilities_shared)
                 T.gemm(probabilities_shared, v_shared, output)

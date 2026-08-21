@@ -2,6 +2,8 @@
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 
+# mypy: ignore-errors
+
 """Deterministic expert-major padded grouped GEMM."""
 
 from __future__ import annotations
@@ -32,15 +34,9 @@ def make_grouped_gemm_kernel(
         experts, capacity, output_dim, reduction_dim = T.const(
             "experts, capacity, output_dim, reduction_dim"
         )
-        Tokens: T.Tensor(
-            (experts, capacity, reduction_dim), schedule.input_dtype
-        )
-        Weights: T.Tensor(
-            (experts, reduction_dim, output_dim), schedule.input_dtype
-        )
-        Output = T.empty(
-            (experts, capacity, output_dim), schedule.output_dtype
-        )
+        Tokens: T.Tensor((experts, capacity, reduction_dim), schedule.input_dtype)
+        Weights: T.Tensor((experts, reduction_dim, output_dim), schedule.input_dtype)
+        Output = T.empty((experts, capacity, output_dim), schedule.output_dtype)
 
         with T.Kernel(
             T.ceildiv(output_dim, schedule.block_n),

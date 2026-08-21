@@ -3,4 +3,14 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export const SCAFFOLD_AUTH = "apps/console/src/lib/auth.ts" as const;
+export interface ConsoleIdentity {
+  displayName: string;
+  organization: string;
+  environment: string;
+}
+
+export const anonymousIdentity: ConsoleIdentity = {
+  displayName: "Workspace user",
+  organization: "Mindclade",
+  environment: process.env.NEXT_PUBLIC_ENVIRONMENT ?? "local",
+};

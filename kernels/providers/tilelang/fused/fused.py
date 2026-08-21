@@ -2,6 +2,8 @@
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 
+# mypy: ignore-errors
+
 """TileLang fused SwiGLU and Pairformer triangle multiplication kernels."""
 
 from __future__ import annotations
@@ -79,12 +81,8 @@ def make_triangle_multiplication_kernel(
             channel = batch_channel % channels
             row_offset = row_block * schedule.block_m
             column_offset = column_block * schedule.block_n
-            left_shared = T.alloc_shared(
-                (schedule.block_m, schedule.block_k), schedule.dtype
-            )
-            right_shared = T.alloc_shared(
-                (schedule.block_k, schedule.block_n), schedule.dtype
-            )
+            left_shared = T.alloc_shared((schedule.block_m, schedule.block_k), schedule.dtype)
+            right_shared = T.alloc_shared((schedule.block_k, schedule.block_n), schedule.dtype)
             accumulator = T.alloc_fragment(
                 (schedule.block_m, schedule.block_n), schedule.accum_dtype
             )

@@ -1,8 +1,8 @@
 # GKE accelerator node-pool module
 
 This module adds one single-zone accelerator pool to an existing regional GKE
-cluster. The admitted profiles are deliberately narrow: A3 Mega H100 and A3 Ultra
-H200 eight-GPU nodes used by the NOVA execution-plan contract. Each profile fixes
+cluster. The admitted profiles are deliberately narrow: A3 Mega H100, A3 Ultra
+H200, and A4 B200 eight-GPU nodes used by the NOVA execution-plan contract. Each profile fixes
 the machine type, accelerator type/count, and expected fabric. Nodes use a dedicated
 keyless service account, GKE metadata, Shielded VM, managed NVIDIA drivers,
 accelerator networking, topology-aware kubelet settings, a mandatory GPU taint,
@@ -20,25 +20,27 @@ node-label map must also stay below GKE's 1,024-character aggregate limit.
 
 On-demand, reservation, Spot, Flex Start, and queued provisioning are modeled
 explicitly. Standard on-demand capacity is accepted for H100 but rejected for A3
-Ultra H200, which must use Spot, Flex Start, queued provisioning, or an approved
+Ultra H200 and A4 B200, which must use Spot, Flex Start, queued provisioning, or an approved
 reservation. Queued provisioning enables both provider-required queued and Flex Start
 settings and has a seven-day maximum lifetime. Standalone Flex Start is preview-only
 and requires an explicit approval input. Both modes must scale from zero and disable
 MIG compact placement; reservations require an exact reservation name. Ordinary
 compact pools default to unavailable-first upgrades to avoid assuming spare accelerator
 capacity. Flex Start and queued provisioning explicitly opt out of reservations.
-Boot-disk CMEK selects `pd-ssd` for H100; it is rejected for H200 because that profile
-requires Hyperdisk and GKE does not currently support boot-disk CMEK on Hyperdisk.
+Boot-disk CMEK selects `pd-ssd` for H100; it is rejected for H200 and B200 because those
+profiles require Hyperdisk and GKE does not currently support boot-disk CMEK on Hyperdisk.
 Capacity, quota, zone availability, Dynamic Workload
 Scheduler, Compact Placement, driver compatibility, GPUDirect/RDMA components,
 Kueue/JobSet policy, workload checkpointing, and artifact durability remain
 environment and Kubernetes-layer responsibilities.
 
-This module is an alternative capacity authority to the GKE `ComputeClass`
-components under `infra/gpu`; it is not layered underneath them. An environment
-must never let both mechanisms manage the same GPU profile and zone. The current
-qualification overlays choose `ComputeClass`, while this module remains available
-for a separately reviewed fixed-pool environment.
+This module is the accelerator-capacity authority selected by the
+`infrastructure-live` estate. The Kubernetes layer owns only the matching node
+labels, taint, Kueue ResourceFlavors, topology, queues, and held quota; it does not
+create `ComputeClass` resources. An environment must never add a second capacity
+authority for the same GPU profile and zone. Moving to `ComputeClass` would require
+a reviewed two-phase migration that first holds Kueue and removes these fixed pools
+from desired state without orphaning their Terraform state.
 
 The node configuration enables GKE image streaming through `gcfs_config`. Before
 using the module, the environment must enable the Container File System API,
@@ -73,7 +75,7 @@ the profile outputs are expectations, not measured performance or availability.
 | Name | Description | Type | Default | Required |
 | ---- | ----------- | ---- | ------- | :------: |
 | <a name="input_additional_taints"></a> [additional\_taints](#input\_additional\_taints) | Additional Kubernetes taints; nvidia.com/gpu is managed by this module | <pre>list(object({<br/>    key    = string<br/>    value  = string<br/>    effect = string<br/>  }))</pre> | `[]` | no |
-| <a name="input_boot_disk_kms_key"></a> [boot\_disk\_kms\_key](#input\_boot\_disk\_kms\_key) | Optional regional Cloud KMS CryptoKey for H100 pd-ssd boot disks; unsupported for the H200 Hyperdisk profile | `string` | `null` | no |
+| <a name="input_boot_disk_kms_key"></a> [boot\_disk\_kms\_key](#input\_boot\_disk\_kms\_key) | Optional regional Cloud KMS CryptoKey for H100 pd-ssd boot disks; unsupported for the H200 and B200 Hyperdisk profiles | `string` | `null` | no |
 | <a name="input_boot_disk_size_gb"></a> [boot\_disk\_size\_gb](#input\_boot\_disk\_size\_gb) | Boot-disk size for each accelerator node | `number` | `250` | no |
 | <a name="input_capacity_mode"></a> [capacity\_mode](#input\_capacity\_mode) | Capacity acquisition mode; quota, reservation, and Dynamic Workload Scheduler policy remain environment responsibilities | `string` | `"ON_DEMAND"` | no |
 | <a name="input_cluster_name"></a> [cluster\_name](#input\_cluster\_name) | Existing regional GKE cluster name | `string` | n/a | yes |

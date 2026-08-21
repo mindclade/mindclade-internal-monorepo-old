@@ -3,6 +3,9 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export default function Weightaccessreview(): JSX.Element {
-  return <main data-scaffold="apps/admin/src/components/WeightAccessReview.tsx" />;
+import type { ApprovalEvidence } from "../lib/types";
+import { ApprovalGate } from "./ApprovalGate";
+
+export function WeightAccessReview({ evidence, onApprove }: { evidence: ApprovalEvidence; onApprove?: (reason: string) => Promise<void> }): React.ReactNode {
+  return <ApprovalGate title="Grant model-weight access" risk="Issues a bounded grant to sensitive model artifacts; all reads are identity-bound and auditable." evidence={evidence} confirmation="GRANT WEIGHT ACCESS" {...(onApprove === undefined ? {} : { onApprove })} />;
 }

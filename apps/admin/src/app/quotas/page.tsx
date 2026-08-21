@@ -3,6 +3,5 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export default function Page(): JSX.Element {
-  return <main data-scaffold="apps/admin/src/app/quotas/page.tsx" />;
-}
+import { GovernancePage } from "../../components/GovernancePage";
+export default function Page(): React.ReactNode { return <GovernancePage eyebrow="Capacity policy" title="Quotas" description="Explicit resource ceilings with reviewed reasons and change history." boundary="Quota policy API" />; }

@@ -16,8 +16,8 @@ for production apply.
 | Foundation RBAC is least privilege | PASS | No grants exist in `base/rbac.yaml` |
 | Default-deny networking | PASS | DNS is the only allowed egress in `policies/network-policies.yaml` |
 | Workload activation is fail-closed | PASS | Pod and workload-object quotas are zero in every overlay |
-| Workload capacity domains are internally consistent | PASS | Separate CPU/H100/H200 namespaces, LimitRanges, queues, and coherent resource-flavor groups |
-| GPU packing contracts exist | PASS | Suspended one-GPU packed and eight-GPU full-node templates for H100 and H200 |
+| Workload capacity domains are internally consistent | PASS | Separate CPU/H100/B200 namespaces, LimitRanges, queues, and coherent resource-flavor groups |
+| GPU packing contracts exist | PASS | Suspended one-GPU packed and eight-GPU full-node templates for H100 and B200 |
 | Secrets are absent | PASS | Foundation contains only non-secret deployment identity |
 | Static render/schema/policy CI | PASS | Bazel receives declared tools and fixed-hash core/custom schemas; CI executes it in the pinned Nix closure |
 | Required merge enforcement | EXTERNAL | Stable `infra-static` check exists; the GitHub ruleset must require that context |

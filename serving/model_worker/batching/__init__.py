@@ -6,7 +6,16 @@
 """Final Python-owned tensor-batching contracts."""
 
 from .compatibility import TensorCompatibilityKey, compatibility_key
+from .continuous import ContinuousBatchQueue
 from .planner import BatchPlanner
+from .reservation import BatchReservationLedger
 from .tensor_batch import TensorBatch
 
-__all__ = ["BatchPlanner", "TensorBatch", "TensorCompatibilityKey", "compatibility_key"]
+__all__ = [
+    "BatchPlanner",
+    "BatchReservationLedger",
+    "ContinuousBatchQueue",
+    "TensorBatch",
+    "TensorCompatibilityKey",
+    "compatibility_key",
+]

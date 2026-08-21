@@ -37,9 +37,7 @@ def run_candidates(
         try:
             parity_passed, source_digest, samples = execute(candidate, budget)
             if not parity_passed:
-                database.add(
-                    CandidateResult(candidate.digest, CandidateStatus.PARITY_FAILED)
-                )
+                database.add(CandidateResult(candidate.digest, CandidateStatus.PARITY_FAILED))
                 continue
             latency = LatencyDistribution(tuple(float(value) for value in samples))
             database.add(

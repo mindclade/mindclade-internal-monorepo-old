@@ -1,35 +1,15 @@
 # Serving / Model Worker
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Python/PyTorch reusable inference engines
+**Status:** implemented provider-neutral model runtime; connected model/hardware qualification pending.
 
-## Purpose
+The model worker owns final tensor-compatible batching, immutable model loading, explicit lifecycle
+and drain behavior, process-local admission, and exact response cardinality. Advanced support
+modules provide bounded contracts for continuous batching, memory/KV reservations, shape buckets,
+precision selection, statistical seeds, generation/diffusion results, multimodal and biology
+dimensions, compilation identity, warmup, and low-cardinality telemetry.
 
-Reusable model-loading, batching, sampling, safety, rollout, and inference-runtime engines. Deployable network/process wiring stays under `services/`. This path specializes that domain for **model worker**.
-
-## Boundary
-
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
-
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
-
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+These modules deliberately do not invent numerical implementations. PyTorch models, tokenizers,
+diffusion solvers, compiler backends, biology semantics, and accelerator kernels remain injected
+from their owning packages and require parity, statistical, hardware, and performance evidence.
+Rust owns signed admission, fencing, worker-process supervision, bulk buffers, and coarse routing;
+Python remains the final authority for model-specific tensor compatibility.

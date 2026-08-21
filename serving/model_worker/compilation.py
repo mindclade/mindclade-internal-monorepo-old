@@ -3,12 +3,23 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for serving/model_worker/compilation.py.
+"""Immutable compilation cache identity."""
 
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+from dataclasses import dataclass
 
-from __future__ import annotations
 
-SCAFFOLD_PATH: str = "serving/model_worker/compilation.py"
+@dataclass(frozen=True, order=True, slots=True)
+class CompilationKey:
+    model_digest: str
+    runtime_digest: str
+    hardware_class: str
+    precision: str
+    shape_bucket: str
+
+    def __post_init__(self) -> None:
+        for digest in (self.model_digest, self.runtime_digest):
+            if not digest.startswith("sha256:") or len(digest) != 71:
+                raise ValueError("compilation digest is invalid")
+        for value in (self.hardware_class, self.precision, self.shape_bucket):
+            if not value or len(value) > 128:
+                raise ValueError("compilation compatibility field is invalid")

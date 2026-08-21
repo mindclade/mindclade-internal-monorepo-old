@@ -23,7 +23,7 @@ owns `mindclade-system` plus three isolated capacity domains:
 |---|---|---|---|
 | `mindclade-batch-cpu` | CPU ingestion and preprocessing | `mindclade-batch-cpu` | zero and held |
 | `mindclade-training-h100` | H100 training | `mindclade-training-h100` | zero and held |
-| `mindclade-training-h200` | H200 training | `mindclade-training-h200` | zero and held |
+| `mindclade-training-b200` | B200 training | `mindclade-training-b200` | zero and held |
 
 `versions.env` records the platform compatibility tuple. GitOps composition
 belongs under `infra/gitops/`; a live cluster must not be mutated directly when
@@ -66,7 +66,7 @@ Every environment currently renders all of the following:
 - default-deny ingress and egress, with DNS as the only egress exception;
 - zero Pod, Deployment, StatefulSet, DaemonSet, Job, JobSet, CronJob, PVC, GPU,
   LoadBalancer, and NodePort quota;
-- workload-class-specific, min/max-only LimitRanges for CPU, H100, and H200;
+- workload-class-specific, min/max-only LimitRanges for CPU, H100, and B200;
 - coherent Kueue resource groups: CPU, memory, ephemeral storage, Pod count,
   and GPU (for training) always receive one compatible node flavor;
 - separate one-GPU packed and eight-GPU full-node training templates, both
@@ -98,6 +98,14 @@ Secret or external-secret object only after that integration is qualified.
 Services are composition roots. Cross-language contracts remain under
 `protocols/`; durable orchestration policy remains under `control/`; scientific
 and model semantics remain in their owning Python/Rust packages.
+
+Every standalone service and durable worker now has an explicit module under
+`services/`. The Python `model_worker` is intentionally not a standalone
+Kubernetes workload: it is supervised inside the `runtime-host` Pod and uses a
+local Unix-domain IPC boundary. Batch inference, reference building, and
+simulation are suspended Job templates with dedicated identities and default-deny
+network policy; like the other scientific workers, they cannot activate until
+their engine and Rust/Python bridge have connected evidence.
 
 ## Local validation
 

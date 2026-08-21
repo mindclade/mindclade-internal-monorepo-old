@@ -1,12 +1,12 @@
 # GKE foundation qualification package
 
 This environment-neutral package defines a dedicated `mindclade-qualification` namespace and
-one suspended CPU, H100, and H200 Job. It is infrastructure qualification, not a product workload
+one suspended CPU, H100, and B200 Job. It is infrastructure qualification, not a product workload
 or a capacity queue. Normal CPU/training queues remain held and their quotas remain zero.
 
 The base is deliberately impossible to run: the namespace is activation-blocked, Pod and Job
 quota is zero, every Job is suspended, and every container uses the zero digest under
-`registry.invalid`. The H100 and H200 profiles request all eight GPUs on one qualified node so a
+`registry.invalid`. The H100 and B200 profiles request all eight GPUs on one qualified node so a
 connected run can exercise full-node CUDA/NCCL behavior without claiming cross-node fabric
 coverage.
 
@@ -22,4 +22,3 @@ until the release image also contains a pinned CUDA/NCCL helper and its provenan
 through `nvidia-smi` is not accepted as CUDA/NCCL qualification. The helper contract requires all
 eight CUDA devices, at least a 1 GiB NCCL all-reduce, a positive measured bus bandwidth, at least
 1 GiB of tested GPU memory, and a passing DCGM health result.
-

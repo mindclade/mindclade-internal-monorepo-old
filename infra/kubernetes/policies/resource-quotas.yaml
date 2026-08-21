@@ -201,14 +201,14 @@ spec:
 apiVersion: v1
 kind: ResourceQuota
 metadata:
-  name: mindclade-training-h200-capacity
-  namespace: mindclade-training-h200
+  name: mindclade-training-b200-capacity
+  namespace: mindclade-training-b200
   labels:
     app.kubernetes.io/component: capacity-policy
     app.kubernetes.io/part-of: mindclade-platform
-    mindclade.dev/capacity-domain: training-h200
+    mindclade.dev/capacity-domain: training-b200
   annotations:
-    mindclade.dev/activation-blocker: all-workload-and-h200-capacity-is-zero
+    mindclade.dev/activation-blocker: all-workload-and-b200-capacity-is-zero
     mindclade.dev/capacity-status: fail-closed
 spec:
   hard:
@@ -237,12 +237,12 @@ spec:
 apiVersion: v1
 kind: LimitRange
 metadata:
-  name: mindclade-training-h200-bounds
-  namespace: mindclade-training-h200
+  name: mindclade-training-b200-bounds
+  namespace: mindclade-training-b200
   labels:
     app.kubernetes.io/component: capacity-policy
     app.kubernetes.io/part-of: mindclade-platform
-    mindclade.dev/capacity-domain: training-h200
+    mindclade.dev/capacity-domain: training-b200
   annotations:
     mindclade.dev/defaulting-policy: forbidden-explicit-resources-required
 spec:

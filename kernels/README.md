@@ -43,3 +43,31 @@ and performance qualification.
 
 Check [`QUALIFICATION.md`](../QUALIFICATION.md) for connected hardware and
 provider work that remains outstanding.
+
+## Implemented operation contracts
+
+| Operation key | Reference semantics | TileLang source candidate |
+| --- | --- | --- |
+| `attention.sdpa` | Dense BHSD attention, causal or explicit allowed-mask semantics, FP32 softmax | Online-softmax, tiled Q/K/V, FP32 accumulation |
+| `fp8.scaled_gemm` | Saturating FP8 cast plus runtime-scaled GEMM | Pipelined tensor-core GEMM with fused scale/activation epilogue |
+| `fused.swiglu` | FP32 SiLU evaluation and elementwise product | Single-pass fused epilogue |
+| `pairformer.triangle_incoming` / `pairformer.triangle_outgoing` | Mask-aware `[B,N,N,C]` contractions | Tiled GEMM contraction per batch/channel |
+| `moe.grouped_gemm` | Deterministic padded expert-major GEMM | Expert-grid grouped GEMM |
+| `diffusion.modulated_residual` | Adaptive scale/shift/gate/residual | Single-pass broadcast-free epilogue |
+
+The source candidates are registered but cannot win dispatch merely by being
+present. `KernelDispatcher` requires an exact request and implementation digest
+in a non-revoked qualification manifest. Set `MINDCLADE_DISABLE_TILELANG=1` for
+an immediate PyTorch rollback.
+
+## Local verification
+
+```bash
+uv run --frozen pytest -q kernels tests/numerical/test_kernel_provider_parity.py
+uv run --frozen ruff check kernels tests/numerical/test_kernel_provider_parity.py
+tools/dev/bazelw test //kernels/... //tests/numerical:test_kernel_provider_parity --config=ci
+```
+
+GPU compilation, sanitizer, parity, and performance runs belong in a pinned
+accelerator environment with TileLang `0.1.13`; CPU-only success does not create
+qualification evidence.

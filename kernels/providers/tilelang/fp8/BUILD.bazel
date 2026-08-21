@@ -8,7 +8,12 @@ package(default_visibility = ["//visibility:public"])
 
 py_library(
     name = "fp8",
-    srcs = ["__init__.py", "configs.py", "fp8.py", "schedules.py"],
+    srcs = [
+        "__init__.py",
+        "configs.py",
+        "fp8.py",
+        "schedules.py",
+    ],
     imports = ["../../../.."],
     deps = [
         "//kernels/providers/tilelang/attention",

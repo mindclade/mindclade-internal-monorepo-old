@@ -63,6 +63,8 @@ the pull request base when needed. The compatibility profile and the two
 file-scoped legacy naming exceptions are governed by
 [`buf.yaml`](buf.yaml) and
 [`compatibility/breaking-policy.yaml`](compatibility/breaking-policy.yaml).
-`buf.gen.yaml` remains intentionally non-operational: Bazel owns generated
-bindings, and the still-partial generation surface must not report an empty
-Buf generation as production evidence.
+`buf.gen.yaml` generates the checked-in Protobuf-ES consumer surface under
+`sdk/typescript/src/generated/proto`. The generated tree and the public OpenAPI
+types are verified for deterministic regeneration by `pnpm run generate:check`.
+Bazel remains the compilation authority; generated files are never edited by
+hand.

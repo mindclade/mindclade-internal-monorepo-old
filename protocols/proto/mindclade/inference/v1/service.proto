@@ -15,7 +15,23 @@ message ServiceScaffold {
   string reserved = 1;
 }
 
+message PredictRequest {
+  InferenceRequest request = 1;
+}
+
+message PredictResponse {
+  InferenceResponse response = 1;
+}
+
+message StreamPredictRequest {
+  InferenceRequest request = 1;
+}
+
+message StreamPredictResponse {
+  InferenceStreamEvent event = 1;
+}
+
 service InferenceService {
-  rpc Predict(InferenceRequest) returns (InferenceResponse);
-  rpc StreamPredict(InferenceRequest) returns (stream InferenceStreamEvent);
+  rpc Predict(PredictRequest) returns (PredictResponse);
+  rpc StreamPredict(StreamPredictRequest) returns (stream StreamPredictResponse);
 }

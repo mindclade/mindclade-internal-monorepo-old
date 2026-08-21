@@ -311,6 +311,7 @@
                 cargo-deny
                 conftest
                 go
+                go-containerregistry
                 kubeconform
                 kubernetes-helm
                 kustomize
@@ -322,6 +323,7 @@
                 python312Packages.mkdocs
                 ruff
                 shellcheck
+                syft
                 terraform
                 terraform-docs
                 tflint

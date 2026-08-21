@@ -58,6 +58,7 @@ nav:
       - Go service golden path: guides/go-service-golden-path.md
       - Runnable Go integrations: guides/go-integration-examples.md
       - Rust runtime foundation: guides/rust-runtime-foundation.md
+      - MLflow integration: guides/mlflow-integration.md
       - Resolved configuration: guides/config-resolution.md
       - Maturity and dependency budgets: guides/component-maturity-and-dependency-budgets.md
   - Decisions:

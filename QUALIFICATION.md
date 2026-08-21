@@ -14,7 +14,7 @@ connected-provider qualification, and production promotion.
 - Representative Go durable-policy/domain contracts under `control/`.
 - Runnable control-plane API, event-dispatcher, and ingestion-coordinator vertical slices.
 - Bzlmod lock closure, full Bazel configured analysis, dependency-layer graph,
-  and all 277 non-manual Bazel tests in the pinned local macOS/Nix environment.
+  and all 304 non-manual Bazel tests in the pinned local macOS/Nix environment.
 - Complete target-state path materialization, accepted decision register, Go module cookbook, security documentation, and operating runbooks.
 - Structured validation of 87 JSON, 185 TOML, 195 YAML/YML, 548 Markdown files, and internal relative links.
 
@@ -62,6 +62,22 @@ Promotion additionally requires:
 - deployment smoke, drain, rollback, failure injection, and SLO evidence;
 - service-specific security and production-readiness approval.
 
+## Kernel lane
+
+The kernel provider contract, PyTorch semantic references, fail-closed dispatch,
+TileLang source candidates, target legality, offline autotuning, compiler evidence,
+and qualification/revocation records are implemented. Local CPU evidence covers
+46 focused behavior/numerical tests and 13 Nix/Bazel test targets. The Python
+scaffold ratchet was lowered by thirteen placeholder files.
+
+No TileLang signature is promoted by this implementation. A connected x86_64
+Linux GPU lane must install exactly TileLang `0.1.13`, compile the exact
+source/schedule, inspect generated instructions, run sanitizers and adversarial
+forward/gradient parity, benchmark with device synchronization, and bind the
+result to the runtime-environment digest. CUDA `sm_90`, `sm_100`, `sm_120` and
+ROCm `gfx90a`, `gfx942`, `gfx950` are source target models, not local hardware
+claims.
+
 ## Explicit non-claims
 
 The pinned Rust/Bazel/Nix toolchain is available and the local Cargo and Bazel
@@ -69,9 +85,10 @@ suites pass, including the `runtime_gateway` / `runtime_host` cores. The Rust
 presubmit also passes cargo-deny, compatibility, six local failure-injection
 scenarios, and two portable performance measurements. This is not
 connected-provider, Linux unsafe-code, remote-execution, sanitizer, fuzz/Miri,
-or complete hardware/provider performance evidence. Python configuration, preprocessing
-contracts, and cross-language fixtures are implemented and locally tested;
-broader Python numerical systems, TileLang kernels, TypeScript apps,
+or complete hardware/provider performance evidence. Python configuration,
+preprocessing contracts, cross-language fixtures, and the kernel
+source/qualification boundary are implemented and locally tested; broader
+Python numerical systems, TileLang hardware qualification, TypeScript apps,
 infrastructure, provider adapters, and product code remain scaffolded or
 partially implemented unless local evidence states otherwise. Source presence
 never implies numerical parity, security qualification, performance

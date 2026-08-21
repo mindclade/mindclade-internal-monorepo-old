@@ -3,4 +3,13 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export const SCAFFOLD_EVENTS = "apps/console/src/lib/events.ts" as const;
+import { TelemetryClient, event } from "@mindclade/libs-ts-telemetry";
+
+let telemetry: TelemetryClient | undefined;
+
+export function captureConsoleEvent(name: string, properties?: Readonly<Record<string, string | number | boolean | null>>): void {
+  const endpoint = process.env.NEXT_PUBLIC_TELEMETRY_ENDPOINT;
+  if (endpoint === undefined) return;
+  telemetry ??= new TelemetryClient({ endpoint });
+  telemetry.capture(event(name, properties));
+}

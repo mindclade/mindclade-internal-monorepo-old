@@ -19,9 +19,7 @@ def validate_binary(a: torch.Tensor, b: torch.Tensor, operation: str) -> None:
         raise KernelValidationError(f"{operation} requires non-empty floating-point tensors")
 
 
-def validate_triangle(
-    left: torch.Tensor, right: torch.Tensor, mask: torch.Tensor
-) -> None:
+def validate_triangle(left: torch.Tensor, right: torch.Tensor, mask: torch.Tensor) -> None:
     require_same_device(("left", left), ("right", right), ("mask", mask))
     require_same_dtype(("left", left), ("right", right))
     if left.ndim != 4 or left.shape != right.shape:

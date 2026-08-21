@@ -5525,6 +5525,7 @@ The supplied `libs/go` tree is already implemented and is adopted immediately. T
 ├── pnpm-workspace.yaml
 ├── pyproject.toml
 ├── README.md
+├── REPO.bazel
 ├── rustfmt.toml
 ├── SECURITY.md
 ├── tsconfig.base.json

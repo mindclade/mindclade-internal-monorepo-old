@@ -3,6 +3,9 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export default function Evaluationapproval(): JSX.Element {
-  return <main data-scaffold="apps/admin/src/components/EvaluationApproval.tsx" />;
+import type { ApprovalEvidence } from "../lib/types";
+import { ApprovalGate } from "./ApprovalGate";
+
+export function EvaluationApproval({ evidence, onApprove }: { evidence: ApprovalEvidence; onApprove?: (reason: string) => Promise<void> }): React.ReactNode {
+  return <ApprovalGate title="Accept evaluation evidence" risk="Marks the independent gate as accepted for promotion; underlying evidence remains immutable." evidence={evidence} confirmation="ACCEPT EVIDENCE" {...(onApprove === undefined ? {} : { onApprove })} />;
 }

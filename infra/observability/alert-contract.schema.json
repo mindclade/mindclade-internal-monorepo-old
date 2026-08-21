@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mindclade.com/contracts/observability/cloud-monitoring-alert-contract-1.0.0.schema.json",
+  "title": "Mindclade provider-neutral alert contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "name", "owner", "serviceClass", "availabilityProfile", "deployment", "requiredEnvironmentInputs", "signals", "cardinality", "activationPolicy"],
+  "properties": {
+    "schemaVersion": {"const": "mindclade.dev/cloud-monitoring-alert-contract/v1alpha1"},
+    "name": {"$ref": "#/$defs/id"},
+    "owner": {"$ref": "#/$defs/id"},
+    "serviceClass": {"enum": ["control-plane", "data-pipeline", "frontend", "model-serving", "release", "training"]},
+    "availabilityProfile": {"$ref": "#/$defs/id"},
+    "deployment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "terraformModule", "deployableKubernetesResource"],
+      "properties": {
+        "provider": {"const": "google-cloud-monitoring"},
+        "terraformModule": {"const": "infra/terraform/modules/monitoring"},
+        "deployableKubernetesResource": {"const": false}
+      }
+    },
+    "requiredEnvironmentInputs": {"type": "array", "minItems": 6, "maxItems": 6, "uniqueItems": true, "items": {"$ref": "#/$defs/environmentInput"}},
+    "signals": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"$ref": "#/$defs/signal"}},
+    "observedSignals": {"type": "array", "maxItems": 64, "items": {"$ref": "#/$defs/observedSignal"}},
+    "cardinality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["permittedDimensions", "forbiddenDimensions", "rawValuesInTelemetry"],
+      "properties": {
+        "permittedDimensions": {"type": "array", "maxItems": 16, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "forbiddenDimensions": {"type": "array", "minItems": 10, "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "rawValuesInTelemetry": {"const": false}
+      }
+    },
+    "activationPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabledByDefault", "requiresSyntheticFireAndResolve", "requiresHealthyTelemetry", "requiresReviewedThresholds"],
+      "properties": {
+        "enabledByDefault": {"const": false},
+        "requiresSyntheticFireAndResolve": {"const": true},
+        "requiresHealthyTelemetry": {"const": true},
+        "requiresReviewedThresholds": {"const": true}
+      }
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]{1,127}$"},
+    "environmentInput": {"enum": ["emailNotificationChannelResourceNames", "environment", "googleChatNotificationChannelResourceNames", "httpsRunbookUrl", "projectId", "qualificationEvidenceSha256"]},
+    "signal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "description", "metric", "condition", "threshold", "duration", "severity", "missingData", "minimumSamples", "runbookAnchor"],
+      "properties": {
+        "name": {"$ref": "#/$defs/id"},
+        "description": {"type": "string", "minLength": 20, "maxLength": 1000},
+        "metric": {"type": "string", "pattern": "^[a-zA-Z_:][a-zA-Z0-9_:.-]{2,255}$"},
+        "condition": {"enum": ["above", "below"]},
+        "threshold": {"type": "number"},
+        "duration": {"type": "string", "pattern": "^[1-9][0-9]*(m|h|d)$"},
+        "severity": {"enum": ["page", "ticket"]},
+        "missingData": {"enum": ["fire", "no-op"]},
+        "minimumSamples": {"type": "integer", "minimum": 1, "maximum": 1000000000},
+        "runbookAnchor": {"$ref": "#/$defs/id"}
+      }
+    },
+    "observedSignal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "description", "metric"],
+      "properties": {
+        "name": {"$ref": "#/$defs/id"},
+        "description": {"type": "string", "minLength": 20, "maxLength": 1000},
+        "metric": {"type": "string", "pattern": "^[a-zA-Z_:][a-zA-Z0-9_:.-]{2,255}$"}
+      }
+    }
+  }
+}

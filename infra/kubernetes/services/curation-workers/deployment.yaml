@@ -4,9 +4,9 @@
 #
 
 ---
-# Curation is durable batch work, not a network service. The Python package has
-# no runnable composition root yet, so this Job contract is permanently
-# suspended until an orchestrator creates a separately reviewed execution.
+# Curation is durable batch work, not a network service. Its Python adapter is
+# implemented, but the scientific engine and Rust/Python process bridge lack
+# connected qualification, so this template remains suspended.
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -18,7 +18,7 @@ metadata:
     app.kubernetes.io/part-of: mindclade-platform
   annotations:
     mindclade.dev/deployment-status: disabled
-    mindclade.dev/activation-blocker: runnable-entrypoint-and-ticket-adapter-missing
+    mindclade.dev/activation-blocker: engine-and-rust-python-bridge-qualification-missing
     mindclade.dev/template-only: "true"
 spec:
   suspend: true

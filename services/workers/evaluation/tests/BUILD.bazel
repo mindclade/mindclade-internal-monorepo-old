@@ -3,13 +3,14 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-package(default_visibility = ["//visibility:private"])
+load("//tools/build:pytest.bzl", "pytest_test")
 
-filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
-    visibility = ["//visibility:public"],
+pytest_test(
+    name = "test_smoke",
+    srcs = ["test_smoke.py"],
+    imports = ["../../../.."],
+    deps = [
+        "//libs/python/worker_runtime",
+        "//services/workers/evaluation",
+    ],
 )

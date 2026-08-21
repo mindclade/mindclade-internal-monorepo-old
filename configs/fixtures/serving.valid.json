@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "mindclade.dev/serving/v1",
+  "serviceId": "contract-fixture",
+  "owner": "runtime-platform",
+  "modelDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "runtimeDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "inputSchemaDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "outputSchemaDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "availabilityProfile": "critical-serving",
+  "resources": {"maximumConcurrency": 64, "maximumBatchSize": 16, "maximumInputBytes": 1048576, "maximumOutputBytes": 1048576, "shutdownSeconds": 120},
+  "rollout": {"strategy": "canary", "rollbackDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "automaticPromotion": false}
+}

@@ -22,7 +22,10 @@ def validate_modulation(
     if any(item.shape != expected for item in (scale, shift, gate)):
         raise KernelValidationError("scale, shift, and gate must have [batch, channels] shape")
     tensors = (normalized, residual, scale, shift, gate)
-    if len({tensor.device for tensor in tensors}) != 1 or len({tensor.dtype for tensor in tensors}) != 1:
+    if (
+        len({tensor.device for tensor in tensors}) != 1
+        or len({tensor.dtype for tensor in tensors}) != 1
+    ):
         raise KernelValidationError("diffusion modulation tensors must share device and dtype")
     if normalized.numel() == 0 or not normalized.is_floating_point():
         raise KernelValidationError("diffusion modulation requires non-empty floating tensors")

@@ -5,6 +5,15 @@
 
 package(default_visibility = ["//visibility:private"])
 
+load("//tools/build:pytest.bzl", "pytest_test")
+
+pytest_test(
+    name = "test_contracts",
+    srcs = ["test_contracts.py"],
+    imports = ["../../.."],
+    deps = ["//data/contracts:contracts"],
+)
+
 filegroup(
     name = "scaffold_files",
     srcs = glob(

@@ -6,8 +6,8 @@ Only these roots are deployable inputs:
 
 - `overlays/h100` renders into `mindclade-training-h100` and selects
   `gke-h100-a3-megagpu-8g` / `mindclade-training-h100`.
-- `overlays/h200` renders into `mindclade-training-h200` and selects
-  `gke-h200-a3-ultragpu-8g` / `mindclade-training-h200`.
+- `overlays/b200` renders into `mindclade-training-b200` and selects
+  `gke-b200-a4-highgpu-8g` / `mindclade-training-b200`.
 
 Each overlay renders two permanently suspended templates. `1g-packed` requests one GPU and uses
 Kueue unconstrained topology for fragmentation-aware placement. `8g-full` requests all eight

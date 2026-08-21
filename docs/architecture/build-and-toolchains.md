@@ -58,6 +58,12 @@ the exact version before accepting plain Bazel, moves execution to the workspace
 root, and passes arguments unchanged. It does not discover compilers, inject
 Darwin flags, or choose a configuration or target set.
 
+Repository traversal policy is split by syntax: `.bazelignore` owns literal
+root tool-output paths, while `REPO.bazel` uses Bazel 8+ glob semantics for
+nested generated trees. Node dependency trees, Python bytecode/tool caches, and
+Terraform provider caches stay out of `//...`; committed sources and lock files
+remain visible to Bazel governance targets.
+
 Every development and CI shell exports `MINDCLADE_CC_TOOLCHAIN_ROOT` from
 `packages.<system>.cc-toolchain-bundle`. The bundle records Clang and binutils,
 resource headers, target triple, platform constraints, system include paths,

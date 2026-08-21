@@ -29,7 +29,10 @@ class TensorMapSpec:
             raise ValueError("invalid TMA tile or multicast count")
         if self.global_layout.alignment < 16:
             raise ValueError("TMA global tensors require at least 16-byte alignment")
-        if any(tile > extent for tile, extent in zip(self.tile_shape, self.global_layout.shape)):
+        if any(
+            tile > extent
+            for tile, extent in zip(self.tile_shape, self.global_layout.shape, strict=True)
+        ):
             raise ValueError("TMA tile must fit within its tensor extents")
 
     def validate_target(self, target: TargetSpec) -> None:

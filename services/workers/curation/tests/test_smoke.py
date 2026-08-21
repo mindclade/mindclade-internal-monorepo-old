@@ -3,19 +3,61 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold test for services/workers/curation/tests/test_smoke.py."""
+from libs.python.worker_runtime import (
+    ExecutionContext,
+    StageEnvelope,
+    StageKind,
+    StageResult,
+    WorkerState,
+    WorkloadEnvelope,
+)
+from services.workers.curation import build_worker, worker_limits
 
-import pytest
+DIGEST = "sha256:" + "1" * 64
 
 
-# SKIPPED, not passing.
-#
-# A placeholder for tests that do not exist yet. It used to `assert True` — which pytest
-# reports as a pass, so the suite was green and the number it printed was not the number of
-# things actually verified. A vacuous gate is worse than no gate: it manufactures confidence.
-#
-# Write real tests here when there is an implementation to test, and lower SCAFFOLD_BASELINE
-# in tests/integration/test_python_scaffold.py in the same commit.
-@pytest.mark.scaffold
-def test_scaffold_contract() -> None:
-    pytest.skip("scaffold: no implementation to test yet")
+def resource(kind: str, suffix: int) -> str:
+    return f"{kind}_019c00000000700080000000000000{suffix:02x}"
+
+
+class Engine:
+    def execute(self, stage: StageEnvelope, context: ExecutionContext) -> StageResult:
+        context.checkpoint(operation=stage.operation)
+        return StageResult((), {"completed": 1.0})
+
+
+def workload() -> WorkloadEnvelope:
+    stage = StageEnvelope(
+        stage_id=resource("stage", 1),
+        kind=StageKind.CURATE,
+        operation="execute",
+        inputs=(),
+        output_namespace="tenant/a",
+        resolved_config_digest=DIGEST,
+        reference_snapshot_digest=None,
+        attempt=1,
+        fencing_token=7,
+        deadline_unix_millis=9_000_000_000_000,
+    )
+    return WorkloadEnvelope(
+        workload_id=resource("workload", 2),
+        run_id=resource("run", 3),
+        job_id=resource("job", 4),
+        tenant_id=resource("tenant", 5),
+        workspace_id=resource("workspace", 6),
+        execution_ticket_id=resource("ticket", 7),
+        stage=stage,
+        resource_class="cpu",
+        created_unix_millis=1_000,
+    )
+
+
+def test_curation_adapter_composes_shared_bounded_runtime() -> None:
+    worker = build_worker(
+        Engine(),
+        worker_limits(maximum_concurrent_executions=2, drain_timeout_millis=1_000),
+    )
+    assert worker.lifecycle.state is WorkerState.READY
+    assert worker.execute(workload()).metrics == {"completed": 1.0}
+    assert worker.drain_and_stop()
+    assert worker.lifecycle.state is WorkerState.STOPPED

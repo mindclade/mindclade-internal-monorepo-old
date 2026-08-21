@@ -1,21 +1,22 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
-
-"""Scaffold test for kernels/tilelang/compiler/tests/test_layouts.py."""
 
 import pytest
 
+from kernels.tilelang.compiler.layouts import SharedTile, StridedLayout
+from kernels.tilelang.compiler.swizzle import SharedSwizzle
 
-# SKIPPED, not passing.
-#
-# A placeholder for tests that do not exist yet. It used to `assert True` — which pytest
-# reports as a pass, so the suite was green and the number it printed was not the number of
-# things actually verified. A vacuous gate is worse than no gate: it manufactures confidence.
-#
-# Write real tests here when there is an implementation to test, and lower SCAFFOLD_BASELINE
-# in tests/integration/test_python_scaffold.py in the same commit.
-@pytest.mark.scaffold
-def test_scaffold_contract() -> None:
-    pytest.skip("scaffold: no implementation to test yet")
+
+def test_contiguous_layout_derives_strides_vector_width_and_bytes() -> None:
+    layout = StridedLayout.contiguous((3, 8, 16), element_bytes=2, alignment=16)
+    assert layout.strides == (128, 16, 1)
+    assert layout.nbytes == 768
+    assert layout.vector_width() == 8
+
+
+def test_shared_swizzle_validates_producer_consumer_row_shape() -> None:
+    tile = SharedTile(64, 64, 2)
+    SharedSwizzle(128).validate(tile)
+    with pytest.raises(ValueError, match="span"):
+        SharedSwizzle(128).validate(SharedTile(16, 16, 2))

@@ -3,13 +3,31 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_python//python:defs.bzl", "py_library")
+
 package(default_visibility = ["//visibility:private"])
 
+py_library(
+    name = "affine",
+    srcs = [
+        "__init__.py",
+        "affine.py",
+    ],
+    imports = ["../.."],
+    visibility = [
+        "//models/reference/tests:__pkg__",
+        "//serving:__subpackages__",
+        "//training:__subpackages__",
+    ],
+    deps = [
+        "@pypi//safetensors",
+        "@pypi//torch",
+    ],
+)
+
+# Preserve the repository's explicit scaffold inventory for the unimplemented tiny_* paths.
 filegroup(
     name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
+    srcs = glob(["tiny_*.py"]),
     visibility = ["//visibility:public"],
 )

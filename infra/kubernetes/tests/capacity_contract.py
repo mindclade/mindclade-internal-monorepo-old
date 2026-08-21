@@ -24,7 +24,7 @@ CONTRACT_NAME = re.compile(r"^mindclade-capacity-contract-sha256-([0-9a-f]{64})$
 DOMAINS = {
     "mindclade-batch-cpu": ("batch-cpu", "mindclade-cpu-general-ondemand"),
     "mindclade-training-h100": ("training-h100", "mindclade-h100"),
-    "mindclade-training-h200": ("training-h200", "mindclade-h200"),
+    "mindclade-training-b200": ("training-b200", "mindclade-b200"),
 }
 SCHEMA_DATA_KEYS = {
     "activationState",
@@ -284,7 +284,7 @@ def main() -> None:
                     "mindclade.dev/gpu-profile": (
                         "gke-h100-a3-megagpu-8g"
                         if namespace_name == "mindclade-training-h100"
-                        else "gke-h200-a3-ultragpu-8g"
+                        else "gke-b200-a4-highgpu-8g"
                     ),
                     "mindclade.dev/node-pool": "gpu",
                 }

@@ -35,6 +35,7 @@ import check_foundation_hardening
 import check_go_layers
 import check_go_modules
 import check_libs_go_admission
+import check_mlops_contracts
 import check_rust_implementation
 import check_rust_workspace
 
@@ -105,6 +106,7 @@ CHECKS = [
     ("Go layers and paved roads", _go_layers),
     ("Go modules", check_go_modules.check),
     ("libs/go admission", check_libs_go_admission.check),
+    ("MLOps static contracts", check_mlops_contracts.check),
     ("Rust workspace", check_rust_workspace.check),
     ("Rust implementation", check_rust_implementation.check),
 ]

@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import hashlib
 import inspect
-from functools import partial
 from collections.abc import Callable
+from functools import partial
 
 from kernels.api.specs import ImplementationIdentity, Provider
 from kernels.registry import KernelImplementation

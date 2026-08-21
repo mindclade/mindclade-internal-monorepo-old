@@ -3,12 +3,28 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for serving/model_worker/multimodal.py.
+"""Location-free multimodal input descriptors."""
 
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+from dataclasses import dataclass
 
-from __future__ import annotations
 
-SCAFFOLD_PATH: str = "serving/model_worker/multimodal.py"
+@dataclass(frozen=True, slots=True)
+class ModalityInput:
+    modality: str
+    artifact_digest: str
+    units: int
+
+    def __post_init__(self) -> None:
+        if not self.modality or len(self.modality) > 128:
+            raise ValueError("modality name is invalid")
+        if not self.artifact_digest.startswith("sha256:") or len(self.artifact_digest) != 71:
+            raise ValueError("modality artifact digest is invalid")
+        if isinstance(self.units, bool) or not 1 <= self.units <= 2**31:
+            raise ValueError("modality units are outside bounds")
+
+
+def validate_modalities(values: tuple[ModalityInput, ...], *, maximum_modalities: int = 32) -> None:
+    if not values or len(values) > maximum_modalities:
+        raise ValueError("modality count is outside bounds")
+    if len({value.modality for value in values}) != len(values):
+        raise ValueError("modalities must be unique")

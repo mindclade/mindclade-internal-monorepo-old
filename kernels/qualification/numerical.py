@@ -28,8 +28,8 @@ class NumericalEvidence:
             raise ValueError("numerical evidence requires cases and recorded seeds")
         if min(self.rtol, self.atol, self.max_absolute_error, self.max_relative_error) < 0:
             raise ValueError("numerical tolerances and errors must be non-negative")
-        if self.gradient_required and not self.gradient_passed:
-            raise ValueError("required gradient evidence did not pass")
+        # Failed evidence remains serializable so rejected qualification attempts
+        # are auditable. Promotion checks ``passed`` and rejects this record.
 
     @property
     def passed(self) -> bool:

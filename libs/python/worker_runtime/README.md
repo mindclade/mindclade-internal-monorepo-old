@@ -29,3 +29,9 @@ This package does not preempt arbitrary Python or native code, import PyTorch, c
 Kubernetes client, database, signing provider, or cloud SDK. Engines must cooperate for prompt
 mid-operation interruption; scientific algorithm behavior and safe checkpoint placement remain
 with each owning worker engine.
+
+`StageWorker` adds a process-local lifecycle and a non-blocking concurrency ceiling. It accepts no
+work before readiness or after drain starts, never creates an implicit queue, tracks in-flight work
+exactly, and stops only after drain completes. This is defense in depth beneath the authoritative
+signed resource budget enforced by the Rust worker runtime; it does not reimplement ticket or
+fencing verification in Python.

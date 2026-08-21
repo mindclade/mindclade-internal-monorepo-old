@@ -3,12 +3,36 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for serving/model_worker/precision.py.
+"""Explicit precision compatibility; no implicit numerical downgrade."""
 
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+from dataclasses import dataclass
+from enum import StrEnum
 
-from __future__ import annotations
 
-SCAFFOLD_PATH: str = "serving/model_worker/precision.py"
+class Precision(StrEnum):
+    FP32 = "fp32"
+    TF32 = "tf32"
+    BF16 = "bf16"
+    FP16 = "fp16"
+    FP8 = "fp8"
+    INT8 = "int8"
+
+
+@dataclass(frozen=True, slots=True)
+class PrecisionPolicy:
+    allowed: tuple[Precision, ...]
+    require_exact: bool = True
+
+    def __post_init__(self) -> None:
+        if not self.allowed or len(self.allowed) != len(set(self.allowed)):
+            raise ValueError("precision policy must contain unique allowed modes")
+
+    def select(self, requested: Precision, supported: tuple[Precision, ...]) -> Precision:
+        if requested in self.allowed and requested in supported:
+            return requested
+        if self.require_exact:
+            raise ValueError("requested precision is unavailable")
+        for candidate in self.allowed:
+            if candidate in supported:
+                return candidate
+        raise ValueError("no allowed precision is supported")

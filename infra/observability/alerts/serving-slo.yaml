@@ -1,7 +1,20 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+{
+  "schemaVersion": "mindclade.dev/cloud-monitoring-alert-contract/v1alpha1",
+  "name": "serving-slo",
+  "owner": "runtime-platform",
+  "serviceClass": "model-serving",
+  "availabilityProfile": "critical-serving",
+  "deployment": {"provider": "google-cloud-monitoring", "terraformModule": "infra/terraform/modules/monitoring", "deployableKubernetesResource": false},
+  "requiredEnvironmentInputs": ["emailNotificationChannelResourceNames", "environment", "googleChatNotificationChannelResourceNames", "httpsRunbookUrl", "projectId", "qualificationEvidenceSha256"],
+  "signals": [
+    {"name": "serving-fast-error-budget-burn", "description": "Serving availability consumes the configured error budget at the critical profile fast-burn rate.", "metric": "mindclade.serving.error_budget_fast_burn", "condition": "above", "threshold": 14.4, "duration": "5m", "severity": "page", "missingData": "no-op", "minimumSamples": 1000, "runbookAnchor": "serving-fast-error-budget-burn"},
+    {"name": "serving-slow-error-budget-burn", "description": "Serving availability consumes the configured error budget at the critical profile slow-burn rate.", "metric": "mindclade.serving.error_budget_slow_burn", "condition": "above", "threshold": 6.0, "duration": "1h", "severity": "ticket", "missingData": "no-op", "minimumSamples": 1000, "runbookAnchor": "serving-slow-error-budget-burn"}
+  ],
+  "cardinality": {"permittedDimensions": ["cluster", "environment", "location", "namespace", "result", "service"], "forbiddenDimensions": ["dataset", "feature", "label", "model", "molecule", "prompt", "request-id", "sequence", "tenant", "user"], "rawValuesInTelemetry": false},
+  "activationPolicy": {"enabledByDefault": false, "requiresSyntheticFireAndResolve": true, "requiresHealthyTelemetry": true, "requiresReviewedThresholds": true}
+}

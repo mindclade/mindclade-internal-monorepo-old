@@ -6,7 +6,8 @@
 
 # Product applications
 
-> **Maturity:** Scaffolded; this page does not claim production capability.
+> **Maturity:** Implemented application surfaces; live identity, API, security,
+> accessibility, and deployment qualification remain promotion requirements.
 > **Primary implementation:** TypeScript and Next.js.
 
 `apps/` contains Mindclade's product-facing web applications. Applications

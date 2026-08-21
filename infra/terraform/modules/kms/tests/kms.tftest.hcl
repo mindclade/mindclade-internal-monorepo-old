@@ -57,6 +57,71 @@ run "hsm_key_contract" {
   }
 }
 
+run "additive_encrypter_decrypter_contract" {
+  command = plan
+
+  variables {
+    project_id    = "mindclade-security-prod"
+    location      = "us-central1"
+    key_ring_name = "application-data"
+    keys = {
+      storage = {}
+    }
+    encrypter_decrypters = {
+      storage = [
+        "serviceAccount:service-123456789012@gs-project-accounts.iam.gserviceaccount.com",
+      ]
+    }
+  }
+
+  assert {
+    condition = (
+      length(google_kms_crypto_key_iam_member.encrypter_decrypter) == 1 &&
+      google_kms_crypto_key_iam_member.encrypter_decrypter["storage:serviceAccount:service-123456789012@gs-project-accounts.iam.gserviceaccount.com"].member == "serviceAccount:service-123456789012@gs-project-accounts.iam.gserviceaccount.com" &&
+      google_kms_crypto_key_iam_member.encrypter_decrypter["storage:serviceAccount:service-123456789012@gs-project-accounts.iam.gserviceaccount.com"].role == "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+    )
+    error_message = "Service-agent access must remain an additive member grant on the exact symmetric key."
+  }
+}
+
+run "rejects_encrypter_decrypter_for_unknown_key" {
+  command = plan
+
+  variables {
+    project_id    = "mindclade-security-prod"
+    location      = "us-central1"
+    key_ring_name = "application-data"
+    keys = {
+      storage = {}
+    }
+    encrypter_decrypters = {
+      missing = [
+        "serviceAccount:service-123456789012@gs-project-accounts.iam.gserviceaccount.com",
+      ]
+    }
+  }
+
+  expect_failures = [var.encrypter_decrypters]
+}
+
+run "rejects_public_encrypter_decrypter" {
+  command = plan
+
+  variables {
+    project_id    = "mindclade-security-prod"
+    location      = "us-central1"
+    key_ring_name = "application-data"
+    keys = {
+      storage = {}
+    }
+    encrypter_decrypters = {
+      storage = ["allAuthenticatedUsers"]
+    }
+  }
+
+  expect_failures = [var.encrypter_decrypters]
+}
+
 run "rejects_short_destruction_window" {
   command = plan
 

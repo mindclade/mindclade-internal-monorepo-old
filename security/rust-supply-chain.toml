@@ -10,7 +10,7 @@ require_exact_workspace_external_versions = true
 require_lockfile = true
 
 [unsafe]
-allowed_first_party_crates = ["mindclade_ipc_os"]
+allowed_first_party_crates = ["mindclade_ipc_os", "mindclade_process_os"]
 
 [licenses]
 allowed = ["Apache-2.0", "MIT", "BSD-2-Clause", "BSD-3-Clause", "ISC", "Unicode-3.0", "Zlib"]

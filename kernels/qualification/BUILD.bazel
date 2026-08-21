@@ -1,0 +1,23 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//visibility:public"])
+
+py_library(
+    name = "qualification",
+    srcs = [
+        "__init__.py",
+        "evidence.py",
+        "fallback.py",
+        "maturity.py",
+        "numerical.py",
+        "performance.py",
+        "promotion.py",
+        "revocation.py",
+    ],
+    imports = ["../.."],
+    deps = ["//kernels:kernel_core"],
+)

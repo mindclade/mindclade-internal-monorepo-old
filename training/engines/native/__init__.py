@@ -3,4 +3,8 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Mindclade scaffold package for training/engines/native."""
+"""PyTorch eager reference execution."""
+
+from .engine import NativeEngine
+
+__all__ = ["NativeEngine"]

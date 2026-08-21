@@ -28,10 +28,12 @@ will be blocked until safeguards are deliberately reviewed. Verify Cloud HSM
 availability, quotas, latency, data residency, organization policies, and
 dependent-service recovery before rollout.
 
-IAM bindings, API enablement, service-agent permissions, key-version disable/
-destroy procedures, and application re-encryption are separate operational
-boundaries. This module is a repository baseline, not evidence that keys are
-deployed or production-qualified.
+The optional `encrypter_decrypters` contract creates additive, key-scoped IAM member grants in
+the same state that owns each symmetric key. Callers must name an existing key in `keys` and an
+exact non-public principal; authoritative bindings and project-wide grants are intentionally not
+supported. API enablement, service-agent provisioning, key-version disable/destroy procedures,
+and application re-encryption remain separate operational boundaries. This module is a repository
+baseline, not evidence that keys or grants are deployed or production-qualified.
 
 <!-- BEGIN_TF_DOCS -->
 ## Requirements
@@ -51,6 +53,7 @@ deployed or production-qualified.
 
 | Name | Description | Type | Default | Required |
 | ---- | ----------- | ---- | ------- | :------: |
+| <a name="input_encrypter_decrypters"></a> [encrypter\_decrypters](#input\_encrypter\_decrypters) | Additive CryptoKey encrypter/decrypter members keyed by symmetric key name; service agents remain declared by the owning live state | `map(set(string))` | `{}` | no |
 | <a name="input_key_ring_name"></a> [key\_ring\_name](#input\_key\_ring\_name) | Stable name for the Cloud KMS key ring | `string` | n/a | yes |
 | <a name="input_keys"></a> [keys](#input\_keys) | Symmetric encryption keys keyed by stable CryptoKey name.<br/><br/>For ASYMMETRIC SIGNING keys — where the private key must never leave KMS — see<br/>`signing_keys` below. They are separate variables rather than one with a purpose field<br/>because almost nothing about them is shared: a signing key cannot carry an automatic<br/>rotation period, and treating them uniformly means a validation that permits an<br/>invalid combination on one of the two. | <pre>map(object({<br/>    rotation_period_seconds            = optional(number, 7776000)<br/>    destroy_scheduled_duration_seconds = optional(number, 2592000)<br/>    protection_level                   = optional(string, "SOFTWARE")<br/>    labels                             = optional(map(string), {})<br/>  }))</pre> | `{}` | no |
 | <a name="input_labels"></a> [labels](#input\_labels) | Non-sensitive labels merged into every CryptoKey | `map(string)` | `{}` | no |
@@ -64,6 +67,7 @@ deployed or production-qualified.
 | ---- | ----------- |
 | <a name="output_crypto_key_ids"></a> [crypto\_key\_ids](#output\_crypto\_key\_ids) | Fully qualified CryptoKey resource IDs keyed by key name |
 | <a name="output_crypto_key_names"></a> [crypto\_key\_names](#output\_crypto\_key\_names) | CryptoKey names keyed by the stable input name |
+| <a name="output_encrypter_decrypter_grants"></a> [encrypter\_decrypter\_grants](#output\_encrypter\_decrypter\_grants) | Additive symmetric-key grants owned by this KMS state. |
 | <a name="output_key_ring_id"></a> [key\_ring\_id](#output\_key\_ring\_id) | Fully qualified Cloud KMS key-ring resource ID |
 | <a name="output_key_ring_name"></a> [key\_ring\_name](#output\_key\_ring\_name) | Cloud KMS key-ring name |
 | <a name="output_signing_key_ids"></a> [signing\_key\_ids](#output\_signing\_key\_ids) | Asymmetric signing CryptoKey ids by name. The BFF signs by calling KMS with one of these; the private half never leaves. |

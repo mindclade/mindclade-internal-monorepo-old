@@ -3,6 +3,5 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export default function Page(): JSX.Element {
-  return <main data-scaffold="apps/console/src/app/datasets/page.tsx" />;
-}
+import { ResourcePage } from "../../components/ResourcePage";
+export default function Page(): React.ReactNode { return <ResourcePage kind="datasets" copy={{ eyebrow: "Data plane", title: "Datasets", description: "Immutable dataset releases with lineage, licensing, and quarantine state.", emptyTitle: "No dataset releases", emptyDetail: "Publish a manifest-backed release through the data pipeline." }} />; }

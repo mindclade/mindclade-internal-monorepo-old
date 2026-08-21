@@ -156,3 +156,23 @@ variable "signing_keys" {
     error_message = "A name cannot appear in both keys and signing_keys — they would collide on the same CryptoKey resource name."
   }
 }
+
+variable "encrypter_decrypters" {
+  description = "Additive CryptoKey encrypter/decrypter members keyed by symmetric key name; service agents remain declared by the owning live state"
+  type        = map(set(string))
+  default     = {}
+
+  validation {
+    condition = (
+      length(setsubtract(keys(var.encrypter_decrypters), keys(var.keys))) == 0 &&
+      alltrue(flatten([
+        for _, members in var.encrypter_decrypters : [
+          for member in members :
+          member != "allUsers" && member != "allAuthenticatedUsers" &&
+          can(regex("^(serviceAccount|group|user):[^@[:space:]]+@[^@[:space:]]+$", member))
+        ]
+      ]))
+    )
+    error_message = "encrypter_decrypters keys must name symmetric keys and members must be non-public user, group, or service-account principals."
+  }
+}

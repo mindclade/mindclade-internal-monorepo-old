@@ -9,6 +9,7 @@ from libs.python.identifiers import ArtifactRef
 
 from .contracts import StageEnvelope, StageKind, StageResult
 from .executor import CancellationToken, ExecutionContext, StageEngine, StageExecutor
+from .service import StageWorker, WorkerLifecycle, WorkerLimits, WorkerState
 from .workload import WorkloadEnvelope
 
 __all__ = [
@@ -20,5 +21,9 @@ __all__ = [
     "StageExecutor",
     "StageKind",
     "StageResult",
+    "StageWorker",
+    "WorkerLifecycle",
+    "WorkerLimits",
+    "WorkerState",
     "WorkloadEnvelope",
 ]

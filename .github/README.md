@@ -6,9 +6,9 @@
 
 # GitHub configuration
 
-> **Maturity:** Presubmit and security workflows are active repository
-> contracts; release and Buildkite identities retain explicit fail-closed
-> activation gates.
+> **Maturity:** Presubmit and security workflows are active repository contracts. The ARC
+> release path is source-complete but remains fail-closed until its connected activation gates
+> pass; Buildkite is retained only as non-authoritative rollback evidence during that rollout.
 
 ## Workflows
 
@@ -62,34 +62,21 @@ architecture lane is `python3 ci/presubmit/pipeline.py --static-only`.
 Bazel is the test execution authority. CI selects targets; it does not duplicate
 build logic.
 
-## Buildkite activation status
+## Buildkite retirement status
 
-The repository owns fail-closed identity canaries under `.buildkite/`, but their
-checked-in contract is explicitly `unprovisioned`: it contains no live organization,
-pipeline, provider, or service-account identifier and refuses to request a token.
-Buildkite-to-Google Cloud federation is therefore not active and must not be
-presented as production-qualified.
-
-Activation requires three private pipelines and self-hosted agents, the exact
-immutable IDs committed in a protected change, bootstrap WIF enabled with those
-same pipeline/step pairs, and normal-plane identities applied. Each canary first
-proves that an untrusted step is denied and then proves that only its exact
-`artifact-build`, `artifact-qualify`, or `artifact-promote` step can impersonate
-its dedicated service account. The helper requests `pipeline_id` as subject,
-includes `organization_id`, uses the exact provider audience and GCP token format,
-and never performs an artifact, attestation, registry, GitOps, or cluster mutation.
-See `.buildkite/README.md` for the connected activation order and evidence contract.
+The `.buildkite/` source remains temporarily for audit and rollback comparison, but bootstrap
+now rejects any enabled Buildkite provider and normal-plane IAM grants it no authority. Its
+checkout verification cannot establish canonical protected-main ancestry for API/custom-refspec
+builds, so it must never be reactivated. Remove the dormant source only after two connected ARC
+releases and the documented rollback drill pass.
 
 ## Release activation status
 
-`release.yml` is also fail-closed. Its pre-v3 build, provenance, and WIF calls
-remain visibly pinned to the legacy `mindclade-org/.github` contract, and both
-root release jobs require a deliberately impossible repository sentinel that
-can be removed only by a reviewed source change. The current
-`mindclade/.github` v3 contract separates building, independent qualification,
-and Binary Authorization signing; it has no drop-in provenance workflow or WIF
-action for the legacy chain. Release activation therefore requires a separate
-end-to-end migration and connected qualification, not an owner-only rewrite.
+`release.yml` accepts only a protected-main push that adds exactly one immutable reviewed
+request under `ci/release/requests/`. It calls the immutable `.github` v4 ARC canary, builder,
+independent qualifier, protected deployment signer, and review-only GitOps promoter. The source
+remains inactive until `.github` v4 is published, the exact runner group and GitHub Apps exist,
+the six WIF capabilities are applied and negatively tested, and the connected canary passes.
 
 ## Dependency updates
 

@@ -3,13 +3,54 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-package(default_visibility = ["//visibility:private"])
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
 
-filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
-    visibility = ["//visibility:public"],
+package(default_visibility = ["//visibility:public"])
+
+proto_library(
+    name = "model_proto",
+    srcs = ["model.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = ["//protocols/proto/mindclade/common/v1:identifiers_proto"],
+)
+
+proto_library(
+    name = "request_proto",
+    srcs = ["request.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = [
+        ":model_proto",
+        "//protocols/proto/mindclade/common/v1:identifiers_proto",
+    ],
+)
+
+proto_library(
+    name = "response_proto",
+    srcs = ["response.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = [
+        "//protocols/proto/mindclade/artifact/v1:artifact_proto",
+        "//protocols/proto/mindclade/common/v1:identifiers_proto",
+    ],
+)
+
+proto_library(
+    name = "stream_proto",
+    srcs = ["stream.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = [
+        ":response_proto",
+        "//protocols/proto/mindclade/common/v1:errors_proto",
+    ],
+)
+
+proto_library(
+    name = "inference_service_proto",
+    srcs = ["service.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = [
+        ":request_proto",
+        ":response_proto",
+        ":stream_proto",
+    ],
 )

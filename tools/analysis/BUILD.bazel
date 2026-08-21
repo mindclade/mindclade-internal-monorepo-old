@@ -173,6 +173,11 @@ py_binary(
         ["*.py"],
         exclude = ["**/__pycache__/**"],
     ),
+    deps = [
+        "//configs:contract_validation",
+        "//infra/observability:alert_contracts",
+        "//tools/qualification:release_evidence",
+    ],
     main = "run_architecture_checks.py",
     visibility = ["//visibility:public"],
 )

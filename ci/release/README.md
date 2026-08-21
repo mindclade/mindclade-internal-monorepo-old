@@ -10,23 +10,28 @@ runs the ARC canary, build, independent qualification, protected deployment atte
 review-only GitOps promotion proposal. There is no `workflow_dispatch`, tag, API dispatch, or
 caller-selected SHA authority path.
 
-Version 1 intentionally permits one target per request. GitHub reusable-workflow outputs are
-singular; allowing a matrix would make the last completed target silently win. Use separate
-release IDs for independently promotable artifacts.
+Version `v1beta1` intentionally permits one target per request. Target catalog schema 2 binds
+that name to a release kind, GitOps application, rollout class, named image build/push targets,
+typed non-image artifact slots, and fixed qualification targets. GitHub reusable-workflow outputs
+remain singular; use separate release IDs for independently promotable subjects.
+
+Every request names the exact previous release ID and subject digest. The pair is rollback
+lineage, not merely an image hint, and cannot be replaced with a mutable tag or a zero digest.
 
 Example:
 
 ```yaml
 ---
-apiVersion: release.mindclade.dev/v1alpha1
+apiVersion: release.mindclade.dev/v1beta1
 kind: ReleaseRequest
 metadata:
   name: v0.2.0
   changeTicket: PLATFORM-1234
 spec:
-  targets:
-    - name: go-vanity
-      rollbackDigest: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+  target: go-vanity
+  previousRelease:
+    id: v0.1.0
+    subjectDigest: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 ```
 
 Validate without credentials:
@@ -37,6 +42,8 @@ python3 ci/release/release_request.py validate \
   --source-sha 0123456789abcdef0123456789abcdef01234567
 ```
 
-Adding a request does not make the source-only rollout active. Activation still requires the
-published `.github` v4 release, exact GitHub runner-group policy, capability-specific WIF,
-connected ARC canary evidence, and the GitOps receiver to be ready.
+Adding a request does not make the source-only rollout active. The current immutable v4 promoter
+temporarily receives `previousRelease.subjectDigest` through its legacy `rollback-digest` input.
+Production activation requires the reviewed `.github` v5 release before the exact ID+digest pair
+can cross the promotion boundary, plus exact runner-group policy, capability-specific WIF,
+connected ARC canary evidence, and a ready GitOps receiver.

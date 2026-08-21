@@ -12,8 +12,8 @@
 #
 # LITERAL PATHS ONLY, relative to the workspace root. .bazelignore does not glob: a line
 # reading `**/node_modules` matches a directory named exactly that and nothing else. Nested
-# occurrences have to be listed, which is why the entries below are the root ones — a
-# node_modules under apps/ needs its own line if pnpm ever installs there.
+# generated trees that require glob semantics belong in REPO.bazel; it excludes nested Node,
+# Python, and Terraform tool output. The entries below remain the intentional root paths.
 
 # Python virtualenv. Created by `uv sync`; carries an entire site-packages tree.
 .venv

@@ -1,11 +1,14 @@
-# Libs / Ts / Generated Api Client
+# TypeScript API client state
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
+- **Status:** Implemented and unit tested; environment integration remains unqualified.
 - **Primary implementation ownership:** the language indicated by the second path segment
 
 ## Purpose
 
-Reusable mechanisms for one language. Libraries contain stable, broadly consumed behavior and no product-domain policy or executable composition roots. This path specializes that domain for **generated API client**.
+Observable resource state, normalized request-error classification, event
+channels, and bounded async pagination for browser consumers. Canonical wire
+types and HTTP operations remain owned by `sdk/typescript`; this package adds
+UI-facing lifecycle state without duplicating the generated contract.
 
 ## Boundary
 
@@ -18,18 +21,6 @@ This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
 ground. It may depend only in the direction documented by
 `docs/architecture/dependency-rules.md` and the accepted ADRs.
 
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Consumers supply the fetch operation and cancellation policy. Resource stores
+are in-memory and per-process; they do not persist credentials or payloads.
+Breaking state or error-shape changes require coordinated application updates.

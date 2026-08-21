@@ -27,11 +27,17 @@ namespaced `PodMonitoring` and `Rules` resources and never install Prometheus Op
 Alertmanager, or a second metrics backend. Kueue and JobSet Helm `ServiceMonitor` generation stays
 disabled.
 
-Files under `alerts/` are provider-neutral design contracts, not Kubernetes resources. In
-particular, `studio-browser-plane.yaml` uses
-`mindclade.dev/cloud-monitoring-alert-contract/v1alpha1`; it must be translated into inputs for
-`infra/terraform/modules/monitoring` by an environment repository after owners, channels,
-runbooks, and SLO thresholds are approved. No `AlertPolicySet` CRD exists or is expected.
+Files under `alerts/` are provider-neutral design contracts, not Kubernetes resources. Every
+contract uses `mindclade.dev/cloud-monitoring-alert-contract/v1alpha1` and is checked against
+`alert-contract.schema.json` plus the semantic catalog validator. Configurable SLI defaults live
+in `availability-profiles.yaml` and remain `proposed` and disabled by default. Environment
+translation requires distinct Google Chat and email channel resource names, owners, runbooks,
+reviewed thresholds, and evidence. No `AlertPolicySet` CRD exists or is expected.
+
+`jobset_outcomes.py` implements a bounded, durable, idempotent JobSet terminal-outcome ledger and
+OpenMetrics exposition without JobSet-name or UID labels. It is source behavior, not a deployed
+watcher: Kubernetes watch identity, RBAC, storage, Service/PodMonitoring, restart/relist behavior,
+and synthetic connected evidence remain environment-owned activation gates.
 
 ## Promotion requirements
 

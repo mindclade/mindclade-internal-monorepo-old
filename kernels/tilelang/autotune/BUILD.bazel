@@ -1,0 +1,23 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//visibility:public"])
+
+py_library(
+    name = "autotune",
+    srcs = [
+        "__init__.py",
+        "budget.py",
+        "candidate.py",
+        "database.py",
+        "objective.py",
+        "reproducibility.py",
+        "runner.py",
+        "search_space.py",
+        "validation.py",
+    ],
+    imports = ["../../.."],
+)

@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export default function Metricchart(): JSX.Element {
-  return <main data-scaffold="apps/console/src/components/MetricChart.tsx" />;
+import { LineChart, type LinePoint } from "@mindclade/libs-ts-charts";
+
+export function MetricChart({ label, points, value }: { label: string; points: readonly LinePoint[]; value?: string }): React.ReactNode {
+  return <section className="chart-card"><header><span>{label}</span>{value === undefined ? null : <strong>{value}</strong>}</header><LineChart label={label} points={points} /></section>;
 }

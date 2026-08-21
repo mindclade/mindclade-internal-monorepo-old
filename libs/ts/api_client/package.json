@@ -13,9 +13,9 @@
     "@mindclade/sdk-typescript": "workspace:*"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "lint": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx --test tests/**/*.test.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "build": "../../../node_modules/@typescript/native/bin/tsc -p tsconfig.json",
+    "lint": "../../../node_modules/@typescript/native/bin/tsc -p tsconfig.json --noEmit",
+    "test": "node --import tsx --test tests/**/*.test.ts",
+    "typecheck": "../../../node_modules/@typescript/native/bin/tsc -p tsconfig.json --noEmit"
   }
 }

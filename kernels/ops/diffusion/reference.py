@@ -39,7 +39,7 @@ def neighbor_attention_reference(
     """Gather-only sparse attention; ``-1`` is padding and all-padding rows return zero."""
 
     validate_qkv(q, k, v)
-    batch, heads, sequence, head_dim = q.shape
+    batch, _, sequence, head_dim = q.shape
     if k.shape[-2] != sequence:
         raise ValueError("neighbor attention requires equal query and key sequence lengths")
     validate_neighbor_indices(neighbor_indices, batch=batch, sequence=sequence)

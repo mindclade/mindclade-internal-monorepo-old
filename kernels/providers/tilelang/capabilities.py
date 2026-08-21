@@ -6,9 +6,10 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 
-from kernels.api.capabilities import DeviceCapabilities
+from kernels.api.capabilities import DeviceCapabilities, digest_runtime_environment
 from kernels.api.errors import KernelErrorCode, KernelUnavailableError
 from kernels.tilelang.targets import resolve_target
 
@@ -40,4 +41,15 @@ def detect_capabilities(device: Any | None = None) -> DeviceCapabilities:
             "the detected accelerator architecture is not in the reviewed target catalog",
             details={"architecture": architecture},
         )
-    return target.capabilities
+    runtime = torch.version.hip or torch.version.cuda or "unknown"
+    runtime_identity = digest_runtime_environment(
+        {
+            "architecture": architecture,
+            "device_name": properties.name,
+            "device_total_memory": properties.total_memory,
+            "pytorch": torch.__version__,
+            "runtime": runtime,
+            "target": target.kind,
+        }
+    )
+    return replace(target.capabilities, runtime_environment_digest=runtime_identity)

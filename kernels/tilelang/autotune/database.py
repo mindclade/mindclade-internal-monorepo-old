@@ -26,9 +26,7 @@ class TuningResults:
     def to_json(self) -> str:
         payload = {
             "environment_digest": self.environment_digest,
-            "results": [
-                asdict(self.results[key]) for key in sorted(self.results)
-            ],
+            "results": [asdict(self.results[key]) for key in sorted(self.results)],
             "schema_version": 1,
             "source_digest": self.source_digest,
         }

@@ -3,7 +3,24 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("//tools/build:pytest.bzl", "pytest_test")
+
 package(default_visibility = ["//visibility:private"])
+
+pytest_test(
+    name = "test_kernel_provider_parity",
+    srcs = ["test_kernel_provider_parity.py"],
+    imports = ["../.."],
+    deps = [
+        "//kernels",
+        "//kernels:kernel_core",
+        "//kernels/ops/attention",
+        "//kernels/ops/diffusion",
+        "//kernels/ops/fp8",
+        "//kernels/ops/fused",
+        "@pypi//torch",
+    ],
+)
 
 filegroup(
     name = "scaffold_files",

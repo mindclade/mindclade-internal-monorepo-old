@@ -8,11 +8,11 @@ The wrapper uses the separately locked cert-manager module for webhook certifica
 and prove cert-manager ready before this chart; no certificate key material is rendered here.
 
 Current state is deliberately blocked. The `mindclade-batch-cpu`,
-`mindclade-training-h100`, and `mindclade-training-h200` ClusterQueue/LocalQueue pairs are held
+`mindclade-training-h100`, and `mindclade-training-b200` ClusterQueue/LocalQueue pairs are held
 and every nominal quota is zero. Their namespaces also declare `kueue-enabled=false`; native
 admission maps each namespace to exactly one queue and workload class.
 
-The H100 and H200 ResourceFlavors reference `mindclade-gpu-zone-host`. `1g-packed` Jobs use
+The H100 and B200 ResourceFlavors reference `mindclade-gpu-zone-host`. `1g-packed` Jobs use
 unconstrained topology so Kueue can fill partially occupied eight-GPU nodes. `8g-full` JobSets
 consume eight GPUs per Pod and require their two-Pod PodSet to remain in one zone. CPU, memory,
 ephemeral storage, Pod count, and GPU are deliberately in the same GPU flavor group so Kueue

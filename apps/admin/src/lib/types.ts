@@ -3,4 +3,21 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export const SCAFFOLD_TYPES = "apps/admin/src/lib/types.ts" as const;
+export interface ApprovalEvidence {
+  subject: string;
+  requestedBy: string;
+  reason: string;
+  evidenceDigest?: string;
+  expiresAt?: string;
+}
+
+export interface AuditRecord {
+  id: string;
+  occurredAt: string;
+  actor: string;
+  action: string;
+  resource: string;
+  outcome: "allowed" | "denied" | "failed";
+}
+
+export interface QuotaValue { name: string; current: number; requested: number; unit: string }

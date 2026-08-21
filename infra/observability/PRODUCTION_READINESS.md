@@ -11,13 +11,13 @@
 | Kueue and JobSet TLS scrape contracts | PARTIAL | `PodMonitoring` declares external bearer/trust/client-cert contracts; credentials, exact RBAC, rotation, and reload are environment blockers |
 | Bounded metric families and labels | PARTIAL | Metric-family filters, aggregate recording rules, and scrape limits exist; connected volume, cost, and protected-label behavior still require qualification |
 | Namespaced recording rules | PASS | GMP `Rules` resources and promtool validation |
-| Durable JobSet outcome signal | BLOCKED | Upstream per-name terminal counters are unsuitable for windowed outcomes; a condition/event exporter and failure/completion fixtures are required before capacity |
+| Durable JobSet outcome signal | PARTIAL | Bounded/idempotent ledger, atomic checkpoint, aggregate OpenMetrics source, recording rules, and behavior fixtures are implemented; connected watcher/RBAC/storage/scrape and restart/relist qualification remain required before capacity |
 | Kubernetes Alertmanager or `ServiceMonitor` dependency | PASS | Deliberately absent |
 | Cloud Monitoring ownership | PASS | Terraform monitoring module and alert contracts |
 | Exact collector NetworkPolicy identity | BLOCKED | Must be observed in each qualification cluster |
 | Scrape authorization and trust | BLOCKED | Rotating TokenRequest tokens, exact metrics-reader bindings, CA-only trust publication, JobSet client certificate, and Secret-read scoping require environment ownership |
 | GMP target and rule status | BLOCKED | Requires connected GKE evidence |
-| SLO thresholds, channels, owners, and runbooks | BLOCKED | Required environment inputs are not stored here |
+| SLO thresholds, channels, owners, and runbooks | BLOCKED | Proposed configurable profiles and named source owners exist; environment approval, HTTPS runbooks, and distinct Google Chat/email channel resource names are still required |
 | Synthetic alert fire and resolve | BLOCKED | Must use a non-production notification channel |
 
 The source tree does not claim that the managed collector can reach either controller. Operator

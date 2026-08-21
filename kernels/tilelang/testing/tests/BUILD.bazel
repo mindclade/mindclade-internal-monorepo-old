@@ -1,15 +1,15 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
-package(default_visibility = ["//visibility:private"])
+load("//tools/build:pytest.bzl", "pytest_test")
 
-filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
-    visibility = ["//visibility:public"],
+pytest_test(
+    name = "test_harness",
+    srcs = ["test_harness.py"],
+    imports = ["../../../.."],
+    deps = [
+        "//kernels/tilelang/testing",
+        "@pypi//torch",
+    ],
 )

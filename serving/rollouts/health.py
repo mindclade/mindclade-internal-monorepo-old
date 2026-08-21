@@ -3,12 +3,13 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for serving/rollouts/health.py.
+"""Rollout readiness projection."""
 
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+from dataclasses import dataclass
 
-from __future__ import annotations
 
-SCAFFOLD_PATH: str = "serving/rollouts/health.py"
+@dataclass(frozen=True, slots=True)
+class RolloutHealth:
+    ready: bool
+    draining: bool
+    active_policy_digest: str | None

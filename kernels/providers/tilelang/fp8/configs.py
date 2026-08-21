@@ -14,4 +14,12 @@ def baseline_schedule(
         return GemmSchedule(128, 128, 64, 256, 3, input_dtype, output_dtype)
     if architecture == "sm_90":
         return GemmSchedule(128, 128, 64, 256, 3, input_dtype, output_dtype)
-    return GemmSchedule(64, 64, 32 if not input_dtype.startswith("float8") else 64, 128, 1, input_dtype, output_dtype)
+    return GemmSchedule(
+        64,
+        64,
+        32 if not input_dtype.startswith("float8") else 64,
+        128,
+        1,
+        input_dtype,
+        output_dtype,
+    )

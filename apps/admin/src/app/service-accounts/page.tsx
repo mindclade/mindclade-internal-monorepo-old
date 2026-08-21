@@ -3,6 +3,5 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export default function Page(): JSX.Element {
-  return <main data-scaffold="apps/admin/src/app/service-accounts/page.tsx" />;
-}
+import { GovernancePage } from "../../components/GovernancePage";
+export default function Page(): React.ReactNode { return <GovernancePage eyebrow="Machine identity" title="Service accounts" description="Purpose-bound identities, credentials, and workload federation." boundary="Service-account administration API" action="New service account" />; }

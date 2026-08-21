@@ -48,6 +48,7 @@ def qualification_candidate(
         request_digest=evidence.request_digest,
         implementation_digest=evidence.implementation_digest,
         evidence_digests=(evidence.digest,),
+        environment_digest=evidence.environment_digest,
         target=target,
         architecture=architecture,
         toolchain=toolchain,

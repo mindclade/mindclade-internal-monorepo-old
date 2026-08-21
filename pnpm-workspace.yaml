@@ -8,3 +8,7 @@ packages:
   - "apps/*"
   - "libs/ts/*"
   - "sdk/typescript"
+
+# Dependency lifecycle scripts are denied by default. Add a package here only with a reviewed
+# supply-chain justification; rules_js consumes this policy when translating pnpm-lock.yaml.
+allowBuilds: {}

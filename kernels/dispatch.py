@@ -46,9 +46,7 @@ class KernelDispatcher:
         self._manifest = manifest
         self._environment = dict(environment or {})
 
-    def select(
-        self, request: KernelRequest, capabilities: DeviceCapabilities
-    ) -> DispatchDecision:
+    def select(self, request: KernelRequest, capabilities: DeviceCapabilities) -> DispatchDecision:
         rejections: list[Rejection] = []
         disabled = self._environment.get(TILELANG_KILL_SWITCH, "").lower() in {
             "1",
@@ -66,11 +64,29 @@ class KernelDispatcher:
             if reason is not None:
                 rejections.append(Rejection(candidate.identity.name, reason))
                 continue
-            qualification = self._manifest.qualification(
-                request.digest, candidate.identity.digest
-            )
+            qualification = self._manifest.qualification(request.digest, candidate.identity.digest)
             if qualification is None:
                 rejections.append(Rejection(candidate.identity.name, "unqualified"))
+                continue
+            if (
+                qualification.target != request.target
+                or qualification.target != capabilities.target
+                or qualification.architecture != request.architecture
+                or qualification.architecture != capabilities.architecture
+            ):
+                rejections.append(Rejection(candidate.identity.name, "qualification_target"))
+                continue
+            expected_toolchain = (
+                f"{candidate.identity.compiler}-{candidate.identity.compiler_version}"
+            )
+            if qualification.toolchain != expected_toolchain:
+                rejections.append(Rejection(candidate.identity.name, "qualification_toolchain"))
+                continue
+            if (
+                not capabilities.runtime_environment_digest
+                or qualification.environment_digest != capabilities.runtime_environment_digest
+            ):
+                rejections.append(Rejection(candidate.identity.name, "qualification_environment"))
                 continue
             return DispatchDecision(candidate, qualification, tuple(rejections))
 

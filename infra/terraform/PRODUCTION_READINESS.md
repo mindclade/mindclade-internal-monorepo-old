@@ -1,7 +1,7 @@
 # Terraform production readiness
 
 **Current decision:** Not ready for production apply.  
-**Implementation status:** All 32 reusable modules are materialized and pass repository
+**Implementation status:** All 43 reusable modules are materialized and pass repository
 contracts, provider-schema validation, mock tests, TFLint, Trivy, Conftest fixtures,
 generated-interface governance, and the minimum/reviewed provider matrix; environment
 topology and live evidence remain external and unknown.
@@ -11,9 +11,9 @@ topology and live evidence remain external and unknown.
 
 | Gate | Status | Required evidence |
 |---|---|---|
-| Stable module contracts and owners | PASS | Generated interfaces for 32 modules plus `dns_hub`, versioned migration evidence, component ownership, and Platform/Security review routing |
+| Stable module contracts and owners | PASS | Generated interfaces for 43 modules plus `dns_hub`, versioned migration evidence, component ownership, and Platform/Security review routing |
 | Formatting and static repository checks | PASS | Terraform formatting, diff check, Actionlint, strict YAML lint, Nix flake evaluation/toolchain evidence, documentation build, and the repository static presubmit pass |
-| Backendless init/validate/mock tests | PASS | 36/36 configurations validate and 237/237 mock runs pass across 33 suites using committed locks |
+| Backendless init/validate/mock tests | PASS | 47/47 configurations validate and 261/261 mock runs pass across 44 suites using committed locks |
 | Provider-connected non-production plan | MISSING | Saved plan, plan JSON, provider versions, project/region, and expiration |
 | IaC security and policy checks | PARTIAL | CI pins TFLint 0.64.0 and Trivy 0.74.0; Trivy has zero unsuppressed findings, three resource-local exceptions, and one module-scoped embedded-check exception, all expiring 2027-08-20. Conftest's fail-closed policy and fixtures pass, and local Checkov reported 152 passed, 0 failed, 8 documented skips. An approved live profile, saved-plan evaluation, cost analysis, and retained reports remain missing |
 | IAM and public-access review | MISSING | Effective inherited IAM; WIF allow/deny; no keys/basic/public grants |
@@ -33,7 +33,7 @@ policy permits a resource, a restore succeeds, or a workload meets its SLO.
 ## Local validation evidence
 
 The 2026-08-20 repository gate used Terraform 1.15.8 on `darwin_arm64` and
-checksum-verified Google providers. All 33 deployable-unit locks select reviewed version
+checksum-verified Google providers. All 44 deployable-unit locks select reviewed version
 7.45.0; canonical three-platform fixtures qualify both the declared minimum 7.41.0 and
 reviewed 7.45.0. Initialization used `-backend=false`; no credentials, remote state,
 refresh, plan against GCP, apply, import, state mutation, or cloud API operation was used.
@@ -41,10 +41,10 @@ refresh, plan against GCP, apply, import, state mutation, or cloud API operation
 - `terraform fmt -check -recursive infra/terraform`: pass.
 - The checked-in driver contract, deterministic discovery, cache trust boundary, and lock
   mutation regression tests pass.
-- Backendless `terraform init -lockfile=readonly` and `terraform validate`: 36/36 pass.
-- `terraform test` with `mock_provider`: 237/237 runs pass across 33/33 suites.
-- Google provider compatibility: validate and 33/33 suites pass at both 7.41.0 and 7.45.0.
-- TFLint 0.64.0 default Terraform rules: pass across 36/36 configurations.
+- Backendless `terraform init -lockfile=readonly` and `terraform validate`: 47/47 pass.
+- `terraform test` with `mock_provider`: 261/261 runs pass across 44/44 suites.
+- Google provider compatibility: validate and 44/44 suites pass at both 7.41.0 and 7.45.0.
+- TFLint 0.64.0 default Terraform rules: pass across 47/47 configurations.
 - Warm local mock-suite comparison: one worker took 10.50 s and four workers took 4.18 s
   (same initialized tree/provider cache), supporting the bounded default of four without
   claiming a hosted-runner performance guarantee.
@@ -53,8 +53,8 @@ refresh, plan against GCP, apply, import, state mutation, or cloud API operation
   misconfigurations; the three source-local exceptions document generic encryption or
   audit-policy ownership and expire 2027-08-20.
 - Conftest 0.63.0 / OPA 1.9.0: 22/22 unit tests plus saved-plan integration fixtures pass.
-- Terraform interface governance: 33 units, 337 changes from v0.1.1, including 126 breaking
-  changes covered by the planned v0.2.0 migration record; both hermetic Bazel tests pass.
+- Terraform interface governance: 44 units, 361 changes from v0.1.1, including 130 breaking
+  changes covered by the planned v0.4.0 migration record; both hermetic Bazel tests pass.
 - Actionlint, strict workflow YAML lint, `git diff --check`, and
   `nix flake check --no-build`: pass.
 - `python3 ci/presubmit/pipeline.py --static-only`: all 19 repository checks pass.

@@ -3,6 +3,19 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export default function Errorboundary(): JSX.Element {
-  return <main data-scaffold="apps/console/src/components/ErrorBoundary.tsx" />;
+"use client";
+
+import { Button } from "@mindclade/libs-ts-design-system";
+import { Component, type ErrorInfo, type ReactNode } from "react";
+
+export class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | undefined }> {
+  state: { error: Error | undefined } = { error: undefined };
+
+  static getDerivedStateFromError(error: Error): { error: Error } { return { error }; }
+  componentDidCatch(error: Error, info: ErrorInfo): void { console.error("Console render failure", error, info.componentStack); }
+
+  render(): ReactNode {
+    if (this.state.error === undefined) return this.props.children;
+    return <section className="state-message state-message--error"><span>Interface interrupted</span><h1>This view couldn’t be rendered.</h1><p>{this.state.error.message}</p><Button onClick={() => this.setState({ error: undefined })}>Try again</Button></section>;
+  }
 }

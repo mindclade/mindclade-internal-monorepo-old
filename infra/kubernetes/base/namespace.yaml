@@ -89,17 +89,17 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: mindclade-training-h200
+  name: mindclade-training-b200
   labels:
     app.kubernetes.io/part-of: mindclade-platform
-    kubernetes.io/metadata.name: mindclade-training-h200
+    kubernetes.io/metadata.name: mindclade-training-b200
     mindclade.dev/admission: enforced
-    mindclade.dev/capacity-domain: training-h200
+    mindclade.dev/capacity-domain: training-b200
     mindclade.dev/kueue-enabled: "false"
     mindclade.dev/owner: ml-platform
     mindclade.dev/queue-enforcement: enforced
     mindclade.dev/workload-activation: blocked
-    mindclade.dev/workload-class: training-h200
+    mindclade.dev/workload-class: training-b200
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/audit-version: v1.36
     pod-security.kubernetes.io/enforce: restricted
@@ -107,7 +107,7 @@ metadata:
     pod-security.kubernetes.io/warn: restricted
     pod-security.kubernetes.io/warn-version: v1.36
   annotations:
-    mindclade.dev/activation-blocker: queue-held-zero-quota-and-h200-unqualified
+    mindclade.dev/activation-blocker: queue-held-zero-quota-and-b200-unqualified
     mindclade.dev/activation-bundle-digest: blocked
     mindclade.dev/capacity-contract-name: blocked
     mindclade.dev/capacity-evidence-digest: blocked

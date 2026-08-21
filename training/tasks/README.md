@@ -1,35 +1,10 @@
-# Training / Tasks
+# Training tasks
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Python/PyTorch
+**Status:** supervised mean-squared-error reference task implemented; every other
+task family remains scaffolded.
 
-## Purpose
-
-Authoritative training contracts, core state machine, engine adapters, distributed plans, checkpoint orchestration, optimizers, runtime mechanisms, and task objectives. This path specializes that domain for **tasks**.
-
-## Boundary
-
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
-
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
-
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+`SupervisedMSETask` calls an injected `nn.Module` with the batch inputs, requires
+a finite CPU float32 tensor whose shape exactly matches the targets, and returns
+sum-reduced squared error with `targets.numel()` as the denominator. It never
+changes model mode, moves tensors, normalizes across a batch, or owns optimizer
+behavior. Those choices remain visible to the authoritative trainer.

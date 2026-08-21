@@ -11,12 +11,17 @@
     "./theme.css": "./src/theme.css"
   },
   "peerDependencies": {
+    "@types/react": ">=19.2.0",
     "react": ">=19.2.0"
   },
+  "devDependencies": {
+    "@types/react": "19.2.18",
+    "react": "19.2.8"
+  },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "lint": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx --test tests/**/*.test.tsx",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "build": "../../../node_modules/@typescript/native/bin/tsc -p tsconfig.json",
+    "lint": "../../../node_modules/@typescript/native/bin/tsc -p tsconfig.json --noEmit",
+    "test": "node --import tsx --test tests/**/*.test.tsx",
+    "typecheck": "../../../node_modules/@typescript/native/bin/tsc -p tsconfig.json --noEmit"
   }
 }

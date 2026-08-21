@@ -23,6 +23,19 @@ class QualificationEvidence:
     performance: PerformanceEvidence
     soak_digest: str
 
+    def __post_init__(self) -> None:
+        for name, digest in (
+            ("request_digest", self.request_digest),
+            ("implementation_digest", self.implementation_digest),
+            ("generated_source_digest", self.generated_source_digest),
+            ("environment_digest", self.environment_digest),
+            ("soak_digest", self.soak_digest),
+        ):
+            if len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+                raise ValueError(f"{name} must be a lowercase SHA-256 digest")
+        if not self.source_revision.strip():
+            raise ValueError("source_revision is required")
+
     @property
     def digest(self) -> str:
         payload = {

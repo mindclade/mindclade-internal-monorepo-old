@@ -83,3 +83,22 @@ spec:
               (increase(controller_runtime_reconcile_total{operator="jobset"}[5m])),
               1
             )
+        - record: mindclade:jobset_terminal_outcomes:increase15m
+          expr: >-
+            sum by (cluster, location, namespace, result, reason_class)
+            (increase(mindclade_jobset_terminal_outcomes_total[15m]))
+        - record: mindclade:jobset_terminal_failure_ratio:ratio15m
+          expr: >-
+            (
+              sum by (cluster, location, namespace)
+              (increase(mindclade_jobset_terminal_outcomes_total{result="failed"}[15m]))
+              or
+              0 * sum by (cluster, location, namespace)
+              (increase(mindclade_jobset_terminal_outcomes_total[15m]))
+            )
+            /
+            clamp_min(
+              sum by (cluster, location, namespace)
+              (increase(mindclade_jobset_terminal_outcomes_total[15m])),
+              1
+            )

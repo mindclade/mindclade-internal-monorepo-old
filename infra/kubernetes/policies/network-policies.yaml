@@ -96,11 +96,11 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: default-deny
-  namespace: mindclade-training-h200
+  namespace: mindclade-training-b200
   labels:
     app.kubernetes.io/component: network-policy
     app.kubernetes.io/part-of: mindclade-platform
-    mindclade.dev/capacity-domain: training-h200
+    mindclade.dev/capacity-domain: training-b200
   annotations:
     mindclade.dev/activation-blocker: exact-training-and-checkpoint-flows-unqualified
     mindclade.dev/failure-mode: fail-closed

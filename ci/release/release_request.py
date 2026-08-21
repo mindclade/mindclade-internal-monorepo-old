@@ -31,6 +31,13 @@ TICKET_RE = re.compile(r"^[A-Z][A-Z0-9]+-[1-9][0-9]*$")
 HOST_RE = re.compile(r"^[a-z0-9][a-z0-9.-]*-docker\.pkg\.dev$")
 PROJECT_RE = re.compile(r"^[a-z][a-z0-9-]{4,28}[a-z0-9]$")
 ATTESTOR_RE = re.compile(r"^[a-z][a-z0-9-]{0,61}[a-z0-9]$")
+APPLICATION_RE = re.compile(
+    r"^(?:platform|serving|research|data|partner)-[a-z0-9][a-z0-9-]*$"
+)
+CATALOG_NAME_RE = re.compile(r"^[a-z][a-z0-9-]{1,62}$")
+BAZEL_TARGET_RE = re.compile(r"^//[A-Za-z0-9_./+-]+(?::[A-Za-z0-9_./+-]+)?(?:/\.\.\.)?$")
+RELEASE_KINDS = {"application", "bundle", "dataset", "model", "pipeline", "platform"}
+ROLLOUT_CLASSES = {"model-bundle", "offline-pipeline", "platform", "stateful", "stateless"}
 KEY_VERSION_RE = re.compile(
     r"^projects/[a-z][a-z0-9-]{4,28}[a-z0-9]/locations/[a-z0-9-]+/"
     r"keyRings/[A-Za-z0-9_-]+/cryptoKeys/[A-Za-z0-9_-]+/cryptoKeyVersions/[1-9][0-9]*$"
@@ -52,6 +59,13 @@ def _exact_keys(value: dict[str, Any], expected: set[str], label: str) -> None:
         raise ContractError(
             f"{label} keys must be exactly {sorted(expected)}; got {sorted(value)}"
         )
+
+
+def _semver_tuple(value: str) -> tuple[int, int, int]:
+    if not RELEASE_RE.fullmatch(value):
+        raise ContractError(f"invalid release identifier: {value!r}")
+    major, minor, patch = value.removeprefix("v").split(".")
+    return int(major), int(minor), int(patch)
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -84,30 +98,77 @@ def _resolve_request(raw_path: str) -> Path:
 def load_catalog() -> dict[str, dict[str, Any]]:
     raw = _load_yaml(CATALOG_PATH)
     _exact_keys(raw, {"schemaVersion", "targets"}, "target catalog")
-    if raw["schemaVersion"] != 1:
+    if raw["schemaVersion"] != 2:
         raise ContractError("unsupported target catalog schemaVersion")
     targets = _mapping(raw["targets"], "target catalog targets")
     if not targets:
         raise ContractError("target catalog is empty")
     for name, target_raw in targets.items():
-        if not re.fullmatch(r"[a-z][a-z0-9-]{1,62}", name):
+        if not CATALOG_NAME_RE.fullmatch(name):
             raise ContractError(f"invalid catalog target name: {name}")
         target = _mapping(target_raw, f"target {name}")
         _exact_keys(
             target,
-            {"imageRepository", "imageTarget", "pushTarget", "qualification"},
+            {
+                "releaseKind",
+                "application",
+                "rolloutClass",
+                "images",
+                "artifacts",
+                "qualificationMode",
+                "qualificationTargets",
+            },
             f"target {name}",
         )
-        if not re.fullmatch(r"[a-z0-9._/-]+", target["imageRepository"]):
-            raise ContractError(f"target {name} has an invalid imageRepository")
-        for label in ("imageTarget", "pushTarget"):
-            if not isinstance(target[label], str) or not target[label].startswith("//"):
+        if target["releaseKind"] not in RELEASE_KINDS:
+            raise ContractError(f"target {name} has an invalid releaseKind")
+        if not isinstance(target["application"], str) or not APPLICATION_RE.fullmatch(
+            target["application"]
+        ):
+            raise ContractError(f"target {name} has an invalid application")
+        if target["rolloutClass"] not in ROLLOUT_CLASSES:
+            raise ContractError(f"target {name} has an invalid rolloutClass")
+        images = _mapping(target["images"], f"target {name} images")
+        # Shared workflow v4 has singular outputs. Keep the schema named now, but reject
+        # multiple images until the immutable v5 interface can carry the complete map.
+        if set(images) != {"primary"}:
+            raise ContractError(
+                f"target {name} images must contain exactly primary until workflow v5"
+            )
+        image = _mapping(images["primary"], f"target {name} image primary")
+        _exact_keys(
+            image,
+            {"repository", "buildTarget", "pushTarget"},
+            f"target {name} image primary",
+        )
+        if not re.fullmatch(r"[a-z0-9._/-]+", str(image["repository"])):
+            raise ContractError(f"target {name} has an invalid image repository")
+        for label in ("buildTarget", "pushTarget"):
+            if not isinstance(image[label], str) or not BAZEL_TARGET_RE.fullmatch(
+                image[label]
+            ):
                 raise ContractError(f"target {name} has an invalid {label}")
-        qualification = target["qualification"]
+        artifacts = target["artifacts"]
+        if not isinstance(artifacts, list):
+            raise ContractError(f"target {name} artifacts must be a list")
+        if artifacts:
+            raise ContractError(
+                f"target {name} declares non-image artifacts before the durable publisher exists"
+            )
+        if target["qualificationMode"] not in {"build", "test"}:
+            raise ContractError(f"target {name} qualificationMode must be build or test")
+        qualification = target["qualificationTargets"]
         if not isinstance(qualification, list) or not qualification:
-            raise ContractError(f"target {name} qualification must be a nonempty argv list")
-        if not all(isinstance(item, str) and item for item in qualification):
-            raise ContractError(f"target {name} qualification argv contains a non-string")
+            raise ContractError(
+                f"target {name} qualificationTargets must be a nonempty list"
+            )
+        if len(set(qualification)) != len(qualification) or not all(
+            isinstance(item, str) and BAZEL_TARGET_RE.fullmatch(item)
+            for item in qualification
+        ):
+            raise ContractError(
+                f"target {name} qualificationTargets must be unique Bazel labels"
+            )
     return targets
 
 
@@ -117,7 +178,7 @@ def validate_request(raw_path: str, source_sha: str) -> dict[str, Any]:
     path = _resolve_request(raw_path)
     request = _load_yaml(path)
     _exact_keys(request, {"apiVersion", "kind", "metadata", "spec"}, "request")
-    if request["apiVersion"] != "release.mindclade.dev/v1alpha1":
+    if request["apiVersion"] != "release.mindclade.dev/v1beta1":
         raise ContractError("unsupported release request apiVersion")
     if request["kind"] != "ReleaseRequest":
         raise ContractError("kind must be ReleaseRequest")
@@ -134,20 +195,29 @@ def validate_request(raw_path: str, source_sha: str) -> dict[str, Any]:
         raise ContractError("metadata.changeTicket must be an immutable ticket identifier")
 
     spec = _mapping(request["spec"], "spec")
-    _exact_keys(spec, {"targets"}, "spec")
-    requested_targets = spec["targets"]
-    if not isinstance(requested_targets, list) or len(requested_targets) != 1:
-        raise ContractError("version 1 requires exactly one release target")
-    target = _mapping(requested_targets[0], "spec.targets[0]")
-    _exact_keys(target, {"name", "rollbackDigest"}, "spec.targets[0]")
+    _exact_keys(spec, {"target", "previousRelease"}, "spec")
     catalog = load_catalog()
-    if target["name"] not in catalog:
-        raise ContractError(f"target is not in the closed catalog: {target['name']}")
-    rollback = target["rollbackDigest"]
-    if not isinstance(rollback, str) or not DIGEST_RE.fullmatch(rollback):
-        raise ContractError("rollbackDigest must be a canonical lowercase sha256 digest")
-    if rollback == "sha256:" + "0" * 64:
-        raise ContractError("rollbackDigest cannot be the zero digest")
+    target_name = spec["target"]
+    if not isinstance(target_name, str) or target_name not in catalog:
+        raise ContractError(f"target is not in the closed catalog: {target_name!r}")
+    previous = _mapping(spec["previousRelease"], "spec.previousRelease")
+    _exact_keys(previous, {"id", "subjectDigest"}, "spec.previousRelease")
+    previous_release_id = previous["id"]
+    if not isinstance(previous_release_id, str) or not RELEASE_RE.fullmatch(
+        previous_release_id
+    ):
+        raise ContractError("previousRelease.id must be a full vX.Y.Z release identifier")
+    if _semver_tuple(previous_release_id) >= _semver_tuple(release_id):
+        raise ContractError("previousRelease.id must be older than the requested release")
+    previous_subject_digest = previous["subjectDigest"]
+    if not isinstance(previous_subject_digest, str) or not DIGEST_RE.fullmatch(
+        previous_subject_digest
+    ):
+        raise ContractError(
+            "previousRelease.subjectDigest must be a canonical lowercase sha256 digest"
+        )
+    if previous_subject_digest == "sha256:" + "0" * 64:
+        raise ContractError("previousRelease.subjectDigest cannot be the zero digest")
 
     return {
         "path": path,
@@ -155,9 +225,10 @@ def validate_request(raw_path: str, source_sha: str) -> dict[str, Any]:
         "releaseId": release_id,
         "changeTicket": ticket,
         "sourceSha": source_sha,
-        "target": target["name"],
-        "rollbackDigest": rollback,
-        "catalog": catalog[target["name"]],
+        "target": target_name,
+        "previousReleaseId": previous_release_id,
+        "previousSubjectDigest": previous_subject_digest,
+        "catalog": catalog[target_name],
     }
 
 
@@ -203,7 +274,21 @@ def _write_json(path: Path, value: dict[str, Any]) -> None:
 
 
 def _now() -> str:
-    return dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return (
+        dt.datetime.now(dt.timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
+
+
+def _timestamp(value: Any, label: str) -> None:
+    try:
+        parsed = dt.datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ContractError(f"{label} must be an ISO-8601 timestamp") from exc
+    if parsed.tzinfo is None:
+        raise ContractError(f"{label} must include a timezone")
 
 
 def build(request_path: str, source_sha: str, output: Path) -> None:
@@ -217,14 +302,15 @@ def build(request_path: str, source_sha: str, output: Path) -> None:
     _require_tool("syft")
 
     target = contract["catalog"]
-    repository = f"{host}/{project}/{target['imageRepository']}"
+    image_target = target["images"]["primary"]
+    repository = f"{host}/{project}/{image_target['repository']}"
     tag = f"{contract['releaseId'][1:]}-{source_sha[:12]}"
-    _run(["tools/dev/bazelw", "build", target["imageTarget"], "--config=ci"])
+    _run(["tools/dev/bazelw", "build", image_target["buildTarget"], "--config=ci"])
     _run(
         [
             "tools/dev/bazelw",
             "run",
-            target["pushTarget"],
+            image_target["pushTarget"],
             "--config=ci",
             "--",
             f"--repository={repository}",
@@ -245,8 +331,8 @@ def build(request_path: str, source_sha: str, output: Path) -> None:
     )
     if not DIGEST_RE.fullmatch(digest):
         raise ContractError("Artifact Registry did not return a canonical image digest")
-    if digest == contract["rollbackDigest"]:
-        raise ContractError("candidate digest must differ from the reviewed rollback digest")
+    if digest == contract["previousSubjectDigest"]:
+        raise ContractError("candidate digest must differ from the previous release subject")
     image_ref = f"{repository}@{digest}"
 
     sbom_path = output.parent / "sbom.spdx.json"
@@ -262,6 +348,11 @@ def build(request_path: str, source_sha: str, output: Path) -> None:
                 "externalParameters": {
                     "releaseId": contract["releaseId"],
                     "target": contract["target"],
+                    "releaseKind": target["releaseKind"],
+                    "application": target["application"],
+                    "rolloutClass": target["rolloutClass"],
+                    "previousReleaseId": contract["previousReleaseId"],
+                    "previousSubjectDigest": contract["previousSubjectDigest"],
                 },
                 "resolvedDependencies": [
                     {
@@ -301,12 +392,16 @@ def build(request_path: str, source_sha: str, output: Path) -> None:
         ]
     )
     candidate = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "releaseId": contract["releaseId"],
+        "releaseKind": target["releaseKind"],
+        "application": target["application"],
+        "rolloutClass": target["rolloutClass"],
         "changeTicket": contract["changeTicket"],
         "sourceSha": source_sha,
         "target": contract["target"],
-        "rollbackDigest": contract["rollbackDigest"],
+        "previousReleaseId": contract["previousReleaseId"],
+        "previousSubjectDigest": contract["previousSubjectDigest"],
         "createdAt": _now(),
         "artifact": {"imageRef": image_ref, "digest": digest},
         "evidence": {
@@ -329,36 +424,70 @@ def validate_candidate(path: Path) -> dict[str, Any]:
         {
             "schemaVersion",
             "releaseId",
+            "releaseKind",
+            "application",
+            "rolloutClass",
             "changeTicket",
             "sourceSha",
             "target",
-            "rollbackDigest",
+            "previousReleaseId",
+            "previousSubjectDigest",
             "createdAt",
             "artifact",
             "evidence",
         },
         "candidate",
     )
-    if candidate["schemaVersion"] != 1:
+    if candidate["schemaVersion"] != 2:
         raise ContractError("unsupported candidate schemaVersion")
     if not RELEASE_RE.fullmatch(str(candidate["releaseId"])):
         raise ContractError("candidate releaseId is malformed")
+    if not TICKET_RE.fullmatch(str(candidate["changeTicket"])):
+        raise ContractError("candidate changeTicket is malformed")
     if not SHA_RE.fullmatch(str(candidate["sourceSha"])):
         raise ContractError("candidate sourceSha is malformed")
-    if candidate["target"] not in load_catalog():
+    _timestamp(candidate["createdAt"], "candidate createdAt")
+    catalog = load_catalog()
+    if candidate["target"] not in catalog:
         raise ContractError("candidate target is not in the closed catalog")
-    if not DIGEST_RE.fullmatch(str(candidate["rollbackDigest"])):
-        raise ContractError("candidate rollbackDigest is malformed")
+    target = catalog[candidate["target"]]
+    for field in ("releaseKind", "application", "rolloutClass"):
+        expected = target[field]
+        if candidate[field] != expected:
+            raise ContractError(f"candidate {field} does not match the closed catalog")
+    if not RELEASE_RE.fullmatch(str(candidate["previousReleaseId"])):
+        raise ContractError("candidate previousReleaseId is malformed")
+    if _semver_tuple(str(candidate["previousReleaseId"])) >= _semver_tuple(
+        str(candidate["releaseId"])
+    ):
+        raise ContractError("candidate previousReleaseId must be older than releaseId")
+    if not DIGEST_RE.fullmatch(str(candidate["previousSubjectDigest"])):
+        raise ContractError("candidate previousSubjectDigest is malformed")
+    if candidate["previousSubjectDigest"] == "sha256:" + "0" * 64:
+        raise ContractError("candidate previousSubjectDigest cannot be the zero digest")
     artifact = _mapping(candidate["artifact"], "candidate artifact")
     _exact_keys(artifact, {"imageRef", "digest"}, "candidate artifact")
     if not DIGEST_RE.fullmatch(str(artifact["digest"])):
         raise ContractError("candidate artifact digest is malformed")
     if not str(artifact["imageRef"]).endswith("@" + artifact["digest"]):
         raise ContractError("candidate imageRef and digest disagree")
-    if artifact["digest"] == candidate["rollbackDigest"]:
-        raise ContractError("candidate and rollback digests must differ")
+    expected_repository = target["images"]["primary"]["repository"]
+    if not re.fullmatch(
+        rf"[a-z0-9][a-z0-9.-]*-docker\.pkg\.dev/"
+        rf"[a-z][a-z0-9-]{{4,28}}[a-z0-9]/{re.escape(expected_repository)}@"
+        rf"{DIGEST_RE.pattern[1:-1]}",
+        str(artifact["imageRef"]),
+    ):
+        raise ContractError("candidate imageRef is outside its catalog repository")
+    if artifact["digest"] == candidate["previousSubjectDigest"]:
+        raise ContractError("candidate and previous subject digests must differ")
     evidence = _mapping(candidate["evidence"], "candidate evidence")
     _exact_keys(evidence, {"sbom", "provenance", "buildAttestor"}, "candidate evidence")
+    if not re.fullmatch(
+        r"projects/[a-z][a-z0-9-]{4,28}[a-z0-9]/attestors/[a-z][a-z0-9-]{0,61}[a-z0-9]",
+        str(evidence["buildAttestor"]),
+    ):
+        raise ContractError("candidate buildAttestor is malformed")
     for label in ("sbom", "provenance"):
         record = _mapping(evidence[label], f"candidate {label}")
         _exact_keys(record, {"path", "sha256"}, f"candidate {label}")
@@ -380,7 +509,13 @@ def qualify(candidate_path: Path, expected_image_ref: str, output: Path) -> None
     registry_digest = _run(["crane", "digest", expected_image_ref], capture=True)
     if registry_digest != candidate["artifact"]["digest"]:
         raise ContractError("registry content does not match the candidate digest")
-    command = load_catalog()[candidate["target"]]["qualification"]
+    target = load_catalog()[candidate["target"]]
+    command = [
+        "tools/dev/bazelw",
+        target["qualificationMode"],
+        *target["qualificationTargets"],
+        "--config=ci",
+    ]
     _run(command)
     result = {
         "schemaVersion": 1,
@@ -418,6 +553,7 @@ def validate_qualification(path: Path, expected_image_ref: str) -> dict[str, Any
         raise ContractError("qualification releaseId is malformed")
     if not SHA_RE.fullmatch(str(result["sourceSha"])):
         raise ContractError("qualification sourceSha is malformed")
+    _timestamp(result["qualifiedAt"], "qualification qualifiedAt")
     if result["target"] not in load_catalog():
         raise ContractError("qualification target is not in the closed catalog")
     if not re.fullmatch(r"[0-9a-f]{64}", str(result["candidateSha256"])):
@@ -435,11 +571,18 @@ def validate_qualification(path: Path, expected_image_ref: str) -> dict[str, Any
 
 def inspect_request(request_path: str, source_sha: str, github_output: Path) -> None:
     contract = validate_request(request_path, source_sha)
+    target = load_catalog()[contract["target"]]
     values = {
         "request-path": contract["pathRelative"],
         "release-id": contract["releaseId"],
         "target": contract["target"],
-        "rollback-digest": contract["rollbackDigest"],
+        "application": target["application"],
+        "release-kind": target["releaseKind"],
+        "rollout-class": target["rolloutClass"],
+        "previous-release-id": contract["previousReleaseId"],
+        "previous-subject-digest": contract["previousSubjectDigest"],
+        # Temporary v4 shared-workflow compatibility. Remove only with the v5 caller pin.
+        "rollback-digest": contract["previousSubjectDigest"],
     }
     with github_output.open("a", encoding="utf-8") as stream:
         for key, value in values.items():

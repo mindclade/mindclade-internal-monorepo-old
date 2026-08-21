@@ -1,11 +1,13 @@
-# Libs / Ts / Design System
+# Mindclade design system
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
+- **Status:** Implemented and unit tested; cross-browser accessibility qualification remains open.
 - **Primary implementation ownership:** the language indicated by the second path segment
 
 ## Purpose
 
-Reusable mechanisms for one language. Libraries contain stable, broadly consumed behavior and no product-domain policy or executable composition roots. This path specializes that domain for **design system**.
+Semantic theme tokens and accessible operational primitives: buttons, metrics,
+status indicators, and data tables. Components expose native semantics and keep
+product-specific copy, policy, routing, and data acquisition in applications.
 
 ## Boundary
 
@@ -18,18 +20,6 @@ This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
 ground. It may depend only in the direction documented by
 `docs/architecture/dependency-rules.md` and the accepted ADRs.
 
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+The CSS token surface is the compatibility contract. Applications may compose
+the primitives but should not fork their focus, motion, contrast, or status
+semantics. Breaking token changes require a coordinated application migration.

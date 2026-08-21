@@ -1,6 +1,6 @@
 # Data / Contracts
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
+- **Status:** Provider-neutral contract core implemented; connected qualification pending.
 - **Primary implementation ownership:** Python scientific semantics with Rust byte workers and Go workflow coordination
 
 ## Purpose
@@ -18,18 +18,17 @@ This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
 ground. It may depend only in the direction documented by
 `docs/architecture/dependency-rules.md` and the accepted ADRs.
 
-## Materialization requirements
+## Implemented behavior
 
-Before this scaffold boundary is treated as implemented, add:
+The package defines immutable source snapshots, bounded field and dataset contracts,
+content-addressed shards, reproducible dataset snapshots, and deterministic record validation.
+Validation never coerces, drops, quarantines, logs, or publishes data; it returns stable issues
+to the owning pipeline. Proprietary and restricted fields cannot opt into verbatim logging, and
+source URIs cannot carry query credentials.
 
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
+The implementation deliberately does not fetch data, persist manifests, decide lawful use,
+perform deletion, or promote a dataset. Provider adapters and connected qualification must prove
+those behaviors before any consuming pipeline advances beyond its own declared maturity.
 
 See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
 artifact-wide implementation status.

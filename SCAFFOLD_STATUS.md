@@ -32,6 +32,9 @@ empty target-state placeholders:
   contract/DAG/cache/provenance foundations;
 - runtime/artifact/reference/evidence protocol contracts and cross-language
   fixtures;
+- the public OpenAPI projection, generated TypeScript SDK and protobuf bindings,
+  reusable TypeScript browser libraries, and the console and governance web
+  application surfaces, pending live identity/API/security/deployment qualification;
 - `tools/analysis/`: architecture, maturity, dependency, Go admission, and
   workspace consistency checks;
 - `tools/qualification/go/`: offline and connected Go qualification lanes;

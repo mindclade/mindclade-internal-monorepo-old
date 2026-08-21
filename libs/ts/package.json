@@ -1,10 +1,12 @@
 {
   "name": "@mindclade/libs-ts",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "echo scaffold",
-    "test": "echo scaffold"
+    "build": "pnpm --filter '@mindclade/libs-ts-*' build",
+    "lint": "pnpm --filter '@mindclade/libs-ts-*' lint",
+    "test": "pnpm --filter '@mindclade/libs-ts-*' test",
+    "typecheck": "pnpm --filter '@mindclade/libs-ts-*' typecheck"
   }
 }

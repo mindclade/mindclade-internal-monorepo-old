@@ -3,4 +3,8 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Mindclade scaffold package for training/runtime/telemetry/exporters."""
+"""Optional training telemetry exporters."""
+
+from .mlflow import DatasetReference, MLflowExporter, RunLineage, TrackingClient
+
+__all__ = ["DatasetReference", "MLflowExporter", "RunLineage", "TrackingClient"]

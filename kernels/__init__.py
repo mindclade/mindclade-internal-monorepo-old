@@ -4,8 +4,8 @@
 
 """Qualification-gated accelerator kernels and independent references."""
 
-from kernels.dispatch import KernelDispatcher
 from kernels.defaults import default_registry
+from kernels.dispatch import KernelDispatcher
 from kernels.manifest import QualificationManifest
 from kernels.registry import KernelRegistry
 

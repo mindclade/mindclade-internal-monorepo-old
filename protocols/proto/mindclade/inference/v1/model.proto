@@ -13,6 +13,107 @@ message ModelScaffold {
   string reserved = 1;
 }
 
+// Servable-model identity and the coarse execution declarations the online
+// inference path is allowed to reason about.
+//
+// Ownership follows docs/architecture/language-boundaries.md. The Go control
+// plane is the only writer: it seals `descriptor_digest` and publishes the
+// descriptor as durable catalog state. Rust admits and coarsely groups requests
+// against `capabilities` and `compatibility_classes`, and reserves against
+// `envelope`, without interpreting model internals. Python validates that the
+// bundle it loaded matches the descriptor it was handed and remains the sole
+// authority for final tensor batching.
+//
+// Non-responsibilities of this contract: padding, packing, KV/feature-cache
+// layout, CUDA-graph or compile-bucket selection, diffusion scheduling, routing
+// weights, and lease state. Those belong to Python (numerics) or to
+// mindclade.runtime.v1 (routing and execution authority) respectively. Large
+// payloads are never carried here; they travel by artifact or buffer descriptor.
+
+enum ModelPrecision {
+  MODEL_PRECISION_UNSPECIFIED = 0;
+  MODEL_PRECISION_FP32 = 1;
+  MODEL_PRECISION_TF32 = 2;
+  MODEL_PRECISION_BF16 = 3;
+  MODEL_PRECISION_FP16 = 4;
+  MODEL_PRECISION_FP8 = 5;
+}
+
+enum ExecutionKind {
+  EXECUTION_KIND_UNSPECIFIED = 0;
+  EXECUTION_KIND_FORWARD = 1;
+  EXECUTION_KIND_DIFFUSION_SAMPLE = 2;
+  EXECUTION_KIND_EMBEDDING = 3;
+  EXECUTION_KIND_SCORING = 4;
+}
+
+enum ModelLifecycle {
+  MODEL_LIFECYCLE_UNSPECIFIED = 0;
+  MODEL_LIFECYCLE_DRAFT = 1;
+  MODEL_LIFECYCLE_QUALIFIED = 2;
+  MODEL_LIFECYCLE_SERVING = 3;
+  MODEL_LIFECYCLE_DEPRECATED = 4;
+  MODEL_LIFECYCLE_REVOKED = 5;
+}
+
+// CompatibilityClass is a coarse, model-declared batching class. It is the only
+// batching vocabulary the runtime data plane is permitted to interpret; Python
+// decides which requests may actually share tensors within a class.
+message CompatibilityClass {
+  string class_id = 1;
+  ExecutionKind execution_kind = 2;
+  ModelPrecision precision = 3;
+  string shape_bucket = 4;
+  uint32 maximum_batch_requests = 5;
+  uint64 maximum_batch_gpu_bytes = 6;
+  uint64 maximum_input_units = 7;
+  uint64 maximum_output_units = 8;
+}
+
+// ModelResourceEnvelope is the reservation the runtime host makes before a
+// Python worker forms a batch. Values are declared floors and per-request
+// increments, not measured usage.
+message ModelResourceEnvelope {
+  uint64 weights_resident_bytes = 1;
+  uint64 host_memory_bytes = 2;
+  uint64 gpu_memory_floor_bytes = 3;
+  uint64 gpu_memory_per_request_bytes = 4;
+  uint32 maximum_concurrent_requests = 5;
+  uint32 load_deadline_millis = 6;
+  uint32 drain_deadline_millis = 7;
+}
+
+// ModelDescriptor is immutable published catalog state for one servable model.
+//
+// `descriptor_digest` is sealed by the control plane over the canonical
+// encoding of every other field. The encoding is the newline-framed
+// `inference-model-descriptor/v1` document defined in
+// docs/architecture/serving.md; it is reproduced by Go (writer) and Python
+// (verifier), and no field may contain a newline or a vertical bar so the
+// encoding stays injective. Consumers that cannot recompute the digest must
+// treat the descriptor as opaque and trust the transport that carried it.
+message ModelDescriptor {
+  string descriptor_digest = 1;
+  string model_id = 2;
+  string family = 3;
+  string version = 4;
+  ModelLifecycle lifecycle = 5;
+  string model_bundle_digest = 6;
+  string engine_bundle_digest = 7;
+  string resolved_config_digest = 8;
+  string kernel_manifest_digest = 9;
+  string safety_policy_digest = 10;
+  repeated string capabilities = 11;
+  repeated CompatibilityClass compatibility_classes = 12;
+  ModelResourceEnvelope envelope = 13;
+  string accelerator_capability = 14;
+  string minimum_runtime_version = 15;
+  uint32 schema_version = 16;
+  uint64 policy_epoch = 17;
+  uint64 created_unix_millis = 18;
+  uint64 expires_unix_millis = 19;
+}
+
 message ModelSelection {
   mindclade.common.v1.ResourceId model_id = 1;
   optional string version = 2;

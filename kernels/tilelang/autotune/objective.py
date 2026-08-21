@@ -35,9 +35,7 @@ def stable_winner(
     measurements: dict[str, LatencyDistribution], *, max_relative_mad: float = 0.10
 ) -> str:
     stable = {
-        key: value
-        for key, value in measurements.items()
-        if value.relative_mad <= max_relative_mad
+        key: value for key, value in measurements.items() if value.relative_mad <= max_relative_mad
     }
     if not stable:
         raise ValueError("no latency distribution meets the stability threshold")

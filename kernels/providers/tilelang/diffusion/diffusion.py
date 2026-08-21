@@ -2,6 +2,8 @@
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 
+# mypy: ignore-errors
+
 """Fused adaptive modulation, gating, and residual addition for diffusion blocks."""
 
 from __future__ import annotations

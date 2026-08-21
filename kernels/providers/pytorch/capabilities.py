@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import torch
 
-from kernels.api.capabilities import DeviceCapabilities, PORTABLE_CPU
+from kernels.api.capabilities import PORTABLE_CPU, DeviceCapabilities
 from kernels.providers.tilelang.capabilities import detect_capabilities
 
 

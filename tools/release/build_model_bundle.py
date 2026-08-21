@@ -38,10 +38,15 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import re
 import shutil
+import stat
 import struct
 import sys
+import tempfile
 from pathlib import Path
+from typing import Final
 
 # The media type recorded for each weight file, and the one the OCI layer advertises.
 # Not application/octet-stream: the point of a media type is that a consumer can refuse what it
@@ -59,6 +64,39 @@ PICKLE_EXTENSIONS = frozenset({".pt", ".pth", ".bin", ".ckpt", ".pkl", ".pickle"
 ALLOWED_EXTENSIONS = frozenset({".safetensors", ".json", ".txt", ".md"})
 
 CHUNK = 1 << 20
+MAXIMUM_MEMBERS: Final = 4096
+MAXIMUM_MEMBER_PATH_BYTES: Final = 4096
+MAXIMUM_HEADER_BYTES: Final = 100_000_000
+SUPPORTED_SCHEMA_VERSION: Final = 1
+
+_MODEL_NAME = re.compile(r"[a-z0-9][a-z0-9._/-]{0,254}[a-z0-9]$|[a-z0-9]$")
+_DTYPE_BYTES: Final = {
+    "BOOL": 1,
+    "U8": 1,
+    "I8": 1,
+    "F8_E4M3": 1,
+    "F8_E5M2": 1,
+    "F8_E8M0": 1,
+    "U16": 2,
+    "I16": 2,
+    "F16": 2,
+    "BF16": 2,
+    "U32": 4,
+    "I32": 4,
+    "F32": 4,
+    "U64": 8,
+    "I64": 8,
+    "F64": 8,
+}
+
+
+def _unique_json_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key {key!r}")
+        result[key] = value
+    return result
 
 
 def sha256_file(path: Path) -> tuple[str, int]:
@@ -91,20 +129,41 @@ def validate_safetensors(path: Path) -> None:
         # A pickle renamed to .safetensors reaches here. Its first 8 bytes read as an enormous
         # or nonsensical length, so the bound is what catches it — and the bound has to come
         # before the read, or the check itself is the denial of service.
-        if header_len == 0 or header_len > 100_000_000 or header_len > path.stat().st_size:
+        file_size = os.fstat(handle.fileno()).st_size
+        if (
+            header_len == 0
+            or header_len > MAXIMUM_HEADER_BYTES
+            or header_len > file_size - len(prefix)
+        ):
             raise ValueError(
                 f"{path.name}: declares a {header_len}-byte header, which is not consistent "
-                f"with a {path.stat().st_size}-byte file. A pickle renamed to .safetensors "
+                f"with a {file_size}-byte file. A pickle renamed to .safetensors "
                 f"fails here."
             )
 
         try:
-            header = json.loads(handle.read(header_len))
-        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            header = json.loads(
+                handle.read(header_len),
+                object_pairs_hook=_unique_json_object,
+                parse_constant=lambda value: (_ for _ in ()).throw(
+                    ValueError(f"non-finite JSON number {value}")
+                ),
+            )
+        except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
             raise ValueError(f"{path.name}: safetensors header is not valid JSON: {exc}") from exc
 
     if not isinstance(header, dict):
         raise ValueError(f"{path.name}: safetensors header is not a JSON object.")
+
+    metadata = header.get("__metadata__")
+    if metadata is not None and (
+        not isinstance(metadata, dict)
+        or any(
+            not isinstance(key, str) or not isinstance(value, str)
+            for key, value in metadata.items()
+        )
+    ):
+        raise ValueError(f"{path.name}: safetensors metadata must map strings to strings.")
 
     tensors = {k: v for k, v in header.items() if k != "__metadata__"}
     if not tensors:
@@ -113,33 +172,108 @@ def validate_safetensors(path: Path) -> None:
             f"and serves nothing — a failure that surfaces as bad outputs rather than an error."
         )
 
+    payload_size = file_size - 8 - header_len
+    intervals: list[tuple[int, int, str]] = []
     for tensor_name, spec in tensors.items():
-        if not isinstance(spec, dict) or "dtype" not in spec or "shape" not in spec:
+        if not isinstance(tensor_name, str) or not tensor_name or len(tensor_name) > 1024:
+            raise ValueError(f"{path.name}: tensor names must be non-empty and bounded.")
+        if not isinstance(spec, dict) or set(spec) != {"dtype", "shape", "data_offsets"}:
             raise ValueError(
-                f"{path.name}: tensor {tensor_name!r} has no dtype/shape; the header is not a "
-                f"safetensors header."
+                f"{path.name}: tensor {tensor_name!r} must declare only dtype, shape and "
+                "data_offsets."
             )
+        dtype = spec["dtype"]
+        shape = spec["shape"]
+        offsets = spec["data_offsets"]
+        if not isinstance(dtype, str) or dtype not in _DTYPE_BYTES:
+            raise ValueError(
+                f"{path.name}: tensor {tensor_name!r} has unsupported dtype {dtype!r}."
+            )
+        if (
+            not isinstance(shape, list)
+            or len(shape) > 32
+            or any(isinstance(dim, bool) or not isinstance(dim, int) or dim < 0 for dim in shape)
+        ):
+            raise ValueError(f"{path.name}: tensor {tensor_name!r} has an invalid shape.")
+        if (
+            not isinstance(offsets, list)
+            or len(offsets) != 2
+            or any(isinstance(offset, bool) or not isinstance(offset, int) for offset in offsets)
+        ):
+            raise ValueError(f"{path.name}: tensor {tensor_name!r} has invalid data offsets.")
+        start, end = offsets
+        if start < 0 or end < start or end > payload_size:
+            raise ValueError(
+                f"{path.name}: tensor {tensor_name!r} offsets exceed the {payload_size}-byte payload."
+            )
+        elements = 1
+        for dimension in shape:
+            elements *= dimension
+        expected_bytes = elements * _DTYPE_BYTES[dtype]
+        if end - start != expected_bytes:
+            raise ValueError(
+                f"{path.name}: tensor {tensor_name!r} declares {end - start} bytes but "
+                f"dtype/shape require {expected_bytes}."
+            )
+        intervals.append((start, end, tensor_name))
+
+    cursor = 0
+    for start, end, tensor_name in sorted(intervals):
+        if start != cursor:
+            relation = "overlap" if start < cursor else "gap"
+            raise ValueError(
+                f"{path.name}: tensor {tensor_name!r} introduces a payload {relation} at byte {start}."
+            )
+        cursor = end
+    if cursor != payload_size:
+        raise ValueError(
+            f"{path.name}: tensor offsets cover {cursor} of {payload_size} payload bytes."
+        )
 
 
 def collect(checkpoint: Path) -> list[Path]:
     """Every file in the checkpoint, sorted, with the format rules applied."""
-    files = sorted(p for p in checkpoint.rglob("*") if p.is_file())
+    if not checkpoint.is_dir() or checkpoint.is_symlink():
+        raise ValueError(f"{checkpoint}: checkpoint must be a real directory, not a symlink.")
+
+    files: list[Path] = []
+    for path in checkpoint.rglob("*"):
+        if path.is_symlink():
+            raise ValueError(
+                f"{path.relative_to(checkpoint)}: symbolic links are not allowed in model bundles."
+            )
+        if path.is_file():
+            files.append(path)
+            if len(files) > MAXIMUM_MEMBERS:
+                raise ValueError(
+                    f"{checkpoint}: contains more than {MAXIMUM_MEMBERS} files; refusing an "
+                    "unbounded bundle."
+                )
+    files.sort()
     if not files:
         raise ValueError(f"{checkpoint}: empty. There is nothing to publish.")
 
     rejected = []
     for path in files:
+        relative = path.relative_to(checkpoint)
+        relative_text = relative.as_posix()
         suffix = path.suffix.lower()
-        if suffix in PICKLE_EXTENSIONS:
+        if len(relative_text.encode("utf-8")) > MAXIMUM_MEMBER_PATH_BYTES:
+            rejected.append(f"  {relative_text[:256]}: member path exceeds the byte limit.")
+        elif relative_text == "manifest.json":
             rejected.append(
-                f"  {path.relative_to(checkpoint)}: {suffix} is a pickle format. Loading it is "
+                "  manifest.json: reserved for the canonical bundle manifest written by this tool."
+            )
+        elif suffix in PICKLE_EXTENSIONS:
+            rejected.append(
+                f"  {relative}: {suffix} is a pickle format. Loading it is "
                 f"arbitrary code execution, and this bundle crosses an admission boundary where "
                 f"a signature is taken to mean the contents are safe. Convert it with "
                 f"safetensors.torch.save_file."
             )
         elif suffix not in ALLOWED_EXTENSIONS:
             rejected.append(
-                f"  {path.relative_to(checkpoint)}: {suffix or '(no extension)'} is not an "
+                f"  {relative}: {suffix or '(no extension)'} is not an "
                 f"allowed bundle member. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}."
             )
 
@@ -158,58 +292,127 @@ def collect(checkpoint: Path) -> list[Path]:
     return files
 
 
-def build(checkpoint: Path, out: Path, name: str, schema_version: int) -> dict:
-    files = collect(checkpoint)
-    out.mkdir(parents=True, exist_ok=True)
-
-    members = []
-    for path in files:
-        digest, size = sha256_file(path)
-        relative = path.relative_to(checkpoint).as_posix()
-        destination = out / relative
+def _copy_regular_file(source: Path, destination: Path) -> None:
+    """Copy one already-admitted file without following a last-moment symlink swap."""
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(source, flags)
+    except OSError as exc:
+        raise ValueError(f"{source.name}: could not open admitted bundle member: {exc}") from exc
+    try:
+        source_stat = os.fstat(descriptor)
+        if not stat.S_ISREG(source_stat.st_mode):
+            raise ValueError(f"{source.name}: bundle members must remain regular files.")
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(path, destination)
-        members.append(
-            {
-                "path": relative,
-                # Field names are ArtifactRef's, from
-                # protocols/proto/mindclade/artifact/v1/artifact.proto. The platform manifest
-                # is authoritative for identity (ADR-0004/ADR-0022); the OCI annotations this
-                # feeds are a projection carried for admission and portability.
-                "digest": digest,
-                "size_bytes": size,
-                "media_type": (
-                    SAFETENSORS_MEDIA_TYPE
-                    if path.suffix.lower() == ".safetensors"
-                    else "application/json"
-                ),
-                "logical_kind": "model.weights"
-                if path.suffix.lower() == ".safetensors"
-                else "model.metadata",
-                "schema_version": schema_version,
-            }
+        with os.fdopen(descriptor, "rb", closefd=False) as reader, destination.open("xb") as writer:
+            shutil.copyfileobj(reader, writer, length=CHUNK)
+        destination.chmod(0o644)
+    finally:
+        os.close(descriptor)
+
+
+def _media_type(path: Path) -> str:
+    return {
+        ".safetensors": SAFETENSORS_MEDIA_TYPE,
+        ".json": "application/json",
+        ".txt": "text/plain; charset=utf-8",
+        ".md": "text/markdown; charset=utf-8",
+    }[path.suffix.lower()]
+
+
+def _fsync_directory(path: Path) -> None:
+    descriptor = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def build(checkpoint: Path, out: Path, name: str, schema_version: int) -> dict:
+    if schema_version != SUPPORTED_SCHEMA_VERSION:
+        raise ValueError(
+            f"schema version must be {SUPPORTED_SCHEMA_VERSION}; got {schema_version}."
         )
+    if (
+        not isinstance(name, str)
+        or not _MODEL_NAME.fullmatch(name)
+        or name.startswith("/")
+        or name.endswith("/")
+        or "//" in name
+        or any(segment in {".", ".."} for segment in name.split("/"))
+    ):
+        raise ValueError("model name must be a bounded canonical lowercase name.")
 
-    # The bundle's own identity: a digest over the sorted member refs, not over a tarball.
-    #
-    # A tar digest depends on mtimes, ordering and padding, so the same weights repacked twice
-    # produce different bytes and look like a different model. Hashing the identity records
-    # makes the bundle digest a function of the CONTENT, which is what "the same weights" has
-    # to mean for a promotion between registries to be checkable.
-    canonical = json.dumps(members, sort_keys=True, separators=(",", ":")).encode()
-    bundle_digest = "sha256:" + hashlib.sha256(canonical).hexdigest()
+    checkpoint = checkpoint.resolve()
+    out = out.resolve()
+    if checkpoint == out or checkpoint in out.parents or out in checkpoint.parents:
+        raise ValueError("checkpoint and output directories must not overlap.")
+    files = collect(checkpoint)
+    if out.exists() and (not out.is_dir() or any(out.iterdir())):
+        raise ValueError(f"{out}: output directory must not already contain files.")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    staging = Path(tempfile.mkdtemp(prefix=f".{out.name}.staging-", dir=out.parent))
+    try:
+        members = []
+        for path in files:
+            relative = path.relative_to(checkpoint).as_posix()
+            destination = staging / relative
+            _copy_regular_file(path, destination)
+            if destination.suffix.lower() == ".safetensors":
+                # Validate the copied bytes too. This closes the source-mutation window between
+                # admission and copying while keeping the release tool independent of Torch.
+                validate_safetensors(destination)
+            digest, size = sha256_file(destination)
+            members.append(
+                {
+                    "path": relative,
+                    # Field names are ArtifactRef's, from
+                    # protocols/proto/mindclade/artifact/v1/artifact.proto. The platform manifest
+                    # is authoritative for identity (ADR-0004/ADR-0022); the OCI annotations this
+                    # feeds are a projection carried for admission and portability.
+                    "digest": digest,
+                    "size_bytes": size,
+                    "media_type": _media_type(path),
+                    "logical_kind": "model.weights"
+                    if path.suffix.lower() == ".safetensors"
+                    else "model.metadata",
+                    "schema_version": schema_version,
+                }
+            )
 
-    manifest = {
-        "schema_version": schema_version,
-        "media_type": MANIFEST_MEDIA_TYPE,
-        "logical_kind": "model.bundle",
-        "name": name,
-        "digest": bundle_digest,
-        "size_bytes": sum(m["size_bytes"] for m in members),
-        "members": members,
-    }
-    (out / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
-    return manifest
+        # The bundle's own identity: a digest over the sorted member refs, not over a tarball.
+        #
+        # A tar digest depends on mtimes, ordering and padding, so the same weights repacked twice
+        # produce different bytes and look like a different model. Hashing the identity records
+        # makes the bundle digest a function of the CONTENT, which is what "the same weights" has
+        # to mean for a promotion between registries to be checkable.
+        canonical = json.dumps(members, sort_keys=True, separators=(",", ":")).encode()
+        bundle_digest = "sha256:" + hashlib.sha256(canonical).hexdigest()
+
+        manifest = {
+            "schema_version": schema_version,
+            "media_type": MANIFEST_MEDIA_TYPE,
+            "logical_kind": "model.bundle",
+            "name": name,
+            "digest": bundle_digest,
+            "size_bytes": sum(m["size_bytes"] for m in members),
+            "members": members,
+        }
+        manifest_path = staging / "manifest.json"
+        with manifest_path.open("x", encoding="utf-8") as handle:
+            handle.write(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        _fsync_directory(staging)
+
+        if out.exists():
+            out.rmdir()  # It was proven empty above; fail if another writer raced us.
+        os.replace(staging, out)
+        _fsync_directory(out.parent)
+        return manifest
+    finally:
+        if staging.exists():
+            shutil.rmtree(staging)
 
 
 def main() -> int:

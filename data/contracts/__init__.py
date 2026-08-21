@@ -3,4 +3,24 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Mindclade scaffold package for data/contracts."""
+"""Provider-neutral, versioned data contracts."""
+
+from .dataset import DatasetContract
+from .record import FieldContract, FieldType, LogPolicy, Sensitivity
+from .shard import ShardManifest
+from .snapshot import DatasetSnapshot
+from .source import SourceSnapshot
+from .validation import ValidationIssue, validate_record
+
+__all__ = [
+    "DatasetContract",
+    "DatasetSnapshot",
+    "FieldContract",
+    "FieldType",
+    "LogPolicy",
+    "Sensitivity",
+    "ShardManifest",
+    "SourceSnapshot",
+    "ValidationIssue",
+    "validate_record",
+]

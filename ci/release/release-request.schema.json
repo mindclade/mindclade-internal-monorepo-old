@@ -3,7 +3,7 @@
   "$id": "https://schemas.mindclade.internal/ci/release-request.schema.json",
   "additionalProperties": false,
   "properties": {
-    "apiVersion": {"const": "release.mindclade.dev/v1alpha1"},
+    "apiVersion": {"const": "release.mindclade.dev/v1beta1"},
     "kind": {"const": "ReleaseRequest"},
     "metadata": {
       "additionalProperties": false,
@@ -17,22 +17,21 @@
     "spec": {
       "additionalProperties": false,
       "properties": {
-        "targets": {
-          "items": {
-            "additionalProperties": false,
-            "properties": {
-              "name": {"enum": ["go-vanity", "weights-fixture"]},
-              "rollbackDigest": {"pattern": "^sha256:[0-9a-f]{64}$", "type": "string"}
-            },
-            "required": ["name", "rollbackDigest"],
-            "type": "object"
+        "previousRelease": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {"pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$", "type": "string"},
+            "subjectDigest": {"pattern": "^sha256:[0-9a-f]{64}$", "type": "string"}
           },
-          "maxItems": 1,
-          "minItems": 1,
-          "type": "array"
+          "required": ["id", "subjectDigest"],
+          "type": "object"
+        },
+        "target": {
+          "enum": ["go-vanity", "weights-fixture"],
+          "type": "string"
         }
       },
-      "required": ["targets"],
+      "required": ["target", "previousRelease"],
       "type": "object"
     }
   },

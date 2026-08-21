@@ -3,4 +3,29 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Mindclade scaffold package for serving/batch."""
+"""Bounded reusable mechanics for durable batch inference."""
+
+from .artifacts import ResultManifest, build_manifest
+from .batching import BatchSlice, partition
+from .cancellation import CancellationRegistry
+from .config import BatchLimits
+from .executor import BatchEngine, BatchExecutor
+from .job import BatchJob
+from .queue import JobQueue
+from .result import BatchResult
+from .worker import BatchWorker
+
+__all__ = [
+    "BatchEngine",
+    "BatchExecutor",
+    "BatchJob",
+    "BatchLimits",
+    "BatchResult",
+    "BatchSlice",
+    "BatchWorker",
+    "CancellationRegistry",
+    "JobQueue",
+    "ResultManifest",
+    "build_manifest",
+    "partition",
+]

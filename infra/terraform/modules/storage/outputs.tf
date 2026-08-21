@@ -20,7 +20,7 @@ output "kms_key_name" {
 
 output "required_access_log_writer_grant" {
   description = "Additive IAM grant the separately owned access-log bucket must implement"
-  value = {
+  value = var.access_log_bucket == null ? null : {
     bucket = var.access_log_bucket
     member = "group:cloud-storage-analytics@google.com"
     role   = "roles/storage.objectCreator"

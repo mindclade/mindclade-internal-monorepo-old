@@ -1,35 +1,14 @@
-# Kernels / Ops / Attention
+# Attention operation contract
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Python provider APIs and TileLang accelerator implementations
+- **Implemented:** `attention_reference`, `scaled_dot_product_attention`, and a qualification-gated TileLang online-softmax candidate.
+- **Layout:** contiguous `Q[B,H,Sq,D]`, `K/V[B,H,Sk,D]`.
 
-## Purpose
+Boolean masks use `True = allowed` and broadcast to `[B,H,Sq,Sk]`. Causal
+semantics allow keys with `key_index <= query_index`. Masking is applied before
+softmax; fully masked rows produce zero output. FP16/BF16 inputs reduce in FP32,
+while FP64 is retained for gradient checking.
 
-Reference operations, provider dispatch, TileLang kernels, autotuning, target support, and signature-specific numerical/performance qualification. This path specializes that domain for **attention**.
-
-## Boundary
-
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
-
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
-
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+The TileLang candidate does not materialize `[Sq,Sk]` in global memory. It tiles
+Q/K/V in shared memory and maintains online row max/sum with FP32 accumulators.
+Current accelerator registration covers dense non-causal dispatch; additional
+mask and causal signatures require their own identities and qualification.

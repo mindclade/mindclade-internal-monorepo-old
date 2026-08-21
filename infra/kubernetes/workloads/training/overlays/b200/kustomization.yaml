@@ -1,0 +1,71 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: mindclade-training-b200
+
+components:
+  - ../../base
+
+patches:
+  - target:
+      group: ""
+      version: v1
+      kind: ConfigMap
+      name: mindclade-checkpoint-sidecar-contract
+    patch: |-
+      - op: replace
+        path: /metadata/labels/mindclade.dev~1workload-class
+        value: training-b200
+  - target:
+      group: batch
+      version: v1
+      kind: Job
+      name: mindclade-1g-packed-template
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: mindclade-b200-1g-packed-template
+      - op: replace
+        path: /metadata/labels/kueue.x-k8s.io~1queue-name
+        value: mindclade-training-b200
+      - op: replace
+        path: /metadata/labels/mindclade.dev~1workload-class
+        value: training-b200
+      - op: replace
+        path: /spec/template/metadata/labels/mindclade.dev~1workload-class
+        value: training-b200
+      - op: replace
+        path: /spec/template/spec/nodeSelector/mindclade.dev~1gpu-profile
+        value: gke-b200-a4-highgpu-8g
+      - op: replace
+        path: /spec/template/spec/serviceAccountName
+        value: mindclade-training-b200
+  - target:
+      group: jobset.x-k8s.io
+      version: v1alpha2
+      kind: JobSet
+      name: mindclade-8g-full-template
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: mindclade-b200-8g-full-template
+      - op: replace
+        path: /metadata/labels/kueue.x-k8s.io~1queue-name
+        value: mindclade-training-b200
+      - op: replace
+        path: /metadata/labels/mindclade.dev~1workload-class
+        value: training-b200
+      - op: replace
+        path: /spec/replicatedJobs/0/template/spec/template/metadata/labels/mindclade.dev~1workload-class
+        value: training-b200
+      - op: replace
+        path: /spec/replicatedJobs/0/template/spec/template/spec/nodeSelector/mindclade.dev~1gpu-profile
+        value: gke-b200-a4-highgpu-8g
+      - op: replace
+        path: /spec/replicatedJobs/0/template/spec/template/spec/serviceAccountName
+        value: mindclade-training-b200

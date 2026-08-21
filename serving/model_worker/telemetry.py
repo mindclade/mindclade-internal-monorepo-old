@@ -3,12 +3,32 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for serving/model_worker/telemetry.py.
+"""Low-cardinality model-worker counters."""
 
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+from dataclasses import dataclass
+from threading import Lock
 
-from __future__ import annotations
 
-SCAFFOLD_PATH: str = "serving/model_worker/telemetry.py"
+@dataclass(frozen=True, slots=True)
+class WorkerMetrics:
+    admitted: int
+    completed: int
+    rejected: int
+    failed: int
+
+
+class Telemetry:
+    def __init__(self) -> None:
+        self._values = [0, 0, 0, 0]
+        self._lock = Lock()
+
+    def increment(self, outcome: str) -> None:
+        indexes = {"admitted": 0, "completed": 1, "rejected": 2, "failed": 3}
+        if outcome not in indexes:
+            raise ValueError("model-worker outcome is invalid")
+        with self._lock:
+            self._values[indexes[outcome]] += 1
+
+    def snapshot(self) -> WorkerMetrics:
+        with self._lock:
+            return WorkerMetrics(*self._values)

@@ -18,6 +18,17 @@ output "crypto_key_ids" {
   value       = { for name, key in google_kms_crypto_key.this : name => key.id }
 }
 
+output "encrypter_decrypter_grants" {
+  description = "Additive symmetric-key grants owned by this KMS state."
+  value = {
+    for key, grant in google_kms_crypto_key_iam_member.encrypter_decrypter : key => {
+      crypto_key_id = grant.crypto_key_id
+      member        = grant.member
+      role          = grant.role
+    }
+  }
+}
+
 output "crypto_key_names" {
   description = "CryptoKey names keyed by the stable input name"
   value       = { for name, key in google_kms_crypto_key.this : name => key.name }

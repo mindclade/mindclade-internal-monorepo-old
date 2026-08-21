@@ -8,4 +8,4 @@ from kernels.providers.tilelang.adapter import CompiledKernelCache
 from kernels.providers.tilelang.capabilities import detect_capabilities
 from kernels.providers.tilelang.manifest import TILELANG_VERSION
 
-__all__ = ["CompiledKernelCache", "TILELANG_VERSION", "detect_capabilities"]
+__all__ = ["TILELANG_VERSION", "CompiledKernelCache", "detect_capabilities"]

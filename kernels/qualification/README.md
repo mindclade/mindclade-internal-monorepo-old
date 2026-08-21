@@ -1,35 +1,30 @@
-# Kernels / Qualification
+# Kernel qualification
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Python provider APIs and TileLang accelerator implementations
+- **Status:** Implemented evidence and promotion model; zero TileLang signatures are promoted by this source change.
+- **Authority:** [ADR-0008](../../docs/design/adr-0008-qualified-tilelang-kernels.md)
 
-## Purpose
+Qualification is exact and content-addressed. Evidence binds the request and
+implementation digests, repository revision, generated-source digest,
+environment digest, numerical results, performance distribution, and soak
+result. Failed evidence remains serializable for audit.
 
-Reference operations, provider dispatch, TileLang kernels, autotuning, target support, and signature-specific numerical/performance qualification. This path specializes that domain for **qualification**.
+`PromotionPolicy` rejects records unless forward parity, required gradients,
+determinism, sanitizers, minimum case counts, stability, compile behavior, and
+minimum baseline speedup pass. `qualification_candidate` is pure: it returns a
+candidate record but never writes a manifest or changes production state.
 
-## Boundary
+Revocations are separate immutable records. Dispatch checks revocation before
+selection and falls back to PyTorch if the exact qualification is absent or
+revoked. The environment kill switch supplies an independent emergency rollback.
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+## Evidence sequence
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+1. Validate the semantic contract and eligibility boundary.
+2. Compile the exact source/schedule/toolchain and inspect generated code.
+3. Run adversarial forward, gradient, determinism, and sanitizer coverage.
+4. Benchmark against the named baseline with synchronized samples.
+5. Soak the exact target and review the machine-readable evidence.
+6. Publish through the separately authorized promotion workflow.
 
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+This repository change implements steps 1–5 tooling only. It does not authorize
+step 6 and makes no production performance claim.

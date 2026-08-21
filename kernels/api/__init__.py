@@ -4,7 +4,7 @@
 
 """Stable provider-neutral kernel contracts."""
 
-from kernels.api.capabilities import DeviceCapabilities, PORTABLE_CPU
+from kernels.api.capabilities import PORTABLE_CPU, DeviceCapabilities, digest_runtime_environment
 from kernels.api.errors import (
     KernelCompilationError,
     KernelError,
@@ -22,6 +22,7 @@ from kernels.api.specs import (
 )
 
 __all__ = [
+    "PORTABLE_CPU",
     "DeviceCapabilities",
     "ImplementationIdentity",
     "KernelCompilationError",
@@ -31,8 +32,8 @@ __all__ = [
     "KernelRequest",
     "KernelUnavailableError",
     "KernelValidationError",
-    "PORTABLE_CPU",
     "Provider",
     "TensorLayout",
     "TensorSpec",
+    "digest_runtime_environment",
 ]

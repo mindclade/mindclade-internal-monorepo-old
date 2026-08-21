@@ -3,4 +3,11 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-export const SCAFFOLD_FORMAT = "apps/admin/src/lib/format.ts" as const;
+export function formatAuditTime(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.valueOf()) ? "Unknown" : new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "long" }).format(date);
+}
+
+export function shortIdentity(value: string): string {
+  return value.length <= 30 ? value : `${value.slice(0, 14)}…${value.slice(-10)}`;
+}

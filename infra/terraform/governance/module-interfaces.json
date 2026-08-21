@@ -1,5 +1,5 @@
 {
-  "contract_version": "0.3.0",
+  "contract_version": "0.4.0",
   "generated_by": {
     "terraform-docs": "0.24.0"
   },
@@ -333,6 +333,94 @@
         "terraform": ">= 1.9.0, < 2.0.0"
       }
     },
+    "artifact_registry_factory": {
+      "inputs": {
+        "enable_vulnerability_scanning": {
+          "default": true,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "bool",
+          "validation_fingerprints": []
+        },
+        "encryption_key": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": []
+        },
+        "labels": {
+          "default": {},
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "map(string)",
+          "validation_fingerprints": []
+        },
+        "location": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": []
+        },
+        "project_id": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": []
+        },
+        "repositories": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "map(object({ format = string description = string docker_config = optional(object({ immutable_tags = optional(bool, true) })) cleanup_policies = optional(map(object({ action = string condition_state = optional(string) older_than = optional(string) most_recent_versions = optional(number) })), {}) }))",
+          "validation_fingerprints": [
+            "sha256:d620606fc541f512e1ff232604a1ac9afbc48fd9c73b5fb3b2574c255d448183"
+          ]
+        }
+      },
+      "managed_resource_addresses": [
+        "google_artifact_registry_repository.this"
+      ],
+      "module_calls": {},
+      "moved": [],
+      "outputs": {
+        "repositories": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:efac071032b2e3c658757b3946eefa174f5148d0677301592b6c935a478b3140"
+        },
+        "required_kms_grant": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:ca8e5ad43faf45f275f40ca48b2a48678226315e2db36d18d86259e963f31c42"
+        }
+      },
+      "path": "infra/terraform/modules/artifact_registry_factory",
+      "provider_contracts": {
+        "google": {
+          "configuration_aliases": [],
+          "source": "registry.terraform.io/hashicorp/google"
+        }
+      },
+      "requirements": {
+        "google": ">= 7.41.0, < 8.0.0",
+        "terraform": ">= 1.9.0, < 2.0.0"
+      }
+    },
     "audit_archive": {
       "inputs": {
         "access_log_bucket_name": {
@@ -553,6 +641,93 @@
         }
       },
       "path": "infra/terraform/modules/audit_archive",
+      "provider_contracts": {
+        "google": {
+          "configuration_aliases": [],
+          "source": "registry.terraform.io/hashicorp/google"
+        }
+      },
+      "requirements": {
+        "google": ">= 7.41.0, < 8.0.0",
+        "terraform": ">= 1.9.0, < 2.0.0"
+      }
+    },
+    "backup_dr": {
+      "inputs": {
+        "bucket_replication": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "map(object({ source_bucket = string destination_bucket = string destination_region = string delete_objects_unique_in_sink = bool delete_objects_from_source_after_transfer = bool overwrite_objects_already_existing_in_sink = bool schedule = string retention_days = number }))",
+          "validation_fingerprints": [
+            "sha256:4233b9e2e2810531a197401a11fe0d2e4f384d7c4d7a66a57ce17564f5a8caaf"
+          ]
+        },
+        "gke_backup": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "object({ plan_name = string cluster = string location = string cron_schedule = string all_namespaces = bool excluded_namespaces = set(string) include_volume_data = bool include_secrets = bool encryption_key = string retention = object({ backup_retain_days = number backup_delete_lock_days = number }) })",
+          "validation_fingerprints": [
+            "sha256:4d7391422f28ab5e67cc862f319fb557376ca8c1ea86ff929493a8bb853bbb84"
+          ]
+        },
+        "labels": {
+          "default": {},
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "map(string)",
+          "validation_fingerprints": []
+        },
+        "project_id": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": []
+        }
+      },
+      "managed_resource_addresses": [
+        "google_gke_backup_backup_plan.this",
+        "google_kms_crypto_key.replica",
+        "google_kms_crypto_key_iam_member.storage_agent",
+        "google_kms_key_ring.replica",
+        "google_storage_bucket.replica",
+        "google_storage_transfer_job.replica"
+      ],
+      "module_calls": {},
+      "moved": [],
+      "outputs": {
+        "backup_plan": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:54e24541b733162aaff3589cadbb3b802d385f312c2aa65955ec989236be1af5"
+        },
+        "replica_buckets": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:4fe3f31abf127341807a98cf1e6fcc85315d29006420e75902a458276797dbcd"
+        },
+        "restore_exclusion_contract": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:8da1d49729fb107f44a9a3112301ac04f9284cfa47ae74928e6b1b2a88416e53"
+        },
+        "transfer_jobs": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:e94d6bfff655a2f88fe5a0f5c231c23bc92993b66dd9cc836f3637a63148162c"
+        }
+      },
+      "path": "infra/terraform/modules/backup_dr",
       "provider_contracts": {
         "google": {
           "configuration_aliases": [],
@@ -2138,6 +2313,113 @@
         "terraform": ">= 1.9.0, < 2.0.0"
       }
     },
+    "environment_alerting": {
+      "inputs": {
+        "alert_policies": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "map(object({ display_name = string severity = string condition = object({ filter = string comparison = string threshold_value = number duration = string aligner = string }) documentation = string }))",
+          "validation_fingerprints": [
+            "sha256:7d16d8cbf51b3a6a2efdf5d9da54912feb09b992ddc7220f3abffa7698ccd644"
+          ]
+        },
+        "cluster_name": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": []
+        },
+        "default_notification_channels": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "set(string)",
+          "validation_fingerprints": [
+            "sha256:7a2560d43faf8ae8a0545f72d407d0341a3bee6298ff80cdc238e00c125d4d21"
+          ]
+        },
+        "labels": {
+          "default": {},
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "map(string)",
+          "validation_fingerprints": []
+        },
+        "metrics_scope_project": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": []
+        },
+        "notification_channels": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "map(object({ type = string email = optional(string) }))",
+          "validation_fingerprints": [
+            "sha256:26eaceaf5aae9f6e116c96924a14f9f5e67cdf21f634fb65f6b18ae560e4f279"
+          ]
+        },
+        "project_id": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": []
+        }
+      },
+      "managed_resource_addresses": [
+        "google_monitoring_alert_policy.this",
+        "google_monitoring_notification_channel.this"
+      ],
+      "module_calls": {},
+      "moved": [],
+      "outputs": {
+        "alert_policy_names": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:2e160c9c0f870a9e54569d5afa9c8cfc48bc38a693e4124b35e3b30acee8943f"
+        },
+        "metrics_scope_contract": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:37a3d7caf06fc6bf017e76917c38e11dd5ab52cd8f318f36fb80103ddb1919ff"
+        },
+        "notification_channel_names": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:45bec49e3b0f40ad77d9da764ed17e0f4fd11905acdd59f7921285be2a38c2d6"
+        }
+      },
+      "path": "infra/terraform/modules/environment_alerting",
+      "provider_contracts": {
+        "google": {
+          "configuration_aliases": [],
+          "source": "registry.terraform.io/hashicorp/google"
+        }
+      },
+      "requirements": {
+        "google": ">= 7.41.0, < 8.0.0",
+        "terraform": ">= 1.9.0, < 2.0.0"
+      }
+    },
     "essential_contacts": {
       "inputs": {
         "contacts": {
@@ -2952,7 +3234,7 @@
           "sensitive": false,
           "type": "string",
           "validation_fingerprints": [
-            "sha256:5b1bdb8231cc2fd43217636e426403127de45c7ece025c3ea28a9175701c8fb3"
+            "sha256:304b5e7e98006e324d6bf39654ef39d3bd02ed5e5600e731dc0422725a9534c4"
           ]
         },
         "project_id": {
@@ -3124,6 +3406,118 @@
         "terraform": ">= 1.9.0, < 2.0.0"
       }
     },
+    "hybrid_connectivity": {
+      "inputs": {
+        "bgp_md5_authentication": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "bool",
+          "validation_fingerprints": []
+        },
+        "cloud_router": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "object({ name = string asn = number advertise_mode = string advertised_ip_ranges = set(object({ range = string description = string })) })",
+          "validation_fingerprints": []
+        },
+        "interconnects": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "map(object({ name = string location = string description = string link_type = string requested_link_count = number }))",
+          "validation_fingerprints": [
+            "sha256:66d15571936c32fbe038fb939671aeca6f9fe25dc16f43d74d51d9ffc699306c"
+          ]
+        },
+        "labels": {
+          "default": {},
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "map(string)",
+          "validation_fingerprints": []
+        },
+        "macsec_enabled": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "bool",
+          "validation_fingerprints": []
+        },
+        "network": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": []
+        },
+        "project_id": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": []
+        },
+        "region": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": []
+        }
+      },
+      "managed_resource_addresses": [
+        "google_compute_interconnect.this",
+        "google_compute_router.this"
+      ],
+      "module_calls": {},
+      "moved": [],
+      "outputs": {
+        "activation_contract": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:0b1c2fa2b5b1efb60f2f34969e803e7860843188ee8d0740b65e6b89cfd7df99"
+        },
+        "interconnect_self_links": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:605d6be5de58907a9c0082b5beb6602df2a8db0883bc83dd53ebd36465b1ed65"
+        },
+        "router_name": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:4a308a910bc737c1e1bd7f14f30213ecd7778f9af15efcdd6853cb194e61e649"
+        }
+      },
+      "path": "infra/terraform/modules/hybrid_connectivity",
+      "provider_contracts": {
+        "google": {
+          "configuration_aliases": [],
+          "source": "registry.terraform.io/hashicorp/google"
+        }
+      },
+      "requirements": {
+        "google": ">= 7.41.0, < 8.0.0",
+        "terraform": ">= 1.9.0, < 2.0.0"
+      }
+    },
     "iap_access": {
       "inputs": {
         "accessor_groups": {
@@ -3246,6 +3640,17 @@
     },
     "kms": {
       "inputs": {
+        "encrypter_decrypters": {
+          "default": {},
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "map(set(string))",
+          "validation_fingerprints": [
+            "sha256:331e8065d691d91be015d352d69445bd55955528ff3f3e12917707b760771582"
+          ]
+        },
         "key_ring_name": {
           "default": null,
           "ephemeral": false,
@@ -3318,6 +3723,7 @@
       "managed_resource_addresses": [
         "google_kms_crypto_key.signing",
         "google_kms_crypto_key.this",
+        "google_kms_crypto_key_iam_member.encrypter_decrypter",
         "google_kms_key_ring.this"
       ],
       "module_calls": {},
@@ -3332,6 +3738,11 @@
           "ephemeral": false,
           "sensitive": false,
           "value_fingerprint": "sha256:03de13c85051ba07d913c0e8a581b1d7bc97be5edc5d2cfde18a8e5cce90f519"
+        },
+        "encrypter_decrypter_grants": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:88e50c3e89f9120780083f2d8ebeb6d000565c05d2be9dbefc42df041a661777"
         },
         "key_ring_id": {
           "ephemeral": false,
@@ -4510,6 +4921,67 @@
         "terraform": ">= 1.9.0, < 2.0.0"
       }
     },
+    "parallelstore": {
+      "inputs": {
+        "labels": {
+          "default": {},
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "map(string)",
+          "validation_fingerprints": []
+        },
+        "parallelstore": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "map(object({ name = string location = string capacity_gib = number deployment_type = string network = string reserved_ip_range = string gcs_import = optional(object({ source = string })) }))",
+          "validation_fingerprints": [
+            "sha256:1f6b92f1fc974eea404da3025820da585e169f5a58b8e12395c1ffa3ddeb1101"
+          ]
+        },
+        "project_id": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": []
+        }
+      },
+      "managed_resource_addresses": [
+        "google_parallelstore_instance.this"
+      ],
+      "module_calls": {},
+      "moved": [],
+      "outputs": {
+        "gcs_import_contracts": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:c048c5356e10711261b637c60eb65bd6fbc8b3a1a478b3897a7da5781af359d9"
+        },
+        "instances": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:4b3f332eb24017b6f6471de059a1d9e9abf9d67a00f4f5534574cbf94f2aaa33"
+        }
+      },
+      "path": "infra/terraform/modules/parallelstore",
+      "provider_contracts": {
+        "google": {
+          "configuration_aliases": [],
+          "source": "registry.terraform.io/hashicorp/google"
+        }
+      },
+      "requirements": {
+        "google": ">= 7.41.0, < 8.0.0",
+        "terraform": ">= 1.9.0, < 2.0.0"
+      }
+    },
     "postgres": {
       "inputs": {
         "allocated_ip_range": {
@@ -4902,6 +5374,85 @@
         "terraform": ">= 1.9.0, < 2.0.0"
       }
     },
+    "private_connectivity": {
+      "inputs": {
+        "google_api_endpoints": {
+          "default": {},
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "map(object({ project_id = string region = string network = string subnetwork = string target = string address = string }))",
+          "validation_fingerprints": []
+        },
+        "labels": {
+          "default": {},
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "map(string)",
+          "validation_fingerprints": []
+        },
+        "service_attachments": {
+          "default": {},
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "map(object({ project_id = string region = string target_service = string nat_subnets = list(string) accepted_project_ids = map(number) enable_proxy_protocol = optional(bool, false) }))",
+          "validation_fingerprints": []
+        },
+        "service_networking": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "map(object({ project_id = string network = string allocated_range = string }))",
+          "validation_fingerprints": [
+            "sha256:e09fd7c6551736f4bf798016d3d5b13c35c503cecdc13521463a465d0750b627"
+          ]
+        }
+      },
+      "managed_resource_addresses": [
+        "google_compute_address.google_api",
+        "google_compute_forwarding_rule.google_api",
+        "google_compute_global_address.service_networking",
+        "google_compute_service_attachment.this",
+        "google_service_networking_connection.this"
+      ],
+      "module_calls": {},
+      "moved": [],
+      "outputs": {
+        "google_api_forwarding_rules": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:4455c0adf35777b77609eae47c2258842fa86d47246ac9b8a9ac911977b97193"
+        },
+        "service_attachment_self_links": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:eec32fd8606cb4745d971b1df746ba09fa982d01d728431a9671c15d43bbbe2b"
+        },
+        "service_networking_ranges": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:7dd3cce5b41da431831d6b72b706d72a0516157a3491cdceb651161916cd199b"
+        }
+      },
+      "path": "infra/terraform/modules/private_connectivity",
+      "provider_contracts": {
+        "google": {
+          "configuration_aliases": [],
+          "source": "registry.terraform.io/hashicorp/google"
+        }
+      },
+      "requirements": {
+        "google": ">= 7.41.0, < 8.0.0",
+        "terraform": ">= 1.9.0, < 2.0.0"
+      }
+    },
     "private_service_access": {
       "inputs": {
         "address": {
@@ -5264,6 +5815,131 @@
         }
       },
       "path": "infra/terraform/modules/project",
+      "provider_contracts": {
+        "google": {
+          "configuration_aliases": [],
+          "source": "registry.terraform.io/hashicorp/google"
+        }
+      },
+      "requirements": {
+        "google": ">= 7.41.0, < 8.0.0",
+        "terraform": ">= 1.9.0, < 2.0.0"
+      }
+    },
+    "project_factory": {
+      "inputs": {
+        "billing_account": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:f397e188a40b7c2a85d7356372420b7c25ab74130d06183ad81e512a08850214"
+          ]
+        },
+        "budget_amount": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "number",
+          "validation_fingerprints": [
+            "sha256:b0137df0ee3d2ddae0a5e68e37b29b4afafbab48fc30d7d7c03e72ef7195660b"
+          ]
+        },
+        "deletion_policy": {
+          "default": "PREVENT",
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:23999803b92edea265a9b2547674297f9860dd304365dcecacf0413f1f054e1a"
+          ]
+        },
+        "extra_services": {
+          "default": [],
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "set(string)",
+          "validation_fingerprints": []
+        },
+        "folder_id": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:fc2142801d3558365b473b3c6495ba2ef92fa6965d34191d230bc520d1407640"
+          ]
+        },
+        "labels": {
+          "default": {},
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "map(string)",
+          "validation_fingerprints": []
+        },
+        "projects": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "map(object({ project_id = string name = string services = set(string) lien = optional(bool, false) shared_vpc_host = optional(bool, false) shared_vpc_service_project = optional(bool, false) monitoring_scope_host = optional(bool, false) }))",
+          "validation_fingerprints": [
+            "sha256:6f70b4f6610e1f0c3d2d5121106341e9dcb3d44149669ccf64223786eda97519",
+            "sha256:a75e6cf6dfb9756fd8b33e740a6f8b2289fd5626f91627e2998c5dc145ee1b24"
+          ]
+        }
+      },
+      "managed_resource_addresses": [
+        "google_billing_budget.project_set",
+        "google_compute_shared_vpc_host_project.host",
+        "google_compute_shared_vpc_service_project.service",
+        "google_monitoring_monitored_project.scope_member",
+        "google_resource_manager_lien.project"
+      ],
+      "module_calls": {
+        "module.project": {
+          "source": "../project",
+          "version": ""
+        }
+      },
+      "moved": [],
+      "outputs": {
+        "monitoring_scope_project_id": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:9a953d85d82d0d040f8bfa31150a25b438c4bb8559bb4d5fe56ae3b04cb409d7"
+        },
+        "project_ids": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:f3f6f4de2c6d29ebf99fab8e34f7651d40a363f062917f116b398799f63c33f5"
+        },
+        "project_numbers": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:f7bc50ac98006e07d26058af9c09b96e6b89ceb63a0a0fdd1bab21aa15acb7d4"
+        },
+        "shared_vpc_host_project_id": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:8bfefd95f882465eefdf877d7b13310a2191b909063ba2e270623d857ebca412"
+        }
+      },
+      "path": "infra/terraform/modules/project_factory",
       "provider_contracts": {
         "google": {
           "configuration_aliases": [],
@@ -6046,17 +6722,109 @@
         "terraform": ">= 1.9.0, < 2.0.0"
       }
     },
-    "storage": {
+    "service_perimeter": {
       "inputs": {
-        "access_log_bucket": {
+        "access_levels": {
+          "default": {},
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "map(object({ title = string }))",
+          "validation_fingerprints": [
+            "sha256:7cc3620f49f793c9b445bca594c07a95d2c7096f7b680158df6ab63bf96f0fc6"
+          ]
+        },
+        "egress_policies": {
+          "default": [],
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "list(object({ title = string }))",
+          "validation_fingerprints": [
+            "sha256:012cefa3b8fc565de257d6e53bcfe98105b721aa9074b71395816942fd002cf8"
+          ]
+        },
+        "ingress_policies": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "list(object({ title = string from = object({ identities = set(string) identity_type = optional(string) source_access_levels = set(string) }) to = object({ resources = set(string) operations = map(object({ methods = set(string) })) }) }))",
+          "validation_fingerprints": []
+        },
+        "org_id": {
           "default": null,
           "ephemeral": false,
           "nullable": true,
           "required": true,
           "sensitive": false,
           "type": "string",
+          "validation_fingerprints": []
+        },
+        "perimeter": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "object({ name = string title = string use_explicit_dry_run_spec = bool resources = set(string) restricted_services = set(string) vpc_accessible_services = object({ enable_restriction = bool allowed_services = set(string) }) })",
           "validation_fingerprints": [
-            "sha256:08a7174da708ac97837c4631e3028681fdb8bba20446fafc732043d13f6c7385"
+            "sha256:1f2a729fd64481cef6172b985d04b029e7d37e5e3807d30a0a22b0779b0c9fc2"
+          ]
+        },
+        "policy_name": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": []
+        }
+      },
+      "managed_resource_addresses": [
+        "google_access_context_manager_service_perimeter.this"
+      ],
+      "module_calls": {},
+      "moved": [],
+      "outputs": {
+        "dry_run": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:59f828a63055c6948103aa19c0f07b5f6c0a84e0a329c8af573449ef7cc093f1"
+        },
+        "perimeter_name": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:b5d864777edfa634a3077b5c09b9bb59dc915d2991f4e852881037a880336184"
+        }
+      },
+      "path": "infra/terraform/modules/service_perimeter",
+      "provider_contracts": {
+        "google": {
+          "configuration_aliases": [],
+          "source": "registry.terraform.io/hashicorp/google"
+        }
+      },
+      "requirements": {
+        "google": ">= 7.41.0, < 8.0.0",
+        "terraform": ">= 1.9.0, < 2.0.0"
+      }
+    },
+    "storage": {
+      "inputs": {
+        "access_log_bucket": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:2a87d204d4c990682cff2158e919099c518c996e170d5dc7385a4eef0e7dd868"
           ]
         },
         "access_log_object_prefix": {
@@ -6299,10 +7067,160 @@
         "required_access_log_writer_grant": {
           "ephemeral": false,
           "sensitive": false,
-          "value_fingerprint": "sha256:32921a46382b8a27a525b6ca384156dfeda16ff7bdc579f7a5049f21db97756b"
+          "value_fingerprint": "sha256:0b2ee0806f4a4375a77559639071bce0d5eed9b6bcf063e3d3d05ad60d2585f9"
         }
       },
       "path": "infra/terraform/modules/storage",
+      "provider_contracts": {
+        "google": {
+          "configuration_aliases": [],
+          "source": "registry.terraform.io/hashicorp/google"
+        }
+      },
+      "requirements": {
+        "google": ">= 7.41.0, < 8.0.0",
+        "terraform": ">= 1.9.0, < 2.0.0"
+      }
+    },
+    "storage_collection": {
+      "inputs": {
+        "buckets": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "map(object({ name = string location = optional(string) hierarchical_namespace = optional(bool, false) versioning = optional(bool) soft_delete_retention_seconds = optional(number) retention_days = optional(number) lifecycle_rules = optional(list(object({ condition = object({ age = optional(number) days_since_noncurrent_time = optional(number) matches_storage_class = optional(list(string)) num_newer_versions = optional(number) with_state = optional(string) }) action = object({ type = string storage_class = optional(string) }) }))) }))",
+          "validation_fingerprints": [
+            "sha256:dab4f1217b42bd8c1bbb3890079bd3df97e325f1894e447f0f5da23f85c87104"
+          ]
+        },
+        "deny_policies": {
+          "default": {},
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "map(object({ display_name = string rules = list(object({ denied_principals = set(string) denied_permissions = set(string) exception_principals = optional(set(string), []) })) }))",
+          "validation_fingerprints": [
+            "sha256:697597ee4cba59f17116d758c1e3230518825192d3a6a92e47a448958b6d5eaf"
+          ]
+        },
+        "encryption_key": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": []
+        },
+        "labels": {
+          "default": {},
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "map(string)",
+          "validation_fingerprints": []
+        },
+        "lifecycle_rules": {
+          "default": [],
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "list(object({ condition = object({ age = optional(number) days_since_noncurrent_time = optional(number) matches_storage_class = optional(list(string)) num_newer_versions = optional(number) with_state = optional(string) }) action = object({ type = string storage_class = optional(string) }) }))",
+          "validation_fingerprints": []
+        },
+        "location": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": []
+        },
+        "project_id": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": []
+        },
+        "public_access_prevention": {
+          "default": "enforced",
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": []
+        },
+        "retention_lock_confirmation": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": true,
+          "type": "string",
+          "validation_fingerprints": []
+        },
+        "soft_delete_retention_seconds": {
+          "default": 604800,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "number",
+          "validation_fingerprints": []
+        },
+        "uniform_bucket_level_access": {
+          "default": true,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "bool",
+          "validation_fingerprints": []
+        },
+        "versioning": {
+          "default": true,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "bool",
+          "validation_fingerprints": []
+        }
+      },
+      "managed_resource_addresses": [
+        "google_iam_deny_policy.this",
+        "google_storage_bucket.this"
+      ],
+      "module_calls": {},
+      "moved": [],
+      "outputs": {
+        "buckets": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:575b2afa03436f407088127ebf98cc66ff087270b8805ad75ecd6a7d83808120"
+        },
+        "deny_policy_names": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:f65563816fb8a6acdd4bf57eed839b2827dfbbfd57f866e8bbee5ec18e36ad60"
+        },
+        "required_kms_grant": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:72880bb5dca8f18a55ea79a880b53eedecdbaf9fe2165efc5ea8301a08daea71"
+        }
+      },
+      "path": "infra/terraform/modules/storage_collection",
       "provider_contracts": {
         "google": {
           "configuration_aliases": [],

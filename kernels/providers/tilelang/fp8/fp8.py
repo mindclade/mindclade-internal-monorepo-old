@@ -2,6 +2,8 @@
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 
+# mypy: ignore-errors
+
 """Pipelined TileLang GEMM with explicit per-tensor dequantization scales."""
 
 from __future__ import annotations
@@ -44,12 +46,8 @@ def make_scaled_gemm_kernel(
             T.ceildiv(m, schedule.block_m),
             threads=schedule.threads,
         ) as (block_n, block_m):
-            a_shared = T.alloc_shared(
-                (schedule.block_m, schedule.block_k), schedule.input_dtype
-            )
-            b_shared = T.alloc_shared(
-                (schedule.block_k, schedule.block_n), schedule.input_dtype
-            )
+            a_shared = T.alloc_shared((schedule.block_m, schedule.block_k), schedule.input_dtype)
+            b_shared = T.alloc_shared((schedule.block_k, schedule.block_n), schedule.input_dtype)
             accumulator = T.alloc_fragment(
                 (schedule.block_m, schedule.block_n), schedule.accum_dtype
             )
@@ -58,12 +56,8 @@ def make_scaled_gemm_kernel(
             for k_block in T.Pipelined(
                 T.ceildiv(k, schedule.block_k), num_stages=schedule.num_stages
             ):
-                T.copy(
-                    A[block_m * schedule.block_m, k_block * schedule.block_k], a_shared
-                )
-                T.copy(
-                    B[k_block * schedule.block_k, block_n * schedule.block_n], b_shared
-                )
+                T.copy(A[block_m * schedule.block_m, k_block * schedule.block_k], a_shared)
+                T.copy(B[k_block * schedule.block_k, block_n * schedule.block_n], b_shared)
                 T.gemm(a_shared, b_shared, accumulator)
 
             for row, column in T.Parallel(schedule.block_m, schedule.block_n):

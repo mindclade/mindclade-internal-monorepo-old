@@ -1,7 +1,7 @@
 # Ingestion worker
 
 **Language:** Rust  
-**Status in this archive:** target-state adapter scaffold; not production-ready.
+**Status in this archive:** adapter implemented; source/provider composition and qualification pending.
 
 ## Role
 
@@ -32,6 +32,7 @@ It does not own:
 
 ## Limitations
 
-The checked-in source is an ownership/build scaffold. The actual engine,
-provider adapters, connected tests, performance limits, and qualification
-remain to be implemented before promotion.
+The checked-in Rust adapter validates configuration, uses the shared ticketed worker runtime,
+tracks lifecycle, and delegates to an injected ingestion engine under bounded execution. The
+binary exits with `EX_CONFIG` until deployment supplies a source/provider engine. Connected source,
+resume/decompression/parser, artifact-publication, load, and failure qualification remain required.

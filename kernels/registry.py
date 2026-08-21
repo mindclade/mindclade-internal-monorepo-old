@@ -45,7 +45,9 @@ class KernelRegistry:
         key = implementation.identity.digest
         with self._lock:
             if key in self._implementations:
-                raise ValueError(f"implementation {implementation.identity.name!r} already registered")
+                raise ValueError(
+                    f"implementation {implementation.identity.name!r} already registered"
+                )
             self._implementations[key] = implementation
 
     def candidates(self, operation: str) -> tuple[KernelImplementation, ...]:

@@ -36,6 +36,7 @@ MODULE.bazel.lock
 NOTICE
 OWNERS.toml
 README.md
+REPO.bazel
 SECURITY.md
 apps/BUILD.bazel
 apps/README.md

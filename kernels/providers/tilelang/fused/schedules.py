@@ -35,11 +35,7 @@ class TriangleSchedule:
 
     @property
     def shared_memory_bytes(self) -> int:
-        return (
-            (self.block_m * self.block_k + self.block_k * self.block_n)
-            * 2
-            * self.num_stages
-        )
+        return (self.block_m * self.block_k + self.block_k * self.block_n) * 2 * self.num_stages
 
     def rejection_reason(self, target: TargetSpec, sequence_length: int) -> str | None:
         if sequence_length <= 0:

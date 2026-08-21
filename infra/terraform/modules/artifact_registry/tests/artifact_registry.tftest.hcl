@@ -74,13 +74,13 @@ run "cmek_grants_only_the_repository_service_agent" {
   command = plan
 
   variables {
-    project_id          = "mindclade-common-ci"
-    project_number      = "123456789012"
-    location            = "us-central1"
-    repository_id       = "releases"
-    environment         = "ci"
-    owner               = "platform"
-    kms_key_name        = "projects/mindclade-seed/locations/us-central1/keyRings/global/cryptoKeys/ci-artifacts"
+    project_id     = "mindclade-common-ci"
+    project_number = "123456789012"
+    location       = "us-central1"
+    repository_id  = "releases"
+    environment    = "ci"
+    owner          = "platform"
+    kms_key_name   = "projects/mindclade-seed/locations/us-central1/keyRings/global/cryptoKeys/ci-artifacts"
   }
 
   assert {

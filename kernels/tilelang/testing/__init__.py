@@ -3,5 +3,13 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 
 from kernels.tilelang.testing.numerics import TOLERANCES, ParityReport, Tolerance, assert_parity
+from kernels.tilelang.testing.performance import BenchmarkResult, benchmark_callable
 
-__all__ = ["TOLERANCES", "ParityReport", "Tolerance", "assert_parity"]
+__all__ = [
+    "TOLERANCES",
+    "BenchmarkResult",
+    "ParityReport",
+    "Tolerance",
+    "assert_parity",
+    "benchmark_callable",
+]

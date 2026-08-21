@@ -1,15 +1,28 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
-package(default_visibility = ["//visibility:private"])
+load("@rules_python//python:defs.bzl", "py_library")
 
-filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
-    visibility = ["//visibility:public"],
+package(default_visibility = ["//visibility:public"])
+
+py_library(
+    name = "pytorch",
+    srcs = [
+        "__init__.py",
+        "adapter.py",
+        "capabilities.py",
+        "registry.py",
+    ],
+    imports = ["../../.."],
+    deps = [
+        "//kernels:kernel_core",
+        "//kernels/ops/attention",
+        "//kernels/ops/diffusion",
+        "//kernels/ops/fp8",
+        "//kernels/ops/fused",
+        "//kernels/ops/moe",
+        "//kernels/providers/tilelang",
+        "@pypi//torch",
+    ],
 )

@@ -26,6 +26,12 @@ jobs:
     timeout-minutes: 10
     outputs:
       request-path: ${{ steps.request.outputs.request-path }}
+      application: ${{ steps.request.outputs.application }}
+      release-kind: ${{ steps.request.outputs.release-kind }}
+      rollout-class: ${{ steps.request.outputs.rollout-class }}
+      previous-release-id: ${{ steps.request.outputs.previous-release-id }}
+      previous-subject-digest: ${{ steps.request.outputs.previous-subject-digest }}
+      # Compatibility-only until the reviewed shared-workflow v5 tag exists.
       rollback-digest: ${{ steps.request.outputs.rollback-digest }}
     steps:
       - name: Reject non-platform or non-main events

@@ -15,5 +15,7 @@ class FallbackEvent:
     reason: str
 
     def __post_init__(self) -> None:
-        if not all((self.operation, self.request_digest, self.rejected_implementation, self.reason)):
+        if not all(
+            (self.operation, self.request_digest, self.rejected_implementation, self.reason)
+        ):
             raise ValueError("fallback telemetry fields must be non-empty")

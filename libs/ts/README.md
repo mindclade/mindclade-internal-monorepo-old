@@ -1,11 +1,16 @@
-# Libs / Ts
+# TypeScript libraries
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
+- **Status:** Implemented; application integration remains environment-qualified.
 - **Primary implementation ownership:** the language indicated by the second path segment
 
-## Purpose
+Reusable browser mechanisms with one-way dependencies toward the generated SDK:
 
-Reusable mechanisms for one language. Libraries contain stable, broadly consumed behavior and no product-domain policy or executable composition roots. This path specializes that domain for **ts**.
+- `api_client`: observable resource state, error classification, and bounded pagination;
+- `auth`: in-memory session state, cookie-backed auth endpoints, and scope guards;
+- `telemetry`: bounded batching and fail-closed sensitive-field redaction;
+- `design_system`: semantic tokens and accessible operational UI primitives;
+- `charts`: dependency-free accessible SVG line, histogram, heatmap, and topology views;
+- `molecular_viewer`: bounded PDB parsing, selection, loading, and deterministic projection.
 
 ## Boundary
 
@@ -18,18 +23,7 @@ This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
 ground. It may depend only in the direction documented by
 `docs/architecture/dependency-rules.md` and the accepted ADRs.
 
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Every package has a native TS7 build/typecheck, a package-local unit suite, and
+a Bazel `ts_project`. Libraries do not own React application routing, backend
+policy, secrets, or service composition. Breaking exports require a coordinated
+SDK/app migration; rollback restores the previous workspace package commit.

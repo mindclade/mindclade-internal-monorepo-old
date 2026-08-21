@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import functools
+from collections.abc import Callable
 
 from kernels.ops.attention.reference import attention_reference
 from kernels.ops.diffusion.reference import modulated_residual_reference
@@ -16,7 +17,7 @@ from kernels.registry import KernelRegistry
 
 
 def register_references(registry: KernelRegistry) -> None:
-    implementations = {
+    implementations: dict[str, Callable[..., object]] = {
         "attention.sdpa": attention_reference,
         "diffusion.modulated_residual": modulated_residual_reference,
         "fp8.scaled_gemm": scaled_gemm_reference,

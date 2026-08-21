@@ -25,6 +25,7 @@ class QualificationRecord:
     request_digest: str
     implementation_digest: str
     evidence_digests: tuple[str, ...]
+    environment_digest: str
     target: str
     architecture: str
     toolchain: str
@@ -38,6 +39,7 @@ class QualificationRecord:
             raise ValueError("at least one immutable evidence digest is required")
         for digest in self.evidence_digests:
             _require_digest(digest, "evidence_digest")
+        _require_digest(self.environment_digest, "environment_digest")
         parsed = datetime.fromisoformat(self.created_at.replace("Z", "+00:00"))
         if parsed.tzinfo is None:
             raise ValueError("created_at must include a timezone")
@@ -50,6 +52,7 @@ class QualificationRecord:
             "architecture": self.architecture,
             "created_at": self.created_at,
             "evidence_digests": list(self.evidence_digests),
+            "environment_digest": self.environment_digest,
             "implementation_digest": self.implementation_digest,
             "request_digest": self.request_digest,
             "target": self.target,
