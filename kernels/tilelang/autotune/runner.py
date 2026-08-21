@@ -3,7 +3,10 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Bounded orchestration; the CLI owns process isolation and GPU assignment."""
+"""Bounded orchestration; the CLI owns subprocess execution and GPU assignment.
+
+Operating-system or container isolation is the caller's responsibility.
+"""
 
 from __future__ import annotations
 

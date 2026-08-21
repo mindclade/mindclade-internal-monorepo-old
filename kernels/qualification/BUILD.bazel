@@ -18,7 +18,11 @@ py_library(
         "performance.py",
         "promotion.py",
         "revocation.py",
+        "workloads.py",
     ],
     imports = ["../.."],
-    deps = ["//kernels:kernel_core"],
+    deps = [
+        "//kernels:kernel_core",
+        "//kernels/api",
+    ],
 )

@@ -26,6 +26,15 @@ def test_parity_failure_has_reproducible_error_summary() -> None:
         assert_parity(actual, expected, tolerance=Tolerance(0, 0))
 
 
+def test_parity_rejects_dtype_and_tolerance_spoofs() -> None:
+    with pytest.raises(TypeError, match="identical dtypes"):
+        parity_report(torch.ones(2, dtype=torch.float16), torch.ones(2, dtype=torch.float32))
+    with pytest.raises(ValueError, match="finite"):
+        Tolerance(float("nan"), 0.0)
+    with pytest.raises(TypeError, match="real number"):
+        Tolerance(True, 0.0)
+
+
 def test_benchmark_callable_synchronizes_and_records_distribution() -> None:
     calls: list[str] = []
 
@@ -58,3 +67,34 @@ def test_benchmark_callable_requires_correctness() -> None:
             synchronize=lambda: None,
             correctness_passed=False,
         )
+
+
+def test_benchmark_rejects_identity_and_boolean_count_spoofs_before_execution() -> None:
+    calls = 0
+
+    def invoke() -> None:
+        nonlocal calls
+        calls += 1
+
+    with pytest.raises(ValueError, match="request_digest"):
+        benchmark_callable(
+            invoke,
+            operation="test.operation",
+            request_digest="mutable",
+            implementation_digest="b" * 64,
+            environment_digest="c" * 64,
+            synchronize=lambda: None,
+            correctness_passed=True,
+        )
+    with pytest.raises(ValueError, match="warmup"):
+        benchmark_callable(
+            invoke,
+            operation="test.operation",
+            request_digest="a" * 64,
+            implementation_digest="b" * 64,
+            environment_digest="c" * 64,
+            synchronize=lambda: None,
+            correctness_passed=True,
+            warmup=True,
+        )
+    assert calls == 0

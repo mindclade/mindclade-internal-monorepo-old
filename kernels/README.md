@@ -6,8 +6,8 @@
 
 # Accelerator kernels
 
-> **Maturity:** Mixed target-state implementation; kernels are usable only for
-> signatures and targets covered by current evidence.
+> **Maturity:** Implemented references and source candidates; zero TileLang
+> signatures are currently promoted.
 > **Primary implementation:** Python provider APIs and TileLang kernels.
 
 `kernels/` owns reference operations, provider dispatch, accelerator
@@ -55,10 +55,15 @@ provider work that remains outstanding.
 | `moe.grouped_gemm` | Deterministic padded expert-major GEMM | Expert-grid grouped GEMM |
 | `diffusion.modulated_residual` | Adaptive scale/shift/gate/residual | Single-pass broadcast-free epilogue |
 
-The source candidates are registered but cannot win dispatch merely by being
-present. `KernelDispatcher` requires an exact request and implementation digest
-in a non-revoked qualification manifest. Set `MINDCLADE_DISABLE_TILELANG=1` for
-an immediate PyTorch rollback.
+The source candidates are registered, but all current registrations are
+artifact-unbound and therefore cannot win dispatch. Future compiled candidates
+must carry an exact artifact digest, and `KernelDispatcher` additionally
+requires an exact paired inference/training record bound to the request,
+implementation, toolchain, runtime environment, and execution mode. TileLang
+candidates are inference-only, so training requests always select the PyTorch
+reference. Set `MINDCLADE_DISABLE_TILELANG=1` for a global rollback or list
+exact operation keys in
+`MINDCLADE_DISABLE_TILELANG_OPERATIONS` for a scoped rollback.
 
 ## Local verification
 
@@ -68,6 +73,7 @@ uv run --frozen ruff check kernels tests/numerical/test_kernel_provider_parity.p
 tools/dev/bazelw test //kernels/... //tests/numerical:test_kernel_provider_parity --config=ci
 ```
 
-GPU compilation, sanitizer, parity, and performance runs belong in a pinned
-accelerator environment with TileLang `0.1.13`; CPU-only success does not create
+GPU compilation, generated-source inspection, sanitizer, adversarial parity,
+gradient-fallback, and synchronized performance runs belong in the connected
+matrix under [`ci/gpu`](../ci/gpu/). CPU-only success never creates
 qualification evidence.

@@ -1,7 +1,84 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
----
-# Scaffold configuration; promotion requires schema validation.
+{
+  "schema_version": 1,
+  "targets": [
+    {
+      "name": "hopper-h100-qualification-candidate-validation",
+      "target": "cuda",
+      "architecture": "sm_90",
+      "runner_label": "gpu-h100-80gb",
+      "qualification": false,
+      "required_sanitizers": ["memcheck", "racecheck", "initcheck", "synccheck"],
+      "bazel_targets": [
+        "//kernels/providers/tilelang/tests:test_provider",
+        "//kernels/qualification/tests:test_qualification",
+        "//kernels/tilelang/compiler/tests:test_codegen",
+        "//tests/numerical:test_tilelang_parity",
+        "//tests/performance:test_tilelang_regression"
+      ]
+    },
+    {
+      "name": "blackwell-sm100-source-validation",
+      "target": "cuda",
+      "architecture": "sm_100",
+      "runner_label": "gpu-blackwell-sm100",
+      "qualification": false,
+      "required_sanitizers": [],
+      "bazel_targets": [
+        "//kernels/tilelang/targets/tests:test_targets",
+        "//kernels/tilelang/compiler/tests:test_codegen"
+      ]
+    },
+    {
+      "name": "blackwell-sm120-source-validation",
+      "target": "cuda",
+      "architecture": "sm_120",
+      "runner_label": "gpu-blackwell-sm120",
+      "qualification": false,
+      "required_sanitizers": [],
+      "bazel_targets": [
+        "//kernels/tilelang/targets/tests:test_targets",
+        "//kernels/tilelang/compiler/tests:test_codegen"
+      ]
+    },
+    {
+      "name": "cdna2-gfx90a-source-validation",
+      "target": "hip",
+      "architecture": "gfx90a",
+      "runner_label": "gpu-mi250",
+      "qualification": false,
+      "required_sanitizers": [],
+      "bazel_targets": [
+        "//kernels/tilelang/targets/tests:test_targets",
+        "//kernels/tilelang/compiler/tests:test_codegen"
+      ]
+    },
+    {
+      "name": "cdna3-gfx942-source-validation",
+      "target": "hip",
+      "architecture": "gfx942",
+      "runner_label": "gpu-mi300x",
+      "qualification": false,
+      "required_sanitizers": [],
+      "bazel_targets": [
+        "//kernels/tilelang/targets/tests:test_targets",
+        "//kernels/tilelang/compiler/tests:test_codegen"
+      ]
+    },
+    {
+      "name": "cdna4-gfx950-source-validation",
+      "target": "hip",
+      "architecture": "gfx950",
+      "runner_label": "gpu-mi350",
+      "qualification": false,
+      "required_sanitizers": [],
+      "bazel_targets": [
+        "//kernels/tilelang/targets/tests:test_targets",
+        "//kernels/tilelang/compiler/tests:test_codegen"
+      ]
+    }
+  ]
+}
