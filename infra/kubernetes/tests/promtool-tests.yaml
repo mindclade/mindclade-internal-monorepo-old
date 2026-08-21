@@ -177,11 +177,13 @@ tests:
         exp_samples:
           - labels: mindclade:control_admission_decision_latency_objective:ratio5m{cluster="test",location="us-central1",namespace="mindclade-system"}
             value: 0.99
-      - expr: mindclade:control_admission_decision_seconds:p99_rate5m
+      # histogram_quantile can differ by a few machine epsilons across promtool architectures.
+      # Assert one-nanosecond accuracy explicitly instead of pinning an unstable float rendering.
+      - expr: abs(mindclade:control_admission_decision_seconds:p99_rate5m - 0.1) < bool 0.000000001
         eval_time: 70m
         exp_samples:
-          - labels: mindclade:control_admission_decision_seconds:p99_rate5m{cluster="test",location="us-central1",namespace="mindclade-system",operation="admit"}
-            value: 0.10000000000000134
+          - labels: '{cluster="test",location="us-central1",namespace="mindclade-system",operation="admit"}'
+            value: 1
 
   - name: control admission availability stays defined without failure series
     interval: 1m
