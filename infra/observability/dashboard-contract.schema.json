@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mindclade.com/contracts/observability/dashboard-contract-1.0.0.schema.json",
+  "title": "Mindclade provider-neutral dashboard contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "name", "owner", "serviceClass", "status", "deployment", "requiredEnvironmentInputs", "refreshInterval", "variables", "panels", "activationPolicy"],
+  "properties": {
+    "schemaVersion": {"const": "mindclade.dev/observability-dashboard/v1alpha1"},
+    "name": {"$ref": "#/$defs/id"},
+    "owner": {"$ref": "#/$defs/id"},
+    "serviceClass": {"enum": ["control-plane", "data-pipeline", "frontend", "model-serving", "release", "training"]},
+    "status": {"const": "activation-blocked"},
+    "deployment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "terraformModule", "deployableArtifact"],
+      "properties": {
+        "provider": {"const": "google-cloud-monitoring"},
+        "terraformModule": {"const": "infra/terraform/modules/monitoring"},
+        "deployableArtifact": {"const": false}
+      }
+    },
+    "requiredEnvironmentInputs": {"type": "array", "minItems": 6, "maxItems": 6, "uniqueItems": true, "items": {"$ref": "#/$defs/environmentInput"}},
+    "refreshInterval": {"const": "30s"},
+    "variables": {"type": "array", "minItems": 4, "maxItems": 4, "uniqueItems": true, "items": {"enum": ["cluster", "environment", "location", "namespace"]}},
+    "panels": {"type": "array", "minItems": 1, "maxItems": 32, "items": {"$ref": "#/$defs/panel"}},
+    "activationPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabledByDefault", "requiresConnectedQualification", "requiresReviewedThresholds"],
+      "properties": {
+        "enabledByDefault": {"const": false},
+        "requiresConnectedQualification": {"const": true},
+        "requiresReviewedThresholds": {"const": true}
+      }
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]{1,127}$"},
+    "environmentInput": {"enum": ["emailNotificationChannelResourceNames", "environment", "googleChatNotificationChannelResourceNames", "httpsRunbookUrl", "projectId", "qualificationEvidenceSha256"]},
+    "panel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["signal", "title", "description", "metric", "recordingRule", "unit", "visualization"],
+      "properties": {
+        "signal": {"$ref": "#/$defs/id"},
+        "title": {"type": "string", "minLength": 3, "maxLength": 120},
+        "description": {"type": "string", "minLength": 20, "maxLength": 1000},
+        "metric": {"type": "string", "pattern": "^[a-zA-Z_:][a-zA-Z0-9_:.-]{2,255}$"},
+        "recordingRule": {"type": "string", "pattern": "^[a-zA-Z_:][a-zA-Z0-9_:.-]{2,255}$"},
+        "unit": {"enum": ["count", "ratio", "seconds", "status"]},
+        "visualization": {"enum": ["line", "scorecard"]}
+      }
+    }
+  }
+}

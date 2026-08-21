@@ -1023,14 +1023,28 @@ python3 "${script_dir}/capacity_contract.py" \
 note "checking GMP selectors, ports, and Prometheus recording rules"
 
 observability_render="${validation_tmp_dir}/platform__observability.yaml"
+control_plane_render="${validation_tmp_dir}/services__control-plane.yaml"
 prometheus_rules="${validation_tmp_dir}/gmp-recording-rules.yaml"
 prometheus_tests="${validation_tmp_dir}/promtool-tests.yaml"
 [[ -s "${observability_render}" ]] || fail "platform/observability did not produce a render"
+[[ -s "${control_plane_render}" ]] || fail "services/control-plane did not produce a render"
 
 pod_monitor_count="$(yq eval-all '[.] | flatten | map(select(
   .apiVersion == "monitoring.googleapis.com/v1" and .kind == "PodMonitoring")) | length' \
   "${observability_render}")"
 [[ "${pod_monitor_count}" == "2" ]] || fail "expected exactly two operator PodMonitoring resources"
+
+control_plane_pod_monitor_count="$(yq eval-all '[.] | flatten | map(select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "PodMonitoring")) | length' \
+  "${control_plane_render}")"
+[[ "${control_plane_pod_monitor_count}" == "1" ]] ||
+  fail "services/control-plane must contain exactly one PodMonitoring resource"
+control_admission_monitor_count="$(yq eval-all '[.] | flatten | map(select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "PodMonitoring" and
+  .metadata.name == "control-admission" and .metadata.namespace == "mindclade-system")) | length' \
+  "${control_plane_render}")"
+[[ "${control_admission_monitor_count}" == "1" ]] ||
+  fail "expected exactly one namespaced control-admission PodMonitoring resource"
 
 pod_monitor_endpoint_value() {
   local monitor_name="$1"
@@ -1099,15 +1113,161 @@ jobset_metric_keep_regex="$(pod_monitor_endpoint_value jobset-controller \
   "${jobset_metric_keep_regex}" != *"jobset_completed"* ]] ||
   fail "unreliable per-name JobSet terminal counters may not drive windowed outcome alerts"
 
+control_admission_endpoint_value() {
+  local value_path="$1"
+  yq eval-all -r \
+    "select(.apiVersion == \"monitoring.googleapis.com/v1\" and
+      .kind == \"PodMonitoring\" and .metadata.name == \"control-admission\") |
+      .spec.endpoints[0].${value_path}" \
+    "${control_plane_render}"
+}
+
+control_admission_endpoint_count="$(yq eval-all '[select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "PodMonitoring" and
+  .metadata.name == "control-admission") | .spec.endpoints[]] | length' \
+  "${control_plane_render}")"
+[[ "${control_admission_endpoint_count}" == "1" ]] ||
+  fail "control-admission must define exactly one scrape endpoint"
+[[ "$(control_admission_endpoint_value port)" == "metrics" &&
+  "$(control_admission_endpoint_value scheme)" == "http" &&
+  "$(control_admission_endpoint_value path)" == "/metrics" &&
+  "$(control_admission_endpoint_value interval)" == "30s" &&
+  "$(control_admission_endpoint_value timeout)" == "10s" ]] ||
+  fail "control-admission scrape endpoint contract drifted"
+[[ "$(control_admission_endpoint_value authorization)" == "null" &&
+  "$(control_admission_endpoint_value tls)" == "null" ]] ||
+  fail "control-admission must rely on exact collector NetworkPolicy identity, not guessed scrape credentials"
+
+control_admission_selector="$(yq eval-all -r 'select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "PodMonitoring" and
+  .metadata.name == "control-admission") |
+  .spec.selector.matchLabels."observability.mindclade.dev/control-admission"' \
+  "${control_plane_render}")"
+[[ "${control_admission_selector}" == "true" ]] ||
+  fail "control-admission PodMonitoring selector must use the dedicated bounded telemetry label"
+[[ "$(control_admission_endpoint_value 'metricRelabeling[] | select(.action == "keep") | .regex')" == \
+  '^(up|mindclade_control_admission_(decisions_total|decision_duration_seconds_(bucket|count|sum)|expiration_backlog|oldest_expired_reservation_age_seconds|last_successful_sweep_timestamp_seconds|consecutive_backlogged_sweeps|event_drift|snapshot_last_success_timestamp_seconds|snapshot_success))$' ]] ||
+  fail "control-admission scrape allowlist drifted"
+
+control_admission_role_source="$(yq eval-all -r 'select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "PodMonitoring" and
+  .metadata.name == "control-admission") | .spec.targetLabels.fromPod[0].from' \
+  "${control_plane_render}")"
+control_admission_role_target="$(yq eval-all -r 'select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "PodMonitoring" and
+  .metadata.name == "control-admission") | .spec.targetLabels.fromPod[0].to' \
+  "${control_plane_render}")"
+control_admission_service_source="$(yq eval-all -r 'select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "PodMonitoring" and
+  .metadata.name == "control-admission") | .spec.targetLabels.fromPod[1].from' \
+  "${control_plane_render}")"
+control_admission_service_target="$(yq eval-all -r 'select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "PodMonitoring" and
+  .metadata.name == "control-admission") | .spec.targetLabels.fromPod[1].to' \
+  "${control_plane_render}")"
+[[ "${control_admission_role_source}" == "mindclade.dev/control-plane-role" &&
+  "${control_admission_role_target}" == "role" &&
+  "${control_admission_service_source}" == "observability.mindclade.dev/service" &&
+  "${control_admission_service_target}" == "service" ]] ||
+  fail "control-admission must map the bounded process role and fixed service target labels"
+control_admission_target_label_count="$(yq eval-all '[select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "PodMonitoring" and
+  .metadata.name == "control-admission") | .spec.targetLabels.fromPod[]] | length' \
+  "${control_plane_render}")"
+[[ "${control_admission_target_label_count}" == "2" ]] ||
+  fail "control-admission must expose exactly the role and service target labels"
+
+control_admission_metrics_address="$(yq eval-all -r 'select(
+  .kind == "ConfigMap" and .metadata.name == "control-plane-runtime-config") |
+  .data.MINDCLADE_METRICS_ADDRESS' "${control_plane_render}")"
+[[ "${control_admission_metrics_address}" == "0.0.0.0:9464" ]] ||
+  fail "control-plane metrics listener must bind the declared TCP 9464 port"
+control_admission_deployment_count="$(yq eval-all '[.] | flatten | map(select(
+  .kind == "Deployment" and
+  .spec.template.metadata.labels."observability.mindclade.dev/control-admission" == "true" and
+  .spec.template.metadata.labels."observability.mindclade.dev/service" == "control-admission")) | length' \
+  "${control_plane_render}")"
+[[ "${control_admission_deployment_count}" == "2" ]] ||
+  fail "exactly the API and maintenance Deployments must declare control-admission telemetry"
+control_admission_deployment_names="$(yq eval-all -r '[.] | flatten | map(select(
+  .kind == "Deployment" and
+  .spec.template.metadata.labels."observability.mindclade.dev/control-admission" == "true" and
+  .spec.template.metadata.labels."observability.mindclade.dev/service" == "control-admission")) |
+  map(.metadata.name) | sort | join(",")' "${control_plane_render}")"
+[[ "${control_admission_deployment_names}" == "control-plane-api,control-plane-maintenance" ]] ||
+  fail "control-admission telemetry selectors may belong only to API and maintenance"
+control_admission_metrics_port_violation_count="$(yq eval-all '[.] | flatten |
+  map(select(.kind == "Deployment" and
+    .spec.template.metadata.labels."observability.mindclade.dev/control-admission" == "true")) |
+  map(select(([.spec.template.spec.containers[].ports[]? |
+    select(.name == "metrics" and .containerPort == 9464 and .protocol == "TCP")] | length) != 1)) |
+  length' "${control_plane_render}")"
+[[ "${control_admission_metrics_port_violation_count}" == "0" ]] ||
+  fail "every selected control-admission Pod must expose exactly one named TCP metrics port"
+control_admission_metrics_port_owner_count="$(yq eval-all '[.] | flatten |
+  map(select(.kind == "Deployment")) |
+  map(select([.spec.template.spec.containers[].ports[]? |
+    select(.name == "metrics" or .containerPort == 9464)] | length > 0)) |
+  length' "${control_plane_render}")"
+[[ "${control_admission_metrics_port_owner_count}" == "2" ]] ||
+  fail "only the source-owned API and maintenance listeners may expose a control-admission metrics port"
+
+control_admission_base_metrics_ingress_count="$(yq eval-all '[.] | flatten |
+  [ .[] | select(.kind == "NetworkPolicy") | .spec.ingress[]?.ports[]? |
+    select(.port == 9464 or .port == "metrics") ] | length' "${control_plane_render}")"
+[[ "${control_admission_base_metrics_ingress_count}" == "0" ]] ||
+  fail "base control-plane policy may not guess a GMP collector identity or allow metrics ingress"
+control_admission_activation_blocker="$(yq eval-all -r 'select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "PodMonitoring" and
+  .metadata.name == "control-admission") | .metadata.annotations."mindclade.dev/activation-blocker"' \
+  "${control_plane_render}")"
+[[ "${control_admission_activation_blocker}" == \
+  "exact-gmp-collector-network-identity-and-connected-scrape-unqualified" ]] ||
+  fail "control-admission PodMonitoring must remain activation-blocked on collector identity and connected evidence"
+control_admission_api_rules_blocker="$(yq eval-all -r 'select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "Rules" and
+  .metadata.name == "control-admission-api-recording") |
+  .metadata.annotations."mindclade.dev/activation-blocker"' "${control_plane_render}")"
+[[ "${control_admission_api_rules_blocker}" == \
+  "connected-gmp-rule-and-alert-translation-qualification-missing" ]] ||
+  fail "control-admission API rules must remain blocked on connected rule and alert translation evidence"
+control_admission_api_metrics_contract="$(yq eval-all -r 'select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "Rules" and
+  .metadata.name == "control-admission-api-recording") |
+  .metadata.annotations."mindclade.dev/metrics-contract"' "${control_plane_render}")"
+[[ "${control_admission_api_metrics_contract}" == \
+  "admission-api-v1:30-decision-counters:36-histogram-buckets:3-histogram-counts:3-histogram-sums-per-replica" ]] ||
+  fail "control-admission API rules must pin the exact v1 per-replica metric inventory"
+control_admission_maintenance_rules_blocker="$(yq eval-all -r 'select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "Rules" and
+  .metadata.name == "control-admission-maintenance-recording") |
+  .metadata.annotations."mindclade.dev/activation-blocker"' "${control_plane_render}")"
+[[ "${control_admission_maintenance_rules_blocker}" == \
+  "connected-gmp-rule-alert-and-representative-postgresql-qualification-missing" ]] ||
+  fail "control-admission maintenance rules must remain blocked on connected database, GMP, and alert evidence"
+control_admission_maintenance_metrics_contract="$(yq eval-all -r 'select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "Rules" and
+  .metadata.name == "control-admission-maintenance-recording") |
+  .metadata.annotations."mindclade.dev/metrics-contract"' "${control_plane_render}")"
+[[ "${control_admission_maintenance_metrics_contract}" == \
+  "admission-maintenance-v1:four-scalars:three-drift-kinds:two-snapshot-timestamps:two-snapshot-outcomes-per-replica" ]] ||
+  fail "control-admission maintenance rules must pin the exact v1 per-replica metric inventory"
+control_admission_rules_document_count="$(yq eval-all '[.] | flatten | map(select(
+  .apiVersion == "monitoring.googleapis.com/v1" and .kind == "Rules")) | length' \
+  "${control_plane_render}")"
+[[ "${control_admission_rules_document_count}" == "2" ]] ||
+  fail "control-plane must keep API and activation-blocked maintenance rules in exactly two resources"
+
 yq eval-all -o=yaml -I=2 \
   '[.] | flatten |
   map(select(.apiVersion == "monitoring.googleapis.com/v1" and .kind == "Rules")) |
-  map(.spec.groups[]) | {"groups": .}' "${observability_render}" >"${prometheus_rules}"
+  map(.spec.groups[]) | {"groups": .}' \
+  "${observability_render}" "${control_plane_render}" >"${prometheus_rules}"
 rules_document_count="$(yq eval-all '[.] | flatten | map(select(.kind == "Rules")) | length' \
-  "${observability_render}")"
+  "${observability_render}" "${control_plane_render}")"
 rules_group_count="$(yq eval '.groups | length' "${prometheus_rules}")"
-[[ "${rules_document_count}" == "2" && "${rules_group_count}" == "2" ]] ||
-  fail "expected both GMP Rules documents to contribute exactly one Prometheus group"
+[[ "${rules_document_count}" == "4" && "${rules_group_count}" == "4" ]] ||
+  fail "expected all four GMP Rules documents to contribute exactly one Prometheus group"
 promtool check rules "${prometheus_rules}"
 sed "s|__RULE_FILE__|${prometheus_rules}|g" "${script_dir}/promtool-tests.yaml" >"${prometheus_tests}"
 promtool test rules "${prometheus_tests}"

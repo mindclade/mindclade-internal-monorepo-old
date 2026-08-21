@@ -10,5 +10,7 @@ resources:
   - deployment.yaml
   - network-policy.yaml
   - pod-disruption-budget.yaml
+  - pod-monitoring.yaml
+  - recording-rules.yaml
   - service-account.yaml
   - service.yaml

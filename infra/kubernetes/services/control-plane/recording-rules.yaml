@@ -1,0 +1,516 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+apiVersion: monitoring.googleapis.com/v1
+kind: Rules
+metadata:
+  name: control-admission-api-recording
+  namespace: mindclade-system
+  annotations:
+    mindclade.dev/activation-blocker: >-
+      connected-gmp-rule-and-alert-translation-qualification-missing
+    mindclade.dev/metrics-contract: >-
+      admission-api-v1:30-decision-counters:36-histogram-buckets:3-histogram-counts:3-histogram-sums-per-replica
+spec:
+  groups:
+    - name: mindclade.control-admission.api
+      interval: 30s
+      rules:
+        - record: mindclade:control_admission_api_target_up:min
+          expr: >-
+            min by (cluster, location, namespace)
+            (up{service="control-admission",role="api"})
+            * on (cluster, location, namespace)
+            (
+              count by (cluster, location, namespace)
+              (up{service="control-admission",role="api"})
+              == bool
+              max by (cluster, location, namespace)
+              (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
+            )
+        - record: mindclade:control_admission_api_metric_contract_complete:min
+          expr: >-
+            (
+              (
+                count by (cluster, location, namespace)
+                (mindclade_control_admission_decisions_total{service="control-admission",role="api"})
+                or
+                0 * max by (cluster, location, namespace)
+                (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
+              )
+              == bool
+              30 * max by (cluster, location, namespace)
+              (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
+            )
+            *
+            (
+              (
+                count by (cluster, location, namespace) (
+                  count by (cluster, location, namespace, pod, operation, result) (
+                    mindclade_control_admission_decisions_total{
+                      service="control-admission",role="api",
+                      operation=~"admit|commit|release",
+                      result=~"allow|deny|exhausted|conflict|not_found|unavailable|internal|deadline|canceled|invalid"
+                    }
+                  ) == 1
+                )
+                or 0 * max by (cluster, location, namespace)
+                (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
+              )
+              == bool 30 * max by (cluster, location, namespace)
+              (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
+            )
+            *
+            (
+              (
+                count by (cluster, location, namespace)
+                (mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api"})
+                or
+                0 * max by (cluster, location, namespace)
+                (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
+              )
+              == bool
+              36 * max by (cluster, location, namespace)
+              (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
+            )
+            *
+            (
+              (
+                count by (cluster, location, namespace) (
+                  count by (cluster, location, namespace, pod, operation, le) (
+                    mindclade_control_admission_decision_duration_seconds_bucket{
+                      service="control-admission",role="api",operation=~"admit|commit|release",
+                      le=~"0[.]005|0[.]01|0[.]025|0[.]05|0[.]1|0[.]25|0[.]5|1|2[.]5|5|10|[+]Inf"
+                    }
+                  ) == 1
+                )
+                or 0 * max by (cluster, location, namespace)
+                (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
+              )
+              == bool 36 * max by (cluster, location, namespace)
+              (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
+            )
+            *
+            (
+              (
+                count by (cluster, location, namespace)
+                (mindclade_control_admission_decision_duration_seconds_count{service="control-admission",role="api"})
+                or
+                0 * max by (cluster, location, namespace)
+                (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
+              )
+              == bool
+              3 * max by (cluster, location, namespace)
+              (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
+            )
+            *
+            (
+              (
+                count by (cluster, location, namespace) (
+                  count by (cluster, location, namespace, pod, operation) (
+                    mindclade_control_admission_decision_duration_seconds_count{
+                      service="control-admission",role="api",operation=~"admit|commit|release"
+                    }
+                  ) == 1
+                )
+                or 0 * max by (cluster, location, namespace)
+                (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
+              )
+              == bool 3 * max by (cluster, location, namespace)
+              (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
+            )
+            *
+            (
+              (
+                count by (cluster, location, namespace)
+                (mindclade_control_admission_decision_duration_seconds_sum{service="control-admission",role="api"})
+                or
+                0 * max by (cluster, location, namespace)
+                (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
+              )
+              == bool
+              3 * max by (cluster, location, namespace)
+              (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
+            )
+            *
+            (
+              (
+                count by (cluster, location, namespace) (
+                  count by (cluster, location, namespace, pod, operation) (
+                    mindclade_control_admission_decision_duration_seconds_sum{
+                      service="control-admission",role="api",operation=~"admit|commit|release"
+                    }
+                  ) == 1
+                )
+                or 0 * max by (cluster, location, namespace)
+                (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
+              )
+              == bool 3 * max by (cluster, location, namespace)
+              (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
+            )
+        - record: mindclade:control_admission_decision_events:increase5m
+          expr: >-
+            sum by (cluster, location, namespace)
+            (increase(mindclade_control_admission_decisions_total{service="control-admission",role="api",result!="canceled"}[5m]))
+        - record: mindclade:control_admission_availability_error_ratio:ratio5m
+          expr: >-
+            (
+              sum by (cluster, location, namespace)
+              (increase(mindclade_control_admission_decisions_total{service="control-admission",role="api",result=~"unavailable|internal|deadline"}[5m]))
+              or
+              0 * sum by (cluster, location, namespace)
+              (increase(mindclade_control_admission_decisions_total{service="control-admission",role="api",result!="canceled"}[5m]))
+            )
+            /
+            clamp_min(
+              sum by (cluster, location, namespace)
+              (increase(mindclade_control_admission_decisions_total{service="control-admission",role="api",result!="canceled"}[5m])),
+              1
+            )
+        - record: mindclade:control_admission_availability_error_ratio:ratio1h
+          expr: >-
+            (
+              sum by (cluster, location, namespace)
+              (increase(mindclade_control_admission_decisions_total{service="control-admission",role="api",result=~"unavailable|internal|deadline"}[1h]))
+              or
+              0 * sum by (cluster, location, namespace)
+              (increase(mindclade_control_admission_decisions_total{service="control-admission",role="api",result!="canceled"}[1h]))
+            )
+            /
+            clamp_min(
+              sum by (cluster, location, namespace)
+              (increase(mindclade_control_admission_decisions_total{service="control-admission",role="api",result!="canceled"}[1h])),
+              1
+            )
+        - record: mindclade:control_admission_availability_error_ratio:ratio30m
+          expr: >-
+            (
+              sum by (cluster, location, namespace)
+              (increase(mindclade_control_admission_decisions_total{service="control-admission",role="api",result=~"unavailable|internal|deadline"}[30m]))
+              or
+              0 * sum by (cluster, location, namespace)
+              (increase(mindclade_control_admission_decisions_total{service="control-admission",role="api",result!="canceled"}[30m]))
+            )
+            /
+            clamp_min(
+              sum by (cluster, location, namespace)
+              (increase(mindclade_control_admission_decisions_total{service="control-admission",role="api",result!="canceled"}[30m])),
+              1
+            )
+        - record: mindclade:control_admission_availability_error_ratio:ratio6h
+          expr: >-
+            (
+              sum by (cluster, location, namespace)
+              (increase(mindclade_control_admission_decisions_total{service="control-admission",role="api",result=~"unavailable|internal|deadline"}[6h]))
+              or
+              0 * sum by (cluster, location, namespace)
+              (increase(mindclade_control_admission_decisions_total{service="control-admission",role="api",result!="canceled"}[6h]))
+            )
+            /
+            clamp_min(
+              sum by (cluster, location, namespace)
+              (increase(mindclade_control_admission_decisions_total{service="control-admission",role="api",result!="canceled"}[6h])),
+              1
+            )
+        - record: mindclade:control_admission_error_budget_burn:ratio5m
+          expr: mindclade:control_admission_availability_error_ratio:ratio5m / 0.0005
+        - record: mindclade:control_admission_error_budget_burn:ratio1h
+          expr: mindclade:control_admission_availability_error_ratio:ratio1h / 0.0005
+        - record: mindclade:control_admission_error_budget_burn:ratio30m
+          expr: mindclade:control_admission_availability_error_ratio:ratio30m / 0.0005
+        - record: mindclade:control_admission_error_budget_burn:ratio6h
+          expr: mindclade:control_admission_availability_error_ratio:ratio6h / 0.0005
+        - record: mindclade:control_admission_error_budget_fast_burn:paired
+          expr: >-
+            (
+              mindclade:control_admission_error_budget_burn:ratio5m
+              <= mindclade:control_admission_error_budget_burn:ratio1h
+            )
+            or
+            (
+              mindclade:control_admission_error_budget_burn:ratio1h
+              < mindclade:control_admission_error_budget_burn:ratio5m
+            )
+        - record: mindclade:control_admission_error_budget_slow_burn:paired
+          expr: >-
+            (
+              mindclade:control_admission_error_budget_burn:ratio30m
+              <= mindclade:control_admission_error_budget_burn:ratio6h
+            )
+            or
+            (
+              mindclade:control_admission_error_budget_burn:ratio6h
+              < mindclade:control_admission_error_budget_burn:ratio30m
+            )
+        - record: mindclade:control_admission_decision_latency_objective:ratio5m
+          expr: >-
+            sum by (cluster, location, namespace)
+            (increase(mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",le="0.1"}[5m]))
+            /
+            clamp_min(
+              sum by (cluster, location, namespace)
+              (increase(mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",le="+Inf"}[5m])),
+              1
+            )
+        - record: mindclade:control_admission_decision_seconds:p99_rate5m
+          expr: >-
+            histogram_quantile(
+              0.99,
+              sum by (cluster, location, namespace, operation, le)
+              (rate(mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api"}[5m]))
+            )
+
+---
+apiVersion: monitoring.googleapis.com/v1
+kind: Rules
+metadata:
+  name: control-admission-maintenance-recording
+  namespace: mindclade-system
+  annotations:
+    mindclade.dev/activation-blocker: >-
+      connected-gmp-rule-alert-and-representative-postgresql-qualification-missing
+    mindclade.dev/metrics-contract: >-
+      admission-maintenance-v1:four-scalars:three-drift-kinds:two-snapshot-timestamps:two-snapshot-outcomes-per-replica
+spec:
+  groups:
+    - name: mindclade.control-admission.maintenance
+      interval: 30s
+      rules:
+        - record: mindclade:control_admission_maintenance_target_up:min
+          expr: >-
+            min by (cluster, location, namespace)
+            (up{service="control-admission",role="maintenance"})
+            * on (cluster, location, namespace)
+            (
+              count by (cluster, location, namespace)
+              (up{service="control-admission",role="maintenance"})
+              == bool
+              max by (cluster, location, namespace)
+              (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+            )
+        - record: mindclade:control_admission_maintenance_metric_contract_complete:min
+          expr: >-
+            (
+              (
+                count by (cluster, location, namespace)
+                (mindclade_control_admission_expiration_backlog{service="control-admission",role="maintenance"})
+                or 0 * max by (cluster, location, namespace)
+                (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+              )
+              == bool max by (cluster, location, namespace)
+              (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+            )
+            *
+            (
+              (
+                count by (cluster, location, namespace) (
+                  count by (cluster, location, namespace, pod) (
+                    mindclade_control_admission_expiration_backlog{service="control-admission",role="maintenance"}
+                  ) == 1
+                )
+                or 0 * max by (cluster, location, namespace)
+                (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+              )
+              == bool max by (cluster, location, namespace)
+              (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+            )
+            *
+            (
+              (
+                count by (cluster, location, namespace)
+                (mindclade_control_admission_oldest_expired_reservation_age_seconds{service="control-admission",role="maintenance"})
+                or 0 * max by (cluster, location, namespace)
+                (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+              )
+              == bool max by (cluster, location, namespace)
+              (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+            )
+            *
+            (
+              (
+                count by (cluster, location, namespace) (
+                  count by (cluster, location, namespace, pod) (
+                    mindclade_control_admission_oldest_expired_reservation_age_seconds{service="control-admission",role="maintenance"}
+                  ) == 1
+                )
+                or 0 * max by (cluster, location, namespace)
+                (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+              )
+              == bool max by (cluster, location, namespace)
+              (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+            )
+            *
+            (
+              (
+                count by (cluster, location, namespace)
+                (mindclade_control_admission_last_successful_sweep_timestamp_seconds{service="control-admission",role="maintenance"})
+                or 0 * max by (cluster, location, namespace)
+                (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+              )
+              == bool max by (cluster, location, namespace)
+              (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+            )
+            *
+            (
+              (
+                count by (cluster, location, namespace) (
+                  count by (cluster, location, namespace, pod) (
+                    mindclade_control_admission_last_successful_sweep_timestamp_seconds{service="control-admission",role="maintenance"}
+                  ) == 1
+                )
+                or 0 * max by (cluster, location, namespace)
+                (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+              )
+              == bool max by (cluster, location, namespace)
+              (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+            )
+            *
+            (
+              (
+                count by (cluster, location, namespace)
+                (mindclade_control_admission_consecutive_backlogged_sweeps{service="control-admission",role="maintenance"})
+                or 0 * max by (cluster, location, namespace)
+                (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+              )
+              == bool max by (cluster, location, namespace)
+              (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+            )
+            *
+            (
+              (
+                count by (cluster, location, namespace) (
+                  count by (cluster, location, namespace, pod) (
+                    mindclade_control_admission_consecutive_backlogged_sweeps{service="control-admission",role="maintenance"}
+                  ) == 1
+                )
+                or 0 * max by (cluster, location, namespace)
+                (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+              )
+              == bool max by (cluster, location, namespace)
+              (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+            )
+            *
+            (
+              (
+                count by (cluster, location, namespace)
+                (mindclade_control_admission_event_drift{service="control-admission",role="maintenance"})
+                or 0 * max by (cluster, location, namespace)
+                (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+              )
+              == bool 3 * max by (cluster, location, namespace)
+              (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+            )
+            *
+            (
+              (
+                count by (cluster, location, namespace) (
+                  count by (cluster, location, namespace, pod, kind) (
+                    mindclade_control_admission_event_drift{
+                      service="control-admission",role="maintenance",kind=~"missing_audit|missing_outbox|mismatch"
+                    }
+                  ) == 1
+                )
+                or 0 * max by (cluster, location, namespace)
+                (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+              )
+              == bool 3 * max by (cluster, location, namespace)
+              (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+            )
+            *
+            (
+              (
+                count by (cluster, location, namespace)
+                (mindclade_control_admission_snapshot_last_success_timestamp_seconds{service="control-admission",role="maintenance"})
+                or 0 * max by (cluster, location, namespace)
+                (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+              )
+              == bool 2 * max by (cluster, location, namespace)
+              (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+            )
+            *
+            (
+              (
+                count by (cluster, location, namespace) (
+                  count by (cluster, location, namespace, pod, probe) (
+                    mindclade_control_admission_snapshot_last_success_timestamp_seconds{
+                      service="control-admission",role="maintenance",probe=~"expiration|lineage"
+                    }
+                  ) == 1
+                )
+                or 0 * max by (cluster, location, namespace)
+                (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+              )
+              == bool 2 * max by (cluster, location, namespace)
+              (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+            )
+            *
+            (
+              (
+                count by (cluster, location, namespace)
+                (mindclade_control_admission_snapshot_success{service="control-admission",role="maintenance"})
+                or 0 * max by (cluster, location, namespace)
+                (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+              )
+              == bool 2 * max by (cluster, location, namespace)
+              (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+            )
+            *
+            (
+              (
+                count by (cluster, location, namespace) (
+                  count by (cluster, location, namespace, pod, probe) (
+                    mindclade_control_admission_snapshot_success{
+                      service="control-admission",role="maintenance",probe=~"expiration|lineage"
+                    }
+                  ) == 1
+                )
+                or 0 * max by (cluster, location, namespace)
+                (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+              )
+              == bool 2 * max by (cluster, location, namespace)
+              (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-maintenance"})
+            )
+        - record: mindclade:control_admission_expiration_backlog:max
+          expr: >-
+            max by (cluster, location, namespace)
+            (mindclade_control_admission_expiration_backlog{service="control-admission",role="maintenance"})
+        - record: mindclade:control_admission_oldest_expired_reservation_age_seconds:max
+          expr: >-
+            max by (cluster, location, namespace)
+            (mindclade_control_admission_oldest_expired_reservation_age_seconds{service="control-admission",role="maintenance"})
+        - record: mindclade:control_admission_last_successful_sweep_age_seconds:max
+          expr: >-
+            clamp_min(
+              time() - min by (cluster, location, namespace)
+              (mindclade_control_admission_last_successful_sweep_timestamp_seconds{service="control-admission",role="maintenance"}),
+              0
+            )
+        - record: mindclade:control_admission_consecutive_backlogged_sweeps:max
+          expr: >-
+            max by (cluster, location, namespace)
+            (mindclade_control_admission_consecutive_backlogged_sweeps{service="control-admission",role="maintenance"})
+        - record: mindclade:control_admission_event_drift:max
+          expr: >-
+            max by (cluster, location, namespace, kind)
+            (mindclade_control_admission_event_drift{service="control-admission",role="maintenance"})
+        - record: mindclade:control_admission_expiration_snapshot_age_seconds:max
+          expr: >-
+            clamp_min(
+              time() - min by (cluster, location, namespace)
+              (mindclade_control_admission_snapshot_last_success_timestamp_seconds{service="control-admission",role="maintenance",probe="expiration"}),
+              0
+            )
+        - record: mindclade:control_admission_lineage_snapshot_age_seconds:max
+          expr: >-
+            clamp_min(
+              time() - min by (cluster, location, namespace)
+              (mindclade_control_admission_snapshot_last_success_timestamp_seconds{service="control-admission",role="maintenance",probe="lineage"}),
+              0
+            )
+        - record: mindclade:control_admission_snapshot_success:min
+          expr: >-
+            min by (cluster, location, namespace, probe)
+            (mindclade_control_admission_snapshot_success{service="control-admission",role="maintenance"})
