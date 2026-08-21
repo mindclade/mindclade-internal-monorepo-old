@@ -34,6 +34,7 @@ var liveAdmissionSchemaSequence atomic.Uint64
 type liveAdmissionStore struct {
 	store            *Store
 	service          admission.Service
+	clock            clock.Clock
 	db               *sql.DB
 	auditTable       string
 	outboxTable      string
@@ -41,6 +42,11 @@ type liveAdmissionStore struct {
 }
 
 func newLiveAdmissionStore(t *testing.T) liveAdmissionStore {
+	t.Helper()
+	return newLiveAdmissionStoreWithClock(t, clock.RealClock{})
+}
+
+func newLiveAdmissionStoreWithClock(t *testing.T, valueClock clock.Clock) liveAdmissionStore {
 	t.Helper()
 	dsn := strings.TrimSpace(os.Getenv(livePostgresEnvironment))
 	if dsn == "" {
@@ -106,19 +112,19 @@ func newLiveAdmissionStore(t *testing.T) liveAdmissionStore {
 		t.Fatal(err)
 	}
 	store, err := New(db, recorder, messages,
-		WithClock(clock.RealClock{}), WithTables(entitlementTable, budgetTable, reservationTable))
+		WithClock(valueClock), WithTables(entitlementTable, budgetTable, reservationTable))
 	if err != nil {
 		t.Fatal(err)
 	}
 	return liveAdmissionStore{
-		store: store, service: admission.Service{Repository: store, Clock: clock.RealClock{}}, db: db,
+		store: store, service: admission.Service{Repository: store, Clock: valueClock}, clock: valueClock, db: db,
 		auditTable: auditTable, outboxTable: outboxTable, reservationTable: reservationTable,
 	}
 }
 
 func (live liveAdmissionStore) seedPolicy(t *testing.T, limit uint64) admission.GatewayRoute {
 	t.Helper()
-	now := time.Now().Round(0).UTC()
+	now := live.clock.Now().Round(0).UTC()
 	route := admission.GatewayRoute{Endpoint: "chat-primary", Provider: "vertex", Model: "gemini-pro"}
 	entitlement := admission.Entitlement{
 		ID: idAt(t, "entitlement", now), Subject: "service-account", Workspace: "research-team",
@@ -278,14 +284,18 @@ func TestLivePostgresAdmissionConcurrentPressureNeverOverspends(t *testing.T) {
 }
 
 func TestLivePostgresAdmissionExpiryReleasesCapacity(t *testing.T) {
-	live := newLiveAdmissionStore(t)
+	fake := clock.NewFake(time.Now().Round(0).UTC())
+	live := newLiveAdmissionStoreWithClock(t, fake)
 	route := live.seedPolicy(t, 1)
 	firstRequest := liveAdmitRequest(route, "request-live-expiry-0001", "expiry-one", time.Second)
 	first, err := live.service.Admit(context.Background(), firstRequest)
 	if err != nil {
 		t.Fatal(err)
 	}
-	expired, err := live.store.ExpireReservations(context.Background(), 10, first.Reservation.ExpiresAt)
+	if err := fake.Set(first.Reservation.ExpiresAt); err != nil {
+		t.Fatal(err)
+	}
+	expired, err := live.store.ExpireReservations(context.Background(), 10, time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
