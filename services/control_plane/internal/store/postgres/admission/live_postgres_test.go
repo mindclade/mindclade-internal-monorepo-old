@@ -325,6 +325,68 @@ func TestLivePostgresAdmissionConcurrentPressureNeverOverspends(t *testing.T) {
 	}
 }
 
+func TestLivePostgresAdmissionConcurrentIdempotencyReplaysOneReservation(t *testing.T) {
+	live := newLiveAdmissionStore(t)
+	route := live.seedPolicy(t, 4)
+	request := liveAdmitRequest(route, "request-live-shared-0001", "shared-payload", time.Minute)
+
+	const contenders = 32
+	start := make(chan struct{})
+	decisions := make(chan admission.Decision, contenders)
+	errorsByRequest := make(chan error, contenders)
+	var workers sync.WaitGroup
+	workers.Add(contenders)
+	for range contenders {
+		go func() {
+			defer workers.Done()
+			<-start
+			decision, err := live.service.Admit(context.Background(), request)
+			if err != nil {
+				errorsByRequest <- err
+				return
+			}
+			decisions <- decision
+		}()
+	}
+	close(start)
+	workers.Wait()
+	close(decisions)
+	close(errorsByRequest)
+	for err := range errorsByRequest {
+		t.Errorf("concurrent idempotent admission failed: %v", err)
+	}
+
+	var reservationID string
+	created := 0
+	count := 0
+	for decision := range decisions {
+		count++
+		if reservationID == "" {
+			reservationID = decision.Reservation.ID.String()
+		}
+		if decision.Reservation.ID.String() != reservationID {
+			t.Errorf("concurrent replay returned reservation %s, want %s", decision.Reservation.ID, reservationID)
+		}
+		if !decision.Replayed {
+			created++
+		}
+	}
+	if count != contenders || created != 1 {
+		t.Fatalf("successful decisions=%d created=%d, want %d and 1", count, created, contenders)
+	}
+	for table, want := range map[string]int64{
+		live.auditTable: 3, live.outboxTable: 3, live.reservationTable: 1,
+	} {
+		var rows int64
+		if err := live.db.QueryRow("SELECT count(*) FROM " + table).Scan(&rows); err != nil {
+			t.Fatal(err)
+		}
+		if rows != want {
+			t.Fatalf("%s rows=%d, want %d", table, rows, want)
+		}
+	}
+}
+
 func TestLivePostgresAdmissionExpiryReleasesCapacity(t *testing.T) {
 	fake := clock.NewFake(time.Now().Round(0).UTC())
 	live := newLiveAdmissionStoreWithClock(t, fake)
