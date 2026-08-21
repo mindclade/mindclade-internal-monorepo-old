@@ -137,6 +137,7 @@ func TestDDLIsCompleteAndRejectsUnsafeIdentifiers(t *testing.T) {
 		"document->>'request_digest' IS NOT DISTINCT FROM request_digest",
 		"document#>>'{reserved,requests}'",
 		"reserved_requests = 1",
+		"NULLIF(document->>'finalized_at', '0001-01-01T00:00:00Z')::TIMESTAMPTZ IS NOT DISTINCT FROM finalized_at",
 		"split_part(resource_version, ':', 2)::NUMERIC IS NOT DISTINCT FROM resource_generation",
 	} {
 		if !strings.Contains(joined, required) {

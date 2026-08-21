@@ -317,11 +317,12 @@ FOR EACH ROW EXECUTE FUNCTION %s();`, sequence, function, sequence, live.reserva
 	}
 }
 
-func TestLivePostgresAdmissionRejectsVersionGenerationDrift(t *testing.T) {
+func TestLivePostgresAdmissionRejectsNormalizedDocumentDrift(t *testing.T) {
 	live := newLiveAdmissionStore(t)
 	route := live.seedPolicy(t, 1)
 	request := liveAdmitRequest(route, "request-live-generation-0001", "generation-payload", time.Minute)
-	if _, err := live.service.Admit(context.Background(), request); err != nil {
+	decision, err := live.service.Admit(context.Background(), request)
+	if err != nil {
 		t.Fatal(err)
 	}
 
@@ -331,6 +332,24 @@ func TestLivePostgresAdmissionRejectsVersionGenerationDrift(t *testing.T) {
 		); err == nil {
 			t.Fatalf("%s accepted resource generation drift from its sealed document", table)
 		}
+	}
+	committed, err := live.service.Commit(
+		context.Background(), decision.Reservation.ID, decision.Reservation.Version,
+		request.RequestDigest, request.Subject,
+		admission.Quota{
+			admission.UnitRequests: 1, admission.UnitInputTokens: 90,
+			admission.UnitOutputTokens: 40, admission.UnitCostMicros: 450,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := live.db.Exec(
+		"UPDATE "+live.reservationTable+" SET finalized_at = finalized_at - interval '1 microsecond' "+
+			"WHERE reservation_id = $1",
+		committed.Reservation.ID.String(),
+	); err == nil {
+		t.Fatal("reservation table accepted finalization-time drift from its sealed document")
 	}
 }
 

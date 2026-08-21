@@ -118,6 +118,7 @@ CREATE INDEX %s ON %s (expires_at);`, budgetTable,
     CHECK (COALESCE((document#>>'{actual,cost_micros}')::NUMERIC, 0) = actual_cost_micros),
     CHECK ((document->>'created_at')::TIMESTAMPTZ IS NOT DISTINCT FROM created_at),
     CHECK ((document->>'expires_at')::TIMESTAMPTZ IS NOT DISTINCT FROM expires_at),
+    CHECK (NULLIF(document->>'finalized_at', '0001-01-01T00:00:00Z')::TIMESTAMPTZ IS NOT DISTINCT FROM finalized_at),
     CHECK (document->>'resource_version' IS NOT DISTINCT FROM resource_version),
     CHECK (split_part(resource_version, ':', 2)::NUMERIC IS NOT DISTINCT FROM resource_generation)
 );
