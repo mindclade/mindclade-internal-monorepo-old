@@ -12,7 +12,6 @@ import hashlib
 import subprocess
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 GENERATED = (
     ROOT / "sdk/typescript/src/generated/api.ts",
@@ -62,10 +61,16 @@ def main() -> int:
     generate()
     after = {path: digest_path(path) for path in GENERATED}
     if args.check and before != after:
-        changed = [path.relative_to(ROOT).as_posix() for path in GENERATED if before[path] != after[path]]
+        changed = [
+            path.relative_to(ROOT).as_posix() for path in GENERATED if before[path] != after[path]
+        ]
         print("generated TypeScript SDK drift: " + ", ".join(changed))
         return 1
-    print("TypeScript SDK generation is deterministic and current" if args.check else "Generated TypeScript SDK contracts")
+    print(
+        "TypeScript SDK generation is deterministic and current"
+        if args.check
+        else "Generated TypeScript SDK contracts"
+    )
     return 0
 
 

@@ -93,7 +93,11 @@ import pytest
 # placeholder smoke tests with shared-runtime composition and lifecycle coverage.
 # LOWERED 187 -> 186 by implementing the MLflow tracking/lineage mirror and replacing its
 # telemetry placeholder with behavioral and outage coverage.
-SCAFFOLD_BASELINE = 185
+# RECONCILED 185 -> 177 after the same hardening batch materialized eight
+# additional contracts: data/contracts, models/{contracts,reference}, and
+# training/{contracts,core,engines/native,optim,tasks}. The AST scan is the
+# authoritative count and each former scaffold now has behavioral coverage.
+SCAFFOLD_BASELINE = 177
 
 # Gitignored tool directories. Every entry is something that can hold a copy of the tree
 # without being part of it, which this scan would otherwise count.
@@ -164,7 +168,7 @@ def _scan() -> tuple[tuple[str, ...], tuple[str, ...]]:
             continue
 
         for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and any(
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and any(
                 _is_scaffold_marker(d) for d in node.decorator_list
             ):
                 scaffolds.append(rel)
