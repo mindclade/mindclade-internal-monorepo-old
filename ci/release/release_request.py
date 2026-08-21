@@ -275,7 +275,7 @@ def _write_json(path: Path, value: dict[str, Any]) -> None:
 
 def _now() -> str:
     return (
-        dt.datetime.now(dt.timezone.utc)
+        dt.datetime.now(dt.UTC)
         .replace(microsecond=0)
         .isoformat()
         .replace("+00:00", "Z")

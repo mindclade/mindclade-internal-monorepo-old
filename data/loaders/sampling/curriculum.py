@@ -3,12 +3,18 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/loaders/sampling/curriculum.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Policy-explicit curriculum eligibility selection."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/loaders/sampling/curriculum.py"
+import math
+from collections.abc import Iterable
+
+
+def eligible_indices(scores: Iterable[float], *, maximum: float) -> tuple[int, ...]:
+    values = tuple(scores)
+    if isinstance(maximum, bool) or not math.isfinite(maximum) or any(
+        isinstance(score, bool) or not math.isfinite(score) for score in values
+    ):
+        raise ValueError("curriculum scores and threshold must be finite")
+    return tuple(index for index, score in enumerate(values) if score <= maximum)

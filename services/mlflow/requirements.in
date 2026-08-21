@@ -1,0 +1,10 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+# Keep the server and optional features in one independently locked image graph. The production
+# server requires SQL, GCS, basic-auth/workspaces, AI Gateway, and distributed budget state.
+mlflow[auth,genai]==3.15.1
+google-cloud-storage>=3.7.0,<4
+psycopg2-binary>=2.9.11,<3
+redis>=7.2.0,<8

@@ -1,6 +1,7 @@
 # Evaluation / Qualification
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
+- **Status:** Provider-neutral qualification core implemented; connected scientific and release
+  qualification remains evidence, not a source claim.
 - **Primary implementation ownership:** Python/PyTorch
 
 ## Purpose
@@ -18,18 +19,29 @@ This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
 ground. It may depend only in the direction documented by
 `docs/architecture/dependency-rules.md` and the accepted ADRs.
 
-## Materialization requirements
+## Implemented contract
 
-Before this scaffold boundary is treated as implemented, add:
+`EvaluationPlan` binds a candidate, scorer, dataset snapshots, absolute thresholds,
+baseline-relative regression limits, minimum sample counts, and required slices before a
+candidate is measured. `build_evidence` emits one outcome for every declared rule and turns a
+missing scorer output into failed evidence. NaN/Inf, duplicate metrics, undeclared metrics,
+mutable identifiers, candidate/scorer mismatches, insufficient samples, and missing slices are
+rejected or fail closed.
 
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
+`EvaluationEvidence` is deterministic JSON with content digest, exact source/image/scorer/data
+identity, aggregate outcomes, and execution failure counts. It cannot carry raw examples. Its
+MLflow projection contains only bounded aggregates and immutable Mindclade references; MLflow is
+never the evidence authority.
 
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Independent verification requires the configured metric categories and an attestation bound to
+the exact evidence and policy digests. The resulting `PromotionDecision` is a signed-decision
+input for the Go control plane; Python cannot mutate registry aliases or deployment state.
+
+## Operational boundary
+
+The core is deterministic and has no I/O, network, credentials, retry loop, or unbounded
+collection. Evaluation harnesses own cancellation and isolated execution. Go owns durable
+promotion. GitOps owns deployment state. A successful unit test does not qualify a particular
+model, scorer, holdout, judge, runtime, or environment; those require linked evidence for
+determinism, leakage/contamination, slice coverage, judge calibration, safety, latency, cost,
+security, and rollback.

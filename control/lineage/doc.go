@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-// Package lineage reserves the boundary defined by the production blueprint.
+// Package lineage owns bounded, content-addressed artifact, dataset, model,
+// training-run, evaluation, and deployment lineage. The control plane remains
+// authoritative; observability systems such as MLflow receive projections only.
 package lineage
-
-const scaffold_doc = "control/lineage/doc.go"

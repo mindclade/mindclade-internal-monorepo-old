@@ -4,7 +4,9 @@
 #
 
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
+load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@npm//apps/console:next/package_json.bzl", next_bin = "bin")
 load("//tools/build/bazel:layers.bzl", "declare_bazel_layer_package_groups")
 
 package(default_visibility = ["//visibility:private"])
@@ -16,9 +18,23 @@ declare_bazel_layer_package_groups()
 
 npm_link_all_packages(name = "node_modules")
 
+# The npm package store is rooted here, so executable wrappers are declared here
+# and consumed by application packages. Declaring them in a workspace importer
+# would point rules_js at a non-existent importer-local package store.
+next_bin.next_binary(
+    name = "next_js_binary",
+    visibility = ["//visibility:public"],
+)
+
 ts_config(
     name = "tsconfig_base",
     src = "tsconfig.base.json",
+    visibility = ["//visibility:public"],
+)
+
+copy_to_bin(
+    name = "tsconfig_base_bin",
+    srcs = ["tsconfig.base.json"],
     visibility = ["//visibility:public"],
 )
 

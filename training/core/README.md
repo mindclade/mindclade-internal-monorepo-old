@@ -1,8 +1,9 @@
 # Training core
 
 **Status:** deterministic single-process CPU reference trainer implemented;
-distributed, mixed-precision, compilation, checkpointing, and service execution
-remain separate scaffolds.
+distributed, mixed-precision, compilation, and service execution remain separate
+scaffolds. Bounded local resume is implemented separately under
+[`training/checkpointing`](../checkpointing/README.md).
 
 `Trainer` is the sole optimizer-lifecycle authority. It accepts a finite bounded
 sequence of `SupervisedBatch` values and groups them by a bounded accumulation
@@ -22,6 +23,13 @@ Failed or canceled pre-step groups clear gradients and do not advance state.
 Evaluation uses `eval()` with `inference_mode()`, restores the caller's model mode,
 does not touch optimizer/scheduler/state, and returns detached totals.
 
-The implementation is intentionally CPU float32 and single-owner. It makes no
-AMP, accelerator, distributed, checkpoint/resume, throughput, or production
-deployment claim.
+The implementation is intentionally CPU float32 and single-owner. The trainer
+itself makes no AMP, accelerator, distributed, checkpoint orchestration,
+throughput, or production deployment claim.
+
+An optimizer call is an irreversible transaction boundary. If the optimizer,
+finite post-step validation, scheduler, or progress commit raises after that
+boundary begins, the `Trainer` becomes poisoned and rejects further training or
+evaluation. Callers must restore a verified checkpoint into fresh model,
+optimizer, and trainer objects; retrying the same live objects could apply an
+update twice or continue from partially mutated scheduler state.

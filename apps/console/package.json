@@ -5,6 +5,8 @@
   "type": "module",
   "dependencies": {
     "@mindclade/libs-ts-api-client": "workspace:*",
+    "@mindclade/libs-ts-auth": "workspace:*",
+    "@mindclade/libs-ts-browser-security": "workspace:*",
     "@mindclade/libs-ts-charts": "workspace:*",
     "@mindclade/libs-ts-design-system": "workspace:*",
     "@mindclade/libs-ts-molecular-viewer": "workspace:*",
@@ -25,7 +27,7 @@
     "dev": "next dev",
     "lint": "next typegen && ../../node_modules/@typescript/native/bin/tsc -p tsconfig.json --noEmit",
     "start": "next start",
-    "test": "node --import tsx --test tests/**/*.test.tsx",
+    "test": "node --import tsx --test tests/**/*.test.ts tests/**/*.test.tsx",
     "typecheck": "next typegen && ../../node_modules/@typescript/native/bin/tsc -p tsconfig.json --noEmit"
   }
 }

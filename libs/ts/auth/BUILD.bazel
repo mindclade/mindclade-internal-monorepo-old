@@ -6,6 +6,7 @@
 load("@aspect_rules_js//npm:defs.bzl", "npm_package")
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config", "ts_project")
 load("@npm//:defs.bzl", "npm_link_all_packages")
+load("//tools/build/bazel/rules:typescript.bzl", "typescript_test")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -44,4 +45,15 @@ npm_package(
         ":typescript",
     ],
     visibility = ["//visibility:public"],
+)
+
+typescript_test(
+    name = "unit_tests",
+    srcs = glob([
+        "src/**/*.ts",
+        "src/**/*.tsx",
+        "tests/**/*.ts",
+    ]),
+    data = [":node_modules"],
+    entry_point = "tests/run-tests.ts",
 )

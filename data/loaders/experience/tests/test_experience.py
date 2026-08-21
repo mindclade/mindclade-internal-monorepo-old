@@ -3,19 +3,28 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold test for data/loaders/experience/tests/test_experience.py."""
+from __future__ import annotations
 
-import pytest
+from data.loaders.experience import ExperienceStep, PolicyVersion, ReplayBuffer, Trajectory
+
+DIGESTS = tuple("sha256:" + character * 64 for character in "abcd")
 
 
-# SKIPPED, not passing.
-#
-# A placeholder for tests that do not exist yet. It used to `assert True` — which pytest
-# reports as a pass, so the suite was green and the number it printed was not the number of
-# things actually verified. A vacuous gate is worse than no gate: it manufactures confidence.
-#
-# Write real tests here when there is an implementation to test, and lower SCAFFOLD_BASELINE
-# in tests/integration/test_python_scaffold.py in the same commit.
-@pytest.mark.scaffold
-def test_scaffold_contract() -> None:
-    pytest.skip("scaffold: no implementation to test yet")
+def trajectory(identity: str) -> Trajectory:
+    return Trajectory(
+        identity,
+        DIGESTS[0],
+        PolicyVersion(DIGESTS[1], DIGESTS[2], DIGESTS[3]),
+        (ExperienceStep(DIGESTS[0], 1, 0.5, True),),
+    )
+
+
+def test_replay_is_bounded_deduplicated_and_seeded() -> None:
+    buffer = ReplayBuffer(2)
+    buffer.append(trajectory("t-1"))
+    buffer.append(trajectory("t-1"))
+    assert len(buffer) == 1
+    buffer.append(trajectory("t-2"))
+    assert [item.trajectory_id for item in buffer.sample(2, seed=7)] == [
+        item.trajectory_id for item in buffer.sample(2, seed=7)
+    ]

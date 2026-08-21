@@ -7,7 +7,8 @@ import json
 import os
 import platform
 import sys
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 
 def attempt(fn: Callable[[], Any]) -> Any:

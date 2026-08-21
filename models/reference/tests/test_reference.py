@@ -44,6 +44,13 @@ def test_noncontiguous_input_is_supported_and_shape_preserved() -> None:
     assert output.shape == inputs.shape
 
 
+def test_validated_forward_and_trusted_adapter_compute_have_exact_parity() -> None:
+    model = ReferenceAffine()
+    inputs = torch.tensor([[-1.5, 0.0, 2.25]], dtype=torch.float32)
+
+    torch.testing.assert_close(model.compute(inputs), model(inputs), rtol=0.0, atol=0.0)
+
+
 def test_invalid_input_type_is_rejected() -> None:
     model = ReferenceAffine()
 

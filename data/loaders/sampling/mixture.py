@@ -3,12 +3,12 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/loaders/sampling/mixture.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Dataset-mixture component schedule."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/loaders/sampling/mixture.py"
+from .weighted import weighted_indices
+
+
+def mixture_schedule(weights: tuple[float, ...], steps: int, *, seed: int) -> tuple[int, ...]:
+    return weighted_indices(weights, steps, seed=seed)

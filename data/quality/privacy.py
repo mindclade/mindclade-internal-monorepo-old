@@ -3,12 +3,39 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/quality/privacy.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Privacy and telemetry-boundary checks derived from field contracts."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/quality/privacy.py"
+from collections.abc import Iterable
+
+from data.contracts import DatasetContract, LogPolicy, Sensitivity
+
+from .report import QualityFinding, Severity
+
+
+def telemetry_findings(
+    contract: DatasetContract, telemetry_fields: Iterable[str]
+) -> tuple[QualityFinding, ...]:
+    emitted = set(telemetry_fields)
+    forbidden = [
+        field.name
+        for field in contract.fields
+        if field.name in emitted
+        and (
+            field.log_policy is not LogPolicy.ALLOW
+            or field.sensitivity
+            in {Sensitivity.PROPRIETARY_INTERNAL, Sensitivity.RESTRICTED}
+        )
+    ]
+    if not forbidden:
+        return ()
+    return (
+        QualityFinding(
+            "sensitive-telemetry-field",
+            Severity.BLOCKING,
+            "telemetry-contract",
+            len(forbidden),
+            "one or more contract fields are not permitted in verbatim telemetry",
+        ),
+    )

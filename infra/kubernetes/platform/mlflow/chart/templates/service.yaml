@@ -1,0 +1,23 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+{{- if .Values.activation.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mindclade-mlflow.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "mindclade-mlflow.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "mindclade-mlflow.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: metadata-lineage
+  ports:
+    - name: http
+      port: {{ .Values.server.port }}
+      targetPort: http
+      protocol: TCP
+{{- end }}

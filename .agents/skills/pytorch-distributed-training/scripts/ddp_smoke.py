@@ -11,7 +11,7 @@ try:
     import torch.distributed as dist
     from torch.nn.parallel import DistributedDataParallel
 except ImportError as exc:  # pragma: no cover - user environment diagnostic
-    raise SystemExit(f"PyTorch is required: {exc}")
+    raise SystemExit(f"PyTorch is required: {exc}") from exc
 
 
 def main() -> int:

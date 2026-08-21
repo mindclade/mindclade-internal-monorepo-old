@@ -38,6 +38,7 @@ _KUBERNETES_SCHEMAS = {
     "clusterrolebinding-rbac-v1.json": "e44498f0ead69333bf1d066dec35470f8bf54898ec2647c9e60f8396aa26f04a",
     "configmap-v1.json": "e0eaddebd677c08aa092b2da2264d86ac4fc34eed112b9fac2945b3f00c1e9b1",
     "deployment-apps-v1.json": "3725782fb01e3f27d8be2da565e2d653d7b78bf6debe5440804cea993c87b8f9",
+    "horizontalpodautoscaler-autoscaling-v2.json": "dae451f66e51f43b9c54255f4ed6684c22afc2e429b587d476bd057f1170e5e6",
     "job-batch-v1.json": "f49fee30367890a492146d63c3c433a7853e9088ebfe9e25cc792ec4b1400f18",
     "limitrange-v1.json": "de9bfabf9ea0bff36b71e5e686d3ecce5246b098061f39a70549f82f8f03acd7",
     "mutatingwebhookconfiguration-admissionregistration-v1.json": "f6d7abff06dc187551017d0bb188940f41ae75f78612211df95a447c686b8711",

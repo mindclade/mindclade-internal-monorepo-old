@@ -16,6 +16,7 @@ bazel_dep(name = "rules_cc", version = "0.2.17")
 bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "aspect_rules_js", version = "3.3.1")
 bazel_dep(name = "aspect_rules_ts", version = "3.9.2")
+bazel_dep(name = "bazel_lib", version = "3.2.2")
 bazel_dep(name = "rules_oci", version = "2.3.0")
 bazel_dep(name = "protobuf", version = "33.4")
 
@@ -216,7 +217,39 @@ pip.parse(
     python_version = "3.12",
     requirements_lock = "//:requirements.lock.txt",
 )
-use_repo(pip, "pypi")
+pip.parse(
+    download_only = True,
+    # requirements_by_platform selects the Bazel target platform but does not pass wheel tags
+    # to pip. Unlike uv, pip does not expand an explicit manylinux platform to older compatible
+    # tags, so spell out packaging.tags' complete glibc 2.17 compatibility set. Do not pin an
+    # ABI: CPython 3.12 must also admit compatible abi3 and pure-Python wheels.
+    extra_pip_args = [
+        "--platform=manylinux_2_17_x86_64",
+        "--platform=manylinux2014_x86_64",
+        "--platform=manylinux_2_16_x86_64",
+        "--platform=manylinux_2_15_x86_64",
+        "--platform=manylinux_2_14_x86_64",
+        "--platform=manylinux_2_13_x86_64",
+        "--platform=manylinux_2_12_x86_64",
+        "--platform=manylinux2010_x86_64",
+        "--platform=manylinux_2_11_x86_64",
+        "--platform=manylinux_2_10_x86_64",
+        "--platform=manylinux_2_9_x86_64",
+        "--platform=manylinux_2_8_x86_64",
+        "--platform=manylinux_2_7_x86_64",
+        "--platform=manylinux_2_6_x86_64",
+        "--platform=manylinux_2_5_x86_64",
+        "--platform=manylinux1_x86_64",
+        "--python-version=312",
+        "--implementation=cp",
+    ],
+    hub_name = "mlflow_pypi",
+    python_version = "3.12",
+    requirements_by_platform = {
+        "//services/mlflow:requirements.lock.txt": "linux_x86_64",
+    },
+)
+use_repo(pip, "mlflow_pypi", "pypi")
 
 # ---------------------------------------------------------------------------------------
 # Container base images
@@ -237,4 +270,16 @@ oci.pull(
     image = "gcr.io/distroless/static-debian12",
     platforms = ["linux/amd64"],
 )
-use_repo(oci, "distroless_static", "distroless_static_linux_amd64")
+oci.pull(
+    name = "python_slim",
+    digest = "sha256:593bd06efe90efa80dc4eee3948be7c0fde4134606dd40d8dd8dbcade98e669c",
+    image = "docker.io/library/python",
+    platforms = ["linux/amd64"],
+)
+use_repo(
+    oci,
+    "distroless_static",
+    "distroless_static_linux_amd64",
+    "python_slim",
+    "python_slim_linux_amd64",
+)

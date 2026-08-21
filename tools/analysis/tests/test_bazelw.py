@@ -47,19 +47,24 @@ def run(wrapper: Path, cwd: Path, launchers: Path, *arguments: str, log: Path | 
     )
 
 
-def recording_launcher(path: Path, identity: str) -> None:
+def recording_launcher(path: Path, identity: str, *, version: str | None = None) -> None:
+    version_probe = (
+        f'if [[ "${{1:-}}" == "--version" ]]; then echo "bazel {version}"; exit 0; fi\n'
+        if version is not None
+        else ""
+    )
     executable(
         path,
-        f'printf "{identity}\\n%s\\n" "$PWD" > "$MINDCLADE_FAKE_BAZEL_LOG"\n'
+        version_probe + f'printf "{identity}\\n%s\\n" "$PWD" > "$MINDCLADE_FAKE_BAZEL_LOG"\n'
         'printf "%s\\n" "$@" >> "$MINDCLADE_FAKE_BAZEL_LOG"\n',
     )
 
 
-def test_bazelisk_is_preferred_and_arguments_pass_through(tmp_path: Path) -> None:
+def test_nix_bazel_is_preferred_and_arguments_pass_through(tmp_path: Path) -> None:
     repo, launchers, nested = repository(tmp_path)
     log = tmp_path / "invocation.log"
     recording_launcher(launchers / "bazelisk", "bazelisk")
-    recording_launcher(launchers / "bazel", "bazel")
+    recording_launcher(launchers / "bazel", "bazel", version="9.1.1- (@non-git)")
 
     completed = run(
         repo / "tools/dev/bazelw", nested, launchers, "test", "//pkg:target", "--config=ci", log=log
@@ -67,11 +72,31 @@ def test_bazelisk_is_preferred_and_arguments_pass_through(tmp_path: Path) -> Non
 
     assert completed.returncode == 0
     assert log.read_text(encoding="utf-8").splitlines() == [
-        "bazelisk",
+        "bazel",
         str(repo),
         "test",
         "//pkg:target",
         "--config=ci",
+    ]
+
+
+def test_bazelisk_is_used_when_host_bazel_does_not_match(tmp_path: Path) -> None:
+    repo, launchers, nested = repository(tmp_path)
+    log = tmp_path / "invocation.log"
+    recording_launcher(launchers / "bazelisk", "bazelisk")
+    executable(
+        launchers / "bazel",
+        'if [[ "${1:-}" == "--version" ]]; then echo "bazel 8.4.2"; exit 0; fi\nexit 99\n',
+    )
+
+    completed = run(repo / "tools/dev/bazelw", nested, launchers, "query", "//...", log=log)
+
+    assert completed.returncode == 0
+    assert log.read_text(encoding="utf-8").splitlines() == [
+        "bazelisk",
+        str(repo),
+        "query",
+        "//...",
     ]
 
 

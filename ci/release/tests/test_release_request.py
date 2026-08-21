@@ -69,7 +69,7 @@ targets:
     ) -> Path:
         path = self.requests / "v0.2.0.yaml"
         path.write_text(
-            """---
+            f"""---
 apiVersion: release.mindclade.dev/v1beta1
 kind: ReleaseRequest
 metadata:
@@ -78,14 +78,9 @@ metadata:
 spec:
   target: go-vanity
   previousRelease:
-    id: %s
-    subjectDigest: %s
-%s"""
-            % (
-                previous_id,
-                previous_digest or "sha256:" + "1" * 64,
-                extra,
-            ),
+    id: {previous_id}
+    subjectDigest: {previous_digest or 'sha256:' + '1' * 64}
+{extra}""",
             encoding="utf-8",
         )
         return path

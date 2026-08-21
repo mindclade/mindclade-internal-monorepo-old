@@ -4,6 +4,8 @@ a { color: inherit; text-decoration: none; }
 code, kbd { font-family: var(--mc-font-mono); }
 .skip-link { position: fixed; z-index: 100; top: 8px; left: 8px; padding: 9px 12px; background: var(--mc-warning); color: #171005; transform: translateY(-150%); }
 .skip-link:focus { transform: translateY(0); }
+.mobile-nav-toggle { display: none; min-height: 40px; align-items: center; gap: 9px; padding-inline: 12px; border: 1px solid #3b3120; border-radius: 6px; background: #18150f; color: var(--mc-warning); font: 650 .72rem var(--mc-font-mono); }
+.mobile-nav-toggle > span { width: 12px; height: 8px; border-block: 1px solid currentColor; }
 
 .admin-sidebar { position: fixed; inset: 0 auto 0 0; z-index: 10; display: flex; width: 258px; flex-direction: column; padding: 26px 18px 18px; border-right: 1px solid #27282e; background: #0e0f13; }
 .admin-brand { display: flex; align-items: center; gap: 12px; margin: 0 7px 24px; font-weight: 720; letter-spacing: -.03em; }
@@ -14,12 +16,14 @@ code, kbd { font-family: var(--mc-font-mono); }
 .admin-boundary span { color: #98825d; font: .58rem var(--mc-font-mono); text-transform: uppercase; }
 .admin-boundary strong { color: var(--mc-warning); font: .62rem var(--mc-font-mono); text-transform: uppercase; }
 .admin-sidebar nav { display: grid; gap: 2px; }
-.admin-sidebar nav a { display: flex; min-height: 37px; align-items: center; justify-content: space-between; padding: 0 11px; border-radius: 6px; color: #8f9099; font-size: .78rem; font-weight: 570; }
+.admin-sidebar nav a { display: flex; min-height: 40px; align-items: center; justify-content: space-between; padding: 0 11px; border-radius: 6px; color: #8f9099; font-size: .78rem; font-weight: 570; }
 .admin-sidebar nav a:hover { background: #17181d; color: #f2f2f4; }
 .admin-sidebar nav a[aria-current="page"] { background: #201c15; color: var(--mc-warning); }
 .admin-sidebar nav a span { color: #4f5058; font-size: 1rem; }
 .admin-identity { display: flex; align-items: center; gap: 10px; margin-top: auto; padding: 15px 7px 0; border-top: 1px solid #24252a; }
 .admin-identity > span { width: 28px; height: 28px; border: 1px solid #484950; border-radius: 6px; background: #191a1f; }
+.admin-identity[data-session="authenticated"] > span { border-color: #765d33; background: #201c15; }
+.admin-identity[data-session="error"] > span { border-color: #70404a; background: #30191e; }
 .admin-identity div { display: grid; min-width: 0; }
 .admin-identity strong { overflow: hidden; font-size: .7rem; text-overflow: ellipsis; white-space: nowrap; }
 .admin-identity small { margin-top: 3px; color: #6f7079; font: .57rem var(--mc-font-mono); text-transform: uppercase; }
@@ -73,6 +77,7 @@ code, kbd { font-family: var(--mc-font-mono); }
 .approval-gate textarea { min-height: 84px; resize: vertical; }
 .approval-gate > footer, .quota-editor footer { display: flex; justify-content: flex-end; gap: 9px; padding: 17px 22px; border-top: 1px solid #28292f; }
 .form-error { margin: 0 22px 14px; color: var(--mc-danger); font-size: .73rem; }
+.form-success { margin: 0 22px 14px; color: var(--mc-success); font-size: .73rem; }
 .quota-editor > label { display: grid; grid-template-columns: 1fr 150px 80px; align-items: center; gap: 12px; padding: 14px 22px; border-bottom: 1px solid #25262c; }
 .quota-editor label > span { display: grid; gap: 4px; }.quota-editor label small { color: #74757d; }.quota-editor label em { color: #777881; font: normal .66rem var(--mc-font-mono); }.quota-editor .quota-reason { grid-template-columns: 1fr 242px; }.quota-editor textarea { min-height: 64px; }
 .admin-loading, .admin-error { display: grid; min-height: 340px; place-items: center; align-content: center; gap: 8px; padding: 40px; text-align: center; }
@@ -81,4 +86,4 @@ code, kbd { font-family: var(--mc-font-mono); }
 @keyframes admin-enter { from { opacity: 0; transform: translateY(7px); } }
 @keyframes admin-spin { to { transform: rotate(360deg); } }
 @media (max-width: 900px) { .admin-sidebar { width: 76px; padding-inline: 11px; }.admin-brand div, .admin-boundary span, .admin-sidebar nav a { font-size: 0; }.admin-sidebar nav a { justify-content: center; }.admin-sidebar nav a span { font-size: 1rem; }.admin-identity div { display: none; }.admin-workspace { margin-left: 76px; }.admin-hero { grid-template-columns: 1fr; gap: 30px; } }
-@media (max-width: 620px) { .admin-sidebar { position: static; width: 100%; height: 58px; flex-direction: row; padding: 10px 15px; border-right: 0; border-bottom: 1px solid #27282e; }.admin-brand { margin: 0; }.admin-brand div { display: grid; }.admin-sidebar nav, .admin-boundary, .admin-identity { display: none; }.admin-workspace { margin-left: 0; }.admin-topbar { padding-inline: 15px; }.admin-topbar kbd { display: none; }.admin-content { padding: 30px 16px 70px; }.admin-heading { align-items: flex-start; flex-direction: column; }.admin-hero { padding: 28px 23px; }.admin-metrics { grid-template-columns: 1fr; }.admin-metrics .mc-metric { border-right: 0; border-bottom: 1px solid #28292f; }.approval-gate dl div { grid-template-columns: 1fr; gap: 4px; }.quota-editor > label, .quota-editor .quota-reason { grid-template-columns: 1fr; } }
+@media (max-width: 620px) { .admin-sidebar { position: sticky; top: 0; width: 100%; height: 58px; flex-direction: row; align-items: center; justify-content: space-between; padding: 10px 15px; border-right: 0; border-bottom: 1px solid #27282e; }.admin-brand { margin: 0; }.admin-brand div { display: grid; }.admin-sidebar .mobile-nav-toggle { display: inline-flex; }.admin-sidebar nav, .admin-boundary, .admin-identity { display: none; }.admin-sidebar[data-open="true"] nav { position: fixed; inset: 58px 0 0; z-index: 19; display: grid; align-content: start; gap: 4px; padding: 26px 20px 104px; overflow-y: auto; background: rgb(11 12 15 / 98%); backdrop-filter: blur(18px); }.admin-sidebar[data-open="true"] nav a { justify-content: space-between; min-height: 46px; font-size: .9rem; }.admin-sidebar[data-open="true"] nav a span { font-size: 1rem; }.admin-sidebar[data-open="true"] .admin-identity { position: fixed; right: 20px; bottom: 18px; left: 20px; z-index: 20; display: flex; padding: 16px 0 0; background: #0b0c0f; }.admin-workspace { margin-left: 0; }.admin-topbar { padding-inline: 15px; }.admin-topbar > span { max-width: 65%; line-height: 1.25; }.admin-topbar kbd { display: none; }.admin-content { padding: 30px 16px 70px; }.admin-heading { align-items: flex-start; flex-direction: column; }.admin-hero { padding: 28px 23px; }.admin-metrics { grid-template-columns: 1fr; }.admin-metrics .mc-metric { border-right: 0; border-bottom: 1px solid #28292f; }.approval-gate dl div { grid-template-columns: 1fr; gap: 4px; }.quota-editor > label, .quota-editor .quota-reason { grid-template-columns: 1fr; } }

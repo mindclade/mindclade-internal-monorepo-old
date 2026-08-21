@@ -20,8 +20,8 @@ MODEL_NAME = "reference-affine-v1"
 def write_safetensors(path: Path) -> None:
     # The payload contains two scalar float32 tensors: y = (2 * x) + 0.5.
     header = {
-        "bias": {"dtype": "F32", "shape": [1], "data_offsets": [0, 4]},
-        "scale": {"dtype": "F32", "shape": [1], "data_offsets": [4, 8]},
+        "bias": {"dtype": "F32", "shape": [], "data_offsets": [0, 4]},
+        "scale": {"dtype": "F32", "shape": [], "data_offsets": [4, 8]},
         "__metadata__": {
             "format": "pt",
             "mindclade.reference": "reference-affine-v1",

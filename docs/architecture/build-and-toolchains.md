@@ -53,9 +53,10 @@ tools/dev/nixw develop .#gpu --command tools/dev/bazelw test --config=cuda //tes
 tools/dev/nixw develop .#default --command mkdocs build -f docs/mkdocs.yml --strict
 ```
 
-`tools/dev/bazelw` is the repository entry point. It prefers Bazelisk, verifies
-the exact version before accepting plain Bazel, moves execution to the workspace
-root, and passes arguments unchanged. It does not discover compilers, inject
+`tools/dev/bazelw` is the repository entry point. The Nix shells provide Bazel 9.1.1 as a
+fixed-output package from the pinned Nixpkgs revision; the wrapper verifies that exact binary
+before use and accepts Bazelisk only as a compatibility fallback outside Nix. It moves execution
+to the workspace root and passes arguments unchanged. It does not discover compilers, inject
 Darwin flags, or choose a configuration or target set.
 
 Repository traversal policy is split by syntax: `.bazelignore` owns literal

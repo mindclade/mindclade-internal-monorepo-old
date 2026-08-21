@@ -19,6 +19,7 @@ export interface Structure { id: string; atoms: readonly Atom[] }
 
 export function parsePdb(source: string, options: { id?: string; maxAtoms?: number } = {}): Structure {
   const maxAtoms = options.maxAtoms ?? 100_000;
+  if (!Number.isSafeInteger(maxAtoms) || maxAtoms <= 0) throw new RangeError("maxAtoms must be a positive safe integer");
   const atoms: Atom[] = [];
   for (const line of source.split(/\r?\n/)) {
     const record = line.slice(0, 6).trim();
@@ -40,13 +41,49 @@ export function parsePdb(source: string, options: { id?: string; maxAtoms?: numb
   return { id: options.id ?? "structure", atoms };
 }
 
-export async function loadPdb(url: URL | string, options: { signal?: AbortSignal; maxBytes?: number } = {}): Promise<Structure> {
-  const response = await fetch(url, { ...(options.signal === undefined ? {} : { signal: options.signal }) });
+export async function loadPdb(url: URL | string, options: {
+  signal?: AbortSignal;
+  maxBytes?: number;
+  maxAtoms?: number;
+  fetch?: typeof globalThis.fetch;
+} = {}): Promise<Structure> {
+  const maxBytes = options.maxBytes ?? 20_000_000;
+  if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0) throw new RangeError("maxBytes must be a positive safe integer");
+  const response = await (options.fetch ?? globalThis.fetch)(url, { ...(options.signal === undefined ? {} : { signal: options.signal }) });
   if (!response.ok) throw new Error(`Structure request failed with status ${response.status}`);
   const length = Number(response.headers.get("content-length") ?? 0);
-  const maxBytes = options.maxBytes ?? 20_000_000;
-  if (length > maxBytes) throw new RangeError(`Structure exceeds the ${maxBytes} byte limit`);
-  const source = await response.text();
-  if (source.length > maxBytes) throw new RangeError(`Structure exceeds the ${maxBytes} byte limit`);
-  return parsePdb(source, { id: new URL(String(url), "http://localhost").pathname.split("/").at(-1) ?? "structure" });
+  if (Number.isFinite(length) && length > maxBytes) {
+    await response.body?.cancel().catch(() => undefined);
+    throw new RangeError(`Structure exceeds the ${maxBytes} byte limit`);
+  }
+  const source = await readBoundedText(response, maxBytes);
+  return parsePdb(source, {
+    id: new URL(String(url), "http://localhost").pathname.split("/").at(-1) ?? "structure",
+    ...(options.maxAtoms === undefined ? {} : { maxAtoms: options.maxAtoms }),
+  });
+}
+
+async function readBoundedText(response: Response, maxBytes: number): Promise<string> {
+  if (response.body === null) return "";
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let bytes = 0;
+  let text = "";
+  let completed = false;
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) {
+        text += decoder.decode();
+        completed = true;
+        return text;
+      }
+      bytes += value.byteLength;
+      if (bytes > maxBytes) throw new RangeError(`Structure exceeds the ${maxBytes} byte limit`);
+      text += decoder.decode(value, { stream: true });
+    }
+  } finally {
+    if (!completed) await reader.cancel().catch(() => undefined);
+    reader.releaseLock();
+  }
 }

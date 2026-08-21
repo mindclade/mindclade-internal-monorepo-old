@@ -108,7 +108,22 @@ class ReferenceAffine(nn.Module):
             raise ValueError("reference affine input and parameters must be on the same device")
         if not torch.isfinite(inputs).all().item():
             raise ValueError("reference affine input must contain only finite values")
+        return self.compute(inputs)
+
+    def compute(self, inputs: torch.Tensor) -> torch.Tensor:
+        """Apply model-owned arithmetic after an adapter has validated its tensor boundary.
+
+        Training should normally call the module so ``forward`` enforces the complete public
+        contract. Runtime adapters that validate once before a bounded iterative loop may call
+        this method to avoid repeated full-tensor scans and host synchronizations.
+        """
+
         return (inputs * self.scale) + self.bias
+
+    def validate_state(self) -> None:
+        """Fail closed if an adapter-loaded parameter state violates the model contract."""
+
+        self._validate_parameters()
 
     def _validate_parameters(self) -> None:
         for name, parameter in (("scale", self.scale), ("bias", self.bias)):

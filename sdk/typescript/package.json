@@ -8,11 +8,13 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./protobuf/*": {
       "types": "./dist/generated/proto/*.d.ts",
-      "import": "./dist/generated/proto/*.js"
+      "import": "./dist/generated/proto/*.js",
+      "default": "./dist/generated/proto/*.js"
     }
   },
   "dependencies": {

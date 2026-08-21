@@ -21,7 +21,19 @@ package(default_visibility = ["//visibility:private"])
         "test_advanced_runtime",
         "test_batching",
         "test_model_loader",
-        "test_training_parity",
         "test_worker",
     ]
 ]
+
+pytest_test(
+    name = "test_training_parity",
+    srcs = ["test_training_parity.py"],
+    imports = ["../../.."],
+    deps = [
+        "//models/reference:affine",
+        "//serving/model_worker",
+        "//tools/release:build_model_bundle_lib",
+        "@pypi//numpy",
+        "@pypi//torch",
+    ],
+)

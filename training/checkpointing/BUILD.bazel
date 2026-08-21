@@ -3,13 +3,42 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-package(default_visibility = ["//visibility:private"])
+load("@rules_python//python:defs.bzl", "py_library")
 
+package(default_visibility = ["//visibility:public"])
+
+py_library(
+    name = "checkpointing",
+    srcs = [
+        "__init__.py",
+        "atomic_commit.py",
+        "manifest.py",
+        "resume.py",
+        "serialization.py",
+    ],
+    imports = ["../.."],
+    deps = [
+        "//libs/python/errors",
+        "//libs/python/identifiers",
+        "//libs/python/serialization",
+        "//training/contracts",
+        "@pypi//safetensors",
+        "@pypi//torch",
+    ],
+)
+
+# The remaining reserved paths retain their explicit scaffold status. In particular, DCP,
+# resharding, retention, and remote staging are not part of the local world-size-one contract.
 filegroup(
-    name = "scaffold_files",
+    name = "remaining_scaffold_files",
     srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
+        ["*.py"],
+        exclude = [
+            "__init__.py",
+            "atomic_commit.py",
+            "manifest.py",
+            "resume.py",
+            "serialization.py",
+        ],
     ),
-    visibility = ["//visibility:public"],
 )

@@ -17,9 +17,9 @@
 #
 # WHY A WRAPPER RATHER THAN CALLING bazel DIRECTLY. Three reasons, and none is style:
 #
-#   1. .bazelversion pins an exact Bazel release. bazelisk reads the pin and fetches the right
-#      launcher; this script prefers it, so an unrelated host Bazel cannot silently own the
-#      build graph.
+#   1. The Nix shell ships the exact Bazel release declared by versions.nix. This script verifies
+#      it against .bazelversion before use. Bazelisk remains a compatibility fallback outside
+#      Nix, where it reads the same pin; an unrelated host Bazel cannot silently own the graph.
 #   2. Bazel resolves the workspace from the working directory. `pipeline.py` already passes
 #      cwd=REPO, but a person running this from a subdirectory should get the same build, so
 #      the cd here is not redundant with that.
@@ -35,31 +35,35 @@ set -euo pipefail
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd -- "${repo_root}"
 
-# Bazelisk first: it reads .bazelversion and downloads that exact launcher.
-if command -v bazelisk >/dev/null 2>&1; then
-  bazel_launcher="$(command -v bazelisk)"
-elif command -v bazel >/dev/null 2>&1; then
-  # Plain `bazel` cannot read .bazelversion or fetch the pin, so verify it before accepting the
-  # fallback. A mismatched launcher is worse than no launcher because its failures implicate
-  # repository Starlark while actually coming from a host installation.
-  bazel_launcher="$(command -v bazel)"
-  pinned_version="$(tr -d '[:space:]' < .bazelversion)"
-  actual_version="$("${bazel_launcher}" --version)"
-  if [[ -z "${pinned_version}" || "${actual_version}" != "bazel ${pinned_version}" ]]; then
-    echo "error: ${bazel_launcher} reports '${actual_version}'; this repository requires 'bazel ${pinned_version:-<non-empty .bazelversion>}'" >&2
-    echo "install bazelisk or enter the Nix development shell" >&2
+# Nix-owned Bazel first. Bazelisk is retained only for developer compatibility outside the
+# shell; it reads the same .bazelversion and downloads the corresponding signed release.
+pinned_version="$(tr -d '[:space:]' < .bazelversion)"
+if command -v bazel >/dev/null 2>&1; then
+  candidate="$(command -v bazel)"
+  actual_version="$("${candidate}" --version)"
+  if [[ -n "${pinned_version}" ]] &&
+    { [[ "${actual_version}" == "bazel ${pinned_version}" ]] ||
+      [[ "${actual_version}" == "bazel ${pinned_version}- (@non-git)" ]]; }; then
+    bazel_launcher="${candidate}"
+  elif command -v bazelisk >/dev/null 2>&1; then
+    bazel_launcher="$(command -v bazelisk)"
+  else
+    echo "error: ${candidate} reports '${actual_version}'; this repository requires 'bazel ${pinned_version:-<non-empty .bazelversion>}'" >&2
+    echo "enter the Nix development shell or install Bazelisk" >&2
     exit 2
   fi
+elif command -v bazelisk >/dev/null 2>&1; then
+  bazel_launcher="$(command -v bazelisk)"
 else
   cat >&2 <<'ERROR'
 error: neither bazelisk nor bazel is on PATH.
 
-The development shells in flake.nix provide bazelisk:
+The development shells in flake.nix provide the exact Bazel binary:
 
     tools/dev/nixw develop          # or: tools/dev/nixw develop .#ci
     direnv allow                    # to load it automatically in this tree
 
-CI installs it with bazel-contrib/setup-bazel, which reads .bazelversion the same way.
+Outside Nix, Bazelisk reads .bazelversion and fetches that same release.
 ERROR
   exit 127
 fi

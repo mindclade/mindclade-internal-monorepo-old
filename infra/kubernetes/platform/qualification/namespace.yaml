@@ -26,4 +26,3 @@ metadata:
     mindclade.dev/deployment-status: qualification-foundation-only
     mindclade.dev/environment: unbound
     mindclade.dev/qualification-contract: gke-foundation-v1
-

@@ -3,12 +3,29 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/loaders/experience/batching.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Length-homogeneous trajectory batching without silent truncation."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/loaders/experience/batching.py"
+from .trajectory import Trajectory
+
+
+def bucket_trajectories(
+    trajectories: tuple[Trajectory, ...], *, maximum_steps: int
+) -> tuple[tuple[Trajectory, ...], ...]:
+    if isinstance(maximum_steps, bool) or not isinstance(maximum_steps, int) or maximum_steps < 1:
+        raise ValueError("trajectory batch step limit is invalid")
+    ordered = sorted(trajectories, key=lambda item: (len(item.steps), item.trajectory_id))
+    batches: list[list[Trajectory]] = []
+    used: list[int] = []
+    for trajectory in ordered:
+        length = len(trajectory.steps)
+        if length > maximum_steps:
+            raise ValueError("trajectory exceeds batch step limit")
+        if batches and used[-1] + length <= maximum_steps:
+            batches[-1].append(trajectory)
+            used[-1] += length
+        else:
+            batches.append([trajectory])
+            used.append(length)
+    return tuple(tuple(batch) for batch in batches)

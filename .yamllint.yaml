@@ -14,7 +14,9 @@ extends: default
 # developer to run — walks .venv and reports 666 findings from PyTorch's packaged YAML. It
 # passes in CI only because a fresh runner has no .venv or .direnv yet, so the lane and the
 # laptop disagree about a command that is supposed to be identical in both.
-ignore-from-file: .gitignore
+ignore-from-file:
+  - .gitignore
+  - .yamllintignore
 
 rules:
   # pnpm 11 treats a YAML document marker as an empty lockfile, so its generated lock is the

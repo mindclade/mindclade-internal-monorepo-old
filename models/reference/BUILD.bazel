@@ -17,9 +17,11 @@ py_library(
     visibility = [
         "//models/reference/tests:__pkg__",
         "//serving:__subpackages__",
+        "//tests/integration/serving:__pkg__",
         "//training:__subpackages__",
     ],
     deps = [
+        "@pypi//numpy",
         "@pypi//safetensors",
         "@pypi//torch",
     ],

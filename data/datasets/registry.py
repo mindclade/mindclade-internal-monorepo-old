@@ -3,12 +3,36 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/datasets/registry.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Provider-neutral validation of the Go-owned publication state machine."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/datasets/registry.py"
+from enum import StrEnum
+
+
+class PublicationState(StrEnum):
+    DRAFT = "draft"
+    VALIDATING = "validating"
+    QUALIFIED = "qualified"
+    PUBLISHED = "published"
+    REJECTED = "rejected"
+    DEPRECATED = "deprecated"
+    RETIRED = "retired"
+
+
+_TRANSITIONS = {
+    PublicationState.DRAFT: {PublicationState.VALIDATING},
+    PublicationState.VALIDATING: {PublicationState.QUALIFIED, PublicationState.REJECTED},
+    PublicationState.QUALIFIED: {PublicationState.PUBLISHED},
+    PublicationState.PUBLISHED: {PublicationState.DEPRECATED},
+    PublicationState.DEPRECATED: {PublicationState.RETIRED},
+    PublicationState.REJECTED: set(),
+    PublicationState.RETIRED: set(),
+}
+
+
+def validate_transition(current: PublicationState, target: PublicationState) -> None:
+    if not isinstance(current, PublicationState) or not isinstance(target, PublicationState):
+        raise TypeError("publication states must be PublicationState values")
+    if target not in _TRANSITIONS[current]:
+        raise ValueError(f"invalid dataset publication transition: {current} -> {target}")

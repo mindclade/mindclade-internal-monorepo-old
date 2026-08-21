@@ -1,0 +1,19 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+apiVersion: mindclade.dev/v1
+kind: UpstreamImageLock
+metadata:
+  name: mlflow-3.15.1
+spec:
+  image: ghcr.io/mlflow/mlflow
+  version: v3.15.1
+  indexDigest: sha256:ea84a0b879f08b35a6f22f22b294024413e780b8fc978eecf5f760ac16cc9ce5
+  platforms:
+    linux/amd64: sha256:66fdd38e2fb84741343f34a0aeb2c274781a2b10f96468c2350d235ad61c7bb9
+    linux/arm64: sha256:88de73a5b98b2907d6ee71b9a8e87b573e4e1567f781a5ac466e50028f245cf8
+  observedAt: "2026-08-21T04:55:19Z"
+  source: https://ghcr.io/mlflow/mlflow

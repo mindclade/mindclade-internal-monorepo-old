@@ -3,19 +3,24 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold test for data/loaders/packing/tests/test_packing.py."""
+from __future__ import annotations
 
 import pytest
 
+from data.loaders.packing import bucket_for, pack_lengths, pad_sequences
 
-# SKIPPED, not passing.
-#
-# A placeholder for tests that do not exist yet. It used to `assert True` — which pytest
-# reports as a pass, so the suite was green and the number it printed was not the number of
-# things actually verified. A vacuous gate is worse than no gate: it manufactures confidence.
-#
-# Write real tests here when there is an implementation to test, and lower SCAFFOLD_BASELINE
-# in tests/integration/test_python_scaffold.py in the same commit.
-@pytest.mark.scaffold
-def test_scaffold_contract() -> None:
-    pytest.skip("scaffold: no implementation to test yet")
+
+def test_bin_packing_preserves_every_index_without_overflow() -> None:
+    bins = pack_lengths((4, 3, 2, 1), 5)
+    assert sorted(index for packed in bins for index in packed.indices) == [0, 1, 2, 3]
+    assert all(packed.used <= packed.capacity for packed in bins)
+    assert bins == pack_lengths((4, 3, 2, 1), 5)
+
+
+def test_padding_and_boundaries_are_explicit() -> None:
+    tokens, mask = pad_sequences(((1, 2), (3,)), pad_token=0)
+    assert tokens.tolist() == [[1, 2], [3, 0]]
+    assert mask.tolist() == [[True, True], [True, False]]
+    assert bucket_for(5, (4, 8, 16)) == 8
+    with pytest.raises(ValueError, match="exceeds"):
+        bucket_for(17, (4, 8, 16))

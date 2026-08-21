@@ -288,8 +288,10 @@ done < <(
   find "${kubernetes_root}" \( -type f -o -type l \) -name Chart.yaml -print |
     LC_ALL=C sort
 ) >"${actual_charts}"
-yq eval -r '.spec.helmReleases[].chart' "${validation_config}" | LC_ALL=C sort -u \
-  >"${expected_charts}"
+{
+  yq eval -r '.spec.helmReleases[]?.chart' "${validation_config}"
+  yq eval -r '.spec.applicationHelmReleases[]?.chart' "${validation_config}"
+} | LC_ALL=C sort -u >"${expected_charts}"
 if ! diff -u "${expected_charts}" "${actual_charts}"; then
   fail "Helm inventory drifted; declare release, namespace, archive, and controller locks"
 fi
@@ -412,6 +414,114 @@ done < <(
   ] | @tsv' "${validation_config}"
 )
 [[ "${chart_count}" != "0" ]] || printf 'No Helm charts declared; Kustomize remains the source format.\n'
+
+application_chart_count=0
+while IFS=$'\t' read -r chart_name release_name release_namespace values_name lock_name \
+  workload_name expected_resource_count; do
+  [[ -n "${chart_name}" ]] || continue
+  application_chart_count=$((application_chart_count + 1))
+  chart_dir="${kubernetes_root}/${chart_name}"
+  values_file="${kubernetes_root}/${values_name}"
+  lock_file="${kubernetes_root}/${lock_name}"
+  disabled_output="${validation_tmp_dir}/application-helm-disabled-${application_chart_count}.yaml"
+  chart_output="${validation_tmp_dir}/application-helm-${application_chart_count}.yaml"
+
+  [[ -f "${chart_dir}/Chart.yaml" ]] || fail "declared application Helm chart is missing: ${chart_name}"
+  [[ -f "${values_file}" ]] || fail "${chart_name}: qualification values are missing"
+  [[ -f "${lock_file}" ]] || fail "${chart_name}: upstream image lock is missing"
+  [[ "${release_name}" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]] ||
+    fail "${chart_name}: release name is not a DNS label"
+  [[ "${release_namespace}" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]] ||
+    fail "${chart_name}: release namespace is not a DNS label"
+  [[ "${workload_name}" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]] ||
+    fail "${chart_name}: workload name is not a DNS label"
+  [[ "${expected_resource_count}" =~ ^[1-9][0-9]*$ ]] ||
+    fail "${chart_name}: expected resource count is invalid"
+
+  dependency_count="$(yq eval -r '(.dependencies // []) | length' "${chart_dir}/Chart.yaml")"
+  [[ "${dependency_count}" == "0" ]] ||
+    fail "${chart_name}: application chart dependencies must be vendored and explicitly locked"
+
+  locked_image="$(yq eval -r '.spec.image' "${lock_file}")"
+  locked_digest="$(yq eval -r '.spec.indexDigest' "${lock_file}")"
+  locked_version="$(yq eval -r '.spec.version' "${lock_file}")"
+  [[ "${locked_image}" =~ ^[a-z0-9][a-z0-9./_-]{2,255}$ ]] ||
+    fail "${chart_name}: upstream image lock has an invalid repository"
+  [[ "${locked_digest}" =~ ^sha256:[0-9a-f]{64}$ ]] ||
+    fail "${chart_name}: upstream image lock has an invalid index digest"
+  [[ "v$(yq eval -r '.appVersion' "${chart_dir}/Chart.yaml")" == "${locked_version}" ]] ||
+    fail "${chart_name}: Chart appVersion does not match the upstream image lock"
+  expected_image="${locked_image}@${locked_digest}"
+
+  helm lint --strict "${chart_dir}"
+  helm template "${release_name}" "${chart_dir}" \
+    --namespace "${release_namespace}" >"${disabled_output}"
+  disabled_resource_count="$(
+    yq eval-all '[.] | flatten | map(select(.kind != null and .apiVersion != null)) | length' \
+      "${disabled_output}"
+  )"
+  [[ "${disabled_resource_count}" == "0" ]] ||
+    fail "${chart_name}: default application values must render zero resources"
+
+  helm lint --strict "${chart_dir}" --values "${values_file}"
+  helm template "${release_name}" "${chart_dir}" \
+    --namespace "${release_namespace}" \
+    --values "${values_file}" >"${chart_output}"
+  chart_resource_count="$(
+    yq eval-all '[.] | flatten | map(select(.kind != null and .apiVersion != null)) | length' \
+      "${chart_output}"
+  )"
+  [[ "${chart_resource_count}" == "${expected_resource_count}" ]] ||
+    fail "${chart_name}: expected ${expected_resource_count} qualified resources, found ${chart_resource_count}"
+
+  deployment_count="$(yq eval-all '[.] | flatten | map(select(
+    .apiVersion == "apps/v1" and .kind == "Deployment" and
+    .metadata.namespace == "'"${release_namespace}"'" and
+    .metadata.name == "'"${workload_name}"'"
+  )) | length' "${chart_output}")"
+  [[ "${deployment_count}" == "1" ]] ||
+    fail "${chart_name}: expected exactly one ${workload_name} Deployment"
+  deployment_image="$(yq eval -r 'select(
+    .apiVersion == "apps/v1" and .kind == "Deployment" and
+    .metadata.namespace == "'"${release_namespace}"'" and
+    .metadata.name == "'"${workload_name}"'"
+  ) | .spec.template.spec.containers[] | select(.name == "mlflow") | .image' "${chart_output}")"
+  [[ "${deployment_image}" == "${expected_image}" ]] ||
+    fail "${chart_name}: workload image does not exactly match ${expected_image}"
+  release_evidence_digest="$(yq eval -r 'select(
+    .apiVersion == "apps/v1" and .kind == "Deployment" and
+    .metadata.namespace == "'"${release_namespace}"'" and
+    .metadata.name == "'"${workload_name}"'"
+  ) | .spec.template.metadata.annotations."mindclade.dev/release-evidence-digest"' "${chart_output}")"
+  [[ "${release_evidence_digest}" =~ ^sha256:[0-9a-f]{64}$ &&
+    "${release_evidence_digest}" != "sha256:0000000000000000000000000000000000000000000000000000000000000000" ]] ||
+    fail "${chart_name}: activation requires a nonzero release evidence digest"
+
+  forbidden_resource_count="$(yq eval-all '[.] | flatten | map(select(
+    .kind == "Secret" or .kind == "PersistentVolumeClaim" or
+    .kind == "Role" or .kind == "RoleBinding" or
+    .kind == "ClusterRole" or .kind == "ClusterRoleBinding" or
+    .kind == "CustomResourceDefinition" or .kind == "Namespace" or
+    (.kind == "Service" and (.spec.type == "LoadBalancer" or .spec.type == "NodePort" or .spec.type == "ExternalName"))
+  )) | length' "${chart_output}")"
+  [[ "${forbidden_resource_count}" == "0" ]] ||
+    fail "${chart_name}: application chart rendered a secret, storage claim, RBAC, cluster-scoped object, or external service"
+
+  append_rendered_yaml "${chart_output}"
+  printf '%s\t%s\n' "${chart_name}" "${chart_output}" >>"${helm_policy_outputs}"
+  printf 'HELM-APPLICATION  %-65s %s resources (default: blocked)\n' \
+    "${chart_name}" "${chart_resource_count}"
+done < <(
+  yq eval -r '.spec.applicationHelmReleases[]? | [
+    .chart,
+    .release,
+    .namespace,
+    .values,
+    .upstreamImageLock,
+    .workloadName,
+    .expectedResourceCount
+  ] | @tsv' "${validation_config}"
+)
 
 note "checking custom-resource kinds against the explicit allowlist"
 while IFS=$'\t' read -r api_version resource_kind; do
@@ -979,5 +1089,5 @@ sed "s|__RULE_FILE__|${prometheus_rules}|g" "${script_dir}/promtool-tests.yaml" 
 promtool test rules "${prometheus_tests}"
 
 note "Kubernetes validation passed"
-printf 'Validated %s built-in rendered resources, %s Helm chart(s), and every declared Kustomize root.\n' \
-  "${core_resource_count}" "${chart_count}"
+printf 'Validated %s built-in rendered resources, %s operator Helm chart(s), %s application Helm chart(s), and every declared Kustomize root.\n' \
+  "${core_resource_count}" "${chart_count}" "${application_chart_count}"

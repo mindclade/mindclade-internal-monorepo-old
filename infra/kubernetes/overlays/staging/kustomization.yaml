@@ -21,6 +21,42 @@ patches:
   - path: patches.yaml
   - target:
       version: v1
+      kind: ServiceAccount
+      namespace: mindclade-batch-cpu
+      name: mindclade-batch-cpu
+    patch: |-
+      - op: add
+        path: /metadata/annotations/iam.gke.io~1gcp-service-account
+        value: preprocessing@mc-staging-research.iam.gserviceaccount.com
+      - op: replace
+        path: /metadata/annotations/mindclade.dev~1credential-policy
+        value: no-api-token-workload-identity
+  - target:
+      version: v1
+      kind: ServiceAccount
+      namespace: mindclade-training-h100
+      name: mindclade-training-h100
+    patch: |-
+      - op: add
+        path: /metadata/annotations/iam.gke.io~1gcp-service-account
+        value: training-h100@mc-staging-research.iam.gserviceaccount.com
+      - op: replace
+        path: /metadata/annotations/mindclade.dev~1credential-policy
+        value: no-api-token-workload-identity
+  - target:
+      version: v1
+      kind: ServiceAccount
+      namespace: mindclade-training-b200
+      name: mindclade-training-b200
+    patch: |-
+      - op: add
+        path: /metadata/annotations/iam.gke.io~1gcp-service-account
+        value: training-b200@mc-staging-research.iam.gserviceaccount.com
+      - op: replace
+        path: /metadata/annotations/mindclade.dev~1credential-policy
+        value: no-api-token-workload-identity
+  - target:
+      version: v1
       kind: Namespace
       name: mindclade-system
     patch: |-

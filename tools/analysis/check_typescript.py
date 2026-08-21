@@ -11,7 +11,6 @@ import json
 import re
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE_ROOTS = (ROOT / "apps", ROOT / "libs" / "ts", ROOT / "sdk" / "typescript")
 IGNORED_DIRECTORIES = {".next", "dist", "generated", "node_modules"}

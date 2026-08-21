@@ -3,12 +3,24 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for data/loaders/sharding/rebalance.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Summarize bounded movement caused by a worker-set change."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "data/loaders/sharding/rebalance.py"
+from dataclasses import dataclass
+
+from .assignment import assign
+
+
+@dataclass(frozen=True, slots=True)
+class RebalancePlan:
+    assignments: dict[str, str]
+    moved_shards: tuple[str, ...]
+
+
+def rebalance(
+    shard_ids: tuple[str, ...], previous: dict[str, str], workers: tuple[str, ...]
+) -> RebalancePlan:
+    current = assign(shard_ids, workers)
+    moved = tuple(sorted(shard for shard, worker in current.items() if previous.get(shard) != worker))
+    return RebalancePlan(current, moved)

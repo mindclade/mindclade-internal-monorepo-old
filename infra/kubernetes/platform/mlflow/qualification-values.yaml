@@ -1,0 +1,35 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+activation:
+  enabled: true
+  releaseEvidenceDigest: sha256:1111111111111111111111111111111111111111111111111111111111111111
+server:
+  allowedHosts:
+    - mlflow.development.internal.mindclade.dev
+auth:
+  existingSecret: mlflow-runtime
+migration:
+  enabled: true
+artifacts:
+  destination: gs://mc-development-research-mlflow-artifacts/workspaces
+  modelVersionSourceValidationRegex: ^gs://mc-development-research-mlflow-artifacts/workspaces/.*$
+serviceAccount:
+  gcpServiceAccount: mlflow@mc-development-research.iam.gserviceaccount.com
+networkPolicy:
+  ingressNamespaceNames:
+    - research-clients
+  database:
+    cidrs:
+      - 10.0.0.5/32
+  redis:
+    cidrs:
+      - 10.0.0.6/32
+  httpsCIDRs:
+    - 199.36.153.4/30
+monitoring:
+  collectorNamespaceNames:
+    - gmp-system

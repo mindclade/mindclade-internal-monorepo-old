@@ -1143,7 +1143,7 @@ infra/kubernetes/workloads/training/base/jobset-template.yaml
 infra/kubernetes/workloads/training/base/kustomization.yaml
 infra/kubernetes/workloads/training/base/torchrun-template.yaml
 infra/kubernetes/workloads/training/overlays/h100/kustomization.yaml
-infra/kubernetes/workloads/training/overlays/h200/kustomization.yaml
+infra/kubernetes/workloads/training/overlays/b200/kustomization.yaml
 infra/observability/BUILD.bazel
 infra/observability/README.md
 infra/observability/alerts/artifact-corruption.yaml

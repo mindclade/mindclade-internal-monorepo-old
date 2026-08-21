@@ -12,7 +12,6 @@ import hashlib
 import subprocess
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 GENERATED = (
     ROOT / "sdk/typescript/src/generated/api.ts",

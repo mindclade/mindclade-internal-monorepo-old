@@ -14,6 +14,7 @@ export function createApiClient(options: ClientOptions): MindcladeClient {
 export class ResourceStore<T> {
   private state: ResourceState<T> = { status: "idle" };
   private generation = 0;
+  private active: AbortController | undefined;
   private readonly changes = new EventChannel<ResourceState<T>>();
 
   getSnapshot = (): ResourceState<T> => this.state;
@@ -22,9 +23,12 @@ export class ResourceStore<T> {
 
   async load(loader: (signal: AbortSignal) => Promise<T>, options: LoadOptions<T> = {}): Promise<void> {
     const generation = ++this.generation;
+    this.active?.abort(new DOMException("Resource load superseded", "AbortError"));
     const controller = new AbortController();
+    this.active = controller;
     const abort = (): void => controller.abort(options.signal?.reason);
-    options.signal?.addEventListener("abort", abort, { once: true });
+    if (options.signal?.aborted) controller.abort(options.signal.reason);
+    else options.signal?.addEventListener("abort", abort, { once: true });
     const previous = this.state.status === "ready" ? this.state.data : undefined;
     this.set(previous === undefined ? { status: "loading" } : { status: "loading", previous });
     try {
@@ -38,11 +42,14 @@ export class ResourceStore<T> {
       this.set(previous === undefined ? { status: "error", error } : { status: "error", error, previous });
     } finally {
       options.signal?.removeEventListener("abort", abort);
+      if (this.active === controller) this.active = undefined;
     }
   }
 
   invalidate(): void {
     this.generation += 1;
+    this.active?.abort(new DOMException("Resource invalidated", "AbortError"));
+    this.active = undefined;
     this.set({ status: "idle" });
   }
 

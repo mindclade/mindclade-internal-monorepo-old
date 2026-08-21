@@ -5,7 +5,7 @@
 # The Nix-owned version source. ADR-0002 makes Nix the authority for toolchains and says
 # compatibility version files are GENERATED FROM it — `.bazelversion`, `rust-toolchain.toml`,
 # the `go` directive in go.mod, `requires-python`, `engines.node`. Those files exist because
-# bazelisk, cargo, go and node each insist on reading their own; this attrset is what they are
+# Bazel, Cargo, Go, and Node each insist on reading their own; this attrset is what they are
 # all supposed to agree with, and `checks/generated-files.nix` plus `checks/bazel-version.nix`
 # are what make disagreement a build failure rather than a surprise months later.
 #
@@ -14,8 +14,8 @@
 # hunt.
 
 {
-  # Consumed by .bazelversion — bazelisk reads that file to decide which Bazel to fetch — and
-  # asserted by checks/bazel-version.nix.
+  # Mirrored by .bazelversion for Bazelisk compatibility outside Nix and asserted by
+  # checks/bazel-version.nix. The Nix shells ship pkgs.bazel_9 at this exact version.
   bazel = "9.1.1";
 
   # Consumed by rust-toolchain.toml's `channel` and Cargo.toml's `rust-version`, and asserted

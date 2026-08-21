@@ -17,6 +17,7 @@ export function MolecularViewer({ structure, selection = {}, label, maxVisibleAt
   label?: string;
   maxVisibleAtoms?: number;
 }): ReactElement {
+  if (!Number.isSafeInteger(maxVisibleAtoms) || maxVisibleAtoms <= 0) throw new RangeError("maxVisibleAtoms must be a positive safe integer");
   const selected = structure.atoms.filter((atom) => matchesSelection(atom, selection));
   const step = Math.max(1, Math.ceil(selected.length / maxVisibleAtoms));
   const atoms = selected.filter((_, index) => index % step === 0);

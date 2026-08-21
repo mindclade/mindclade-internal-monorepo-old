@@ -11,7 +11,7 @@ try:
     import torch
     from torch.utils.data import DataLoader, Dataset, get_worker_info
 except ImportError as exc:  # pragma: no cover - user environment diagnostic
-    raise SystemExit(f"PyTorch is required: {exc}")
+    raise SystemExit(f"PyTorch is required: {exc}") from exc
 
 
 class ProbeDataset(Dataset[dict[str, Any]]):
