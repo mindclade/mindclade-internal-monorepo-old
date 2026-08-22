@@ -1,6 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
 
 """Prove the source qualification package cannot consume live capacity."""
 
@@ -281,7 +282,10 @@ def main() -> None:
         raise SystemExit(1)
     mutation_count = mutation_self_test(value) if args.self_test else 0
     suffix = f"; {mutation_count} fail-closed mutations rejected" if args.self_test else ""
-    print(f"QUALIFICATION      blocked CPU/H100/B200 package{suffix}")
+    print(
+        "QUALIFICATION      blocked namespace, zero quota, and 3 suspended "
+        f"CPU/H100/B200 profiles{suffix}"
+    )
 
 
 if __name__ == "__main__":
