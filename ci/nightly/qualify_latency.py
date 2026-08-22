@@ -10,7 +10,7 @@ import argparse
 import json
 import math
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -32,7 +32,7 @@ def _timestamp(value: Any) -> datetime:
     parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     if parsed.tzinfo is None:
         raise ValueError("completed_at must include a timezone")
-    return parsed.astimezone(timezone.utc)
+    return parsed.astimezone(UTC)
 
 
 def load_metric(path: Path) -> Metric | None:
@@ -50,7 +50,7 @@ def load_metric(path: Path) -> Metric | None:
 
 
 def qualify(metrics: list[Metric], *, now: datetime) -> tuple[dict[str, Any], int]:
-    now = now.astimezone(timezone.utc)
+    now = now.astimezone(UTC)
     start = now - timedelta(days=WINDOW_DAYS)
     window = sorted(
         (metric for metric in metrics if start <= metric.completed_at <= now),
@@ -119,7 +119,7 @@ def main() -> int:
     parser.add_argument("--markdown-output", type=Path, required=True)
     parser.add_argument("--now")
     args = parser.parse_args()
-    now = _timestamp(args.now) if args.now else datetime.now(timezone.utc)
+    now = _timestamp(args.now) if args.now else datetime.now(UTC)
     metrics = [
         metric
         for path in sorted(args.metrics_root.rglob("*.json"))
