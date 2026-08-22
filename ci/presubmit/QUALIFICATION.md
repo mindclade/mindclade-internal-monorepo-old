@@ -46,5 +46,17 @@ replaced by retained evidence from a trusted x86_64 Linux runner. The transition
 must preserve full `//...` execution for merge groups and nightly runs; affected
 selection remains a pull-request latency optimization only.
 
+Artifact-plan Phase 5 remains incomplete until that evidence is accepted and the
+graph-native implementation is reviewed. The current source hardens, but does not
+activate, the migration boundary: immutable fallback anchors cover the Bazel/Nix
+launchers, package-boundary additions and deletions force full validation, workflow
+event routing is behaviorally modeled, and failure evidence carries only stable
+redacted codes.
+
+Repository-local workflow and runtime-integrity checks are defense in depth, not
+an external trust boundary. Phase 5 also remains incomplete until the pinned
+organization required workflow is active and observed blocking both pull requests
+and merge groups from a protected ref.
+
 Ruleset evaluation and activation evidence belongs to `github-config`. A local
 test pass is not evidence that GitHub is enforcing the context.

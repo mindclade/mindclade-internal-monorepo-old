@@ -58,6 +58,11 @@
     "requirements.darwin.lock.txt",
     "requirements.lock.txt",
     "rust-toolchain.toml",
+    "tools/analysis/check_affected_presubmit.py",
+    "tools/analysis/run_architecture_checks.py",
+    "tools/analysis/workflow_yaml.py",
+    "tools/dev/bazelw",
+    "tools/dev/nixw",
     "uv.lock"
   ],
   "prefixes": [

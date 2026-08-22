@@ -31,7 +31,9 @@ def _job_started_epoch(path: Path | None) -> float | None:
     try:
         return float(path.read_text(encoding="utf-8").strip())
     except (OSError, ValueError) as error:
-        raise affected.SelectionError(f"invalid job-start timestamp {path}: {error}") from error
+        raise affected.SelectionError(
+            "AFFECTED-SELECT-014", "job-start timestamp is invalid"
+        ) from error
 
 
 def main() -> int:
@@ -39,9 +41,11 @@ def main() -> int:
     phase = parser.add_mutually_exclusive_group()
     phase.add_argument("--static-only", action="store_true")
     phase.add_argument("--bazel-only", action="store_true")
-    parser.add_argument("--mode", choices=("affected", "full"), default="affected")
+    parser.add_argument("--mode", choices=("auto", "affected", "full"), default="auto")
     parser.add_argument("--base")
     parser.add_argument("--event", default=os.environ.get("GITHUB_EVENT_NAME", "local"))
+    parser.add_argument("--ref", default=os.environ.get("GITHUB_REF"))
+    parser.add_argument("--head", default=os.environ.get("GITHUB_SHA"))
     parser.add_argument("--evidence-dir", type=Path)
     parser.add_argument("--job-started-at-file", type=Path)
     args = parser.parse_args()
@@ -52,13 +56,30 @@ def main() -> int:
         return 1
     if args.static_only:
         return 0
-    if args.mode == "affected" and not args.base:
-        parser.error("affected Bazel mode requires --base")
 
     evidence_dir = args.evidence_dir or Path(tempfile.mkdtemp(prefix="mindclade-bazel-"))
     base_sha: str | None = None
+    resolved_mode = args.mode
     try:
-        if args.mode == "affected":
+        resolved_mode = affected.resolve_selection_mode(
+            args.mode,
+            event=args.event,
+            ref=args.ref,
+            base_sha=args.base,
+        )
+        if args.event != "local":
+            if not args.head:
+                raise affected.SelectionError(
+                    "AFFECTED-SELECT-019", "checkout integrity validation failed"
+                )
+            affected.assert_clean_checkout(args.head)
+            affected.assert_bazelrc_contract(args.event)
+        if resolved_mode == "affected":
+            if not args.base:
+                raise affected.SelectionError(
+                    "AFFECTED-SELECT-011",
+                    "affected selection requires an explicit base revision",
+                )
             base_sha = affected.git_revision(args.base)
             changes = affected.git_changed(base_sha)
         else:
@@ -80,7 +101,7 @@ def main() -> int:
 
         selection = affected.select(
             changes,
-            mode=args.mode,
+            mode=resolved_mode,
             base_sha=base_sha,
             event=args.event,
         )
@@ -97,7 +118,7 @@ def main() -> int:
         print(f"affected Bazel selection failed: {error}", file=sys.stderr)
         affected.write_failure_evidence(
             evidence_dir,
-            mode=args.mode,
+            mode=resolved_mode,
             event=args.event,
             base_sha=base_sha,
             error=error,

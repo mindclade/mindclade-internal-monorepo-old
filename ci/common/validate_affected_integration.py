@@ -25,9 +25,13 @@ def main() -> int:
     expected = "//tests/fixtures/affected/consumer:consumer_test"
     unrelated = "//tests/fixtures/affected/unrelated:unrelated_test"
     if expected not in selection.test_targets:
-        raise affected.SelectionError(f"real Bazel rdeps omitted expected target {expected}")
+        raise affected.SelectionError(
+            "AFFECTED-SELECT-016", "real Bazel graph omitted the expected fixture target"
+        )
     if unrelated in selection.test_targets:
-        raise affected.SelectionError(f"real Bazel rdeps included unrelated target {unrelated}")
+        raise affected.SelectionError(
+            "AFFECTED-SELECT-016", "real Bazel graph included the unrelated fixture target"
+        )
     print(
         "affected Bazel integration passed: "
         f"{len(selection.analysis_targets)} analysis targets, "

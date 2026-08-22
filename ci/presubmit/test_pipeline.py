@@ -21,11 +21,19 @@ def test_static_only_runs_architecture_without_bazel(monkeypatch: pytest.MonkeyP
     ]
 
 
-def test_affected_bazel_mode_requires_explicit_base(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_auto_mode_requires_a_governed_event(monkeypatch: pytest.MonkeyPatch) -> None:
+    failures: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        pipeline.affected,
+        "write_failure_evidence",
+        lambda *args, **kwargs: failures.append(kwargs),
+    )
     monkeypatch.setattr(sys, "argv", ["pipeline.py", "--bazel-only"])
-    with pytest.raises(SystemExit) as error:
-        pipeline.main()
-    assert error.value.code == 2
+    assert pipeline.main() == 2
+    assert len(failures) == 1
+    error = failures[0]["error"]
+    assert isinstance(error, pipeline.affected.SelectionError)
+    assert error.code == "AFFECTED-SELECT-010"
 
 
 def test_full_bazel_only_uses_shared_executor(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -52,8 +52,21 @@ full-graph comparison, a wrapper that restores the checkout after interruption,
 and review of the Bazel 9 version-parsing fallback. Until those are satisfied,
 the reviewed global-input contract remains the conservative correctness backstop.
 
+Artifact-plan Phase 5 is therefore **incomplete**. The active pull-request path is
+still the conservative Bazel-query implementation, while merge groups, protected
+main pushes, and nightly runs remain mandatory full-graph gates. Workflow YAML is
+parsed structurally by static policy, and a tested event state machine rejects any
+attempt to select full mode for a pull request or affected mode for a protected gate.
+The governed step invokes the root-owned Nix installation by absolute path, requires
+the exact event `GITHUB_SHA` in a clean checkout, and accepts only the generated
+bounded-cache `user.bazelrc` contract. These repository-local controls do not replace
+the pinned organization required workflow that must ultimately enforce the gate from
+outside a pull request's mutable trust boundary.
+
 ## Rollback
 
-Set the presubmit Bazel invocation to `--mode full` while retaining the exact
-`bazel / verdict` job name. Do not disable the job, weaken failure behavior, or
-rename a required context during incident recovery.
+Revert the affected-selection change, or make one coordinated reviewed change to
+the event policy, semantic workflow contract, and orchestration tests so pull
+requests resolve to full mode. Changing only the workflow argument fails closed.
+Retain the exact `bazel / verdict` job name; do not disable the job, weaken failure
+behavior, or rename a required context during incident recovery.

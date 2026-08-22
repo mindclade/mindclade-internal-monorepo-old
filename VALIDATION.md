@@ -69,12 +69,16 @@ new graph-control surface cannot silently bypass full validation. A
 checksum-pinned target-determinator candidate remains activation-blocked by the
 unqualified remote cache, incomplete Linux full-graph evidence, checkout
 restoration behavior under interruption, and Bazel 9 version-string fallback.
+Artifact-plan Phase 5 is explicitly incomplete; this source does not activate or
+claim graph-native selection. Immutable fallback anchors and event-policy tests
+preserve full merge-group, protected-main, and nightly correctness gates meanwhile.
 
 Connected pull-request, merge-group, scheduled-run, required-check, and 28-day
-latency evidence is pending. Local real-graph validation currently reaches the
-authoritative query and fails on pre-existing host materialization of
-`torch==2.13.0+cpu`; that dependency-resolution failure is preserved as a red
-selector result and is not reported as an empty affected set.
+latency evidence is pending, as is activation of the pinned organization required
+workflow outside the pull request's mutable trust boundary. Local aarch64-Darwin
+real-graph validation passed with two analysis targets and two tests. An initial
+external Go-proxy TLS timeout failed closed as `AFFECTED-SELECT-007`; retrying after
+repository materialization passed and never produced an empty affected set.
 
 ## Rust hardening validation (2026-08-20)
 

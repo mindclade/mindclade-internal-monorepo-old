@@ -525,30 +525,23 @@ jobs:
             //tools/build/bazel/toolchains/cc:smoke_test --config=ci
           nix develop .#ci-bazel --command python3 tools/analysis/verify_cc_toolchain_selection.py
 
-      - name: Run affected or protected full-graph Bazel validation
+      - name: Run event-governed Bazel validation
         env:
+          BASH_ENV: ""
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: |
-          # The shared executor removes setup-bazel's short-lived download token from each
-          # evidence-producing subprocess so neither analysis nor test BEP can record it.
-          evidence="${RUNNER_TEMP}/bazel-evidence"
-          mode="full"
-          base_args=()
-          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
-            if [[ -z "${PR_BASE_SHA}" ]]; then
-              echo "pull_request event is missing github.event.pull_request.base.sha" >&2
-              exit 2
-            fi
-            mode="affected"
-            base_args=(--base "${PR_BASE_SHA}")
-          fi
-          nix develop .#ci-bazel --command python3 ci/presubmit/pipeline.py \
-            --bazel-only \
-            --mode "${mode}" \
-            "${base_args[@]}" \
-            --event "${GITHUB_EVENT_NAME}" \
-            --evidence-dir "${evidence}" \
-            --job-started-at-file "${RUNNER_TEMP}/bazel-job-started"
+        # Event-to-mode routing lives in the tested Python state machine. Passing the pull-request
+        # base unconditionally is safe: non-PR events receive an empty value and are forced to full.
+        run: >-
+          /nix/var/nix/profiles/default/bin/nix develop .#ci-bazel
+          --command python3 -I ci/presubmit/pipeline.py
+          --bazel-only
+          --mode auto
+          --base "${PR_BASE_SHA}"
+          --event "${GITHUB_EVENT_NAME}"
+          --ref "${GITHUB_REF}"
+          --head "${GITHUB_SHA}"
+          --evidence-dir "${RUNNER_TEMP}/bazel-evidence"
+          --job-started-at-file "${RUNNER_TEMP}/bazel-job-started"
 
       - name: Measure bounded Bazel persistent action cache
         id: bazel-cache-size
