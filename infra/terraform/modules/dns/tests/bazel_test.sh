@@ -12,12 +12,12 @@ resolve_runfile() {
   printf '%s/%s\n' "${TEST_SRCDIR:?}" "${relative_path}"
 }
 
-tool_marker="$(resolve_runfile "${MINDCLADE_VALIDATION_TOOL_MARKER_RLOCATION:?}")"
-[[ -e "${tool_marker}" ]] || {
-  printf 'ERROR: validation tool marker is missing: %s\n' "${tool_marker}" >&2
+terraform_binary="$(resolve_runfile "${MINDCLADE_TERRAFORM_RLOCATION:?}")"
+[[ -x "${terraform_binary}" ]] || {
+  printf 'ERROR: Nix-owned Terraform executable is missing: %s\n' "${terraform_binary}" >&2
   exit 1
 }
-PATH="$(dirname "${tool_marker}"):/usr/bin:/bin"
+PATH="/usr/bin:/bin"
 export PATH
 
 module_dir="${TEST_SRCDIR:?}/${TEST_WORKSPACE:?}/infra/terraform/modules/dns"
@@ -44,4 +44,4 @@ for provider_file in "$(dirname "${provider_marker}")"/*; do
   cp -R "${provider_file}" "${provider_destination}/"
 done
 
-exec terraform test
+exec "${terraform_binary}" test

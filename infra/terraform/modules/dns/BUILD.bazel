@@ -21,14 +21,13 @@ sh_test(
     srcs = ["tests/bazel_test.sh"],
     data = [
         ":scaffold_files",
-        "@mindclade_infra_validation_tools//:bin/.tool-root",
-        "@mindclade_infra_validation_tools//:tools",
         "@mindclade_terraform_google_provider//:provider",
         "@mindclade_terraform_google_provider//:provider_root",
+        "@mindclade_terraform_google_provider//:terraform",
     ],
     env = {
         "MINDCLADE_TERRAFORM_GOOGLE_PROVIDER_MARKER_RLOCATION": "$(rlocationpath @mindclade_terraform_google_provider//:provider_root)",
-        "MINDCLADE_VALIDATION_TOOL_MARKER_RLOCATION": "$(rlocationpath @mindclade_infra_validation_tools//:bin/.tool-root)",
+        "MINDCLADE_TERRAFORM_RLOCATION": "$(rlocationpath @mindclade_terraform_google_provider//:terraform)",
     },
     tags = ["terraform"],
 )

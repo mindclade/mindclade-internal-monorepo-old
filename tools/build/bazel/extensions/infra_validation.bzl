@@ -19,7 +19,6 @@ _TOOLS = [
     "kustomize",
     "promtool",
     "python3",
-    "terraform",
     "yamllint",
     "yq",
 ]
@@ -136,6 +135,14 @@ _validation_tools_repository = repository_rule(
 )
 
 def _terraform_google_provider_repository_impl(repository_ctx):
+    terraform_path = repository_ctx.which("terraform")
+    if terraform_path == None:
+        fail(
+            "Terraform is missing; run the DNS Bazel test through " +
+            "`nix develop .#ci --command ...` so the pinned executable can be captured",
+        )
+    repository_ctx.symlink(terraform_path, "bin/terraform")
+
     os_name = repository_ctx.os.name.lower()
     if os_name.startswith("mac"):
         operating_system = "darwin"
@@ -176,6 +183,8 @@ def _terraform_google_provider_repository_impl(repository_ctx):
         "BUILD.bazel",
         """package(default_visibility = [\"//visibility:public\"])
 
+exports_files([\"bin/terraform\"])
+
 filegroup(
     name = \"provider_root\",
     srcs = [\"%s\"],
@@ -185,12 +194,18 @@ filegroup(
     name = \"provider\",
     srcs = glob([\"providers/**\"]),
 )
+
+filegroup(
+    name = \"terraform\",
+    srcs = [\"bin/terraform\"],
+)
 """ % provider_root,
     )
 
 _terraform_google_provider_repository = repository_rule(
     implementation = _terraform_google_provider_repository_impl,
-    configure = True,
+    environ = ["PATH"],
+    local = True,
 )
 
 def _kubernetes_schemas_repository_impl(repository_ctx):

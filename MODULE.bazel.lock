@@ -278,7 +278,7 @@
   "moduleExtensions": {
     "//tools/build/bazel/extensions:infra_validation.bzl%infra_validation": {
       "general": {
-        "bzlTransitiveDigest": "9LiPnuddoes2mEAYwAac5Qj+by5BZthLXcXgNxC56GU=",
+        "bzlTransitiveDigest": "rHxU9QGYqMIhdS6PR32/GWxX2Ed80HU+TAAXsBXtrr4=",
         "usagesDigest": "hDI9cgLqA5wD/5TR1JKFRj/Ad4bCyYKDEUeQyJERkpM=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
