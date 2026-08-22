@@ -3,15 +3,21 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_go//go:def.bzl", "go_binary")
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
 
 package(default_visibility = ["//visibility:private"])
 
 go_binary(
     name = "scheduler",
-    srcs = ["main.go"],
+    embed = [":scheduler_lib"],
     importpath = "go.mindclade.dev/services/control_plane/cmd/scheduler",
     visibility = ["//services/control_plane:__subpackages__"],
+)
+
+go_library(
+    name = "scheduler_lib",
+    srcs = ["main.go"],
+    importpath = "go.mindclade.dev/services/control_plane/cmd/scheduler",
     deps = [
         "//services/control_plane/internal/bootstrap",
         "//services/control_plane/internal/providers/scheduler",

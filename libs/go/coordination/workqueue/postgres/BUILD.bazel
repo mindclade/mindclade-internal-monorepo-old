@@ -36,7 +36,8 @@ go_test(
     srcs = ["store_test.go"],
     embed = [":postgres"],
     deps = [
-        "//libs/go/coordination/workqueue/workqueuetest",
+        "//libs/go/coordination/workqueue",
+        "//libs/go/identifiers",
         "//libs/go/storage/sql/sqltest",
     ],
 )

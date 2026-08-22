@@ -26,4 +26,9 @@ go_test(
     name = "persistence_test",
     srcs = ["persistence_test.go"],
     embed = [":persistence"],
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/servicekit/production",
+        "//libs/go/storage/sql/migrate",
+    ],
 )

@@ -18,4 +18,5 @@ go_test(
     name = "stream_test",
     srcs = ["stream_test.go"],
     embed = [":stream"],
+    deps = ["//services/studio/internal/runlog"],
 )

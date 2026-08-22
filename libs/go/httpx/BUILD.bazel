@@ -40,5 +40,8 @@ go_test(
         "server_test.go",
     ],
     embed = [":httpx"],
-    deps = ["//libs/go/faults"],
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/requestmeta",
+    ],
 )

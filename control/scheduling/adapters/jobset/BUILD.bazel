@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_go//go:def.bzl", "go_library")
+
 package(default_visibility = ["//visibility:private"])
 
 filegroup(
@@ -12,4 +14,14 @@ filegroup(
         exclude = ["BUILD.bazel"],
     ),
     visibility = ["//visibility:public"],
+)
+
+go_library(
+    name = "jobset",
+    srcs = [
+        "client.go",
+        "jobs.go",
+        "topology.go",
+    ],
+    importpath = "go.mindclade.dev/control/scheduling/adapters/jobset",
 )

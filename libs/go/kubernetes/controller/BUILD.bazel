@@ -43,7 +43,6 @@ go_test(
         "//libs/go/clock",
         "//libs/go/faults",
         "//libs/go/requestmeta",
-        "//libs/go/servicekit",
         "@io_k8s_sigs_controller_runtime//pkg/controller",
         "@io_k8s_sigs_controller_runtime//pkg/reconcile",
     ],

@@ -29,8 +29,8 @@ go_library(
 go_test(
     name = "messaging_test",
     srcs = ["message_test.go"],
-    embed = [":messaging"],
     deps = [
+        ":messaging",
         "//libs/go/identifiers",
         "//libs/go/requestmeta",
     ],

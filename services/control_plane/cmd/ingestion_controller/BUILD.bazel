@@ -3,15 +3,21 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_go//go:def.bzl", "go_binary")
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
 
 package(default_visibility = ["//visibility:private"])
 
 go_binary(
     name = "ingestion-controller",
-    srcs = ["main.go"],
+    embed = [":ingestion_controller_lib"],
     importpath = "go.mindclade.dev/services/control_plane/cmd/ingestion_controller",
     visibility = ["//services/control_plane:__subpackages__"],
+)
+
+go_library(
+    name = "ingestion_controller_lib",
+    srcs = ["main.go"],
+    importpath = "go.mindclade.dev/services/control_plane/cmd/ingestion_controller",
     deps = [
         "//services/control_plane/internal/bootstrap",
         "//services/control_plane/internal/providers/ingestion",

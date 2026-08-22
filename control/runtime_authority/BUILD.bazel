@@ -32,4 +32,9 @@ go_test(
     name = "runtime_authority_test",
     srcs = glob(["*_test.go"]),
     embed = [":runtime_authority"],
+    deps = [
+        "//libs/go/clock",
+        "//libs/go/identifiers",
+        "//libs/go/signing",
+    ],
 )

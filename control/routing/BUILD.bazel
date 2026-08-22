@@ -29,5 +29,9 @@ go_test(
     name = "routing_test",
     srcs = glob(["*_test.go"]),
     embed = [":routing"],
-    deps = ["//libs/go/signing"],
+    deps = [
+        "//control/runtime_authority",
+        "//libs/go/identifiers",
+        "//libs/go/signing",
+    ],
 )

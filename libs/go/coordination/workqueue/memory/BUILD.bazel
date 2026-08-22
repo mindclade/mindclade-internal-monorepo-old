@@ -27,9 +27,9 @@ go_library(
 go_test(
     name = "memory_test",
     srcs = ["store_test.go"],
-    embed = [":memory"],
     deps = [
-        "//libs/go/coordination/workqueue/workqueuetest",
+        ":memory",
+        "//libs/go/coordination/workqueue",
         "//libs/go/identifiers",
         "//libs/go/requestmeta",
     ],

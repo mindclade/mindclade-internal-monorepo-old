@@ -35,4 +35,5 @@ go_test(
         "manifest_test.go",
     ],
     embed = [":production"],
+    deps = ["//libs/go/servicekit"],
 )

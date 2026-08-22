@@ -1,0 +1,13 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "examples",
+    srcs = ["go_inference.go"],
+    importpath = "go.mindclade.dev/sdk/examples",
+    visibility = ["//visibility:public"],
+)

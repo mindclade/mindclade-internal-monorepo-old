@@ -11,7 +11,10 @@ exports_files(["README.md"])
 
 go_library(
     name = "ingestion_coordinator_lib",
-    srcs = ["app.go"],
+    srcs = [
+        "app.go",
+        "main.go",
+    ],
     importpath = "go.mindclade.dev/examples/go/ingestion_coordinator",
     visibility = ["//visibility:private"],
     deps = [
@@ -39,13 +42,15 @@ go_library(
 
 go_binary(
     name = "ingestion_coordinator",
-    srcs = ["main.go"],
     embed = [":ingestion_coordinator_lib"],
 )
 
 go_test(
     name = "ingestion_coordinator_test",
-    srcs = ["app_test.go"],
+    srcs = [
+        "app_test.go",
+        "main_test.go",
+    ],
     embed = [":ingestion_coordinator_lib"],
     deps = [
         "//libs/go/coordination/outbox",

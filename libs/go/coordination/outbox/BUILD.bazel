@@ -42,9 +42,7 @@ go_test(
         "//libs/go/clock",
         "//libs/go/coordination/outbox/memory",
         "//libs/go/coordination/outbox/outboxtest",
-        "//libs/go/faults",
         "//libs/go/identifiers",
         "//libs/go/requestmeta",
-        "//libs/go/retry",
     ],
 )

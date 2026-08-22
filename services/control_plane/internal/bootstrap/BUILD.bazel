@@ -34,6 +34,11 @@ go_test(
     srcs = [
         "command_test.go",
         "profile_test.go",
+        "promotion_test.go",
     ],
     embed = [":bootstrap"],
+    deps = [
+        "//libs/go/servicekit",
+        "//libs/go/servicekit/production",
+    ],
 )
