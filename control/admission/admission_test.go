@@ -135,7 +135,7 @@ func candidateFor(t *testing.T, fixture fixture, sequence int) (PolicySnapshot, 
 		EntitlementVersion: snapshot.Entitlement.Version,
 		BudgetID:           snapshot.Budget.ID,
 		BudgetVersion:      snapshot.Budget.Version,
-		Reserved:           admit.Requested.Clone(),
+		Reserved:           snapshot.Entitlement.MaximumRequest.Clone(),
 		RequestedTTL:       admit.TTL,
 		State:              ReservationReserved,
 		CreatedAt:          now,
@@ -167,14 +167,18 @@ func TestAdmissionReservationCommitAndIdempotentReplay(t *testing.T) {
 	}
 
 	actual := Quota{UnitRequests: 1, UnitInputTokens: 80, UnitOutputTokens: 40, UnitCostMicros: 400}
-	committed, err := fixture.service.Commit(ctx, first.Reservation.ID, first.Reservation.Version, first.Reservation.RequestDigest, "service-account", actual)
+	dispatched, err := fixture.service.Dispatch(ctx, first.Reservation.ID, first.Reservation.Version, first.Reservation.RequestDigest, "service-account")
+	if err != nil || dispatched.Reservation.State != ReservationDispatched {
+		t.Fatalf("dispatch failed: decision=%+v error=%v", dispatched, err)
+	}
+	committed, err := fixture.service.Commit(ctx, first.Reservation.ID, dispatched.Reservation.Version, first.Reservation.RequestDigest, "service-account", actual)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if committed.Replayed || committed.Reservation.State != ReservationCommitted || !committed.Reservation.Actual.Equal(actual) {
 		t.Fatalf("unexpected commit: %+v", committed)
 	}
-	commitReplay, err := fixture.service.Commit(ctx, first.Reservation.ID, first.Reservation.Version, first.Reservation.RequestDigest, "service-account", actual)
+	commitReplay, err := fixture.service.Commit(ctx, first.Reservation.ID, dispatched.Reservation.Version, first.Reservation.RequestDigest, "service-account", actual)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -189,6 +193,41 @@ func TestAdmissionReservationCommitAndIdempotentReplay(t *testing.T) {
 	}
 	if stored.Actual[UnitCostMicros] != 400 {
 		t.Fatal("caller mutation corrupted repository state")
+	}
+}
+
+func TestAmbiguousDispatchIsDurablyMaxCharged(t *testing.T) {
+	fixture := newFixture(t, 1)
+	ctx := context.Background()
+	decision, err := fixture.service.Admit(ctx, request(1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dispatched, err := fixture.service.Dispatch(ctx, decision.Reservation.ID, decision.Reservation.Version,
+		decision.Reservation.RequestDigest, "service-account")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.service.Release(ctx, decision.Reservation.ID, dispatched.Reservation.Version,
+		decision.Reservation.RequestDigest, "service-account"); !faults.IsReason(err, "reservation_already_dispatched") {
+		t.Fatalf("dispatched work was releasable: %v", err)
+	}
+	pending, err := fixture.service.MarkReconciliationPending(ctx, decision.Reservation.ID, dispatched.Reservation.Version,
+		decision.Reservation.RequestDigest, "service-account")
+	if err != nil || pending.Reservation.State != ReservationReconciliationPending || pending.Reservation.Version.Generation() != 3 {
+		t.Fatalf("pending=%+v error=%v", pending, err)
+	}
+	terminal, err := fixture.service.Reconcile(ctx, decision.Reservation.ID, pending.Reservation.Version,
+		decision.Reservation.RequestDigest, "service-account")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if terminal.Reservation.State != ReservationCommitted || terminal.Reservation.Version.Generation() != 4 ||
+		!terminal.Reservation.Actual.Equal(terminal.Reservation.Reserved) {
+		t.Fatalf("ambiguous dispatch was not max-charged: %+v", terminal.Reservation)
+	}
+	if _, err := fixture.service.Admit(ctx, request(2)); !faults.IsReason(err, "budget_exhausted") {
+		t.Fatalf("max charge did not remain in budget ledger: %v", err)
 	}
 }
 
@@ -248,7 +287,11 @@ func TestExpiredIdempotentAdmissionFailsClosed(t *testing.T) {
 func TestTerminalAdmissionReplayReturnsOriginalDecision(t *testing.T) {
 	for name, finalize := range map[string]func(fixture, Decision) error{
 		"committed": func(fixture fixture, decision Decision) error {
-			_, err := fixture.service.Commit(context.Background(), decision.Reservation.ID, decision.Reservation.Version, decision.Reservation.RequestDigest, "service-account", Quota{UnitRequests: 1})
+			dispatched, err := fixture.service.Dispatch(context.Background(), decision.Reservation.ID, decision.Reservation.Version, decision.Reservation.RequestDigest, "service-account")
+			if err != nil {
+				return err
+			}
+			_, err = fixture.service.Commit(context.Background(), decision.Reservation.ID, dispatched.Reservation.Version, decision.Reservation.RequestDigest, "service-account", Quota{UnitRequests: 1})
 			return err
 		},
 		"released": func(fixture fixture, decision Decision) error {
@@ -350,7 +393,7 @@ func TestReleaseAndExpirationReturnReservedCapacity(t *testing.T) {
 	if err := fixture.clock.Advance(31 * time.Second); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := fixture.service.Commit(ctx, second.Reservation.ID, second.Reservation.Version, second.Reservation.RequestDigest, "service-account", Quota{UnitRequests: 1}); !faults.IsReason(err, "reservation_expired") {
+	if _, err := fixture.service.Dispatch(ctx, second.Reservation.ID, second.Reservation.Version, second.Reservation.RequestDigest, "service-account"); !faults.IsReason(err, "reservation_expired") {
 		t.Fatalf("expected expiration, got %v", err)
 	}
 	if _, err := fixture.service.Admit(ctx, request(3)); err != nil {
@@ -373,8 +416,12 @@ func TestFinalizationRejectsStaleVersionForeignDigestAndOverspend(t *testing.T) 
 	if _, err := fixture.service.Commit(ctx, decision.Reservation.ID, decision.Reservation.Version, identifiers.SHA256String("foreign"), "service-account", validActual); !faults.IsReason(err, "request_digest_mismatch") {
 		t.Fatalf("expected foreign digest rejection, got %v", err)
 	}
-	actual := Quota{UnitRequests: 1, UnitInputTokens: 101}
-	if _, err := fixture.service.Commit(ctx, decision.Reservation.ID, decision.Reservation.Version, decision.Reservation.RequestDigest, "service-account", actual); !faults.IsReason(err, "actual_exceeds_reservation") {
+	dispatched, err := fixture.service.Dispatch(ctx, decision.Reservation.ID, decision.Reservation.Version, decision.Reservation.RequestDigest, "service-account")
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual := Quota{UnitRequests: 1, UnitInputTokens: 2_001}
+	if _, err := fixture.service.Commit(ctx, decision.Reservation.ID, dispatched.Reservation.Version, decision.Reservation.RequestDigest, "service-account", actual); !faults.IsReason(err, "actual_exceeds_reservation") {
 		t.Fatalf("expected actual-usage rejection, got %v", err)
 	}
 }
@@ -495,8 +542,12 @@ func TestCommitRequiresOneActualRequestAndRetainsCapacityOnRejection(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
+	dispatched, err := fixture.service.Dispatch(context.Background(), decision.Reservation.ID, decision.Reservation.Version, decision.Reservation.RequestDigest, "service-account")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if _, err := fixture.service.Commit(context.Background(), decision.Reservation.ID,
-		decision.Reservation.Version, decision.Reservation.RequestDigest, "service-account",
+		dispatched.Reservation.Version, decision.Reservation.RequestDigest, "service-account",
 		Quota{UnitInputTokens: 80}); !faults.IsReason(err, "actual_request_count_invalid") {
 		t.Fatalf("expected zero-request commit rejection, got %v", err)
 	}
@@ -544,10 +595,14 @@ func TestReservationVersionSealAndStateUsageAreValidated(t *testing.T) {
 	}
 	withActual := decision.Reservation.clone()
 	withActual.Actual = Quota{UnitRequests: 1}
-	if err := withActual.Validate(); !faults.IsReason(err, "reservation_actual_unexpected") {
+	if err := withActual.Validate(); !faults.IsReason(err, "reservation_reserved_lifecycle_invalid") {
 		t.Fatalf("reserved actual usage was not rejected: %v", err)
 	}
-	committed, err := decision.Reservation.Commit(Quota{UnitRequests: 1, UnitInputTokens: 80}, fixture.clock.Now().Add(time.Second))
+	dispatched, err := decision.Reservation.Dispatch(fixture.clock.Now().Add(time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	committed, err := dispatched.Commit(Quota{UnitRequests: 1, UnitInputTokens: 80}, fixture.clock.Now().Add(2*time.Second))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -557,8 +612,8 @@ func TestReservationVersionSealAndStateUsageAreValidated(t *testing.T) {
 	}
 }
 
-func TestRepeatedLateFinalizationReturnsStableExpiration(t *testing.T) {
-	for _, operation := range []string{"commit", "release"} {
+func TestRepeatedLateUndispatchedTransitionReturnsStableExpiration(t *testing.T) {
+	for _, operation := range []string{"dispatch", "release"} {
 		t.Run(operation, func(t *testing.T) {
 			fixture := newFixture(t, 1)
 			decision, err := fixture.service.Admit(context.Background(), request(1))
@@ -569,9 +624,9 @@ func TestRepeatedLateFinalizationReturnsStableExpiration(t *testing.T) {
 				t.Fatal(err)
 			}
 			finalize := func() error {
-				if operation == "commit" {
-					_, err := fixture.service.Commit(context.Background(), decision.Reservation.ID,
-						decision.Reservation.Version, decision.Reservation.RequestDigest, "service-account", Quota{UnitRequests: 1})
+				if operation == "dispatch" {
+					_, err := fixture.service.Dispatch(context.Background(), decision.Reservation.ID,
+						decision.Reservation.Version, decision.Reservation.RequestDigest, "service-account")
 					return err
 				}
 				_, err := fixture.service.Release(context.Background(), decision.Reservation.ID,
@@ -598,25 +653,32 @@ func TestReservationTransitionsAreValidatedAndVersioned(t *testing.T) {
 	if _, err := reservation.Expire(now); !faults.IsReason(err, "reservation_not_expired") {
 		t.Fatalf("expected early-expiration rejection, got %v", err)
 	}
-	committed, err := reservation.Commit(Quota{UnitRequests: 1}, now.Add(time.Second))
+	dispatched, err := reservation.Dispatch(now.Add(time.Second))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if committed.State != ReservationCommitted || committed.Version.Generation() != reservation.Version.Generation()+1 {
+	if dispatched.State != ReservationDispatched || dispatched.Version.Generation() != reservation.Version.Generation()+1 {
+		t.Fatalf("dispatch did not create the next version: %+v", dispatched)
+	}
+	committed, err := dispatched.Commit(Quota{UnitRequests: 1}, now.Add(2*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if committed.State != ReservationCommitted || committed.Version.Generation() != dispatched.Version.Generation()+1 {
 		t.Fatalf("commit did not create the next terminal version: %+v", committed)
 	}
-	if _, err := committed.Release(now.Add(2 * time.Second)); !faults.IsReason(err, "reservation_terminal") {
+	if _, err := committed.Release(now.Add(3 * time.Second)); !faults.IsReason(err, "reservation_already_dispatched") {
 		t.Fatalf("expected terminal transition rejection, got %v", err)
 	}
-	if _, err := reservation.Commit(Quota{UnitRequests: 1}, reservation.ExpiresAt); !faults.IsReason(err, "reservation_expired") {
-		t.Fatalf("expected exact-boundary commit rejection, got %v", err)
+	if _, err := reservation.Dispatch(reservation.ExpiresAt); !faults.IsReason(err, "reservation_expired") {
+		t.Fatalf("expected exact-boundary dispatch rejection, got %v", err)
 	}
 	if _, err := reservation.Release(reservation.ExpiresAt); !faults.IsReason(err, "reservation_expired") {
 		t.Fatalf("expected exact-boundary release rejection, got %v", err)
 	}
 	reservedWithFinalization := reservation
 	reservedWithFinalization.FinalizedAt = now
-	if err := reservedWithFinalization.Validate(); !faults.IsReason(err, "reservation_finalized_at_unexpected") {
+	if err := reservedWithFinalization.Validate(); !faults.IsReason(err, "reservation_reserved_lifecycle_invalid") {
 		t.Fatalf("expected reserved finalization rejection, got %v", err)
 	}
 	expiredBeforeDeadline := reservation

@@ -466,6 +466,150 @@ tests:
         values: 0+1x20
       - series: mindclade_control_admission_decision_duration_seconds_sum{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="commit"}
         values: 0+0.01x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="dispatch",result="allow"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="dispatch",result="deny"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="dispatch",result="exhausted"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="dispatch",result="conflict"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="dispatch",result="not_found"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="dispatch",result="unavailable"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="dispatch",result="internal"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="dispatch",result="deadline"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="dispatch",result="canceled"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="dispatch",result="invalid"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="dispatch",le="0.005"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="dispatch",le="0.01"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="dispatch",le="0.025"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="dispatch",le="0.05"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="dispatch",le="0.1"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="dispatch",le="0.25"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="dispatch",le="0.5"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="dispatch",le="1"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="dispatch",le="2.5"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="dispatch",le="5"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="dispatch",le="10"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="dispatch",le="+Inf"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_count{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="dispatch"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_sum{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="dispatch"}
+        values: 0+0.01x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconciliation_pending",result="allow"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconciliation_pending",result="deny"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconciliation_pending",result="exhausted"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconciliation_pending",result="conflict"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconciliation_pending",result="not_found"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconciliation_pending",result="unavailable"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconciliation_pending",result="internal"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconciliation_pending",result="deadline"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconciliation_pending",result="canceled"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconciliation_pending",result="invalid"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconciliation_pending",le="0.005"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconciliation_pending",le="0.01"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconciliation_pending",le="0.025"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconciliation_pending",le="0.05"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconciliation_pending",le="0.1"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconciliation_pending",le="0.25"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconciliation_pending",le="0.5"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconciliation_pending",le="1"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconciliation_pending",le="2.5"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconciliation_pending",le="5"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconciliation_pending",le="10"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconciliation_pending",le="+Inf"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_count{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconciliation_pending"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_sum{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconciliation_pending"}
+        values: 0+0.01x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconcile",result="allow"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconcile",result="deny"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconcile",result="exhausted"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconcile",result="conflict"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconcile",result="not_found"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconcile",result="unavailable"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconcile",result="internal"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconcile",result="deadline"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconcile",result="canceled"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconcile",result="invalid"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconcile",le="0.005"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconcile",le="0.01"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconcile",le="0.025"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconcile",le="0.05"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconcile",le="0.1"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconcile",le="0.25"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconcile",le="0.5"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconcile",le="1"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconcile",le="2.5"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconcile",le="5"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconcile",le="10"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_bucket{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconcile",le="+Inf"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_count{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconcile"}
+        values: 0+1x20
+      - series: mindclade_control_admission_decision_duration_seconds_sum{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="reconcile"}
+        values: 0+0.01x20
       - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="release",result="allow"}
         values: 0+1x20
       - series: mindclade_control_admission_decisions_total{service="control-admission",role="api",pod="api-a",cluster="test",location="us-central1",namespace="mindclade-system",operation="release",result="deny"}

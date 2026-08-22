@@ -12,6 +12,7 @@ go_library(
     srcs = [
         "admission.go",
         "api.go",
+        "policies.go",
         "serving.go",
     ],
     importpath = "go.mindclade.dev/services/control_plane/internal/providers/api",
@@ -53,6 +54,7 @@ go_library(
         "//services/control_plane/internal/providers/admissionmetrics",
         "//services/control_plane/internal/providers/apikeys",
         "//services/control_plane/internal/providers/durable",
+        "//services/control_plane/internal/providers/iapauth",
         "//services/control_plane/internal/store/postgres/admission",
         "//services/control_plane/internal/transport",
         "@com_connectrpc_connect//:connect",
@@ -66,6 +68,7 @@ go_test(
     srcs = [
         "admission_test.go",
         "api_test.go",
+        "policies_test.go",
         "serving_policy_test.go",
     ],
     embed = [":api"],
@@ -80,6 +83,7 @@ go_test(
         "//libs/go/identifiers",
         "//libs/go/resourceversion",
         "//libs/go/servicekit",
+        "//libs/go/signing",
         "//protocols/servicepolicy",
         "//services/control_plane/internal/bootstrap",
         "//services/control_plane/internal/config",

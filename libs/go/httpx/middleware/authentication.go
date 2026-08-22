@@ -18,6 +18,10 @@ type AuthenticationConfig struct {
 	Authenticator auth.Authenticator
 	Optional      bool
 	APIKeyHeader  string
+	// BearerTokenHeader accepts a raw bearer token from one exact trusted
+	// reverse-proxy header (for example, IAP). When set, Authorization and API
+	// key credentials remain mutually exclusive with it.
+	BearerTokenHeader string
 }
 
 func Authentication(config AuthenticationConfig) Middleware {
@@ -26,7 +30,7 @@ func Authentication(config AuthenticationConfig) Middleware {
 	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-			credential, present, err := extractCredential(request, config.APIKeyHeader)
+			credential, present, err := extractCredential(request, config.APIKeyHeader, config.BearerTokenHeader)
 			if err != nil {
 				writer.Header().Set("WWW-Authenticate", "Bearer")
 				httpx.WriteError(request.Context(), writer, err, request.URL.Path)
@@ -58,11 +62,25 @@ func Authentication(config AuthenticationConfig) Middleware {
 	}
 }
 
-func extractCredential(request *http.Request, apiKeyHeader string) (auth.Credential, bool, error) {
+func extractCredential(request *http.Request, apiKeyHeader, bearerTokenHeader string) (auth.Credential, bool, error) {
 	authorizationValues := nonEmptyHeaderValues(request.Header.Values("Authorization"))
 	apiKeyValues := nonEmptyHeaderValues(request.Header.Values(apiKeyHeader))
-	if len(authorizationValues) > 1 || len(apiKeyValues) > 1 || len(authorizationValues) > 0 && len(apiKeyValues) > 0 {
+	proxyBearerValues := []string(nil)
+	if bearerTokenHeader != "" {
+		proxyBearerValues = nonEmptyHeaderValues(request.Header.Values(bearerTokenHeader))
+	}
+	presentedKinds := 0
+	for _, values := range [][]string{authorizationValues, apiKeyValues, proxyBearerValues} {
+		if len(values) > 0 {
+			presentedKinds++
+		}
+	}
+	if len(authorizationValues) > 1 || len(apiKeyValues) > 1 || len(proxyBearerValues) > 1 || presentedKinds > 1 {
 		return auth.Credential{}, false, faults.New(faults.CodeUnauthenticated, "multiple credentials are not allowed", faults.WithReason("multiple_credentials"))
+	}
+	if len(proxyBearerValues) == 1 {
+		credential, err := auth.Bearer(proxyBearerValues[0])
+		return credential, err == nil, err
 	}
 	if len(apiKeyValues) == 1 {
 		credential, err := auth.APIKey(apiKeyValues[0])

@@ -40,8 +40,9 @@ PodMonitoring; it must contain no Secret, RBAC, Namespace, PVC, CRD, or public S
 7. Reconcile through Argo CD. The PreSync migration Job must succeed before Deployment rollout.
    Stop on retry, timeout, unexpected DDL, connection saturation, or a mismatched evidence digest.
 8. Verify `/version`, `/health`, `/metrics`, login, explicit workspace membership, cross-workspace
-   denial, run/metric writes, GCS proxy upload/download, trace archival, AI Gateway invocation,
-   Redis-backed rejecting budget, and model-source rejection.
+   denial, run/metric writes, GCS proxy upload/download, trace archival, anonymous telemetry
+   disablement, absence of externally reachable native Gateway serving, and model-source rejection.
+   Qualify provider invocation and no-overspend separately through the governed Rust/Go gateway.
 9. Observe SLOs through the full canary window, perform a controlled pod disruption and rollback
    rehearsal, then record an empty GitOps diff.
 
@@ -59,20 +60,20 @@ kubectl --context "${KUBE_CONTEXT}" -n research-mlflow logs \
   deploy/mindclade-mlflow --all-containers --tail=200
 ```
 
-Never print Secret data or a backend/Redis URI. Correlate by request/trace/run/digest identifiers;
+Never print Secret data or a backend-store URI. Correlate by request/trace/run/digest identifiers;
 redact payloads and credentials before attaching evidence.
 
 | Symptom | First checks | Safe containment |
 |---|---|---|
 | PreSync Job failed | exit code, SQL reachability/TLS, schema version, connection budget | stop sync; do not start old/new servers concurrently against an unknown schema |
 | Pods fail startup | `/version`, auth/trace config parse, required Python imports, writable `/tmp` | hold rollout and use last qualified image if schema compatible |
-| Pods unready | `/health`, SQL/Redis/GCS reachability, NetworkPolicy, pool exhaustion | stop rollout; preserve events and dependency metrics |
+| Pods unready | `/health`, SQL/GCS reachability, NetworkPolicy, pool exhaustion | stop rollout; preserve events and dependency metrics |
 | 401/403 | hostname/proxy identity, explicit workspace role, `grant_default_workspace_access` | fix narrow role assignment; never broaden default permission |
 | Artifact failure | proxy URI, GSA binding, GCS permission/retention, storage errors | pause artifact-producing workflows; Mindclade CAS remains authoritative |
 | Cross-workspace visibility | active workspace header/context and role grants | treat as security incident; freeze administration and revoke the narrow grant |
-| Gateway overspend | Redis health, budget policy scope/action, refresh lag | disable affected MLflow endpoint through reviewed admin action; do not bypass budgets |
+| Gateway overspend | Go reservation ledger, Rust dispatch/reconciliation state, effective bundle epoch | disable the governed endpoint through a two-person admin action; do not enable MLflow's native serving path |
 | Trace DB growth | archival config freshness, scheduler lag/errors, finalized traces | reduce ingestion or approved retention; never delete unverified evidence ad hoc |
-| High latency/errors | SQL pool/saturation, Redis/GCS errors, HPA, upstream provider | shed optional mirror traffic; authoritative training/serving must continue |
+| High latency/errors | SQL pool/saturation, GCS errors, HPA | shed optional mirror traffic; authoritative training/serving must continue |
 
 ## Rollback
 

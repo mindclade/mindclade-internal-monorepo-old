@@ -17,7 +17,8 @@ image digest and release evidence.
 - GCS artifacts and trace archives proxied through the server, so clients receive no bucket
   credentials. MLflow resolves the workspace-aware proxy root to `mlflow-artifacts:/`.
 - Basic auth plus workspace RBAC, with explicit host/CORS protection.
-- Redis-backed AI Gateway budget enforcement shared across every worker and replica.
+- MLflow Gateway serving and usage tracking remain disabled: the governed Rust proxy and Go
+  control plane are the sole request, entitlement, reservation, and budget authority.
 - A PreSync, bounded, single-writer schema migration Job before the Deployment rollout.
 - GKE Workload Identity, no Kubernetes API token, namespace default deny, exact network flows,
   a separately admitted `gmp-system` collector namespace, PDB, HPA, topology spread, probes, and
@@ -27,7 +28,8 @@ image digest and release evidence.
 The image at `//services/mlflow:image` is assembled with Bazel/rules_oci from an independently
 hash-locked Python graph. A platform transition forces Linux/amd64 wheels even when a developer
 builds on macOS. The image contains MLflow 3.15.1 with basic-auth, AI Gateway, PostgreSQL, GCS, and
-Redis support. `//services/mlflow:validate_image` binds the OCI output to `runtime.lock.yaml` and
+upstream Redis client support. `//services/mlflow:validate_image` binds the OCI output to
+`runtime.lock.yaml` and
 rejects a wrong platform, runtime identity, entrypoint, missing extra, or Darwin-native binary.
 The committed manifest digest is produced and enforced on Linux, matching the protected release
 executor. Non-Linux development hosts still run every structural and content assertion, but do
@@ -44,13 +46,12 @@ Activation must bind observed, environment-specific resources rather than fabric
 2. a versioned GCS bucket prefix for proxied artifacts and another prefix for trace archival,
    with uniform bucket access, retention/lifecycle, encryption, restore evidence, and no public
    access;
-3. a highly available TLS Redis endpoint for shared Gateway budget state;
-4. a dedicated GSA with only required object permissions and a qualified KSA/GSA binding;
-5. an externally synchronized `mlflow-runtime` Secret and rotation owner;
-6. an identity-aware TLS ingress namespace and hostname permitted by the GitOps project;
-7. exact private database/Redis CIDRs, approved Google API restricted-VIP CIDRs, and the observed
+3. a dedicated GSA with only required object permissions and a qualified KSA/GSA binding;
+4. an externally synchronized `mlflow-runtime` Secret and rotation owner;
+5. an identity-aware TLS ingress namespace and hostname permitted by the GitOps project;
+6. exact private database CIDRs, approved Google API restricted-VIP CIDRs, and the observed
    managed Prometheus collector namespace;
-8. image SBOM, provenance, signature, vulnerability result, runtime smoke result, and rollback
+7. image SBOM, provenance, signature, vulnerability result, runtime smoke result, and rollback
    digest connected by one release evidence graph.
 
 The external Secret must provide exactly these chart-selected keys:
@@ -59,7 +60,6 @@ The external Secret must provide exactly these chart-selected keys:
 |---|---|
 | `backend-store-uri` | TLS PostgreSQL SQLAlchemy URI; never emitted in a manifest or process argv |
 | `flask-secret-key` | stable high-entropy CSRF/encryption key shared by all replicas |
-| `gateway-budget-redis-uri` | authenticated `rediss://` URI for shared budget state |
 | `auth-config.ini` | MLflow basic-auth/RBAC configuration |
 | `trace-archival.yaml` | server-owned bounded trace archival policy |
 
@@ -86,9 +86,11 @@ nix develop .#ci --command tools/dev/bazelw test \
 
 The image also needs an amd64 runtime test that imports `flask_wtf`, `google.cloud.storage`,
 `psycopg2`, `redis`, and MLflow Gateway modules, reports MLflow 3.15.1, starts against disposable
-PostgreSQL/GCS-compatible/Redis dependencies, executes `mindclade-db-upgrade`, and probes
+PostgreSQL/GCS-compatible dependencies, executes `mindclade-db-upgrade`, and probes
 `/version`, `/health`, `/metrics`, workspace isolation, artifact proxying, trace archival, and a
-rejecting budget. Static and image-build success alone do not satisfy that connected gate.
+proof that native Gateway serving/usage tracking is not externally reachable. Budget and
+no-overspend qualification belongs to the governed Go/Rust gateway. Static and image-build
+success alone do not satisfy that connected gate.
 
 No custom resource is justified for MLflow. The upstream APIs and Git-owned Helm values express
 the desired state without introducing a new cluster-scoped API, controller, finalizer, or webhook.

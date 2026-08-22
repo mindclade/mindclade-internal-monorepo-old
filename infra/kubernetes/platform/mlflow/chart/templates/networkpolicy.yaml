@@ -61,14 +61,6 @@ spec:
         - protocol: TCP
           port: {{ .Values.networkPolicy.database.port }}
     - to:
-        {{- range .Values.networkPolicy.redis.cidrs }}
-        - ipBlock:
-            cidr: {{ . | quote }}
-        {{- end }}
-      ports:
-        - protocol: TCP
-          port: {{ .Values.networkPolicy.redis.port }}
-    - to:
         {{- range .Values.networkPolicy.httpsCIDRs }}
         - ipBlock:
             cidr: {{ . | quote }}

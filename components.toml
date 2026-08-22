@@ -93,6 +93,14 @@ owner = "runtime-platform"
 tests = ["services/runtime_gateway/tests/integration.rs", "services/runtime_gateway/tests/shutdown.rs"]
 
 [[component]]
+name = "runtime.ai_gateway_proxy"
+path = "services/ai_gateway_proxy"
+status = "implemented"
+owner = "runtime-platform"
+tests = ["services/ai_gateway_proxy/tests/integration.rs"]
+qualification = "docs/qualification/ai-gateway-proxy.md"
+
+[[component]]
 name = "runtime.host"
 path = "services/runtime_host"
 status = "implemented"

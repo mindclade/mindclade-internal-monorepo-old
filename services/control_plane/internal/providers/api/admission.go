@@ -25,14 +25,22 @@ import (
 )
 
 const (
-	reservationsPath     = "/v1/ai-gateway/reservations"
-	reservationPrefix    = reservationsPath + "/"
-	maximumAdmissionBody = 64 << 10
+	reservationsPath       = "/v1/ai-gateway/reservations"
+	reservationPrefix      = reservationsPath + "/"
+	endpointPrefix         = "/v1/ai-gateway/workspaces/"
+	delegatedSubjectHeader = "X-Mindclade-Delegated-Subject"
+	maximumAdmissionBody   = 64 << 10
 )
 
+var delegatedSubjectPermission = auth.MustParsePermission("ai_gateway.proxy.delegate")
+
 type admissionEngine interface {
+	ResolveEndpoint(context.Context, string, string, string, admission.GatewayOperation) (admission.ResolvedEndpoint, error)
 	Admit(context.Context, admission.AdmitRequest) (admission.Decision, error)
+	Dispatch(context.Context, identifiers.ID, resourceversion.Version, identifiers.Digest, string) (admission.Decision, error)
+	MarkReconciliationPending(context.Context, identifiers.ID, resourceversion.Version, identifiers.Digest, string) (admission.Decision, error)
 	Commit(context.Context, identifiers.ID, resourceversion.Version, identifiers.Digest, string, admission.Quota) (admission.Decision, error)
+	Reconcile(context.Context, identifiers.ID, resourceversion.Version, identifiers.Digest, string) (admission.Decision, error)
 	Release(context.Context, identifiers.ID, resourceversion.Version, identifiers.Digest, string) (admission.Decision, error)
 }
 
@@ -67,6 +75,8 @@ type reservationHTTPResponse struct {
 	State              admission.ReservationState `json:"state"`
 	CreatedAt          time.Time                  `json:"created_at"`
 	ExpiresAt          time.Time                  `json:"expires_at"`
+	DispatchedAt       *time.Time                 `json:"dispatched_at,omitempty"`
+	ReconciliationAt   *time.Time                 `json:"reconciliation_pending_at,omitempty"`
 	FinalizedAt        *time.Time                 `json:"finalized_at,omitempty"`
 	Version            resourceversion.Version    `json:"resource_version"`
 }
@@ -81,9 +91,44 @@ func newAdmissionMux(engine admissionEngine, metrics admissionmetrics.Recorder) 
 		return nil, admissionHTTPError(faults.CodeFailedPrecondition, "admission_engine_unconfigured", "admission engine is not configured")
 	}
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET "+endpointPrefix+"{workspaceID}/endpoints/{endpoint}", func(writer http.ResponseWriter, request *http.Request) {
+		request = withAdmissionOperation(request, "ai_gateway.endpoints.resolve")
+		principal, err := auth.RequirePrincipal(request.Context())
+		if err != nil {
+			httpx.WriteError(request.Context(), writer, err, request.URL.Path)
+			return
+		}
+		subject, err := effectiveAdmissionSubject(request, principal)
+		if err != nil {
+			httpx.WriteError(request.Context(), writer, err, request.URL.Path)
+			return
+		}
+		query := request.URL.Query()
+		operations, exact := query["operation"]
+		if !exact || len(query) != 1 || len(operations) != 1 {
+			err := admissionHTTPError(faults.CodeInvalidArgument, "endpoint_operation_required", "exactly one endpoint operation is required")
+			httpx.WriteError(request.Context(), writer, err, request.URL.Path)
+			return
+		}
+		resolved, err := engine.ResolveEndpoint(request.Context(), subject, request.PathValue("workspaceID"), request.PathValue("endpoint"), admission.GatewayOperation(operations[0]))
+		if err != nil {
+			httpx.WriteError(request.Context(), writer, err, request.URL.Path)
+			return
+		}
+		writer.Header().Set("Cache-Control", "no-store")
+		writer.Header().Set("ETag", resolved.BundleVersion.ETag())
+		if err := httpx.WriteJSON(writer, http.StatusOK, resolved); err != nil {
+			httpx.WriteError(request.Context(), writer, err, request.URL.Path)
+		}
+	})
 	mux.HandleFunc("POST "+reservationsPath, func(writer http.ResponseWriter, request *http.Request) {
 		request = withAdmissionOperation(request, "ai_gateway.reservations.create")
 		principal, err := auth.RequirePrincipal(request.Context())
+		if err != nil {
+			httpx.WriteError(request.Context(), writer, err, request.URL.Path)
+			return
+		}
+		subject, err := effectiveAdmissionSubject(request, principal)
 		if err != nil {
 			httpx.WriteError(request.Context(), writer, err, request.URL.Path)
 			return
@@ -105,7 +150,7 @@ func newAdmissionMux(engine admissionEngine, metrics admissionmetrics.Recorder) 
 			httpx.WriteError(request.Context(), writer, err, request.URL.Path)
 			return
 		}
-		scope, err := idempotency.ParseScope(input.Workspace + "/mlflow-gateway/" + principal.Subject())
+		scope, err := idempotency.ParseScope(input.Workspace + "/mlflow-gateway/" + subject)
 		if err != nil {
 			completeAdmission(metrics, request.Context(), err)
 			httpx.WriteError(request.Context(), writer, err, request.URL.Path)
@@ -113,7 +158,7 @@ func newAdmissionMux(engine admissionEngine, metrics admissionmetrics.Recorder) 
 		}
 		decision, err := engine.Admit(request.Context(), admission.AdmitRequest{
 			Idempotency:   idempotency.Identity{Scope: scope, Key: key},
-			RequestDigest: input.RequestDigest, Subject: principal.Subject(), Workspace: input.Workspace,
+			RequestDigest: input.RequestDigest, Subject: subject, Workspace: input.Workspace,
 			Route: input.Route, PolicyEpoch: input.PolicyEpoch, Requested: input.Requested,
 			TTL: time.Duration(input.TTLSeconds) * time.Second,
 		})
@@ -142,18 +187,66 @@ func newAdmissionMux(engine admissionEngine, metrics admissionmetrics.Recorder) 
 			httpx.WriteError(request.Context(), writer, err, request.URL.Path)
 			return
 		}
+		subject, err := effectiveAdmissionSubject(request, principal)
+		if err != nil {
+			httpx.WriteError(request.Context(), writer, err, request.URL.Path)
+			return
+		}
 		reservationID, expected, input, err := decodeFinalizationRequest(request)
 		if err != nil {
 			httpx.WriteError(request.Context(), writer, err, request.URL.Path)
 			return
 		}
 		qualifyAdmission(metrics, request.Context(), admissionmetrics.OperationCommit)
-		decision, err := engine.Commit(request.Context(), reservationID, expected, input.RequestDigest, principal.Subject(), input.Actual)
+		decision, err := engine.Commit(request.Context(), reservationID, expected, input.RequestDigest, subject, input.Actual)
 		writeFinalization(writer, request, decision, err, metrics)
 	})
+	for _, transition := range []struct {
+		action    string
+		operation admissionmetrics.Operation
+		apply     func(context.Context, identifiers.ID, resourceversion.Version, identifiers.Digest, string) (admission.Decision, error)
+	}{
+		{"dispatch", admissionmetrics.OperationDispatch, engine.Dispatch},
+		{"reconciliation-pending", admissionmetrics.OperationReconciliationPending, engine.MarkReconciliationPending},
+		{"reconcile", admissionmetrics.OperationReconcile, engine.Reconcile},
+	} {
+		transition := transition
+		mux.HandleFunc("POST "+reservationPrefix+"{reservationID}/"+transition.action, func(writer http.ResponseWriter, request *http.Request) {
+			request = withAdmissionOperation(request, "ai_gateway.reservations."+transition.action)
+			principal, err := auth.RequirePrincipal(request.Context())
+			if err != nil {
+				httpx.WriteError(request.Context(), writer, err, request.URL.Path)
+				return
+			}
+			subject, err := effectiveAdmissionSubject(request, principal)
+			if err != nil {
+				httpx.WriteError(request.Context(), writer, err, request.URL.Path)
+				return
+			}
+			reservationID, expected, input, err := decodeFinalizationRequest(request)
+			if err != nil {
+				httpx.WriteError(request.Context(), writer, err, request.URL.Path)
+				return
+			}
+			qualifyAdmission(metrics, request.Context(), transition.operation)
+			if len(input.Actual) != 0 {
+				err := admissionHTTPError(faults.CodeInvalidArgument, "lifecycle_actual_unexpected", "reservation lifecycle transition must not contain actual usage")
+				completeAdmission(metrics, request.Context(), err)
+				httpx.WriteError(request.Context(), writer, err, request.URL.Path)
+				return
+			}
+			decision, err := transition.apply(request.Context(), reservationID, expected, input.RequestDigest, subject)
+			writeFinalization(writer, request, decision, err, metrics)
+		})
+	}
 	mux.HandleFunc("POST "+reservationPrefix+"{reservationID}/release", func(writer http.ResponseWriter, request *http.Request) {
 		request = withAdmissionOperation(request, "ai_gateway.reservations.release")
 		principal, err := auth.RequirePrincipal(request.Context())
+		if err != nil {
+			httpx.WriteError(request.Context(), writer, err, request.URL.Path)
+			return
+		}
+		subject, err := effectiveAdmissionSubject(request, principal)
 		if err != nil {
 			httpx.WriteError(request.Context(), writer, err, request.URL.Path)
 			return
@@ -170,10 +263,39 @@ func newAdmissionMux(engine admissionEngine, metrics admissionmetrics.Recorder) 
 			httpx.WriteError(request.Context(), writer, err, request.URL.Path)
 			return
 		}
-		decision, err := engine.Release(request.Context(), reservationID, expected, input.RequestDigest, principal.Subject())
+		decision, err := engine.Release(request.Context(), reservationID, expected, input.RequestDigest, subject)
 		writeFinalization(writer, request, decision, err, metrics)
 	})
 	return mux, nil
+}
+
+// effectiveAdmissionSubject permits the authenticated gateway workload to act
+// for a caller only when it has the dedicated delegation capability. The
+// delegated value is the canonical, non-PII issuer/subject digest produced by
+// the edge; arbitrary identity text and user-principal impersonation are
+// rejected before policy or reservation state is consulted.
+func effectiveAdmissionSubject(request *http.Request, principal auth.Principal) (string, error) {
+	values := request.Header.Values(delegatedSubjectHeader)
+	if len(values) == 0 {
+		return principal.Subject(), nil
+	}
+	if len(values) != 1 {
+		return "", admissionHTTPError(faults.CodeInvalidArgument, "delegated_subject_ambiguous", "delegated subject header must not be repeated")
+	}
+	if principal.Kind() != auth.PrincipalKindService && principal.Kind() != auth.PrincipalKindWorkload {
+		return "", admissionHTTPError(faults.CodePermissionDenied, "delegated_subject_principal_forbidden", "only a service or workload principal may delegate a gateway subject")
+	}
+	if !principal.Allows(delegatedSubjectPermission) {
+		return "", admissionHTTPError(faults.CodePermissionDenied, "delegated_subject_forbidden", "authenticated principal may not delegate a gateway subject")
+	}
+	if !strings.HasPrefix(values[0], "google-") {
+		return "", admissionHTTPError(faults.CodeInvalidArgument, "delegated_subject_invalid", "delegated subject must be a canonical Google identity digest")
+	}
+	digest, err := identifiers.ParseDigest("sha256:" + strings.TrimPrefix(values[0], "google-"))
+	if err != nil {
+		return "", admissionHTTPError(faults.CodeInvalidArgument, "delegated_subject_invalid", "delegated subject must be a canonical Google identity digest")
+	}
+	return "google-" + digest.Hex(), nil
 }
 
 func decodeFinalizationRequest(request *http.Request) (identifiers.ID, resourceversion.Version, finalizeHTTPRequest, error) {
@@ -227,6 +349,16 @@ func completeAdmission(metrics admissionmetrics.Recorder, ctx context.Context, e
 
 func projectDecision(decision admission.Decision) decisionHTTPResponse {
 	reservation := decision.Reservation
+	var dispatchedAt *time.Time
+	if !reservation.DispatchedAt.IsZero() {
+		value := reservation.DispatchedAt
+		dispatchedAt = &value
+	}
+	var reconciliationAt *time.Time
+	if !reservation.ReconciliationAt.IsZero() {
+		value := reservation.ReconciliationAt
+		reconciliationAt = &value
+	}
 	var finalizedAt *time.Time
 	if !reservation.FinalizedAt.IsZero() {
 		value := reservation.FinalizedAt
@@ -239,7 +371,8 @@ func projectDecision(decision admission.Decision) decisionHTTPResponse {
 			EntitlementVersion: reservation.EntitlementVersion, BudgetID: reservation.BudgetID,
 			BudgetVersion: reservation.BudgetVersion, Reserved: reservation.Reserved.Clone(),
 			Actual: reservation.Actual.Clone(), State: reservation.State, CreatedAt: reservation.CreatedAt,
-			ExpiresAt: reservation.ExpiresAt, FinalizedAt: finalizedAt, Version: reservation.Version,
+			ExpiresAt: reservation.ExpiresAt, DispatchedAt: dispatchedAt, ReconciliationAt: reconciliationAt,
+			FinalizedAt: finalizedAt, Version: reservation.Version,
 		},
 		Replayed: decision.Replayed,
 	}
@@ -263,13 +396,43 @@ func resolveAdmissionAuthorization(request *http.Request) (middleware.Authorizat
 		return middleware.AuthorizationTarget{}, false, admissionHTTPError(faults.CodeInvalidArgument, "authorization_request_nil", "authorization request is invalid")
 	}
 	permission := ""
+	resourceTypeName := "ai_gateway.reservation"
 	var resourceOptions []auth.ResourceOption
 	switch {
+	case request.Method == http.MethodGet && matchesEndpointResolutionPath(request.URL.Path):
+		permission = "ai_gateway.endpoints.resolve"
+		resourceTypeName = "ai_gateway.workspace"
+		workspaceID, err := admissionAuthorizationWorkspaceID(request.URL.Path)
+		if err != nil {
+			return middleware.AuthorizationTarget{}, false, err
+		}
+		resourceOptions = append(resourceOptions, auth.WithResourceID(workspaceID))
 	case request.Method == http.MethodPost && request.URL.Path == reservationsPath:
 		permission = "ai_gateway.reservations.create"
 	case request.Method == http.MethodPost && matchesAdmissionActionPath(request.URL.Path, "commit"):
 		permission = "ai_gateway.reservations.commit"
 		reservationID, err := admissionAuthorizationReservationID(request.URL.Path, "commit")
+		if err != nil {
+			return middleware.AuthorizationTarget{}, false, err
+		}
+		resourceOptions = append(resourceOptions, auth.WithResourceID(reservationID))
+	case request.Method == http.MethodPost && matchesAdmissionActionPath(request.URL.Path, "dispatch"):
+		permission = "ai_gateway.reservations.dispatch"
+		reservationID, err := admissionAuthorizationReservationID(request.URL.Path, "dispatch")
+		if err != nil {
+			return middleware.AuthorizationTarget{}, false, err
+		}
+		resourceOptions = append(resourceOptions, auth.WithResourceID(reservationID))
+	case request.Method == http.MethodPost && matchesAdmissionActionPath(request.URL.Path, "reconciliation-pending"):
+		permission = "ai_gateway.reservations.reconcile"
+		reservationID, err := admissionAuthorizationReservationID(request.URL.Path, "reconciliation-pending")
+		if err != nil {
+			return middleware.AuthorizationTarget{}, false, err
+		}
+		resourceOptions = append(resourceOptions, auth.WithResourceID(reservationID))
+	case request.Method == http.MethodPost && matchesAdmissionActionPath(request.URL.Path, "reconcile"):
+		permission = "ai_gateway.reservations.reconcile"
+		reservationID, err := admissionAuthorizationReservationID(request.URL.Path, "reconcile")
 		if err != nil {
 			return middleware.AuthorizationTarget{}, false, err
 		}
@@ -288,7 +451,7 @@ func resolveAdmissionAuthorization(request *http.Request) (middleware.Authorizat
 	if err != nil {
 		return middleware.AuthorizationTarget{}, false, err
 	}
-	resourceType, err := auth.ParseResourceType("ai_gateway.reservation")
+	resourceType, err := auth.ParseResourceType(resourceTypeName)
 	if err != nil {
 		return middleware.AuthorizationTarget{}, false, err
 	}
@@ -297,6 +460,25 @@ func resolveAdmissionAuthorization(request *http.Request) (middleware.Authorizat
 		return middleware.AuthorizationTarget{}, false, err
 	}
 	return middleware.AuthorizationTarget{Permission: parsedPermission, Resource: resource}, true, nil
+}
+
+func matchesEndpointResolutionPath(path string) bool {
+	if !strings.HasPrefix(path, endpointPrefix) {
+		return false
+	}
+	remainder := strings.TrimPrefix(path, endpointPrefix)
+	workspace, endpoint, found := strings.Cut(remainder, "/endpoints/")
+	return found && workspace != "" && endpoint != "" && !strings.Contains(workspace, "/") && !strings.Contains(endpoint, "/")
+}
+
+func admissionAuthorizationWorkspaceID(path string) (identifiers.ID, error) {
+	remainder := strings.TrimPrefix(path, endpointPrefix)
+	workspace, _, _ := strings.Cut(remainder, "/endpoints/")
+	id, err := identifiers.ParseIDKind(workspace, identifiers.MustParseKind("workspace"))
+	if err != nil {
+		return identifiers.ID{}, admissionHTTPError(faults.CodeInvalidArgument, "workspace_id_invalid", "workspace ID is invalid")
+	}
+	return id, nil
 }
 
 func matchesAdmissionActionPath(path, action string) bool {

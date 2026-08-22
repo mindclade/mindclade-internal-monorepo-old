@@ -45,6 +45,7 @@ spec:
     - platform/security
     - policies
     - services/artifact-proxy
+    - services/ai-gateway-proxy
     - services/batch-inference-workers
     - services/control-plane
     - services/curation-workers
@@ -125,12 +126,14 @@ spec:
     - cert-manager.io/v1/Issuer
     - gateway.networking.k8s.io/v1/Gateway
     - gateway.networking.k8s.io/v1/HTTPRoute
+    - gateway.networking.k8s.io/v1beta1/ReferenceGrant
     - jobset.x-k8s.io/v1alpha2/JobSet
     - kueue.x-k8s.io/v1beta2/ClusterQueue
     - kueue.x-k8s.io/v1beta2/LocalQueue
     - kueue.x-k8s.io/v1beta2/ResourceFlavor
     - kueue.x-k8s.io/v1beta2/Topology
     - networking.gke.io/v1/GCPBackendPolicy
+    - networking.gke.io/v1/HealthCheckPolicy
     - monitoring.googleapis.com/v1/PodMonitoring
     - monitoring.googleapis.com/v1/Rules
 
@@ -156,8 +159,12 @@ spec:
       file: gateway.networking.k8s.io_gateways.yaml
     - gvk: gateway.networking.k8s.io/v1/HTTPRoute
       file: gateway.networking.k8s.io_httproutes.yaml
+    - gvk: gateway.networking.k8s.io/v1beta1/ReferenceGrant
+      file: gateway.networking.k8s.io_referencegrants.yaml
     - gvk: networking.gke.io/v1/GCPBackendPolicy
       file: networking.gke.io_gcpbackendpolicies.yaml
+    - gvk: networking.gke.io/v1/HealthCheckPolicy
+      file: networking.gke.io_healthcheckpolicies.yaml
     - gvk: monitoring.googleapis.com/v1/PodMonitoring
       file: monitoring.googleapis.com_podmonitorings.yaml
     - gvk: monitoring.googleapis.com/v1/Rules
@@ -217,6 +224,7 @@ spec:
     - platform/qualification
     - platform/remote-execution
     - services/artifact-proxy
+    - services/ai-gateway-proxy
     - services/batch-inference-workers
     - services/control-plane
     - services/curation-workers
@@ -253,6 +261,7 @@ spec:
     - platform/qualification
     - platform/remote-execution
     - services/artifact-proxy
+    - services/ai-gateway-proxy
     - services/batch-inference-workers
     - services/control-plane
     - services/curation-workers

@@ -175,7 +175,7 @@ COALESCE(SUM(CASE WHEN state='committed' THEN actual_requests ELSE reserved_requ
 COALESCE(SUM(CASE WHEN state='committed' THEN actual_input_tokens ELSE reserved_input_tokens END),0),
 COALESCE(SUM(CASE WHEN state='committed' THEN actual_output_tokens ELSE reserved_output_tokens END),0),
 COALESCE(SUM(CASE WHEN state='committed' THEN actual_cost_micros ELSE reserved_cost_micros END),0)
-FROM %s WHERE budget_id=$1 AND (state='committed' OR (state='reserved' AND expires_at>$2))`, store.reservations)
+FROM %s WHERE budget_id=$1 AND (state IN ('committed','dispatched','reconciliation_pending') OR (state='reserved' AND expires_at>$2))`, store.reservations)
 	var requests, inputTokens, outputTokens, costMicros int64
 	if err := store.executor(ctx).QueryRowContext(ctx, query, budgetID.String(), now).Scan(
 		&requests, &inputTokens, &outputTokens, &costMicros); err != nil {
@@ -239,6 +239,18 @@ func (store *Store) Commit(ctx context.Context, id identifiers.ID, expected reso
 	return store.finalize(ctx, id, expected, digest, subject, actual, admission.ReservationCommitted, now)
 }
 
+func (store *Store) Dispatch(ctx context.Context, id identifiers.ID, expected resourceversion.Version, digest identifiers.Digest, subject string, now time.Time) (admission.Reservation, bool, error) {
+	return store.finalize(ctx, id, expected, digest, subject, nil, admission.ReservationDispatched, now)
+}
+
+func (store *Store) MarkReconciliationPending(ctx context.Context, id identifiers.ID, expected resourceversion.Version, digest identifiers.Digest, subject string, now time.Time) (admission.Reservation, bool, error) {
+	return store.finalize(ctx, id, expected, digest, subject, nil, admission.ReservationReconciliationPending, now)
+}
+
+func (store *Store) Reconcile(ctx context.Context, id identifiers.ID, expected resourceversion.Version, digest identifiers.Digest, subject string, now time.Time) (admission.Reservation, bool, error) {
+	return store.finalize(ctx, id, expected, digest, subject, nil, admission.ReservationCommitted, now)
+}
+
 func (store *Store) Release(ctx context.Context, id identifiers.ID, expected resourceversion.Version, digest identifiers.Digest, subject string, now time.Time) (admission.Reservation, bool, error) {
 	return store.finalize(ctx, id, expected, digest, subject, nil, admission.ReservationReleased, now)
 }
@@ -266,19 +278,16 @@ func (store *Store) finalize(ctx context.Context, id identifiers.ID, expected re
 		if current.Subject != subject {
 			return finalizationResult{}, domainError(txContext, faults.CodePermissionDenied, "reservation_subject_mismatch", "subject does not own reservation", operation)
 		}
-		if current.State == admission.ReservationExpired {
-			return finalizationResult{semantic: domainError(txContext, faults.CodeFailedPrecondition, "reservation_expired", "reservation has expired", operation)}, nil
-		}
-		if current.State == target && (target != admission.ReservationCommitted || current.Actual.Equal(actual)) {
+		if current.State == target && (target != admission.ReservationCommitted || len(actual) == 0 && current.Actual.Equal(current.Reserved) || current.Actual.Equal(actual)) {
 			return finalizationResult{reservation: current, replayed: true}, nil
 		}
-		if current.State != admission.ReservationReserved {
-			return finalizationResult{}, domainError(txContext, faults.CodeConflict, "reservation_terminal", "reservation is already terminal", operation)
+		if current.State == admission.ReservationExpired {
+			return finalizationResult{semantic: domainError(txContext, faults.CodeFailedPrecondition, "reservation_expired", "reservation has expired", operation)}, nil
 		}
 		if current.Version.String() != expected.String() {
 			return finalizationResult{}, domainError(txContext, faults.CodeConflict, "reservation_version_stale", "reservation version is stale", operation)
 		}
-		if !decisionNow.Before(current.ExpiresAt) {
+		if (target == admission.ReservationDispatched || target == admission.ReservationReleased) && !decisionNow.Before(current.ExpiresAt) {
 			expired, transitionErr := current.Expire(decisionNow)
 			if transitionErr != nil {
 				return finalizationResult{}, transitionErr
@@ -293,10 +302,21 @@ func (store *Store) finalize(ctx context.Context, id identifiers.ID, expected re
 		}
 		var updated admission.Reservation
 		var transitionErr error
-		if target == admission.ReservationCommitted {
-			updated, transitionErr = current.Commit(actual, decisionNow)
-		} else {
+		switch target {
+		case admission.ReservationDispatched:
+			updated, transitionErr = current.Dispatch(decisionNow)
+		case admission.ReservationReconciliationPending:
+			updated, transitionErr = current.MarkReconciliationPending(decisionNow)
+		case admission.ReservationCommitted:
+			if len(actual) == 0 {
+				updated, transitionErr = current.Reconcile(decisionNow)
+			} else {
+				updated, transitionErr = current.Commit(actual, decisionNow)
+			}
+		case admission.ReservationReleased:
 			updated, transitionErr = current.Release(decisionNow)
+		default:
+			transitionErr = domainError(txContext, faults.CodeInvalidArgument, "reservation_transition_invalid", "reservation transition is invalid", operation)
 		}
 		if transitionErr != nil {
 			return finalizationResult{}, transitionErr
@@ -304,9 +324,14 @@ func (store *Store) finalize(ctx context.Context, id identifiers.ID, expected re
 		if persistErr := store.updateReservation(txContext, current.Version, updated, decisionNow); persistErr != nil {
 			return finalizationResult{}, persistErr
 		}
-		action := "ai_gateway.reservation.commit"
-		if target == admission.ReservationReleased {
-			action = "ai_gateway.reservation.release"
+		action := map[admission.ReservationState]string{
+			admission.ReservationDispatched:            "ai_gateway.reservation.dispatch",
+			admission.ReservationReconciliationPending: "ai_gateway.reservation.reconciliation_pending",
+			admission.ReservationCommitted:             "ai_gateway.reservation.commit",
+			admission.ReservationReleased:              "ai_gateway.reservation.release",
+		}[target]
+		if len(actual) == 0 && target == admission.ReservationCommitted {
+			action = "ai_gateway.reservation.reconcile"
 		}
 		if emitErr := store.emitReservation(txContext, action, updated); emitErr != nil {
 			return finalizationResult{}, emitErr
@@ -397,7 +422,7 @@ func (store *Store) ExpireReservations(ctx context.Context, limit int, _ time.Ti
 	return runMutation(ctx, store, operation, func(txContext context.Context) ([]admission.Reservation, error) {
 		decisionNow := store.clock.Now().Round(0).UTC()
 		rows, err := store.executor(txContext).QueryContext(txContext,
-			fmt.Sprintf(`SELECT document FROM %s WHERE state='reserved' AND expires_at<=$1 ORDER BY expires_at,reservation_id FOR UPDATE SKIP LOCKED LIMIT $2`, store.reservations),
+			fmt.Sprintf(`SELECT document FROM %s WHERE ((state IN ('reserved','dispatched') AND expires_at<=$1) OR state='reconciliation_pending') ORDER BY expires_at,reservation_id FOR UPDATE SKIP LOCKED LIMIT $2`, store.reservations),
 			decisionNow, limit)
 		if err != nil {
 			return nil, provider(txContext, err, operation)
@@ -418,20 +443,32 @@ func (store *Store) ExpireReservations(ctx context.Context, limit int, _ time.Ti
 		if err := rows.Err(); err != nil {
 			return nil, provider(txContext, err, operation+".Rows")
 		}
-		expired := make([]admission.Reservation, 0, len(current))
+		transitioned := make([]admission.Reservation, 0, len(current))
 		for _, reservation := range current {
-			updated, transitionErr := reservation.Expire(decisionNow)
+			var updated admission.Reservation
+			var transitionErr error
+			action := "ai_gateway.reservation.expire"
+			switch reservation.State {
+			case admission.ReservationReserved:
+				updated, transitionErr = reservation.Expire(decisionNow)
+			case admission.ReservationDispatched:
+				updated, transitionErr = reservation.MarkReconciliationPending(decisionNow)
+				action = "ai_gateway.reservation.reconciliation_pending"
+			case admission.ReservationReconciliationPending:
+				updated, transitionErr = reservation.Reconcile(decisionNow)
+				action = "ai_gateway.reservation.reconcile"
+			}
 			if transitionErr != nil {
 				return nil, transitionErr
 			}
 			if persistErr := store.updateReservation(txContext, reservation.Version, updated, decisionNow); persistErr != nil {
 				return nil, persistErr
 			}
-			if emitErr := store.emitReservation(txContext, "ai_gateway.reservation.expire", updated); emitErr != nil {
+			if emitErr := store.emitReservation(txContext, action, updated); emitErr != nil {
 				return nil, emitErr
 			}
-			expired = append(expired, updated)
+			transitioned = append(transitioned, updated)
 		}
-		return expired, nil
+		return transitioned, nil
 	})
 }

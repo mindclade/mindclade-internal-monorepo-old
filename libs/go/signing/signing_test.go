@@ -9,6 +9,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -43,6 +44,17 @@ func TestHMACRoundTripAndText(t *testing.T) {
 	}
 	if err := set.Verify(context.Background(), []byte("tampered"), decoded); err == nil {
 		t.Fatal("tampered payload verified")
+	}
+	encoded, err := json.Marshal(signature)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var jsonDecoded Signature
+	if err := json.Unmarshal(encoded, &jsonDecoded); err != nil {
+		t.Fatal(err)
+	}
+	if err := set.Verify(context.Background(), []byte("payload"), jsonDecoded); err != nil {
+		t.Fatal(err)
 	}
 }
 func TestEd25519ValidityWindow(t *testing.T) {

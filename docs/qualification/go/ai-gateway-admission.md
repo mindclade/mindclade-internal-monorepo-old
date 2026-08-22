@@ -7,14 +7,25 @@ The authoritative AI Gateway accounting boundary is implemented in
 `control/admission`, bound to PostgreSQL by
 `services/control_plane/internal/store/postgres/admission`, mounted by the API
 role, and wired to the maintenance role behind the source-defined leadership
-gate. MLflow's Redis-backed budget remains a secondary local guard and is not
+gate. MLflow's native Gateway budget and serving path remain disabled and are not
 accounting authority.
 
-## Current local connected evidence
+## Current candidate evidence
 
-- Admission accounting, maintenance probes, migration v14, and their local
-  qualifier are exact through source snapshot
-  `5318cb32ea910888ea2017cc6a60be3598a93c2a`.
+- Migrations v15 and v16 append the atomic workspace-policy governance tables and the durable
+  `reserved -> dispatched -> reconciliation_pending -> terminal` lifecycle. Existing migration
+  bytes remain checksum-locked by the registry tests.
+- The admin-only API accepts complete bundle proposals, exact version preconditions, and separate
+  approval/rejection/cancellation decisions. Approval requires a distinct authenticated IAP
+  principal and atomically writes the bundle, entitlements, budget, approval receipt, audit, and
+  outbox records.
+- The machine API resolves only an active subject entitlement joined to the current active bundle;
+  the response contains the exact policy epoch, route, connection reference, pricing version,
+  metadata-only trace posture, and subject reservation ceiling.
+- Reservation admission always reserves the server-owned entitlement maximum. Caller-supplied
+  quota is only a bounded declaration and cannot under-reserve the provider call.
+- Local isolated Go package tests pass for admission, API/admin composition, IAP authentication,
+  metrics, registry migrations, signing, middleware, configuration, and PostgreSQL adapters.
 - The final package suite passed with `-race -count=1` against PostgreSQL 18.4
   for `services/control_plane/internal/providers/maintenance`,
   `services/control_plane/internal/providers/registry`, and
@@ -30,8 +41,9 @@ accounting authority.
   merge-group paths. A protected pull-request and merge-group run is still
   pending and is required merge evidence.
 
-This is local connected evidence against a real PostgreSQL server. It is not
-evidence that a production database has accepted the migration manifest or
+The PostgreSQL 18.4 results below are retained historical connected evidence for the earlier
+accounting/observability boundary. The v15/v16 candidate still requires a fresh connected run
+before activation. Neither evidence class proves that a production database has accepted the migration manifest or
 that the production monitoring path has scraped and evaluated the resulting
 signals.
 
@@ -99,6 +111,12 @@ and adds exactly these indexes:
 - admission outbox lookup by the `audit-event-id` header; and
 - completed-only housekeeping work by `queue,completed_at,item_id`.
 
+Append-only v15 `gateway_policy_governance` creates sealed bundle, proposal, and approval-receipt
+tables with database constraints for proposal state, actor separation, bundle version lineage,
+and immutable decision data. Append-only v16 `gateway_dispatch_lifecycle` expands reservations
+with dispatched and reconciliation-pending states, transition timestamps, and database checks
+that prevent terminal usage or timestamps from drifting from the lifecycle state.
+
 The maintenance lineage signal is deliberately bounded to the newest 1,000
 audit and outbox candidates in a 24-hour lookback. It detects recent missing or
 mismatched lineage; it is not historical reconciliation and cannot prove the
@@ -127,20 +145,20 @@ tools/dev/nixw develop .#ci-bazel --command tools/dev/bazelw test \
 
 ## Production activation boundary
 
-This evidence qualifies the source-defined, single-process durable admission
-accounting, expiration, and bounded recent-observability behavior. Production
-activation remains blocked until all of the following have connected evidence:
+This evidence qualifies the source-defined admission, governance, and durable lifecycle behavior
+only to the evidence classes stated above. Production activation remains blocked until all of the
+following have connected evidence:
 
-- existing migration receipts are verified, v14 is applied through the
+- existing migration receipts are verified, v14-v16 are applied through the
   migration runner with an index-lock preflight, and the post-migration query
   plans are captured;
 - the protected PostgreSQL 17 pull-request and merge-group lane passes;
 - Google Managed Service for Prometheus collector identity and authorization,
   NetworkPolicy reachability, live API and maintenance scrapes, rule
   evaluation, alert routing, and notification delivery are qualified;
-- a tenant-scoped, signed, two-person-controlled policy administration and
-  initial entitlement/budget seeding authority is defined and qualified; and
-- the bypass-proof Gateway proxy, provider-call reconciliation, cross-pod
+- the IAP audience, managed-proxy identity, and two-person administration flows receive connected
+  negative and audit-lineage qualification; and
+- the governed Rust Gateway proxy, provider-call reconciliation, cross-pod
   lease failover, long-running retention/backlog behavior, backup/restore, and
   production release are qualified.
 

@@ -1241,8 +1241,8 @@ control_admission_api_metrics_contract="$(yq eval-all -r 'select(
   .metadata.name == "control-admission-api-recording") |
   .metadata.annotations."mindclade.dev/metrics-contract"' "${control_plane_render}")"
 [[ "${control_admission_api_metrics_contract}" == \
-  "admission-api-v1:30-decision-counters:36-histogram-buckets:3-histogram-counts:3-histogram-sums-per-replica" ]] ||
-  fail "control-admission API rules must pin the exact v1 per-replica metric inventory"
+  "admission-api-v2:60-decision-counters:72-histogram-buckets:6-histogram-counts:6-histogram-sums-per-replica" ]] ||
+  fail "control-admission API rules must pin the exact v2 per-replica metric inventory"
 control_admission_maintenance_rules_blocker="$(yq eval-all -r 'select(
   .apiVersion == "monitoring.googleapis.com/v1" and .kind == "Rules" and
   .metadata.name == "control-admission-maintenance-recording") |

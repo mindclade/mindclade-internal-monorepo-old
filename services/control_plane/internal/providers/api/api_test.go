@@ -25,9 +25,10 @@ const testAPIKey = "api-client-secret-value"
 func apiSettings() foundationconfig.MapSource {
 	digest := sha256.Sum256([]byte(testAPIKey))
 	return foundationconfig.MapSource{SourceName: "test", Values: map[string]string{
-		"signing.hmac_key": "01234567890123456789012345678901",
-		"database.dsn":     "postgres://control:control@127.0.0.1:5432/control?sslmode=require",
-		"auth.api_keys":    "api-client:" + hex.EncodeToString(digest[:]) + ":artifacts.read",
+		"signing.hmac_key":  "01234567890123456789012345678901",
+		"database.dsn":      "postgres://control:control@127.0.0.1:5432/control?sslmode=require",
+		"auth.api_keys":     "api-client:" + hex.EncodeToString(digest[:]) + ":artifacts.read",
+		"auth.iap_audience": "/projects/123/global/backendServices/456",
 		// Port 0 lets the kernel choose, so the suite never collides with a
 		// developer's running process or with a parallel package.
 		"http.address":    "127.0.0.1:0",
@@ -232,6 +233,22 @@ func TestUnconfiguredAPIKeysFailClosed(t *testing.T) {
 		t.Fatal("api started with no credential registry")
 	} else if reason := faults.ReasonOf(err); reason != "api_keys_not_configured" {
 		t.Fatalf("reason=%s", reason)
+	}
+}
+
+func TestAdminUsesIAPInsteadOfSharedAPIKeys(t *testing.T) {
+	source := apiSettings()
+	source.Values["auth.api_keys"] = ""
+	profile, err := bootstrap.ProfileFor(bootstrap.RoleAdmin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewAdminFactory(source).Create(context.Background(), profile); err != nil {
+		t.Fatalf("admin unexpectedly depends on the API-key registry: %v", err)
+	}
+	source.Values["auth.iap_audience"] = ""
+	if _, err := NewAdminFactory(source).Create(context.Background(), profile); !faults.IsReason(err, "iap_audience_not_configured") {
+		t.Fatalf("admin accepted an unbound IAP audience: %v", err)
 	}
 }
 
