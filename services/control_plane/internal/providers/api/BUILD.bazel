@@ -21,8 +21,8 @@ go_library(
     deps = [
         "//control/admission",
         "//control/evidence",
-        "//libs/go/clock",
         "//libs/go/auth",
+        "//libs/go/clock",
         "//libs/go/config",
         "//libs/go/connectx",
         "//libs/go/connectx/health",

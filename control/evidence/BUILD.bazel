@@ -8,7 +8,10 @@ package(default_visibility = ["//visibility:private"])
 
 go_library(
     name = "evidence",
-    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    srcs = glob(
+        ["*.go"],
+        exclude = ["*_test.go"],
+    ),
     importpath = "go.mindclade.dev/control/evidence",
     visibility = ["//services:__subpackages__"],
     deps = [
