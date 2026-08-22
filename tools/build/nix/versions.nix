@@ -34,7 +34,7 @@
 
   # Consumed by pyproject.toml's requires-python, [tool.ruff] target-version, and mypy's
   # python_version. Major.minor for the same reason as go.
-  python = "3.12";
+  python = "3.14";
 
   # Consumed by package.json's engines.node. Major only: the devShell pins nodejs_22 and the
   # patch level follows nixpkgs.

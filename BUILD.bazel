@@ -88,6 +88,8 @@ _TOOLING = [
     "pnpm-lock.yaml",
     "pnpm-workspace.yaml",
     "pyproject.toml",
+    "requirements.darwin.lock.txt",
+    "requirements.lock.txt",
     "tsconfig.base.json",
 ]
 

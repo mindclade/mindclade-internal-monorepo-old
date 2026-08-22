@@ -27,7 +27,7 @@ from safetensors.torch import load as load_safetensors
 from safetensors.torch import save_file
 from torch import nn
 
-from libs.python.serialization import canonical_json_bytes
+from libs.python.serialization import canonical_json_bytes, validate_json_nesting
 
 REFERENCE_AFFINE_MODEL_NAME: Final = "reference-affine-v1"
 REFERENCE_AFFINE_OPERATION: Final = "reference.affine.v1"
@@ -196,6 +196,7 @@ def parse_reference_affine_config(value: bytes) -> ReferenceAffineConfig:
     if not value or len(value) > MAXIMUM_REFERENCE_CONFIG_BYTES:
         raise ValueError("reference affine config size is outside bounds")
     try:
+        validate_json_nesting(value)
         document = json.loads(
             value,
             object_pairs_hook=_unique_json_object,

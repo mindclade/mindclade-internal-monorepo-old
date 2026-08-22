@@ -208,21 +208,49 @@ go_sdk.download(version = "1.26.6")
 # Keep in step with `requires-python` in pyproject.toml and `python-version` in
 # .github/workflows/presubmit.yml.
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+
+# rules_python 1.7's built-in `3.14` mapping stops at 3.14.0. CI and the Nix closure carry
+# 3.14.7, so register the upstream standalone release explicitly and bind the minor selector
+# to that exact patch. These are the only host/target platforms the repository declares.
+python.single_version_override(
+    python_version = "3.14.7",
+    sha256 = {
+        "aarch64-apple-darwin": "abbf6e8530a283ed795fa91fd6bcf4501e2b1fa287b2cb1c15b70d3028f3a7c9",
+        "aarch64-unknown-linux-gnu": "f278d66c15e81f6c77719892e3eb32ff4bca5fc4ab424e171d14bc12bb88b4ee",
+        "x86_64-unknown-linux-gnu": "a3a4e4b81b138960c7c546694df8a77578c0b6aa46d47e96f49b9e10e8f860c9",
+    },
+    urls = [
+        "https://github.com/astral-sh/python-build-standalone/releases/download/20260805/cpython-{python_version}+20260805-{platform}-install_only_stripped.tar.gz",
+    ],
+)
+python.override(
+    minor_mapping = {"3.14": "3.14.7"},
+)
 python.toolchain(
     is_default = True,
-    python_version = "3.12",
+    python_version = "3.14",
 )
 
-# Third-party wheels, resolved from the SAME uv lock that `uv sync` and the Python CI lane
-# use. requirements.lock.txt is generated, never hand-edited:
+# Third-party wheels, resolved from the same project input as the uv lock used by `uv sync`
+# and the Python CI lane. The platform locks are generated, never hand-edited:
 #
-#     uv lock && uv export --format requirements-txt --no-emit-project --emit-index-url \
-#       -o requirements.lock.txt
+#     uv pip compile pyproject.toml --group dev --generate-hashes --python-version 3.14 \
+#       --python-platform linux --only-binary :all: \
+#       --output-file requirements.lock.txt
+#     MACOSX_DEPLOYMENT_TARGET=14.0 uv pip compile pyproject.toml --group dev \
+#       --generate-hashes --python-version 3.14 \
+#       --python-platform aarch64-apple-darwin --only-binary :all: \
+#       --output-file requirements.darwin.lock.txt
 #
-# uv.lock is the source of truth; rules_python cannot read it, so the export is the bridge.
-# Two resolvers over one lock is the point — Bazel and uv install the same versions, and the
-# exported hashes mean a wheel that changed under a version is a hard failure rather than a
-# silently different dependency.
+# PyTorch publishes `2.13.0` metadata on macOS and `2.13.0+cpu` on its Linux CPU index.
+# rules_python merges duplicate normalized names in a universal requirements export, which can
+# pair the Linux wheel with the macOS hashes. Separate OS locks keep that choice unambiguous.
+# The Darwin lock is arm64-only because x86_64-darwin is explicitly outside the Nix-supported
+# system set; Torch 2.13 requires macOS 14. The locks intentionally contain no global extra-index
+# option. The Bazel downloader sends only Torch to the CPU index, preventing that index's mirrored
+# copies of transitive packages from competing with PyPI artifacts. Every selected distribution
+# remains version-pinned and hash-locked, and pip-audit checks the Linux lock independently.
+# rules_python cannot read uv.lock, so these compiled locks are the platform-specific bridge.
 #
 # Wheels are fetched per package and on demand: depending on @pypi//pytest does not download
 # torch. That matters here, because torch is the largest dependency in the tree by two orders
@@ -247,8 +275,11 @@ pip.parse(
         "osx_aarch64",
     ],
     hub_name = "pypi",
-    python_version = "3.12",
-    requirements_lock = "//:requirements.lock.txt",
+    python_version = "3.14",
+    requirements_by_platform = {
+        "//:requirements.darwin.lock.txt": "osx_aarch64",
+        "//:requirements.lock.txt": "linux_*",
+    },
 )
 pip.parse(
     download_only = True,
@@ -256,9 +287,14 @@ pip.parse(
     # to pip. Unlike uv, pip does not expand an explicit manylinux platform to older compatible
     # tags, so spell out packaging.tags' complete glibc 2.28 compatibility set. The MLflow
     # image is pinned to Debian Bookworm (glibc 2.36), and 2.28 is the oldest supported tag
-    # that admits the patched Pillow release. Do not pin an ABI: CPython 3.12 must also admit
+    # that admits the patched Pillow release. Do not pin an ABI: CPython 3.14 must also admit
     # compatible abi3 and pure-Python wheels.
     extra_pip_args = [
+        # Bazel materializes independent wheel repositories concurrently. Fresh runners can
+        # otherwise exhaust PyPI's 15-second default while downloading the 100+ package MLflow
+        # graph, misreporting transport timeouts as "No matching distribution" failures.
+        "--timeout=60",
+        "--retries=8",
         "--platform=manylinux_2_28_x86_64",
         "--platform=manylinux_2_27_x86_64",
         "--platform=manylinux_2_26_x86_64",
@@ -286,11 +322,11 @@ pip.parse(
         "--platform=manylinux_2_6_x86_64",
         "--platform=manylinux_2_5_x86_64",
         "--platform=manylinux1_x86_64",
-        "--python-version=312",
+        "--python-version=314",
         "--implementation=cp",
     ],
     hub_name = "mlflow_pypi",
-    python_version = "3.12",
+    python_version = "3.14",
     requirements_by_platform = {
         "//services/mlflow:requirements.lock.txt": "linux_x86_64",
     },
@@ -318,7 +354,7 @@ oci.pull(
 )
 oci.pull(
     name = "python_slim",
-    digest = "sha256:593bd06efe90efa80dc4eee3948be7c0fde4134606dd40d8dd8dbcade98e669c",
+    digest = "sha256:23c59390fc717bf09f9336908199a0ae75d9c4264bf296123f94ad772fea3b52",
     image = "docker.io/library/python",
     platforms = ["linux/amd64"],
 )

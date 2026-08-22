@@ -45,7 +45,7 @@ jobs:
 
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6.3.0
         with:
-          python-version: "3.12"
+          python-version: "3.14.7"
 
       - uses: astral-sh/setup-uv@e92bafb6253dcd438e0484186d7669ea7a8ca1cc  # v7.6.0
         with:
@@ -54,10 +54,22 @@ jobs:
 
       # The exported lock carries hashes for every selected artifact. pip-audit
       # is isolated from application dependencies and independently pinned so a
-      # scanner release cannot silently change the lane on an unrelated PR.
-      - name: Audit the hash-locked Python environment
+      # scanner release cannot silently change the lane on an unrelated PR. The
+      # PyPI service validates the artifact hashes and audits PyPI-native versions.
+      - name: Validate hashes and audit PyPI dependencies
         run: >-
           uvx --from pip-audit==2.10.1 pip-audit
+          --disable-pip
+          --require-hashes
+          --requirement requirements.lock.txt
+
+      # PyPI's advisory endpoint does not resolve PEP 440 local versions such as
+      # torch's Linux +cpu wheel. Run OSV as a second, fail-closed advisory source
+      # so that the platform-specific runtime dependency is not silently skipped.
+      - name: Audit local-version dependencies with OSV
+        run: >-
+          uvx --from pip-audit==2.10.1 pip-audit
+          --vulnerability-service osv
           --disable-pip
           --require-hashes
           --requirement requirements.lock.txt

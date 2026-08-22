@@ -1,6 +1,6 @@
 # Python foundational libraries
 
-`libs/python` contains reusable, process-local mechanisms for Python 3.12. It has no HTTP
+`libs/python` contains reusable, process-local mechanisms for Python 3.14. It has no HTTP
 routes, CLI entry points, provider construction, databases, or deployment composition roots;
 those belong to `services/`, domain packages, or SDKs.
 
@@ -41,10 +41,12 @@ formats.
 
 ## Tooling and validation
 
-The root uv lock is the dependency source of truth, and `requirements.lock.txt` is its
-hash-pinned Bazel export. The repository is not installed as a wheel (`tool.uv.package =
-false`); Bazel `py_library` targets are the supported internal consumption path. Implemented
-packages include `py.typed` in their runfiles.
+The root uv lock is the developer dependency source of truth. Bazel uses independently
+hash-pinned `requirements.lock.txt` and `requirements.darwin.lock.txt` inputs so Linux and
+arm64 Darwin PyTorch metadata cannot be merged across platforms. Bazel routes only Torch to
+the CPU index; all transitive dependencies remain scoped to PyPI. The repository is not
+installed as a wheel (`tool.uv.package = false`); Bazel `py_library` targets are the supported
+internal consumption path. Implemented packages include `py.typed` in their runfiles.
 
 Run the production checks from the repository root:
 

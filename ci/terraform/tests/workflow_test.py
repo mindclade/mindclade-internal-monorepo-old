@@ -56,6 +56,14 @@ assert "build-mode: autobuild" in SECURITY
 assert "@v1.1.0" not in PRESUBMIT
 assert "@v1.1.0" not in SECURITY
 
+python_audit_job = SECURITY.split("\n  python-dependency-audit:\n", maxsplit=1)[1]
+python_audit_job = python_audit_job.split("\n  go-vulnerability:\n", maxsplit=1)[0]
+assert python_audit_job.count("pip-audit==2.10.1") == 2
+assert python_audit_job.count("--require-hashes") == 2
+assert python_audit_job.count("--requirement requirements.lock.txt") == 2
+assert python_audit_job.count("--vulnerability-service osv") == 1
+assert "torch's Linux +cpu wheel" in python_audit_job
+
 bazel_job = PRESUBMIT.split("\n  bazel:\n", maxsplit=1)[1]
 bazel_job = bazel_job.split("\n  # Stable, always-reported", maxsplit=1)[0]
 assert "timeout-minutes: 90" in bazel_job

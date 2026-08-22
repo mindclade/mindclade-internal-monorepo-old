@@ -222,8 +222,8 @@
               nodejs_22
               pnpm
               protobuf
-              python312
-              python312Packages.mkdocs
+              python314
+              python314Packages.mkdocs
               ruff
               uv
             ])
@@ -235,8 +235,8 @@
               kubeconform
               kubernetes-helm
               kustomize
-              python312
-              python312Packages.pyyaml
+              python314
+              python314Packages.pyyaml
               yamllint
               yq-go
             ]
@@ -268,7 +268,7 @@
             packages = with pkgs; [
               actionlint
               buf
-              python312Packages.mkdocs
+              python314Packages.mkdocs
               shellcheck
               yamllint
             ];
@@ -277,7 +277,7 @@
           ci-terraform = pkgs.mkShell {
             packages = with pkgs; [
               conftest
-              python312
+              python314
               terraform
               terraform-docs
               tflint
@@ -297,7 +297,7 @@
               (with pkgs; [
                 bazel_9
                 buildifier
-                python312
+                python314
                 # The full graph executes the DNS module's sandboxed Terraform test. Keep
                 # Terraform in this lane only; Kubernetes/GitOps static validation does not
                 # require the larger Terraform closure.
@@ -331,8 +331,8 @@
                 pnpm
                 protobuf
                 promtoolBinary
-                python312
-                python312Packages.mkdocs
+                python314
+                python314Packages.mkdocs
                 ruff
                 shellcheck
                 syft
@@ -375,7 +375,7 @@
                 go
                 protobuf
                 promtoolBinary
-                python312
+                python314
                 ruff
                 uv
               ])

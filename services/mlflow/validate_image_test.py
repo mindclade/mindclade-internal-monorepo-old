@@ -58,6 +58,7 @@ def validate(image: Path, lock_path: Path, *, enforce_lock_digest: bool) -> str:
         "  target: //services/mlflow:image",
         "  platform: linux/amd64",
         "    version: 3.15.1",
+        "    version: 3.14.7-slim-bookworm",
     )
     for required_line in required_lock_lines:
         if lock_text.splitlines().count(required_line) != 1:
@@ -91,8 +92,8 @@ def validate(image: Path, lock_path: Path, *, enforce_lock_digest: bool) -> str:
         names = archive.getnames()
     if any(DARWIN_NATIVE.search(name) for name in names):
         raise AssertionError("application layer contains a Darwin-native artifact")
-    if not any(name.endswith("cpython-312-x86_64-linux-gnu.so") for name in names):
-        raise AssertionError("application layer has no CPython 3.12 Linux/amd64 extension")
+    if not any(name.endswith("cpython-314-x86_64-linux-gnu.so") for name in names):
+        raise AssertionError("application layer has no CPython 3.14 Linux/amd64 extension")
 
     required_paths = (
         "opt/mindclade/services/mlflow/server",

@@ -38,7 +38,7 @@ from libs.python.errors import (
     ResourceExhausted,
 )
 from libs.python.identifiers import ArtifactRef, Digest
-from libs.python.serialization import canonical_json_bytes
+from libs.python.serialization import canonical_json_bytes, validate_json_nesting
 from libs.python.worker_runtime import ExecutionContext, StageEnvelope, StageKind, StageResult
 from models.reference import (
     DEFAULT_MAXIMUM_INPUT_ELEMENTS,
@@ -208,6 +208,7 @@ class ReferenceAffineTrainingConfig:
                 reason="training_reference_config_size",
             )
         try:
+            validate_json_nesting(value)
             document = json.loads(
                 value,
                 object_pairs_hook=_unique_object,

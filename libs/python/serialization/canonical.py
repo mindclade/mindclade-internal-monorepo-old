@@ -62,6 +62,58 @@ MAXIMUM_CANONICAL_JSON_NODES: Final = 100_000
 MAXIMUM_CANONICAL_JSON_BYTES: Final = 8 << 20
 
 
+def validate_json_nesting(
+    value: bytes,
+    *,
+    maximum_depth: int = MAXIMUM_CANONICAL_JSON_DEPTH,
+) -> None:
+    """Reject excessive raw JSON nesting before invoking the runtime parser.
+
+    Python's JSON decoder recursion behavior is an implementation detail and changed in
+    Python 3.14. Scanning the structural bytes first keeps the platform's depth boundary
+    deterministic across interpreter versions without mistaking brackets inside strings
+    for containers. Syntax validity remains the JSON decoder's responsibility.
+    """
+    if not isinstance(value, bytes):
+        raise InvalidArgument(
+            "JSON input must be bytes",
+            reason="canonical_json_input_type",
+        )
+    if (
+        isinstance(maximum_depth, bool)
+        or not isinstance(maximum_depth, int)
+        or not 1 <= maximum_depth <= MAXIMUM_CANONICAL_JSON_DEPTH
+    ):
+        raise InvalidArgument(
+            f"maximum_depth must be in [1, {MAXIMUM_CANONICAL_JSON_DEPTH}]",
+            reason="canonical_json_depth_limit",
+        )
+
+    depth = 0
+    in_string = False
+    escaped = False
+    for byte in value:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif byte == ord("\\"):
+                escaped = True
+            elif byte == ord('"'):
+                in_string = False
+            continue
+        if byte == ord('"'):
+            in_string = True
+        elif byte in (ord("{"), ord("[")):
+            depth += 1
+            if depth > maximum_depth:
+                raise InvalidArgument(
+                    "canonical JSON exceeds the maximum nesting depth",
+                    reason="canonical_json_depth",
+                )
+        elif byte in (ord("}"), ord("]")):
+            depth -= 1
+
+
 @dataclass(slots=True)
 class _JsonBudget:
     maximum_nodes: int
@@ -245,7 +297,7 @@ def canonical_json_bytes(
                 )
             encoded_chunks.append(encoded)
         return b"".join(encoded_chunks)
-    except (InvalidArgument, ResourceExhausted):
+    except InvalidArgument, ResourceExhausted:
         raise
     except (TypeError, ValueError) as error:  # pragma: no cover - normalization owns these
         raise InvalidArgument(
