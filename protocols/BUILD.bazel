@@ -186,6 +186,7 @@ py_test(
     name = "typescript_projection_test",
     srcs = ["compatibility/check_typescript_projection.py"],
     data = [
+        "compatibility/scaffold-removal-waiver.json",
         ":all_proto_sources",
         "//sdk/typescript:generated_protobuf_sources",
     ],
