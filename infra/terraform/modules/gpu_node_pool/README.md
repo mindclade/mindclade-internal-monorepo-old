@@ -15,8 +15,10 @@ subdomain prefix of at most 253 characters, followed by `/` and a required name 
 at most 63 characters. Values may be empty; non-empty values must be at most 63
 characters, begin and end with an alphanumeric character, and contain only
 alphanumerics, `-`, `_`, or `.`. The module-owned identity labels and
-`nvidia.com/gpu=present:NoSchedule` taint still take precedence. The final merged
-node-label map must also stay below GKE's 1,024-character aggregate limit.
+`nvidia.com/gpu=present:NoSchedule` taint still take precedence. This includes a
+`mindclade.dev/capacity-type` label derived from the validated capacity mode: an
+on-demand pool is labeled `on-demand`, and a caller cannot relabel it as Spot. The final
+merged node-label map must also stay below GKE's 1,024-character aggregate limit.
 
 On-demand, reservation, Spot, Flex Start, and queued provisioning are modeled
 explicitly. Standard on-demand capacity is accepted for H100 but rejected for A3
@@ -33,6 +35,12 @@ Capacity, quota, zone availability, Dynamic Workload
 Scheduler, Compact Placement, driver compatibility, GPUDirect/RDMA components,
 Kueue/JobSet policy, workload checkpointing, and artifact durability remain
 environment and Kubernetes-layer responsibilities.
+
+The reference-training qualification covered by this repository selects only H100
+`ON_DEMAND` capacity. Although this reusable module continues to model other acquisition
+modes, that qualification does not support or claim Spot, Flex Start, queued provisioning,
+reservations, H200, or B200. Each requires a separately held flavor, interruption policy,
+and connected evidence.
 
 This module is the accelerator-capacity authority selected by the
 `infrastructure-live` estate. The Kubernetes layer owns only the matching node

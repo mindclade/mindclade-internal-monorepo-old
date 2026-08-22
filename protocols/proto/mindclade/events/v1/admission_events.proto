@@ -1,0 +1,25 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+syntax = "proto3";
+
+package mindclade.events.v1;
+
+option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/events/v1;eventsv1";
+
+import "google/protobuf/timestamp.proto";
+
+// AdmissionEventEnvelope is the durable at-least-once outbox envelope. Event
+// payload bytes are canonical JSON governed by protocols/events until each
+// payload family is migrated additively to a typed protobuf message.
+message AdmissionEventEnvelope {
+  string event_id = 1;
+  string topic = 2;
+  string partition_key = 3;
+  uint32 schema_version = 4;
+  bytes canonical_payload = 5;
+  google.protobuf.Timestamp occurred_at = 6;
+  string payload_digest = 7;
+  string producer = 8;
+}

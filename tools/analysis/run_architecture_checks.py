@@ -28,7 +28,6 @@ import check_component_ownership
 import check_control_plane_commands
 import check_dependency_budgets
 import check_dependency_layers
-import check_dns_caa_alignment
 import check_enforced_decisions
 import check_foundation_consumption
 import check_foundation_hardening
@@ -100,7 +99,6 @@ CHECKS = [
     ("code/docs alignment", check_code_docs_alignment.check),
     ("dependency budgets", check_dependency_budgets.check),
     ("dependency layers", check_dependency_layers.check),
-    ("DNS CAA/cert-manager alignment", check_dns_caa_alignment.check),
     ("foundation consumption", check_foundation_consumption.check),
     ("control-plane commands", check_control_plane_commands.check),
     ("Go layers and paved roads", _go_layers),

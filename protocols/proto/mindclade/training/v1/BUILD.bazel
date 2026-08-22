@@ -3,13 +3,104 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-package(default_visibility = ["//visibility:private"])
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@protobuf//bazel:py_proto_library.bzl", "py_proto_library")
+load("@rules_go//proto:def.bzl", "go_proto_library")
+load("@rules_python//python:defs.bzl", "py_binary")
+load("//tools/build:pytest.bzl", "pytest_test")
+
+package(default_visibility = ["//visibility:public"])
+
+proto_library(
+    name = "topology_proto",
+    srcs = ["topology.proto"],
+    strip_import_prefix = "/protocols/proto",
+)
+
+proto_library(
+    name = "progress_proto",
+    srcs = ["progress.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = [
+        "//protocols/proto/mindclade/common/v1:artifact_ref_proto",
+        "@protobuf//:timestamp_proto",
+    ],
+)
+
+proto_library(
+    name = "checkpoint_manifest_proto",
+    srcs = ["checkpoint.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = [
+        ":progress_proto",
+        ":topology_proto",
+        "//protocols/proto/mindclade/common/v1:artifact_ref_proto",
+        "@protobuf//:timestamp_proto",
+    ],
+)
+
+proto_library(
+    name = "run_proto",
+    srcs = ["run.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = [
+        ":progress_proto",
+        ":topology_proto",
+        "//protocols/proto/mindclade/common/v1:artifact_ref_proto",
+        "@protobuf//:timestamp_proto",
+    ],
+)
+
+py_proto_library(
+    name = "checkpoint_contract_py_pb2",
+    deps = [
+        ":checkpoint_manifest_proto",
+        ":run_proto",
+    ],
+)
 
 filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
-    visibility = ["//visibility:public"],
+    name = "cargo_checkpoint_proto_sources",
+    srcs = [
+        "checkpoint.proto",
+        "progress.proto",
+        "run.proto",
+        "topology.proto",
+    ],
+    visibility = ["//protocols/rust:__pkg__"],
+)
+
+pytest_test(
+    name = "checkpoint_contract_golden_test",
+    srcs = ["checkpoint_contract_golden_test.py"],
+    data = ["//tests/integration/cross_language:golden_fixtures"],
+    deps = [
+        ":checkpoint_contract_py_pb2",
+        "//protocols/proto/mindclade/artifact/v1:checkpoint_commit_py_pb2",
+        "//protocols/proto/mindclade/registry/v1:checkpoint_record_py_pb2",
+    ],
+)
+
+py_binary(
+    name = "checkpoint_contract_fixture_generator",
+    srcs = ["checkpoint_contract_golden_test.py"],
+    legacy_create_init = False,
+    main = "checkpoint_contract_golden_test.py",
+    deps = [
+        ":checkpoint_contract_py_pb2",
+        "//protocols/proto/mindclade/artifact/v1:checkpoint_commit_py_pb2",
+        "//protocols/proto/mindclade/registry/v1:checkpoint_record_py_pb2",
+    ],
+)
+
+go_proto_library(
+    name = "training_go_proto",
+    importpath = "go.mindclade.dev/protocols/gen/go/mindclade/training/v1",
+    protos = [
+        ":checkpoint_manifest_proto",
+        ":progress_proto",
+        ":run_proto",
+        ":topology_proto",
+    ],
+    deps = ["//protocols/proto/mindclade/common/v1:common_go_proto"],
 )

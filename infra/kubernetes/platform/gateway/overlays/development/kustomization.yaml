@@ -26,3 +26,15 @@ patches:
       - op: replace
         path: /spec/addresses/0/value
         value: mc-development-mindclade-internal-vip
+      - op: replace
+        path: /spec/listeners/0/hostname
+        value: dev.mindclade.studio
+      - op: replace
+        path: /spec/listeners/1/hostname
+        value: dev.mindclade.studio
+      - op: replace
+        path: /spec/listeners/2/hostname
+        value: "*.dev.mindclade.ai"
+      - op: replace
+        path: /spec/listeners/3/hostname
+        value: "*.dev.mindclade.dev"

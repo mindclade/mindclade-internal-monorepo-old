@@ -1,6 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
 
 locals {
   sole_bucket_name = length(var.buckets) == 1 ? values(var.buckets)[0].name : null

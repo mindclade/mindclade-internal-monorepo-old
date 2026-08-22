@@ -2,6 +2,7 @@
   "name": "@mindclade/libs-ts",
   "version": "0.1.0",
   "private": true,
+  "license": "UNLICENSED",
   "type": "module",
   "scripts": {
     "build": "pnpm --filter '@mindclade/libs-ts-*' build",

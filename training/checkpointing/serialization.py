@@ -36,6 +36,21 @@ class DecodedTrainingState:
     torch_rng: torch.Tensor
 
 
+@dataclass(frozen=True, slots=True)
+class DecodedRankRNGState:
+    """One rank's exact CPU and optional CUDA generator state."""
+
+    torch_rng: torch.Tensor
+    cuda_rng: torch.Tensor | None
+
+
+@dataclass(frozen=True, slots=True)
+class DecodedStateComponent:
+    """One string-keyed canonical model or optimizer state tree."""
+
+    state: Mapping[str, object]
+
+
 class _Encoder:
     def __init__(self) -> None:
         self.nodes = 0
@@ -253,7 +268,7 @@ def encode_training_state(
 def decode_training_state(metadata: bytes, tensor_bytes: bytes) -> DecodedTrainingState:
     try:
         document = json.loads(metadata, object_pairs_hook=_unique_object)
-    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
+    except (UnicodeDecodeError, json.JSONDecodeError, RecursionError, ValueError) as error:
         raise InvalidArgument(
             "checkpoint state metadata is not unique-key UTF-8 JSON",
             reason="checkpoint_state_json",
@@ -269,7 +284,15 @@ def decode_training_state(metadata: bytes, tensor_bytes: bytes) -> DecodedTraini
             "checkpoint state metadata fields do not match schema v1",
             reason="checkpoint_state_fields",
         )
-    if document["schema_version"] != STATE_SCHEMA_VERSION:
+    if canonical_json_bytes(document) != metadata:
+        raise InvalidArgument(
+            "checkpoint state metadata must use its exact canonical JSON encoding",
+            reason="checkpoint_state_canonical",
+        )
+    if (
+        type(document["schema_version"]) is not int
+        or document["schema_version"] != STATE_SCHEMA_VERSION
+    ):
         raise InvalidArgument(
             "checkpoint state schema version is unsupported",
             reason="checkpoint_state_version",
@@ -339,6 +362,216 @@ def decode_training_state(metadata: bytes, tensor_bytes: bytes) -> DecodedTraini
     )
 
 
+def encode_state_component(
+    state: Mapping[str, object],
+    *,
+    component: str,
+) -> tuple[bytes, bytes]:
+    """Encode one MODEL or OPTIMIZER component with an unambiguous kind."""
+
+    if component not in {"model", "optimizer"}:
+        raise InvalidArgument(
+            "distributed state component kind is unsupported",
+            reason="checkpoint_state_component",
+        )
+    if (
+        not isinstance(state, Mapping)
+        or not state
+        or any(not isinstance(key, str) for key in state)
+    ):
+        raise InvalidArgument(
+            "distributed state component must be a nonempty string-keyed mapping",
+            reason="checkpoint_state_component",
+        )
+    encoder = _Encoder()
+    document = {
+        "schema_version": STATE_SCHEMA_VERSION,
+        "format": f"mindclade-dcp-{component}-v1",
+        "state": encoder.encode(state),
+    }
+    return _encode_distributed_document(document, encoder)
+
+
+def decode_state_component(
+    metadata: bytes,
+    tensor_bytes: bytes,
+    *,
+    component: str,
+) -> DecodedStateComponent:
+    """Decode one MODEL or OPTIMIZER component."""
+
+    if component not in {"model", "optimizer"}:
+        raise InvalidArgument(
+            "distributed state component kind is unsupported",
+            reason="checkpoint_state_component",
+        )
+    document, decoder, tensors = _decode_distributed_document(metadata, tensor_bytes)
+    if set(document) != {"schema_version", "format", "state"} or (
+        type(document["schema_version"]) is not int
+        or document["schema_version"] != STATE_SCHEMA_VERSION
+        or document["format"] != f"mindclade-dcp-{component}-v1"
+    ):
+        raise InvalidArgument(
+            "distributed state component metadata does not match schema v1",
+            reason="checkpoint_state_component",
+        )
+    state = decoder.decode(document["state"])
+    if decoder.used != set(tensors):
+        raise InvalidArgument(
+            "distributed state component contains unreferenced tensors",
+            reason="checkpoint_state_tensor_reference",
+        )
+    if not isinstance(state, dict) or not state or any(not isinstance(key, str) for key in state):
+        raise InvalidArgument(
+            "distributed state component must decode to a string-keyed mapping",
+            reason="checkpoint_state_component",
+        )
+    return DecodedStateComponent(cast(dict[str, object], state))
+
+
+def encode_rank_rng_state(
+    torch_rng: torch.Tensor,
+    cuda_rng: torch.Tensor | None,
+) -> tuple[bytes, bytes]:
+    """Encode rank-local RNG state as canonical JSON plus safetensors."""
+
+    _validate_torch_rng_state(torch_rng)
+    if cuda_rng is not None:
+        _validate_cuda_rng_state(cuda_rng)
+    encoder = _Encoder()
+    document = {
+        "schema_version": STATE_SCHEMA_VERSION,
+        "format": "mindclade-dcp-rng-v1",
+        "torch_rng": encoder.encode(torch_rng),
+        "cuda_rng": encoder.encode(cuda_rng),
+    }
+    return _encode_distributed_document(document, encoder)
+
+
+def decode_rank_rng_state(metadata: bytes, tensor_bytes: bytes) -> DecodedRankRNGState:
+    """Decode one rank-local RNG component."""
+
+    document, decoder, tensors = _decode_distributed_document(metadata, tensor_bytes)
+    if not isinstance(document, dict) or set(document) != {
+        "schema_version",
+        "format",
+        "torch_rng",
+        "cuda_rng",
+    }:
+        raise InvalidArgument(
+            "distributed RNG metadata fields do not match schema v1",
+            reason="checkpoint_state_fields",
+        )
+    if (
+        type(document["schema_version"]) is not int
+        or document["schema_version"] != STATE_SCHEMA_VERSION
+        or document["format"] != "mindclade-dcp-rng-v1"
+    ):
+        raise InvalidArgument(
+            "distributed RNG state version is unsupported",
+            reason="checkpoint_state_version",
+        )
+    torch_rng = decoder.decode(document["torch_rng"])
+    cuda_rng = decoder.decode(document["cuda_rng"])
+    if decoder.used != set(tensors):
+        raise InvalidArgument(
+            "distributed RNG checkpoint contains unreferenced tensors",
+            reason="checkpoint_state_tensor_reference",
+        )
+    if not isinstance(torch_rng, torch.Tensor):
+        raise InvalidArgument(
+            "distributed checkpoint CPU RNG state is invalid",
+            reason="checkpoint_rng_state",
+        )
+    _validate_torch_rng_state(torch_rng)
+    if cuda_rng is not None:
+        if not isinstance(cuda_rng, torch.Tensor):
+            raise InvalidArgument(
+                "distributed checkpoint CUDA RNG state is invalid",
+                reason="checkpoint_cuda_rng_state",
+            )
+        _validate_cuda_rng_state(cuda_rng)
+    return DecodedRankRNGState(torch_rng, cuda_rng)
+
+
+def _encode_distributed_document(
+    document: Mapping[str, object],
+    encoder: _Encoder,
+) -> tuple[bytes, bytes]:
+    metadata = canonical_json_bytes(document)
+    try:
+        tensor_bytes = save_safetensors(encoder.tensors)
+    except (RuntimeError, ValueError) as error:
+        raise InvalidArgument(
+            "distributed checkpoint tensors cannot be encoded as safetensors",
+            reason="checkpoint_state_safetensors",
+            cause=error,
+        ) from error
+    if len(tensor_bytes) > MAXIMUM_TENSOR_BYTES + (100 << 20):
+        raise ResourceExhausted(
+            "encoded distributed checkpoint tensor archive exceeds bounds",
+            reason="checkpoint_state_tensor_bytes",
+        )
+    return metadata, tensor_bytes
+
+
+def _decode_distributed_document(
+    metadata: bytes,
+    tensor_bytes: bytes,
+) -> tuple[dict[str, object], _Decoder, Mapping[str, torch.Tensor]]:
+    try:
+        document = json.loads(metadata, object_pairs_hook=_unique_object)
+    except (UnicodeDecodeError, json.JSONDecodeError, RecursionError, ValueError) as error:
+        raise InvalidArgument(
+            "distributed checkpoint metadata is not unique-key UTF-8 JSON",
+            reason="checkpoint_state_json",
+            cause=error,
+        ) from error
+    if not isinstance(document, dict):
+        raise InvalidArgument(
+            "distributed checkpoint metadata must be an object",
+            reason="checkpoint_state_fields",
+        )
+    if canonical_json_bytes(document) != metadata:
+        raise InvalidArgument(
+            "distributed checkpoint metadata must use its exact canonical JSON encoding",
+            reason="checkpoint_state_canonical",
+        )
+    try:
+        tensors = load_safetensors(tensor_bytes)
+    except (RuntimeError, ValueError) as error:
+        raise InvalidArgument(
+            "distributed checkpoint tensor archive is invalid",
+            reason="checkpoint_state_safetensors",
+            cause=error,
+        ) from error
+    _validate_decoded_tensors(tensors)
+    return document, _Decoder(tensors), tensors
+
+
+def _validate_decoded_tensors(tensors: Mapping[str, torch.Tensor]) -> None:
+    if len(tensors) > MAXIMUM_TENSORS:
+        raise ResourceExhausted(
+            "checkpoint tensor count exceeds its bound",
+            reason="checkpoint_state_tensor_count",
+        )
+    tensor_size = 0
+    for tensor in tensors.values():
+        if tensor.layout is not torch.strided or tensor.is_quantized or tensor.is_complex():
+            raise InvalidArgument(
+                "checkpoint tensor archive contains an unsupported tensor",
+                reason="checkpoint_state_tensor_layout",
+            )
+        tensor_size += tensor.numel() * tensor.element_size()
+        if tensor_size > MAXIMUM_TENSOR_BYTES:
+            raise ResourceExhausted(
+                "checkpoint tensor bytes exceed the local reference bound",
+                reason="checkpoint_state_tensor_bytes",
+            )
+        if tensor.is_floating_point() and not bool(torch.isfinite(tensor).all().item()):
+            raise FloatingPointError("checkpoint tensor state is not finite")
+
+
 def _validate_torch_rng_state(value: torch.Tensor) -> None:
     if (
         not isinstance(value, torch.Tensor)
@@ -359,6 +592,30 @@ def _validate_torch_rng_state(value: torch.Tensor) -> None:
             reason="checkpoint_rng_state",
             cause=error,
         ) from error
+
+
+def _validate_cuda_rng_state(value: torch.Tensor) -> None:
+    if (
+        not isinstance(value, torch.Tensor)
+        or value.device.type != "cpu"
+        or value.dtype is not torch.uint8
+        or value.ndim != 1
+        or value.numel() == 0
+    ):
+        raise InvalidArgument(
+            "checkpoint CUDA RNG state is invalid",
+            reason="checkpoint_cuda_rng_state",
+        )
+    if torch.cuda.is_available():
+        try:
+            generator = torch.Generator(device="cuda")
+            generator.set_state(value)
+        except (RuntimeError, ValueError) as error:
+            raise InvalidArgument(
+                "checkpoint CUDA RNG state is incompatible with this toolchain",
+                reason="checkpoint_cuda_rng_state",
+                cause=error,
+            ) from error
 
 
 def _unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:

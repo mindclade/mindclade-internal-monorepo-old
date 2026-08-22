@@ -22,10 +22,9 @@ var _ releases.Repository = (*Store)(nil)
 //
 // A graph is sealed by the digest the release quotes, so it is immutable:
 // storing the same graph again is a no-op, and storing a different graph under
-// a release identifier that already holds one is refused. Promote writes the
-// graph before the release, so an accepted graph followed by a rejected release
-// leaves durable evidence that a promotion was attempted, which is the
-// direction of partial failure worth preserving.
+// a release identifier that already holds one is refused. The production
+// composition joins this write and PromoteRelease in one serializable
+// transaction, so a rejected promotion cannot leave a torn graph write.
 func (store *Store) PutGraph(ctx context.Context, graph releases.EvidenceGraph) error {
 	const operation = "registry.postgres.PutGraph"
 	if err := store.validate(ctx, operation); err != nil {
@@ -172,6 +171,49 @@ WHERE release_id=$1 AND resource_version=$7`, store.releases)
 	if err != nil || affected != 1 {
 		return conflict(ctx, release.ReleaseID, release.ResourceVersion, operation,
 			"release was modified concurrently")
+	}
+	return nil
+}
+
+// PromoteRelease compare-and-swaps a durable qualified candidate to promoted.
+// Unlike PutRelease, this operation has no insert path: callers cannot turn
+// verified evidence into a newly invented release or skip the durable
+// candidate/qualification lifecycle. The surrounding registry composition
+// executes this update and PutGraph in one serializable transaction.
+func (store *Store) PromoteRelease(ctx context.Context, release releases.Release) error {
+	const operation = "registry.postgres.PromoteRelease"
+	if err := store.validate(ctx, operation); err != nil {
+		return err
+	}
+	if err := release.ValidateQualifiedCandidate(); err != nil {
+		return faults.Wrap(err, faults.CodeInvalidArgument, "release is not promotable",
+			faults.WithReason("release_not_qualified_candidate"),
+			faults.WithOperation(operation),
+			faults.WithField("release_id", release.ReleaseID),
+			faults.WithContextMetadata(ctx),
+			faults.WithRetryPolicy(faults.NoRetry()),
+		)
+	}
+	now := store.clock.Now().Round(0).UTC()
+	query := fmt.Sprintf(`UPDATE %s SET
+status='promoted', resource_version=resource_version+1, written_at=$4
+WHERE release_id=$1
+  AND model_bundle_digest=$2
+  AND evidence_graph_digest=$3
+  AND channel='candidate'
+  AND status='qualified'
+  AND resource_version=$5`, store.releases)
+	result, err := store.executor(ctx).ExecContext(ctx, query,
+		release.ReleaseID, release.ModelBundleDigest.String(),
+		release.EvidenceGraphDigest.String(), now, int64(release.ResourceVersion),
+	)
+	if err != nil {
+		return provider(ctx, err, operation)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil || affected != 1 {
+		return conflict(ctx, release.ReleaseID, release.ResourceVersion, operation,
+			"release is absent, stale, or no longer the qualified candidate admitted for promotion")
 	}
 	return nil
 }

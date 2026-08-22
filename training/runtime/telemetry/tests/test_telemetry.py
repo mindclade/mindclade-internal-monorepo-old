@@ -78,6 +78,7 @@ def test_optional_mlflow_outage_does_not_fail_authoritative_training() -> None:
             raise ConnectionError("unavailable")
 
     exporter = MLflowExporter(Failing(), "experiment-1", required=False)
+    assert exporter.required is False
     assert not exporter.start(lineage(), run_name="training-run")
     assert exporter.failures == 1
 
@@ -87,10 +88,10 @@ def test_required_mlflow_outage_is_visible() -> None:
         def create_run(self, experiment_id, *, tags=None, run_name=None):
             raise ConnectionError("unavailable")
 
+    exporter = MLflowExporter(Failing(), "experiment-1", required=True)
+    assert exporter.required is True
     with pytest.raises(ConnectionError):
-        MLflowExporter(Failing(), "experiment-1", required=True).start(
-            lineage(), run_name="training-run"
-        )
+        exporter.start(lineage(), run_name="training-run")
 
 
 def test_failed_lineage_upload_terminates_the_partial_mirror_run() -> None:

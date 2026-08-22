@@ -1,8 +1,10 @@
 # Terraform environment roots
 
-`dns_hub` is the only deployable root in this repository. It is split by lifetime:
-public domain delegation exists before and outlives every development, staging, or
-production VPC and cluster.
+This repository has no deployable Terraform roots. Public domain delegation and every
+environment composition are owned by the separately controlled live configuration. The
+former `dns_hub` composition is retained only as a module test fixture under
+`modules/dns/tests/fixtures/dns_hub`; it has no backend, component registration, lock, or
+apply workflow and cannot become a second public-zone state owner.
 
 `development`, `staging`, and `production` are reserved target names, not safe empty
 roots and not evidence of deployed environments. Their live compositions belong in
@@ -14,4 +16,3 @@ and `PRODUCTION_READINESS.md` evidence.
 
 The required dependency and promotion model is documented in the parent
 [`README.md`](../README.md) and [`PRODUCTION_READINESS.md`](../PRODUCTION_READINESS.md).
-

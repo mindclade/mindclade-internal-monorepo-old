@@ -10,6 +10,19 @@
 
 mock_provider "google" {}
 
+run "retired_dns_hub_is_only_a_composition_fixture" {
+  command = plan
+
+  module {
+    source = "./tests/fixtures/dns_hub"
+  }
+
+  assert {
+    condition     = output.zone_names["mindclade-ai"] == "mindclade-ai"
+    error_message = "The retired dns_hub fixture must still exercise the public-zone composition."
+  }
+}
+
 # The apex holds CAA, MX, and TXT at once.
 #
 # The records map is keyed by an identifier rather than by owner name precisely

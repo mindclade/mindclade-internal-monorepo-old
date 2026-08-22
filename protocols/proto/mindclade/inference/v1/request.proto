@@ -1,18 +1,16 @@
 // Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 // Mindclade Proprietary and Confidential.
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
 
 syntax = "proto3";
 
 package mindclade.inference.v1;
 
+option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/inference/v1;inferencev1";
+
 import "mindclade/common/v1/identifiers.proto";
 import "mindclade/inference/v1/model.proto";
-
-message RequestScaffold {
-  option deprecated = true;
-  string reserved = 1;
-}
 
 message InferenceInput {
   oneof value {

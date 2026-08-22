@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -17,6 +18,7 @@ from libs.python.errors import FailedPrecondition, InvalidArgument, ResourceExha
 from libs.python.identifiers import ArtifactRef, Digest
 from training.contracts import TrainingState
 
+from .adamw import validate_adamw_steps
 from .atomic_commit import (
     MANIFEST_PATH,
     commit_checkpoint_directory,
@@ -61,12 +63,16 @@ def save_local_checkpoint(
 ) -> CheckpointManifest:
     """Atomically publish a complete local checkpoint without pickle-capable formats."""
 
-    _validate_objects(model, optimizer)
     if not isinstance(training_state, TrainingState):
         raise InvalidArgument(
             "checkpoint training_state must be TrainingState",
             reason="checkpoint_training_state",
         )
+    _validate_objects(
+        model,
+        optimizer,
+        expected_optimizer_steps=training_state.optimizer_steps,
+    )
     if not isinstance(identity, CheckpointIdentity):
         raise InvalidArgument(
             "checkpoint identity must be CheckpointIdentity",
@@ -116,6 +122,7 @@ def restore_local_checkpoint(
     model: nn.Module,
     optimizer: torch.optim.Optimizer,
     expected_identity: CheckpointIdentity,
+    expected_manifest_digest: Digest | None = None,
 ) -> ResumeResult:
     """Verify all bytes and identities, then restore into caller-provided fresh objects."""
 
@@ -125,6 +132,7 @@ def restore_local_checkpoint(
             "expected identity must be CheckpointIdentity",
             reason="checkpoint_identity",
         )
+    _validate_manifest_digest_argument(expected_manifest_digest)
     if optimizer.state:
         raise FailedPrecondition(
             "checkpoint restore requires a fresh optimizer with no state",
@@ -136,6 +144,13 @@ def restore_local_checkpoint(
         MANIFEST_PATH,
         maximum_bytes=MAXIMUM_MANIFEST_BYTES,
     )
+    if expected_manifest_digest is not None and not Digest.of(manifest_bytes).equals(
+        expected_manifest_digest
+    ):
+        raise FailedPrecondition(
+            "checkpoint manifest does not match the externally admitted digest",
+            reason="checkpoint_manifest_digest_mismatch",
+        )
     manifest = CheckpointManifest.decode(manifest_bytes)
     if manifest.identity != expected_identity:
         raise FailedPrecondition(
@@ -158,6 +173,12 @@ def restore_local_checkpoint(
         MAXIMUM_TENSOR_BYTES + (100 << 20),
     )
     decoded = decode_training_state(metadata, tensor_bytes)
+    _validate_decoded_optimizer_state(
+        decoded.optimizer,
+        optimizer,
+        parameter_count=_trainable_parameter_count(model),
+        expected_optimizer_steps=manifest.training_state.optimizer_steps,
+    )
 
     # Every fallible identity, integrity, parse, and compatibility check occurs above. Model
     # and optimizer load APIs are still not transactional, hence the fresh-object requirement.
@@ -173,7 +194,11 @@ def restore_local_checkpoint(
             cause=error,
         ) from error
     try:
-        _validate_objects(model, optimizer)
+        _validate_objects(
+            model,
+            optimizer,
+            expected_optimizer_steps=manifest.training_state.optimizer_steps,
+        )
     except (FloatingPointError, InvalidArgument) as error:
         raise FailedPrecondition(
             "restored checkpoint state is invalid; discard the partially loaded objects",
@@ -216,7 +241,12 @@ def _verified_member(
     return value
 
 
-def _validate_objects(model: object, optimizer: object) -> None:
+def _validate_objects(
+    model: object,
+    optimizer: object,
+    *,
+    expected_optimizer_steps: int | None = None,
+) -> None:
     if not isinstance(model, nn.Module) or not isinstance(optimizer, torch.optim.Optimizer):
         raise InvalidArgument(
             "checkpoint requires an nn.Module and torch optimizer",
@@ -232,6 +262,15 @@ def _validate_objects(model: object, optimizer: object) -> None:
             "checkpoint optimizer must own every trainable model parameter exactly once",
             reason="checkpoint_optimizer_ownership",
         )
+    if isinstance(optimizer, torch.optim.AdamW) and expected_optimizer_steps is not None:
+        validate_adamw_steps(
+            optimizer.state,
+            expected_parameter_count=len(trainable),
+            expected_optimizer_steps=expected_optimizer_steps,
+            allowed_device_types=frozenset({"cpu"}),
+            reason="checkpoint_adamw_step",
+            description="local-v1 AdamW",
+        )
     for _, tensor in (*model.named_parameters(), *model.named_buffers()):
         if tensor.device.type != "cpu" or (
             tensor.is_floating_point() and tensor.dtype is not torch.float32
@@ -242,3 +281,35 @@ def _validate_objects(model: object, optimizer: object) -> None:
             )
         if tensor.is_floating_point() and not bool(torch.isfinite(tensor.detach()).all().item()):
             raise FloatingPointError("checkpoint model state is not finite")
+
+
+def _trainable_parameter_count(model: nn.Module) -> int:
+    return sum(parameter.requires_grad for parameter in model.parameters())
+
+
+def _validate_decoded_optimizer_state(
+    state_dict: Mapping[str, object],
+    optimizer: torch.optim.Optimizer,
+    *,
+    parameter_count: int,
+    expected_optimizer_steps: int,
+) -> None:
+    if not isinstance(optimizer, torch.optim.AdamW):
+        return
+    states = state_dict.get("state")
+    validate_adamw_steps(
+        states,
+        expected_parameter_count=parameter_count,
+        expected_optimizer_steps=expected_optimizer_steps,
+        allowed_device_types=frozenset({"cpu"}),
+        reason="checkpoint_adamw_step",
+        description="decoded local-v1 AdamW",
+    )
+
+
+def _validate_manifest_digest_argument(value: Digest | None) -> None:
+    if value is not None and not isinstance(value, Digest):
+        raise InvalidArgument(
+            "expected checkpoint manifest digest must be a Digest",
+            reason="checkpoint_manifest_digest",
+        )

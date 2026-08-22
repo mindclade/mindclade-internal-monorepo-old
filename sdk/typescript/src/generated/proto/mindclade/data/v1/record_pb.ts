@@ -9,28 +9,49 @@
 
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { ContentDigest } from "../../common/v1/identifiers_pb.js";
+import { file_mindclade_common_v1_identifiers } from "../../common/v1/identifiers_pb.js";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file mindclade/data/v1/record.proto.
  */
 export const file_mindclade_data_v1_record: GenFile = /*@__PURE__*/
-  fileDesc("Ch5taW5kY2xhZGUvZGF0YS92MS9yZWNvcmQucHJvdG8SEW1pbmRjbGFkZS5kYXRhLnYxIiIKDlJlY29yZFNjYWZmb2xkEhAKCHJlc2VydmVkGAEgASgJYgZwcm90bzM");
+  fileDesc("Ch5taW5kY2xhZGUvZGF0YS92MS9yZWNvcmQucHJvdG8SEW1pbmRjbGFkZS5kYXRhLnYxIuMBCg9DYW5vbmljYWxSZWNvcmQSMgoGZGlnZXN0GAEgASgLMiIubWluZGNsYWRlLmNvbW1vbi52MS5Db250ZW50RGlnZXN0EkAKFHNvdXJjZV9yZWNvcmRfZGlnZXN0GAIgASgLMiIubWluZGNsYWRlLmNvbW1vbi52MS5Db250ZW50RGlnZXN0EkIKFnZhbHVlc19hcnRpZmFjdF9kaWdlc3QYAyABKAsyIi5taW5kY2xhZGUuY29tbW9uLnYxLkNvbnRlbnREaWdlc3QSFgoOc2NoZW1hX3ZlcnNpb24YBCABKA1CPFo6Z28ubWluZGNsYWRlLmRldi9wcm90b2NvbHMvZ2VuL2dvL21pbmRjbGFkZS9kYXRhL3YxO2RhdGF2MWIGcHJvdG8z", [file_mindclade_common_v1_identifiers]);
 
 /**
- * @generated from message mindclade.data.v1.RecordScaffold
+ * CanonicalRecord identifies the immutable canonical JSON bytes for one
+ * scientific record and the exact upstream record from which they were built.
+ * The values themselves travel through the artifact plane, not inline.
+ *
+ * @generated from message mindclade.data.v1.CanonicalRecord
  */
-export type RecordScaffold = Message<"mindclade.data.v1.RecordScaffold"> & {
+export type CanonicalRecord = Message<"mindclade.data.v1.CanonicalRecord"> & {
   /**
-   * @generated from field: string reserved = 1;
+   * @generated from field: mindclade.common.v1.ContentDigest digest = 1;
    */
-  reserved: string;
+  digest?: ContentDigest | undefined;
+
+  /**
+   * @generated from field: mindclade.common.v1.ContentDigest source_record_digest = 2;
+   */
+  sourceRecordDigest?: ContentDigest | undefined;
+
+  /**
+   * @generated from field: mindclade.common.v1.ContentDigest values_artifact_digest = 3;
+   */
+  valuesArtifactDigest?: ContentDigest | undefined;
+
+  /**
+   * @generated from field: uint32 schema_version = 4;
+   */
+  schemaVersion: number;
 };
 
 /**
- * Describes the message mindclade.data.v1.RecordScaffold.
- * Use `create(RecordScaffoldSchema)` to create a new message.
+ * Describes the message mindclade.data.v1.CanonicalRecord.
+ * Use `create(CanonicalRecordSchema)` to create a new message.
  */
-export const RecordScaffoldSchema: GenMessage<RecordScaffold> = /*@__PURE__*/
+export const CanonicalRecordSchema: GenMessage<CanonicalRecord> = /*@__PURE__*/
   messageDesc(file_mindclade_data_v1_record, 0);
 

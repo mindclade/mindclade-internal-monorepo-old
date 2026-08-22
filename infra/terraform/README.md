@@ -14,9 +14,10 @@ evidence. File presence and mock-provider tests are not production claims; see
 ## Ownership boundary
 
 Reusable modules live in `modules/`. The separately controlled live configuration
-owns deployable roots, provider aliases, remote-state bucket names, tfvars, imports,
-and promotion evidence. `environments/dns_hub` is the deliberate exception: public
-delegation has one lifetime across environments and must exist before VPC or GKE.
+owns every deployable root, including public delegation, plus provider aliases,
+remote-state bucket names, tfvars, imports, and promotion evidence. A non-deployable
+public-zone composition fixture lives under `modules/dns/tests/fixtures/dns_hub` solely
+to exercise the reusable DNS module without creating a second state owner.
 
 The empty `development`, `staging`, and `production` directories are reserved names,
 not deployable roots. They must not be materialized until organization, billing,

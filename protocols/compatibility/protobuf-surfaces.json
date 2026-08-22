@@ -1,0 +1,118 @@
+{
+  "schema_version": 2,
+  "authority": "protocols/proto",
+  "build_authority": "bazel",
+  "generation": {
+    "go": "bazel_action_output",
+    "python": "bazel_action_output",
+    "rust": "bazel_cargo_build_script",
+    "typescript": "buf_invoked_by_bazel_and_pnpm_wrapper"
+  },
+  "surfaces": [
+    {"package": "mindclade.artifact.v1", "owner": "platform-control", "maturity": "implemented", "bazel": "//protocols/proto/mindclade/artifact/v1:artifact_go_proto"},
+    {"package": "mindclade.common.v1", "owner": "platform-foundations", "maturity": "implemented", "bazel": "//protocols/proto/mindclade/common/v1:common_go_proto"},
+    {"package": "mindclade.data.v1", "owner": "data-platform", "maturity": "implemented", "bazel": "//protocols/proto/mindclade/data/v1:data_go_proto"},
+    {"package": "mindclade.evaluation.v1", "owner": "evaluation-platform", "maturity": "implemented", "bazel": "//protocols/proto/mindclade/evaluation/v1:evaluation_go_proto"},
+    {"package": "mindclade.events.v1", "owner": "platform-control", "maturity": "implemented", "bazel": "//protocols/proto/mindclade/events/v1:events_go_proto"},
+    {"package": "mindclade.inference.v1", "owner": "serving-platform", "maturity": "implemented", "bazel": "//protocols/proto/mindclade/inference/v1:inference_go_proto"},
+    {"package": "mindclade.orchestration.v1", "owner": "platform-control", "maturity": "implemented", "bazel": "//protocols/proto/mindclade/orchestration/v1:orchestration_go_proto"},
+    {"package": "mindclade.registry.v1", "owner": "platform-control", "maturity": "implemented", "bazel": "//protocols/proto/mindclade/registry/v1:registry_go_proto"},
+    {"package": "mindclade.runtime.v1", "owner": "serving-platform", "maturity": "implemented", "bazel": "//protocols/proto/mindclade/runtime/v1:runtime_go_proto"},
+    {"package": "mindclade.training.v1", "owner": "training-platform", "maturity": "implemented", "bazel": "//protocols/proto/mindclade/training/v1:training_go_proto"}
+  ],
+  "rpc_policies": {
+    "mindclade.artifact.v1.ArtifactService": {
+      "ListArtifacts": {"permission": "artifacts.read", "default_deadline_millis": 10000, "maximum_deadline_millis": 30000, "maximum_request_bytes": 1048576, "idempotency": "read", "retry": {"maximum_attempts": 3}},
+      "GetArtifact": {"permission": "artifacts.read", "default_deadline_millis": 10000, "maximum_deadline_millis": 30000, "maximum_request_bytes": 1048576, "idempotency": "read", "retry": {"maximum_attempts": 3}}
+    },
+    "mindclade.data.v1.DatasetService": {
+      "ListDatasets": {"permission": "datasets.read", "default_deadline_millis": 10000, "maximum_deadline_millis": 30000, "maximum_request_bytes": 1048576, "idempotency": "read", "retry": {"maximum_attempts": 3}},
+      "GetDataset": {"permission": "datasets.read", "default_deadline_millis": 10000, "maximum_deadline_millis": 30000, "maximum_request_bytes": 1048576, "idempotency": "read", "retry": {"maximum_attempts": 3}}
+    },
+    "mindclade.evaluation.v1.EvaluationService": {
+      "ListEvaluations": {"permission": "evaluations.read", "default_deadline_millis": 10000, "maximum_deadline_millis": 30000, "maximum_request_bytes": 1048576, "idempotency": "read", "retry": {"maximum_attempts": 3}},
+      "GetEvaluation": {"permission": "evaluations.read", "default_deadline_millis": 10000, "maximum_deadline_millis": 30000, "maximum_request_bytes": 1048576, "idempotency": "read", "retry": {"maximum_attempts": 3}}
+    },
+    "mindclade.inference.v1.InferenceService": {
+      "Predict": {"permission": "inference.execute", "default_deadline_millis": 60000, "maximum_deadline_millis": 300000, "maximum_request_bytes": 1048576, "idempotency": "required", "retry": {"maximum_attempts": 1}},
+      "StreamPredict": {"permission": "inference.execute", "default_deadline_millis": 60000, "maximum_deadline_millis": 300000, "maximum_request_bytes": 1048576, "idempotency": "stream_required", "retry": {"maximum_attempts": 1}}
+    },
+    "mindclade.orchestration.v1.RunService": {
+      "ListRuns": {"permission": "runs.read", "default_deadline_millis": 10000, "maximum_deadline_millis": 30000, "maximum_request_bytes": 1048576, "idempotency": "read", "retry": {"maximum_attempts": 3}},
+      "GetRun": {"permission": "runs.read", "default_deadline_millis": 10000, "maximum_deadline_millis": 30000, "maximum_request_bytes": 1048576, "idempotency": "read", "retry": {"maximum_attempts": 3}},
+      "CreateRun": {"permission": "runs.create", "default_deadline_millis": 30000, "maximum_deadline_millis": 60000, "maximum_request_bytes": 1048576, "idempotency": "required", "retry": {"maximum_attempts": 1}},
+      "CancelRun": {"permission": "runs.cancel", "default_deadline_millis": 30000, "maximum_deadline_millis": 60000, "maximum_request_bytes": 1048576, "idempotency": "required", "retry": {"maximum_attempts": 1}}
+    },
+    "mindclade.registry.v1.ModelRegistryService": {
+      "ListModels": {"permission": "registry.models.read", "default_deadline_millis": 10000, "maximum_deadline_millis": 30000, "maximum_request_bytes": 1048576, "idempotency": "read", "retry": {"maximum_attempts": 3}},
+      "GetModel": {"permission": "registry.models.read", "default_deadline_millis": 10000, "maximum_deadline_millis": 30000, "maximum_request_bytes": 1048576, "idempotency": "read", "retry": {"maximum_attempts": 3}}
+    },
+    "mindclade.runtime.v1.RuntimeExecution": {
+      "Execute": {"permission": "runtime.execute", "default_deadline_millis": 60000, "maximum_deadline_millis": 300000, "maximum_request_bytes": 1048576, "idempotency": "stream_required", "retry": {"maximum_attempts": 1}}
+    },
+    "mindclade.runtime.v1.RuntimePolicyFeed": {
+      "GetRouteSnapshot": {"permission": "runtime.policy.read", "default_deadline_millis": 10000, "maximum_deadline_millis": 30000, "maximum_request_bytes": 1048576, "idempotency": "read", "retry": {"maximum_attempts": 3}},
+      "GetRevocations": {"permission": "runtime.policy.read", "default_deadline_millis": 10000, "maximum_deadline_millis": 30000, "maximum_request_bytes": 1048576, "idempotency": "read", "retry": {"maximum_attempts": 3}}
+    },
+    "mindclade.runtime.v1.WorkerControl": {
+      "Execute": {"permission": "runtime.worker.control", "default_deadline_millis": 60000, "maximum_deadline_millis": 300000, "maximum_request_bytes": 1048576, "idempotency": "stream_required", "retry": {"maximum_attempts": 1}}
+    }
+  },
+  "removed_symbol_tombstones": [
+    "mindclade.artifact.v1.CheckpointScaffold",
+    "mindclade.artifact.v1.GrantScaffold",
+    "mindclade.artifact.v1.ManifestScaffold",
+    "mindclade.artifact.v1.ServiceScaffold",
+    "mindclade.common.v1.ErrorsScaffold",
+    "mindclade.common.v1.PaginationScaffold",
+    "mindclade.common.v1.ResourcesScaffold",
+    "mindclade.common.v1.TimeScaffold",
+    "mindclade.data.v1.CursorScaffold",
+    "mindclade.data.v1.DatasetScaffold",
+    "mindclade.data.v1.RecordScaffold",
+    "mindclade.data.v1.ServiceScaffold",
+    "mindclade.data.v1.ShardScaffold",
+    "mindclade.data.v1.SnapshotScaffold",
+    "mindclade.data.v1.SourceScaffold",
+    "mindclade.evaluation.v1.CapabilityScaffold",
+    "mindclade.evaluation.v1.EvaluationScaffold",
+    "mindclade.evaluation.v1.ReportScaffold",
+    "mindclade.evaluation.v1.SafetyScaffold",
+    "mindclade.evaluation.v1.ServiceScaffold",
+    "mindclade.events.v1.ArtifactEventsScaffold",
+    "mindclade.events.v1.DataEventsScaffold",
+    "mindclade.events.v1.EvaluationEventsScaffold",
+    "mindclade.events.v1.ModelEventsScaffold",
+    "mindclade.events.v1.OrchestrationEventsScaffold",
+    "mindclade.events.v1.RuntimeEventsScaffold",
+    "mindclade.events.v1.SecurityEventsScaffold",
+    "mindclade.events.v1.TrainingEventsScaffold",
+    "mindclade.inference.v1.ModelScaffold",
+    "mindclade.inference.v1.RequestScaffold",
+    "mindclade.inference.v1.ResponseScaffold",
+    "mindclade.inference.v1.ServiceScaffold",
+    "mindclade.inference.v1.StreamScaffold",
+    "mindclade.orchestration.v1.JobScaffold",
+    "mindclade.orchestration.v1.LeaseScaffold",
+    "mindclade.orchestration.v1.RunScaffold",
+    "mindclade.orchestration.v1.ServiceScaffold",
+    "mindclade.orchestration.v1.WorkflowScaffold",
+    "mindclade.registry.v1.CheckpointScaffold",
+    "mindclade.registry.v1.DatasetScaffold",
+    "mindclade.registry.v1.DeploymentScaffold",
+    "mindclade.registry.v1.ModelBundleScaffold",
+    "mindclade.registry.v1.ServiceScaffold",
+    "mindclade.security.v1.AttestationScaffold",
+    "mindclade.security.v1.AuditScaffold",
+    "mindclade.security.v1.RevocationScaffold",
+    "mindclade.security.v1.ServiceScaffold",
+    "mindclade.security.v1.WeightAccessScaffold",
+    "mindclade.training.v1.CheckpointScaffold",
+    "mindclade.training.v1.ConfigScaffold",
+    "mindclade.training.v1.JobScaffold",
+    "mindclade.training.v1.ProgressScaffold",
+    "mindclade.training.v1.RunScaffold",
+    "mindclade.training.v1.ServiceScaffold",
+    "mindclade.training.v1.TopologyScaffold"
+  ]
+}

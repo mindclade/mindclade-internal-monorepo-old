@@ -63,6 +63,13 @@ status = "implemented"
 owner = "release-engineering"
 tests = ["control/registry/releases/service_test.go"]
 
+[[component]]
+name = "control.checkpoints"
+path = "control/registry/checkpoints"
+status = "implemented"
+owner = "platform-control"
+tests = ["control/registry/checkpoints/service_test.go"]
+
 
 [[component]]
 name = "control.ingestion"
@@ -126,11 +133,78 @@ path = "models"
 status = "scaffolded"
 owner = "modeling"
 
+# `reference-affine-v1` is a numerical conformance workload, not a scientific
+# model. Its leaf capability is implemented without promoting the models umbrella.
+[[component]]
+name = "models.reference_affine"
+path = "models/reference"
+status = "implemented"
+owner = "modeling"
+tests = ["models/reference/tests/test_reference.py"]
+
 [[component]]
 name = "training"
 path = "training"
 status = "scaffolded"
 owner = "training-platform"
+
+# The reference training surface is registered per owning leaf. Reserved task,
+# optimizer, engine, distributed, and checkpoint families remain scaffolded.
+[[component]]
+name = "training.reference_contracts"
+path = "training/contracts"
+status = "implemented"
+owner = "training-platform"
+tests = ["training/contracts/tests/test_contracts.py"]
+
+[[component]]
+name = "training.reference_loop"
+path = "training/core"
+status = "implemented"
+owner = "training-platform"
+tests = ["training/core/tests/test_trainer.py"]
+
+[[component]]
+name = "training.reference_task"
+path = "training/tasks"
+status = "implemented"
+owner = "training-platform"
+tests = ["training/tasks/tests/test_tasks.py"]
+
+[[component]]
+name = "training.reference_optimizer"
+path = "training/optim"
+status = "implemented"
+owner = "training-platform"
+tests = ["training/optim/tests/test_factory.py"]
+
+[[component]]
+name = "training.reference_native_engine"
+path = "training/engines/native"
+status = "implemented"
+owner = "training-platform"
+tests = ["training/engines/native/tests/test_native.py"]
+
+[[component]]
+name = "training.reference_checkpointing"
+path = "training/checkpointing"
+status = "implemented"
+owner = "training-platform"
+tests = [
+    "training/checkpointing/tests/test_resume.py",
+    "training/checkpointing/tests/test_dcp.py",
+]
+
+[[component]]
+name = "training.reference_distributed"
+path = "training/distributed"
+status = "implemented"
+owner = "training-platform"
+tests = [
+    "training/distributed/tests/test_context.py",
+    "training/distributed/tests/test_distributed_smoke.py",
+]
+
 [[component]]
 name = "data.curation"
 path = "data/curation"
@@ -206,7 +280,12 @@ name = "runtime.training_worker"
 path = "services/workers/training"
 status = "implemented"
 owner = "training-platform"
-tests = ["services/workers/training/tests/test_smoke.py"]
+tests = [
+    "services/workers/training/tests/test_distributed_engine.py",
+    "services/workers/training/tests/test_qualification.py",
+    "services/workers/training/tests/test_reference_affine.py",
+    "services/workers/training/tests/test_smoke.py",
+]
 
 
 [[component]]
@@ -227,14 +306,6 @@ path = "infra/terraform/modules"
 status = "implemented"
 owner = "platform-control"
 tests = ["infra/terraform/modules/interface_governance_test.py"]
-qualification = "infra/terraform/PRODUCTION_READINESS.md"
-
-[[component]]
-name = "infra.terraform.dns_hub"
-path = "infra/terraform/environments/dns_hub"
-status = "implemented"
-owner = "platform-control"
-tests = ["infra/terraform/environments/dns_hub/interface_governance_test.py"]
 qualification = "infra/terraform/PRODUCTION_READINESS.md"
 
 # ---------------------------------------------------------------------------------------
@@ -532,6 +603,7 @@ owner = "platform-control"
 tests = [
     "infra/observability/tests/test_alert_contracts.py",
     "infra/observability/tests/test_jobset_outcomes.py",
+    "infra/observability/tests/test_training_metrics.py",
 ]
 
 [[component]]
@@ -552,3 +624,131 @@ path = "tools/qualification"
 status = "implemented"
 owner = "release-engineering"
 tests = ["tools/qualification/tests/test_release_evidence.py"]
+
+[[component]]
+name = "qualification.scientific_model_intake"
+path = "qualification/scientific_model_intake"
+status = "implemented"
+owner = "modeling"
+tests = ["qualification/scientific_model_intake/tests/test_gate.py"]
+
+[[component]]
+name = "qualification.reference_training_platform"
+path = "tools/qualification/training_gke"
+status = "implemented"
+owner = "training-platform"
+tests = [
+    "tools/qualification/training_gke/tests/test_evidence.py",
+    "tools/qualification/training_gke/tests/test_release_contract.py",
+    "tools/qualification/training_gke/tests/test_run.py",
+]
+
+[[component]]
+name = "protocols.protobuf.artifact.v1"
+path = "protocols/proto/mindclade/artifact/v1"
+status = "implemented"
+owner = "platform-control"
+tests = [
+    "protocols/compatibility/descriptor_contract.py",
+    "protocols/compatibility/check_typescript_projection.py",
+]
+qualification = "protocols/qualification/README.md"
+
+[[component]]
+name = "protocols.protobuf.common.v1"
+path = "protocols/proto/mindclade/common/v1"
+status = "implemented"
+owner = "platform-control"
+tests = [
+    "protocols/compatibility/descriptor_contract.py",
+    "protocols/compatibility/check_typescript_projection.py",
+]
+qualification = "protocols/qualification/README.md"
+
+[[component]]
+name = "protocols.protobuf.data.v1"
+path = "protocols/proto/mindclade/data/v1"
+status = "implemented"
+owner = "platform-control"
+tests = [
+    "protocols/compatibility/descriptor_contract.py",
+    "protocols/compatibility/check_typescript_projection.py",
+]
+qualification = "protocols/qualification/README.md"
+
+[[component]]
+name = "protocols.protobuf.evaluation.v1"
+path = "protocols/proto/mindclade/evaluation/v1"
+status = "implemented"
+owner = "platform-control"
+tests = [
+    "protocols/compatibility/descriptor_contract.py",
+    "protocols/compatibility/check_typescript_projection.py",
+]
+qualification = "protocols/qualification/README.md"
+
+[[component]]
+name = "protocols.protobuf.events.v1"
+path = "protocols/proto/mindclade/events/v1"
+status = "implemented"
+owner = "platform-control"
+tests = [
+    "protocols/compatibility/descriptor_contract.py",
+    "protocols/compatibility/check_typescript_projection.py",
+]
+qualification = "protocols/qualification/README.md"
+
+[[component]]
+name = "protocols.protobuf.inference.v1"
+path = "protocols/proto/mindclade/inference/v1"
+status = "implemented"
+owner = "platform-control"
+tests = [
+    "protocols/compatibility/descriptor_contract.py",
+    "protocols/compatibility/check_typescript_projection.py",
+]
+qualification = "protocols/qualification/README.md"
+
+[[component]]
+name = "protocols.protobuf.orchestration.v1"
+path = "protocols/proto/mindclade/orchestration/v1"
+status = "implemented"
+owner = "platform-control"
+tests = [
+    "protocols/compatibility/descriptor_contract.py",
+    "protocols/compatibility/check_typescript_projection.py",
+]
+qualification = "protocols/qualification/README.md"
+
+[[component]]
+name = "protocols.protobuf.registry.v1"
+path = "protocols/proto/mindclade/registry/v1"
+status = "implemented"
+owner = "platform-control"
+tests = [
+    "protocols/compatibility/descriptor_contract.py",
+    "protocols/compatibility/check_typescript_projection.py",
+]
+qualification = "protocols/qualification/README.md"
+
+[[component]]
+name = "protocols.protobuf.runtime.v1"
+path = "protocols/proto/mindclade/runtime/v1"
+status = "implemented"
+owner = "platform-control"
+tests = [
+    "protocols/compatibility/descriptor_contract.py",
+    "protocols/compatibility/check_typescript_projection.py",
+]
+qualification = "protocols/qualification/README.md"
+
+[[component]]
+name = "protocols.protobuf.training.v1"
+path = "protocols/proto/mindclade/training/v1"
+status = "implemented"
+owner = "platform-control"
+tests = [
+    "protocols/compatibility/descriptor_contract.py",
+    "protocols/compatibility/check_typescript_projection.py",
+]
+qualification = "protocols/qualification/README.md"

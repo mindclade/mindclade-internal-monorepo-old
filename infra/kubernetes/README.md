@@ -69,8 +69,9 @@ Every environment currently renders all of the following:
 - workload-class-specific, min/max-only LimitRanges for CPU, H100, and B200;
 - coherent Kueue resource groups: CPU, memory, ephemeral storage, Pod count,
   and GPU (for training) always receive one compatible node flavor;
-- separate one-GPU packed and eight-GPU full-node training templates, both
-  suspended and topology-aware;
+- a one-GPU smoke template and an exact single-node eight-H100 on-demand qualification
+  template, both suspended and zero-digest gated; the separate B200 template remains
+  unqualified and outside this reference claim;
 - a non-secret ConfigMap that says workload activation is blocked.
 
 These are defense-in-depth controls, not an activation mechanism. Raising quota

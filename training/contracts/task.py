@@ -34,11 +34,11 @@ class TaskResult:
             )
         if (
             self.loss_sum.ndim != 0
-            or self.loss_sum.device.type != "cpu"
+            or self.loss_sum.device.type not in {"cpu", "cuda"}
             or self.loss_sum.dtype is not torch.float32
         ):
             raise InvalidArgument(
-                "task loss_sum must be a scalar CPU float32 tensor",
+                "task loss_sum must be a scalar CPU or CUDA float32 tensor",
                 reason="training_task_loss_contract",
             )
         if not bool(torch.isfinite(self.loss_sum.detach()).item()):

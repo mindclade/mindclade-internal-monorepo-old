@@ -9,28 +9,54 @@
 
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { ArtifactRef } from "../../common/v1/artifact_ref_pb.js";
+import { file_mindclade_common_v1_artifact_ref } from "../../common/v1/artifact_ref_pb.js";
+import type { ContentDigest } from "../../common/v1/identifiers_pb.js";
+import { file_mindclade_common_v1_identifiers } from "../../common/v1/identifiers_pb.js";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file mindclade/data/v1/shard.proto.
  */
 export const file_mindclade_data_v1_shard: GenFile = /*@__PURE__*/
-  fileDesc("Ch1taW5kY2xhZGUvZGF0YS92MS9zaGFyZC5wcm90bxIRbWluZGNsYWRlLmRhdGEudjEiIQoNU2hhcmRTY2FmZm9sZBIQCghyZXNlcnZlZBgBIAEoCWIGcHJvdG8z");
+  fileDesc("Ch1taW5kY2xhZGUvZGF0YS92MS9zaGFyZC5wcm90bxIRbWluZGNsYWRlLmRhdGEudjEitQEKDERhdGFzZXRTaGFyZBIQCghzaGFyZF9pZBgBIAEoCRIPCgdvcmRpbmFsGAIgASgNEhQKDHJlY29yZF9jb3VudBgDIAEoBBIyCghhcnRpZmFjdBgEIAEoCzIgLm1pbmRjbGFkZS5jb21tb24udjEuQXJ0aWZhY3RSZWYSOAoMaW5kZXhfZGlnZXN0GAUgASgLMiIubWluZGNsYWRlLmNvbW1vbi52MS5Db250ZW50RGlnZXN0QjxaOmdvLm1pbmRjbGFkZS5kZXYvcHJvdG9jb2xzL2dlbi9nby9taW5kY2xhZGUvZGF0YS92MTtkYXRhdjFiBnByb3RvMw", [file_mindclade_common_v1_artifact_ref, file_mindclade_common_v1_identifiers]);
 
 /**
- * @generated from message mindclade.data.v1.ShardScaffold
+ * DatasetShard is one ordered, immutable partition of canonical records.
+ *
+ * @generated from message mindclade.data.v1.DatasetShard
  */
-export type ShardScaffold = Message<"mindclade.data.v1.ShardScaffold"> & {
+export type DatasetShard = Message<"mindclade.data.v1.DatasetShard"> & {
   /**
-   * @generated from field: string reserved = 1;
+   * @generated from field: string shard_id = 1;
    */
-  reserved: string;
+  shardId: string;
+
+  /**
+   * @generated from field: uint32 ordinal = 2;
+   */
+  ordinal: number;
+
+  /**
+   * @generated from field: uint64 record_count = 3;
+   */
+  recordCount: bigint;
+
+  /**
+   * @generated from field: mindclade.common.v1.ArtifactRef artifact = 4;
+   */
+  artifact?: ArtifactRef | undefined;
+
+  /**
+   * @generated from field: mindclade.common.v1.ContentDigest index_digest = 5;
+   */
+  indexDigest?: ContentDigest | undefined;
 };
 
 /**
- * Describes the message mindclade.data.v1.ShardScaffold.
- * Use `create(ShardScaffoldSchema)` to create a new message.
+ * Describes the message mindclade.data.v1.DatasetShard.
+ * Use `create(DatasetShardSchema)` to create a new message.
  */
-export const ShardScaffoldSchema: GenMessage<ShardScaffold> = /*@__PURE__*/
+export const DatasetShardSchema: GenMessage<DatasetShard> = /*@__PURE__*/
   messageDesc(file_mindclade_data_v1_shard, 0);
 

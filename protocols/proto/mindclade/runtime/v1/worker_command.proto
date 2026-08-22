@@ -5,6 +5,8 @@
 
 syntax = "proto3";
 package mindclade.runtime.v1;
+
+option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/runtime/v1;runtimev1";
 import "mindclade/runtime/v1/buffer_descriptor.proto";
 import "mindclade/runtime/v1/execution_ticket.proto";
 message WorkerCommand { uint64 sequence=1; oneof command { StartCommand start=2; CancelCommand cancel=3; DrainCommand drain=4; HeartbeatCommand heartbeat=5; } }

@@ -1,8 +1,33 @@
-# Changelog
+<!-- mindclade-doc: changelog@1 -->
+
+# Mindclade changelog · internal monorepo
 
 All notable changes to the repository architecture and released implementation
 surfaces are recorded here. Individual model, dataset, runtime, and service
 releases also carry immutable release manifests and evidence bundles.
+
+## 2026-08-21 — Common-document governance baseline
+
+- replaced the one-line proprietary notice with the estate-wide, versioned
+  proprietary software terms and a repository-specific third-party notice;
+- standardized contribution authorization, security routing, support,
+  conduct, and governance documents while preserving monorepo-specific
+  architecture and qualification requirements;
+- applied the canonical proprietary SPDX header to 320 tracked first-party
+  source and policy files, while explicitly excluding independently licensed
+  agent skills, generated clients, and machine-owned lock/reference files;
+- made the complete root policy set part of the repository contract and
+  validation path;
+- added the exact estate-wide `LEGAL.md` reliance policy, upgraded the
+  proprietary terms with the protected-disclosure notice, and made the
+  license, conduct, and legal-policy texts fail-closed by digest;
+- preserved the Contributor Covenant 2.1 attribution and modification boundary
+  in the code of conduct and third-party notice;
+- moved the reusable SPDX source-header template under `.github/` so `LICENSE`
+  is the sole root license surface; and
+- clarified that security response times are non-contractual operational
+  targets and that safe harbor cannot authorize third-party systems or
+  unlawful conduct.
 
 ## 2026-08-20 — Bazel graph production hardening
 

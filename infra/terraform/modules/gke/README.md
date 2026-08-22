@@ -100,6 +100,7 @@ and cost attribution. Offline tests do not create or exercise a cluster.
 | <a name="output_cluster_location"></a> [cluster\_location](#output\_cluster\_location) | GKE regional control-plane location |
 | <a name="output_cluster_name"></a> [cluster\_name](#output\_cluster\_name) | GKE cluster name |
 | <a name="output_network"></a> [network](#output\_network) | VPC network attached to the cluster |
+| <a name="output_project_id"></a> [project\_id](#output\_project\_id) | Project containing the GKE cluster |
 | <a name="output_subnetwork"></a> [subnetwork](#output\_subnetwork) | VPC subnetwork attached to the cluster |
 | <a name="output_system_node_pool_name"></a> [system\_node\_pool\_name](#output\_system\_node\_pool\_name) | Managed non-accelerator system node-pool name |
 | <a name="output_workload_identity_pool"></a> [workload\_identity\_pool](#output\_workload\_identity\_pool) | Workload Identity Federation pool configured for Kubernetes service accounts |

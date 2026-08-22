@@ -64,25 +64,31 @@ targets:
     def write_request(
         self,
         *,
+        release_id: str = "v0.2.0",
+        strategy: str = "previous-release",
         previous_id: str = "v0.1.0",
         previous_digest: str | None = None,
         extra: str = "",
     ) -> Path:
-        path = self.requests / "v0.2.0.yaml"
+        path = self.requests / f"{release_id}.yaml"
+        previous = ""
+        if strategy == "previous-release":
+            previous = f"""    previousRelease:
+      id: {previous_id}
+      subjectDigest: {previous_digest or "sha256:" + "1" * 64}
+"""
         path.write_text(
             f"""---
 apiVersion: release.mindclade.dev/v1beta2
 kind: ReleaseRequest
 metadata:
-  name: v0.2.0
+  name: {release_id}
   changeTicket: PLATFORM-1234
 spec:
   target: go-vanity
   rollback:
-    strategy: previous-release
-    previousRelease:
-      id: {previous_id}
-      subjectDigest: {previous_digest or "sha256:" + "1" * 64}
+    strategy: {strategy}
+{previous}
 {extra}""",
             encoding="utf-8",
         )
@@ -125,6 +131,7 @@ spec:
         self.assertEqual(values["application"], "platform-go-vanity")
         self.assertEqual(values["release-kind"], "application")
         self.assertEqual(values["rollout-class"], "stateless")
+        self.assertEqual(values["rollback-strategy"], "previous-release")
         self.assertEqual(values["previous-release-id"], "v0.1.0")
         self.assertEqual(values["previous-subject-digest"], "sha256:" + "1" * 64)
         self.assertNotIn("rollback-digest", values)
@@ -138,6 +145,25 @@ spec:
     def test_zero_previous_subject_digest_is_rejected(self) -> None:
         self.write_request(previous_digest="sha256:" + "0" * 64)
         with self.assertRaisesRegex(release_request.ContractError, "zero digest"):
+            release_request.validate_request("ci/release/requests/v0.2.0.yaml", "a" * 40)
+
+    def test_first_release_uses_bootstrap_rollback(self) -> None:
+        self.write_request(release_id="v1.0.0", strategy="bootstrap")
+        result = release_request.validate_request("ci/release/requests/v1.0.0.yaml", "a" * 40)
+        self.assertEqual(result["rollbackStrategy"], "bootstrap")
+        self.assertIsNone(result["previousReleaseId"])
+        output = self.root / "github-output"
+        release_request.inspect_request("ci/release/requests/v1.0.0.yaml", "a" * 40, output)
+        values = dict(
+            line.split("=", 1) for line in output.read_text(encoding="utf-8").splitlines()
+        )
+        self.assertEqual(values["rollback-strategy"], "bootstrap")
+        self.assertEqual(values["previous-release-id"], "")
+        self.assertEqual(values["previous-subject-digest"], "")
+
+    def test_bootstrap_rollback_is_rejected_after_first_release(self) -> None:
+        self.write_request(strategy="bootstrap")
+        with self.assertRaisesRegex(release_request.ContractError, "first v1.0.0"):
             release_request.validate_request("ci/release/requests/v0.2.0.yaml", "a" * 40)
 
     def test_request_cannot_inject_a_command(self) -> None:
@@ -223,6 +249,49 @@ spec:
         self.write_request()
         with self.assertRaisesRegex(release_request.ContractError, "keys must be exactly"):
             release_request.validate_request("ci/release/requests/v0.2.0.yaml", "a" * 40)
+
+
+class SharedWorkflowVersionContractTest(unittest.TestCase):
+    def test_release_caller_uses_the_exact_phased_workflow_versions(self) -> None:
+        root = Path(__file__).resolve().parents[3]
+        workflow = (root / ".github/workflows/release.yml").read_text(encoding="utf-8")
+        expected = {
+            "reusable-arc-wif-canary.yml": "v5.0.0",
+            "reusable-arc-oci-build.yml": "v5.0.0",
+            "reusable-arc-oci-qualify.yml": "v5.0.0",
+            "reusable-arc-qualification-attest.yml": "v5.0.0",
+            "reusable-binauthz-sign.yml": "v5.0.0",
+            "reusable-gitops-promote.yml": "v5.0.0",
+        }
+        for name, version in expected.items():
+            self.assertEqual(workflow.count(f"{name}@{version}"), 1, name)
+        self.assertIn(
+            "producer-evidence-digest: ${{ needs.qualify.outputs.producer-evidence-digest }}",
+            workflow,
+        )
+
+
+class ProductionCatalogContractTest(unittest.TestCase):
+    def test_protobuf_contract_bundle_is_a_closed_release_target(self) -> None:
+        target = release_request.load_catalog()["protobuf-contracts"]
+        self.assertEqual(target["releaseKind"], "bundle")
+        self.assertEqual(target["rolloutClass"], "platform")
+        self.assertEqual(
+            target["images"]["primary"],
+            {
+                "repository": "releases/protobuf-contracts",
+                "buildTarget": "//protocols:protobuf_contract_image",
+                "pushTarget": "//protocols:protobuf_contract_push",
+            },
+        )
+        self.assertEqual(
+            target["qualificationTargets"],
+            [
+                "//protocols:protobuf_governance_test",
+                "//protocols:typescript_projection_test",
+                "//protocols/consumers:generated_go_test",
+            ],
+        )
 
 
 if __name__ == "__main__":

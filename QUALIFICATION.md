@@ -1,7 +1,18 @@
-# Qualification status
+# Mindclade · Qualification status
 
 This archive distinguishes implemented source, local/offline qualification,
 connected-provider qualification, and production promotion.
+
+## Current repository-only verification (2026-08-21)
+
+The root repository-home/common-document gate, top-level link hierarchy,
+first-party proprietary header scan, and Cargo dependency-license scan pass.
+The static presubmit passes its first 20 architecture and implementation gates,
+then correctly blocks on an unapproved
+`services/control_plane -> go.mindclade.dev/protocols/servicepolicy`
+dependency. Until that dependency budget is reconciled, the complete static
+lane is not qualified. These results are repository-only evidence and do not
+replace connected provider, GPU, deployment, or production-promotion evidence.
 
 ## Implemented and locally qualified
 

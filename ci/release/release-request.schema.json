@@ -45,7 +45,7 @@
           "type": "object"
         },
         "target": {
-          "enum": ["go-vanity", "weights-fixture"],
+          "enum": ["go-vanity", "protobuf-contracts", "weights-fixture"],
           "type": "string"
         }
       },

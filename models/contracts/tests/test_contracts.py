@@ -5,9 +5,14 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from models.contracts.target_card import (
+    MODEL_TARGET_CARD_V1,
+    MODEL_TARGET_CARD_V2,
     ActivationState,
     MetricDirection,
     MetricGate,
@@ -16,6 +21,7 @@ from models.contracts.target_card import (
 )
 
 DATASET = "sha256:" + "d" * 64
+ROOT = Path(__file__).resolve().parents[3]
 
 
 def metric(**changes: object) -> MetricGate:
@@ -95,3 +101,52 @@ def test_metric_thresholds_and_sample_counts_are_bounded() -> None:
         metric(threshold=float("nan"))
     with pytest.raises(ValueError, match="bounded"):
         metric(minimum_samples=0)
+
+
+def test_v2_document_round_trip_is_exact() -> None:
+    target = card()
+    assert target.schema_version == MODEL_TARGET_CARD_V2
+    assert ModelTargetCard.from_document(target.to_document()) == target
+    assert target.to_document()["safetyReviewRequired"] is True
+
+
+def test_v1_document_remains_a_read_only_compatibility_seam() -> None:
+    legacy = card(
+        schema_version=MODEL_TARGET_CARD_V1,
+        metric_gates=(metric(required_slices=()),),
+    )
+    document = legacy.to_document()
+    assert "safetyReviewRequired" not in document
+    assert "requiredSlices" not in document["metricGates"][0]  # type: ignore[index]
+    assert ModelTargetCard.from_document(document) == legacy
+
+
+def test_v2_requires_predeclared_evaluation_slices() -> None:
+    with pytest.raises(ValueError, match="predeclare"):
+        card(metric_gates=(metric(required_slices=()),))
+
+
+def test_document_reader_rejects_unknown_fields_and_semantic_drift() -> None:
+    document = card().to_document()
+    document["mutableAlias"] = "latest"
+    with pytest.raises(ValueError, match="unknown or missing"):
+        ModelTargetCard.from_document(document)
+
+    mismatched = card().to_document()
+    mismatched["metricGates"][0]["evaluationDatasetDigest"] = "sha256:" + "e" * 64  # type: ignore[index]
+    with pytest.raises(ValueError, match="declared evaluation dataset"):
+        ModelTargetCard.from_document(mismatched)
+
+
+@pytest.mark.parametrize(
+    ("fixture", "version"),
+    [
+        ("model-target-card-v1.valid.json", MODEL_TARGET_CARD_V1),
+        ("model-target-card.valid.json", MODEL_TARGET_CARD_V2),
+    ],
+)
+def test_json_fixture_and_python_contract_have_exact_parity(fixture: str, version: str) -> None:
+    document = json.loads((ROOT / "configs/fixtures" / fixture).read_text(encoding="utf-8"))
+    target = ModelTargetCard.from_document(document)
+    assert target.schema_version == version
+    assert target.to_document() == document

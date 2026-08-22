@@ -1,0 +1,123 @@
+{
+  "schemaVersion": "mindclade.dev/training-metrics/v1",
+  "status": "external-producer-contract",
+  "producer": {
+    "name": "reference-training-outcome-exporter",
+    "owner": "training-platform",
+    "implementationState": "external-contract-required",
+    "sourceAuthority": [
+      "protocols/proto/mindclade/training/v1/checkpoint.proto",
+      "protocols/proto/mindclade/training/v1/progress.proto",
+      "protocols/proto/mindclade/training/v1/run.proto"
+    ],
+    "metricsEndpoint": {
+      "transport": "openmetrics-http",
+      "path": "/metrics",
+      "portName": "metrics",
+      "podMonitoringState": "blocked-until-exporter-exists"
+    }
+  },
+  "metrics": [
+    {
+      "name": "mindclade_training_active_runs",
+      "type": "gauge",
+      "unit": "count",
+      "description": "Number of admitted non-terminal reference qualification runs in each fixed phase.",
+      "labels": ["phase"],
+      "allowedLabelValues": {"phase": ["h100-1g-smoke", "h100-8g-ddp-dcp"]},
+      "maximumSeries": 2
+    },
+    {
+      "name": "mindclade_training_checkpoint_last_committed_timestamp_seconds",
+      "type": "gauge",
+      "unit": "seconds",
+      "description": "Unix timestamp of the newest manifest-last checkpoint commit for each fixed phase.",
+      "labels": ["phase"],
+      "allowedLabelValues": {"phase": ["h100-1g-smoke", "h100-8g-ddp-dcp"]},
+      "maximumSeries": 2
+    },
+    {
+      "name": "mindclade_training_checkpoint_publications_total",
+      "type": "counter",
+      "unit": "count",
+      "description": "Terminal manifest-last checkpoint publication outcomes after digest verification.",
+      "labels": ["phase", "result"],
+      "allowedLabelValues": {"phase": ["h100-1g-smoke", "h100-8g-ddp-dcp"], "result": ["committed", "failed"]},
+      "maximumSeries": 4
+    },
+    {
+      "name": "mindclade_training_checkpoint_restores_total",
+      "type": "counter",
+      "unit": "count",
+      "description": "Terminal checkpoint restore verification outcomes for the bounded DCP compatibility claim.",
+      "labels": ["phase", "result"],
+      "allowedLabelValues": {"phase": ["h100-1g-smoke", "h100-8g-ddp-dcp"], "result": ["exact", "failed", "incompatible"]},
+      "maximumSeries": 6
+    },
+    {
+      "name": "mindclade_training_metric_contract_info",
+      "type": "gauge",
+      "unit": "status",
+      "description": "Exactly one when the external exporter implements the complete versioned metric inventory.",
+      "labels": ["schema"],
+      "allowedLabelValues": {"schema": ["v1"]},
+      "maximumSeries": 1
+    },
+    {
+      "name": "mindclade_training_oldest_active_progress_timestamp_seconds",
+      "type": "gauge",
+      "unit": "seconds",
+      "description": "Oldest committed optimizer-step or safe-point timestamp among active runs in each phase.",
+      "labels": ["phase"],
+      "allowedLabelValues": {"phase": ["h100-1g-smoke", "h100-8g-ddp-dcp"]},
+      "maximumSeries": 2
+    },
+    {
+      "name": "mindclade_training_optimizer_steps_committed_total",
+      "type": "counter",
+      "unit": "count",
+      "description": "Globally committed optimizer steps after successful distributed denominator reduction.",
+      "labels": ["phase"],
+      "allowedLabelValues": {"phase": ["h100-1g-smoke", "h100-8g-ddp-dcp"]},
+      "maximumSeries": 2
+    },
+    {
+      "name": "mindclade_training_runs_terminal_total",
+      "type": "counter",
+      "unit": "count",
+      "description": "Durable terminal run outcomes without run, model, dataset, or tenant identity labels.",
+      "labels": ["phase", "reason_class", "result"],
+      "allowedLabelValues": {
+        "phase": ["h100-1g-smoke", "h100-8g-ddp-dcp"],
+        "reason_class": ["canceled", "checkpoint", "collective", "completed", "data", "deadline", "numerical", "other", "worker"],
+        "result": ["canceled", "completed", "failed"]
+      },
+      "maximumSeries": 54
+    }
+  ],
+  "maximumExporterSeries": 73,
+  "recordingRules": [
+    {"name": "mindclade:training_active_runs:sum", "semanticMetric": "mindclade.training.active_runs", "sourceMetrics": ["mindclade_training_active_runs"], "unit": "count"},
+    {"name": "mindclade:training_checkpoint_last_committed_age_seconds:max", "semanticMetric": "mindclade.training.checkpoint_last_committed_age_seconds", "sourceMetrics": ["mindclade_training_active_runs", "mindclade_training_checkpoint_last_committed_timestamp_seconds"], "unit": "seconds"},
+    {"name": "mindclade:training_checkpoint_publication_failure_ratio:ratio15m", "semanticMetric": "mindclade.training.checkpoint_failure_ratio", "sourceMetrics": ["mindclade_training_checkpoint_publications_total"], "unit": "ratio"},
+    {"name": "mindclade:training_checkpoint_publications:increase15m", "semanticMetric": "mindclade.training.checkpoint_publication_outcomes_15m", "sourceMetrics": ["mindclade_training_checkpoint_publications_total"], "unit": "count"},
+    {"name": "mindclade:training_checkpoint_restore_exact_ratio:ratio15m", "semanticMetric": "mindclade.training.checkpoint_restore_exact_ratio", "sourceMetrics": ["mindclade_training_checkpoint_restores_total"], "unit": "ratio"},
+    {"name": "mindclade:training_checkpoint_restores:increase15m", "semanticMetric": "mindclade.training.checkpoint_restore_outcomes_15m", "sourceMetrics": ["mindclade_training_checkpoint_restores_total"], "unit": "count"},
+    {"name": "mindclade:training_metric_contract_complete:max", "semanticMetric": "mindclade.training.metric_contract_complete", "sourceMetrics": ["mindclade_training_metric_contract_info"], "unit": "status"},
+    {"name": "mindclade:training_optimizer_steps:increase5m", "semanticMetric": "mindclade.training.optimizer_steps_5m", "sourceMetrics": ["mindclade_training_optimizer_steps_committed_total"], "unit": "count"},
+    {"name": "mindclade:training_run_failure_ratio:ratio15m", "semanticMetric": "mindclade.training.run_failure_ratio", "sourceMetrics": ["mindclade_training_runs_terminal_total"], "unit": "ratio"},
+    {"name": "mindclade:training_run_outcomes:increase15m", "semanticMetric": "mindclade.training.run_outcomes_15m", "sourceMetrics": ["mindclade_training_runs_terminal_total"], "unit": "count"},
+    {"name": "mindclade:training_run_terminal_samples:increase15m", "semanticMetric": "mindclade.training.run_terminal_samples_15m", "sourceMetrics": ["mindclade_training_runs_terminal_total"], "unit": "count"},
+    {"name": "mindclade:training_seconds_since_progress:max", "semanticMetric": "mindclade.training.seconds_since_progress", "sourceMetrics": ["mindclade_training_active_runs", "mindclade_training_oldest_active_progress_timestamp_seconds"], "unit": "seconds"}
+  ],
+  "privacy": {
+    "forbiddenLabels": ["artifact", "checkpoint", "dataset", "feature", "label", "model", "molecule", "prompt", "request-id", "run", "sequence", "tenant", "user", "workspace"],
+    "rawValuesInTelemetry": false
+  },
+  "activationPolicy": {
+    "enabledByDefault": false,
+    "requiresImplementedExporter": true,
+    "requiresConnectedScrapeEvidence": true,
+    "requiresSyntheticFireAndResolve": true
+  }
+}

@@ -5,6 +5,8 @@
 
 syntax = "proto3";
 package mindclade.runtime.v1;
+
+option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/runtime/v1;runtimev1";
 message ExecutionBudget {
   uint32 cpu_millis = 1;
   uint64 resident_memory_bytes = 2;

@@ -29,7 +29,7 @@ def test_supervised_batch_accepts_batch_size_one_and_noncontiguous_tensors() -> 
 @pytest.mark.parametrize(
     ("inputs", "targets", "message"),
     [
-        (torch.ones(1, dtype=torch.float64), torch.ones(1), "CPU float32"),
+        (torch.ones(1, dtype=torch.float64), torch.ones(1), "CPU or CUDA float32"),
         (torch.ones(2, 1), torch.ones(1, 1), "batch dimension"),
         (torch.tensor([float("nan")]), torch.ones(1), "finite"),
         (torch.ones(1), torch.empty(1, 0), "contain values"),
@@ -56,7 +56,7 @@ def test_task_result_preserves_differentiable_sum_and_denominator() -> None:
     ("loss", "denominator", "message"),
     [
         (torch.ones(1), 1, "scalar"),
-        (torch.tensor(1.0, dtype=torch.float64), 1, "CPU float32"),
+        (torch.tensor(1.0, dtype=torch.float64), 1, "CPU or CUDA float32"),
         (torch.tensor(float("inf")), 1, "not finite"),
         (torch.tensor(1.0), 0, "denominator"),
     ],

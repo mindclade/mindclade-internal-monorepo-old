@@ -12,6 +12,7 @@ The caller owns device placement; forward execution never casts or moves tensors
 
 from __future__ import annotations
 
+import json
 import math
 import os
 import stat
@@ -26,13 +27,26 @@ from safetensors.torch import load as load_safetensors
 from safetensors.torch import save_file
 from torch import nn
 
+from libs.python.serialization import canonical_json_bytes
+
 REFERENCE_AFFINE_MODEL_NAME: Final = "reference-affine-v1"
 REFERENCE_AFFINE_OPERATION: Final = "reference.affine.v1"
 REFERENCE_AFFINE_DTYPE: Final = "float32"
+REFERENCE_AFFINE_CONFIG_SCHEMA_VERSION: Final = 1
 DEFAULT_MAXIMUM_INPUT_ELEMENTS: Final = 16_777_216
 MAXIMUM_REFERENCE_CHECKPOINT_BYTES: Final = 1 << 20
+MAXIMUM_REFERENCE_CONFIG_BYTES: Final = 4 << 10
 
 _STATE_KEYS: Final = frozenset({"scale", "bias"})
+_CONFIG_KEYS: Final = frozenset(
+    {
+        "architecture",
+        "dtype",
+        "maximum_input_elements",
+        "operation",
+        "schema_version",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +80,8 @@ class ReferenceAffineConfig:
             raise TypeError("reference affine maximum_input_elements must be an integer")
         if self.maximum_input_elements <= 0:
             raise ValueError("reference affine maximum_input_elements must be positive")
+        if self.maximum_input_elements > DEFAULT_MAXIMUM_INPUT_ELEMENTS:
+            raise ValueError("reference affine maximum_input_elements exceeds the v1 limit")
 
 
 class ReferenceAffine(nn.Module):
@@ -108,14 +124,18 @@ class ReferenceAffine(nn.Module):
             raise ValueError("reference affine input and parameters must be on the same device")
         if not torch.isfinite(inputs).all().item():
             raise ValueError("reference affine input must contain only finite values")
-        return self.compute(inputs)
+        outputs = self.compute(inputs)
+        if not torch.isfinite(outputs).all().item():
+            raise FloatingPointError("reference affine arithmetic produced non-finite output")
+        return outputs
 
     def compute(self, inputs: torch.Tensor) -> torch.Tensor:
         """Apply model-owned arithmetic after an adapter has validated its tensor boundary.
 
         Training should normally call the module so ``forward`` enforces the complete public
-        contract. Runtime adapters that validate once before a bounded iterative loop may call
-        this method to avoid repeated full-tensor scans and host synchronizations.
+        contract. Runtime adapters that validate their boundary once may call this method for
+        the single v1 operation and then validate the final output, avoiding duplicate scans and
+        host synchronizations.
         """
 
         return (inputs * self.scale) + self.bias
@@ -143,6 +163,80 @@ class ReferenceAffine(nn.Module):
             f"operation={self._config.operation!r}, dtype={self._config.dtype!r}, "
             f"maximum_input_elements={self._config.maximum_input_elements}"
         )
+
+
+def reference_affine_config_document(config: ReferenceAffineConfig) -> dict[str, object]:
+    """Return the exact model-owned v1 bundle configuration document."""
+
+    if not isinstance(config, ReferenceAffineConfig):
+        raise TypeError("config must be a ReferenceAffineConfig")
+    return {
+        "architecture": REFERENCE_AFFINE_MODEL_NAME,
+        "dtype": REFERENCE_AFFINE_DTYPE,
+        "maximum_input_elements": config.maximum_input_elements,
+        "operation": REFERENCE_AFFINE_OPERATION,
+        "schema_version": REFERENCE_AFFINE_CONFIG_SCHEMA_VERSION,
+    }
+
+
+def reference_affine_config_bytes(config: ReferenceAffineConfig) -> bytes:
+    """Encode the exact model-owned v1 bundle configuration."""
+
+    return canonical_json_bytes(
+        reference_affine_config_document(config),
+        maximum_encoded_bytes=MAXIMUM_REFERENCE_CONFIG_BYTES,
+    )
+
+
+def parse_reference_affine_config(value: bytes) -> ReferenceAffineConfig:
+    """Parse an exact, unique-key v1 bundle config into an immutable model config."""
+
+    if not isinstance(value, bytes):
+        raise TypeError("reference affine config must be bytes")
+    if not value or len(value) > MAXIMUM_REFERENCE_CONFIG_BYTES:
+        raise ValueError("reference affine config size is outside bounds")
+    try:
+        document = json.loads(
+            value,
+            object_pairs_hook=_unique_json_object,
+            parse_constant=_reject_json_constant,
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError, RecursionError, ValueError) as error:
+        raise ValueError("reference affine config must be unique-key UTF-8 JSON") from error
+    if not isinstance(document, dict) or set(document) != _CONFIG_KEYS:
+        raise ValueError("reference affine config fields do not match schema v1")
+    exact = {
+        "architecture": REFERENCE_AFFINE_MODEL_NAME,
+        "dtype": REFERENCE_AFFINE_DTYPE,
+        "operation": REFERENCE_AFFINE_OPERATION,
+        "schema_version": REFERENCE_AFFINE_CONFIG_SCHEMA_VERSION,
+    }
+    if (
+        isinstance(document["schema_version"], bool)
+        or not isinstance(document["schema_version"], int)
+        or any(document[name] != expected for name, expected in exact.items())
+    ):
+        raise ValueError("reference affine config identity does not match schema v1")
+    maximum_input_elements = document["maximum_input_elements"]
+    if isinstance(maximum_input_elements, bool) or not isinstance(maximum_input_elements, int):
+        raise ValueError("reference affine maximum_input_elements must be an integer")
+    config = ReferenceAffineConfig(maximum_input_elements=maximum_input_elements)
+    if reference_affine_config_bytes(config) != value:
+        raise ValueError("reference affine config must use canonical JSON bytes")
+    return config
+
+
+def _unique_json_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    document: dict[str, object] = {}
+    for key, value in pairs:
+        if key in document:
+            raise ValueError(f"duplicate JSON key {key!r}")
+        document[key] = value
+    return document
+
+
+def _reject_json_constant(value: str) -> object:
+    raise ValueError(f"non-finite JSON number {value}")
 
 
 def save_reference_affine(

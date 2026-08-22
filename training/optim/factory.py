@@ -125,6 +125,7 @@ def build_optimizer(
     resolved: list[nn.Parameter] = []
     identities: set[int] = set()
     total_elements = 0
+    device: torch.device | None = None
     for parameter in iterator:
         if len(resolved) == MAXIMUM_PARAMETER_TENSORS:
             raise ResourceExhausted(
@@ -152,10 +153,17 @@ def build_optimizer(
                 "optimizer parameters must be leaf tensors",
                 reason="training_optimizer_parameter_leaf",
             )
-        if parameter.device.type != "cpu" or parameter.dtype is not torch.float32:
+        if parameter.device.type not in {"cpu", "cuda"} or parameter.dtype is not torch.float32:
             raise InvalidArgument(
-                "optimizer parameters must be CPU float32",
+                "optimizer parameters must be CPU or CUDA float32",
                 reason="training_optimizer_parameter_placement",
+            )
+        if device is None:
+            device = parameter.device
+        elif parameter.device != device:
+            raise InvalidArgument(
+                "optimizer parameters must be on one explicit device",
+                reason="training_optimizer_parameter_device",
             )
         total_elements += parameter.numel()
         if total_elements > MAXIMUM_PARAMETER_ELEMENTS:

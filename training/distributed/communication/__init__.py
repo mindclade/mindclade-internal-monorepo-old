@@ -3,26 +3,10 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Communication subpackage for distributed training primitives."""
+"""Implemented communication primitives for bounded DDP training."""
 
 from __future__ import annotations
 
-from . import (
-    collectives,
-    comm_hooks,
-    diagnostics,
-    gradient_sync,
-    loss_reduction,
-    metric_reduction,
-    transport,
-)
+from .loss_reduction import DDPReducer
 
-__all__ = [
-    "collectives",
-    "comm_hooks",
-    "diagnostics",
-    "gradient_sync",
-    "loss_reduction",
-    "metric_reduction",
-    "transport",
-]
+__all__ = ["DDPReducer"]

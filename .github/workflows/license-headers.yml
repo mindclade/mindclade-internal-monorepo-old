@@ -46,3 +46,6 @@ jobs:
       # ci/presubmit/pipeline.py run the checkers before any toolchain exists.
       - name: Ensure proprietary header policy
         run: python3 tools/analysis/check_license_headers.py
+
+      - name: Ensure proprietary package and license policy
+        run: python3 tools/license/check_license_policy.py

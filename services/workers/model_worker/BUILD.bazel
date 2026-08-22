@@ -15,6 +15,7 @@ py_library(
     ),
     imports = ["../../.."],
     deps = [
+        "//models/reference:affine",
         "//protocols/proto/mindclade/runtime/v1:runtime_worker_py_pb2",
         "//serving/contracts",
         "//serving/model_worker",

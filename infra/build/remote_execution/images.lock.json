@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "buildfarm": {
+    "version": "2.17.0",
+    "source": "https://github.com/buildfarm/buildfarm",
+    "tagObject": "aedec101310a58cdfa480675dfa9fb9d732406be",
+    "sourceCommit": "7a2b98e6b9bdda948631d403a92c159aa33b196e",
+    "release": "https://github.com/buildfarm/buildfarm/releases/tag/2.17.0",
+    "images": {
+      "server": {
+        "repository": "docker.io/bazelbuild/buildfarm-server",
+        "indexDigest": "sha256:54567fa9a4d2fc374e200e57e537ba47ce969ec2dcb1e6fd35a25dc8f8a50949",
+        "platforms": {
+          "linux/amd64": "sha256:d0baafbb2a3a844e97d46b71b9e44ed1f39e17416edb0f6882d60bf345c3c138",
+          "linux/arm64": "sha256:039358b58740222ffc96fac39a65577b1ca74890ec240c8249bfafa1c4f79f9a"
+        }
+      },
+      "worker": {
+        "repository": "docker.io/bazelbuild/buildfarm-worker",
+        "indexDigest": "sha256:7a10e8f37daecf2e8485acf872e00b02ec6fb7519fe4b6fc32e71ce2b033747d",
+        "platforms": {
+          "linux/amd64": "sha256:190dc112e879390885279363b2853a73f3f82d47c2b66faa1c22a78b65c72638",
+          "linux/arm64": "sha256:7eabeb95ce5ed53be2d09e93e020da63be4a509933a3e83bd37926e918d33c85"
+        }
+      }
+    }
+  },
+  "executionBase": {
+    "authority": "nix",
+    "flakeAttribute": ".#packages.<system>.remote-execution-base",
+    "requiredSystems": [
+      "aarch64-linux",
+      "x86_64-linux"
+    ],
+    "requiredUser": "65532:65532",
+    "bazelVersion": "9.1.1",
+    "publicationState": "blocked-pending-native-build-and-attestation"
+  }
+}

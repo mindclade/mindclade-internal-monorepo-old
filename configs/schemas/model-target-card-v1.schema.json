@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mindclade.com/contracts/model/target-card-1.0.0.schema.json",
+  "title": "Mindclade model target card v1 compatibility reader",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "modelName", "family", "owner", "dataClassification", "inputSchemaDigest", "outputSchemaDigest", "trainingDatasetDigests", "evaluationDatasetDigests", "metricGates", "availabilityProfile", "trainingHardwareProfiles", "servingHardwareProfiles", "activation"],
+  "properties": {
+    "schemaVersion": {"const": "mindclade.dev/model-target-card/v1"},
+    "modelName": {"$ref": "#/$defs/id"},
+    "family": {"enum": ["biology", "diffusion", "llm", "moe", "multimodal"]},
+    "owner": {"$ref": "#/$defs/id"},
+    "dataClassification": {"const": "proprietary-internal"},
+    "inputSchemaDigest": {"$ref": "#/$defs/digest"},
+    "outputSchemaDigest": {"$ref": "#/$defs/digest"},
+    "trainingDatasetDigests": {"type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/digest"}},
+    "evaluationDatasetDigests": {"type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/digest"}},
+    "metricGates": {"type": "array", "minItems": 1, "maxItems": 128, "items": {"$ref": "#/$defs/metric"}},
+    "availabilityProfile": {"$ref": "#/$defs/id"},
+    "trainingHardwareProfiles": {"type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+    "servingHardwareProfiles": {"type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+    "activation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "qualificationEvidenceDigest"],
+      "properties": {
+        "state": {"enum": ["designed", "qualification", "approved"]},
+        "qualificationEvidenceDigest": {"type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$"}
+      },
+      "if": {"properties": {"state": {"const": "approved"}}},
+      "then": {"properties": {"qualificationEvidenceDigest": {"$ref": "#/$defs/digest"}}},
+      "else": {"properties": {"qualificationEvidenceDigest": {"type": "null"}}}
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "direction", "threshold", "minimumSamples", "evaluationDatasetDigest"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]{1,127}$"},
+        "direction": {"enum": ["at-least", "at-most"]},
+        "threshold": {"type": "number"},
+        "minimumSamples": {"type": "integer", "minimum": 1, "maximum": 1000000000},
+        "evaluationDatasetDigest": {"$ref": "#/$defs/digest"}
+      }
+    }
+  }
+}

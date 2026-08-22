@@ -2,6 +2,7 @@
   "name": "@mindclade/sdk-typescript",
   "version": "0.1.0",
   "private": true,
+  "license": "UNLICENSED",
   "type": "module",
   "sideEffects": false,
   "files": ["dist", "README.md"],

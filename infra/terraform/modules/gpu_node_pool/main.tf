@@ -40,8 +40,9 @@ locals {
   resource_labels = merge(var.resource_labels, local.baseline_resource_labels)
 
   node_labels = merge(var.node_labels, {
-    "mindclade.dev/gpu-profile" = var.profile
-    "mindclade.dev/node-pool"   = "gpu"
+    "mindclade.dev/capacity-type" = lower(replace(var.capacity_mode, "_", "-"))
+    "mindclade.dev/gpu-profile"   = var.profile
+    "mindclade.dev/node-pool"     = "gpu"
   })
 
   node_taints = concat(

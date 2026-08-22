@@ -4,6 +4,7 @@
 #
 
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@rules_go//proto:def.bzl", "go_proto_library")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -28,14 +29,62 @@ proto_library(
     ],
 )
 
-filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["*.proto"],
-        exclude = [
-            "dataset.proto",
-            "service.proto",
-        ],
-    ),
-    visibility = ["//visibility:public"],
+proto_library(
+    name = "cursor_proto",
+    srcs = ["cursor.proto"],
+    strip_import_prefix = "/protocols/proto",
+)
+
+proto_library(
+    name = "record_proto",
+    srcs = ["record.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = ["//protocols/proto/mindclade/common/v1:identifiers_proto"],
+)
+
+proto_library(
+    name = "shard_proto",
+    srcs = ["shard.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = [
+        "//protocols/proto/mindclade/common/v1:artifact_ref_proto",
+        "//protocols/proto/mindclade/common/v1:identifiers_proto",
+    ],
+)
+
+proto_library(
+    name = "source_proto",
+    srcs = ["source.proto"],
+    strip_import_prefix = "/protocols/proto",
+)
+
+proto_library(
+    name = "snapshot_proto",
+    srcs = ["snapshot.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = [
+        ":cursor_proto",
+        ":source_proto",
+        "//protocols/proto/mindclade/common/v1:artifact_ref_proto",
+        "@protobuf//:timestamp_proto",
+    ],
+)
+
+go_proto_library(
+    name = "data_go_proto",
+    compilers = [
+        "@rules_go//proto:go_grpc_v2",
+        "@rules_go//proto:go_proto",
+    ],
+    importpath = "go.mindclade.dev/protocols/gen/go/mindclade/data/v1",
+    protos = [
+        ":cursor_proto",
+        ":dataset_proto",
+        ":dataset_service_proto",
+        ":record_proto",
+        ":shard_proto",
+        ":snapshot_proto",
+        ":source_proto",
+    ],
+    deps = ["//protocols/proto/mindclade/common/v1:common_go_proto"],
 )

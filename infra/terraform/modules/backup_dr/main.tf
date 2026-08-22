@@ -1,8 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-
-data "google_project" "this" { project_id = var.project_id }
+#
 
 resource "google_gke_backup_backup_plan" "this" {
   project         = var.project_id
@@ -28,32 +27,6 @@ resource "google_gke_backup_backup_plan" "this" {
   lifecycle { prevent_destroy = true }
 }
 
-resource "google_kms_key_ring" "replica" {
-  for_each = toset(distinct([for replica in values(var.bucket_replication) : replica.destination_region]))
-
-  project  = var.project_id
-  location = each.value
-  name     = "${var.gke_backup.plan_name}-replica"
-}
-
-resource "google_kms_crypto_key" "replica" {
-  for_each = google_kms_key_ring.replica
-
-  name            = "storage-replica"
-  key_ring        = each.value.id
-  rotation_period = "7776000s"
-  deletion_policy = "PREVENT"
-  lifecycle { prevent_destroy = true }
-}
-
-resource "google_kms_crypto_key_iam_member" "storage_agent" {
-  for_each = google_kms_crypto_key.replica
-
-  crypto_key_id = each.value.id
-  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
-  member        = "serviceAccount:service-${data.google_project.this.number}@gs-project-accounts.iam.gserviceaccount.com"
-}
-
 resource "google_storage_bucket" "replica" {
   for_each = var.bucket_replication
 
@@ -66,7 +39,7 @@ resource "google_storage_bucket" "replica" {
   public_access_prevention    = "enforced"
   labels                      = merge(var.labels, { managed-by = "terraform", purpose = "dr-replica" })
 
-  encryption { default_kms_key_name = google_kms_crypto_key.replica[each.value.destination_region].id }
+  encryption { default_kms_key_name = each.value.kms_key_name }
   versioning { enabled = true }
   soft_delete_policy { retention_duration_seconds = 2592000 }
   retention_policy {
@@ -76,7 +49,6 @@ resource "google_storage_bucket" "replica" {
   lifecycle {
     prevent_destroy = true
   }
-  depends_on = [google_kms_crypto_key_iam_member.storage_agent]
 }
 
 resource "google_storage_transfer_job" "replica" {
@@ -103,11 +75,11 @@ resource "google_storage_transfer_job" "replica" {
       day   = 20
     }
     start_time_of_day {
-      hours   = tonumber(split(" ", each.value.schedule)[1])
+      hours   = split(" ", each.value.schedule)[1] == "*" ? 0 : tonumber(split(" ", each.value.schedule)[1])
       minutes = tonumber(split(" ", each.value.schedule)[0])
       seconds = 0
       nanos   = 0
     }
-    repeat_interval = "86400s"
+    repeat_interval = split(" ", each.value.schedule)[1] == "*" ? "3600s" : "86400s"
   }
 }

@@ -32,12 +32,14 @@
 // Republishing different content under a digest that is already taken is a
 // digest collision, not a concurrent write, and is refused.
 //
-// A releases.Release is mutable state under a stable ReleaseID -- Promote
-// moves Status from qualified to promoted -- and carries its own
-// ResourceVersion counter. PutRelease compare-and-swaps on it. This package
-// does not reach for libs/go/resourceversion here: Release already declares
-// its optimistic-concurrency field, and pairing a second mechanism beside it
-// would leave two versions to keep agreeing.
+// A releases.Release is mutable state under a stable ReleaseID and carries its
+// own ResourceVersion counter. PutRelease is the lower-level create/update
+// primitive used by lifecycle owners. The release-domain Repository exposes
+// only PromoteRelease, which has no insert path and compare-and-swaps an exact
+// durable candidate/qualified record to promoted. This package does not reach
+// for libs/go/resourceversion here: Release already declares its
+// optimistic-concurrency field, and pairing a second mechanism beside it would
+// leave two versions to keep agreeing.
 //
 // An EvidenceGraph is sealed by the digest the Release quotes, so it is
 // immutable once written and PutGraph is insert-if-absent on ReleaseID.

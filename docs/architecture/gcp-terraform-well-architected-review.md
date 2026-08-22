@@ -65,10 +65,10 @@ silently rewrite evidence. Current verified totals are maintained in
 | Evidence ID | Source | Scope | Collected at | Redaction | Notes |
 |---|---|---|---|---|---|
 | E-001 | `infra/terraform/modules/**` | Historical snapshot: 32 module directories | 2026-08-20 | None | 22 substantive modules and 10 blueprint-named scaffolds at review start; retained as historical evidence |
-| E-002 | `infra/terraform/environments/**` | Four roots | 2026-08-20 | None | Only `dns_hub` is materialized; development/staging/production remain non-deployable |
+| E-002 | `infra/terraform/environments/**` | Historical snapshot: four roots | 2026-08-20 | None | At review time only `dns_hub` was materialized; it has since been retired to a non-deployable module test fixture, while development/staging/production remain non-deployable |
 | E-003 | `docs/blueprint/production-monorepo-blueprint.md` and `docs/architecture/**` | Workload and repository laws | 2026-08-20 | None | Bazel owns build/release; Nix owns toolchains; GKE is the documented AI execution substrate |
 | E-004 | `.github/workflows/presubmit.yml`, `security.yml`, `release.yml` | CI and release | 2026-08-20 | None | Terraform contracts, two-version compatibility, TFLint, Trivy, plan-policy fixtures, and interface drift run in CI; connected-plan, cost, nightly, and GPU evidence are incomplete |
-| E-005 | `components.toml`, `architecture/component_ownership.toml`, `maturity.toml` | Maturity governance | 2026-08-20 | None | Terraform modules and `dns_hub` are registered with tier-2 ownership and executable governance tests; deployment promotion evidence remains absent |
+| E-005 | `components.toml`, `architecture/component_ownership.toml`, `maturity.toml` | Historical maturity-governance snapshot | 2026-08-20 | None | At review time Terraform modules and `dns_hub` were registered with tier-2 ownership; `dns_hub` has since been removed from deployable ownership, while executable module governance remains and deployment promotion evidence is absent |
 | E-006 | `terraform fmt -check -recursive infra/terraform` | Static formatting baseline | 2026-08-20 | None | Passed before implementation |
 | E-007 | `actionlint` and `yamllint --strict .github/workflows` | Workflow syntax baseline | 2026-08-20 | None | Passed before implementation |
 | E-008 | [Google Cloud WIF deployment guidance](https://docs.cloud.google.com/iam/docs/workload-identity-federation-with-deployment-pipelines) | CI identity design | 2026-08-20 | N/A | Subject mapping and attribute conditions are required trust controls |

@@ -30,10 +30,6 @@ spec:
     - planes/studio/overlays/development
     - planes/studio/overlays/production
     - planes/studio/overlays/staging
-    - platform/cert-manager/base
-    - platform/cert-manager/overlays/development
-    - platform/cert-manager/overlays/production
-    - platform/cert-manager/overlays/staging
     - platform/gateway/base
     - platform/gateway/overlays/development
     - platform/gateway/overlays/production
@@ -86,7 +82,6 @@ spec:
   activationGatedUnmatchedNetworkPolicies:
     - mindclade-system/block-unqualified-nccl
     - mindclade-system/block-unqualified-rdma
-    - mindclade-system/block-unqualified-remote-execution
 
   # Helm release identity and supply-chain inputs are part of the rendered contract. The archive
   # and controller digest variables are read from versions.env without sourcing executable text.
@@ -220,6 +215,7 @@ spec:
     - planes/studio/overlays/staging
     - platform/jobset
     - platform/qualification
+    - platform/remote-execution
     - services/artifact-proxy
     - services/batch-inference-workers
     - services/control-plane
@@ -255,6 +251,7 @@ spec:
     - planes/studio/overlays/production
     - planes/studio/overlays/staging
     - platform/qualification
+    - platform/remote-execution
     - services/artifact-proxy
     - services/batch-inference-workers
     - services/control-plane

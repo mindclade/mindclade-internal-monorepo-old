@@ -29,6 +29,8 @@
 | Visibility | `internal` |
 | Change model | `pull-request` |
 | Authority | `application-source`<br>`platform-source`<br>`model-source`<br>`training-source`<br>`data-source`<br>`serving-source`<br>`sdk-source`<br>`bazel-build-graph`<br>`qualification-policy`<br>`release-artifact-definitions` |
+| Primary readers | Product, research, ML, data, and platform engineers |
+| First success | [Run the static presubmit](#quick-start) |
 | Start here | [`docs/README.md`](docs/README.md) |
 
 ## Mission
@@ -60,17 +62,22 @@ execution environments; versioned contracts connect Go, Rust, Python, TileLang, 
 
 ## Quick start
 
-Enter the pinned CI environment and run provider-independent architecture checks:
+Prerequisite: a supported host with Nix available. The repository wrapper selects the pinned CI
+environment; no cloud, cluster, GPU, or release credentials are required.
 
 ```sh
 tools/dev/nixw develop .#ci --command python3 ci/presubmit/pipeline.py --static-only
 tools/dev/nixw flake check --no-update-lock-file
 ```
 
-Expected result: repository structure, dependency boundaries, generated metadata, and static
-presubmit checks pass without cloud, GPU, or release credentials. Use
-[`VALIDATION.md`](VALIDATION.md) to select additional owning targets; connected qualification
-remains a separate evidence lane.
+**Success means:** repository structure, dependency boundaries, generated metadata, and every
+static presubmit gate pass.
+
+**If it fails:** use [`VALIDATION.md`](VALIDATION.md) to identify the owning narrow Bazel target,
+then test affected reverse dependencies before widening to the full graph.
+
+**Safety boundary:** cloud, GPU, release, and production qualification remain separate evidence
+lanes. A local pass is not deployment or production-readiness evidence.
 
 ## Estate position
 
@@ -124,6 +131,9 @@ production publication.
 - [Repository status](REPOSITORY_STATUS.md)
 - [Qualification](QUALIFICATION.md)
 - [Contributing](CONTRIBUTING.md)
+- Policies and terms: [governance](GOVERNANCE.md) · [conduct](CODE_OF_CONDUCT.md) ·
+  [support](SUPPORT.md) · [legal](LEGAL.md) · [license](LICENSE) · [notice](NOTICE) ·
+  [changes](CHANGELOG.md)
 
 ## Security
 

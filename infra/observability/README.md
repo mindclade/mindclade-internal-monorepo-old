@@ -39,6 +39,21 @@ OpenMetrics exposition without JobSet-name or UID labels. It is source behavior,
 watcher: Kubernetes watch identity, RBAC, storage, Service/PodMonitoring, restart/relist behavior,
 and synthetic connected evidence remain environment-owned activation gates.
 
+`grafana-datasources.yaml` and `otel-collector.yaml` are versioned compatibility decisions, not
+deployment manifests. Their closed schema records that Cloud Monitoring and Google Managed Service
+for Prometheus remain authoritative here; an environment that needs Grafana or an OpenTelemetry
+Collector must own its identities, endpoints, scaling, network policy, credentials, and connected
+qualification. Catalog validation fails if either file starts claiming deployment, alerting,
+dashboard, datasource, credential, or exporter ownership.
+
+`training-metrics.json` and its closed schema define an exact 73-series external producer
+contract over fixed one-GPU and eight-GPU qualification phases. It covers committed optimizer
+progress, terminal run outcomes, manifest-last checkpoint publication, and bounded restore
+outcomes without run/model/dataset/tenant identity. The corresponding H100 GMP `Rules`, disabled
+alert proposals, dashboard, and promtool fixtures are source material only. No training exporter,
+metrics port, `PodMonitoring`, collector network rule, Cloud Monitoring policy, or notification
+channel is claimed to exist.
+
 `alerts/control-admission-degraded.yaml` and `dashboards/control-plane.json` define the disabled
 99.95-percent availability, exact 100-millisecond latency compliance, diagnostic p99, paired
 5m+1h/30m+6h error-budget burn, expiration, sweep, and audit/outbox drift contracts. Their source
@@ -61,6 +76,11 @@ Before an observability contract is enabled in an environment, require:
 - Cloud Monitoring alert fire-and-resolve evidence through a non-production channel;
 - an exact NetworkPolicy allowance for the observed managed collector identity; and
 - rollback evidence proving that disabling collection leaves workloads and controllers healthy.
+
+Training activation additionally requires the external outcome exporter to implement the exact
+metric inventory, demonstrate replay/idempotence for canonical run/checkpoint events, and prove
+that every actionable ratio is sample-qualified. SLO, cost, RPO, and RTO values remain
+environment-owner inputs; repository proposals are never approvals.
 
 Correctness alerts use the minimum `1m` retest because missing-data evaluation requires a duration
 of at least 60 seconds in Cloud Monitoring. Every duration remains a positive whole number of

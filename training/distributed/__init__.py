@@ -3,10 +3,21 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Mindclade scaffold package for training/distributed."""
+"""Bounded torchrun/DDP runtime for reference qualification."""
 
 from __future__ import annotations
 
-from .lifecycle import initialize, teardown
+from .context import DistributedConfig, DistributedContext, TorchrunEnvironment
+from .data import ShardedSupervisedBatch, shard_supervised_batch
+from .lifecycle import distributed_session, initialize, teardown
 
-__all__ = ["initialize", "teardown"]
+__all__ = [
+    "DistributedConfig",
+    "DistributedContext",
+    "ShardedSupervisedBatch",
+    "TorchrunEnvironment",
+    "distributed_session",
+    "initialize",
+    "shard_supervised_batch",
+    "teardown",
+]

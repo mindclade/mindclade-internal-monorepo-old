@@ -615,3 +615,74 @@ tests:
         exp_samples:
           - labels: mindclade:control_admission_maintenance_target_up:min{cluster="test",location="us-central1",namespace="mindclade-system"}
             value: 1
+
+  - name: reference training progress checkpoint and terminal outcome recordings
+    interval: 1m
+    input_series:
+      - series: mindclade_training_metric_contract_info{schema="v1",cluster="test",location="us-central1",namespace="mindclade-training-h100"}
+        values: 1x25
+      - series: mindclade_training_active_runs{phase="h100-8g-ddp-dcp",cluster="test",location="us-central1",namespace="mindclade-training-h100"}
+        values: 1x25
+      - series: mindclade_training_oldest_active_progress_timestamp_seconds{phase="h100-8g-ddp-dcp",cluster="test",location="us-central1",namespace="mindclade-training-h100"}
+        values: 300x25
+      - series: mindclade_training_optimizer_steps_committed_total{phase="h100-8g-ddp-dcp",cluster="test",location="us-central1",namespace="mindclade-training-h100"}
+        values: 0+2x25
+      - series: mindclade_training_checkpoint_last_committed_timestamp_seconds{phase="h100-8g-ddp-dcp",cluster="test",location="us-central1",namespace="mindclade-training-h100"}
+        values: 240x25
+      - series: mindclade_training_checkpoint_publications_total{phase="h100-8g-ddp-dcp",result="committed",cluster="test",location="us-central1",namespace="mindclade-training-h100"}
+        values: 0+3x25
+      - series: mindclade_training_checkpoint_publications_total{phase="h100-8g-ddp-dcp",result="failed",cluster="test",location="us-central1",namespace="mindclade-training-h100"}
+        values: 0+1x25
+      - series: mindclade_training_checkpoint_restores_total{phase="h100-8g-ddp-dcp",result="exact",cluster="test",location="us-central1",namespace="mindclade-training-h100"}
+        values: 0+3x25
+      - series: mindclade_training_checkpoint_restores_total{phase="h100-8g-ddp-dcp",result="failed",cluster="test",location="us-central1",namespace="mindclade-training-h100"}
+        values: 0+1x25
+      - series: mindclade_training_checkpoint_restores_total{phase="h100-8g-ddp-dcp",result="incompatible",cluster="test",location="us-central1",namespace="mindclade-training-h100"}
+        values: 0x25
+      - series: mindclade_training_runs_terminal_total{phase="h100-8g-ddp-dcp",reason_class="completed",result="completed",cluster="test",location="us-central1",namespace="mindclade-training-h100"}
+        values: 0+2x25
+      - series: mindclade_training_runs_terminal_total{phase="h100-8g-ddp-dcp",reason_class="worker",result="failed",cluster="test",location="us-central1",namespace="mindclade-training-h100"}
+        values: 0+1x25
+      - series: mindclade_training_runs_terminal_total{phase="h100-8g-ddp-dcp",reason_class="canceled",result="canceled",cluster="test",location="us-central1",namespace="mindclade-training-h100"}
+        values: 0+1x25
+    promql_expr_test:
+      - expr: mindclade:training_metric_contract_complete:max
+        eval_time: 10m
+        exp_samples:
+          - labels: mindclade:training_metric_contract_complete:max{cluster="test",location="us-central1",namespace="mindclade-training-h100"}
+            value: 1
+      - expr: mindclade:training_seconds_since_progress:max
+        eval_time: 10m
+        exp_samples:
+          - labels: mindclade:training_seconds_since_progress:max{cluster="test",location="us-central1",namespace="mindclade-training-h100",phase="h100-8g-ddp-dcp"}
+            value: 300
+      - expr: mindclade:training_checkpoint_last_committed_age_seconds:max
+        eval_time: 10m
+        exp_samples:
+          - labels: mindclade:training_checkpoint_last_committed_age_seconds:max{cluster="test",location="us-central1",namespace="mindclade-training-h100",phase="h100-8g-ddp-dcp"}
+            value: 360
+      - expr: mindclade:training_optimizer_steps:increase5m
+        eval_time: 20m
+        exp_samples:
+          - labels: mindclade:training_optimizer_steps:increase5m{cluster="test",location="us-central1",namespace="mindclade-training-h100",phase="h100-8g-ddp-dcp"}
+            value: 10
+      - expr: mindclade:training_checkpoint_publication_failure_ratio:ratio15m
+        eval_time: 20m
+        exp_samples:
+          - labels: mindclade:training_checkpoint_publication_failure_ratio:ratio15m{cluster="test",location="us-central1",namespace="mindclade-training-h100",phase="h100-8g-ddp-dcp"}
+            value: 0.25
+      - expr: mindclade:training_checkpoint_restore_exact_ratio:ratio15m
+        eval_time: 20m
+        exp_samples:
+          - labels: mindclade:training_checkpoint_restore_exact_ratio:ratio15m{cluster="test",location="us-central1",namespace="mindclade-training-h100",phase="h100-8g-ddp-dcp"}
+            value: 0.75
+      - expr: mindclade:training_run_failure_ratio:ratio15m
+        eval_time: 20m
+        exp_samples:
+          - labels: mindclade:training_run_failure_ratio:ratio15m{cluster="test",location="us-central1",namespace="mindclade-training-h100",phase="h100-8g-ddp-dcp"}
+            value: 0.25
+      - expr: mindclade:training_run_terminal_samples:increase15m
+        eval_time: 20m
+        exp_samples:
+          - labels: mindclade:training_run_terminal_samples:increase15m{cluster="test",location="us-central1",namespace="mindclade-training-h100",phase="h100-8g-ddp-dcp"}
+            value: 60

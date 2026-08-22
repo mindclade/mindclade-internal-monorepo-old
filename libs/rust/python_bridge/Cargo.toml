@@ -8,6 +8,7 @@ name="mindclade_python_bridge"
 version.workspace=true
 edition.workspace=true
 publish=false
+license.workspace=true
 [dependencies]
 mindclade_bio_formats={path="../bio_formats"}
 mindclade_bounded_parse={path="../bounded_parse"}

@@ -48,11 +48,20 @@ paths = [
 
 [[owners]]
 team = "biology-ml"
-paths = ["preprocessing/**", "models/**", "research/**", "kernels/**"]
+paths = ["preprocessing/**", "research/**", "kernels/**"]
+
+[[owners]]
+team = "modeling"
+paths = ["models/**", "qualification/scientific_model_intake/**"]
 
 [[owners]]
 team = "training-platform"
-paths = ["training/**", "evaluation/**"]
+paths = [
+    "training/**",
+    "evaluation/**",
+    "services/workers/training/**",
+    "tools/qualification/training_gke/**",
+]
 
 [[owners]]
 team = "data-platform"

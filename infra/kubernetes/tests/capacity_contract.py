@@ -281,6 +281,11 @@ def main() -> None:
                 failures.append(str(error))
             else:
                 expected_node_labels = {
+                    **(
+                        {"mindclade.dev/capacity-type": "on-demand"}
+                        if namespace_name == "mindclade-training-h100"
+                        else {}
+                    ),
                     "mindclade.dev/gpu-profile": (
                         "gke-h100-a3-megagpu-8g"
                         if namespace_name == "mindclade-training-h100"

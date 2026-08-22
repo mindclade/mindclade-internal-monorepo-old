@@ -76,6 +76,13 @@ def commit_checkpoint_directory(
     try:
         for name, value in sorted(members.items()):
             _write_durable(staging / name, value)
+        for name, expected in sorted(members.items()):
+            actual = read_checkpoint_member(staging, name, maximum_bytes=len(expected))
+            if actual != expected:
+                raise InvalidArgument(
+                    f"checkpoint member write verification failed: {name}",
+                    reason="checkpoint_member_write_verification",
+                )
         _write_durable(staging / MANIFEST_PATH, manifest)
         _fsync_directory(staging)
         os.replace(staging, destination)

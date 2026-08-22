@@ -29,6 +29,7 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm build
+pnpm test:accessibility
 tools/dev/nixw develop .#ci-bazel --command \
   tools/dev/bazelw test \
     //sdk/typescript:unit_tests //libs/ts/... //apps/console:unit_tests //apps/admin:unit_tests \
@@ -52,12 +53,21 @@ parsing, responsive shell boundaries, administrative request policy, and
 single-flight approval. Both optimized Next standalone archives build with
 Bazel sandbox networking disabled.
 
+The accessibility suite completed 70 scheduled cases across Chromium, Firefox,
+WebKit, a Pixel 7 viewport, and a 600-by-800 reflow viewport: 54 applicable
+checks passed and 16 project-specific checks were intentionally skipped. It
+exercises representative routes with automated WCAG 2.1 AA rules, skip-link
+focus, keyboard dismissal and focus return, 44-pixel mobile navigation targets,
+and horizontal reflow. This is repeatable browser-source evidence; it does not
+replace manual VoiceOver/NVDA testing or validation through the production IdP
+and ingress.
+
 The built archives were inspected for the root standalone entry point,
 `public/robots.txt`, the middleware manifest, and static assets. Their local
 source-artifact SHA-256 values were:
 
-- Command: `646876ef8be1aca569870aec856d1f3145341219380a76b448b5bf2d62cd0467`
-- Governance: `5586eab1cb311747e26e73269e2e8c075d2eed8c9a5cc3a44a512e17b71c332a`
+- Command: `5919fbeef15bf1045750b66ab8e00d3357dd421d94d6ccd526b3a63b172814ec`
+- Governance: `5a7f506b60f91988d85b7c9e806f6b48561b67a5b2645c6fb513a6c18625219c`
 
 Both packaged servers were started from the Bazel output tree. Representative
 Command and Governance routes returned `200`, rendered nonce-bearing HTML, and
@@ -66,9 +76,9 @@ frame-denial, and no-store headers. Both packaged `robots.txt` files disallow
 all crawlers. These hashes and observations identify local review artifacts;
 they are not signed release provenance or evidence of a deployed environment.
 The pinned aggregate architecture suite also passed all 21 repository
-invariants. The full Bazel repository graph analyzed 1,263 targets across
-2,099 loaded packages and 87,425 configured targets, and the strict MkDocs
-site build completed without warnings.
+invariants. The final full Bazel repository graph analyzed 1,320 targets across
+2,057 loaded packages and 89,702 configured targets with 16 aspect
+applications, and the strict MkDocs site build completed without warnings.
 
 ## Compatibility
 
@@ -83,8 +93,10 @@ until package provenance, signing, registry approval, and consumer canary pass.
 
 Source checks do not establish live identity, tenant isolation, service audit,
 GKE health/drain behavior, load-balancer header enforcement, DNS/DNSSEC state,
-certificate lifecycle, accessibility across supported browsers, SLOs, alerts,
+certificate lifecycle, manual assistive-technology behavior, production-browser
+behavior through the connected identity and ingress layers, SLOs, alerts,
 canary safety, signed provenance, SBOM completeness, or rollback execution.
 Those controls require protected identities and the owning infrastructure,
-GitOps, IdP, API, and release lanes. No cloud, DNS, cluster, GitHub, package
-registry, or production mutation was performed during this review.
+GitOps, IdP, API, accessibility, and release lanes. No cloud, DNS, cluster,
+GitHub, package registry, or production mutation was performed during this
+review.
