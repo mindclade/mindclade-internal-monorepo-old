@@ -469,6 +469,8 @@ jobs:
         env:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
+          # The shared executor removes setup-bazel's short-lived download token from each
+          # evidence-producing subprocess so neither analysis nor test BEP can record it.
           evidence="${RUNNER_TEMP}/bazel-evidence"
           mode="full"
           base_args=()
