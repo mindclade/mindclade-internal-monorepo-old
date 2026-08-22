@@ -216,8 +216,7 @@ def validate(resources: list[Resource]) -> list[str]:
             or pod_security.get("fsGroup") != 65532
             or pod_security.get("fsGroupChangePolicy") != "OnRootMismatch"
             or containers[0].get("image") != ZERO_IMAGE
-            or (containers[0].get("resources", {}) or {}).get("requests")
-            != expected["requests"]
+            or (containers[0].get("resources", {}) or {}).get("requests") != expected["requests"]
             or (containers[0].get("resources", {}) or {}).get("limits") != expected["limits"]
         ):
             failures.append(f"qualification Job/{profile} fail-closed contract drifted")

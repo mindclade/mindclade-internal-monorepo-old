@@ -107,9 +107,9 @@ def main() -> None:
         quota["spec"]["hard"]["pods"] = "1"
 
     def release_h100_queue(inputs: Inputs) -> None:
-        one(inputs.queues, "ClusterQueue", "", "mindclade-training-h100")["spec"][
-            "stopPolicy"
-        ] = "None"
+        one(inputs.queues, "ClusterQueue", "", "mindclade-training-h100")["spec"]["stopPolicy"] = (
+            "None"
+        )
 
     def add_b200_nominal_quota(inputs: Inputs) -> None:
         queue = one(inputs.queues, "ClusterQueue", "", "mindclade-training-b200")
