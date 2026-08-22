@@ -202,3 +202,32 @@ func TestQualificationRejectsMissingProvenanceAndZeroDigest(t *testing.T) {
 		t.Fatal("expected partial mode to fail")
 	}
 }
+
+func TestQualificationRejectsUnboundedWorkAndHonorsCancellation(t *testing.T) {
+	config := baseConfig(t, "cpu")
+	config.IOBytes = maximumIOBytes + 1
+	if _, err := Execute(context.Background(), config, Dependencies{}); err == nil ||
+		!strings.Contains(err.Error(), "storage qualification byte count is outside bounds") {
+		t.Fatalf("expected storage bound failure, got %v", err)
+	}
+
+	config = baseConfig(t, "cpu")
+	config.IPCBytes = maximumIPCBytes + 1
+	if _, err := Execute(context.Background(), config, Dependencies{}); err == nil ||
+		!strings.Contains(err.Error(), "IPC qualification byte count is outside bounds") {
+		t.Fatalf("expected IPC bound failure, got %v", err)
+	}
+
+	config = baseConfig(t, "cpu")
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := Execute(canceled, config, Dependencies{}); err == nil ||
+		!strings.Contains(err.Error(), "canceled") {
+		t.Fatalf("expected canceled qualification to fail, got %v", err)
+	}
+
+	if _, err := Execute(nil, baseConfig(t, "cpu"), Dependencies{}); err == nil ||
+		!strings.Contains(err.Error(), "context is required") {
+		t.Fatalf("expected nil context to fail, got %v", err)
+	}
+}

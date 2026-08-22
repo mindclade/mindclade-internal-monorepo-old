@@ -35,6 +35,8 @@ const (
 	expectedGPUCount = 8
 	defaultIOBytes   = 8 * 1024 * 1024
 	defaultIPCBytes  = 8 * 1024 * 1024
+	maximumIOBytes   = 1024 * 1024 * 1024
+	maximumIPCBytes  = 1024 * 1024 * 1024
 )
 
 //go:embed contract.json
@@ -192,6 +194,9 @@ func validateConfig(config Config) error {
 }
 
 func Execute(ctx context.Context, config Config, dependencies Dependencies) (Result, error) {
+	if ctx == nil {
+		return Result{}, fmt.Errorf("qualification context is required")
+	}
 	if err := validateConfig(config); err != nil {
 		return Result{}, err
 	}
@@ -207,8 +212,11 @@ func Execute(ctx context.Context, config Config, dependencies Dependencies) (Res
 	if config.IPCBytes == 0 {
 		config.IPCBytes = defaultIPCBytes
 	}
-	if config.IOBytes < 4096 || config.IPCBytes < 4096 {
-		return Result{}, fmt.Errorf("qualification byte counts must each be at least 4096")
+	if config.IOBytes < 4096 || config.IOBytes > maximumIOBytes {
+		return Result{}, fmt.Errorf("storage qualification byte count is outside bounds")
+	}
+	if config.IPCBytes < 4096 || config.IPCBytes > maximumIPCBytes {
+		return Result{}, fmt.Errorf("IPC qualification byte count is outside bounds")
 	}
 
 	result := Result{
@@ -222,12 +230,12 @@ func Execute(ctx context.Context, config Config, dependencies Dependencies) (Res
 		Result:         "pass",
 	}
 
-	storage, err := probeStorage(config.Scratch, config.IOBytes)
+	storage, err := probeStorage(ctx, config.Scratch, config.IOBytes)
 	if err != nil {
 		return Result{}, fmt.Errorf("local storage qualification failed: %w", err)
 	}
 	result.Checks = append(result.Checks, storage)
-	ipc, err := probeUnixIPC(config.Scratch, config.IPCBytes)
+	ipc, err := probeUnixIPC(ctx, config.Scratch, config.IPCBytes)
 	if err != nil {
 		return Result{}, fmt.Errorf("Unix IPC qualification failed: %w", err)
 	}
@@ -255,7 +263,7 @@ func Execute(ctx context.Context, config Config, dependencies Dependencies) (Res
 	return result, nil
 }
 
-func probeStorage(scratch string, byteCount int64) (Check, error) {
+func probeStorage(ctx context.Context, scratch string, byteCount int64) (Check, error) {
 	file, err := os.CreateTemp(scratch, "mindclade-storage-*")
 	if err != nil {
 		return Check{}, err
@@ -267,6 +275,10 @@ func probeStorage(scratch string, byteCount int64) (Check, error) {
 	started := time.Now()
 	remaining := byteCount
 	for remaining > 0 {
+		if err := ctx.Err(); err != nil {
+			file.Close()
+			return Check{}, fmt.Errorf("storage qualification canceled: %w", err)
+		}
 		chunk := pattern
 		if int64(len(chunk)) > remaining {
 			chunk = chunk[:remaining]
@@ -315,7 +327,18 @@ func probeStorage(scratch string, byteCount int64) (Check, error) {
 	}, nil
 }
 
-func probeUnixIPC(scratch string, byteCount int64) (Check, error) {
+type constantByteReader struct {
+	value byte
+}
+
+func (reader constantByteReader) Read(buffer []byte) (int, error) {
+	for index := range buffer {
+		buffer[index] = reader.value
+	}
+	return len(buffer), nil
+}
+
+func probeUnixIPC(ctx context.Context, scratch string, byteCount int64) (Check, error) {
 	path := filepath.Join(scratch, fmt.Sprintf("mcq-%d.sock", os.Getpid()))
 	if len(path) > 100 {
 		return Check{}, fmt.Errorf("Unix socket path exceeds portable length: %s", path)
@@ -324,6 +347,13 @@ func probeUnixIPC(scratch string, byteCount int64) (Check, error) {
 	listener, err := net.Listen("unix", path)
 	if err != nil {
 		return Check{}, err
+	}
+	deadline, hasDeadline := ctx.Deadline()
+	if hasDeadline {
+		if err := listener.(*net.UnixListener).SetDeadline(deadline); err != nil {
+			listener.Close()
+			return Check{}, err
+		}
 	}
 	defer os.Remove(path)
 	defer listener.Close()
@@ -335,18 +365,30 @@ func probeUnixIPC(scratch string, byteCount int64) (Check, error) {
 			return
 		}
 		defer connection.Close()
+		if hasDeadline {
+			if deadlineErr := connection.SetDeadline(deadline); deadlineErr != nil {
+				serverResult <- deadlineErr
+				return
+			}
+		}
 		copied, copyErr := io.Copy(io.Discard, connection)
 		if copyErr == nil && copied != byteCount {
 			copyErr = fmt.Errorf("received %d bytes, expected %d", copied, byteCount)
 		}
 		serverResult <- copyErr
 	}()
-	connection, err := net.Dial("unix", path)
+	connection, err := (&net.Dialer{}).DialContext(ctx, "unix", path)
 	if err != nil {
 		return Check{}, err
 	}
+	if hasDeadline {
+		if err := connection.SetDeadline(deadline); err != nil {
+			connection.Close()
+			return Check{}, err
+		}
+	}
 	started := time.Now()
-	written, err := io.CopyN(connection, bytes.NewReader(bytes.Repeat([]byte{0xa5}, int(byteCount))), byteCount)
+	written, err := io.CopyN(connection, constantByteReader{value: 0xa5}, byteCount)
 	if closeErr := connection.Close(); err == nil {
 		err = closeErr
 	}
@@ -356,8 +398,13 @@ func probeUnixIPC(scratch string, byteCount int64) (Check, error) {
 	if written != byteCount {
 		return Check{}, fmt.Errorf("sent %d bytes, expected %d", written, byteCount)
 	}
-	if err := <-serverResult; err != nil {
-		return Check{}, err
+	select {
+	case err := <-serverResult:
+		if err != nil {
+			return Check{}, err
+		}
+	case <-ctx.Done():
+		return Check{}, fmt.Errorf("Unix IPC qualification canceled: %w", ctx.Err())
 	}
 	duration := time.Since(started)
 	return Check{
