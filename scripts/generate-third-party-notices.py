@@ -128,23 +128,16 @@ def validate_contract(contract: dict[str, Any], root: Path) -> list[dict[str, An
             raise NoticeError(f"materials[{index}] lacks an independent license expression")
         if not isinstance(material["attribution"], str) or len(material["attribution"].strip()) < 8:
             raise NoticeError(f"materials[{index}] lacks attribution")
-        if not isinstance(material["sourceUrl"], str) or not material["sourceUrl"].startswith(
-            "https://"
-        ):
+        if not isinstance(material["sourceUrl"], str) or not material["sourceUrl"].startswith("https://"):
             raise NoticeError(f"materials[{index}] sourceUrl must be HTTPS")
         license_record = material["licenseText"]
         if not isinstance(license_record, dict):
             raise NoticeError(f"materials[{index}].licenseText must be an object")
         _exact(license_record, {"path", "sha256"}, f"materials[{index}].licenseText")
-        license_path = _safe_path(
-            root, license_record["path"], f"materials[{index}].licenseText.path"
-        )
+        license_path = _safe_path(root, license_record["path"], f"materials[{index}].licenseText.path")
         if not license_path.is_file() or license_path.stat().st_size < 100:
             raise NoticeError(f"materials[{index}] license text is absent or abbreviated")
-        if (
-            not SHA256_RE.fullmatch(str(license_record["sha256"]))
-            or _sha256(license_path) != license_record["sha256"]
-        ):
+        if not SHA256_RE.fullmatch(str(license_record["sha256"])) or _sha256(license_path) != license_record["sha256"]:
             raise NoticeError(f"materials[{index}] license text digest is absent or stale")
         for field in ("includedPaths", "evidencePaths", "sbomNames"):
             if not isinstance(material[field], list) or not all(
@@ -164,7 +157,11 @@ def validate_contract(contract: dict[str, Any], root: Path) -> list[dict[str, An
 
 
 def validate_spdx_coverage(paths: list[Path], materials: list[dict[str, Any]]) -> None:
-    covered = {name.casefold() for material in materials for name in material["sbomNames"]}
+    covered = {
+        name.casefold()
+        for material in materials
+        for name in material["sbomNames"]
+    }
     for path in paths:
         document = json.loads(path.read_text(encoding="utf-8"))
         for package in document.get("packages", []):
@@ -177,9 +174,7 @@ def validate_spdx_coverage(paths: list[Path], materials: list[dict[str, Any]]) -
             }:
                 continue
             if not name or name.casefold() not in covered:
-                raise NoticeError(
-                    f"{path}: SPDX package lacks reviewed notice metadata: {name or '<unnamed>'}"
-                )
+                raise NoticeError(f"{path}: SPDX package lacks reviewed notice metadata: {name or '<unnamed>'}")
 
 
 def render(contract: dict[str, Any], materials: list[dict[str, Any]]) -> str:
@@ -199,7 +194,9 @@ def render(contract: dict[str, Any], materials: list[dict[str, Any]]) -> str:
     ]
     if contract["inventorySources"]:
         for source in sorted(contract["inventorySources"], key=lambda item: item["path"]):
-            lines.append(f"- `{source['path']}` · {source['type']} · SHA-256 `{source['sha256']}`")
+            lines.append(
+                f"- `{source['path']}` · {source['type']} · SHA-256 `{source['sha256']}`"
+            )
     else:
         lines.append("- No repository-resident third-party inventory source is declared.")
     lines.extend(["", "## Materials", ""])
@@ -219,8 +216,10 @@ def render(contract: dict[str, Any], materials: list[dict[str, Any]]) -> str:
                 f"- License: `{material['licenseExpression']}`",
                 f"- Attribution: {material['attribution']}",
                 f"- Source: {material['sourceUrl']}",
-                "- Included paths: " + ", ".join(f"`{path}`" for path in material["includedPaths"]),
-                "- Provenance: " + ", ".join(f"`{path}`" for path in material["evidencePaths"]),
+                "- Included paths: "
+                + ", ".join(f"`{path}`" for path in material["includedPaths"]),
+                "- Provenance: "
+                + ", ".join(f"`{path}`" for path in material["evidencePaths"]),
                 f"- License text SHA-256: `{material['licenseText']['sha256']}`",
                 "",
                 "<details><summary>Complete license text</summary>",
@@ -250,9 +249,7 @@ def atomic_write(path: Path, payload: str) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path.cwd())
-    parser.add_argument(
-        "--manifest", type=Path, default=Path("contracts/third-party-materials.json")
-    )
+    parser.add_argument("--manifest", type=Path, default=Path("contracts/third-party-materials.json"))
     parser.add_argument("--output", type=Path, default=Path("THIRD_PARTY_NOTICES.md"))
     parser.add_argument("--spdx", type=Path, action="append", default=[])
     parser.add_argument("--write", action="store_true")
