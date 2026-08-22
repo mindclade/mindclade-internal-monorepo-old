@@ -34,7 +34,7 @@ flowchart LR
 | [`presubmit/`](presubmit/) | Pull-request architecture and test selection |
 | [`security/`](security/) | Security analysis and policy checks |
 | [`gpu/`](gpu/) | Accelerator qualification target selection |
-| [`nightly/`](nightly/) | Broader scheduled qualification |
+| [`nightly/`](nightly/) | Daily/manual complete CPU Bazel qualification |
 | [`release/`](release/) | Release target selection and evidence boundaries |
 | [`terraform/`](terraform/) | Terraform and infrastructure validation |
 
@@ -53,6 +53,13 @@ Run the provider-independent presubmit checks from the repository root:
 ```bash
 tools/dev/nixw develop .#default
 python3 ci/presubmit/pipeline.py --static-only
+```
+
+Run affected Bazel validation with an explicit base inside the pinned shell:
+
+```bash
+tools/dev/nixw develop .#ci-bazel --command python3 ci/presubmit/pipeline.py \
+  --bazel-only --mode affected --base origin/main
 ```
 
 Read [`presubmit/README.md`](presubmit/README.md) for lane details and

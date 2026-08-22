@@ -90,7 +90,7 @@ def check(root: Path) -> list[str]:
             "fetch-depth: 0",
             "ci/presubmit/pipeline.py",
             "--bazel-only",
-            "--mode \"${mode}\"",
+            '--mode "${mode}"',
             "github.event.pull_request.base.sha",
             '[[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]',
             "retention-days: 35",
@@ -117,7 +117,9 @@ def check(root: Path) -> list[str]:
         for contract in (
             'cron: "17 5 * * *"',
             "workflow_dispatch:",
-            "permissions:\n  contents: read",
+            "permissions:",
+            "actions: read",
+            "contents: read",
             "timeout-minutes: 90",
             "ci/nightly/pipeline.py",
             "retention-days: 35",
@@ -128,7 +130,9 @@ def check(root: Path) -> list[str]:
                 in {
                     'cron: "17 5 * * *"',
                     "workflow_dispatch:",
-                    "permissions:\n  contents: read",
+                    "permissions:",
+                    "actions: read",
+                    "contents: read",
                 }
                 else nightly_job or nightly
             )

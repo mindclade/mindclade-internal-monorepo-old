@@ -497,6 +497,15 @@ jobs:
           if-no-files-found: warn
           retention-days: 35
 
+      - name: Upload Bazel latency metric
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: bazel-metrics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bazel-evidence/run-metrics.json
+          if-no-files-found: ignore
+          retention-days: 35
+
   # Stable, always-reported infrastructure context. Do not add path filters or rename the job:
   # branch protection can require `infra-static` without creating a check that disappears on
   # documentation-only pull requests. Nix owns CLI versions; Bazel owns declared inputs, local

@@ -11,18 +11,25 @@ py_binary(
     name = "pipeline",
     srcs = ["pipeline.py"],
     data = ["targets.yaml"],
-    deps = ["//ci/common:affected"],
     imports = ["../.."],
     main = "pipeline.py",
+    deps = ["//ci/common:affected"],
+)
+
+py_binary(
+    name = "qualify_latency",
+    srcs = ["qualify_latency.py"],
+    main = "qualify_latency.py",
 )
 
 pytest_test(
     name = "test_pipeline",
     srcs = [
         "pipeline.py",
+        "qualify_latency.py",
         "test_pipeline.py",
     ],
     data = ["targets.yaml"],
-    deps = ["//ci/common:affected"],
     imports = ["../.."],
+    deps = ["//ci/common:affected"],
 )

@@ -112,7 +112,7 @@ def test_affected_selection_uses_bazel_rdeps_and_tests(tmp_path: Path) -> None:
     assert selection.analysis_targets == ("//consumer:binary", "//pkg:library")
     assert selection.test_targets == ("//consumer:library_test", "//pkg:library_test")
     assert len(expressions) == 2
-    assert all("rdeps(//..., set(\"//pkg:*\"))" in expression for expression in expressions)
+    assert all('rdeps(//..., set("//pkg:*"))' in expression for expression in expressions)
     assert all('attr("tags", "[\\\\[ ]manual[,\\\\]]"' in expression for expression in expressions)
 
 
@@ -170,9 +170,7 @@ def test_git_changed_is_rename_aware_and_validates_base(
             "--find-renames",
             f"{base}...{head}",
         ):
-            return subprocess.CompletedProcess(
-                args, 0, b"R100\0original.txt\0renamed.txt\0", b""
-            )
+            return subprocess.CompletedProcess(args, 0, b"R100\0original.txt\0renamed.txt\0", b"")
         if command == ("rev-parse", "--verify", "does-not-exist^{commit}"):
             return subprocess.CompletedProcess(args, 128, b"", b"unknown revision")
         raise AssertionError(f"unexpected git command: {command}")

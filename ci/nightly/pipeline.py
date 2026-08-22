@@ -40,8 +40,10 @@ class NightlyContract:
             raise ValueError("nightly mode must be full")
         for field in ("analysis_targets", "test_targets"):
             value = payload.get(field)
-            if not isinstance(value, list) or not value or not all(
-                isinstance(target, str) and target.startswith("//") for target in value
+            if (
+                not isinstance(value, list)
+                or not value
+                or not all(isinstance(target, str) and target.startswith("//") for target in value)
             ):
                 raise ValueError(f"nightly {field} must be a non-empty Bazel target list")
         return cls(
