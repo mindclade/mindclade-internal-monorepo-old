@@ -7,6 +7,7 @@
 # or bytecode that broad source globs must never absorb. None are source inputs,
 # and traversing them can make `//...` fail before target analysis.
 ignore_directories([
+    "**/.codex-worktrees",
     "**/.mypy_cache",
     "**/.pytest_cache",
     "**/.ruff_cache",

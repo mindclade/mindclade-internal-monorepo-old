@@ -81,7 +81,7 @@ func (store *Store) CreateProposal(ctx context.Context, proposal admission.Polic
 	if err != nil {
 		return err
 	}
-	generation, err := sqlUint(proposal.Version.Generation(), "resource_generation")
+	generation, err := sqlUint(ctx, proposal.Version.Generation(), "resource_generation")
 	if err != nil {
 		return err
 	}
@@ -141,7 +141,7 @@ func (store *Store) TransitionProposal(ctx context.Context, terminal admission.P
 	if err != nil {
 		return err
 	}
-	generation, err := sqlUint(terminal.Version.Generation(), "resource_generation")
+	generation, err := sqlUint(ctx, terminal.Version.Generation(), "resource_generation")
 	if err != nil {
 		return err
 	}
@@ -237,7 +237,7 @@ func (store *Store) ApplyApproved(
 		if err != nil {
 			return struct{}{}, err
 		}
-		proposalGeneration, err := sqlUint(proposal.Version.Generation(), "resource_generation")
+		proposalGeneration, err := sqlUint(txContext, proposal.Version.Generation(), "resource_generation")
 		if err != nil {
 			return struct{}{}, err
 		}
@@ -341,11 +341,11 @@ func (store *Store) writeApprovedBundle(ctx context.Context, bundle admission.Wo
 	if err != nil {
 		return err
 	}
-	generation, err := sqlUint(bundle.Version.Generation(), "resource_generation")
+	generation, err := sqlUint(ctx, bundle.Version.Generation(), "resource_generation")
 	if err != nil {
 		return err
 	}
-	epoch, err := sqlUint(bundle.Spec.PolicyEpoch, "policy_epoch")
+	epoch, err := sqlUint(ctx, bundle.Spec.PolicyEpoch, "policy_epoch")
 	if err != nil {
 		return err
 	}
@@ -372,11 +372,11 @@ func (store *Store) writeApprovedEntitlement(ctx context.Context, entitlement ad
 	if err != nil {
 		return err
 	}
-	generation, err := sqlUint(entitlement.Version.Generation(), "resource_generation")
+	generation, err := sqlUint(ctx, entitlement.Version.Generation(), "resource_generation")
 	if err != nil {
 		return err
 	}
-	epoch, err := sqlUint(entitlement.PolicyEpoch, "policy_epoch")
+	epoch, err := sqlUint(ctx, entitlement.PolicyEpoch, "policy_epoch")
 	if err != nil {
 		return err
 	}
@@ -405,13 +405,13 @@ func (store *Store) writeApprovedBudget(ctx context.Context, budget admission.Bu
 	if err != nil {
 		return err
 	}
-	generation, err := sqlUint(budget.Version.Generation(), "resource_generation")
+	generation, err := sqlUint(ctx, budget.Version.Generation(), "resource_generation")
 	if err != nil {
 		return err
 	}
 	limits := make([]int64, 0, 4)
 	for _, unit := range []admission.Unit{admission.UnitRequests, admission.UnitInputTokens, admission.UnitOutputTokens, admission.UnitCostMicros} {
-		limit, err := sqlUint(budget.Limit[unit], "budget_limit")
+		limit, err := sqlUint(ctx, budget.Limit[unit], "budget_limit")
 		if err != nil {
 			return err
 		}

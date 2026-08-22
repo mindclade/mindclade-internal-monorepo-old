@@ -26,7 +26,7 @@ func (store *Store) Reserve(ctx context.Context, snapshot admission.PolicySnapsh
 	if err := candidate.Validate(); err != nil {
 		return admission.Reservation{}, false, err
 	}
-	if _, err := sqlUint(candidate.PolicyEpoch, "policy_epoch"); err != nil {
+	if _, err := sqlUint(ctx, candidate.PolicyEpoch, "policy_epoch"); err != nil {
 		return admission.Reservation{}, false, err
 	}
 	result, err := runMutation(ctx, store, operation, func(txContext context.Context) (reserveResult, error) {
@@ -204,7 +204,7 @@ func (store *Store) insertReservation(ctx context.Context, reservation admission
 	if err != nil {
 		return false, err
 	}
-	generation, err := sqlUint(reservation.Version.Generation(), "resource_generation")
+	generation, err := sqlUint(ctx, reservation.Version.Generation(), "resource_generation")
 	if err != nil {
 		return false, err
 	}
@@ -366,7 +366,7 @@ func (store *Store) updateReservation(ctx context.Context, expected resourcevers
 	if err != nil {
 		return err
 	}
-	generation, err := sqlUint(reservation.Version.Generation(), "resource_generation")
+	generation, err := sqlUint(ctx, reservation.Version.Generation(), "resource_generation")
 	if err != nil {
 		return err
 	}

@@ -282,7 +282,6 @@ control/artifacts/service.go
 control/artifacts/validation.go
 control/audit/BUILD.bazel
 control/audit/README.md
-control/audit/audit_test.go
 control/audit/doc.go
 control/audit/model.go
 control/audit/repository.go
@@ -290,7 +289,6 @@ control/audit/service.go
 control/evaluations/BUILD.bazel
 control/evaluations/README.md
 control/evaluations/doc.go
-control/evaluations/evaluations_test.go
 control/evaluations/model.go
 control/evaluations/repository.go
 control/evaluations/service.go
@@ -300,7 +298,6 @@ control/events/README.md
 control/events/dispatcher.go
 control/events/doc.go
 control/events/envelope.go
-control/events/events_test.go
 control/events/publisher.go
 control/events/service.go
 control/events/subscription.go
@@ -334,7 +331,6 @@ control/lineage/service.go
 control/metadata/BUILD.bazel
 control/metadata/README.md
 control/metadata/doc.go
-control/metadata/metadata_test.go
 control/metadata/model.go
 control/metadata/query.go
 control/metadata/repository.go
@@ -364,7 +360,6 @@ control/orchestration/repository.go
 control/orchestration/service.go
 control/orchestration/stage.go
 control/orchestration/state_machine.go
-control/orchestration/state_machine_test.go
 control/orchestration/validation.go
 control/orchestration/workflow.go
 control/orchestration/workflow_test.go
@@ -380,13 +375,11 @@ control/registry/datasets/BUILD.bazel
 control/registry/datasets/model.go
 control/registry/datasets/policy.go
 control/registry/datasets/service.go
-control/registry/datasets/service_test.go
 control/registry/datasets/validation.go
 control/registry/deployments/BUILD.bazel
 control/registry/deployments/model.go
 control/registry/deployments/policy.go
 control/registry/deployments/service.go
-control/registry/deployments/service_test.go
 control/registry/deployments/validation.go
 control/registry/doc.go
 control/registry/models/BUILD.bazel
@@ -401,7 +394,6 @@ control/registry/reference_databases/policy.go
 control/registry/reference_databases/service.go
 control/registry/reference_databases/service_test.go
 control/registry/reference_databases/validation.go
-control/registry/registry_test.go
 control/registry/releases/BUILD.bazel
 control/registry/releases/model.go
 control/registry/releases/policy.go
@@ -422,7 +414,6 @@ control/routing/repository.go
 control/routing/route.go
 control/routing/service.go
 control/routing/snapshot.go
-control/routing/snapshot_test.go
 control/routing/validation.go
 control/runs/BUILD.bazel
 control/runs/README.md
@@ -430,7 +421,6 @@ control/runs/doc.go
 control/runs/job.go
 control/runs/repository.go
 control/runs/run.go
-control/runs/runs_test.go
 control/runs/service.go
 control/runs/state.go
 control/runs/validation.go
@@ -462,9 +452,7 @@ control/scheduling/adapters/kueue/workloads.go
 control/scheduling/admission.go
 control/scheduling/capacity.go
 control/scheduling/doc.go
-control/scheduling/fair_share_test.go
 control/scheduling/placement.go
-control/scheduling/placement_test.go
 control/scheduling/pool.go
 control/scheduling/preemption.go
 control/scheduling/priority.go
@@ -480,7 +468,6 @@ control/tenancy/project.go
 control/tenancy/repository.go
 control/tenancy/service.go
 control/tenancy/service_account.go
-control/tenancy/tenancy_test.go
 control/tenancy/workspace.go
 control/usage/BUILD.bazel
 control/usage/README.md
@@ -490,7 +477,6 @@ control/usage/meter.go
 control/usage/record.go
 control/usage/repository.go
 control/usage/service.go
-control/usage/usage_test.go
 control/webhooks/BUILD.bazel
 control/webhooks/README.md
 control/webhooks/delivery.go
@@ -500,7 +486,6 @@ control/webhooks/repository.go
 control/webhooks/service.go
 control/webhooks/signature.go
 control/webhooks/subscription.go
-control/webhooks/webhooks_test.go
 control/weights/BUILD.bazel
 control/weights/README.md
 control/weights/access.go
@@ -509,7 +494,6 @@ control/weights/grant.go
 control/weights/policy.go
 control/weights/repository.go
 control/weights/service.go
-control/weights/weights_test.go
 data/BUILD.bazel
 data/README.md
 data/__init__.py
@@ -3239,8 +3223,6 @@ sdk/go/go.mod
 sdk/go/go.sum
 sdk/go/internal/transport.go
 sdk/go/stream.go
-sdk/go/tests/client_test.go
-sdk/go/tests/stream_test.go
 sdk/go/types.go
 sdk/python/BUILD.bazel
 sdk/python/README.md

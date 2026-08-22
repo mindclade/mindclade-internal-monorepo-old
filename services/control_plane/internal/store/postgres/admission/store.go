@@ -130,9 +130,9 @@ func decodeDocument[T interface{ Validate() error }](ctx context.Context, docume
 	return value, nil
 }
 
-func sqlUint(value uint64, label string) (int64, error) {
+func sqlUint(ctx context.Context, value uint64, label string) (int64, error) {
 	if value > math.MaxInt64 {
-		return 0, domainError(context.Background(), faults.CodeInvalidArgument,
+		return 0, domainError(ctx, faults.CodeInvalidArgument,
 			"admission_"+label+"_out_of_range", label+" is outside PostgreSQL bounds", "admission.postgres")
 	}
 	return int64(value), nil
@@ -211,11 +211,11 @@ func (store *Store) PutEntitlement(ctx context.Context, entitlement admission.En
 	if err := entitlement.Validate(); err != nil {
 		return err
 	}
-	generation, err := sqlUint(entitlement.Version.Generation(), "resource_generation")
+	generation, err := sqlUint(ctx, entitlement.Version.Generation(), "resource_generation")
 	if err != nil {
 		return err
 	}
-	policyEpoch, err := sqlUint(entitlement.PolicyEpoch, "policy_epoch")
+	policyEpoch, err := sqlUint(ctx, entitlement.PolicyEpoch, "policy_epoch")
 	if err != nil {
 		return err
 	}
@@ -281,7 +281,7 @@ func (store *Store) PutBudget(ctx context.Context, budget admission.Budget, publ
 	if now.IsZero() || !budget.ActiveAt(now) {
 		return domainError(ctx, faults.CodeFailedPrecondition, "budget_publication_window_inactive", "budget must be active at publication time", operation)
 	}
-	generation, err := sqlUint(budget.Version.Generation(), "resource_generation")
+	generation, err := sqlUint(ctx, budget.Version.Generation(), "resource_generation")
 	if err != nil {
 		return err
 	}
@@ -291,7 +291,7 @@ func (store *Store) PutBudget(ctx context.Context, budget admission.Budget, publ
 	}
 	limits := make([]int64, 0, 4)
 	for _, unit := range []admission.Unit{admission.UnitRequests, admission.UnitInputTokens, admission.UnitOutputTokens, admission.UnitCostMicros} {
-		limit, limitErr := sqlUint(budget.Limit[unit], "budget_limit")
+		limit, limitErr := sqlUint(ctx, budget.Limit[unit], "budget_limit")
 		if limitErr != nil {
 			return limitErr
 		}

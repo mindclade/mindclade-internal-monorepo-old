@@ -54,7 +54,7 @@ def _safe_repository_path(root: Path, raw: str) -> Path | None:
     candidate = root.joinpath(*path.parts)
     try:
         candidate.resolve().relative_to(root.resolve())
-    except (OSError, ValueError):
+    except OSError, ValueError:
         return None
     return candidate
 

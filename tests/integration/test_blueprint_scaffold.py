@@ -135,6 +135,12 @@ import pytest
 # deleted in favor of the smaller canonical descriptor surface. The target-state manifest must
 # track that accepted authority; restoring duplicate schemas or raising the ratchet would both be
 # regressions.
+#
+# KEPT at 0 when the Go test-signal gate removed 18 helper-only scaffold tests. Those files could
+# never fail and therefore represented fictitious coverage. The blueprint reservations were
+# removed with them rather than raising this ratchet or preserving files that the architecture
+# gate now rejects. Component maturity remains explicit in components.toml until executable tests
+# replace those reservations.
 MATERIALIZATION_BASELINE = 0
 
 
