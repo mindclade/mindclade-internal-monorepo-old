@@ -237,6 +237,7 @@
               kustomize
               python312
               python312Packages.pyyaml
+              terraform
               yamllint
               yq-go
             ]
