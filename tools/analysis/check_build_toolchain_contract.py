@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import json
 import re
 import tomllib
 from pathlib import Path
@@ -43,6 +44,15 @@ PYTHON_PLATFORM_LOCKS = {
     "requirements.lock.txt": ("linux", "linux_*", "+cpu"),
     "requirements.darwin.lock.txt": ("aarch64-apple-darwin", "osx_aarch64", ""),
 }
+PYTHON_TOOLCHAIN_MANIFEST = "tools/build/nix/toolchain-manifest.json"
+PYTHON_STANDALONE_PLATFORMS = frozenset(
+    {
+        "aarch64-apple-darwin",
+        "aarch64-unknown-linux-gnu",
+        "x86_64-unknown-linux-gnu",
+    }
+)
+PYTHON_STANDALONE_ORIGIN = "https://github.com/astral-sh/python-build-standalone/releases/download/"
 
 # Files that ENFORCE this same contract, and therefore contain the forbidden strings as
 # pattern literals rather than as commands.
@@ -203,7 +213,7 @@ def python_repository_resolution_contract(root: Path) -> list[str]:
             return None
         try:
             return ast.literal_eval(value)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return None
 
     errors = []
@@ -218,6 +228,111 @@ def python_repository_resolution_contract(root: Path) -> list[str]:
     platforms = literal("experimental_target_platforms")
     if not isinstance(platforms, (list, tuple)) or set(platforms) != ROOT_PYPI_PLATFORMS:
         errors.append("root pypi repository must declare the supported Linux and Apple targets")
+    return errors
+
+
+def python_toolchain_version_contract(root: Path) -> list[str]:
+    """Keep Bazel on the exact patched Python recorded by the Nix toolchain evidence."""
+
+    manifest_path = root / PYTHON_TOOLCHAIN_MANIFEST
+    if not manifest_path.is_file():
+        return [f"{PYTHON_TOOLCHAIN_MANIFEST} is required for Python toolchain governance"]
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        expected = manifest["tools"]["python"]
+    except (json.JSONDecodeError, KeyError, TypeError) as error:
+        return [f"{PYTHON_TOOLCHAIN_MANIFEST} has no valid tools.python version: {error}"]
+    if not isinstance(expected, str) or re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", expected) is None:
+        return [f"{PYTHON_TOOLCHAIN_MANIFEST} tools.python must be an X.Y.Z version"]
+    minor = expected.rsplit(".", 1)[0]
+
+    module_path = root / "MODULE.bazel"
+    if not module_path.is_file():
+        return ["MODULE.bazel is required for Python toolchain governance"]
+    try:
+        module = ast.parse(module_path.read_text(errors="replace"), filename="MODULE.bazel")
+    except SyntaxError as error:
+        return [f"MODULE.bazel is not parseable for Python toolchain governance: {error.msg}"]
+
+    extensions = {
+        target.id
+        for node in module.body
+        if isinstance(node, ast.Assign)
+        and len(node.targets) == 1
+        and isinstance((target := node.targets[0]), ast.Name)
+        and isinstance(node.value, ast.Call)
+        and isinstance(node.value.func, ast.Name)
+        and node.value.func.id == "use_extension"
+        and len(node.value.args) >= 2
+        and isinstance(node.value.args[0], ast.Constant)
+        and node.value.args[0].value == "@rules_python//python/extensions:python.bzl"
+        and isinstance(node.value.args[1], ast.Constant)
+        and node.value.args[1].value == "python"
+    }
+    if len(extensions) != 1:
+        return ["MODULE.bazel must declare exactly one root rules_python toolchain extension"]
+    extension = next(iter(extensions))
+
+    def calls(name: str) -> list[ast.Call]:
+        return [
+            node
+            for node in ast.walk(module)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == name
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == extension
+        ]
+
+    def kwargs(call: ast.Call) -> dict[str, object]:
+        result: dict[str, object] = {}
+        for keyword in call.keywords:
+            if keyword.arg is None:
+                continue
+            try:
+                result[keyword.arg] = ast.literal_eval(keyword.value)
+            except ValueError, TypeError:
+                result[keyword.arg] = None
+        return result
+
+    errors: list[str] = []
+    runtime_overrides = [
+        values
+        for call in calls("single_version_override")
+        if (values := kwargs(call)).get("python_version") == expected
+    ]
+    if len(runtime_overrides) != 1:
+        errors.append(f"Bazel must declare exactly one Python {expected} standalone runtime")
+    else:
+        runtime = runtime_overrides[0]
+        checksums = runtime.get("sha256")
+        if not isinstance(checksums, dict) or set(checksums) != PYTHON_STANDALONE_PLATFORMS:
+            errors.append("Bazel Python runtime must checksum every supported host platform")
+        elif any(
+            not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+            for digest in checksums.values()
+        ):
+            errors.append("Bazel Python runtime checksums must be lowercase SHA-256 digests")
+        urls = runtime.get("urls")
+        valid_url = (
+            isinstance(urls, list)
+            and len(urls) == 1
+            and isinstance(urls[0], str)
+            and urls[0].startswith(PYTHON_STANDALONE_ORIGIN)
+            and "{python_version}" in urls[0]
+            and "{platform}" in urls[0]
+            and urls[0].endswith("-install_only_stripped.tar.gz")
+        )
+        if not valid_url:
+            errors.append("Bazel Python runtime must use the pinned upstream standalone archive")
+
+    mappings = [kwargs(call).get("minor_mapping") for call in calls("override")]
+    if mappings != [{minor: expected}]:
+        errors.append(f"Bazel Python {minor} must resolve to the Nix patch version {expected}")
+
+    defaults = [kwargs(call) for call in calls("toolchain")]
+    if len(defaults) != 1 or defaults[0] != {"is_default": True, "python_version": minor}:
+        errors.append(f"Bazel must register Python {minor} as its only default toolchain")
     return errors
 
 
@@ -340,6 +455,7 @@ def check(root: Path):
         errors.append("legacy WORKSPACE is forbidden; Bzlmod owns Bazel dependencies")
     errors.extend(rust_version_contract(root))
     errors.extend(repository_traversal_contract(root))
+    errors.extend(python_toolchain_version_contract(root))
     errors.extend(python_repository_resolution_contract(root))
     errors.extend(pytest_init_contract(root))
     errors.extend(python_platform_lock_contract(root))

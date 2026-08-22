@@ -208,6 +208,24 @@ go_sdk.download(version = "1.26.6")
 # Keep in step with `requires-python` in pyproject.toml and `python-version` in
 # .github/workflows/presubmit.yml.
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+
+# rules_python 1.7's built-in `3.14` mapping stops at 3.14.0. CI and the Nix closure carry
+# 3.14.7, so register the upstream standalone release explicitly and bind the minor selector
+# to that exact patch. These are the only host/target platforms the repository declares.
+python.single_version_override(
+    python_version = "3.14.7",
+    sha256 = {
+        "aarch64-apple-darwin": "abbf6e8530a283ed795fa91fd6bcf4501e2b1fa287b2cb1c15b70d3028f3a7c9",
+        "aarch64-unknown-linux-gnu": "f278d66c15e81f6c77719892e3eb32ff4bca5fc4ab424e171d14bc12bb88b4ee",
+        "x86_64-unknown-linux-gnu": "a3a4e4b81b138960c7c546694df8a77578c0b6aa46d47e96f49b9e10e8f860c9",
+    },
+    urls = [
+        "https://github.com/astral-sh/python-build-standalone/releases/download/20260805/cpython-{python_version}+20260805-{platform}-install_only_stripped.tar.gz",
+    ],
+)
+python.override(
+    minor_mapping = {"3.14": "3.14.7"},
+)
 python.toolchain(
     is_default = True,
     python_version = "3.14",

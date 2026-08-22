@@ -10,9 +10,11 @@ import pytest
 
 from libs.python.errors import Code, ResourceExhausted, code_of
 from libs.python.serialization import (
+    MAXIMUM_CANONICAL_JSON_DEPTH,
     canonical_field,
     canonical_json_bytes,
     canonical_lines,
+    validate_json_nesting,
 )
 
 
@@ -96,6 +98,20 @@ def test_read_only_mappings_encode_like_plain_mappings() -> None:
 
 def test_empty_document_encodes() -> None:
     assert canonical_json_bytes({}) == b"{}"
+
+
+def test_raw_json_nesting_validation_is_runtime_independent() -> None:
+    validate_json_nesting(b'{"literal":"[[{\\"}]","value":{"nested":true}}')
+    validate_json_nesting(
+        b"[" * MAXIMUM_CANONICAL_JSON_DEPTH + b"0" + b"]" * MAXIMUM_CANONICAL_JSON_DEPTH
+    )
+
+    with pytest.raises(ValueError, match="nesting depth"):
+        validate_json_nesting(
+            b"[" * (MAXIMUM_CANONICAL_JSON_DEPTH + 1)
+            + b"0"
+            + b"]" * (MAXIMUM_CANONICAL_JSON_DEPTH + 1)
+        )
 
 
 def test_canonical_lines_joins_with_a_trailing_newline() -> None:

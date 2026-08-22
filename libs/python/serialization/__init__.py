@@ -19,6 +19,7 @@ from .canonical import (
     canonical_field,
     canonical_json_bytes,
     canonical_lines,
+    validate_json_nesting,
 )
 
 __all__ = [
@@ -30,4 +31,5 @@ __all__ = [
     "canonical_field",
     "canonical_json_bytes",
     "canonical_lines",
+    "validate_json_nesting",
 ]

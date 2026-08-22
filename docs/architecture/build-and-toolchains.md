@@ -74,6 +74,13 @@ for transitive packages, while only Torch can resolve from the CPU index. The ge
 locks therefore contain no global extra-index option. `uv.lock` continues to own developer
 resolution, and the Linux lock is the independent dependency-audit input.
 
+The Bazel interpreter resolves the `3.14` language selector to the exact Python patch recorded
+by the Nix toolchain manifest and reusable CI. Because rules_python's built-in minor mapping can
+lag security patch releases, `MODULE.bazel` registers the upstream python-build-standalone
+archives for Linux amd64, Linux arm64, and Darwin arm64 with per-platform SHA-256 digests. The
+build-toolchain contract fails if the patch mapping, supported platform set, archive origin, or
+checksums are removed; Bazel tests therefore cannot silently fall back to an older `3.14.x`.
+
 Every development and CI shell exports `MINDCLADE_CC_TOOLCHAIN_ROOT` from
 `packages.<system>.cc-toolchain-bundle`. The bundle records Clang and binutils,
 resource headers, target triple, platform constraints, system include paths,

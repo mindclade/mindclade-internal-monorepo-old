@@ -217,6 +217,13 @@ def test_bundle_config_rejects_noncanonical_json_bytes() -> None:
         parse_reference_affine_config(encoded)
 
 
+def test_bundle_config_rejects_excessive_nesting_before_runtime_decode() -> None:
+    encoded = b"[" * 129 + b"0" + b"]" * 129
+
+    with pytest.raises(ValueError, match="unique-key"):
+        parse_reference_affine_config(encoded)
+
+
 def test_strict_state_dict_round_trip_uses_fresh_parameter_storage() -> None:
     source = ReferenceAffine(ReferenceAffineConfig(scale=3.0, bias=-1.25))
     restored = ReferenceAffine()

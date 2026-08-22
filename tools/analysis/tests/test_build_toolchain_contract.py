@@ -75,6 +75,21 @@ rust_toolchains.toolchain(
 use_repo(rust_toolchains, "rust_toolchains")
 register_toolchains("@rust_toolchains//:all")
 
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.single_version_override(
+    python_version = "3.14.7",
+    sha256 = {{
+        "aarch64-apple-darwin": "{sha}",
+        "aarch64-unknown-linux-gnu": "{sha}",
+        "x86_64-unknown-linux-gnu": "{sha}",
+    }},
+    urls = [
+        "https://github.com/astral-sh/python-build-standalone/releases/download/20260805/cpython-{{python_version}}+20260805-{{platform}}-install_only_stripped.tar.gz",
+    ],
+)
+python.override(minor_mapping = {{"3.14": "3.14.7"}})
+python.toolchain(is_default = True, python_version = "3.14")
+
 pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
 pip.parse(
     download_only = True,
@@ -126,7 +141,8 @@ def contract_fixture(root: Path) -> None:
         "  # toolchains/rust.nix builds the pinned toolchain from that overlay.\n}\n",
     )
     write(root, "tools/qualification/rust/common.py", f'EXPECTED = "{RUST_VERSION}"\n')
-    write(root, "MODULE.bazel", MODULE.format(version=RUST_VERSION))
+    write(root, "tools/build/nix/toolchain-manifest.json", '{"tools":{"python":"3.14.7"}}\n')
+    write(root, "MODULE.bazel", MODULE.format(version=RUST_VERSION, sha="0" * 64))
     patterns = ",\n".join(f'    "{pattern}"' for pattern in sorted(contract.REQUIRED_REPO_IGNORES))
     write(root, "REPO.bazel", f"ignore_directories([\n{patterns},\n])\n")
     write(
@@ -245,7 +261,7 @@ def test_rust_version_contract_rejects_bazel_version_drift() -> None:
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         contract_fixture(root)
-        write(root, "MODULE.bazel", MODULE.format(version="9.99.9"))
+        write(root, "MODULE.bazel", MODULE.format(version="9.99.9", sha="0" * 64))
         errors = contract.rust_version_contract(root)
     assert errors == ["Bazel rules_rust version does not match Cargo rust-version"]
 
@@ -253,8 +269,24 @@ def test_rust_version_contract_rejects_bazel_version_drift() -> None:
 def test_python_repository_contract_accepts_target_aware_wheel_resolution() -> None:
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
-        write(root, "MODULE.bazel", MODULE.format(version=RUST_VERSION))
+        write(root, "MODULE.bazel", MODULE.format(version=RUST_VERSION, sha="0" * 64))
         assert contract.python_repository_resolution_contract(root) == []
+
+
+def test_python_toolchain_contract_rejects_an_unpatched_minor_mapping() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        contract_fixture(root)
+        module = (root / "MODULE.bazel").read_text(encoding="utf-8")
+        write(
+            root,
+            "MODULE.bazel",
+            module.replace('python.override(minor_mapping = {"3.14": "3.14.7"})\n', ""),
+        )
+
+        errors = contract.python_toolchain_version_contract(root)
+
+    assert errors == ["Bazel Python 3.14 must resolve to the Nix patch version 3.14.7"]
 
 
 def test_python_repository_contract_rejects_host_pip_and_shared_indexes() -> None:
