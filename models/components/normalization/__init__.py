@@ -3,4 +3,9 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Mindclade scaffold package for models/components/normalization."""
+"""Reusable normalization modules with explicit tensor contracts."""
+
+from .layer_norm import LayerNorm
+from .rms_norm import RMSNorm
+
+__all__ = ["LayerNorm", "RMSNorm"]

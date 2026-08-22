@@ -1,11 +1,22 @@
 # Models / Components / Normalization
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
+- **Status:** Eager PyTorch RMSNorm and LayerNorm implementations are package-tested.
 - **Primary implementation ownership:** Python/PyTorch
 
-## Purpose
+## Implemented contract
 
-Model contracts, reusable components, independent model families, adapters, references, and registry metadata. Model families do not import one another. This path specializes that domain for **normalization**.
+`RMSNorm` and `LayerNorm` accept nonempty dense strided floating tensors whose
+trailing dimensions exactly equal `normalized_shape`. They preserve shape,
+dtype, and device and never move or cast caller input implicitly. Affine state
+must already share input dtype and device.
+
+`RMSNorm` computes the mean square in float32 for float16, bfloat16, and
+float32 inputs, and retains float64 reduction for float64 input. `LayerNorm`
+uses the installed PyTorch functional implementation. State keys are `weight`
+and optional `bias`; parameter-free configurations have empty state dicts.
+
+NaN and infinity follow PyTorch propagation semantics. Forward does not scan
+tensor values or introduce a device synchronization.
 
 ## Boundary
 
@@ -18,18 +29,14 @@ This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
 ground. It may depend only in the direction documented by
 `docs/architecture/dependency-rules.md` and the accepted ADRs.
 
-## Materialization requirements
+## Limits and qualification
 
-Before this scaffold boundary is treated as implemented, add:
+Construction bounds normalized rank and parameter count. Input rank is bounded
+at sixteen. These modules do not select devices, define mixed-precision policy,
+or claim accelerator-specific numerical or performance qualification.
 
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
+Focused validation:
 
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+```text
+bazel test //models/components/normalization/tests:test_normalization
+```

@@ -3,13 +3,30 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_python//python:defs.bzl", "py_library")
+
 package(default_visibility = ["//visibility:private"])
+
+py_library(
+    name = "export",
+    srcs = [
+        "__init__.py",
+        "torch_export.py",
+        "validation.py",
+    ],
+    imports = ["../../.."],
+    visibility = ["//models:__subpackages__"],
+    deps = [
+        "//libs/python/serialization",
+        "@pypi//torch",
+    ],
+)
 
 filegroup(
     name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
+    srcs = [
+        "aot_inductor.py",
+        "onnx.py",
+    ],
     visibility = ["//visibility:public"],
 )

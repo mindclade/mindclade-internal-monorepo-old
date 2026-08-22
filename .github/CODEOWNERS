@@ -36,6 +36,7 @@
 # Python — scientific, model, training, inference, and evaluation numerics
 # ---------------------------------------------------------------------------------------
 /models/                            @mindclade/research
+/models/adapters/export/            @mindclade/research @mindclade/security
 /training/                          @mindclade/research
 /evaluation/                        @mindclade/research
 /research/                          @mindclade/research
