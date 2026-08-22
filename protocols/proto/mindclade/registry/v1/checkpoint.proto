@@ -12,6 +12,13 @@ option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/registry/v1;reg
 import "google/protobuf/timestamp.proto";
 import "mindclade/common/v1/artifact_ref.proto";
 
+// CheckpointScaffold is retained only for source and wire compatibility with
+// the reserved pre-implementation surface.
+message CheckpointScaffold {
+  option deprecated = true;
+  string reserved = 1;
+}
+
 // CheckpointLifecycle is registry policy state. Only COMMITTED and PROTECTED
 // records are eligible for restore; EXPIRED and REVOKED are terminal.
 enum CheckpointLifecycle {

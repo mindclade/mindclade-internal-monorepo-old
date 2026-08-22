@@ -116,6 +116,30 @@ def _load_descriptor_sets(paths: list[Path]) -> list[descriptor_pb2.FileDescript
     return list(by_name.values())
 
 
+def _deprecated_messages(
+    package: str,
+    prefix: str,
+    values: list[descriptor_pb2.DescriptorProto],
+) -> dict[str, bool]:
+    result: dict[str, bool] = {}
+    for message in values:
+        name = ".".join(part for part in (package, prefix, message.name) if part)
+        result[name] = message.options.deprecated
+        nested_prefix = ".".join(part for part in (prefix, message.name) if part)
+        result.update(_deprecated_messages(package, nested_prefix, list(message.nested_type)))
+    return result
+
+
+def _wire_compatibility_placeholders(
+    files: list[descriptor_pb2.FileDescriptorProto],
+) -> dict[str, bool]:
+    messages: dict[str, bool] = {}
+    for file in files:
+        if file.package.startswith("mindclade."):
+            messages.update(_deprecated_messages(file.package, "", list(file.message_type)))
+    return {name: deprecated for name, deprecated in messages.items() if name.endswith("Scaffold")}
+
+
 def _runfiles() -> Path:
     for variable in ("RUNFILES_DIR", "TEST_SRCDIR"):
         if value := os.environ.get(variable):
@@ -134,8 +158,6 @@ def _validate_go_options(proto_root: Path) -> list[str]:
     errors: list[str] = []
     for path in sorted(proto_root.rglob("*.proto")):
         text = path.read_text(encoding="utf-8")
-        if "Scaffold" in text or "scaffold" in text.lower():
-            errors.append(f"{path}: scaffold marker remains")
         relative = path.relative_to(proto_root)
         package = relative.parts[1]
         expected = (
@@ -147,7 +169,11 @@ def _validate_go_options(proto_root: Path) -> list[str]:
     return errors
 
 
-def _validate_governance(current: dict[str, Any], governance: dict[str, Any]) -> list[str]:
+def _validate_governance(
+    current: dict[str, Any],
+    governance: dict[str, Any],
+    compatibility_placeholders: dict[str, bool],
+) -> list[str]:
     errors: list[str] = []
     declared_packages = {item["package"]: item for item in governance["surfaces"]}
     actual_packages = set(current["packages"])
@@ -197,6 +223,21 @@ def _validate_governance(current: dict[str, Any], governance: dict[str, Any]) ->
             if policy.get("maximum_request_bytes") != 1 << 20:
                 errors.append(f"{service}/{method}: request limit must be 1 MiB")
     tombstones = set(governance["removed_symbol_tombstones"])
+    declared_placeholders = set(governance["wire_compatibility_placeholders"])
+    actual_placeholders = set(compatibility_placeholders)
+    if declared_placeholders != actual_placeholders:
+        errors.append(
+            "wire compatibility placeholder set differs: "
+            f"declared={sorted(declared_placeholders)} actual={sorted(actual_placeholders)}"
+        )
+    nondeprecated = sorted(
+        name for name, deprecated in compatibility_placeholders.items() if not deprecated
+    )
+    if nondeprecated:
+        errors.append(f"wire compatibility placeholders must be deprecated: {nondeprecated}")
+    overlap = sorted(declared_placeholders & tombstones)
+    if overlap:
+        errors.append(f"wire compatibility placeholders cannot be tombstoned: {overlap}")
     actual_symbols = {
         symbol
         for package in current["packages"].values()
@@ -221,7 +262,8 @@ def main() -> int:
     descriptor_paths = [Path(value) for value in args.descriptor_set]
     if not descriptor_paths:
         descriptor_paths = sorted(_runfiles().rglob("*-descriptor-set.proto.bin"))
-    current = surface(_load_descriptor_sets(descriptor_paths))
+    descriptor_files = _load_descriptor_sets(descriptor_paths)
+    current = surface(descriptor_files)
     if args.emit_baseline:
         print(json.dumps(current, indent=2, sort_keys=True))
         return 0
@@ -238,7 +280,13 @@ def main() -> int:
             "then update protobuf-v1-descriptor.json"
         )
     errors.extend(_validate_go_options(proto_root))
-    errors.extend(_validate_governance(current, governance))
+    errors.extend(
+        _validate_governance(
+            current,
+            governance,
+            _wire_compatibility_placeholders(descriptor_files),
+        )
+    )
     for error in errors:
         print(f"ERROR: {error}")
     if errors:

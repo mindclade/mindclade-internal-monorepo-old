@@ -302,6 +302,20 @@
           "reserved_names": [],
           "reserved_ranges": []
         },
+        "mindclade.artifact.v1.CheckpointScaffold": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "reserved",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
         "mindclade.artifact.v1.GarbageCollectionCandidate": {
           "fields": [
             {
@@ -3637,6 +3651,20 @@
           "reserved_names": [],
           "reserved_ranges": []
         },
+        "mindclade.registry.v1.CheckpointScaffold": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "reserved",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
         "mindclade.registry.v1.EvidenceEdge": {
           "fields": [
             {
@@ -5891,6 +5919,62 @@
               "oneof": null,
               "proto3_optional": false,
               "type": "google.protobuf.Timestamp"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.training.v1.CheckpointScaffold": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "reserved",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.training.v1.ProgressScaffold": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "reserved",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.training.v1.RunScaffold": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "reserved",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.training.v1.TopologyScaffold": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "reserved",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
             }
           ],
           "reserved_names": [],

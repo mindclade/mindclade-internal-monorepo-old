@@ -19,7 +19,29 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file mindclade/registry/v1/checkpoint.proto.
  */
 export const file_mindclade_registry_v1_checkpoint: GenFile = /*@__PURE__*/
-  fileDesc("CiZtaW5kY2xhZGUvcmVnaXN0cnkvdjEvY2hlY2twb2ludC5wcm90bxIVbWluZGNsYWRlLnJlZ2lzdHJ5LnYxIsMEChBDaGVja3BvaW50UmVjb3JkEhYKDnNjaGVtYV92ZXJzaW9uGAEgASgNEhUKDWNoZWNrcG9pbnRfaWQYAiABKAkSDgoGcnVuX2lkGAMgASgJEjIKCG1hbmlmZXN0GAQgASgLMiAubWluZGNsYWRlLmNvbW1vbi52MS5BcnRpZmFjdFJlZhIwCgZjb21taXQYBSABKAsyIC5taW5kY2xhZGUuY29tbW9uLnYxLkFydGlmYWN0UmVmEhYKDm9wdGltaXplcl9zdGVwGAYgASgEEhoKEmNoZWNrcG9pbnRfYXR0ZW1wdBgHIAEoBBIVCg1mZW5jaW5nX3Rva2VuGAggASgEEhwKFHRvcG9sb2d5X2ZpbmdlcnByaW50GAkgASgJEjkKD3BhcmVudF9tYW5pZmVzdBgKIAEoCzIgLm1pbmRjbGFkZS5jb21tb24udjEuQXJ0aWZhY3RSZWYSPQoJbGlmZWN5Y2xlGAsgASgOMioubWluZGNsYWRlLnJlZ2lzdHJ5LnYxLkNoZWNrcG9pbnRMaWZlY3ljbGUSLgoKY3JlYXRlZF9hdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMcmV0YWluX3VudGlsGA0gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIUCgxwb2xpY3lfZXBvY2gYDiABKAQSGAoQcmVzb3VyY2VfdmVyc2lvbhgPIAEoBBIVCg1yZWNvcmRfZGlnZXN0GBAgASgJKscBChNDaGVja3BvaW50TGlmZWN5Y2xlEiQKIENIRUNLUE9JTlRfTElGRUNZQ0xFX1VOU1BFQ0lGSUVEEAASIgoeQ0hFQ0tQT0lOVF9MSUZFQ1lDTEVfQ09NTUlUVEVEEAESIgoeQ0hFQ0tQT0lOVF9MSUZFQ1lDTEVfUFJPVEVDVEVEEAISIAocQ0hFQ0tQT0lOVF9MSUZFQ1lDTEVfRVhQSVJFRBADEiAKHENIRUNLUE9JTlRfTElGRUNZQ0xFX1JFVk9LRUQQBEJEWkJnby5taW5kY2xhZGUuZGV2L3Byb3RvY29scy9nZW4vZ28vbWluZGNsYWRlL3JlZ2lzdHJ5L3YxO3JlZ2lzdHJ5djFiBnByb3RvMw", [file_google_protobuf_timestamp, file_mindclade_common_v1_artifact_ref]);
+  fileDesc("CiZtaW5kY2xhZGUvcmVnaXN0cnkvdjEvY2hlY2twb2ludC5wcm90bxIVbWluZGNsYWRlLnJlZ2lzdHJ5LnYxIioKEkNoZWNrcG9pbnRTY2FmZm9sZBIQCghyZXNlcnZlZBgBIAEoCToCGAEiwwQKEENoZWNrcG9pbnRSZWNvcmQSFgoOc2NoZW1hX3ZlcnNpb24YASABKA0SFQoNY2hlY2twb2ludF9pZBgCIAEoCRIOCgZydW5faWQYAyABKAkSMgoIbWFuaWZlc3QYBCABKAsyIC5taW5kY2xhZGUuY29tbW9uLnYxLkFydGlmYWN0UmVmEjAKBmNvbW1pdBgFIAEoCzIgLm1pbmRjbGFkZS5jb21tb24udjEuQXJ0aWZhY3RSZWYSFgoOb3B0aW1pemVyX3N0ZXAYBiABKAQSGgoSY2hlY2twb2ludF9hdHRlbXB0GAcgASgEEhUKDWZlbmNpbmdfdG9rZW4YCCABKAQSHAoUdG9wb2xvZ3lfZmluZ2VycHJpbnQYCSABKAkSOQoPcGFyZW50X21hbmlmZXN0GAogASgLMiAubWluZGNsYWRlLmNvbW1vbi52MS5BcnRpZmFjdFJlZhI9CglsaWZlY3ljbGUYCyABKA4yKi5taW5kY2xhZGUucmVnaXN0cnkudjEuQ2hlY2twb2ludExpZmVjeWNsZRIuCgpjcmVhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIwCgxyZXRhaW5fdW50aWwYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhQKDHBvbGljeV9lcG9jaBgOIAEoBBIYChByZXNvdXJjZV92ZXJzaW9uGA8gASgEEhUKDXJlY29yZF9kaWdlc3QYECABKAkqxwEKE0NoZWNrcG9pbnRMaWZlY3ljbGUSJAogQ0hFQ0tQT0lOVF9MSUZFQ1lDTEVfVU5TUEVDSUZJRUQQABIiCh5DSEVDS1BPSU5UX0xJRkVDWUNMRV9DT01NSVRURUQQARIiCh5DSEVDS1BPSU5UX0xJRkVDWUNMRV9QUk9URUNURUQQAhIgChxDSEVDS1BPSU5UX0xJRkVDWUNMRV9FWFBJUkVEEAMSIAocQ0hFQ0tQT0lOVF9MSUZFQ1lDTEVfUkVWT0tFRBAEQkRaQmdvLm1pbmRjbGFkZS5kZXYvcHJvdG9jb2xzL2dlbi9nby9taW5kY2xhZGUvcmVnaXN0cnkvdjE7cmVnaXN0cnl2MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_mindclade_common_v1_artifact_ref]);
+
+/**
+ * CheckpointScaffold is retained only for source and wire compatibility with
+ * the reserved pre-implementation surface.
+ *
+ * @generated from message mindclade.registry.v1.CheckpointScaffold
+ * @deprecated
+ */
+export type CheckpointScaffold = Message<"mindclade.registry.v1.CheckpointScaffold"> & {
+  /**
+   * @generated from field: string reserved = 1;
+   */
+  reserved: string;
+};
+
+/**
+ * Describes the message mindclade.registry.v1.CheckpointScaffold.
+ * Use `create(CheckpointScaffoldSchema)` to create a new message.
+ * @deprecated
+ */
+export const CheckpointScaffoldSchema: GenMessage<CheckpointScaffold> = /*@__PURE__*/
+  messageDesc(file_mindclade_registry_v1_checkpoint, 0);
 
 /**
  * CheckpointRecord is the durable catalog projection of an already-published
@@ -114,7 +136,7 @@ export type CheckpointRecord = Message<"mindclade.registry.v1.CheckpointRecord">
  * Use `create(CheckpointRecordSchema)` to create a new message.
  */
 export const CheckpointRecordSchema: GenMessage<CheckpointRecord> = /*@__PURE__*/
-  messageDesc(file_mindclade_registry_v1_checkpoint, 0);
+  messageDesc(file_mindclade_registry_v1_checkpoint, 1);
 
 /**
  * CheckpointLifecycle is registry policy state. Only COMMITTED and PROTECTED
@@ -154,4 +176,3 @@ export enum CheckpointLifecycle {
  */
 export const CheckpointLifecycleSchema: GenEnum<CheckpointLifecycle> = /*@__PURE__*/
   enumDesc(file_mindclade_registry_v1_checkpoint, 0);
-

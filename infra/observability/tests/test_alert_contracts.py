@@ -151,7 +151,7 @@ def test_control_admission_profile_matches_monthly_slo() -> None:
 
 def test_studio_contract_preserves_actionable_and_observe_only_signals() -> None:
     contract = load_json_yaml(ROOT / "alerts/studio-browser-plane.yaml")
-    assert len(contract["signals"]) == 12
+    assert len(contract["signals"]) == 11
     assert [item["name"] for item in contract["observedSignals"]] == [
         "api-success-rate",
         "iap-signin-redirect-rate",

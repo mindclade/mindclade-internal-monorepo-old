@@ -14,6 +14,13 @@ import "mindclade/common/v1/artifact_ref.proto";
 import "mindclade/training/v1/progress.proto";
 import "mindclade/training/v1/topology.proto";
 
+// CheckpointScaffold is retained only for source and wire compatibility with
+// the reserved pre-implementation surface.
+message CheckpointScaffold {
+  option deprecated = true;
+  string reserved = 1;
+}
+
 // CheckpointComponentKind identifies semantic state without embedding Python
 // object graphs. V1 payload artifacts are safetensors or bounded canonical
 // metadata; pickle-capable byte objects are forbidden by consumers.

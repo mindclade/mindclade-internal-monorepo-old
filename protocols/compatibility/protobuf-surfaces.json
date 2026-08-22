@@ -8,6 +8,14 @@
     "rust": "bazel_cargo_build_script",
     "typescript": "buf_invoked_by_bazel_and_pnpm_wrapper"
   },
+  "wire_compatibility_placeholders": [
+    "mindclade.artifact.v1.CheckpointScaffold",
+    "mindclade.registry.v1.CheckpointScaffold",
+    "mindclade.training.v1.CheckpointScaffold",
+    "mindclade.training.v1.ProgressScaffold",
+    "mindclade.training.v1.RunScaffold",
+    "mindclade.training.v1.TopologyScaffold"
+  ],
   "surfaces": [
     {"package": "mindclade.artifact.v1", "owner": "platform-control", "maturity": "implemented", "bazel": "//protocols/proto/mindclade/artifact/v1:artifact_go_proto"},
     {"package": "mindclade.common.v1", "owner": "platform-foundations", "maturity": "implemented", "bazel": "//protocols/proto/mindclade/common/v1:common_go_proto"},
@@ -59,7 +67,6 @@
     }
   },
   "removed_symbol_tombstones": [
-    "mindclade.artifact.v1.CheckpointScaffold",
     "mindclade.artifact.v1.GrantScaffold",
     "mindclade.artifact.v1.ManifestScaffold",
     "mindclade.artifact.v1.ServiceScaffold",
@@ -97,7 +104,6 @@
     "mindclade.orchestration.v1.RunScaffold",
     "mindclade.orchestration.v1.ServiceScaffold",
     "mindclade.orchestration.v1.WorkflowScaffold",
-    "mindclade.registry.v1.CheckpointScaffold",
     "mindclade.registry.v1.DatasetScaffold",
     "mindclade.registry.v1.DeploymentScaffold",
     "mindclade.registry.v1.ModelBundleScaffold",
@@ -107,12 +113,8 @@
     "mindclade.security.v1.RevocationScaffold",
     "mindclade.security.v1.ServiceScaffold",
     "mindclade.security.v1.WeightAccessScaffold",
-    "mindclade.training.v1.CheckpointScaffold",
     "mindclade.training.v1.ConfigScaffold",
     "mindclade.training.v1.JobScaffold",
-    "mindclade.training.v1.ProgressScaffold",
-    "mindclade.training.v1.RunScaffold",
-    "mindclade.training.v1.ServiceScaffold",
-    "mindclade.training.v1.TopologyScaffold"
+    "mindclade.training.v1.ServiceScaffold"
   ]
 }
