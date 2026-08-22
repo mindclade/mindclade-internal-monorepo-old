@@ -23,6 +23,7 @@ affected_modules = [
   "gpu_node_pool",
   "iap_access",
   "internal_address",
+  "kms",
   "log_sink",
   "monitoring",
   "nix_binary_cache",
@@ -104,6 +105,7 @@ breaking_change_ids = [
   "module:iap_access:input:project_id:validation_fingerprints-changed",
   "module:iap_access:resource:google_iap_web_backend_service_iam_binding.accessor:removed",
   "module:internal_address:input:addresses:validation_fingerprints-changed",
+  "module:kms:input:signing_keys:validation_fingerprints-changed",
   "module:log_sink:input:default_sink_retention_days:validation_fingerprints-changed",
   "module:log_sink:input:labels:validation_fingerprints-changed",
   "module:log_sink:input:sinks:type-changed",
@@ -178,6 +180,7 @@ consumer_steps = [
   "Upgrade one isolated non-production root to the protected v0.4.0 tag only after the release operator publishes it, retain its plan JSON and policy reports, and require an empty post-apply drift plan before broader adoption.",
   "Migrate aggregate live states only to their corresponding typed composition modules; review every address change in a saved plan and do not infer state moves from similar resource names.",
   "Keep production GKE and accelerator promotion blocked until the development RAPID canary and staging capacity/failure-domain qualification are complete.",
+  "Set KMS ring_only only for the one separately reviewed state that owns the protected key ring, keep both key maps empty there, and keep every CryptoKey in exactly one distinct state owner.",
   "Treat the monitoring SLO validation change as an intentional relaxation from 99.9% to a bounded 99.99% ceiling; approve any objective above 99.9% from measured user-visible reliability evidence before applying it.",
 ]
 
@@ -185,11 +188,13 @@ rollback_steps = [
   "Do not apply a v0.4.0 plan when the migration review is incomplete; continue resolving the module source at the previously applied immutable ref.",
   "If a qualified non-production upgrade fails, restore the prior root inputs and v0.1.1 source reference, then review state and a saved rollback plan before any apply.",
   "Never repair an address mismatch with terraform state commands unless a separately approved, backup-backed state migration runbook names the exact addresses.",
+  "If ring-only composition is not proven, keep the consumer on its prior module source and do not move a key ring or CryptoKey between states without a separately approved, backup-backed state migration.",
 ]
 
 qualification_evidence = [
   "infra/terraform/PRODUCTION_READINESS.md",
   "docs/architecture/gcp-terraform-well-architected-review.md",
+  "infra/terraform/modules/kms/README.md",
 ]
 
 # No address rename is asserted in this bootstrap. The two removed IAM resources change
