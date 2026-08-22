@@ -82,18 +82,21 @@ The reviewed activation change must do all of the following together:
 3. Prove bucket retention, CMEK, versioning, soft-delete recovery, public-access prevention,
    access logging, denied reader writes, denied writer deletes, cold rebuild, warm hit, CAS
    integrity, identical duplicate, immutable collision, corrupt-download rejection, cache loss,
-   and every positive and negative WIF route.
+   bounded concurrent-staging load without temp-disk exhaustion, and every positive and negative
+   WIF route.
 4. Change the source record and governed repository variable to `qualified-v1` and add job-scoped
    `id-token: write` to only the Bazel jobs. Workflow-level OIDC permission remains forbidden.
 5. Observe pull requests in reader mode and protected main, merge group, and scheduled nightly in
    writer mode. Manual nightly remains disabled and continues using the disk cache.
 
 When qualified, the disk-cache steps are mutually exclusive with the remote path. The gateway
-listens only on `127.0.0.1`, permits at most one-GiB objects, emits counters without keys or
-digests, and is stopped before its credentials are removed. `cache-metrics.json` records the
-gateway binary SHA-256, role, hits/misses, create/idempotent/rejected/collision counts, and bytes;
-`cache-gateway.log` contains only stable error codes and methods. BEP/profile evidence remains the
-authority for Bazel action-cache hits and critical-path changes.
+listens only on `127.0.0.1`, permits at most one-GiB objects, spools and verifies a complete GET
+before returning success, and permits two combined GET/PUT staging files. It emits counters without
+keys or digests and is stopped before its credentials are removed. `cache-metrics.json` records the
+gateway binary SHA-256, role, hits/misses, create/idempotent/rejected/collision counts, bytes, and
+staging maximum/active/peak/wait/cancellation values; `cache-gateway.log` contains only stable error
+codes and methods. BEP/profile evidence remains the authority for Bazel action-cache hits and
+critical-path changes.
 
 Rollback first returns the governed repository variable to `blocked`, then removes job OIDC in a
 reviewed source change and restores the source record to `blocked`. The disk cache becomes active

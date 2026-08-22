@@ -10,10 +10,10 @@ Activation requires a reviewed source change to `qualified-v1` and the server-si
 variable `BAZEL_REMOTE_CACHE_STATE=qualified-v1`. The contract must name the exact applied bucket,
 published module release, exact object generation in the locked production-qualification archive
 and its SHA-256, reviewer and review timestamp, and successful cold, warm, duplicate, collision,
-corruption, negative-route, and cache-loss checks. Connected evidence must also prove CMEK,
-retention, versioning, soft-delete recovery, public-access prevention, access logging, denied
-reader writes, and denied writer deletes. Either side missing or disagreeing disables or fails the
-cache path; it never falls through to an unreviewed writer.
+corruption, negative-route, cache-loss, and bounded concurrent-staging load checks. Connected
+evidence must also prove CMEK, retention, versioning, soft-delete recovery, public-access
+prevention, access logging, denied reader writes, and denied writer deletes. Either side missing
+or disagreeing disables or fails the cache path; it never falls through to an unreviewed writer.
 
 The qualifying source change must add job-scoped `id-token: write` to the Bazel jobs at the same
 time it records `qualified-v1`. Reverting either the source record or the permission disables the
