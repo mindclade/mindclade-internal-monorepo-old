@@ -35,6 +35,14 @@ ROOT_PYPI_HUB = "pypi"
 ROOT_PYPI_INDEX = "https://pypi.org/simple"
 ROOT_TORCH_INDEX = "https://download.pytorch.org/whl/cpu"
 ROOT_PYPI_PLATFORMS = frozenset({"linux_aarch64", "linux_x86_64", "osx_aarch64"})
+ROOT_PYPI_REQUIREMENTS = {
+    "//:requirements.darwin.lock.txt": "osx_aarch64",
+    "//:requirements.lock.txt": "linux_*",
+}
+PYTHON_PLATFORM_LOCKS = {
+    "requirements.lock.txt": ("linux", "linux_*", "+cpu"),
+    "requirements.darwin.lock.txt": ("aarch64-apple-darwin", "osx_aarch64", ""),
+}
 
 # Files that ENFORCE this same contract, and therefore contain the forbidden strings as
 # pattern literals rather than as commands.
@@ -199,8 +207,8 @@ def python_repository_resolution_contract(root: Path) -> list[str]:
             return None
 
     errors = []
-    if literal("requirements_lock") != "//:requirements.lock.txt":
-        errors.append("root pypi repository must consume //:requirements.lock.txt")
+    if literal("requirements_by_platform") != ROOT_PYPI_REQUIREMENTS:
+        errors.append("root pypi repository must consume the exact platform-specific locks")
     if literal("download_only") is not True:
         errors.append("root pypi repository must be wheel-only")
     if literal("experimental_index_url") != ROOT_PYPI_INDEX:
@@ -283,6 +291,49 @@ def pytest_init_contract(root: Path) -> list[str]:
     return errors
 
 
+def python_platform_lock_contract(root: Path) -> list[str]:
+    """Keep rules_python from merging incompatible Torch local versions.
+
+    The CPU index uses a local-version suffix on Linux but not on macOS. A universal
+    requirements file consequently has two normalized ``torch`` entries, and rules_python can
+    combine one platform's requirement with the other platform's hashes. Platform-specific
+    generated locks make the repository rule input unambiguous.
+    """
+
+    module_path = root / "MODULE.bazel"
+    if not module_path.is_file():
+        return ["MODULE.bazel is required for Python platform-lock governance"]
+    module = module_path.read_text(errors="replace")
+    errors = []
+    for relative, (platform, bazel_platform, local_suffix) in PYTHON_PLATFORM_LOCKS.items():
+        mapping = f'"//:{relative}": "{bazel_platform}"'
+        if mapping not in module:
+            errors.append(f"MODULE.bazel must map {relative} to its rules_python target platform")
+
+        path = root / relative
+        if not path.is_file():
+            errors.append(f"{relative} is required for rules_python platform resolution")
+            continue
+        text = path.read_text(errors="replace")
+        if f"--python-platform {platform}" not in text.partition("\n\n")[0]:
+            errors.append(f"{relative} must record its uv {platform} generation command")
+        if "--index-url" in text or "--extra-index-url" in text:
+            errors.append(f"{relative} must not expose package indexes to every requirement")
+
+        torch_lines = re.findall(r"(?m)^torch==([^\\\s;]+)([^\n]*)$", text)
+        if len(torch_lines) != 1:
+            errors.append(f"{relative} must contain exactly one unambiguous torch requirement")
+            continue
+        version, tail = torch_lines[0]
+        if ";" in tail:
+            errors.append(f"{relative} torch requirement must not carry a platform marker")
+        if local_suffix and not version.endswith(local_suffix):
+            errors.append(f"{relative} must select the Linux Torch CPU local version")
+        if not local_suffix and "+" in version:
+            errors.append(f"{relative} must select the Darwin Torch version without a local suffix")
+    return errors
+
+
 def check(root: Path):
     errors = []
     if (root / "WORKSPACE").exists() or (root / "WORKSPACE.bazel").exists():
@@ -291,6 +342,7 @@ def check(root: Path):
     errors.extend(repository_traversal_contract(root))
     errors.extend(python_repository_resolution_contract(root))
     errors.extend(pytest_init_contract(root))
+    errors.extend(python_platform_lock_contract(root))
     for p in root.rglob("*"):
         if (
             not p.is_file()

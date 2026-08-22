@@ -213,16 +213,25 @@ python.toolchain(
     python_version = "3.14",
 )
 
-# Third-party wheels, resolved from the SAME uv lock that `uv sync` and the Python CI lane
-# use. requirements.lock.txt is generated, never hand-edited:
+# Third-party wheels, resolved from the same project input as the uv lock used by `uv sync`
+# and the Python CI lane. The platform locks are generated, never hand-edited:
 #
-#     uv lock && uv export --format requirements-txt --no-emit-project --emit-index-url \
-#       -o requirements.lock.txt
+#     uv pip compile pyproject.toml --group dev --generate-hashes --python-version 3.14 \
+#       --python-platform linux --only-binary :all: --emit-index-url \
+#       --index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match \
+#       --output-file requirements.lock.txt
+#     uv pip compile pyproject.toml --group dev --generate-hashes --python-version 3.14 \
+#       --python-platform macos --only-binary :all: --emit-index-url \
+#       --index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match \
+#       --output-file requirements.darwin.lock.txt
 #
-# uv.lock is the source of truth; rules_python cannot read it, so the export is the bridge.
-# Two resolvers over one lock is the point — Bazel and uv install the same versions, and the
-# exported hashes mean a wheel that changed under a version is a hard failure rather than a
-# silently different dependency.
+# PyTorch publishes `2.13.0` metadata on macOS and `2.13.0+cpu` on its Linux CPU index.
+# rules_python merges duplicate normalized names in a universal requirements export, which can
+# pair the Linux wheel with the macOS hashes. Separate OS locks keep that choice unambiguous.
+# unsafe-best-match is necessary because the PyTorch index mirrors stale transitive packages;
+# every selected distribution remains version-pinned and hash-locked, and pip-audit checks the
+# Linux lock independently. rules_python cannot read uv.lock, so these compiled locks are the
+# platform-specific bridge.
 #
 # Wheels are fetched per package and on demand: depending on @pypi//pytest does not download
 # torch. That matters here, because torch is the largest dependency in the tree by two orders
@@ -248,7 +257,10 @@ pip.parse(
     ],
     hub_name = "pypi",
     python_version = "3.14",
-    requirements_lock = "//:requirements.lock.txt",
+    requirements_by_platform = {
+        "//:requirements.darwin.lock.txt": "osx_aarch64",
+        "//:requirements.lock.txt": "linux_*",
+    },
 )
 pip.parse(
     download_only = True,

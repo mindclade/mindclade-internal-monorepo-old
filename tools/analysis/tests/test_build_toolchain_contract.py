@@ -88,8 +88,17 @@ pip.parse(
         "osx_aarch64",
     ],
     hub_name = "pypi",
-    requirements_lock = "//:requirements.lock.txt",
+    requirements_by_platform = {{
+        "//:requirements.darwin.lock.txt": "osx_aarch64",
+        "//:requirements.lock.txt": "linux_*",
+    }},
 )
+"""
+LOCK = """\
+# uv pip compile --python-platform {platform}
+
+torch==2.13.0{suffix} \\
+    --hash=sha256:{digest}
 """
 
 
@@ -124,6 +133,16 @@ def contract_fixture(root: Path) -> None:
         root,
         contract.PYTEST_MACRO,
         PYTEST_MACRO.format(default="False", forwarded="legacy_create_init"),
+    )
+    write(
+        root,
+        "requirements.lock.txt",
+        LOCK.format(platform="linux", suffix="+cpu", digest="0" * 64),
+    )
+    write(
+        root,
+        "requirements.darwin.lock.txt",
+        LOCK.format(platform="aarch64-apple-darwin", suffix="", digest="1" * 64),
     )
 
 
@@ -249,7 +268,10 @@ pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
 pip.parse(
     experimental_extra_index_urls = ["https://download.pytorch.org/whl/cpu"],
     hub_name = "pypi",
-    requirements_lock = "//:requirements.lock.txt",
+    requirements_by_platform = {{
+        "//:requirements.darwin.lock.txt": "osx_aarch64",
+        "//:requirements.lock.txt": "linux_*",
+    }},
 )
 """,
         )
@@ -259,6 +281,37 @@ pip.parse(
         "root pypi repository must use the canonical PyPI simple index",
         "root pypi repository must route Torch exclusively to the CPU index",
         "root pypi repository must declare the supported Linux and Apple targets",
+    ]
+
+
+def test_python_platform_lock_contract_rejects_a_universal_torch_lock() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        contract_fixture(root)
+        write(
+            root,
+            "requirements.lock.txt",
+            LOCK.format(platform="linux", suffix="+cpu", digest="0" * 64)
+            + LOCK.format(platform="aarch64-apple-darwin", suffix="", digest="1" * 64),
+        )
+        errors = contract.python_platform_lock_contract(root)
+    assert errors == [
+        "requirements.lock.txt must contain exactly one unambiguous torch requirement"
+    ]
+
+
+def test_python_platform_lock_contract_rejects_cross_platform_torch_metadata() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        contract_fixture(root)
+        write(
+            root,
+            "requirements.darwin.lock.txt",
+            LOCK.format(platform="aarch64-apple-darwin", suffix="+cpu", digest="1" * 64),
+        )
+        errors = contract.python_platform_lock_contract(root)
+    assert errors == [
+        "requirements.darwin.lock.txt must select the Darwin Torch version without a local suffix"
     ]
 
 

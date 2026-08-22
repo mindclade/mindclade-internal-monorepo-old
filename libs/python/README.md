@@ -41,10 +41,11 @@ formats.
 
 ## Tooling and validation
 
-The root uv lock is the dependency source of truth, and `requirements.lock.txt` is its
-hash-pinned Bazel export. The repository is not installed as a wheel (`tool.uv.package =
-false`); Bazel `py_library` targets are the supported internal consumption path. Implemented
-packages include `py.typed` in their runfiles.
+The root uv lock is the developer dependency source of truth. Bazel uses independently
+hash-pinned `requirements.lock.txt` and `requirements.darwin.lock.txt` inputs so Linux and
+Darwin PyTorch metadata cannot be merged across platforms. The repository is not installed as
+a wheel (`tool.uv.package = false`); Bazel `py_library` targets are the supported internal
+consumption path. Implemented packages include `py.typed` in their runfiles.
 
 Run the production checks from the repository root:
 
