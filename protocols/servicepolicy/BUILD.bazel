@@ -1,0 +1,38 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//services/control_plane:__subpackages__"])
+
+go_library(
+    name = "servicepolicy",
+    srcs = ["policy.go"],
+    importpath = "go.mindclade.dev/protocols/servicepolicy",
+    visibility = [
+        "//services/control_plane:__subpackages__",
+        "//visibility:public",
+    ],
+    deps = [
+        "//libs/go/auth",
+        "//libs/go/faults",
+        "@org_golang_google_grpc//:grpc",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//metadata",
+        "@org_golang_google_grpc//status",
+    ],
+)
+
+go_test(
+    name = "servicepolicy_test",
+    srcs = ["policy_test.go"],
+    embed = [":servicepolicy"],
+    deps = [
+        "//libs/go/faults",
+        "@org_golang_google_grpc//:grpc",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//metadata",
+        "@org_golang_google_grpc//status",
+    ],
+)

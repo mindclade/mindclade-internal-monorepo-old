@@ -15,7 +15,8 @@ output = (input * scale) + bias
 Its only state is two trainable, scalar `torch.float32` parameters named exactly `scale` and
 `bias`. The default values (`2.0` and `0.5`) match the reference worker fixture. Input must be a
 nonempty, finite, dense strided `torch.float32` tensor on the same device as the parameters.
-Output has the same shape, dtype, and device. Noncontiguous inputs and a batch size of one are
+Output has the same shape, dtype, and device. Finite inputs that overflow float32 arithmetic are
+rejected rather than returning Inf or NaN. Noncontiguous inputs and a batch size of one are
 supported.
 
 The caller owns placement. Constructing the module puts its parameters on PyTorch's default CPU
@@ -24,8 +25,10 @@ parameters. Train and evaluation modes have identical deterministic behavior bec
 reference operation has no stochastic or mode-dependent layers.
 
 `ReferenceAffineConfig` is frozen and validates finite float32-range initialization values, the
-canonical operation and dtype, and a positive input-element budget. The default budget is
-16,777,216 elements. Inputs exceeding the configured budget fail before arithmetic.
+canonical operation and dtype, and an input-element budget between one and the v1 ceiling of
+16,777,216 elements. Inputs exceeding the configured budget fail before arithmetic. The exact
+budget is serialized in one canonical JSON encoding and strictly restored from every reference
+bundle's model-owned v1 configuration; serving cannot silently broaden the training contract.
 
 ## State and serialization
 

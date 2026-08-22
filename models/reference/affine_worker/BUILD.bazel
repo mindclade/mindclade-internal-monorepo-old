@@ -13,13 +13,19 @@ py_library(
     srcs = ["make_bundle.py"],
     imports = ["../../.."],
     visibility = ["//services/workers/model_worker/tests:__pkg__"],
-    deps = ["//tools/release:build_model_bundle_lib"],
+    deps = [
+        "//models/reference:affine",
+        "//tools/release:build_model_bundle_lib",
+    ],
 )
 
 py_binary(
     name = "make_bundle",
     srcs = ["make_bundle.py"],
-    deps = ["//tools/release:build_model_bundle_lib"],
+    deps = [
+        "//models/reference:affine",
+        "//tools/release:build_model_bundle_lib",
+    ],
 )
 
 genrule(

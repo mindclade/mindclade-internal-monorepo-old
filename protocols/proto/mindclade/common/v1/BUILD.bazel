@@ -4,6 +4,7 @@
 #
 
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@rules_go//proto:def.bzl", "go_proto_library")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -11,6 +12,12 @@ proto_library(
     name = "artifact_ref_proto",
     srcs = ["artifact_ref.proto"],
     strip_import_prefix = "/protocols/proto",
+)
+
+filegroup(
+    name = "cargo_checkpoint_proto_sources",
+    srcs = ["artifact_ref.proto"],
+    visibility = ["//protocols/rust:__pkg__"],
 )
 
 proto_library(
@@ -31,16 +38,13 @@ proto_library(
     strip_import_prefix = "/protocols/proto",
 )
 
-filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["*.proto"],
-        exclude = [
-            "artifact_ref.proto",
-            "errors.proto",
-            "identifiers.proto",
-            "pagination.proto",
-        ],
-    ),
-    visibility = ["//visibility:public"],
+go_proto_library(
+    name = "common_go_proto",
+    importpath = "go.mindclade.dev/protocols/gen/go/mindclade/common/v1",
+    protos = [
+        ":artifact_ref_proto",
+        ":errors_proto",
+        ":identifiers_proto",
+        ":pagination_proto",
+    ],
 )

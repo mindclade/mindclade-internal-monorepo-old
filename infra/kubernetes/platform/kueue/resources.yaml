@@ -41,6 +41,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "20"
 spec:
   nodeLabels:
+    mindclade.dev/capacity-type: on-demand
     mindclade.dev/gpu-profile: gke-h100-a3-megagpu-8g
     mindclade.dev/node-pool: gpu
   nodeTaints:

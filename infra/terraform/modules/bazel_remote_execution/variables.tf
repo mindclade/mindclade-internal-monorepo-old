@@ -90,7 +90,7 @@ variable "executor_service_account_id" {
 variable "kubernetes_namespace" {
   description = "Namespace of the executor Kubernetes service account deployed by GitOps"
   type        = string
-  default     = "build"
+  default     = "mindclade-build"
 
   validation {
     condition     = can(regex("^[a-z0-9](?:[-a-z0-9]{0,61}[a-z0-9])?$", var.kubernetes_namespace))

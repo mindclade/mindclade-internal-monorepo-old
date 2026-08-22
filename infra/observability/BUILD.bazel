@@ -15,8 +15,14 @@ py_library(
         "alert-contract.schema.json",
         "availability-profiles.schema.json",
         "availability-profiles.yaml",
+        "backend-compatibility.schema.json",
         "dashboard-contract.schema.json",
         "dashboards/control-plane.json",
+        "grafana-datasources.yaml",
+        "otel-collector.yaml",
+        "//infra/kubernetes/platform/observability:manifests",
+        "//infra/terraform/modules/monitoring:scaffold_files",
+        "//infra/terraform/modules/observability:scaffold_files",
     ] + glob(["alerts/*.yaml"]),
     imports = ["../.."],
     visibility = ["//visibility:public"],
@@ -30,8 +36,14 @@ py_binary(
         "alert-contract.schema.json",
         "availability-profiles.schema.json",
         "availability-profiles.yaml",
+        "backend-compatibility.schema.json",
         "dashboard-contract.schema.json",
         "dashboards/control-plane.json",
+        "grafana-datasources.yaml",
+        "otel-collector.yaml",
+        "//infra/kubernetes/platform/observability:manifests",
+        "//infra/terraform/modules/monitoring:scaffold_files",
+        "//infra/terraform/modules/observability:scaffold_files",
     ] + glob(["alerts/*.yaml"]),
     main = "alert_contracts.py",
     deps = ["//configs:contract_validation"],
@@ -50,6 +62,45 @@ py_binary(
     main = "jobset_outcomes.py",
 )
 
+py_library(
+    name = "training_metrics",
+    srcs = ["training_metrics.py"],
+    data = [
+        "alert-contract.schema.json",
+        "alerts/checkpoint-failed.yaml",
+        "alerts/training-stalled.yaml",
+        "dashboard-contract.schema.json",
+        "dashboards/training.json",
+        "training-metrics.json",
+        "training-metrics.schema.json",
+    ],
+    imports = ["../.."],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":alert_contracts",
+        "//configs:contract_validation",
+    ],
+)
+
+py_binary(
+    name = "validate_training_metrics",
+    srcs = ["training_metrics.py"],
+    data = [
+        "alert-contract.schema.json",
+        "alerts/checkpoint-failed.yaml",
+        "alerts/training-stalled.yaml",
+        "dashboard-contract.schema.json",
+        "dashboards/training.json",
+        "training-metrics.json",
+        "training-metrics.schema.json",
+    ],
+    main = "training_metrics.py",
+    deps = [
+        ":alert_contracts",
+        "//configs:contract_validation",
+    ],
+)
+
 pytest_test(
     name = "test_alert_contracts",
     srcs = ["tests/test_alert_contracts.py"],
@@ -57,8 +108,14 @@ pytest_test(
         "alert-contract.schema.json",
         "availability-profiles.schema.json",
         "availability-profiles.yaml",
+        "backend-compatibility.schema.json",
         "dashboard-contract.schema.json",
         "dashboards/control-plane.json",
+        "grafana-datasources.yaml",
+        "otel-collector.yaml",
+        "//infra/kubernetes/platform/observability:manifests",
+        "//infra/terraform/modules/monitoring:scaffold_files",
+        "//infra/terraform/modules/observability:scaffold_files",
     ] + glob(["alerts/*.yaml"]),
     imports = ["../.."],
     deps = [":alert_contracts"],
@@ -69,6 +126,25 @@ pytest_test(
     srcs = ["tests/test_jobset_outcomes.py"],
     imports = ["../.."],
     deps = [":jobset_outcomes"],
+)
+
+pytest_test(
+    name = "test_training_metrics",
+    srcs = ["tests/test_training_metrics.py"],
+    data = [
+        "alert-contract.schema.json",
+        "alerts/checkpoint-failed.yaml",
+        "alerts/training-stalled.yaml",
+        "dashboard-contract.schema.json",
+        "dashboards/training.json",
+        "training-metrics.json",
+        "training-metrics.schema.json",
+    ],
+    imports = ["../.."],
+    deps = [
+        ":training_metrics",
+        "//configs:contract_validation",
+    ],
 )
 
 filegroup(

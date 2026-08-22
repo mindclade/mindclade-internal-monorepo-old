@@ -8,6 +8,7 @@ name = "mindclade-ipc-fuzz"
 version = "0.0.0"
 publish = false
 edition = "2024"
+license = "LicenseRef-Mindclade-Proprietary"
 
 [package.metadata]
 cargo-fuzz = true

@@ -33,6 +33,18 @@ forbidden_authority:
   - production-secrets
 required_paths:
   - AGENTS.md
+  - README.md
+  - CONTRIBUTING.md
+  - SECURITY.md
+  - SUPPORT.md
+  - CODE_OF_CONDUCT.md
+  - GOVERNANCE.md
+  - CHANGELOG.md
+  - LEGAL.md
+  - LICENSE
+  - NOTICE
+  - .github/pull_request_template.md
+  - .github/MINDCLADE_PROPRIETARY_SOURCE_HEADER.txt
   - MODULE.bazel
   - flake.nix
   - components.toml

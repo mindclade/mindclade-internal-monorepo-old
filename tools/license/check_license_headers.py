@@ -51,7 +51,7 @@ LICENSE_LINE = re.compile(
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-HEADER_FILE = REPO_ROOT / "license-header.txt"
+HEADER_FILE = REPO_ROOT / ".github" / "MINDCLADE_PROPRIETARY_SOURCE_HEADER.txt"
 
 # Extension to comment token. The canonical header on disk is written with `#`; the `//`
 # variant is derived from it so the two can never drift apart in wording.
@@ -82,6 +82,9 @@ HASH_NAMES = frozenset({"BUILD.bazel", "MODULE.bazel", "WORKSPACE", "BUILD"})
 # next regeneration or attaches Mindclade's copyright to something that is not ours.
 SKIP_DIR_PARTS = frozenset(
     {
+        # Installed agent skills are independently licensed tooling. Their package-level
+        # LICENSE controls; stamping individual files would falsely claim Mindclade ownership.
+        ".agents",
         ".git",
         "node_modules",
         "target",
@@ -91,6 +94,9 @@ SKIP_DIR_PARTS = frozenset(
         ".ruff_cache",
         ".pytest_cache",
         ".mypy_cache",
+        # Generated clients and schemas are recreated from their owning source contract. The
+        # generator, source, and distributed artifact carry the applicable notice instead.
+        "generated",
         "vendor",
     }
 )
@@ -98,14 +104,23 @@ SKIP_DIR_PARTS = frozenset(
 # `terraform init` and rewritten wholesale on every provider change, so a header in it is
 # removed the next time anyone runs init. The infra repos' bash checker excludes it for the
 # same reason.
-SKIP_NAMES = frozenset({"MODULE.bazel.lock", ".terraform.lock.hcl", "argocd.lock.yaml"})
+SKIP_NAMES = frozenset(
+    {
+        "MODULE.bazel.lock",
+        ".terraform.lock.hcl",
+        "argocd.lock.yaml",
+        "pnpm-lock.yaml",
+        # Next.js rewrites this reference file and explicitly marks it as machine-owned.
+        "next-env.d.ts",
+    }
+)
 
 
 def header_lines(token: str) -> list[str]:
-    """The four header lines rendered with the given comment token."""
-    raw = HEADER_FILE.read_text(encoding="utf-8").splitlines()[:4]
-    if len(raw) != 4:
-        raise SystemExit(f"{HEADER_FILE} does not contain the expected 4-line header block")
+    """The three legal header lines rendered with the given comment token."""
+    raw = HEADER_FILE.read_text(encoding="utf-8").splitlines()[:3]
+    if len(raw) != 3:
+        raise SystemExit(f"{HEADER_FILE} does not contain the expected 3-line header block")
     # Strip the canonical '#' and re-render. Preserves wording, changes only the token.
     return [f"{token} {line.lstrip('#').strip()}".rstrip() for line in raw]
 
@@ -155,7 +170,7 @@ def prologue_length(lines: Sequence[str], token: str) -> int:
 
 def has_header(lines: Sequence[str], token: str, expected: Sequence[str]) -> bool:
     start = prologue_length(lines, token)
-    return list(lines[start : start + 4]) == list(expected)
+    return list(lines[start : start + len(expected)]) == list(expected)
 
 
 def existing_block_length(lines: Sequence[str], token: str, start: int) -> int:

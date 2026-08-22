@@ -1,6 +1,7 @@
 // Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 // Mindclade Proprietary and Confidential.
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -24,4 +25,12 @@ test("console binds HTML rendering to a request nonce", async () => {
   assert.match(scriptSource, /'nonce-[A-Za-z0-9+/]+'/);
   assert.match(scriptSource, /'strict-dynamic'/);
   assert.doesNotMatch(scriptSource, /unsafe-inline/);
+});
+
+test("console preserves nonce CSP on an HTTP loopback smoke test", () => {
+  const response = proxy(new NextRequest("http://127.0.0.1:4411/runs"));
+  const policy = response.headers.get("content-security-policy") ?? "";
+  assert.match(policy, /'strict-dynamic'/);
+  assert.doesNotMatch(policy, /upgrade-insecure-requests/);
+  assert.equal(response.headers.get("strict-transport-security"), null);
 });

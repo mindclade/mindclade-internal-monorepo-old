@@ -112,12 +112,17 @@ func TestLivePostgresRegistryRoundTrip(t *testing.T) {
 
 	graph := evidenceGraph(t)
 	release := qualifiedRelease(t)
+	release.Channel = "candidate"
+	if err := store.PutRelease(context.Background(), release); err != nil {
+		t.Fatal(err)
+	}
+	release.ResourceVersion = 1
 	err = transaction.RunVoid(context.Background(), db, transaction.Options{Isolation: sql.LevelSerializable},
 		func(ctx context.Context, _ *sql.Tx) error {
 			if err := store.PutGraph(ctx, graph); err != nil {
 				return err
 			}
-			return store.PutRelease(ctx, release)
+			return store.PromoteRelease(ctx, release)
 		})
 	if err != nil {
 		t.Fatal(err)
@@ -130,6 +135,17 @@ func TestLivePostgresRegistryRoundTrip(t *testing.T) {
 		if count != want {
 			t.Fatalf("%s count=%d, want %d", table, count, want)
 		}
+	}
+	var status string
+	var version int64
+	if err := db.QueryRow(
+		"SELECT status, resource_version FROM "+store.ReleaseTable()+" WHERE release_id=$1",
+		release.ReleaseID,
+	).Scan(&status, &version); err != nil {
+		t.Fatal(err)
+	}
+	if status != "promoted" || version != 2 {
+		t.Fatalf("promoted release status=%q version=%d", status, version)
 	}
 }
 

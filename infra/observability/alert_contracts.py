@@ -46,6 +46,37 @@ _CONTROL_ADMISSION_FORBIDDEN_DIMENSIONS = {
     "tenant",
     "workspace",
 }
+_BACKEND_COMPATIBILITY = {
+    "grafana-datasources.yaml": {
+        "authoritativeServices": ["cloud-monitoring", "google-managed-prometheus"],
+        "forbiddenResponsibilities": [
+            "alerting",
+            "dashboard-deployment",
+            "datasource-provisioning",
+        ],
+        "replacementSources": [
+            "infra/observability/dashboards/control-plane.json",
+            "infra/terraform/modules/monitoring/main.tf",
+        ],
+    },
+    "otel-collector.yaml": {
+        "authoritativeServices": [
+            "cloud-logging",
+            "cloud-monitoring",
+            "cloud-trace",
+            "google-managed-prometheus",
+        ],
+        "forbiddenResponsibilities": [
+            "collector-deployment",
+            "credential-distribution",
+            "exporter-endpoints",
+        ],
+        "replacementSources": [
+            "infra/kubernetes/platform/observability/pod-monitoring.yaml",
+            "infra/terraform/modules/observability/main.tf",
+        ],
+    },
+}
 
 
 def _as_dict(value: object) -> dict[str, Any]:
@@ -73,8 +104,44 @@ def load_json_yaml(path: Path) -> dict[str, Any]:
     return value
 
 
-def validate_catalog(root: Path) -> list[str]:
+def _validate_backend_compatibility(root: Path) -> list[str]:
     errors: list[str] = []
+    try:
+        schema = load_json(root / "backend-compatibility.schema.json")
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        return [str(exc)]
+    repository = root.parents[1]
+    for filename, expected in sorted(_BACKEND_COMPATIBILITY.items()):
+        try:
+            document = load_json_yaml(root / filename)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            errors.append(f"{filename}: {exc}")
+            continue
+        errors.extend(
+            f"{filename} {failure.path}: {failure.message}"
+            for failure in validate(document, schema)
+        )
+        if document.get("name") != Path(filename).stem:
+            errors.append(f"{filename}: name must match the file stem")
+        for field, value in expected.items():
+            if document.get(field) != value:
+                errors.append(f"{filename}: {field} drifted from the backend authority decision")
+        for source in _as_list(document.get("replacementSources")):
+            if not isinstance(source, str):
+                continue
+            candidate = repository / source
+            try:
+                candidate.resolve().relative_to(repository.resolve())
+            except (OSError, ValueError):
+                errors.append(f"{filename}: replacement source escapes the repository: {source!r}")
+                continue
+            if not candidate.is_file():
+                errors.append(f"{filename}: replacement source is missing: {source!r}")
+    return errors
+
+
+def validate_catalog(root: Path) -> list[str]:
+    errors = _validate_backend_compatibility(root)
     try:
         alert_schema = load_json(root / "alert-contract.schema.json")
         profile_schema = load_json(root / "availability-profiles.schema.json")

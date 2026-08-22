@@ -3,8 +3,17 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Authoritative local training lifecycle."""
+"""Authoritative eager float32 training lifecycle."""
 
+from .reduction import LocalReducer, ReducedCounts, Reducer
 from .trainer import CancellationCheck, Scheduler, Trainer, TrainerConfig
 
-__all__ = ["CancellationCheck", "Scheduler", "Trainer", "TrainerConfig"]
+__all__ = [
+    "CancellationCheck",
+    "LocalReducer",
+    "ReducedCounts",
+    "Reducer",
+    "Scheduler",
+    "Trainer",
+    "TrainerConfig",
+]

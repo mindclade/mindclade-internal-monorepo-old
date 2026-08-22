@@ -18,6 +18,7 @@ require connected services or environments.
 | --- | --- |
 | [`go/offline-safe-packages.txt`](go/offline-safe-packages.txt) | Go packages eligible for provider-independent qualification |
 | [`go/connected-provider-packages.txt`](go/connected-provider-packages.txt) | Go packages requiring connected provider environments |
+| [`scientific_model_intake/`](scientific_model_intake/) | Read-only contract-completeness gate for authorizing model implementation |
 
 ## Evidence flow
 

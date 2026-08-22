@@ -1,4 +1,4 @@
-# Repository materialization status
+# Mindclade · Repository materialization status
 
 ## Status model
 

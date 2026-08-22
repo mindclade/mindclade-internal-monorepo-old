@@ -225,7 +225,7 @@ assert_project_destinations() {
 
 assert_project_destinations mindclade-bootstrap '["argocd"]'
 assert_project_destinations mindclade-foundation \
-  '["mindclade-batch-cpu","mindclade-system","mindclade-training-h100","mindclade-training-h200"]'
+  '["mindclade-batch-cpu","mindclade-system","mindclade-training-b200","mindclade-training-h100"]'
 assert_project_destinations mindclade-operator-foundation \
   '["cert-manager","jobset-system","kueue-system"]'
 assert_project_destinations mindclade-operator-crds \
@@ -236,7 +236,7 @@ assert_project_destinations mindclade-kueue-controller '["kueue-system"]'
 assert_project_destinations mindclade-operator-observability \
   '["jobset-system","kueue-system"]'
 assert_project_destinations mindclade-ml-resources \
-  '["mindclade-batch-cpu","mindclade-system","mindclade-training-h100","mindclade-training-h200"]'
+  '["mindclade-batch-cpu","mindclade-system","mindclade-training-b200","mindclade-training-h100"]'
 
 [[ "$(yq eval-all '[select(.kind == "AppProject" and
   .metadata.name == "mindclade-operator-crds") |

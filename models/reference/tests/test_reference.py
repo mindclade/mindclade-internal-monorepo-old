@@ -5,6 +5,7 @@
 
 """Contract tests for the deterministic reference affine module."""
 
+import json
 from dataclasses import FrozenInstanceError
 from pathlib import Path
 
@@ -13,10 +14,14 @@ import torch
 from safetensors.torch import load_file, save_file
 
 from models.reference import (
+    DEFAULT_MAXIMUM_INPUT_ELEMENTS,
     REFERENCE_AFFINE_OPERATION,
     ReferenceAffine,
     ReferenceAffineConfig,
     load_reference_affine,
+    parse_reference_affine_config,
+    reference_affine_config_bytes,
+    reference_affine_config_document,
     save_reference_affine,
 )
 
@@ -77,6 +82,13 @@ def test_nonfinite_input_is_rejected() -> None:
 
     with pytest.raises(ValueError, match="finite"):
         model(torch.tensor([float("inf")], dtype=torch.float32))
+
+
+def test_finite_input_that_overflows_arithmetic_is_rejected() -> None:
+    model = ReferenceAffine()
+
+    with pytest.raises(FloatingPointError, match="non-finite output"):
+        model(torch.tensor([torch.finfo(torch.float32).max], dtype=torch.float32))
 
 
 def test_input_on_different_device_is_rejected_without_transfer() -> None:
@@ -157,6 +169,52 @@ def test_config_is_validated_and_immutable() -> None:
         ReferenceAffineConfig(operation="reference.affine.v2")
     with pytest.raises(ValueError, match="positive"):
         ReferenceAffineConfig(maximum_input_elements=0)
+    with pytest.raises(ValueError, match="v1 limit"):
+        ReferenceAffineConfig(maximum_input_elements=DEFAULT_MAXIMUM_INPUT_ELEMENTS + 1)
+
+
+def test_bundle_config_round_trip_preserves_input_budget() -> None:
+    config = ReferenceAffineConfig(maximum_input_elements=37)
+    encoded = reference_affine_config_bytes(config)
+
+    restored = parse_reference_affine_config(encoded)
+
+    assert restored.maximum_input_elements == 37
+    assert reference_affine_config_document(restored) == reference_affine_config_document(config)
+
+
+@pytest.mark.parametrize(
+    "encoded, message",
+    [
+        (
+            b'{"architecture":"reference-affine-v1","architecture":"reference-affine-v1"}',
+            "unique-key",
+        ),
+        (b"{}", "fields"),
+        (
+            json.dumps(
+                {
+                    "architecture": "reference-affine-v1",
+                    "dtype": "float32",
+                    "maximum_input_elements": True,
+                    "operation": "reference.affine.v1",
+                    "schema_version": 1,
+                }
+            ).encode(),
+            "integer",
+        ),
+    ],
+)
+def test_bundle_config_rejects_noncanonical_contracts(encoded: bytes, message: str) -> None:
+    with pytest.raises(ValueError, match=message):
+        parse_reference_affine_config(encoded)
+
+
+def test_bundle_config_rejects_noncanonical_json_bytes() -> None:
+    encoded = json.dumps(reference_affine_config_document(ReferenceAffineConfig())).encode()
+
+    with pytest.raises(ValueError, match="canonical JSON"):
+        parse_reference_affine_config(encoded)
 
 
 def test_strict_state_dict_round_trip_uses_fresh_parameter_storage() -> None:

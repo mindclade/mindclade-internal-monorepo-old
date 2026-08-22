@@ -1,6 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
 
 ---
 {
@@ -12,8 +13,14 @@
   "deployment": {"provider": "google-cloud-monitoring", "terraformModule": "infra/terraform/modules/monitoring", "deployableKubernetesResource": false},
   "requiredEnvironmentInputs": ["emailNotificationChannelResourceNames", "environment", "googleChatNotificationChannelResourceNames", "httpsRunbookUrl", "projectId", "qualificationEvidenceSha256"],
   "signals": [
-    {"name": "checkpoint-terminal-failure-ratio", "description": "Checkpoint publication failures exceed the reviewed ratio after enough attempts to support action.", "metric": "mindclade.training.checkpoint_failure_ratio", "condition": "above", "threshold": 0.05, "duration": "15m", "severity": "page", "missingData": "no-op", "minimumSamples": 20, "runbookAnchor": "checkpoint-terminal-failure-ratio"}
+    {"name": "checkpoint-terminal-failure-ratio", "description": "Checkpoint publication failures exceed the explicitly proposed, unapproved source ratio after enough attempts to support action.", "metric": "mindclade.training.checkpoint_failure_ratio", "condition": "above", "threshold": 0.05, "duration": "15m", "severity": "page", "missingData": "no-op", "minimumSamples": 20, "runbookAnchor": "checkpoint-terminal-failure-ratio", "thresholdStatus": "proposed"}
   ],
-  "cardinality": {"permittedDimensions": ["cluster", "environment", "location", "namespace", "result", "service"], "forbiddenDimensions": ["dataset", "feature", "label", "model", "molecule", "prompt", "request-id", "sequence", "tenant", "user"], "rawValuesInTelemetry": false},
+  "observedSignals": [
+    {"name": "checkpoint-last-committed-age", "description": "Age of the newest manifest-last checkpoint while a bounded qualification phase remains active.", "metric": "mindclade.training.checkpoint_last_committed_age_seconds"},
+    {"name": "checkpoint-publication-outcomes", "description": "Fifteen-minute verified checkpoint publication outcomes split only by fixed phase and result.", "metric": "mindclade.training.checkpoint_publication_outcomes_15m"},
+    {"name": "checkpoint-restore-exact-ratio", "description": "Observed exact-restore ratio for the bounded DCP compatibility claim without an approved objective.", "metric": "mindclade.training.checkpoint_restore_exact_ratio"},
+    {"name": "checkpoint-restore-outcomes", "description": "Fifteen-minute checkpoint restore outcomes split only by exact, failed, or incompatible result.", "metric": "mindclade.training.checkpoint_restore_outcomes_15m"}
+  ],
+  "cardinality": {"permittedDimensions": ["cluster", "environment", "location", "namespace", "phase", "reason_class", "result", "service"], "forbiddenDimensions": ["dataset", "feature", "label", "model", "molecule", "prompt", "request-id", "sequence", "tenant", "user"], "rawValuesInTelemetry": false},
   "activationPolicy": {"enabledByDefault": false, "requiresSyntheticFireAndResolve": true, "requiresHealthyTelemetry": true, "requiresReviewedThresholds": true}
 }

@@ -117,15 +117,11 @@ def _parse_semver(value: str, field: str = "version") -> tuple[int, int, int]:
 
 def terraform_directories(repo: Path) -> list[tuple[str, Path]]:
     modules_root = repo / "infra/terraform/modules"
-    result = [
+    return [
         (path.name, path)
         for path in sorted(modules_root.iterdir())
         if path.is_dir() and any(path.glob("*.tf"))
     ]
-    dns_hub = repo / "infra/terraform/environments/dns_hub"
-    if dns_hub.is_dir() and any(dns_hub.glob("*.tf")):
-        result.append(("dns_hub", dns_hub))
-    return result
 
 
 def _terraform_docs_version(executable: str) -> str:
@@ -1456,19 +1452,11 @@ def verify_scope(repo: Path, scope: str) -> list[str]:
     """Hermetic Bazel-side structural verification without invoking terraform-docs."""
     manifest = _read_json(repo / MANIFEST_RELATIVE)
     units = manifest.get("modules", {})
-    expected = {
-        name: directory
-        for name, directory in terraform_directories(repo)
-        if (scope == "modules" and name != "dns_hub") or (scope == "dns_hub" and name == "dns_hub")
-    }
+    expected = dict(terraform_directories(repo))
     actual = {
         name
         for name, item in units.items()
-        if item.get("path", "").startswith(
-            "infra/terraform/modules/"
-            if scope == "modules"
-            else "infra/terraform/environments/dns_hub"
-        )
+        if item.get("path", "").startswith("infra/terraform/modules/")
     }
     errors: list[str] = []
     if set(expected) != actual:
@@ -1546,7 +1534,7 @@ def _parser() -> argparse.ArgumentParser:
     snapshot.add_argument("--output", type=Path, required=True)
     verify = subparsers.add_parser("verify-scope")
     verify.add_argument("--repo", type=Path, required=True)
-    verify.add_argument("--scope", choices=("modules", "dns_hub"), required=True)
+    verify.add_argument("--scope", choices=("modules",), required=True)
     return parser
 
 

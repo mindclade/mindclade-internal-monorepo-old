@@ -5,6 +5,8 @@
 
 syntax = "proto3";
 package mindclade.runtime.v1;
+
+option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/runtime/v1;runtimev1";
 message BufferDescriptor {
   string segment_id = 1;
   uint64 generation = 2;

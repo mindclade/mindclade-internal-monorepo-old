@@ -11,6 +11,9 @@ namespace: mindclade-training-h100
 components:
   - ../../base
 
+resources:
+  - recording-rules.yaml
+
 patches:
   - target:
       group: ""
@@ -36,9 +39,24 @@ patches:
       - op: replace
         path: /metadata/labels/mindclade.dev~1workload-class
         value: training-h100
+      - op: add
+        path: /metadata/labels/mindclade.dev~1capacity-type
+        value: on-demand
+      - op: add
+        path: /metadata/labels/mindclade.dev~1qualification-phase
+        value: h100-1g-smoke
+      - op: add
+        path: /metadata/annotations/mindclade.dev~1qualification-template-authority
+        value: tools/qualification/training_gke/h100-1g-smoke.json
       - op: replace
         path: /spec/template/metadata/labels/mindclade.dev~1workload-class
         value: training-h100
+      - op: add
+        path: /spec/template/metadata/labels/mindclade.dev~1qualification-phase
+        value: h100-1g-smoke
+      - op: add
+        path: /spec/template/spec/nodeSelector/mindclade.dev~1capacity-type
+        value: on-demand
       - op: replace
         path: /spec/template/spec/nodeSelector/mindclade.dev~1gpu-profile
         value: gke-h100-a3-megagpu-8g
@@ -53,16 +71,37 @@ patches:
     patch: |-
       - op: replace
         path: /metadata/name
-        value: mindclade-h100-8g-full-template
+        value: mindclade-h100-8g-single-node-template
       - op: replace
         path: /metadata/labels/kueue.x-k8s.io~1queue-name
         value: mindclade-training-h100
       - op: replace
         path: /metadata/labels/mindclade.dev~1workload-class
         value: training-h100
+      - op: add
+        path: /metadata/labels/mindclade.dev~1capacity-type
+        value: on-demand
+      - op: add
+        path: /metadata/labels/mindclade.dev~1qualification-phase
+        value: h100-8g-ddp-dcp
+      - op: add
+        path: /metadata/annotations/mindclade.dev~1execution-profile
+        value: single-node-world8
+      - op: add
+        path: /metadata/annotations/mindclade.dev~1qualification-template-authority
+        value: tools/qualification/training_gke/h100-8g-ddp-dcp.json
+      - op: replace
+        path: /spec/replicatedJobs/0/replicas
+        value: 1
       - op: replace
         path: /spec/replicatedJobs/0/template/spec/template/metadata/labels/mindclade.dev~1workload-class
         value: training-h100
+      - op: add
+        path: /spec/replicatedJobs/0/template/spec/template/metadata/labels/mindclade.dev~1qualification-phase
+        value: h100-8g-ddp-dcp
+      - op: add
+        path: /spec/replicatedJobs/0/template/spec/template/spec/nodeSelector/mindclade.dev~1capacity-type
+        value: on-demand
       - op: replace
         path: /spec/replicatedJobs/0/template/spec/template/spec/nodeSelector/mindclade.dev~1gpu-profile
         value: gke-h100-a3-megagpu-8g

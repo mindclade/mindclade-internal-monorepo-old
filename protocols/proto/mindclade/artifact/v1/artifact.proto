@@ -6,6 +6,8 @@
 syntax = "proto3";
 package mindclade.artifact.v1;
 
+option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/artifact/v1;artifactv1";
+
 message ArtifactRef {
   string digest = 1;
   uint64 size_bytes = 2;

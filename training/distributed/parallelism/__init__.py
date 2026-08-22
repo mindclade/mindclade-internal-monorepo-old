@@ -3,4 +3,8 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Mindclade scaffold package for training/distributed/parallelism."""
+"""Implemented data-parallel wrappers."""
+
+from .ddp import wrap_ddp
+
+__all__ = ["wrap_ddp"]

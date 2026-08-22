@@ -1,4 +1,4 @@
-# Repository implementation status
+# Mindclade · Repository implementation status
 
 ## Canonical status rule
 
@@ -7,6 +7,16 @@ offline qualification, connected qualification, and production promotion are
 separate states. Machine-readable component state is recorded in
 `components.toml` and `maturity.toml`; `VALIDATION.md` and `QUALIFICATION.md`
 record evidence.
+
+## Current gate status (2026-08-21)
+
+Documentation, root policy, proprietary header, and dependency-license gates
+pass. The complete static presubmit remains blocked because
+`services/control_plane` consumes
+`go.mindclade.dev/protocols/servicepolicy` outside its declared dependency
+budget. The import or allowlist must be reconciled through the owning
+architecture process before the repository can claim a fully passing static
+lane.
 
 ## Substantive implemented foundations
 

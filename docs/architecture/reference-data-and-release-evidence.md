@@ -54,7 +54,8 @@ claimed derivation or qualification relationship. Promotion validates:
 
 - required evidence kinds are present;
 - the graph is acyclic and canonical;
-- evidence is bound to the intended release subject/policy epoch;
+- every node carries a valid immutable artifact and is bound to the intended
+  release subject and active policy;
 - the graph digest is deterministic;
 - the current production policy accepts the graph.
 

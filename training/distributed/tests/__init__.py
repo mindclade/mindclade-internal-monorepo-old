@@ -3,4 +3,4 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Mindclade scaffold package for training/distributed/tests."""
+"""Tests for the bounded distributed runtime; residual plans remain scaffolded."""

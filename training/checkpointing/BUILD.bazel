@@ -11,10 +11,13 @@ py_library(
     name = "checkpointing",
     srcs = [
         "__init__.py",
+        "adamw.py",
         "atomic_commit.py",
+        "dcp.py",
         "manifest.py",
         "resume.py",
         "serialization.py",
+        "trainer.py",
     ],
     imports = ["../.."],
     deps = [
@@ -22,23 +25,28 @@ py_library(
         "//libs/python/identifiers",
         "//libs/python/serialization",
         "//training/contracts",
+        "//training/core:trainer",
+        "@pypi//numpy",
         "@pypi//safetensors",
         "@pypi//torch",
     ],
 )
 
-# The remaining reserved paths retain their explicit scaffold status. In particular, DCP,
-# resharding, retention, and remote staging are not part of the local world-size-one contract.
+# The remaining reserved paths retain their explicit scaffold status. Resharding, retention,
+# and remote staging are not part of either implemented checkpoint contract.
 filegroup(
     name = "remaining_scaffold_files",
     srcs = glob(
         ["*.py"],
         exclude = [
             "__init__.py",
+            "adamw.py",
             "atomic_commit.py",
+            "dcp.py",
             "manifest.py",
             "resume.py",
             "serialization.py",
+            "trainer.py",
         ],
     ),
 )

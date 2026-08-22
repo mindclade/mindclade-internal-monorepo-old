@@ -9,28 +9,72 @@
 
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { ArtifactRef } from "../../common/v1/artifact_ref_pb.js";
+import { file_mindclade_common_v1_artifact_ref } from "../../common/v1/artifact_ref_pb.js";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file mindclade/artifact/v1/manifest.proto.
  */
 export const file_mindclade_artifact_v1_manifest: GenFile = /*@__PURE__*/
-  fileDesc("CiRtaW5kY2xhZGUvYXJ0aWZhY3QvdjEvbWFuaWZlc3QucHJvdG8SFW1pbmRjbGFkZS5hcnRpZmFjdC52MSIkChBNYW5pZmVzdFNjYWZmb2xkEhAKCHJlc2VydmVkGAEgASgJYgZwcm90bzM");
+  fileDesc("CiRtaW5kY2xhZGUvYXJ0aWZhY3QvdjEvbWFuaWZlc3QucHJvdG8SFW1pbmRjbGFkZS5hcnRpZmFjdC52MSKXAwoQQXJ0aWZhY3RNYW5pZmVzdBIWCg5zY2hlbWFfdmVyc2lvbhgBIAEoDRITCgttYW5pZmVzdF9pZBgCIAEoCRIzCglhcnRpZmFjdHMYAyADKAsyIC5taW5kY2xhZGUuY29tbW9uLnYxLkFydGlmYWN0UmVmEg0KBW93bmVyGAQgASgJEi4KCmNyZWF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhcKD21hbmlmZXN0X2RpZ2VzdBgGIAEoCRInChpzdXBlcnNlZGVzX21hbmlmZXN0X2RpZ2VzdBgHIAEoCUgAiAEBEk0KC2Fubm90YXRpb25zGAggAygLMjgubWluZGNsYWRlLmFydGlmYWN0LnYxLkFydGlmYWN0TWFuaWZlc3QuQW5ub3RhdGlvbnNFbnRyeRoyChBBbm5vdGF0aW9uc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCHQobX3N1cGVyc2VkZXNfbWFuaWZlc3RfZGlnZXN0QkRaQmdvLm1pbmRjbGFkZS5kZXYvcHJvdG9jb2xzL2dlbi9nby9taW5kY2xhZGUvYXJ0aWZhY3QvdjE7YXJ0aWZhY3R2MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_mindclade_common_v1_artifact_ref]);
 
 /**
- * @generated from message mindclade.artifact.v1.ManifestScaffold
+ * ArtifactManifest is a bounded, immutable collection of artifact identities.
+ * The manifest digest is computed over the deterministic serialization with
+ * manifest_digest omitted. Storage locations are deliberately excluded from
+ * identity and may change without changing this record.
+ *
+ * @generated from message mindclade.artifact.v1.ArtifactManifest
  */
-export type ManifestScaffold = Message<"mindclade.artifact.v1.ManifestScaffold"> & {
+export type ArtifactManifest = Message<"mindclade.artifact.v1.ArtifactManifest"> & {
   /**
-   * @generated from field: string reserved = 1;
+   * @generated from field: uint32 schema_version = 1;
    */
-  reserved: string;
+  schemaVersion: number;
+
+  /**
+   * @generated from field: string manifest_id = 2;
+   */
+  manifestId: string;
+
+  /**
+   * @generated from field: repeated mindclade.common.v1.ArtifactRef artifacts = 3;
+   */
+  artifacts: ArtifactRef[];
+
+  /**
+   * @generated from field: string owner = 4;
+   */
+  owner: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 5;
+   */
+  createdAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: string manifest_digest = 6;
+   */
+  manifestDigest: string;
+
+  /**
+   * @generated from field: optional string supersedes_manifest_digest = 7;
+   */
+  supersedesManifestDigest?: string | undefined;
+
+  /**
+   * @generated from field: map<string, string> annotations = 8;
+   */
+  annotations: { [key: string]: string };
 };
 
 /**
- * Describes the message mindclade.artifact.v1.ManifestScaffold.
- * Use `create(ManifestScaffoldSchema)` to create a new message.
+ * Describes the message mindclade.artifact.v1.ArtifactManifest.
+ * Use `create(ArtifactManifestSchema)` to create a new message.
  */
-export const ManifestScaffoldSchema: GenMessage<ManifestScaffold> = /*@__PURE__*/
+export const ArtifactManifestSchema: GenMessage<ArtifactManifest> = /*@__PURE__*/
   messageDesc(file_mindclade_artifact_v1_manifest, 0);
 

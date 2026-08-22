@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://mindclade.com/contracts/model/target-card-1.0.0.schema.json",
-  "title": "Mindclade model target card",
+  "$id": "https://mindclade.com/contracts/model/target-card-2.0.0.schema.json",
+  "title": "Mindclade model target card v2",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "modelName", "family", "owner", "dataClassification", "inputSchemaDigest", "outputSchemaDigest", "trainingDatasetDigests", "evaluationDatasetDigests", "metricGates", "availabilityProfile", "trainingHardwareProfiles", "servingHardwareProfiles", "activation"],
+  "required": ["schemaVersion", "modelName", "family", "owner", "dataClassification", "inputSchemaDigest", "outputSchemaDigest", "trainingDatasetDigests", "evaluationDatasetDigests", "metricGates", "availabilityProfile", "trainingHardwareProfiles", "servingHardwareProfiles", "safetyReviewRequired", "activation"],
   "properties": {
-    "schemaVersion": {"const": "mindclade.dev/model-target-card/v1"},
+    "schemaVersion": {"const": "mindclade.dev/model-target-card/v2"},
     "modelName": {"$ref": "#/$defs/id"},
     "family": {"enum": ["biology", "diffusion", "llm", "moe", "multimodal"]},
     "owner": {"$ref": "#/$defs/id"},
@@ -19,6 +19,7 @@
     "availabilityProfile": {"$ref": "#/$defs/id"},
     "trainingHardwareProfiles": {"type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
     "servingHardwareProfiles": {"type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+    "safetyReviewRequired": {"type": "boolean"},
     "activation": {
       "type": "object",
       "additionalProperties": false,
@@ -32,19 +33,26 @@
       "else": {"properties": {"qualificationEvidenceDigest": {"type": "null"}}}
     }
   },
+  "allOf": [
+    {
+      "if": {"properties": {"activation": {"properties": {"state": {"const": "approved"}}}}},
+      "then": {"properties": {"safetyReviewRequired": {"const": true}}}
+    }
+  ],
   "$defs": {
     "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$"},
     "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
     "metric": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "direction", "threshold", "minimumSamples", "evaluationDatasetDigest"],
+      "required": ["name", "direction", "threshold", "minimumSamples", "evaluationDatasetDigest", "requiredSlices"],
       "properties": {
         "name": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]{1,127}$"},
         "direction": {"enum": ["at-least", "at-most"]},
         "threshold": {"type": "number"},
         "minimumSamples": {"type": "integer", "minimum": 1, "maximum": 1000000000},
-        "evaluationDatasetDigest": {"$ref": "#/$defs/digest"}
+        "evaluationDatasetDigest": {"$ref": "#/$defs/digest"},
+        "requiredSlices": {"type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}}
       }
     }
   }

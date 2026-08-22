@@ -46,7 +46,7 @@ import struct
 import sys
 import tempfile
 from pathlib import Path
-from typing import Final
+from typing import Final, TypedDict
 
 # The media type recorded for each weight file, and the one the OCI layer advertises.
 # Not application/octet-stream: the point of a media type is that a consumer can refuse what it
@@ -88,6 +88,25 @@ _DTYPE_BYTES: Final = {
     "I64": 8,
     "F64": 8,
 }
+
+
+class BundleMember(TypedDict):
+    path: str
+    digest: str
+    size_bytes: int
+    media_type: str
+    logical_kind: str
+    schema_version: int
+
+
+class BundleManifest(TypedDict):
+    schema_version: int
+    media_type: str
+    logical_kind: str
+    name: str
+    digest: str
+    size_bytes: int
+    members: list[BundleMember]
 
 
 def _unique_json_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
@@ -328,7 +347,7 @@ def _fsync_directory(path: Path) -> None:
         os.close(descriptor)
 
 
-def build(checkpoint: Path, out: Path, name: str, schema_version: int) -> dict:
+def build(checkpoint: Path, out: Path, name: str, schema_version: int) -> BundleManifest:
     if schema_version != SUPPORTED_SCHEMA_VERSION:
         raise ValueError(
             f"schema version must be {SUPPORTED_SCHEMA_VERSION}; got {schema_version}."
@@ -353,7 +372,7 @@ def build(checkpoint: Path, out: Path, name: str, schema_version: int) -> dict:
     out.parent.mkdir(parents=True, exist_ok=True)
     staging = Path(tempfile.mkdtemp(prefix=f".{out.name}.staging-", dir=out.parent))
     try:
-        members = []
+        members: list[BundleMember] = []
         for path in files:
             relative = path.relative_to(checkpoint).as_posix()
             destination = staging / relative
@@ -389,7 +408,7 @@ def build(checkpoint: Path, out: Path, name: str, schema_version: int) -> dict:
         canonical = json.dumps(members, sort_keys=True, separators=(",", ":")).encode()
         bundle_digest = "sha256:" + hashlib.sha256(canonical).hexdigest()
 
-        manifest = {
+        manifest: BundleManifest = {
             "schema_version": schema_version,
             "media_type": MANIFEST_MEDIA_TYPE,
             "logical_kind": "model.bundle",

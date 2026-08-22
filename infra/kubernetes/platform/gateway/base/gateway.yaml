@@ -9,14 +9,11 @@
 # ---------------------------------------------------------------------------------------
 # Why gke-l7-rilb, and what it costs
 # ---------------------------------------------------------------------------------------
-# `gke-l7-rilb` is the regional internal Application Load Balancer. It does NOT support
-# Certificate Manager certificate maps — those are global-only — and Certificate Manager's
-# load-balancer authorization supports neither wildcards nor regional certificates. The only
-# Google-managed path to a publicly-trusted wildcard on an internal ALB is the CROSS-REGION
-# internal ALB, which drags in Fleet, ServiceExport, and a multi-cluster GatewayClass.
-#
-# For a single-cluster internal platform that overhead is not worth paying, so certificates
-# come from cert-manager into Kubernetes Secrets instead (see ../cert-manager).
+# `gke-l7-rilb` is the regional internal Application Load Balancer. Regional Google-managed
+# Certificate Manager certificates attach directly through
+# `networking.gke.io/cert-manager-certs`; certificate maps remain global-only and are not used.
+# Terraform creates exact-SAN certificates in the same platform project and region as this
+# Gateway. No frontend private key or ACME account exists in Kubernetes.
 #
 # The consequence to state plainly rather than discover: this Gateway is REGIONAL and this is
 # a single-cluster design. A region loss is an outage. That buys an availability posture of
@@ -36,13 +33,8 @@
 # ---------------------------------------------------------------------------------------
 # Why the Gateway is in its own namespace and not in `studio`
 # ---------------------------------------------------------------------------------------
-# A `certificateRefs` entry with no namespace resolves in the GATEWAY's namespace. Putting the
-# Gateway in `studio` would therefore require `cert-mindclade-ai` and `cert-mindclade-dev` —
-# the machine and developer planes' certificates — to live in the browser plane's namespace,
-# which inverts the ownership the plane split exists to establish.
-#
-# It also matches how this is owned: each plane has an owner, but the Gateway, its certificates,
-# and DNS have ONE owner across all three. Split ownership of a shared Gateway is how a listener
+# Each plane has an owner, but the Gateway, Certificate Manager attachment names, and DNS have
+# one platform owner across all three. Split ownership of a shared Gateway is how a listener
 # change on one plane takes down another.
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
@@ -75,8 +67,8 @@ spec:
       hostname: "mindclade.studio"
       tls:
         mode: Terminate
-        certificateRefs:
-          - name: cert-mindclade-studio
+        options:
+          networking.gke.io/cert-manager-certs: cert-mindclade-studio
       allowedRoutes:
         namespaces:
           from: Selector
@@ -110,18 +102,16 @@ spec:
     # ------------------------------------------------------------------------------------
     # Machine plane
     # ------------------------------------------------------------------------------------
-    # A wildcard covers exactly one label: `*.mindclade.ai` covers `api.mindclade.ai` and does
-    # NOT cover `v1.api.mindclade.ai`. That is the constraint behind keeping every hostname
-    # flat — two-label names would need per-host certificates, which then enumerate internal
-    # topology in a public CT log.
+    # The listener wildcard selects the flat service namespace; the attached certificate still
+    # carries only the exact reviewed SANs rendered by each environment's Terraform contract.
     - name: ai-https
       protocol: HTTPS
       port: 443
       hostname: "*.mindclade.ai"
       tls:
         mode: Terminate
-        certificateRefs:
-          - name: cert-mindclade-ai
+        options:
+          networking.gke.io/cert-manager-certs: cert-mindclade-ai
       allowedRoutes:
         namespaces:
           from: Selector
@@ -138,8 +128,8 @@ spec:
       hostname: "*.mindclade.dev"
       tls:
         mode: Terminate
-        certificateRefs:
-          - name: cert-mindclade-dev
+        options:
+          networking.gke.io/cert-manager-certs: cert-mindclade-dev
       allowedRoutes:
         namespaces:
           from: Selector

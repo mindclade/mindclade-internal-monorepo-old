@@ -8,9 +8,13 @@
 from __future__ import annotations
 
 import json
+import os
+import stat
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from models.reference import DEFAULT_MAXIMUM_INPUT_ELEMENTS
 
 MAX_CONFIG_BYTES = 64 * 1024
 _DIGEST_LENGTH = len("sha256:") + 64
@@ -57,12 +61,14 @@ class WorkerProcessConfig:
     def from_file(cls, path: Path) -> WorkerProcessConfig:
         if not path.is_absolute():
             raise ValueError("worker config path must be absolute")
-        stat = path.stat()
-        if stat.st_size == 0 or stat.st_size > MAX_CONFIG_BYTES:
-            raise ValueError("worker config size is outside bounds")
+        encoded = _read_config_bytes(path)
         try:
-            value = json.loads(path.read_text(encoding="utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            value = json.loads(
+                encoded,
+                object_pairs_hook=_unique_json_object,
+                parse_constant=_reject_json_constant,
+            )
+        except (UnicodeDecodeError, json.JSONDecodeError, RecursionError, ValueError) as error:
             raise ValueError("worker config is not valid UTF-8 JSON") from error
         if not isinstance(value, dict):
             raise ValueError("worker config must be a JSON object")
@@ -132,8 +138,16 @@ class WorkerProcessConfig:
         _bounded(self.maximum_output_bytes, 4, 1 << 40, "maximum_output_bytes")
         _bounded(self.io_timeout_millis, 100, 300_000, "io_timeout_millis")
         _bounded(self.cancellation_grace_millis, 100, 30_000, "cancellation_grace_millis")
-        _bounded(self.reference_chunk_elements, 1, 1 << 26, "reference_chunk_elements")
-        _bounded(self.reference_iterations, 1, 1_000_000, "reference_iterations")
+        _bounded(
+            self.reference_chunk_elements,
+            1,
+            DEFAULT_MAXIMUM_INPUT_ELEMENTS,
+            "reference_chunk_elements",
+        )
+        if self.reference_iterations != 1:
+            raise ValueError(
+                "reference.affine.v1 requires exactly one iteration (reference_iterations == 1)"
+            )
 
         directories = (self.model_bundle_root, self.output_root, *self.allowed_input_roots)
         for directory in directories:
@@ -152,6 +166,55 @@ def _integer(value: dict[str, Any], field: str) -> int:
     if isinstance(candidate, bool) or not isinstance(candidate, int):
         raise ValueError(f"{field} must be an integer")
     return candidate
+
+
+def _read_config_bytes(path: Path) -> bytes:
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as error:
+        raise ValueError("worker config cannot be opened safely") from error
+    try:
+        initial = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(initial.st_mode)
+            or initial.st_size <= 0
+            or initial.st_size > MAX_CONFIG_BYTES
+        ):
+            raise ValueError("worker config size or type is outside bounds")
+        chunks: list[bytes] = []
+        remaining = initial.st_size
+        while remaining:
+            chunk = os.read(descriptor, min(remaining, 64 * 1024))
+            if not chunk:
+                raise ValueError("worker config changed while being read")
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        if os.read(descriptor, 1):
+            raise ValueError("worker config changed while being read")
+        final = os.fstat(descriptor)
+        if (
+            final.st_size != initial.st_size
+            or final.st_mtime_ns != initial.st_mtime_ns
+            or final.st_ctime_ns != initial.st_ctime_ns
+        ):
+            raise ValueError("worker config changed while being read")
+        return b"".join(chunks)
+    finally:
+        os.close(descriptor)
+
+
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    document: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in document:
+            raise ValueError(f"duplicate JSON key: {key}")
+        document[key] = value
+    return document
+
+
+def _reject_json_constant(value: str) -> object:
+    raise ValueError(f"non-finite JSON number: {value}")
 
 
 def _string(value: dict[str, Any], field: str) -> str:

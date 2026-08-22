@@ -5,6 +5,7 @@
 
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
 load("@protobuf//bazel:py_proto_library.bzl", "py_proto_library")
+load("@rules_go//proto:def.bzl", "go_proto_library")
 load("@rules_python//python:defs.bzl", "py_test")
 
 package(default_visibility = ["//visibility:public"])
@@ -105,6 +106,26 @@ proto_library(
         ":buffer_descriptor_proto",
         ":execution_ticket_proto",
         ":service_proto",
+        ":worker_status_proto",
+    ],
+)
+
+go_proto_library(
+    name = "runtime_go_proto",
+    compilers = [
+        "@rules_go//proto:go_grpc_v2",
+        "@rules_go//proto:go_proto",
+    ],
+    importpath = "go.mindclade.dev/protocols/gen/go/mindclade/runtime/v1",
+    protos = [
+        ":artifact_grant_proto",
+        ":buffer_descriptor_proto",
+        ":execution_budget_proto",
+        ":execution_service_proto",
+        ":execution_ticket_proto",
+        ":route_snapshot_proto",
+        ":service_proto",
+        ":worker_command_proto",
         ":worker_status_proto",
     ],
 )

@@ -3,13 +3,191 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_push")
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("@rules_python//python:defs.bzl", "py_test")
+
 package(default_visibility = ["//visibility:private"])
 
-filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
+# Complete compilation authority for every promoted protobuf source.
+proto_library(
+    name = "all_protos",
     visibility = ["//visibility:public"],
+    deps = [
+        "//protocols/proto/mindclade/artifact/v1:artifact_proto",
+        "//protocols/proto/mindclade/artifact/v1:artifact_service_proto",
+        "//protocols/proto/mindclade/artifact/v1:checkpoint_commit_proto",
+        "//protocols/proto/mindclade/artifact/v1:manifest_proto",
+        "//protocols/proto/mindclade/common/v1:artifact_ref_proto",
+        "//protocols/proto/mindclade/common/v1:errors_proto",
+        "//protocols/proto/mindclade/common/v1:identifiers_proto",
+        "//protocols/proto/mindclade/common/v1:pagination_proto",
+        "//protocols/proto/mindclade/data/v1:cursor_proto",
+        "//protocols/proto/mindclade/data/v1:dataset_proto",
+        "//protocols/proto/mindclade/data/v1:dataset_service_proto",
+        "//protocols/proto/mindclade/data/v1:record_proto",
+        "//protocols/proto/mindclade/data/v1:shard_proto",
+        "//protocols/proto/mindclade/data/v1:snapshot_proto",
+        "//protocols/proto/mindclade/data/v1:source_proto",
+        "//protocols/proto/mindclade/evaluation/v1:evaluation_proto",
+        "//protocols/proto/mindclade/evaluation/v1:evaluation_service_proto",
+        "//protocols/proto/mindclade/events/v1:admission_events_proto",
+        "//protocols/proto/mindclade/events/v1:envelope_proto",
+        "//protocols/proto/mindclade/inference/v1:inference_service_proto",
+        "//protocols/proto/mindclade/inference/v1:model_proto",
+        "//protocols/proto/mindclade/inference/v1:request_proto",
+        "//protocols/proto/mindclade/inference/v1:response_proto",
+        "//protocols/proto/mindclade/inference/v1:stream_proto",
+        "//protocols/proto/mindclade/orchestration/v1:run_proto",
+        "//protocols/proto/mindclade/orchestration/v1:run_service_proto",
+        "//protocols/proto/mindclade/orchestration/v1:stage_proto",
+        "//protocols/proto/mindclade/orchestration/v1:workflow_proto",
+        "//protocols/proto/mindclade/orchestration/v1:workload_proto",
+        "//protocols/proto/mindclade/registry/v1:checkpoint_record_proto",
+        "//protocols/proto/mindclade/registry/v1:model_bundle_proto",
+        "//protocols/proto/mindclade/registry/v1:model_service_proto",
+        "//protocols/proto/mindclade/registry/v1:reference_database_proto",
+        "//protocols/proto/mindclade/registry/v1:release_proto",
+        "//protocols/proto/mindclade/runtime/v1:artifact_grant_proto",
+        "//protocols/proto/mindclade/runtime/v1:buffer_descriptor_proto",
+        "//protocols/proto/mindclade/runtime/v1:execution_budget_proto",
+        "//protocols/proto/mindclade/runtime/v1:execution_service_proto",
+        "//protocols/proto/mindclade/runtime/v1:execution_ticket_proto",
+        "//protocols/proto/mindclade/runtime/v1:route_snapshot_proto",
+        "//protocols/proto/mindclade/runtime/v1:service_proto",
+        "//protocols/proto/mindclade/runtime/v1:worker_command_proto",
+        "//protocols/proto/mindclade/runtime/v1:worker_status_proto",
+        "//protocols/proto/mindclade/training/v1:checkpoint_manifest_proto",
+        "//protocols/proto/mindclade/training/v1:progress_proto",
+        "//protocols/proto/mindclade/training/v1:run_proto",
+        "//protocols/proto/mindclade/training/v1:topology_proto",
+    ],
+)
+
+# Bazel globs do not cross the package boundaries below `proto/`. Keep the raw-source runfiles
+# explicit so compatibility and generated-SDK projection checks cannot pass with an empty input.
+filegroup(
+    name = "all_proto_sources",
+    srcs = [
+        "//protocols/proto/mindclade/artifact/v1:artifact.proto",
+        "//protocols/proto/mindclade/artifact/v1:checkpoint.proto",
+        "//protocols/proto/mindclade/artifact/v1:manifest.proto",
+        "//protocols/proto/mindclade/artifact/v1:service.proto",
+        "//protocols/proto/mindclade/common/v1:artifact_ref.proto",
+        "//protocols/proto/mindclade/common/v1:errors.proto",
+        "//protocols/proto/mindclade/common/v1:identifiers.proto",
+        "//protocols/proto/mindclade/common/v1:pagination.proto",
+        "//protocols/proto/mindclade/data/v1:cursor.proto",
+        "//protocols/proto/mindclade/data/v1:dataset.proto",
+        "//protocols/proto/mindclade/data/v1:record.proto",
+        "//protocols/proto/mindclade/data/v1:service.proto",
+        "//protocols/proto/mindclade/data/v1:shard.proto",
+        "//protocols/proto/mindclade/data/v1:snapshot.proto",
+        "//protocols/proto/mindclade/data/v1:source.proto",
+        "//protocols/proto/mindclade/evaluation/v1:evaluation.proto",
+        "//protocols/proto/mindclade/evaluation/v1:service.proto",
+        "//protocols/proto/mindclade/events/v1:admission_events.proto",
+        "//protocols/proto/mindclade/events/v1:envelope.proto",
+        "//protocols/proto/mindclade/inference/v1:model.proto",
+        "//protocols/proto/mindclade/inference/v1:request.proto",
+        "//protocols/proto/mindclade/inference/v1:response.proto",
+        "//protocols/proto/mindclade/inference/v1:service.proto",
+        "//protocols/proto/mindclade/inference/v1:stream.proto",
+        "//protocols/proto/mindclade/orchestration/v1:run.proto",
+        "//protocols/proto/mindclade/orchestration/v1:service.proto",
+        "//protocols/proto/mindclade/orchestration/v1:stage.proto",
+        "//protocols/proto/mindclade/orchestration/v1:workflow.proto",
+        "//protocols/proto/mindclade/orchestration/v1:workload.proto",
+        "//protocols/proto/mindclade/registry/v1:checkpoint.proto",
+        "//protocols/proto/mindclade/registry/v1:model_bundle.proto",
+        "//protocols/proto/mindclade/registry/v1:reference_database.proto",
+        "//protocols/proto/mindclade/registry/v1:release.proto",
+        "//protocols/proto/mindclade/registry/v1:service.proto",
+        "//protocols/proto/mindclade/runtime/v1:artifact_grant.proto",
+        "//protocols/proto/mindclade/runtime/v1:buffer_descriptor.proto",
+        "//protocols/proto/mindclade/runtime/v1:execution_budget.proto",
+        "//protocols/proto/mindclade/runtime/v1:execution_service.proto",
+        "//protocols/proto/mindclade/runtime/v1:execution_ticket.proto",
+        "//protocols/proto/mindclade/runtime/v1:route_snapshot.proto",
+        "//protocols/proto/mindclade/runtime/v1:service.proto",
+        "//protocols/proto/mindclade/runtime/v1:worker_command.proto",
+        "//protocols/proto/mindclade/runtime/v1:worker_status.proto",
+        "//protocols/proto/mindclade/training/v1:checkpoint.proto",
+        "//protocols/proto/mindclade/training/v1:progress.proto",
+        "//protocols/proto/mindclade/training/v1:run.proto",
+        "//protocols/proto/mindclade/training/v1:topology.proto",
+    ],
+)
+
+genrule(
+    name = "protobuf_descriptor_set",
+    srcs = [
+        ":all_proto_sources",
+        "@protobuf//:well_known_type_protos",
+    ],
+    outs = ["mindclade-protobuf-descriptor-set.proto.bin"],
+    cmd = "$(execpath @protobuf//:protoc) " +
+          "--proto_path=protocols/proto " +
+          "--proto_path=external/protobuf+/src " +
+          "--include_imports " +
+          "--descriptor_set_out=$@ " +
+          "$(locations :all_proto_sources)",
+    tools = ["@protobuf//:protoc"],
+)
+
+# Immutable, data-only OCI contract bundle. The descriptor, canonical sources,
+# compatibility baseline, and machine-readable maturity declaration travel as
+# one digest-addressed release subject; consumers never depend on a mutable tag
+# or on a separately regenerated descriptor.
+pkg_tar(
+    name = "protobuf_contract_layer",
+    srcs = [
+        "buf.yaml",
+        "compatibility/breaking-policy.yaml",
+        "compatibility/protobuf-surfaces.json",
+        "compatibility/protobuf-v1-descriptor.json",
+        ":all_proto_sources",
+        ":protobuf_descriptor_set",
+    ],
+    mode = "0444",
+    package_dir = "/contracts",
+)
+
+oci_image(
+    name = "protobuf_contract_image",
+    architecture = "amd64",
+    os = "linux",
+    tars = [":protobuf_contract_layer"],
+    visibility = ["//visibility:public"],
+)
+
+oci_push(
+    name = "protobuf_contract_push",
+    image = ":protobuf_contract_image",
+    repository = "localhost/mindclade/protobuf-contracts",
+    visibility = ["//visibility:public"],
+)
+
+py_test(
+    name = "protobuf_governance_test",
+    srcs = ["compatibility/descriptor_contract.py"],
+    data = [
+        "compatibility/protobuf-surfaces.json",
+        "compatibility/protobuf-v1-descriptor.json",
+        ":all_proto_sources",
+        ":protobuf_descriptor_set",
+    ],
+    main = "compatibility/descriptor_contract.py",
+    deps = ["//protocols/proto/mindclade/artifact/v1:checkpoint_commit_py_pb2"],
+)
+
+py_test(
+    name = "typescript_projection_test",
+    srcs = ["compatibility/check_typescript_projection.py"],
+    data = [
+        ":all_proto_sources",
+        "//sdk/typescript:generated_protobuf_sources",
+    ],
+    main = "compatibility/check_typescript_projection.py",
 )

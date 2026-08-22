@@ -24,8 +24,10 @@ The static capacity classes are deliberately explicit:
 - H100 and B200 training use distinct namespaces, queues, node flavors, and
   quotas so capacity cannot cross hardware generations;
 - `1g-packed` requests one accelerator and permits Kueue topology-aware packing;
-- `8g-full` requests one complete eight-GPU A3 node per replica and requires a
-  common zone while spreading replicas by hostname.
+- the H100 qualification profile requests one complete eight-GPU A3 node, selects
+  only the Terraform-owned `on-demand` capacity label, and binds world size eight in
+  the source qualification runner;
+- the older two-replica B200 shape remains outside the reference qualification claim.
 
 These are scheduling contracts, not performance evidence. Quota remains zero
 until a qualification run establishes GPU memory headroom, NCCL/RDMA behavior,
@@ -124,6 +126,16 @@ rule evaluation, query results, and synthetic fire/recovery must all be proven
 before capacity is enabled. JobSet capacity additionally requires a durable
 condition/event-derived completion and failure signal; the upstream per-name
 terminal counters are not treated as reliable windowed outcome events.
+
+The reference-training families are fixed in
+`infra/observability/training-metrics.json`: 73 maximum exporter series across
+training progress, terminal run outcomes, checkpoint publication, and restore outcomes.
+No run, checkpoint, artifact, model, dataset, tenant, or request identity is a label. The
+named exporter is an external producer contract and is not implemented in this source tree;
+therefore the H100 profile intentionally has recording rules but no training `PodMonitoring`.
+The existing training alert values and availability profile are explicitly proposed,
+unapproved, and disabled. Environment owners must supply any accepted SLO, cost, RPO, and RTO
+values and retain synthetic fire-and-resolve evidence before activation.
 
 ## Feedback and retraining
 

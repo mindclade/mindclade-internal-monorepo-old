@@ -3,7 +3,49 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_python//python:defs.bzl", "py_binary", "py_test")
+
 package(default_visibility = ["//visibility:private"])
+
+py_binary(
+    name = "check_remote_execution",
+    srcs = ["check_remote_execution.py"],
+    main = "check_remote_execution.py",
+    python_version = "PY3",
+    visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "verify_execution_image",
+    srcs = ["verify_execution_image.py"],
+    data = ["//infra/build/remote_execution:images.lock.json"],
+    main = "verify_execution_image.py",
+    python_version = "PY3",
+    visibility = ["//visibility:public"],
+)
+
+py_test(
+    name = "remote_execution_test",
+    srcs = [
+        "check_remote_execution.py",
+        "test_remote_execution.py",
+    ],
+    imports = ["."],
+    main = "test_remote_execution.py",
+    python_version = "PY3",
+)
+
+py_test(
+    name = "execution_image_test",
+    srcs = [
+        "test_execution_image.py",
+        "verify_execution_image.py",
+    ],
+    data = ["//infra/build/remote_execution:images.lock.json"],
+    imports = ["."],
+    main = "test_execution_image.py",
+    python_version = "PY3",
+)
 
 filegroup(
     name = "scaffold_files",

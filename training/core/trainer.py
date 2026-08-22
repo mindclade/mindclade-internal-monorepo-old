@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Deterministic, single-owner CPU/float32 reference trainer."""
+"""Deterministic, single-owner eager float32 reference trainer."""
 
 from __future__ import annotations
 
@@ -14,9 +14,12 @@ from typing import Final, Protocol
 
 import torch
 from torch import nn
+from torch.nn.parallel import DistributedDataParallel
 
 from libs.python.errors import Canceled, FailedPrecondition, InvalidArgument, ResourceExhausted
 from training.contracts import StepResult, SupervisedBatch, Task, TaskResult, TrainingState
+
+from .reduction import LocalReducer, Reducer
 
 MAXIMUM_ACCUMULATION_STEPS: Final = 1_024
 MAXIMUM_MICROBATCHES_PER_CALL: Final = 100_000
@@ -32,7 +35,7 @@ class Scheduler(Protocol):
 
 @dataclass(frozen=True, slots=True)
 class TrainerConfig:
-    """Bounded behavior for a local eager training loop."""
+    """Bounded behavior for an eager float32 training loop."""
 
     accumulation_steps: int = 1
     maximum_microbatches_per_call: int = 10_000
@@ -64,7 +67,7 @@ class TrainerConfig:
 
 
 class Trainer:
-    """The authoritative optimizer lifecycle for the local reference path.
+    """The authoritative optimizer lifecycle for the eager reference path.
 
     One instance has one owner and is intentionally not thread-safe. Progress is
     measured in committed optimizer steps. A group performs, in order:
@@ -82,6 +85,7 @@ class Trainer:
         config: TrainerConfig | None = None,
         scheduler: Scheduler | None = None,
         state: TrainingState | None = None,
+        reducer: Reducer | None = None,
     ) -> None:
         if not isinstance(model, nn.Module):
             raise InvalidArgument(
@@ -115,6 +119,29 @@ class Trainer:
                 "trainer state must be TrainingState",
                 reason="training_state",
             )
+        resolved_reducer = reducer or LocalReducer()
+        if not isinstance(resolved_reducer, Reducer):
+            raise InvalidArgument(
+                "trainer reducer must implement the reduction contract",
+                reason="training_reducer",
+            )
+        if (
+            isinstance(resolved_reducer.world_size, bool)
+            or not isinstance(resolved_reducer.world_size, int)
+            or resolved_reducer.world_size <= 0
+            or not math.isfinite(resolved_reducer.backward_scale)
+            or resolved_reducer.backward_scale <= 0.0
+        ):
+            raise InvalidArgument(
+                "trainer reducer properties are invalid",
+                reason="training_reducer",
+            )
+        is_ddp = isinstance(model, DistributedDataParallel)
+        if (resolved_reducer.world_size > 1) != is_ddp:
+            raise InvalidArgument(
+                "multi-rank reducers and DistributedDataParallel models must be used together",
+                reason="training_reducer_model",
+            )
 
         self._model = model
         self._task = task
@@ -122,9 +149,10 @@ class Trainer:
         self._config = resolved_config
         self._scheduler = scheduler
         self._state = resolved_state
+        self._reducer = resolved_reducer
         self._failure_reason: str | None = None
         self._optimizer_parameters = _validate_optimizer_ownership(model, optimizer)
-        _validate_cpu_float32_model(model)
+        self._device = _validate_float32_model(model)
 
     @property
     def model(self) -> nn.Module:
@@ -147,6 +175,10 @@ class Trainer:
         return self._config
 
     @property
+    def reducer(self) -> Reducer:
+        return self._reducer
+
+    @property
     def healthy(self) -> bool:
         """Whether no possibly-partial optimizer transaction has failed."""
 
@@ -167,7 +199,18 @@ class Trainer:
         self._ensure_healthy()
         resolved_batches = _validate_batches(batches, self._config.maximum_microbatches_per_call)
         _validate_cancellation_check(cancellation_check)
-        _validate_cpu_float32_model(self._model)
+        device = _validate_float32_model(self._model)
+        if device != self._device:
+            raise FailedPrecondition(
+                "trainer model placement changed after construction",
+                reason="training_model_device",
+            )
+        _validate_batch_devices(resolved_batches, device)
+        self._reducer.validate_schedule(
+            microbatches=len(resolved_batches),
+            accumulation_steps=self._config.accumulation_steps,
+            device=device,
+        )
         _validate_finite_parameters(self._optimizer_parameters)
 
         previous_mode = self._model.training
@@ -176,8 +219,7 @@ class Trainer:
         try:
             for start in range(0, len(resolved_batches), self._config.accumulation_steps):
                 group = resolved_batches[start : start + self._config.accumulation_steps]
-                results.append(self._train_group(group, cancellation_check))
-            _check_cancellation(cancellation_check, operation="train_complete")
+                results.append(self._train_group(group, cancellation_check, device))
             return tuple(results)
         finally:
             self._model.train(previous_mode)
@@ -193,7 +235,18 @@ class Trainer:
         self._ensure_healthy()
         resolved_batches = _validate_batches(batches, self._config.maximum_microbatches_per_call)
         _validate_cancellation_check(cancellation_check)
-        _validate_cpu_float32_model(self._model)
+        device = _validate_float32_model(self._model)
+        if device != self._device:
+            raise FailedPrecondition(
+                "trainer model placement changed after construction",
+                reason="training_model_device",
+            )
+        _validate_batch_devices(resolved_batches, device)
+        self._reducer.validate_schedule(
+            microbatches=len(resolved_batches),
+            accumulation_steps=1,
+            device=device,
+        )
         _validate_finite_parameters(self._optimizer_parameters)
 
         previous_mode = self._model.training
@@ -204,23 +257,42 @@ class Trainer:
         try:
             with torch.inference_mode():
                 for batch in resolved_batches:
-                    _check_cancellation(cancellation_check, operation="evaluate_forward")
+                    self._check_cancellation(
+                        cancellation_check,
+                        operation="evaluate_forward",
+                        device=device,
+                    )
                     task_result = self._compute_task(batch)
-                    _check_cancellation(cancellation_check, operation="evaluate_forward")
+                    self._check_cancellation(
+                        cancellation_check,
+                        operation="evaluate_forward",
+                        device=device,
+                    )
                     total_loss_sum += float(task_result.loss_sum.detach().item())
                     denominator = _add_denominator(denominator, task_result.denominator)
                     samples += batch.batch_size
-            _check_cancellation(cancellation_check, operation="evaluate_complete")
+            reduced = self._reducer.reduce_counts(
+                denominator=denominator,
+                microbatches=len(resolved_batches),
+                samples=samples,
+                device=device,
+            )
+            total_loss_sum = self._reducer.reduce_loss_sum(total_loss_sum, device=device)
+            self._check_cancellation(
+                cancellation_check,
+                operation="evaluate_complete",
+                device=device,
+            )
         finally:
             self._model.train(previous_mode)
 
-        mean_loss = total_loss_sum / denominator
+        mean_loss = total_loss_sum / reduced.denominator
         return StepResult(
             state=self._state,
             loss_sum=total_loss_sum,
-            denominator=denominator,
-            microbatches=len(resolved_batches),
-            samples=samples,
+            denominator=reduced.denominator,
+            microbatches=reduced.microbatches,
+            samples=reduced.samples,
             optimizer_step=False,
             metrics={"loss": mean_loss},
         )
@@ -229,8 +301,13 @@ class Trainer:
         self,
         group: tuple[SupervisedBatch, ...],
         cancellation_check: CancellationCheck | None,
+        device: torch.device,
     ) -> StepResult:
-        _check_cancellation(cancellation_check, operation="optimizer_group")
+        self._check_cancellation(
+            cancellation_check,
+            operation="optimizer_group",
+            device=device,
+        )
         self._optimizer.zero_grad(set_to_none=True)
         optimizer_attempted = False
         try:
@@ -238,36 +315,73 @@ class Trainer:
             denominator = 0
             samples = 0
             for batch in group:
-                _check_cancellation(cancellation_check, operation="train_forward")
+                self._check_cancellation(
+                    cancellation_check,
+                    operation="train_forward",
+                    device=device,
+                )
                 task_result = self._compute_task(batch)
-                _check_cancellation(cancellation_check, operation="train_forward")
+                self._check_cancellation(
+                    cancellation_check,
+                    operation="train_forward",
+                    device=device,
+                )
                 task_results.append(task_result)
                 denominator = _add_denominator(denominator, task_result.denominator)
                 samples += batch.batch_size
 
-            total_loss_sum = 0.0
-            for task_result in task_results:
-                _check_cancellation(cancellation_check, operation="train_backward")
-                if not task_result.loss_sum.requires_grad:
-                    raise FailedPrecondition(
-                        "training loss must require gradients",
-                        reason="training_loss_autograd",
-                    )
-                normalized_loss = task_result.loss_sum / denominator
-                torch.autograd.backward(normalized_loss)
-                total_loss_sum += float(task_result.loss_sum.detach().item())
-                _check_cancellation(cancellation_check, operation="train_backward")
+            reduced = self._reducer.reduce_counts(
+                denominator=denominator,
+                microbatches=len(group),
+                samples=samples,
+                device=device,
+            )
+
+            self._check_cancellation(
+                cancellation_check,
+                operation="train_backward",
+                device=device,
+            )
+            if any(not task_result.loss_sum.requires_grad for task_result in task_results):
+                raise FailedPrecondition(
+                    "training loss must require gradients",
+                    reason="training_loss_autograd",
+                )
+            # DDP requires the forward/backward sequence for one reducer iteration to stay
+            # paired. Running every forward first and then calling backward separately for
+            # each retained graph silently associates reducer buckets with the wrong forward
+            # when accumulation_steps > 1. Build one scalar objective for the whole optimizer
+            # group and cross the autograd/DDP boundary exactly once.
+            accumulated_loss = torch.stack(
+                tuple(task_result.loss_sum for task_result in task_results)
+            ).sum()
+            normalized_loss = accumulated_loss * self._reducer.backward_scale / reduced.denominator
+            torch.autograd.backward(normalized_loss)
+            total_loss_sum = sum(
+                float(task_result.loss_sum.detach().item()) for task_result in task_results
+            )
+            self._check_cancellation(
+                cancellation_check,
+                operation="train_backward",
+                device=device,
+            )
+
+            total_loss_sum = self._reducer.reduce_loss_sum(total_loss_sum, device=device)
 
             # Validate the prospective counters before crossing the non-transactional
             # optimizer boundary. The immutable value is published only after the optimizer
             # and scheduler both succeed.
             next_state = self._state.after_optimizer_step(
-                microbatches=len(group),
-                samples=samples,
+                microbatches=reduced.microbatches,
+                samples=reduced.samples,
             )
             _validate_finite_gradients(self._optimizer_parameters)
             gradient_norm = self._clip_gradients()
-            _check_cancellation(cancellation_check, operation="optimizer_step")
+            self._check_cancellation(
+                cancellation_check,
+                operation="optimizer_step",
+                device=device,
+            )
             # Optimizer implementations are not transactional. From this point onward any
             # exception may have left parameters or optimizer/scheduler state partially
             # mutated, so these live objects cannot be retried safely.
@@ -279,15 +393,15 @@ class Trainer:
             self._optimizer.zero_grad(set_to_none=True)
 
             self._state = next_state
-            metrics = {"loss": total_loss_sum / denominator}
+            metrics = {"loss": total_loss_sum / reduced.denominator}
             if gradient_norm is not None:
                 metrics["gradient_norm"] = gradient_norm
             return StepResult(
                 state=self._state,
                 loss_sum=total_loss_sum,
-                denominator=denominator,
-                microbatches=len(group),
-                samples=samples,
+                denominator=reduced.denominator,
+                microbatches=reduced.microbatches,
+                samples=reduced.samples,
                 optimizer_step=True,
                 metrics=metrics,
             )
@@ -306,7 +420,32 @@ class Trainer:
                 "training task returned an invalid result type",
                 reason="training_task_result",
             )
+        if result.loss_sum.device != self._device:
+            raise FailedPrecondition(
+                "training task loss must remain on the trainer device",
+                reason="training_task_result_device",
+            )
         return result
+
+    def _check_cancellation(
+        self,
+        cancellation_check: CancellationCheck | None,
+        *,
+        operation: str,
+        device: torch.device,
+    ) -> None:
+        requested = cancellation_check is not None and cancellation_check()
+        if not isinstance(requested, bool):
+            raise InvalidArgument(
+                "cancellation_check must return a boolean",
+                reason="training_cancellation_result",
+            )
+        if self._reducer.any_true(requested, device=device):
+            raise Canceled(
+                "training operation was canceled at a safe point",
+                reason="training_canceled",
+                operation=operation,
+            )
 
     def _clip_gradients(self) -> float | None:
         maximum = self._config.gradient_clip_norm
@@ -410,11 +549,21 @@ def _validate_optimizer_ownership(
     return tuple(optimized)
 
 
-def _validate_cpu_float32_model(model: nn.Module) -> None:
-    for name, tensor in (*model.named_parameters(), *model.named_buffers()):
-        if tensor.device.type != "cpu":
+def _validate_float32_model(model: nn.Module) -> torch.device:
+    tensors = (*model.named_parameters(), *model.named_buffers())
+    device: torch.device | None = None
+    for name, tensor in tensors:
+        if tensor.device.type not in {"cpu", "cuda"}:
             raise FailedPrecondition(
-                "reference trainer supports CPU model state only",
+                "reference trainer supports CPU or CUDA model state only",
+                reason="training_model_device",
+                fields={"tensor": name},
+            )
+        if device is None:
+            device = tensor.device
+        elif tensor.device != device:
+            raise FailedPrecondition(
+                "reference trainer requires model state on one device",
                 reason="training_model_device",
                 fields={"tensor": name},
             )
@@ -423,6 +572,25 @@ def _validate_cpu_float32_model(model: nn.Module) -> None:
                 "reference trainer supports float32 model state only",
                 reason="training_model_dtype",
                 fields={"tensor": name},
+            )
+    if device is None:
+        raise FailedPrecondition(
+            "reference trainer model must contain parameter or buffer state",
+            reason="training_model_state_empty",
+        )
+    return device
+
+
+def _validate_batch_devices(
+    batches: tuple[SupervisedBatch, ...],
+    device: torch.device,
+) -> None:
+    for index, batch in enumerate(batches):
+        if batch.device != device:
+            raise FailedPrecondition(
+                "trainer batches and model must be on the same device",
+                reason="training_batch_device",
+                fields={"batch": str(index)},
             )
 
 
@@ -445,9 +613,9 @@ def _validate_finite_gradients(parameters: tuple[nn.Parameter, ...]) -> None:
                 "reference trainer does not support sparse gradients",
                 reason="training_gradient_sparse",
             )
-        if gradient.device.type != "cpu" or gradient.dtype is not torch.float32:
+        if gradient.device != parameter.device or gradient.dtype is not torch.float32:
             raise FailedPrecondition(
-                "reference trainer gradients must be CPU float32",
+                "reference trainer gradients must be float32 on the parameter device",
                 reason="training_gradient_placement",
             )
         if not bool(torch.isfinite(gradient.detach()).all().item()):
@@ -479,22 +647,4 @@ def _validate_cancellation_check(value: CancellationCheck | None) -> None:
         raise InvalidArgument(
             "cancellation_check must be callable",
             reason="training_cancellation_check",
-        )
-
-
-def _check_cancellation(value: CancellationCheck | None, *, operation: str) -> None:
-    if value is None:
-        return
-    cancelled = value()
-    if not isinstance(cancelled, bool):
-        raise FailedPrecondition(
-            "cancellation check must return boolean",
-            reason="training_cancellation_check",
-            operation=operation,
-        )
-    if cancelled:
-        raise Canceled(
-            "training execution was canceled",
-            reason="training_canceled",
-            operation=operation,
         )

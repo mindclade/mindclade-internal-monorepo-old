@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from contextlib import suppress
 from dataclasses import dataclass
 from threading import Lock
@@ -171,6 +171,12 @@ class MLflowExporter:
         with self._lock:
             return self._failures
 
+    @property
+    def required(self) -> bool:
+        """Whether mirror failures are configured to escape the exporter boundary."""
+
+        return self._required
+
     def start(self, lineage: RunLineage, *, run_name: str) -> bool:
         lineage.validate()
         _text(run_name, name="MLflow run name", maximum=256)
@@ -207,7 +213,7 @@ class MLflowExporter:
         return self._call(operation)
 
     def log_parameters(self, values: Mapping[str, object]) -> bool:
-        normalized = _fields(values, numeric=False)
+        normalized = _text_fields(values)
 
         def operation() -> None:
             run_id = self._active_run_id()
@@ -221,7 +227,7 @@ class MLflowExporter:
             raise ValueError("MLflow metric step is outside bounds")
         if isinstance(timestamp_millis, bool) or not 0 <= timestamp_millis < 2**63:
             raise ValueError("MLflow metric timestamp is outside bounds")
-        normalized = _fields(values, numeric=True)
+        normalized = _numeric_fields(values)
 
         def operation() -> None:
             run_id = self._active_run_id()
@@ -238,7 +244,7 @@ class MLflowExporter:
         return self._call(operation)
 
     def set_tags(self, values: Mapping[str, object]) -> bool:
-        normalized = _fields(values, numeric=False)
+        normalized = _text_fields(values)
 
         def operation() -> None:
             run_id = self._active_run_id()
@@ -263,7 +269,7 @@ class MLflowExporter:
             raise RuntimeError("MLflow run is not active")
         return self._run_id
 
-    def _call(self, operation) -> bool:
+    def _call(self, operation: Callable[[], None]) -> bool:
         with self._lock:
             try:
                 operation()
@@ -275,24 +281,34 @@ class MLflowExporter:
                 return False
 
 
-def _fields(values: Mapping[str, object], *, numeric: bool) -> dict[str, str | float]:
+def _validate_fields(values: Mapping[str, object]) -> None:
     if not isinstance(values, Mapping) or len(values) > MAXIMUM_FIELDS:
         raise ValueError("MLflow field mapping is outside bounds")
-    normalized: dict[str, str | float] = {}
+
+
+def _text_fields(values: Mapping[str, object]) -> dict[str, str]:
+    _validate_fields(values)
+    normalized: dict[str, str] = {}
     for key, value in values.items():
         _text(key, name="MLflow field key", maximum=MAXIMUM_KEY_LENGTH)
-        if numeric:
-            if (
-                isinstance(value, bool)
-                or not isinstance(value, int | float)
-                or not math.isfinite(value)
-            ):
-                raise ValueError("MLflow metric values must be finite numbers")
-            normalized[key] = float(value)
-        else:
-            rendered = str(value)
-            _text(rendered, name="MLflow field value", maximum=MAXIMUM_VALUE_LENGTH)
-            normalized[key] = rendered
+        rendered = str(value)
+        _text(rendered, name="MLflow field value", maximum=MAXIMUM_VALUE_LENGTH)
+        normalized[key] = rendered
+    return normalized
+
+
+def _numeric_fields(values: Mapping[str, object]) -> dict[str, float]:
+    _validate_fields(values)
+    normalized: dict[str, float] = {}
+    for key, value in values.items():
+        _text(key, name="MLflow field key", maximum=MAXIMUM_KEY_LENGTH)
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, int | float)
+            or not math.isfinite(value)
+        ):
+            raise ValueError("MLflow metric values must be finite numbers")
+        normalized[key] = float(value)
     return normalized
 
 

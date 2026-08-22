@@ -9,28 +9,59 @@
 
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { ArtifactRef } from "../../common/v1/artifact_ref_pb.js";
+import { file_mindclade_common_v1_artifact_ref } from "../../common/v1/artifact_ref_pb.js";
+import type { SourceCursor } from "./cursor_pb.js";
+import { file_mindclade_data_v1_cursor } from "./cursor_pb.js";
+import type { SourceSpec } from "./source_pb.js";
+import { file_mindclade_data_v1_source } from "./source_pb.js";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file mindclade/data/v1/snapshot.proto.
  */
 export const file_mindclade_data_v1_snapshot: GenFile = /*@__PURE__*/
-  fileDesc("CiBtaW5kY2xhZGUvZGF0YS92MS9zbmFwc2hvdC5wcm90bxIRbWluZGNsYWRlLmRhdGEudjEiJAoQU25hcHNob3RTY2FmZm9sZBIQCghyZXNlcnZlZBgBIAEoCWIGcHJvdG8z");
+  fileDesc("CiBtaW5kY2xhZGUvZGF0YS92MS9zbmFwc2hvdC5wcm90bxIRbWluZGNsYWRlLmRhdGEudjEi7gEKDlNvdXJjZVNuYXBzaG90EhMKC3NuYXBzaG90X2lkGAEgASgJEi0KBnNvdXJjZRgCIAEoCzIdLm1pbmRjbGFkZS5kYXRhLnYxLlNvdXJjZVNwZWMSNgoMcmF3X2FydGlmYWN0GAMgASgLMiAubWluZGNsYWRlLmNvbW1vbi52MS5BcnRpZmFjdFJlZhIvCgZjdXJzb3IYBCABKAsyHy5taW5kY2xhZGUuZGF0YS52MS5Tb3VyY2VDdXJzb3ISLwoLb2JzZXJ2ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQjxaOmdvLm1pbmRjbGFkZS5kZXYvcHJvdG9jb2xzL2dlbi9nby9taW5kY2xhZGUvZGF0YS92MTtkYXRhdjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_mindclade_common_v1_artifact_ref, file_mindclade_data_v1_cursor, file_mindclade_data_v1_source]);
 
 /**
- * @generated from message mindclade.data.v1.SnapshotScaffold
+ * SourceSnapshot freezes one observed upstream version and the raw bytes from
+ * which ingestion proceeds. It is immutable after registration.
+ *
+ * @generated from message mindclade.data.v1.SourceSnapshot
  */
-export type SnapshotScaffold = Message<"mindclade.data.v1.SnapshotScaffold"> & {
+export type SourceSnapshot = Message<"mindclade.data.v1.SourceSnapshot"> & {
   /**
-   * @generated from field: string reserved = 1;
+   * @generated from field: string snapshot_id = 1;
    */
-  reserved: string;
+  snapshotId: string;
+
+  /**
+   * @generated from field: mindclade.data.v1.SourceSpec source = 2;
+   */
+  source?: SourceSpec | undefined;
+
+  /**
+   * @generated from field: mindclade.common.v1.ArtifactRef raw_artifact = 3;
+   */
+  rawArtifact?: ArtifactRef | undefined;
+
+  /**
+   * @generated from field: mindclade.data.v1.SourceCursor cursor = 4;
+   */
+  cursor?: SourceCursor | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp observed_at = 5;
+   */
+  observedAt?: Timestamp | undefined;
 };
 
 /**
- * Describes the message mindclade.data.v1.SnapshotScaffold.
- * Use `create(SnapshotScaffoldSchema)` to create a new message.
+ * Describes the message mindclade.data.v1.SourceSnapshot.
+ * Use `create(SourceSnapshotSchema)` to create a new message.
  */
-export const SnapshotScaffoldSchema: GenMessage<SnapshotScaffold> = /*@__PURE__*/
+export const SourceSnapshotSchema: GenMessage<SourceSnapshot> = /*@__PURE__*/
   messageDesc(file_mindclade_data_v1_snapshot, 0);
 

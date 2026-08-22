@@ -9,28 +9,55 @@
 
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { ContentDigest, ResourceId } from "../../common/v1/identifiers_pb.js";
+import { file_mindclade_common_v1_identifiers } from "../../common/v1/identifiers_pb.js";
+import type { StageSpec } from "./stage_pb.js";
+import { file_mindclade_orchestration_v1_stage } from "./stage_pb.js";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file mindclade/orchestration/v1/workflow.proto.
  */
 export const file_mindclade_orchestration_v1_workflow: GenFile = /*@__PURE__*/
-  fileDesc("CiltaW5kY2xhZGUvb3JjaGVzdHJhdGlvbi92MS93b3JrZmxvdy5wcm90bxIabWluZGNsYWRlLm9yY2hlc3RyYXRpb24udjEiJAoQV29ya2Zsb3dTY2FmZm9sZBIQCghyZXNlcnZlZBgBIAEoCWIGcHJvdG8z");
+  fileDesc("CiltaW5kY2xhZGUvb3JjaGVzdHJhdGlvbi92MS93b3JrZmxvdy5wcm90bxIabWluZGNsYWRlLm9yY2hlc3RyYXRpb24udjEi0wEKCFdvcmtmbG93EisKAmlkGAEgASgLMh8ubWluZGNsYWRlLmNvbW1vbi52MS5SZXNvdXJjZUlkEgwKBG5hbWUYAiABKAkSNQoGc3RhZ2VzGAMgAygLMiUubWluZGNsYWRlLm9yY2hlc3RyYXRpb24udjEuU3RhZ2VTcGVjEj0KEWRlZmluaXRpb25fZGlnZXN0GAQgASgLMiIubWluZGNsYWRlLmNvbW1vbi52MS5Db250ZW50RGlnZXN0EhYKDnNjaGVtYV92ZXJzaW9uGAUgASgNQk5aTGdvLm1pbmRjbGFkZS5kZXYvcHJvdG9jb2xzL2dlbi9nby9taW5kY2xhZGUvb3JjaGVzdHJhdGlvbi92MTtvcmNoZXN0cmF0aW9udjFiBnByb3RvMw", [file_mindclade_common_v1_identifiers, file_mindclade_orchestration_v1_stage]);
 
 /**
- * @generated from message mindclade.orchestration.v1.WorkflowScaffold
+ * Workflow is an immutable acyclic stage graph. Stage IDs and dependency IDs
+ * must be unique; graph validation is performed before admission.
+ *
+ * @generated from message mindclade.orchestration.v1.Workflow
  */
-export type WorkflowScaffold = Message<"mindclade.orchestration.v1.WorkflowScaffold"> & {
+export type Workflow = Message<"mindclade.orchestration.v1.Workflow"> & {
   /**
-   * @generated from field: string reserved = 1;
+   * @generated from field: mindclade.common.v1.ResourceId id = 1;
    */
-  reserved: string;
+  id?: ResourceId | undefined;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: repeated mindclade.orchestration.v1.StageSpec stages = 3;
+   */
+  stages: StageSpec[];
+
+  /**
+   * @generated from field: mindclade.common.v1.ContentDigest definition_digest = 4;
+   */
+  definitionDigest?: ContentDigest | undefined;
+
+  /**
+   * @generated from field: uint32 schema_version = 5;
+   */
+  schemaVersion: number;
 };
 
 /**
- * Describes the message mindclade.orchestration.v1.WorkflowScaffold.
- * Use `create(WorkflowScaffoldSchema)` to create a new message.
+ * Describes the message mindclade.orchestration.v1.Workflow.
+ * Use `create(WorkflowSchema)` to create a new message.
  */
-export const WorkflowScaffoldSchema: GenMessage<WorkflowScaffold> = /*@__PURE__*/
+export const WorkflowSchema: GenMessage<Workflow> = /*@__PURE__*/
   messageDesc(file_mindclade_orchestration_v1_workflow, 0);
 

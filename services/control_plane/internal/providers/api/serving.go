@@ -36,6 +36,7 @@ import (
 	"go.mindclade.dev/libs/go/observability"
 	"go.mindclade.dev/libs/go/requestmeta"
 	"go.mindclade.dev/libs/go/servicekit/production"
+	"go.mindclade.dev/protocols/servicepolicy"
 	"go.mindclade.dev/services/control_plane/internal/bootstrap"
 	"go.mindclade.dev/services/control_plane/internal/config"
 	"go.mindclade.dev/services/control_plane/internal/providers/admissionmetrics"
@@ -221,7 +222,22 @@ func newGRPC(settings config.Settings, value *transport.Prober, authenticator au
 	if err != nil {
 		return grpcServer{}, err
 	}
+	unary, stream := grpcinterceptors.Server(grpcinterceptors.ServerConfig{
+		Authentication: &grpcinterceptors.AuthenticationConfig{
+			Authenticator: authenticator,
+			Optional:      true,
+		},
+		Authorization: &grpcinterceptors.AuthorizationConfig{
+			Authorizer: auth.PermissionAuthorizer{},
+			Resolver:   grpcinterceptors.AuthorizationResolverFunc(resolveGRPCAuthorization),
+		},
+		ValidateMessages: true,
+		AdditionalUnary:  []grpc.UnaryServerInterceptor{servicepolicy.UnaryEnforcement()},
+		AdditionalStream: []grpc.StreamServerInterceptor{servicepolicy.StreamEnforcement()},
+	})
 	configuration := grpcx.ServerConfig{
+		MaxReceiveBytes:     servicepolicy.MaximumRequestBytes,
+		MaxSendBytes:        servicepolicy.MaximumRequestBytes,
 		ConnectionTimeout:   30 * time.Second,
 		GracefulStopTimeout: settings.DrainTimeout,
 		Credentials:         credentials,
@@ -230,26 +246,8 @@ func newGRPC(settings config.Settings, value *transport.Prober, authenticator au
 		// expected to terminate TLS ahead of it.
 		RequireTransportSecurity: credentials != nil,
 		StatsHandler:             grpcotel.NewServerStatsHandler(),
-		UnaryInterceptors: []grpc.UnaryServerInterceptor{
-			grpcinterceptors.UnaryAuthentication(grpcinterceptors.AuthenticationConfig{
-				Authenticator: authenticator,
-				Optional:      true,
-			}),
-			grpcinterceptors.UnaryAuthorization(grpcinterceptors.AuthorizationConfig{
-				Authorizer: auth.PermissionAuthorizer{},
-				Resolver:   grpcinterceptors.AuthorizationResolverFunc(resolveGRPCAuthorization),
-			}),
-		},
-		StreamInterceptors: []grpc.StreamServerInterceptor{
-			grpcinterceptors.StreamAuthentication(grpcinterceptors.AuthenticationConfig{
-				Authenticator: authenticator,
-				Optional:      true,
-			}),
-			grpcinterceptors.StreamAuthorization(grpcinterceptors.AuthorizationConfig{
-				Authorizer: auth.PermissionAuthorizer{},
-				Resolver:   grpcinterceptors.AuthorizationResolverFunc(resolveGRPCAuthorization),
-			}),
-		},
+		UnaryInterceptors:        unary,
+		StreamInterceptors:       stream,
 	}
 	return grpcServer{
 		config: configuration,
@@ -267,15 +265,32 @@ func newGRPC(settings config.Settings, value *transport.Prober, authenticator au
 	}, nil
 }
 
-// resolveGRPCAuthorization maps a gRPC method onto the permission it needs.
-// Only health and reflection are served today and neither is permission-gated,
-// so nothing maps yet. RequireMapping stays false: an unmapped method is
-// allowed through to a handler that does not exist and answers Unimplemented,
-// which is the honest response. Domain services add their mappings here, and
-// flipping RequireMapping to true is the step that makes an unmapped method a
-// configuration error instead.
-func resolveGRPCAuthorization(string, any) (grpcinterceptors.AuthorizationTarget, bool, error) {
-	return grpcinterceptors.AuthorizationTarget{}, false, nil
+// resolveGRPCAuthorization maps every promoted gRPC method onto its governed
+// permission. Health and v1 reflection are the only public exceptions. Unknown
+// methods fail closed here even though the interceptor's RequireMapping field
+// remains false for those two public services.
+func resolveGRPCAuthorization(method string, _ any) (grpcinterceptors.AuthorizationTarget, bool, error) {
+	if servicepolicy.Public(method) {
+		return grpcinterceptors.AuthorizationTarget{}, false, nil
+	}
+	policy, ok := servicepolicy.Lookup(method)
+	if !ok {
+		return grpcinterceptors.AuthorizationTarget{}, false, faults.New(
+			faults.CodePermissionDenied,
+			"operation is not permitted",
+			faults.WithReason("authorization_mapping_missing"),
+			faults.WithOperation("controlplane.api.resolveGRPCAuthorization"),
+			faults.WithRetryPolicy(faults.NoRetry()),
+		)
+	}
+	resource, err := auth.NewResource(policy.ResourceType)
+	if err != nil {
+		return grpcinterceptors.AuthorizationTarget{}, false, err
+	}
+	return grpcinterceptors.AuthorizationTarget{
+		Permission: policy.Permission,
+		Resource:   resource,
+	}, true, nil
 }
 
 // transportCredentials builds server TLS when the deployment configured a

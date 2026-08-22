@@ -47,7 +47,7 @@ Commands:
   security     Validate Trivy exceptions, scan IaC, and verify Conftest policies.
   test         Initialize missing suites serially, then run mock tests in parallel.
   docs         Run Terraform documentation and public-interface drift checks.
-  compat       Test all published modules and dns_hub at minimum and reviewed providers.
+  compat       Test all published modules at minimum and reviewed providers.
   plan-policy  Evaluate a saved plan with explicit policy inputs.
   all          Run every repository-only gate in dependency order.
 
@@ -128,7 +128,7 @@ test_dirs() {
 
 compatibility_dirs() {
   local dir
-  for dir in "${MODULE_ROOT}"/* "${ENVIRONMENT_ROOT}/dns_hub"; do
+  for dir in "${MODULE_ROOT}"/*; do
     [[ -d "${dir}" ]] || continue
     printf '%s\n' "${dir}"
   done | LC_ALL=C sort
@@ -319,7 +319,7 @@ PY
   done
 
   while IFS= read -r dir; do
-    [[ "${dir}" == "${ENVIRONMENT_ROOT}/dns_hub" || "${dir}" == "${MODULE_ROOT}"/* ]] || continue
+    [[ "${dir}" == "${MODULE_ROOT}"/* ]] || continue
     if ! grep -Eq 'version[[:space:]]*=[[:space:]]*">= 7\.41\.0, < 8\.0\.0"' "${dir}/versions.tf"; then
       printf '::error file=%s/versions.tf::Google provider constraint must be %s\n' \
         "$(relative_to_repo "${dir}")" "${constraint}" >&2

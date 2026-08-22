@@ -7,6 +7,17 @@ syntax = "proto3";
 
 package mindclade.orchestration.v1;
 
-message WorkflowScaffold {
-  string reserved = 1;
+option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/orchestration/v1;orchestrationv1";
+
+import "mindclade/common/v1/identifiers.proto";
+import "mindclade/orchestration/v1/stage.proto";
+
+// Workflow is an immutable acyclic stage graph. Stage IDs and dependency IDs
+// must be unique; graph validation is performed before admission.
+message Workflow {
+  mindclade.common.v1.ResourceId id = 1;
+  string name = 2;
+  repeated StageSpec stages = 3;
+  mindclade.common.v1.ContentDigest definition_digest = 4;
+  uint32 schema_version = 5;
 }

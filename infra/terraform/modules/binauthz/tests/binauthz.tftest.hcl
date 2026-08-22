@@ -8,8 +8,8 @@ mock_provider "google" {}
 variables {
   project_id        = "mc-development-platform"
   project_number    = "123456789012"
-  cluster           = "europe-west4.mc-development"
-  attestor_key_ring = "projects/mc-b-seed/locations/europe-west4/keyRings/binauthz"
+  cluster           = "us-central1.mc-development"
+  attestor_key_ring = "projects/mc-b-seed/locations/us-central1/keyRings/binauthz"
 
   attestors = {
     build-attestor = { description = "The build pipeline produced this image." }
@@ -88,7 +88,7 @@ run "namespace_rules_are_keyed_by_location_cluster_namespace" {
   assert {
     condition = anytrue([
       for r in google_binary_authorization_policy.this.cluster_admission_rules :
-      r.cluster == "europe-west4.mc-development.gatekeeper-system"
+      r.cluster == "us-central1.mc-development.gatekeeper-system"
     ])
     error_message = "A namespace rule must be keyed <location>.<cluster>.<namespace>."
   }

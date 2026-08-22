@@ -1,6 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
 
 ---
 {
@@ -13,7 +14,6 @@
   "requiredEnvironmentInputs": ["emailNotificationChannelResourceNames", "environment", "googleChatNotificationChannelResourceNames", "httpsRunbookUrl", "projectId", "qualificationEvidenceSha256"],
   "signals": [
     {"name": "athens-upstream-fetch-failures", "description": "The internal Go proxy cannot fetch required upstream modules and builds remain fail-closed without direct fallback.", "metric": "studio.goproxy.upstream_fetch_failures", "condition": "above", "threshold": 5, "duration": "15m", "severity": "ticket", "missingData": "no-op", "minimumSamples": 5, "runbookAnchor": "athens-upstream-fetch-failures"},
-    {"name": "cert-manager-renewal-failed", "description": "Certificate renewal failed independently of the on-wire certificate-expiry probe and needs operator review.", "metric": "certmanager.certificate.renewal_failures", "condition": "above", "threshold": 0, "duration": "1h", "severity": "ticket", "missingData": "no-op", "minimumSamples": 1, "runbookAnchor": "cert-manager-renewal-failed"},
     {"name": "concurrent-streams-approaching-limit", "description": "Sustained browser streams approach the reviewed connection envelope and require capacity review.", "metric": "studio.stream.active_connections", "condition": "above", "threshold": 150, "duration": "1h", "severity": "ticket", "missingData": "no-op", "minimumSamples": 60, "runbookAnchor": "concurrent-streams-approaching-limit"},
     {"name": "distinct-principals-approaching-limit", "description": "Daily principals approach the reviewed Studio isolation envelope and require architecture review.", "metric": "studio.auth.distinct_principals_daily", "condition": "above", "threshold": 400, "duration": "1d", "severity": "ticket", "missingData": "no-op", "minimumSamples": 1, "runbookAnchor": "distinct-principals-approaching-limit"},
     {"name": "handle-store-unavailable", "description": "The browser handoff handle store is unavailable while unrelated browser operations remain healthy.", "metric": "studio.handoff.store_errors", "condition": "above", "threshold": 0, "duration": "15m", "severity": "ticket", "missingData": "no-op", "minimumSamples": 10, "runbookAnchor": "handle-store-unavailable"},

@@ -1,18 +1,16 @@
 // Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 // Mindclade Proprietary and Confidential.
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
 
 syntax = "proto3";
 
 package mindclade.data.v1;
 
+option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/data/v1;datav1";
+
 import "google/protobuf/timestamp.proto";
 import "mindclade/common/v1/identifiers.proto";
-
-message DatasetScaffold {
-  option deprecated = true;
-  string reserved = 1;
-}
 
 enum DatasetStatus {
   DATASET_STATUS_UNSPECIFIED = 0;

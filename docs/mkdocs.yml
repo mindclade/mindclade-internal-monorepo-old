@@ -89,6 +89,7 @@ nav:
       - ADR-0022 Artifact/reference/evidence identity: design/adr-0022-artifact-reference-database-evidence.md
       - ADR-0023 Resolved config/dependency budgets: design/adr-0023-resolved-config-and-dependency-budgets.md
       - ADR-0024 Dependency layering over counts: design/adr-0024-dependency-layering-over-counts.md
+      - ADR-0025 Training-service composition: design/adr-0025-training-service-composition-layer.md
   - Runbooks:
       - Control-plane outage: runbooks/control-plane-outage.md
       - Artifact corruption: runbooks/artifact-corruption.md
@@ -147,6 +148,8 @@ nav:
       - Go qualification: qualification/go/README.md
       - AI Gateway admission: qualification/go/ai-gateway-admission.md
       - Control-plane registry: qualification/go/control-plane-registry.md
+      - Reference training platform: qualification/reference-training-platform.md
+      - Terraform module v0.4.0 preflight: qualification/terraform-module-v0.4.0.md
       - TypeScript applications: qualification/typescript-applications.md
   - Examples:
       - Control-plane API: examples/control-plane-api.md

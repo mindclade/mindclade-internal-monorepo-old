@@ -69,6 +69,12 @@ slo = "docs/slo/control-release-evidence.md"
 runbook = "docs/runbooks/control-release-evidence.md"
 security_review = true
 
+[component."control.checkpoints"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "go"
+security_review = true
+
 
 [component."control.ingestion"]
 owner = "data-platform"
@@ -138,7 +144,55 @@ criticality = "tier-2"
 language = "python"
 security_review = false
 
+[component."models.reference_affine"]
+owner = "modeling"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
 [component."training"]
+owner = "training-platform"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
+[component."training.reference_contracts"]
+owner = "training-platform"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
+[component."training.reference_loop"]
+owner = "training-platform"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
+[component."training.reference_task"]
+owner = "training-platform"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
+[component."training.reference_optimizer"]
+owner = "training-platform"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
+[component."training.reference_native_engine"]
+owner = "training-platform"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
+[component."training.reference_checkpointing"]
+owner = "training-platform"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."training.reference_distributed"]
 owner = "training-platform"
 criticality = "tier-2"
 language = "python"
@@ -224,12 +278,6 @@ runbook = "docs/runbooks/control-model-registry.md"
 security_review = true
 
 [component."infra.terraform.modules"]
-owner = "platform-control"
-criticality = "tier-2"
-language = "hcl"
-security_review = true
-
-[component."infra.terraform.dns_hub"]
 owner = "platform-control"
 criticality = "tier-2"
 language = "hcl"
@@ -426,4 +474,76 @@ security_review = true
 owner = "release-engineering"
 criticality = "tier-2"
 language = "python"
+security_review = true
+
+[component."qualification.scientific_model_intake"]
+owner = "modeling"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."qualification.reference_training_platform"]
+owner = "training-platform"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."protocols.protobuf.artifact.v1"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "protobuf"
+security_review = true
+
+[component."protocols.protobuf.common.v1"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "protobuf"
+security_review = true
+
+[component."protocols.protobuf.data.v1"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "protobuf"
+security_review = true
+
+[component."protocols.protobuf.evaluation.v1"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "protobuf"
+security_review = true
+
+[component."protocols.protobuf.events.v1"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "protobuf"
+security_review = true
+
+[component."protocols.protobuf.inference.v1"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "protobuf"
+security_review = true
+
+[component."protocols.protobuf.orchestration.v1"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "protobuf"
+security_review = true
+
+[component."protocols.protobuf.registry.v1"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "protobuf"
+security_review = true
+
+[component."protocols.protobuf.runtime.v1"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "protobuf"
+security_review = true
+
+[component."protocols.protobuf.training.v1"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "protobuf"
 security_review = true

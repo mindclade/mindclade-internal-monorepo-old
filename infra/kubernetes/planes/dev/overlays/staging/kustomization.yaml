@@ -22,3 +22,23 @@ patches:
       - op: replace
         path: /spec/ingress/0/from/0/ipBlock/cidr
         value: 10.32.32.0/24
+  - target: {group: gateway.networking.k8s.io, version: v1, kind: HTTPRoute, name: docs}
+    patch: |-
+      - op: replace
+        path: /spec/hostnames/0
+        value: docs.staging.mindclade.dev
+  - target: {group: gateway.networking.k8s.io, version: v1, kind: HTTPRoute, name: sdk}
+    patch: |-
+      - op: replace
+        path: /spec/hostnames/0
+        value: sdk.staging.mindclade.dev
+  - target: {group: gateway.networking.k8s.io, version: v1, kind: HTTPRoute, name: go-vanity}
+    patch: |-
+      - op: replace
+        path: /spec/hostnames/0
+        value: go.staging.mindclade.dev
+  - target: {group: gateway.networking.k8s.io, version: v1, kind: HTTPRoute, name: goproxy}
+    patch: |-
+      - op: replace
+        path: /spec/hostnames/0
+        value: goproxy.staging.mindclade.dev

@@ -1,0 +1,359 @@
+{
+  "mindclade.registry.v1.CheckpointRecord": {
+    "1": {
+      "label": "singular",
+      "name": "schema_version",
+      "type": "uint32"
+    },
+    "10": {
+      "label": "singular",
+      "name": "parent_manifest",
+      "type": "mindclade.common.v1.ArtifactRef"
+    },
+    "11": {
+      "label": "singular",
+      "name": "lifecycle",
+      "type": "CheckpointLifecycle"
+    },
+    "12": {
+      "label": "singular",
+      "name": "created_at",
+      "type": "google.protobuf.Timestamp"
+    },
+    "13": {
+      "label": "singular",
+      "name": "retain_until",
+      "type": "google.protobuf.Timestamp"
+    },
+    "14": {
+      "label": "singular",
+      "name": "policy_epoch",
+      "type": "uint64"
+    },
+    "15": {
+      "label": "singular",
+      "name": "resource_version",
+      "type": "uint64"
+    },
+    "16": {
+      "label": "singular",
+      "name": "record_digest",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "checkpoint_id",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "run_id",
+      "type": "string"
+    },
+    "4": {
+      "label": "singular",
+      "name": "manifest",
+      "type": "mindclade.common.v1.ArtifactRef"
+    },
+    "5": {
+      "label": "singular",
+      "name": "commit",
+      "type": "mindclade.common.v1.ArtifactRef"
+    },
+    "6": {
+      "label": "singular",
+      "name": "optimizer_step",
+      "type": "uint64"
+    },
+    "7": {
+      "label": "singular",
+      "name": "checkpoint_attempt",
+      "type": "uint64"
+    },
+    "8": {
+      "label": "singular",
+      "name": "fencing_token",
+      "type": "uint64"
+    },
+    "9": {
+      "label": "singular",
+      "name": "topology_fingerprint",
+      "type": "string"
+    }
+  },
+  "mindclade.registry.v1.EvidenceEdge": {
+    "1": {
+      "label": "singular",
+      "name": "from_node_id",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "to_node_id",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "relation",
+      "type": "string"
+    }
+  },
+  "mindclade.registry.v1.EvidenceNode": {
+    "1": {
+      "label": "singular",
+      "name": "node_id",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "kind",
+      "type": "EvidenceKind"
+    },
+    "3": {
+      "label": "singular",
+      "name": "artifact",
+      "type": "mindclade.common.v1.ArtifactRef"
+    },
+    "4": {
+      "label": "singular",
+      "name": "subject_digest",
+      "type": "string"
+    },
+    "5": {
+      "label": "singular",
+      "name": "policy_digest",
+      "type": "string"
+    },
+    "6": {
+      "label": "singular",
+      "name": "passed",
+      "type": "bool"
+    },
+    "7": {
+      "label": "singular",
+      "name": "created_unix_millis",
+      "type": "uint64"
+    }
+  },
+  "mindclade.registry.v1.GetModelRequest": {
+    "1": {
+      "label": "singular",
+      "name": "model_id",
+      "type": "mindclade.common.v1.ResourceId"
+    }
+  },
+  "mindclade.registry.v1.GetModelResponse": {
+    "1": {
+      "label": "singular",
+      "name": "model",
+      "type": "ModelBundle"
+    }
+  },
+  "mindclade.registry.v1.ListModelsRequest": {
+    "1": {
+      "label": "singular",
+      "name": "page",
+      "type": "mindclade.common.v1.PageRequest"
+    }
+  },
+  "mindclade.registry.v1.ListModelsResponse": {
+    "1": {
+      "label": "repeated",
+      "name": "models",
+      "type": "ModelBundle"
+    },
+    "2": {
+      "label": "singular",
+      "name": "page",
+      "type": "mindclade.common.v1.PageResponse"
+    }
+  },
+  "mindclade.registry.v1.ModelBundle": {
+    "1": {
+      "label": "singular",
+      "name": "id",
+      "type": "mindclade.common.v1.ResourceId"
+    },
+    "2": {
+      "label": "singular",
+      "name": "name",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "version",
+      "type": "string"
+    },
+    "4": {
+      "label": "singular",
+      "name": "family",
+      "type": "string"
+    },
+    "5": {
+      "label": "singular",
+      "name": "bundle_digest",
+      "type": "mindclade.common.v1.ContentDigest"
+    },
+    "6": {
+      "label": "singular",
+      "name": "status",
+      "type": "ModelStatus"
+    },
+    "7": {
+      "label": "singular",
+      "name": "created_at",
+      "type": "google.protobuf.Timestamp"
+    },
+    "8": {
+      "label": "repeated",
+      "name": "capabilities",
+      "type": "string"
+    },
+    "9": {
+      "label": "singular",
+      "name": "parameter_count",
+      "type": "uint64"
+    }
+  },
+  "mindclade.registry.v1.ReferenceDatabaseRelease": {
+    "1": {
+      "label": "singular",
+      "name": "release_id",
+      "type": "string"
+    },
+    "10": {
+      "label": "singular",
+      "name": "index_tool_version",
+      "type": "string"
+    },
+    "11": {
+      "label": "singular",
+      "name": "source_provenance_digest",
+      "type": "string"
+    },
+    "12": {
+      "label": "singular",
+      "name": "license_policy_digest",
+      "type": "string"
+    },
+    "13": {
+      "label": "repeated",
+      "name": "compatible_search_tools",
+      "type": "string"
+    },
+    "14": {
+      "label": "singular",
+      "name": "status",
+      "type": "string"
+    },
+    "15": {
+      "label": "singular",
+      "name": "created_unix_millis",
+      "type": "uint64"
+    },
+    "2": {
+      "label": "singular",
+      "name": "name",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "version",
+      "type": "string"
+    },
+    "4": {
+      "label": "singular",
+      "name": "kind",
+      "type": "ReferenceDatabaseKind"
+    },
+    "5": {
+      "label": "singular",
+      "name": "snapshot_digest",
+      "type": "string"
+    },
+    "6": {
+      "label": "singular",
+      "name": "source_cutoff_unix_millis",
+      "type": "uint64"
+    },
+    "7": {
+      "label": "repeated",
+      "name": "shards",
+      "type": "mindclade.common.v1.ArtifactRef"
+    },
+    "8": {
+      "label": "singular",
+      "name": "index_format",
+      "type": "string"
+    },
+    "9": {
+      "label": "singular",
+      "name": "index_tool",
+      "type": "string"
+    }
+  },
+  "mindclade.registry.v1.Release": {
+    "1": {
+      "label": "singular",
+      "name": "release_id",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "model_bundle_digest",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "evidence_graph_digest",
+      "type": "string"
+    },
+    "4": {
+      "label": "singular",
+      "name": "channel",
+      "type": "string"
+    },
+    "5": {
+      "label": "singular",
+      "name": "status",
+      "type": "string"
+    },
+    "6": {
+      "label": "singular",
+      "name": "resource_version",
+      "type": "uint64"
+    }
+  },
+  "mindclade.registry.v1.ReleaseEvidenceGraph": {
+    "1": {
+      "label": "singular",
+      "name": "release_id",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "subject_digest",
+      "type": "string"
+    },
+    "3": {
+      "label": "repeated",
+      "name": "nodes",
+      "type": "EvidenceNode"
+    },
+    "4": {
+      "label": "repeated",
+      "name": "edges",
+      "type": "EvidenceEdge"
+    },
+    "5": {
+      "label": "singular",
+      "name": "policy_digest",
+      "type": "string"
+    },
+    "6": {
+      "label": "singular",
+      "name": "policy_epoch",
+      "type": "uint64"
+    }
+  }
+}

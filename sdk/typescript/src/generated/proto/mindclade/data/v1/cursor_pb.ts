@@ -15,22 +15,30 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file mindclade/data/v1/cursor.proto.
  */
 export const file_mindclade_data_v1_cursor: GenFile = /*@__PURE__*/
-  fileDesc("Ch5taW5kY2xhZGUvZGF0YS92MS9jdXJzb3IucHJvdG8SEW1pbmRjbGFkZS5kYXRhLnYxIiIKDkN1cnNvclNjYWZmb2xkEhAKCHJlc2VydmVkGAEgASgJYgZwcm90bzM");
+  fileDesc("Ch5taW5kY2xhZGUvZGF0YS92MS9jdXJzb3IucHJvdG8SEW1pbmRjbGFkZS5kYXRhLnYxIi8KDFNvdXJjZUN1cnNvchINCgV2YWx1ZRgBIAEoDBIQCghzZXF1ZW5jZRgCIAEoBEI8Wjpnby5taW5kY2xhZGUuZGV2L3Byb3RvY29scy9nZW4vZ28vbWluZGNsYWRlL2RhdGEvdjE7ZGF0YXYxYgZwcm90bzM");
 
 /**
- * @generated from message mindclade.data.v1.CursorScaffold
+ * SourceCursor is opaque provider state coupled to a Mindclade-owned monotonic
+ * sequence. Consumers must compare sequence, never the opaque value.
+ *
+ * @generated from message mindclade.data.v1.SourceCursor
  */
-export type CursorScaffold = Message<"mindclade.data.v1.CursorScaffold"> & {
+export type SourceCursor = Message<"mindclade.data.v1.SourceCursor"> & {
   /**
-   * @generated from field: string reserved = 1;
+   * @generated from field: bytes value = 1;
    */
-  reserved: string;
+  value: Uint8Array;
+
+  /**
+   * @generated from field: uint64 sequence = 2;
+   */
+  sequence: bigint;
 };
 
 /**
- * Describes the message mindclade.data.v1.CursorScaffold.
- * Use `create(CursorScaffoldSchema)` to create a new message.
+ * Describes the message mindclade.data.v1.SourceCursor.
+ * Use `create(SourceCursorSchema)` to create a new message.
  */
-export const CursorScaffoldSchema: GenMessage<CursorScaffold> = /*@__PURE__*/
+export const SourceCursorSchema: GenMessage<SourceCursor> = /*@__PURE__*/
   messageDesc(file_mindclade_data_v1_cursor, 0);
 

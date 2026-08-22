@@ -13,7 +13,8 @@ may reuse the same vocabulary enforced in CI.
 | offline | `data`, `evaluation`, `kernels`, `models`, `preprocessing` | foundation, offline, and root/build/test/release support |
 | training | `training` | foundation, offline, training, and support |
 | runtime | `control`, `serving` | foundation, offline, runtime, and support |
-| services | `services` | foundation, offline, runtime, services, and support |
+| services | `services` except `services/workers/training` | foundation, offline, runtime, services, and support |
+| training service | `services/workers/training` only | foundation, offline, training, itself, and support |
 | apps | `apps` | foundation, apps, and support |
 | research | `research` | every production layer, research, and support |
 | platform/support | architecture, CI, docs, examples, infra, qualification, security, and narrowly classified tools | every layer |
@@ -26,6 +27,14 @@ classified package fails immediately, as does a matrix key or destination that
 does not name a declared domain. A new top-level code package is incomplete
 until it is classified here and assigned in both `OWNERS.toml` and
 `.github/CODEOWNERS`.
+
+`services/workers/training` is the sole carve-out from the general services
+package group under [ADR-0025](../design/adr-0025-training-service-composition-layer.md). Its
+composition targets may import the authoritative training implementation, but
+that permission does not apply to any other service and does not allow training
+or reusable code to import a deployable. The source of truth expresses the
+carve-out with Bazel package-group exclusion syntax; the graph checker applies
+the same include/exclude semantics and still requires exactly one match.
 
 ## Top-level flow
 

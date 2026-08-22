@@ -660,9 +660,9 @@
           "nullable": true,
           "required": true,
           "sensitive": false,
-          "type": "map(object({ source_bucket = string destination_bucket = string destination_region = string delete_objects_unique_in_sink = bool delete_objects_from_source_after_transfer = bool overwrite_objects_already_existing_in_sink = bool schedule = string retention_days = number }))",
+          "type": "map(object({ source_bucket = string destination_bucket = string destination_region = string kms_key_name = string delete_objects_unique_in_sink = bool delete_objects_from_source_after_transfer = bool overwrite_objects_already_existing_in_sink = bool schedule = string retention_days = number }))",
           "validation_fingerprints": [
-            "sha256:4233b9e2e2810531a197401a11fe0d2e4f384d7c4d7a66a57ce17564f5a8caaf"
+            "sha256:3bdb1149f41cd432bb8baf2af4e187a2ca259e03d83c819138323fa7598ba42a"
           ]
         },
         "gke_backup": {
@@ -697,9 +697,6 @@
       },
       "managed_resource_addresses": [
         "google_gke_backup_backup_plan.this",
-        "google_kms_crypto_key.replica",
-        "google_kms_crypto_key_iam_member.storage_agent",
-        "google_kms_key_ring.replica",
         "google_storage_bucket.replica",
         "google_storage_transfer_job.replica"
       ],
@@ -1096,7 +1093,7 @@
           ]
         },
         "kubernetes_namespace": {
-          "default": "build",
+          "default": "mindclade-build",
           "ephemeral": false,
           "nullable": true,
           "required": false,
@@ -1585,6 +1582,118 @@
         }
       },
       "path": "infra/terraform/modules/binauthz",
+      "provider_contracts": {
+        "google": {
+          "configuration_aliases": [],
+          "source": "registry.terraform.io/hashicorp/google"
+        }
+      },
+      "requirements": {
+        "google": ">= 7.41.0, < 8.0.0",
+        "terraform": ">= 1.9.0, < 2.0.0"
+      }
+    },
+    "certificate_manager": {
+      "inputs": {
+        "certificates": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "map(object({ name = string domains = set(string) authorization_keys = set(string) description = optional(string) }))",
+          "validation_fingerprints": [
+            "sha256:536e3b4d0edcc0802574da2c3691829f5d452e7a28685c5316365d1963622d54"
+          ]
+        },
+        "dns_authorizations": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "map(object({ name = string domain = string managed_zone = string ttl = optional(number, 300) description = optional(string) }))",
+          "validation_fingerprints": [
+            "sha256:a26909bbc7e16cf9ae82dd1c8b33e46588eb6d787ceae94824089c3d201a60ba"
+          ]
+        },
+        "dns_project_id": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:57f2a462db378d8b23ca1179aa2483bfcef649d6db2c76022e413dbf9dd20e64"
+          ]
+        },
+        "labels": {
+          "default": {},
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "map(string)",
+          "validation_fingerprints": []
+        },
+        "location": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:21df043374e7514770f6cdbd0ec723b77920930815fb4153e75b89f62a487fcd"
+          ]
+        },
+        "owner": {
+          "default": "platform",
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": []
+        },
+        "project_id": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:97d35e44e2e3f09ac17c37d60a513d631ab884a8b5562ccdd9085ebd827a6a10"
+          ]
+        }
+      },
+      "managed_resource_addresses": [
+        "google_certificate_manager_certificate.this",
+        "google_certificate_manager_dns_authorization.this",
+        "google_dns_record_set.authorization"
+      ],
+      "module_calls": {},
+      "moved": [],
+      "outputs": {
+        "certificate_ids": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:933f4eede9559f6896f45f2b03388bbbda08ddd36c5db7850aea1227db239166"
+        },
+        "certificate_names": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:0f78e2b3b846dfef74544658468ba85ed99c76b0790e36cd647ab91c76a6cf17"
+        },
+        "dns_authorization_records": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:2e1c5b5f3a4d2566d3a0c7aa708ff9e4a97571293784181316fe6ab6a99e78e4"
+        }
+      },
+      "path": "infra/terraform/modules/certificate_manager",
       "provider_contracts": {
         "google": {
           "configuration_aliases": [],
@@ -2128,180 +2237,6 @@
         }
       },
       "path": "infra/terraform/modules/dns",
-      "provider_contracts": {
-        "google": {
-          "configuration_aliases": [],
-          "source": "registry.terraform.io/hashicorp/google"
-        }
-      },
-      "requirements": {
-        "google": ">= 7.41.0, < 8.0.0",
-        "terraform": ">= 1.9.0, < 2.0.0"
-      }
-    },
-    "dns_hub": {
-      "inputs": {
-        "certificate_authorities": {
-          "default": [
-            "letsencrypt.org"
-          ],
-          "ephemeral": false,
-          "nullable": true,
-          "required": false,
-          "sensitive": false,
-          "type": "list(string)",
-          "validation_fingerprints": [
-            "sha256:d4c45f01b47b8e8a59a08d5abb23323013983bb47267f61d463a1326ab62682a"
-          ]
-        },
-        "domains": {
-          "default": null,
-          "ephemeral": false,
-          "nullable": true,
-          "required": true,
-          "sensitive": false,
-          "type": "map(object({ dns_name = string description = optional(string) wildcard_certificates = optional(bool, true) dnssec = optional(bool, true) }))",
-          "validation_fingerprints": [
-            "sha256:6726e7f0043c07353f3665158c7edc5882b64eb458ecc256a56b0a687e91c5ab",
-            "sha256:ab12a0be57fd171745d9f45741de0ba0fc4cd17ee04a9cf1b8e5e713acfa1175"
-          ]
-        },
-        "enable_logging": {
-          "default": false,
-          "ephemeral": false,
-          "nullable": true,
-          "required": false,
-          "sensitive": false,
-          "type": "bool",
-          "validation_fingerprints": []
-        },
-        "impersonate_service_account": {
-          "default": null,
-          "ephemeral": false,
-          "nullable": true,
-          "required": false,
-          "sensitive": false,
-          "type": "string",
-          "validation_fingerprints": [
-            "sha256:d3aa199752d80c01d150c06932364f11d9b9cfa683a9b3f982c48381905489ef"
-          ]
-        },
-        "labels": {
-          "default": {},
-          "ephemeral": false,
-          "nullable": true,
-          "required": false,
-          "sensitive": false,
-          "type": "map(string)",
-          "validation_fingerprints": []
-        },
-        "mail": {
-          "default": {},
-          "ephemeral": false,
-          "nullable": true,
-          "required": false,
-          "sensitive": false,
-          "type": "object({ mx = optional(list(string), []) spf_include = optional(list(string), []) # Starts at none so a misconfigured selector cannot bounce real mail on day # one. Move to quarantine, then reject, once the DMARC reports are clean. dmarc_policy = optional(string, \"none\") dmarc_rua = optional(string) # DKIM is emitted verbatim: the value is a provider-generated public key, # and there is nothing useful to validate about it here. dkim = optional(map(object({ selector = string value = string })), {}) })",
-          "validation_fingerprints": [
-            "sha256:9d386fb0e05ecf51e24a6fed9e73e78164b2e4064bcdea7c1cabfebb43232250",
-            "sha256:a8462937d8bf5e1a7fd5f9ae76d0ae449b9f27c86214d913b5a296d273f66063"
-          ]
-        },
-        "mail_domain": {
-          "default": null,
-          "ephemeral": false,
-          "nullable": true,
-          "required": false,
-          "sensitive": false,
-          "type": "string",
-          "validation_fingerprints": [
-            "sha256:f1cf529954444ad6890e2b88a974bcf83c17a0eef65f6274ec566053623aa3c3"
-          ]
-        },
-        "owner": {
-          "default": "platform",
-          "ephemeral": false,
-          "nullable": true,
-          "required": false,
-          "sensitive": false,
-          "type": "string",
-          "validation_fingerprints": []
-        },
-        "project_id": {
-          "default": null,
-          "ephemeral": false,
-          "nullable": true,
-          "required": true,
-          "sensitive": false,
-          "type": "string",
-          "validation_fingerprints": [
-            "sha256:f4d412dd4e6b2aa40de30849e3ed28240b62cfc4113c8e1f611b4529947acbea"
-          ]
-        },
-        "record_ttl": {
-          "default": 3600,
-          "ephemeral": false,
-          "nullable": true,
-          "required": false,
-          "sensitive": false,
-          "type": "number",
-          "validation_fingerprints": [
-            "sha256:a41b7198077dd69cf5c628f5e6904e1f1cb08b9abbe560921f6d39d5bfb2c2fd"
-          ]
-        },
-        "security_contact": {
-          "default": null,
-          "ephemeral": false,
-          "nullable": true,
-          "required": true,
-          "sensitive": false,
-          "type": "string",
-          "validation_fingerprints": [
-            "sha256:cdb269531dc6c1fa35edb89a4b773e3b3a023637676b1017ef84b03006a4fede"
-          ]
-        }
-      },
-      "managed_resource_addresses": [],
-      "module_calls": {
-        "module.dns": {
-          "source": "../../modules/dns",
-          "version": ""
-        }
-      },
-      "moved": [],
-      "outputs": {
-        "caa_check": {
-          "ephemeral": false,
-          "sensitive": false,
-          "value_fingerprint": "sha256:cab1a2b772d9af2dd4e43aa9c5a5839d57a8f1619f90996a3ab21388376934a8"
-        },
-        "delegation_check": {
-          "ephemeral": false,
-          "sensitive": false,
-          "value_fingerprint": "sha256:b125738de39b329d5ef288fb99d7f356235e19e6c493d5972e64b94bd471e11b"
-        },
-        "name_servers": {
-          "ephemeral": false,
-          "sensitive": false,
-          "value_fingerprint": "sha256:b7c9a3195a9bf023536f6863efbc5c6e994bce8efb7b1d873b7dfb8a4cc0538a"
-        },
-        "project_id": {
-          "ephemeral": false,
-          "sensitive": false,
-          "value_fingerprint": "sha256:faeae34494efedb128a0efe3fb57e4dd1cbd9c795e56541660042fe67855eff2"
-        },
-        "zone_names": {
-          "ephemeral": false,
-          "sensitive": false,
-          "value_fingerprint": "sha256:a724f3ddb01ba089e9a291daff199c4320a950fabb9da20bb3a8b5da921510be"
-        },
-        "zone_records": {
-          "ephemeral": false,
-          "sensitive": false,
-          "value_fingerprint": "sha256:6611b6df0d37268bc37e68c6457867df6547e29f17db1bd4eac9461cef04f5ef"
-        }
-      },
-      "path": "infra/terraform/environments/dns_hub",
       "provider_contracts": {
         "google": {
           "configuration_aliases": [],
@@ -2990,6 +2925,11 @@
           "ephemeral": false,
           "sensitive": false,
           "value_fingerprint": "sha256:2cdd2de7314b44c8f0566b6b85a9c9e4ec493f07ee9b82f94db439a8d1940166"
+        },
+        "project_id": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:faeae34494efedb128a0efe3fb57e4dd1cbd9c795e56541660042fe67855eff2"
         },
         "subnetwork": {
           "ephemeral": false,

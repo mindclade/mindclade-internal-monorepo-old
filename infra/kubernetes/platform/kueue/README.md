@@ -12,11 +12,13 @@ Current state is deliberately blocked. The `mindclade-batch-cpu`,
 and every nominal quota is zero. Their namespaces also declare `kueue-enabled=false`; native
 admission maps each namespace to exactly one queue and workload class.
 
-The H100 and B200 ResourceFlavors reference `mindclade-gpu-zone-host`. `1g-packed` Jobs use
-unconstrained topology so Kueue can fill partially occupied eight-GPU nodes. `8g-full` JobSets
-consume eight GPUs per Pod and require their two-Pod PodSet to remain in one zone. CPU, memory,
-ephemeral storage, Pod count, and GPU are deliberately in the same GPU flavor group so Kueue
-cannot combine incompatible CPU-node and GPU-node selectors.
+The H100 and B200 ResourceFlavors reference `mindclade-gpu-zone-host`. The H100 flavor also
+requires the Terraform-owned `mindclade.dev/capacity-type=on-demand` node label. `1g-packed` Jobs
+use unconstrained topology so Kueue can fill partially occupied eight-GPU nodes. The H100
+qualification JobSet consumes one complete eight-GPU node; the unqualified B200 template retains
+the older two-Pod, same-zone shape. CPU, memory, ephemeral storage, Pod count, and GPU are
+deliberately in the same GPU flavor group so Kueue cannot combine incompatible CPU-node and
+GPU-node selectors.
 
 The CPU queue uses only the Terraform-guaranteed `general-purpose` / `on-demand` CPU node label
 tuple. High-memory and Spot capacity require separate measured flavors and queue policy; the

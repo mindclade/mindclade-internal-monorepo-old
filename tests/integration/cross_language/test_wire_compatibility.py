@@ -37,6 +37,18 @@ PACKAGES = {
         ROOT / "protocols/proto/mindclade/inference/v1",
         ROOT / "protocols/compatibility/inference_v1_fields.json",
     ),
+    "training": (
+        ROOT / "protocols/proto/mindclade/training/v1",
+        ROOT / "protocols/compatibility/training_v1_fields.json",
+    ),
+    "artifact": (
+        ROOT / "protocols/proto/mindclade/artifact/v1",
+        ROOT / "protocols/compatibility/artifact_v1_fields.json",
+    ),
+    "registry": (
+        ROOT / "protocols/proto/mindclade/registry/v1",
+        ROOT / "protocols/compatibility/registry_v1_fields.json",
+    ),
 }
 
 MESSAGE_START = re.compile(r"\bmessage\s+(\w+)\s*\{")

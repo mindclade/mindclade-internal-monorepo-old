@@ -8,8 +8,30 @@ load("@rules_python//python:defs.bzl", "py_library")
 package(default_visibility = ["//visibility:private"])
 
 py_library(
+    name = "contracts",
+    srcs = ["__init__.py"],
+    imports = ["../.."],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":scientific_intake",
+        ":target_card",
+    ],
+)
+
+py_library(
     name = "target_card",
     srcs = ["target_card.py"],
     imports = ["../.."],
     visibility = ["//visibility:public"],
+)
+
+py_library(
+    name = "scientific_intake",
+    srcs = ["scientific_intake.py"],
+    imports = ["../.."],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//libs/python/identifiers",
+        "//libs/python/serialization",
+    ],
 )
