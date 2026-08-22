@@ -26,6 +26,9 @@ concurrency:
 jobs:
   bazel-nightly:
     name: nightly Bazel / verdict
+    # Scheduled runs use the default branch. Manual qualification is deliberately main-only so a
+    # branch-selected workflow cannot publish into the trusted default-branch cache scope.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
@@ -41,8 +44,8 @@ jobs:
 
       - uses: bazel-contrib/setup-bazel@4fd964a13a440a8aeb0be47350db2fc640f19ca8  # v0.15.0
         with:
-          # Repository inputs are safe to cache. Compiled action outputs stay in Bazel's output
-          # base; duplicating them in Actions cache previously exhausted hosted-runner storage.
+          # Repository inputs are safe to cache. setup-bazel's implicit action-output cache stays
+          # disabled; the bounded, trust-scoped disk cache below replaces the prior unbounded copy.
           bazelisk-cache: true
           repository-cache: true
 
@@ -51,6 +54,50 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
             accept-flake-config = false
+
+      - name: Select trusted nightly Bazel cache revision
+        id: bazel-cache-trust
+        env:
+          CACHE_FINGERPRINT: ${{ hashFiles('.bazelversion', 'MODULE.bazel', 'MODULE.bazel.lock', 'REPO.bazel', 'flake.lock', 'tools/build/nix/toolchain-manifest.json') }}
+          REF_PROTECTED: ${{ github.ref_protected }}
+          RUNNER_OS: ${{ runner.os }}
+          RUNNER_ARCH: ${{ runner.arch }}
+        run: |
+          set -euo pipefail
+          python3 ci/common/bazel_disk_cache.py select-trust \
+            --workflow nightly \
+            --event "${GITHUB_EVENT_NAME}" \
+            --ref "${GITHUB_REF}" \
+            --ref-protected "${REF_PROTECTED}" \
+            --head-sha "${GITHUB_SHA}" \
+            --fingerprint "${CACHE_FINGERPRINT}" \
+            --runner-os "${RUNNER_OS}" \
+            --runner-arch "${RUNNER_ARCH}" \
+            --github-output "${GITHUB_OUTPUT}"
+
+      - name: Restore trusted nightly Bazel persistent action cache
+        id: bazel-disk-cache
+        continue-on-error: true
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ${{ runner.temp }}/mindclade-bazel-disk-cache
+          key: ${{ steps.bazel-cache-trust.outputs.primary-key }}
+          restore-keys: |
+            ${{ steps.bazel-cache-trust.outputs.restore-prefix }}
+
+      - name: Configure bounded nightly Bazel persistent action cache
+        env:
+          BAZEL_CACHE_ROLE: ${{ steps.bazel-cache-trust.outputs.role }}
+          BAZEL_CACHE_RESTORE_OUTCOME: ${{ steps.bazel-disk-cache.outcome }}
+        run: |
+          set -euo pipefail
+          python3 ci/common/bazel_disk_cache.py configure \
+            --cache-dir "${RUNNER_TEMP}/mindclade-bazel-disk-cache" \
+            --workspace "${GITHUB_WORKSPACE}" \
+            --bazelrc "${GITHUB_WORKSPACE}/user.bazelrc" \
+            --role "${BAZEL_CACHE_ROLE}" \
+            --github-env "${GITHUB_ENV}" \
+            --restore-outcome "${BAZEL_CACHE_RESTORE_OUTCOME}"
 
       - name: Validate complete loading, formatting, and layer policy
         run: |
@@ -102,6 +149,66 @@ jobs:
             --json-output "${RUNNER_TEMP}/bazel-evidence/latency-slo.json" \
             --markdown-output "${RUNNER_TEMP}/bazel-evidence/latency-slo.md"
           cat "${RUNNER_TEMP}/bazel-evidence/latency-slo.md" >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Measure bounded nightly Bazel persistent action cache
+        id: bazel-cache-size
+        if: always()
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          nix develop .#ci-bazel --command python3 ci/common/bazel_disk_cache.py measure \
+            --cache-dir "${RUNNER_TEMP}/mindclade-bazel-disk-cache" \
+            --workspace "${GITHUB_WORKSPACE}" \
+            --bazel-wrapper "${GITHUB_WORKSPACE}/tools/dev/bazelw" \
+            --gc-wait-seconds 3 \
+            --github-output "${GITHUB_OUTPUT}"
+
+      - name: Save trusted nightly Bazel persistent action cache
+        id: bazel-cache-save
+        if: >-
+          success() &&
+          github.ref == 'refs/heads/main' &&
+          github.ref_protected == true &&
+          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+          steps.bazel-cache-trust.outputs.role == 'writer' &&
+          steps.bazel-disk-cache.outputs.cache-hit != 'true' &&
+          steps.bazel-cache-size.outputs.within-limit == 'true'
+        continue-on-error: true
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ${{ runner.temp }}/mindclade-bazel-disk-cache
+          key: ${{ steps.bazel-cache-trust.outputs.primary-key }}
+
+      - name: Record nightly Bazel persistent action cache metrics
+        if: always()
+        env:
+          CACHE_ROLE: ${{ steps.bazel-cache-trust.outputs.role }}
+          CACHE_REVISION: ${{ steps.bazel-cache-trust.outputs.revision }}
+          CACHE_PRIMARY_KEY: ${{ steps.bazel-cache-trust.outputs.primary-key }}
+          CACHE_RESTORE_PREFIX: ${{ steps.bazel-cache-trust.outputs.restore-prefix }}
+          CACHE_MATCHED_KEY: ${{ steps.bazel-disk-cache.outputs.cache-matched-key }}
+          CACHE_EXACT_HIT: ${{ steps.bazel-disk-cache.outputs.cache-hit }}
+          CACHE_RESTORE_OUTCOME: ${{ steps.bazel-disk-cache.outcome }}
+          CACHE_SIZE_BYTES: ${{ steps.bazel-cache-size.outputs.size-bytes }}
+          CACHE_WITHIN_LIMIT: ${{ steps.bazel-cache-size.outputs.within-limit }}
+          CACHE_MEASURE_OUTCOME: ${{ steps.bazel-cache-size.outcome }}
+          CACHE_SAVE_OUTCOME: ${{ steps.bazel-cache-save.outcome }}
+        run: |
+          set -euo pipefail
+          python3 ci/common/bazel_disk_cache.py record-metrics \
+            --evidence-dir "${RUNNER_TEMP}/bazel-evidence" \
+            --summary "${GITHUB_STEP_SUMMARY}" \
+            --role "${CACHE_ROLE}" \
+            --trusted-revision "${CACHE_REVISION}" \
+            --primary-key "${CACHE_PRIMARY_KEY}" \
+            --matched-key "${CACHE_MATCHED_KEY}" \
+            --exact-hit "${CACHE_EXACT_HIT}" \
+            --save-outcome "${CACHE_SAVE_OUTCOME}" \
+            --size-bytes "${CACHE_SIZE_BYTES}" \
+            --within-limit "${CACHE_WITHIN_LIMIT}" \
+            --restore-prefix "${CACHE_RESTORE_PREFIX}" \
+            --restore-outcome "${CACHE_RESTORE_OUTCOME}" \
+            --measure-outcome "${CACHE_MEASURE_OUTCOME}"
 
       - name: Upload nightly Bazel evidence
         if: always()

@@ -14,6 +14,14 @@ Selection, Git history, Bazel loading/query, configured analysis, tests, and
 evidence normalization fail closed. Correctness is not traded for latency: a
 query error or unknown structural change never becomes an empty target set.
 
+The GitHub Actions-backed persistent action cache is non-authoritative. The
+governed pull-request and merge-group paths restore but do not save; GitHub's
+temporary-ref cache scope cannot publish an entry consumed by protected main.
+Cache loss, eviction, restore failure, or a changed toolchain fingerprint must
+produce a cold local build, never a skipped analysis/test verdict. Cache hits
+are not provenance or release evidence. The authenticated remote-cache gateway
+remains activation blocked and is outside this SLO.
+
 ## Measurement
 
 `run-metrics.json` records event, effective mode/reason, job elapsed seconds,
@@ -22,8 +30,18 @@ retention covers the burn-in window. Cancelled runs, GitHub platform outages,
 and full-mode runs are reported separately rather than removed from raw
 evidence.
 
+`cache-metrics.json` records the persistent-cache role, trusted revision,
+exact/prefix/not-restored/error restore state, unverified save-attempt step outcome, and
+bytes retained under the 4 GiB limit after Bazel shutdown. The latency series
+must segment cold not-restored runs, prefix restores, and exact restores. A cache
+improvement may reduce the measured percentile but may not change the target
+selection, full-graph merge-group/nightly contract, or 75/90-minute correctness
+ceilings.
+
 ## Promotion gate
 
 The components remain `implemented` until the connected canary matrix passes,
 the exact required context is observed on pull requests and merge groups, and
-the 28-day p95 objective is calculated from retained evidence.
+the 28-day p95 objective is calculated from retained evidence. Promotion also
+requires a green cold-cache control run, bounded-cache size evidence, and no
+trusted save originating outside protected main or main-only nightly.

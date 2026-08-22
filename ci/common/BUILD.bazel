@@ -17,11 +17,24 @@ py_library(
     ],
 )
 
+py_library(
+    name = "bazel_disk_cache_lib",
+    srcs = ["bazel_disk_cache.py"],
+    imports = ["../.."],
+)
+
 py_binary(
     name = "affected_cli",
     srcs = ["affected.py"],
     imports = ["../.."],
     main = "affected.py",
+    visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "bazel_disk_cache",
+    srcs = ["bazel_disk_cache.py"],
+    imports = ["../.."],
     visibility = ["//visibility:public"],
 )
 
@@ -38,4 +51,11 @@ pytest_test(
     srcs = ["tests/test_affected.py"],
     imports = ["../.."],
     deps = [":affected"],
+)
+
+pytest_test(
+    name = "bazel_disk_cache_test",
+    srcs = ["tests/test_bazel_disk_cache.py"],
+    imports = ["../.."],
+    deps = [":bazel_disk_cache_lib"],
 )
