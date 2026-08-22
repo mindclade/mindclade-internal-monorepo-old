@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 
 import pytest
+
 from tools.release.sbom import LICENSE_ID, PACKAGE_ID, SbomError, enrich_document, validate_document
 
 ROOT = Path(__file__).resolve().parents[3]
