@@ -49,6 +49,10 @@ variable "zones" {
     # Overrides var.attached_networks for this zone only. Ignored on public zones.
     networks = optional(list(string))
 
+    # Exact records-map keys for reviewed public A, AAAA, or CNAME exceptions. Public
+    # address records remain denied by default; private zones may not use this escape hatch.
+    public_record_allowlist = optional(set(string), [])
+
     # Keyed by an identifier that DEFAULTS to the relative owner name. Set
     # `name` explicitly when one owner carries more than one type -- an apex
     # holding CAA, MX, and SPF needs three entries that resolve to the same
@@ -85,18 +89,48 @@ variable "zones" {
     error_message = "Record owner names are relative to the zone. Use \"api\", not \"api.mindclade.ai\" and not \"api.mindclade.ai.\"; use \"\" or \"@\" for the apex."
   }
 
-  # A public zone with an A, AAAA, or CNAME record is the failure this estate is built to make
-  # impossible: every application hostname resolves privately only, and a public address record
-  # would undo that in one apply with no other signal. TXT (ACME) and CAA are the only kinds a
-  # public zone here has any business carrying.
+  # Public address records are denied by default. A reviewed exception names the exact map key,
+  # not merely an owner or type, so allowing one Squarespace endpoint cannot publish another.
   validation {
     condition = alltrue(flatten([
       for z in var.zones : [
-        for _, r in z.records :
-        contains(["TXT", "CAA", "MX", "NS", "SOA"], upper(r.type))
+        for key, r in z.records :
+        contains(["TXT", "CAA", "MX", "NS", "SOA"], upper(r.type)) ||
+        (
+          contains(["A", "AAAA", "CNAME"], upper(r.type)) &&
+          contains(z.public_record_allowlist, key)
+        )
       ] if z.visibility == "public"
     ]))
-    error_message = "Public zones may carry only TXT, CAA, MX, or NS records. An A/AAAA/CNAME record on a public zone would publish an internal hostname."
+    error_message = "Public zones may carry TXT, CAA, MX, NS, or SOA records by default. A/AAAA/CNAME records require their exact records-map key in public_record_allowlist."
+  }
+
+  validation {
+    condition = alltrue([
+      for z in var.zones : alltrue([
+        for key in z.public_record_allowlist :
+        try(contains(["A", "AAAA", "CNAME"], upper(z.records[key].type)), false)
+      ])
+    ])
+    error_message = "Every public_record_allowlist entry must name an existing A, AAAA, or CNAME records-map key; stale or non-address entries are rejected."
+  }
+
+  validation {
+    condition = alltrue([
+      for z in var.zones : z.visibility == "public" || length(z.public_record_allowlist) == 0
+    ])
+    error_message = "public_record_allowlist is only valid for public zones."
+  }
+
+  validation {
+    condition = alltrue(flatten([
+      for z in var.zones : [
+        for key, r in z.records :
+        !contains(["A", "AAAA", "CNAME"], upper(r.type)) ||
+        !strcontains(r.name != null ? r.name : key, "*")
+      ] if z.visibility == "public"
+    ]))
+    error_message = "Wildcard public A, AAAA, and CNAME owners are forbidden even when their record key is allowlisted."
   }
 }
 

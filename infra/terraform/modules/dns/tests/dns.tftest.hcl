@@ -175,6 +175,91 @@ run "a_public_zone_may_not_carry_an_address_record" {
   expect_failures = [var.zones]
 }
 
+run "exact_allowlisted_public_a_and_cname_records_are_accepted" {
+  command = plan
+
+  variables {
+    project_id = "mc-common-dns"
+    zones = {
+      ai = {
+        dns_name                = "example.ai."
+        visibility              = "public"
+        public_record_allowlist = ["apex-a", "www-cname"]
+        records = {
+          "apex-a"    = { name = "@", type = "A", rrdatas = ["198.51.100.10"] }
+          "www-cname" = { name = "www", type = "CNAME", rrdatas = ["example.squarespace.com."] }
+        }
+      }
+    }
+  }
+
+  assert {
+    condition = (
+      google_dns_record_set.this["ai/apex-a"].type == "A" &&
+      google_dns_record_set.this["ai/www-cname"].type == "CNAME"
+    )
+    error_message = "Exact allowlisted public A and CNAME record keys must remain publishable."
+  }
+}
+
+run "allowlisting_one_public_address_record_does_not_allow_another" {
+  command = plan
+
+  variables {
+    project_id = "mc-common-dns"
+    zones = {
+      ai = {
+        dns_name                = "example.ai."
+        visibility              = "public"
+        public_record_allowlist = ["apex-a"]
+        records = {
+          "apex-a"    = { name = "@", type = "A", rrdatas = ["198.51.100.10"] }
+          "www-cname" = { name = "www", type = "CNAME", rrdatas = ["example.squarespace.com."] }
+        }
+      }
+    }
+  }
+
+  expect_failures = [var.zones]
+}
+
+run "an_allowlisted_wildcard_public_address_record_is_rejected" {
+  command = plan
+
+  variables {
+    project_id = "mc-common-dns"
+    zones = {
+      ai = {
+        dns_name                = "example.ai."
+        visibility              = "public"
+        public_record_allowlist = ["wildcard-a"]
+        records = {
+          "wildcard-a" = { name = "*", type = "A", rrdatas = ["198.51.100.10"] }
+        }
+      }
+    }
+  }
+
+  expect_failures = [var.zones]
+}
+
+run "a_stale_public_record_allowlist_entry_is_rejected" {
+  command = plan
+
+  variables {
+    project_id = "mc-common-dns"
+    zones = {
+      ai = {
+        dns_name                = "example.ai."
+        visibility              = "public"
+        public_record_allowlist = ["missing-a"]
+      }
+    }
+  }
+
+  expect_failures = [var.zones]
+}
+
 # A delegation is a thing you lose by refactoring, so the zone carries both a
 # provider-side deletion policy and a Terraform-side lifecycle guard.
 run "public_zones_are_protected_from_deletion" {
