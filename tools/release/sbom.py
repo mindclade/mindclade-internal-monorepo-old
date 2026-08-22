@@ -68,12 +68,10 @@ def _license_info(
     manifest_digest: str,
 ) -> dict[str, Any]:
     source_url = (
-        "https://github.com/mindclade/mindclade-internal-monorepo/blob/"
-        f"{source_sha}/LICENSE"
+        f"https://github.com/mindclade/mindclade-internal-monorepo/blob/{source_sha}/LICENSE"
     )
     policy_url = (
-        "https://github.com/mindclade/.github/blob/main/"
-        "contracts/policy-bundle/manifest.json"
+        "https://github.com/mindclade/.github/blob/main/contracts/policy-bundle/manifest.json"
     )
     return {
         "licenseId": LICENSE_ID,
@@ -232,9 +230,7 @@ def validate_document(
         "relatedSpdxElement": PACKAGE_ID,
     }
     if document.get("relationships", []).count(relationship) != 1:
-        raise SbomError(
-            "SPDX document must describe the first-party release package exactly once"
-        )
+        raise SbomError("SPDX document must describe the first-party release package exactly once")
 
 
 def _atomic_json(path: Path, value: dict[str, Any]) -> None:

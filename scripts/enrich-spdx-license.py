@@ -93,8 +93,7 @@ def _license_info(
         ),
         "seeAlsos": [
             f"https://github.com/{repository}/blob/{source_sha}/LICENSE",
-            "https://github.com/mindclade/.github/blob/main/"
-            "contracts/policy-bundle/manifest.json",
+            "https://github.com/mindclade/.github/blob/main/contracts/policy-bundle/manifest.json",
         ],
     }
 
@@ -179,9 +178,7 @@ def enrich_document(
     if not isinstance(packages, list):
         raise SpdxLicenseError("packages must be a list")
     packages = [
-        item
-        for item in packages
-        if not isinstance(item, dict) or item.get("SPDXID") != PACKAGE_ID
+        item for item in packages if not isinstance(item, dict) or item.get("SPDXID") != PACKAGE_ID
     ]
     packages.append(
         _first_party_package(
@@ -246,9 +243,7 @@ def validate_document(document: dict[str, Any], **contract: Any) -> None:
         "relatedSpdxElement": PACKAGE_ID,
     }
     if document.get("relationships", []).count(relationship) != 1:
-        raise SpdxLicenseError(
-            "SPDX document must describe the first-party artifact exactly once"
-        )
+        raise SpdxLicenseError("SPDX document must describe the first-party artifact exactly once")
 
 
 def _atomic_json(path: Path, value: dict[str, Any]) -> None:
