@@ -141,6 +141,16 @@ pytest_test(
     ],
 )
 
+pytest_test(
+    name = "worktree_exclusions_test",
+    srcs = ["tests/test_worktree_exclusions.py"],
+    data = [
+        "check_go_modules.py",
+        "check_license_headers.py",
+        "//tools/dev:dev_sources",
+    ],
+)
+
 py_binary(
     name = "check_rust_workspace",
     srcs = ["check_rust_workspace.py"],

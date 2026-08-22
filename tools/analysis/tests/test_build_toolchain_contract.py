@@ -214,6 +214,11 @@ def test_the_exemption_does_not_extend_to_the_rest_of_the_scan() -> None:
     assert all(error.startswith(f"{SIBLING}:") for error in errors), errors
 
 
+def test_codex_worktrees_are_not_scanned() -> None:
+    nested = f".codex-worktrees/agent/{SIBLING}"
+    assert run({nested: mirror_text()}) == []
+
+
 def test_the_exemption_is_still_earned() -> None:
     """A stale allowlist entry is a blind spot, not a no-op.
 

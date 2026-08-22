@@ -478,6 +478,7 @@ def check(root: Path):
                     # rglobs the tree finds a second (third, twelfth) set of every file and
                     # reports each one. They are ephemeral and not part of the source.
                     ".claude",
+                    ".codex-worktrees",
                     "__pycache__",
                     ".venv",
                     "target",
