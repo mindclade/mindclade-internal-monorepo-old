@@ -213,7 +213,7 @@ def python_repository_resolution_contract(root: Path) -> list[str]:
             return None
         try:
             return ast.literal_eval(value)
-        except ValueError, TypeError:
+        except (ValueError, TypeError):
             return None
 
     errors = []
@@ -291,7 +291,7 @@ def python_toolchain_version_contract(root: Path) -> list[str]:
                 continue
             try:
                 result[keyword.arg] = ast.literal_eval(keyword.value)
-            except ValueError, TypeError:
+            except (ValueError, TypeError):
                 result[keyword.arg] = None
         return result
 
@@ -477,7 +477,9 @@ def check(root: Path):
                     # Agent worktrees: full COPIES of this repository, so every checker that
                     # rglobs the tree finds a second (third, twelfth) set of every file and
                     # reports each one. They are ephemeral and not part of the source.
+                    # Both agent roots are named because both occur in checkouts.
                     ".claude",
+                    ".codex-worktrees",
                     "__pycache__",
                     ".venv",
                     "target",
