@@ -24,6 +24,9 @@ const (
 	DefaultEntitlementTable      = "mindclade_gateway_entitlements"
 	DefaultBudgetTable           = "mindclade_gateway_budgets"
 	DefaultReservationTable      = "mindclade_gateway_reservations"
+	DefaultBundleTable           = "mindclade_gateway_policy_bundles"
+	DefaultProposalTable         = "mindclade_gateway_policy_proposals"
+	DefaultReceiptTable          = "mindclade_gateway_policy_receipts"
 	admissionMutationMaxAttempts = 8
 )
 
@@ -73,6 +76,20 @@ func WithTables(entitlements, budgets, reservations string) Option {
 	}
 }
 
+func WithGovernanceTables(bundles, proposals, receipts string) Option {
+	return func(store *Store) error {
+		for _, table := range []string{bundles, proposals, receipts} {
+			if !sqlpostgres.ValidQualifiedIdentifier(table) {
+				return invalidConfig("gateway governance table name is invalid", "admission_invalid_governance_table")
+			}
+		}
+		store.bundles = bundles
+		store.proposals = proposals
+		store.receipts = receipts
+		return nil
+	}
+}
+
 // Store is a serializable PostgreSQL implementation of the admission domain.
 // In the production composition, its PostgreSQL audit and outbox dependencies
 // join the same SQL transaction as domain state. It is safe for concurrent use.
@@ -89,6 +106,9 @@ type Store struct {
 	entitlements string
 	budgets      string
 	reservations string
+	bundles      string
+	proposals    string
+	receipts     string
 }
 
 // Component exposes schema readiness without taking lifecycle ownership of the
@@ -104,7 +124,8 @@ func New(db *sql.DB, recorder audit.Recorder, messages outbox.Store, options ...
 	store := &Store{
 		db: db, clock: clock.RealClock{}, recorder: recorder, messages: messages,
 		entitlements: DefaultEntitlementTable, budgets: DefaultBudgetTable,
-		reservations: DefaultReservationTable,
+		reservations: DefaultReservationTable, bundles: DefaultBundleTable,
+		proposals: DefaultProposalTable, receipts: DefaultReceiptTable,
 	}
 	for _, option := range options {
 		if option != nil {

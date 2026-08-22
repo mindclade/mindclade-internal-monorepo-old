@@ -129,6 +129,135 @@ CREATE INDEX %s ON %s (workspace, created_at DESC);`, reservationTable,
 	return []string{entitlements, budgets, reservations}, nil
 }
 
+// GovernanceDDL returns append-only v15 schemas for atomic workspace policy
+// bundles, two-person proposals, and signed approval receipts. Primitive
+// entitlement, budget, and reservation schemas remain checksum-stable.
+func GovernanceDDL(bundleTable, proposalTable, receiptTable string) ([]string, error) {
+	for _, table := range []string{bundleTable, proposalTable, receiptTable} {
+		if !sqlpostgres.ValidQualifiedIdentifier(table) {
+			return nil, faults.New(faults.CodeInvalidArgument, "gateway governance table name is invalid",
+				faults.WithReason("admission_invalid_governance_table"), faults.WithOperation("admission.postgres.GovernanceDDL"),
+				faults.WithRetryPolicy(faults.NoRetry()))
+		}
+	}
+	bundles := fmt.Sprintf(`CREATE TABLE %s (
+    workspace_id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    bundle_id TEXT NOT NULL UNIQUE,
+    policy_epoch BIGINT NOT NULL CHECK (policy_epoch > 0),
+    resource_version TEXT NOT NULL,
+    resource_generation BIGINT NOT NULL CHECK (resource_generation > 0),
+    effective_at TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    document JSONB NOT NULL,
+    written_at TIMESTAMPTZ NOT NULL,
+    CHECK (expires_at > effective_at),
+    CHECK (jsonb_typeof(document) = 'object'),
+    CHECK (document->>'id' IS NOT DISTINCT FROM bundle_id),
+    CHECK (document#>>'{spec,tenant_id}' IS NOT DISTINCT FROM tenant_id),
+    CHECK (document#>>'{spec,workspace_id}' IS NOT DISTINCT FROM workspace_id),
+    CHECK ((document#>>'{spec,policy_epoch}')::NUMERIC IS NOT DISTINCT FROM policy_epoch),
+    CHECK (document->>'resource_version' IS NOT DISTINCT FROM resource_version),
+    CHECK (split_part(resource_version, ':', 2)::NUMERIC IS NOT DISTINCT FROM resource_generation)
+);
+CREATE INDEX %s ON %s (tenant_id, expires_at);`, bundleTable,
+		indexName(bundleTable, "tenant_expiry_idx"), bundleTable)
+	proposals := fmt.Sprintf(`CREATE TABLE %s (
+    proposal_id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL,
+    tenant_id TEXT NOT NULL,
+    base_resource_version TEXT NULL,
+    proposer_key TEXT NOT NULL,
+    state TEXT NOT NULL CHECK (state IN ('pending','applied','rejected','cancelled')),
+    decision_key TEXT NULL,
+    proposed_at TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    decided_at TIMESTAMPTZ NULL,
+    resource_version TEXT NOT NULL,
+    resource_generation BIGINT NOT NULL CHECK (resource_generation > 0),
+    document JSONB NOT NULL,
+    written_at TIMESTAMPTZ NOT NULL,
+    CHECK (expires_at > proposed_at),
+    CHECK ((state='pending') = (decision_key IS NULL AND decided_at IS NULL)),
+    CHECK (jsonb_typeof(document) = 'object'),
+    CHECK (document->>'id' IS NOT DISTINCT FROM proposal_id),
+    CHECK (document#>>'{spec,tenant_id}' IS NOT DISTINCT FROM tenant_id),
+    CHECK (document#>>'{spec,workspace_id}' IS NOT DISTINCT FROM workspace_id),
+    CHECK (NULLIF(document->>'base_resource_version','') IS NOT DISTINCT FROM base_resource_version),
+    CHECK (document->>'proposer_key' IS NOT DISTINCT FROM proposer_key),
+    CHECK (document->>'state' IS NOT DISTINCT FROM state),
+    CHECK (document->>'resource_version' IS NOT DISTINCT FROM resource_version),
+    CHECK (split_part(resource_version, ':', 2)::NUMERIC IS NOT DISTINCT FROM resource_generation)
+);
+CREATE INDEX %s ON %s (workspace_id, proposed_at DESC);`, proposalTable,
+		indexName(proposalTable, "workspace_history_idx"), proposalTable)
+	receipts := fmt.Sprintf(`CREATE TABLE %s (
+    receipt_id TEXT PRIMARY KEY,
+    proposal_id TEXT NOT NULL UNIQUE REFERENCES %s(proposal_id),
+    workspace_id TEXT NOT NULL,
+    bundle_id TEXT NOT NULL,
+    bundle_resource_version TEXT NOT NULL,
+    applied_at TIMESTAMPTZ NOT NULL,
+    document JSONB NOT NULL,
+    written_at TIMESTAMPTZ NOT NULL,
+    CHECK (jsonb_typeof(document) = 'object'),
+    CHECK (document->>'id' IS NOT DISTINCT FROM receipt_id),
+    CHECK (document->>'proposal_id' IS NOT DISTINCT FROM proposal_id),
+    CHECK (document->>'bundle_id' IS NOT DISTINCT FROM bundle_id),
+    CHECK (document->>'bundle_resource_version' IS NOT DISTINCT FROM bundle_resource_version)
+);
+CREATE INDEX %s ON %s (workspace_id, applied_at DESC);`, receiptTable, proposalTable,
+		indexName(receiptTable, "workspace_applied_idx"), receiptTable)
+	return []string{bundles, proposals, receipts}, nil
+}
+
+// ReservationLifecycleDDL upgrades the released v12 reservation ledger to the
+// durable dispatch/reconciliation state machine without rewriting v12 bytes.
+// The DO block identifies only the two legacy checks by their definitions;
+// PostgreSQL-generated suffixes differ when schemas were pre-provisioned.
+func ReservationLifecycleDDL(reservationTable string) (string, error) {
+	if !sqlpostgres.ValidQualifiedIdentifier(reservationTable) {
+		return "", faults.New(faults.CodeInvalidArgument, "admission reservation table name is invalid",
+			faults.WithReason("admission_invalid_table"), faults.WithOperation("admission.postgres.ReservationLifecycleDDL"),
+			faults.WithRetryPolicy(faults.NoRetry()))
+	}
+	stateConstraint := indexName(reservationTable, "lifecycle_state_check")
+	finalizationConstraint := indexName(reservationTable, "lifecycle_finalization_check")
+	usageConstraint := indexName(reservationTable, "lifecycle_usage_check")
+	return fmt.Sprintf(`DO $mindclade$
+DECLARE candidate RECORD;
+BEGIN
+    FOR candidate IN
+        SELECT conname, pg_get_constraintdef(oid) AS definition
+        FROM pg_constraint
+        WHERE conrelid='%s'::regclass AND contype='c'
+    LOOP
+        IF candidate.definition LIKE '%%state = ANY%%reserved%%committed%%released%%expired%%'
+           OR (candidate.definition LIKE '%%state%%reserved%%finalized_at IS NULL%%')
+           OR (candidate.definition LIKE '%%state%%committed%%actual_requests%%reserved_requests%%') THEN
+            EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %%I', candidate.conname);
+        END IF;
+    END LOOP;
+END
+$mindclade$;
+ALTER TABLE %s ADD CONSTRAINT %s CHECK (
+    state IN ('reserved','dispatched','reconciliation_pending','committed','released','expired')
+);
+ALTER TABLE %s ADD CONSTRAINT %s CHECK (
+    (state IN ('reserved','dispatched','reconciliation_pending') AND finalized_at IS NULL)
+    OR (state IN ('committed','released','expired') AND finalized_at IS NOT NULL)
+);
+ALTER TABLE %s ADD CONSTRAINT %s CHECK (
+    (state='committed' AND actual_requests=1
+      AND actual_input_tokens<=reserved_input_tokens
+      AND actual_output_tokens<=reserved_output_tokens
+      AND actual_cost_micros<=reserved_cost_micros)
+    OR (state<>'committed' AND actual_requests=0 AND actual_input_tokens=0
+      AND actual_output_tokens=0 AND actual_cost_micros=0)
+);`, reservationTable, reservationTable, reservationTable, stateConstraint,
+		reservationTable, finalizationConstraint, reservationTable, usageConstraint), nil
+}
+
 // ObservabilityDDL returns the append-only indexes required by the bounded
 // maintenance admission snapshot. It is intentionally separate from DDL:
 // released admission and shared-adapter migration bytes must remain stable.

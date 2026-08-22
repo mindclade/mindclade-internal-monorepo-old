@@ -68,6 +68,20 @@ spec:
   hostnames:
     - "mindclade.studio"
   rules:
+    # Governed AI policy administration. The target is deliberately a different Service and
+    # namespace: IAP and timeout policy attach to the backend Service, while the matching
+    # ReferenceGrant in mindclade-system authorizes only this one cross-namespace reference.
+    # The admin binary does not mount admission/reservation routes, so this prefix cannot turn
+    # the browser plane into a model-serving data path.
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /v1/ai-gateway/workspaces
+      backendRefs:
+        - name: control-plane-admin
+          namespace: mindclade-system
+          port: 8080
+
     # Server-sent events. A SEPARATE Service from studio-bff solely so it can carry its own
     # GCPBackendPolicy timeout — the internal ALB's 30s default would cut every model run.
     # Backend policy attaches per (Service, port), so two paths cannot differ in timeout

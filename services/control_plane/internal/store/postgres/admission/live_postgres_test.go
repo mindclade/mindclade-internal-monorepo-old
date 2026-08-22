@@ -88,6 +88,9 @@ func newLiveAdmissionStoreWithClock(t *testing.T, valueClock clock.Clock) liveAd
 	entitlementTable := schema + ".gateway_entitlements"
 	budgetTable := schema + ".gateway_budgets"
 	reservationTable := schema + ".gateway_reservations"
+	bundleTable := schema + ".gateway_policy_bundles"
+	proposalTable := schema + ".gateway_policy_proposals"
+	receiptTable := schema + ".gateway_policy_receipts"
 	auditDDL, err := auditpostgres.DDL(auditTable)
 	if err != nil {
 		t.Fatal(err)
@@ -100,7 +103,18 @@ func newLiveAdmissionStoreWithClock(t *testing.T, valueClock clock.Clock) liveAd
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, statement := range append([]string{auditDDL, outboxDDL}, admissionDDL...) {
+	governanceDDL, err := GovernanceDDL(bundleTable, proposalTable, receiptTable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lifecycleDDL, err := ReservationLifecycleDDL(reservationTable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	statements := append([]string{auditDDL, outboxDDL}, admissionDDL...)
+	statements = append(statements, governanceDDL...)
+	statements = append(statements, lifecycleDDL)
+	for _, statement := range statements {
 		if _, err := db.ExecContext(ctx, statement); err != nil {
 			t.Fatalf("apply admission DDL: %v", err)
 		}
@@ -114,7 +128,8 @@ func newLiveAdmissionStoreWithClock(t *testing.T, valueClock clock.Clock) liveAd
 		t.Fatal(err)
 	}
 	store, err := New(db, recorder, messages,
-		WithClock(valueClock), WithTables(entitlementTable, budgetTable, reservationTable))
+		WithClock(valueClock), WithTables(entitlementTable, budgetTable, reservationTable),
+		WithGovernanceTables(bundleTable, proposalTable, receiptTable))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -196,13 +211,18 @@ func TestLivePostgresAdmissionRoundTripIsAtomicAndRedacted(t *testing.T) {
 	if !replayed.Replayed || replayed.Reservation.ID.String() != decision.Reservation.ID.String() {
 		t.Fatalf("idempotent replay=%+v, original=%s", replayed, decision.Reservation.ID)
 	}
+	dispatched, err := live.service.Dispatch(context.Background(), decision.Reservation.ID,
+		decision.Reservation.Version, request.RequestDigest, request.Subject)
+	if err != nil {
+		t.Fatal(err)
+	}
 	committed, err := live.service.Commit(context.Background(), decision.Reservation.ID,
-		decision.Reservation.Version, request.RequestDigest, request.Subject,
+		dispatched.Reservation.Version, request.RequestDigest, request.Subject,
 		admission.Quota{admission.UnitRequests: 1, admission.UnitInputTokens: 90, admission.UnitOutputTokens: 40, admission.UnitCostMicros: 450})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if committed.Reservation.State != admission.ReservationCommitted || committed.Reservation.Version.Generation() != 2 {
+	if committed.Reservation.State != admission.ReservationCommitted || committed.Reservation.Version.Generation() != 3 {
 		t.Fatalf("committed reservation=%+v", committed.Reservation)
 	}
 	stored, err := live.store.Get(context.Background(), decision.Reservation.ID)
@@ -213,7 +233,7 @@ func TestLivePostgresAdmissionRoundTripIsAtomicAndRedacted(t *testing.T) {
 		t.Fatalf("stored reservation=%+v", stored)
 	}
 
-	for table, want := range map[string]int64{live.auditTable: 4, live.outboxTable: 4, live.reservationTable: 1} {
+	for table, want := range map[string]int64{live.auditTable: 5, live.outboxTable: 5, live.reservationTable: 1} {
 		var count int64
 		if err := live.db.QueryRow("SELECT count(*) FROM " + table).Scan(&count); err != nil {
 			t.Fatal(err)
@@ -341,8 +361,13 @@ func TestLivePostgresAdmissionRejectsNormalizedDocumentDrift(t *testing.T) {
 			t.Fatalf("%s accepted resource generation drift from its sealed document", table)
 		}
 	}
+	dispatched, err := live.service.Dispatch(context.Background(), decision.Reservation.ID,
+		decision.Reservation.Version, request.RequestDigest, request.Subject)
+	if err != nil {
+		t.Fatal(err)
+	}
 	committed, err := live.service.Commit(
-		context.Background(), decision.Reservation.ID, decision.Reservation.Version,
+		context.Background(), decision.Reservation.ID, dispatched.Reservation.Version,
 		request.RequestDigest, request.Subject,
 		admission.Quota{
 			admission.UnitRequests: 1, admission.UnitInputTokens: 90,

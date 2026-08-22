@@ -95,15 +95,14 @@ spec:
               value: /var/run/secrets/mindclade/mlflow/{{ .Values.auth.authConfigKey }}
             - name: MLFLOW_ARTIFACTS_DESTINATION
               value: {{ .Values.artifacts.destination | quote }}
-            - name: MLFLOW_GATEWAY_BUDGET_REDIS_URL
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.auth.existingSecret }}
-                  key: {{ .Values.auth.gatewayBudgetRedisURIKey }}
-            - name: MLFLOW_GATEWAY_BUDGET_REFRESH_INTERVAL
-              value: {{ .Values.server.gatewayBudgetRefreshIntervalSeconds | quote }}
             - name: MLFLOW_CREATE_MODEL_VERSION_SOURCE_VALIDATION_REGEX
               value: {{ .Values.artifacts.modelVersionSourceValidationRegex | quote }}
+            # The governed Rust/Go path is the sole request and budget authority. MLflow is a
+            # metadata mirror and must not send anonymous product telemetry from this estate.
+            - name: MLFLOW_DISABLE_TELEMETRY
+              value: "true"
+            - name: DO_NOT_TRACK
+              value: "true"
             - name: MLFLOW_ENABLE_WORKSPACES
               value: "true"
             - name: MLFLOW_TRACE_ARCHIVAL_CONFIG

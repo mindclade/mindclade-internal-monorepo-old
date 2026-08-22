@@ -282,10 +282,14 @@ jobs:
       - name: Strict documentation build
         run: nix develop .#ci-lint --command mkdocs build -f docs/mkdocs.yml --strict
 
-      - name: Validate repository home
-        uses: mindclade/.github/actions/validate-repository-home@f4744c44959dc699870565f630dccc6f986821da  # v4.0.0
-        with:
-          local-validator-path: tools/docs/validate_repository_home.py
+      - name: Validate canonical repository home policy
+        uses: mindclade/.github/actions/validate-repository-home@8467615f12868d4b78718b8ddf7f05797c44a507
+
+      # The monorepo validator deliberately enforces additional architecture and documentation
+      # contracts. It is not a byte mirror of the estate action and remains the offline authority
+      # for those repository-specific extensions.
+      - name: Validate monorepo repository-home extensions
+        run: nix develop .#ci-lint --command python3 tools/docs/validate_repository_home.py --root .
 
   # ---------------------------------------------------------------------------------------
   # Terraform — infra/terraform

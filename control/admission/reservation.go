@@ -17,15 +17,18 @@ import (
 type ReservationState string
 
 const (
-	ReservationReserved  ReservationState = "reserved"
-	ReservationCommitted ReservationState = "committed"
-	ReservationReleased  ReservationState = "released"
-	ReservationExpired   ReservationState = "expired"
+	ReservationReserved              ReservationState = "reserved"
+	ReservationDispatched            ReservationState = "dispatched"
+	ReservationReconciliationPending ReservationState = "reconciliation_pending"
+	ReservationCommitted             ReservationState = "committed"
+	ReservationReleased              ReservationState = "released"
+	ReservationExpired               ReservationState = "expired"
 )
 
 func (state ReservationState) Valid() bool {
 	switch state {
-	case ReservationReserved, ReservationCommitted, ReservationReleased, ReservationExpired:
+	case ReservationReserved, ReservationDispatched, ReservationReconciliationPending,
+		ReservationCommitted, ReservationReleased, ReservationExpired:
 		return true
 	default:
 		return false
@@ -52,6 +55,8 @@ type Reservation struct {
 	State              ReservationState        `json:"state"`
 	CreatedAt          time.Time               `json:"created_at"`
 	ExpiresAt          time.Time               `json:"expires_at"`
+	DispatchedAt       time.Time               `json:"dispatched_at,omitempty"`
+	ReconciliationAt   time.Time               `json:"reconciliation_pending_at,omitempty"`
 	FinalizedAt        time.Time               `json:"finalized_at,omitempty"`
 	Version            resourceversion.Version `json:"resource_version"`
 }
@@ -105,39 +110,60 @@ func (r Reservation) Validate() error {
 	if r.CreatedAt.IsZero() || !r.ExpiresAt.After(r.CreatedAt) {
 		return invalid("reservation_window_invalid", "reservation window is invalid", nil)
 	}
-	if r.State == ReservationReserved {
-		if len(r.Actual) != 0 {
-			return invalid("reservation_actual_unexpected", "reserved reservation has actual usage", nil)
+	if !r.DispatchedAt.IsZero() && (r.DispatchedAt.Before(r.CreatedAt) || !r.DispatchedAt.Before(r.ExpiresAt)) {
+		return invalid("reservation_dispatch_time_invalid", "reservation dispatch time is invalid", nil)
+	}
+	if !r.ReconciliationAt.IsZero() && (r.DispatchedAt.IsZero() || r.ReconciliationAt.Before(r.DispatchedAt)) {
+		return invalid("reservation_reconciliation_time_invalid", "reservation reconciliation time is invalid", nil)
+	}
+	switch r.State {
+	case ReservationReserved:
+		if len(r.Actual) != 0 || !r.DispatchedAt.IsZero() || !r.ReconciliationAt.IsZero() || !r.FinalizedAt.IsZero() {
+			return invalid("reservation_reserved_lifecycle_invalid", "reserved reservation has unexpected lifecycle state", nil)
 		}
-		if !r.FinalizedAt.IsZero() {
-			return invalid("reservation_finalized_at_unexpected", "reserved reservation has a finalization time", nil)
+	case ReservationDispatched:
+		if len(r.Actual) != 0 || r.DispatchedAt.IsZero() || !r.ReconciliationAt.IsZero() || !r.FinalizedAt.IsZero() {
+			return invalid("reservation_dispatched_lifecycle_invalid", "dispatched reservation has invalid lifecycle state", nil)
 		}
-	} else if r.State == ReservationCommitted {
+	case ReservationReconciliationPending:
+		if len(r.Actual) != 0 || r.DispatchedAt.IsZero() || r.ReconciliationAt.IsZero() || !r.FinalizedAt.IsZero() {
+			return invalid("reservation_reconciliation_lifecycle_invalid", "reconciliation-pending reservation has invalid lifecycle state", nil)
+		}
+	case ReservationCommitted:
 		if err := r.Actual.Validate(false); err != nil {
 			return err
 		}
-		if r.Actual[UnitRequests] != 1 || !r.Actual.Fits(r.Reserved) || r.FinalizedAt.IsZero() {
+		if r.Actual[UnitRequests] != 1 || !r.Actual.Fits(r.Reserved) || r.DispatchedAt.IsZero() || r.FinalizedAt.IsZero() ||
+			r.FinalizedAt.Before(r.DispatchedAt) || !r.ReconciliationAt.IsZero() && r.FinalizedAt.Before(r.ReconciliationAt) {
 			return invalid("reservation_actual_invalid", "committed amount is invalid", nil)
 		}
-	} else if len(r.Actual) != 0 {
-		return invalid("reservation_actual_unexpected", "non-committed reservation has actual usage", nil)
-	}
-	if r.State != ReservationReserved && r.FinalizedAt.IsZero() {
-		return invalid("reservation_finalized_at_missing", "terminal reservation lacks finalization time", nil)
-	}
-	if r.State == ReservationExpired {
+	case ReservationReleased:
+		if len(r.Actual) != 0 || !r.DispatchedAt.IsZero() || !r.ReconciliationAt.IsZero() || r.FinalizedAt.IsZero() ||
+			r.FinalizedAt.Before(r.CreatedAt) || !r.FinalizedAt.Before(r.ExpiresAt) {
+			return invalid("reservation_release_lifecycle_invalid", "released reservation has invalid lifecycle state", nil)
+		}
+	case ReservationExpired:
+		if len(r.Actual) != 0 || !r.DispatchedAt.IsZero() || !r.ReconciliationAt.IsZero() || r.FinalizedAt.IsZero() {
+			return invalid("reservation_expiration_lifecycle_invalid", "expired reservation has invalid lifecycle state", nil)
+		}
 		if r.FinalizedAt.Before(r.ExpiresAt) {
 			return invalid("reservation_expiration_time_invalid", "expired reservation was finalized before its deadline", nil)
 		}
-	} else if r.State != ReservationReserved && !r.FinalizedAt.Before(r.ExpiresAt) {
-		return invalid("reservation_finalized_after_expiry", "reservation was finalized at or after its deadline", nil)
 	}
 	if err := r.Version.Validate(); err != nil {
 		return invalid("reservation_version_invalid", "reservation version is invalid", err)
 	}
 	expectedGeneration := uint64(1)
-	if r.State != ReservationReserved {
+	switch r.State {
+	case ReservationDispatched, ReservationReleased, ReservationExpired:
 		expectedGeneration = 2
+	case ReservationReconciliationPending:
+		expectedGeneration = 3
+	case ReservationCommitted:
+		expectedGeneration = 3
+		if !r.ReconciliationAt.IsZero() {
+			expectedGeneration = 4
+		}
 	}
 	if r.Version.Generation() != expectedGeneration {
 		return invalid("reservation_version_generation_invalid", "reservation generation does not match its state", nil)
@@ -196,10 +222,51 @@ func (r Reservation) ValidateInitial(snapshot PolicySnapshot, now time.Time) err
 	return nil
 }
 
+// Dispatch durably crosses the no-charge boundary immediately before provider
+// I/O. Once dispatched, a reservation can never be released or expire without
+// charge.
+func (r Reservation) Dispatch(at time.Time) (Reservation, error) {
+	if err := r.Validate(); err != nil {
+		return Reservation{}, err
+	}
+	if r.State != ReservationReserved {
+		return Reservation{}, conflict("reservation_dispatch_invalid", "only a reserved authorization can be dispatched")
+	}
+	at = at.Round(0).UTC()
+	if at.Before(r.CreatedAt) || !at.Before(r.ExpiresAt) {
+		return Reservation{}, failedPrecondition("reservation_expired", "reservation has expired")
+	}
+	r = r.clone()
+	r.State = ReservationDispatched
+	r.DispatchedAt = at
+	return sealReservationTransition(r)
+}
+
+// MarkReconciliationPending records that a dispatched provider outcome is
+// ambiguous. A reconciler must terminally max-charge it.
+func (r Reservation) MarkReconciliationPending(at time.Time) (Reservation, error) {
+	if err := r.Validate(); err != nil {
+		return Reservation{}, err
+	}
+	if r.State != ReservationDispatched {
+		return Reservation{}, conflict("reservation_reconciliation_invalid", "only a dispatched authorization can await reconciliation")
+	}
+	at = at.Round(0).UTC()
+	if at.Before(r.DispatchedAt) {
+		return Reservation{}, invalid("reservation_reconciliation_time_invalid", "reservation reconciliation time is invalid", nil)
+	}
+	r = r.clone()
+	r.State = ReservationReconciliationPending
+	r.ReconciliationAt = at
+	return sealReservationTransition(r)
+}
+
 // Commit returns the next immutable reservation version with actual usage
-// recorded. The actual amount may be smaller than the reservation but can
-// never exceed it in any dimension.
+// recorded. Only work that crossed the durable dispatch boundary can commit.
 func (r Reservation) Commit(actual Quota, finalizedAt time.Time) (Reservation, error) {
+	if err := r.Validate(); err != nil {
+		return Reservation{}, err
+	}
 	if err := actual.Validate(false); err != nil {
 		return Reservation{}, err
 	}
@@ -209,13 +276,48 @@ func (r Reservation) Commit(actual Quota, finalizedAt time.Time) (Reservation, e
 	if actual[UnitRequests] != 1 {
 		return Reservation{}, invalid("actual_request_count_invalid", "committed gateway usage must contain exactly one request", nil)
 	}
-	return r.transition(ReservationCommitted, actual, finalizedAt)
+	if r.State != ReservationDispatched && r.State != ReservationReconciliationPending {
+		return Reservation{}, conflict("reservation_commit_without_dispatch", "only dispatched work can be committed")
+	}
+	finalizedAt = finalizedAt.Round(0).UTC()
+	minimum := r.DispatchedAt
+	if !r.ReconciliationAt.IsZero() {
+		minimum = r.ReconciliationAt
+	}
+	if finalizedAt.Before(minimum) {
+		return Reservation{}, invalid("reservation_finalized_at_invalid", "reservation finalization time is invalid", nil)
+	}
+	r = r.clone()
+	r.State = ReservationCommitted
+	r.Actual = actual.Clone()
+	r.FinalizedAt = finalizedAt
+	return sealReservationTransition(r)
+}
+
+func sealReservationTransition(reservation Reservation) (Reservation, error) {
+	updated, err := versionReservation(reservation, reservation.Version.Generation()+1)
+	if err != nil {
+		return Reservation{}, unavailable("reservation_version_unavailable", "reservation version is unavailable", err)
+	}
+	if err := updated.Validate(); err != nil {
+		return Reservation{}, err
+	}
+	return updated, nil
+}
+
+// Reconcile terminally charges the full reservation when provider execution
+// may have occurred but exact usage is unknowable.
+func (r Reservation) Reconcile(finalizedAt time.Time) (Reservation, error) {
+	if r.State != ReservationReconciliationPending {
+		return Reservation{}, conflict("reservation_reconciliation_invalid", "only reconciliation-pending work can be max-charged")
+	}
+	return r.Commit(r.Reserved, finalizedAt)
 }
 
 // Release returns the next immutable reservation version without charging
 // usage. Only a currently reserved authorization can be released.
 func (r Reservation) Release(finalizedAt time.Time) (Reservation, error) {
-	return r.transition(ReservationReleased, nil, finalizedAt)
+	return r.transitionUndispatched(ReservationReleased, finalizedAt)
 }
 
 // Expire returns the next immutable reservation version after its deadline.
@@ -224,18 +326,15 @@ func (r Reservation) Expire(finalizedAt time.Time) (Reservation, error) {
 	if finalizedAt.Before(r.ExpiresAt) {
 		return Reservation{}, failedPrecondition("reservation_not_expired", "reservation has not expired")
 	}
-	return r.transition(ReservationExpired, nil, finalizedAt)
+	return r.transitionUndispatched(ReservationExpired, finalizedAt)
 }
 
-func (r Reservation) transition(state ReservationState, actual Quota, finalizedAt time.Time) (Reservation, error) {
+func (r Reservation) transitionUndispatched(state ReservationState, finalizedAt time.Time) (Reservation, error) {
 	if err := r.Validate(); err != nil {
 		return Reservation{}, err
 	}
-	if r.State == ReservationExpired {
-		return Reservation{}, failedPrecondition("reservation_expired", "reservation has expired")
-	}
 	if r.State != ReservationReserved {
-		return Reservation{}, conflict("reservation_terminal", "reservation is already terminal")
+		return Reservation{}, conflict("reservation_already_dispatched", "only an undispatched reservation can be released or expired")
 	}
 	if finalizedAt.IsZero() || finalizedAt.Before(r.CreatedAt) {
 		return Reservation{}, invalid("reservation_finalized_at_invalid", "reservation finalization time is invalid", nil)
@@ -249,7 +348,6 @@ func (r Reservation) transition(state ReservationState, actual Quota, finalizedA
 	}
 	r = r.clone()
 	r.State = state
-	r.Actual = actual.Clone()
 	r.FinalizedAt = finalizedAt.Round(0).UTC()
 	updated, err := versionReservation(r, r.Version.Generation()+1)
 	if err != nil {
@@ -270,6 +368,7 @@ func reservationDigest(r Reservation) identifiers.Digest {
 		r.Reserved.canonical(), strconv.FormatInt(int64(r.RequestedTTL), 10),
 		r.Actual.canonical(), string(r.State),
 		r.CreatedAt.UTC().Format(time.RFC3339Nano), r.ExpiresAt.UTC().Format(time.RFC3339Nano),
+		r.DispatchedAt.UTC().Format(time.RFC3339Nano), r.ReconciliationAt.UTC().Format(time.RFC3339Nano),
 		r.FinalizedAt.UTC().Format(time.RFC3339Nano),
 	))
 }

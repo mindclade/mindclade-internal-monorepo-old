@@ -1,0 +1,162 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+---
+# Non-secret transport defaults. Activation overlays must replace the Secure
+# Web Proxy address and provide the externally reconciled policy and Secret
+# objects named below. The process independently resolves every endpoint from
+# the Go control plane, so a stale local snapshot fails closed.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-gateway-runtime-config
+  namespace: ai
+  labels:
+    app.kubernetes.io/name: ai-gateway-proxy
+immutable: true
+data:
+  MINDCLADE_AI_GATEWAY_LISTEN_ADDRESS: 0.0.0.0:8080
+  MINDCLADE_AI_GATEWAY_CONTROL_URL: http://control-plane-api.mindclade-system.svc.cluster.local:8080
+  MINDCLADE_AI_GATEWAY_ALLOW_INSECURE_CONTROL_HTTP: "true"
+  MINDCLADE_AI_GATEWAY_GOOGLE_JWKS_URL: https://www.googleapis.com/oauth2/v3/certs
+  MINDCLADE_AI_GATEWAY_EGRESS_PROXY_URL: https://10.0.0.10:443
+  MINDCLADE_AI_GATEWAY_EGRESS_CA_BUNDLE_PATH: /var/run/secrets/mindclade/egress-ca/ca.crt
+  MINDCLADE_AI_GATEWAY_MAXIMUM_BODY_BYTES: "16777216"
+  MINDCLADE_AI_GATEWAY_MAXIMUM_RESPONSE_BYTES: "67108864"
+  MINDCLADE_AI_GATEWAY_MAXIMUM_CONCURRENCY: "256"
+  MINDCLADE_AI_GATEWAY_PROVIDER_TIMEOUT_SECONDS: "120"
+  MINDCLADE_AI_GATEWAY_CONTROL_TIMEOUT_SECONDS: "5"
+  MINDCLADE_AI_GATEWAY_RESERVATION_TTL_SECONDS: "300"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-gateway-proxy
+  namespace: ai
+  labels:
+    app.kubernetes.io/name: ai-gateway-proxy
+    app.kubernetes.io/component: governed-provider-edge
+    app.kubernetes.io/part-of: mindclade-platform
+  annotations:
+    mindclade.dev/deployment-status: disabled
+    mindclade.dev/activation-blocker: >-
+      two-person-policy-release-provider-secret-secure-web-proxy-mtls-image-and-slo-evidence-missing
+spec:
+  replicas: 0
+  revisionHistoryLimit: 5
+  minReadySeconds: 10
+  progressDeadlineSeconds: 600
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ai-gateway-proxy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ai-gateway-proxy
+        app.kubernetes.io/component: governed-provider-edge
+        app.kubernetes.io/part-of: mindclade-platform
+        networking.mindclade.dev/control-plane-api-client: "true"
+        observability.mindclade.dev/service: ai-gateway-proxy
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      serviceAccountName: ai-gateway-proxy
+      terminationGracePeriodSeconds: 45
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: proxy
+          image: registry.invalid/mindclade/ai-gateway-proxy@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: ai-gateway-runtime-config
+          env:
+            - name: MINDCLADE_AI_GATEWAY_CLIENT_AUDIENCE
+              valueFrom:
+                configMapKeyRef:
+                  name: ai-gateway-identity-policy
+                  key: client-audience
+            - name: MINDCLADE_AI_GATEWAY_ENDPOINTS
+              valueFrom:
+                configMapKeyRef:
+                  name: ai-gateway-approved-policy
+                  key: endpoints-json
+            - name: MINDCLADE_AI_GATEWAY_CONTROL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: ai-gateway-runtime
+                  key: control-token
+            - name: MINDCLADE_PROVIDER_OPENAI_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: ai-gateway-runtime
+                  key: openai-token
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+          resources:
+            requests:
+              cpu: 250m
+              ephemeral-storage: 128Mi
+              memory: 256Mi
+            limits:
+              cpu: "2"
+              ephemeral-storage: 1Gi
+              memory: 1Gi
+          startupProbe:
+            httpGet: { path: /livez, port: http, scheme: HTTP }
+            periodSeconds: 2
+            failureThreshold: 30
+            timeoutSeconds: 1
+          livenessProbe:
+            httpGet: { path: /livez, port: http, scheme: HTTP }
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 2
+          readinessProbe:
+            httpGet: { path: /readyz, port: http, scheme: HTTP }
+            periodSeconds: 5
+            failureThreshold: 2
+            timeoutSeconds: 2
+          volumeMounts:
+            - name: egress-ca
+              mountPath: /var/run/secrets/mindclade/egress-ca
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: egress-ca
+          configMap:
+            name: ai-gateway-egress-trust
+            defaultMode: 0444
+            items:
+              - key: ca.crt
+                path: ca.crt
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: ai-gateway-proxy

@@ -39,12 +39,12 @@ when MLflow stores only digest identity.
 
 Production server requirements are encoded under `infra/kubernetes/platform/mlflow/`:
 
-- build the hash-locked Mindclade wrapper image with MLflow auth/GenAI, PostgreSQL, GCS, and Redis
-  support;
+- build the hash-locked Mindclade wrapper image with MLflow auth/GenAI, PostgreSQL, GCS, and
+  upstream Redis-client compatibility;
 - use durable PostgreSQL and proxied GCS artifacts so clients do not hold bucket credentials;
 - use basic-auth workspaces with `default_permission = NO_PERMISSIONS`,
   `grant_default_workspace_access = false`, and explicit narrow roles;
-- use bounded GCS trace archival and Redis-backed Gateway budgets across workers and replicas;
+- use bounded GCS trace archival while keeping native Gateway serving and usage tracking disabled;
 - configure explicit hosts/CORS, TLS identity ingress, restricted pods, exact network flows,
   migration ordering, probes, PDB/HPA/topology, metrics, alerts, and backups;
 - test schema upgrade, credential rotation, cross-workspace denial, dependency failover, restore,
@@ -65,8 +65,8 @@ The Go control plane now implements the authoritative pre-call reservation proto
 `POST /v1/ai-gateway/reservations` plus exact-version commit and release procedures. Reservations
 bind authenticated subject, workspace, exact provider/model route, policy epoch, content digest,
 integer token/request/cost ceilings, and an expiry window. PostgreSQL mutation, audit, and outbox
-publication are one serializable transaction; MLflow's Redis budget remains a secondary local
-guard, not accounting truth.
+publication are one serializable transaction. MLflow's native Gateway budget and usage-tracking
+paths are not enabled; there is one accounting authority, not two eventually consistent ledgers.
 
 The connected PostgreSQL qualification proves atomic audit/outbox writes, idempotent replay,
 64-way concurrent pressure without budget overspend, and capacity recovery after materialized
@@ -76,9 +76,9 @@ and bounded terminal-record retention. Protected connected execution, leadership
 multi-replica failover, and long-running retention remain activation evidence, not source-proven
 facts.
 
-This protocol is not yet a bypass-proof data path: no qualified Gateway proxy currently forces
-every provider call through reservation and finalization. Direct MLflow client ingress must
-therefore remain disabled in an activation bundle until policy administration, the proxy and
+The governed Rust proxy forces each supported provider call through policy resolution,
+reservation, durable dispatch, and terminalization. Direct MLflow Gateway client ingress must
+remain disabled in an activation bundle until policy administration, the proxy and
 NetworkPolicy edge, proxy/provider failure reconciliation, multi-replica failover, and SLO/runbook
 evidence are complete.
 

@@ -20,6 +20,7 @@ import (
 	idempotencypostgres "go.mindclade.dev/libs/go/idempotency/postgres"
 	"go.mindclade.dev/services/control_plane/internal/bootstrap"
 	"go.mindclade.dev/services/control_plane/internal/providers"
+	admissionstore "go.mindclade.dev/services/control_plane/internal/store/postgres/admission"
 )
 
 const testAPIKey = "registry-client-secret-value"
@@ -112,14 +113,14 @@ func TestMigrationRunnerCarriesEveryAdapterSchema(t *testing.T) {
 	}
 }
 
-func TestMigrationManifestPreservesWorkQueueV5AndAppendsObservabilityV14(t *testing.T) {
+func TestMigrationManifestPreservesReleasedBytesAndAppendsGatewayLifecycle(t *testing.T) {
 	manifest, err := newMigrationManifest()
 	if err != nil {
 		t.Fatal(err)
 	}
 	migrations := manifest.Migrations()
-	if len(migrations) != int(migrationGatewayAdmissionObservability) {
-		t.Fatalf("migration count = %d, want %d", len(migrations), migrationGatewayAdmissionObservability)
+	if len(migrations) != int(migrationGatewayDispatchLifecycle) {
+		t.Fatalf("migration count = %d, want %d", len(migrations), migrationGatewayDispatchLifecycle)
 	}
 	for index, migration := range migrations {
 		if migration.Version != uint64(index+1) {
@@ -164,6 +165,22 @@ func TestMigrationManifestPreservesWorkQueueV5AndAppendsObservabilityV14(t *test
 		!strings.Contains(observability.Up, "WHERE state='completed'") ||
 		!strings.Contains(observability.Up, "headers->>'audit-event-id'") {
 		t.Fatalf("gateway admission observability v14 = %+v", observability)
+	}
+	governance := migrations[migrationGatewayPolicyGovernance-1]
+	if governance.Name != "gateway_policy_governance" ||
+		!strings.Contains(governance.Up, admissionstore.DefaultBundleTable) ||
+		!strings.Contains(governance.Up, admissionstore.DefaultProposalTable) ||
+		!strings.Contains(governance.Up, admissionstore.DefaultReceiptTable) ||
+		!strings.Contains(governance.Up, "base_resource_version") ||
+		!strings.Contains(governance.Up, "bundle_resource_version") {
+		t.Fatalf("gateway policy governance v15 = %+v", governance)
+	}
+	lifecycle := migrations[migrationGatewayDispatchLifecycle-1]
+	if lifecycle.Name != "gateway_dispatch_lifecycle" ||
+		!strings.Contains(lifecycle.Up, "reconciliation_pending") ||
+		!strings.Contains(lifecycle.Up, "lifecycle_finalization_check") ||
+		!strings.Contains(lifecycle.Up, "lifecycle_usage_check") {
+		t.Fatalf("gateway dispatch lifecycle v16 = %+v", lifecycle)
 	}
 }
 
