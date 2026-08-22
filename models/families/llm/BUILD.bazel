@@ -3,13 +3,53 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_python//python:defs.bzl", "py_library")
+
 package(default_visibility = ["//visibility:private"])
+
+py_library(
+    name = "llm",
+    srcs = [
+        "__init__.py",
+        "attention.py",
+        "config.py",
+        "embeddings.py",
+        "feed_forward.py",
+        "initialization.py",
+        "layer.py",
+        "model.py",
+        "outputs.py",
+    ],
+    imports = ["../../.."],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//models/components/attention",
+        "//models/components/nn",
+        "//models/components/normalization",
+        "@pypi//torch",
+    ],
+)
+
+py_library(
+    name = "tiny_reference",
+    srcs = ["reference/tiny.py"],
+    imports = ["../../.."],
+    visibility = ["//visibility:public"],
+    deps = [":llm"],
+)
 
 filegroup(
     name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
+    srcs = [
+        "cache.py",
+        "checkpoint.py",
+        "compile_plan.py",
+        "generation.py",
+        "presets.py",
+        "reference/tiny.toml",
+        "reward_head.py",
+        "rotary.py",
+        "value_head.py",
+    ],
     visibility = ["//visibility:public"],
 )

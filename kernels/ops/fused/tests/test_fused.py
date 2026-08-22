@@ -21,6 +21,17 @@ def test_swiglu_matches_decomposed_equation_and_preserves_dtype() -> None:
     torch.testing.assert_close(actual, expected, rtol=0, atol=0)
 
 
+def test_swiglu_preserves_float64_reference_precision() -> None:
+    gate = torch.tensor([1.0e-12, -17.25, 19.75], dtype=torch.float64)
+    up = torch.tensor([1.0e12, 0.125, -0.25], dtype=torch.float64)
+
+    actual = swiglu_reference(gate, up)
+    expected = torch.nn.functional.silu(gate) * up
+
+    assert actual.dtype is torch.float64
+    torch.testing.assert_close(actual, expected, rtol=1e-14, atol=1e-14)
+
+
 @pytest.mark.parametrize("orientation", ["incoming", "outgoing"])
 def test_triangle_multiplication_matches_loop_reference_and_masks_padding(
     orientation: Literal["incoming", "outgoing"],

@@ -3,4 +3,4 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Mindclade scaffold package for models/components/nn/tests."""
+"""Tests for reusable neural-network primitives."""

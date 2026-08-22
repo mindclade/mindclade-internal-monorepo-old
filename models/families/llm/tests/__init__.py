@@ -3,4 +3,4 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Mindclade scaffold package for models/families/llm/tests."""
+"""Tests for the bounded decoder-only language-model reference."""
