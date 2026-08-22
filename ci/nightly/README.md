@@ -1,35 +1,34 @@
-# Ci / Nightly
+# CI / CPU Nightly
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** CI configuration and Bazel target selection
+- **Status:** Implemented; scheduled connected evidence remains pending.
+- **Owner:** Release Engineering
+- **SLO:** [`../../docs/slo/ci-bazel-validation.md`](../../docs/slo/ci-bazel-validation.md)
+- **Runbook:** [`../../docs/runbooks/ci-bazel-validation.md`](../../docs/runbooks/ci-bazel-validation.md)
 
-## Purpose
+## Responsibility
 
-CI entry points that select repository-owned Bazel qualification targets. Workflow files coordinate execution but do not duplicate build, test, or release logic. This path specializes that domain for **nightly**.
+The CPU nightly lane runs complete configured analysis and every non-manual
+Bazel test on the default branch. Its committed `targets.yaml` contract is
+fail-closed to `//...` for both phases. The workflow is scheduled daily at
+05:17 UTC and also supports manual dispatch.
 
-## Boundary
+The lane uses the same evidence-producing execution implementation as
+presubmit. Workflow YAML owns only scheduling, least-privilege permissions,
+pinned tool setup, the 90-minute ceiling, and artifact retention.
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+## Failure behavior
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+Loading, toolchain resolution, analysis, testing, evidence normalization, and
+contract parsing are blocking. Tests do not run after failed configured
+analysis. The 35-day evidence window covers the 28-day affected-presubmit
+latency burn-in.
 
-## Materialization requirements
+This is CPU repository qualification only. It does not claim GPU, remote
+execution, connected providers, release publication, or deployment readiness.
 
-Before this scaffold boundary is treated as implemented, add:
+## Retry and rollback
 
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+Retry once only when the runbook establishes a transient external-repository
+or hosted-runner failure. Repeated failure is repository or dependency drift
+and remains red. Roll back the workflow and pipeline together to the last
+qualified revision; never replace full mode with an empty or manual target.

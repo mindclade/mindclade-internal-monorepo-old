@@ -6,9 +6,8 @@
 # The PR gate for the monorepo.
 #
 # Named `presubmit` to match docs/blueprint/production-monorepo-paths.txt, which reserves
-# .github/workflows/{presubmit,gpu,nightly,release,security}.yml. The lanes here are the three
-# that run on ordinary hardware; gpu/nightly/release remain unmaterialized because they need
-# self-hosted runners and a release process that do not exist yet.
+# .github/workflows/{presubmit,gpu,nightly,release,security}.yml. GPU remains separately gated
+# on qualified hardware; the CPU nightly lane is materialized in nightly.yml.
 #
 # JOB IDS ARE LOAD-BEARING. github-config already declares "ci / build" and "architecture";
 # lint and terraform are staged to join them after their exact contexts are observed on a PR.
@@ -44,10 +43,8 @@ jobs:
   # tools/analysis/check_affected_presubmit.py asserts this job exists and that the checkout is
   # unshallow, because ci/presubmit/pipeline.py derives the affected target set from git history.
   #
-  # `--static-only` stops after the architecture checks. The full path additionally runs Rust
-  # qualification and `bazelw test` over the affected targets, which needs a Bazel toolchain this
-  # workflow does not provision yet. Named here rather than left implicit: the affected-target
-  # lane is the missing half, not something this file pretends to cover.
+  # `--static-only` stops after the architecture checks. The Bazel job invokes the same pipeline's
+  # evidence-producing affected path inside the pinned Bazel/Nix environment.
   architecture:
     name: architecture
     runs-on: ubuntu-24.04
@@ -391,7 +388,9 @@ jobs:
   # repository wrapper owns only launcher selection/root normalization. CI's lockfile_mode=error
   # makes committed Bzlmod extension state immutable during every configured phase.
   bazel:
-    name: bazel graph, analysis, and tests
+    # Governance requires this exact stable context. Do not rename it without an evaluate-mode
+    # ruleset migration and connected pull-request plus merge-group evidence.
+    name: bazel / verdict
     runs-on: ubuntu-24.04
     # A cold hosted runner compiles the complete C++/protobuf tool graph before running tests.
     # Exact-head qualification reaches hundreds of tests and can spend most of a cold run
@@ -400,8 +399,14 @@ jobs:
     # that drifts every time a test target is added.
     timeout-minutes: 75
     steps:
+      - name: Record Bazel verdict start
+        run: date +%s > "${RUNNER_TEMP}/bazel-job-started"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
+          # Affected mode validates and diffs the exact pull-request base. Missing history is a
+          # hard selector error, never an empty target set.
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Prepare GitHub-hosted runner disk for Nix
@@ -445,6 +450,11 @@ jobs:
           tools/dev/bazelw query '//...' --config=ci --output=label
           > /dev/null
 
+      - name: Prove affected selection against the real Bazel graph
+        run: >-
+          nix develop .#ci-bazel --command
+          python3 ci/common/validate_affected_integration.py
+
       - name: Enforce Bazel dependency layers
         run: nix develop .#ci-bazel --command python3 tools/analysis/check_bazel_layers.py
 
@@ -455,52 +465,28 @@ jobs:
             //tools/build/bazel/toolchains/cc:smoke_test --config=ci
           nix develop .#ci-bazel --command python3 tools/analysis/verify_cc_toolchain_selection.py
 
-      - name: Analyze the complete configured graph
+      - name: Run affected or protected full-graph Bazel validation
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           evidence="${RUNNER_TEMP}/bazel-evidence"
-          mkdir -p "${evidence}"
-          # setup-bazel exports a short-lived download token for its fallback launcher. Bazel
-          # records every client env value in raw BEP metadata, so the token must leave the
-          # environment before either evidence-producing invocation.
-          unset BAZELISK_GITHUB_TOKEN
-          set +e
-          nix develop .#ci-bazel --command tools/dev/bazelw build //... --nobuild --config=ci \
-            --build_event_json_file="${evidence}/analysis.bep.json" \
-            --profile="${evidence}/analysis.profile.json.gz"
-          status=$?
-          set -e
-          if [[ -s "${evidence}/analysis.bep.json" ]]; then
-            nix develop .#ci-bazel --command python3 tools/analysis/summarize_bazel_bep.py \
-              --bep "${evidence}/analysis.bep.json" \
-              --label "full configured analysis" \
-              --json-output "${evidence}/analysis.summary.json" \
-              --markdown-output "${evidence}/analysis.summary.md"
-            gzip -9 "${evidence}/analysis.bep.json"
-            cat "${evidence}/analysis.summary.md" >> "${GITHUB_STEP_SUMMARY}"
+          mode="full"
+          base_args=()
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            if [[ -z "${PR_BASE_SHA}" ]]; then
+              echo "pull_request event is missing github.event.pull_request.base.sha" >&2
+              exit 2
+            fi
+            mode="affected"
+            base_args=(--base "${PR_BASE_SHA}")
           fi
-          exit "${status}"
-
-      - name: Run every non-manual Bazel test
-        run: |
-          evidence="${RUNNER_TEMP}/bazel-evidence"
-          mkdir -p "${evidence}"
-          unset BAZELISK_GITHUB_TOKEN
-          set +e
-          nix develop .#ci-bazel --command tools/dev/bazelw test //... --config=ci \
-            --build_event_json_file="${evidence}/test.bep.json" \
-            --profile="${evidence}/test.profile.json.gz"
-          status=$?
-          set -e
-          if [[ -s "${evidence}/test.bep.json" ]]; then
-            nix develop .#ci-bazel --command python3 tools/analysis/summarize_bazel_bep.py \
-              --bep "${evidence}/test.bep.json" \
-              --label "full test" \
-              --json-output "${evidence}/test.summary.json" \
-              --markdown-output "${evidence}/test.summary.md"
-            gzip -9 "${evidence}/test.bep.json"
-            cat "${evidence}/test.summary.md" >> "${GITHUB_STEP_SUMMARY}"
-          fi
-          exit "${status}"
+          nix develop .#ci-bazel --command python3 ci/presubmit/pipeline.py \
+            --bazel-only \
+            --mode "${mode}" \
+            "${base_args[@]}" \
+            --event "${GITHUB_EVENT_NAME}" \
+            --evidence-dir "${evidence}" \
+            --job-started-at-file "${RUNNER_TEMP}/bazel-job-started"
 
       - name: Upload Bazel performance evidence
         if: always()
@@ -509,7 +495,7 @@ jobs:
           name: bazel-performance-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/bazel-evidence/*
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 35
 
   # Stable, always-reported infrastructure context. Do not add path filters or rename the job:
   # branch protection can require `infra-static` without creating a check that disappears on

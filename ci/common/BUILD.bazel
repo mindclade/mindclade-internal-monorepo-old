@@ -1,15 +1,41 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
+
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
+load("//tools/build:pytest.bzl", "pytest_test")
 
 package(default_visibility = ["//visibility:private"])
 
-filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
+py_library(
+    name = "affected",
+    srcs = ["affected.py"],
+    imports = ["../.."],
+    visibility = [
+        "//ci/nightly:__pkg__",
+        "//ci/presubmit:__pkg__",
+    ],
+)
+
+py_binary(
+    name = "affected_cli",
+    srcs = ["affected.py"],
+    imports = ["../.."],
+    main = "affected.py",
     visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "validate_affected_integration",
+    srcs = ["validate_affected_integration.py"],
+    deps = [":affected"],
+    imports = ["../.."],
+    visibility = ["//visibility:public"],
+)
+
+pytest_test(
+    name = "affected_test",
+    srcs = ["tests/test_affected.py"],
+    deps = [":affected"],
+    imports = ["../.."],
 )

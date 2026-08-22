@@ -2,10 +2,9 @@
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 
----
-{
-  "schema_version": 1,
-  "mode": "full",
-  "analysis_targets": ["//..."],
-  "test_targets": ["//..."]
-}
+package(default_visibility = ["//visibility:public"])
+
+filegroup(
+    name = "base",
+    srcs = ["input.txt"],
+)

@@ -1,11 +1,7 @@
+#!/usr/bin/env bash
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 
----
-{
-  "schema_version": 1,
-  "mode": "full",
-  "analysis_targets": ["//..."],
-  "test_targets": ["//..."]
-}
+set -euo pipefail
+test -n "${TEST_SRCDIR:-}"
