@@ -2,6 +2,7 @@
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 
+# yamllint disable rule:document-start
 {
   "schema_version": 1,
   "targets": [
