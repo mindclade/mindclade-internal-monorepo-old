@@ -11,6 +11,7 @@ import unittest
 from pathlib import Path
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "release_request.py"
+SCHEMA_PATH = Path(__file__).resolve().parents[1] / "release-request.schema.json"
 SPEC = importlib.util.spec_from_file_location("release_request", MODULE_PATH)
 assert SPEC and SPEC.loader
 release_request = importlib.util.module_from_spec(SPEC)
@@ -175,8 +176,12 @@ spec:
         evidence.mkdir()
         sbom = evidence / "sbom.spdx.json"
         provenance = evidence / "provenance.json"
+        vulnerability = evidence / "vulnerability.json"
+        rollback = evidence / "rollback.json"
         sbom.write_text("{}\n", encoding="utf-8")
         provenance.write_text("{}\n", encoding="utf-8")
+        vulnerability.write_text("{}\n", encoding="utf-8")
+        rollback.write_text("{}\n", encoding="utf-8")
         candidate = evidence / "candidate.json"
         image_digest = "sha256:" + "2" * 64
         candidate.write_text(
