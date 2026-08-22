@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("//tools/build/bazel:terraform_test.bzl", "terraform_test")
+
 package(default_visibility = ["//visibility:private"])
 
 filegroup(
@@ -12,4 +14,21 @@ filegroup(
         exclude = ["BUILD.bazel"],
     ),
     visibility = ["//visibility:public"],
+)
+
+terraform_test(
+    name = "terraform_test",
+    srcs = ["tests/bazel_test.sh"],
+    data = [
+        ":scaffold_files",
+        "@mindclade_infra_validation_tools//:bin/.tool-root",
+        "@mindclade_infra_validation_tools//:tools",
+        "@mindclade_terraform_google_provider//:provider",
+        "@mindclade_terraform_google_provider//:provider_root",
+    ],
+    env = {
+        "MINDCLADE_VALIDATION_TOOL_MARKER_RLOCATION": "$(rlocationpath @mindclade_infra_validation_tools//:bin/.tool-root)",
+        "MINDCLADE_TERRAFORM_GOOGLE_PROVIDER_MARKER_RLOCATION": "$(rlocationpath @mindclade_terraform_google_provider//:provider_root)",
+    },
+    tags = ["terraform"],
 )

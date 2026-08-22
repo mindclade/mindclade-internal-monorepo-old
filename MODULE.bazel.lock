@@ -278,12 +278,16 @@
   "moduleExtensions": {
     "//tools/build/bazel/extensions:infra_validation.bzl%infra_validation": {
       "general": {
-        "bzlTransitiveDigest": "fzK1MxFkl3XNwAQbMlFRXFvezgAPcQCeqLXMUD4hg54=",
+        "bzlTransitiveDigest": "4k9CYAskYG+9Onq+9NnRObHau2bZa26osyoNtSEbN+0=",
         "usagesDigest": "hDI9cgLqA5wD/5TR1JKFRj/Ad4bCyYKDEUeQyJERkpM=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
           "mindclade_infra_validation_tools": {
             "repoRuleId": "@@//tools/build/bazel/extensions:infra_validation.bzl%_validation_tools_repository",
+            "attributes": {}
+          },
+          "mindclade_terraform_google_provider": {
+            "repoRuleId": "@@//tools/build/bazel/extensions:infra_validation.bzl%_terraform_google_provider_repository",
             "attributes": {}
           },
           "mindclade_kubernetes_schemas": {

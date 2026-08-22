@@ -24,7 +24,7 @@ record map prevents two Terraform states from claiming the same owner name.
 | Input | Purpose |
 |---|---|
 | `project_id` | Project holding every zone. Created elsewhere. |
-| `zones` | Map of zone key → `{ dns_name, visibility, dnssec, networks, records }` |
+| `zones` | Map of zone key → `{ dns_name, visibility, dnssec, networks, public_record_allowlist, records }` |
 | `attached_networks` | Default network self-links for private zones |
 | `inbound_forwarding` | `{ enabled, name, networks }` — the VPN resolution path |
 | `enable_logging` | Query logging, public zones only |
@@ -52,10 +52,12 @@ would win silently.
 
 ## Three guards worth knowing about before you trip one
 
-**A public zone may carry only TXT, CAA, MX, or NS.** Every application hostname in this
-estate resolves privately and has no public address record; an `A` on a public zone would undo
-that in one apply, and nothing else would report it. The validation is the control — the DNS
-posture in the design document is otherwise one `terraform apply` from being convention.
+**Public A, AAAA, and CNAME records require an exact exception.** TXT, CAA, MX, child NS, and
+provider-owned SOA remain accepted by default. A reviewed public address exception must put the
+exact `records` map key in `public_record_allowlist`; allowing one key never permits another.
+The module rejects wildcard owners, stale keys, non-address keys, and allowlists on private
+zones. Certificate Manager authorization CNAMEs remain owned by the certificate module rather
+than this static exception mechanism.
 
 **A private zone attached to no network is rejected.** Cloud DNS accepts it happily and then
 resolves nothing, with no error anywhere. The precondition turns a silent misconfiguration
@@ -103,7 +105,7 @@ presents as a workload bug and is not one.
 | <a name="input_labels"></a> [labels](#input\_labels) | Labels applied to every zone, merged over the module's own baseline. | `map(string)` | `{}` | no |
 | <a name="input_owner"></a> [owner](#input\_owner) | Team accountable for these zones. Applied as a label so an unexpected zone has someone to ask. | `string` | `"platform"` | no |
 | <a name="input_project_id"></a> [project\_id](#input\_project\_id) | Project holding every zone and policy this module creates. Created elsewhere; this module never creates a project. | `string` | n/a | yes |
-| <a name="input_zones"></a> [zones](#input\_zones) | Managed zones, keyed by a short name that becomes the Cloud DNS zone name.<br/><br/>`records` is keyed by the owner name RELATIVE to the zone — "api" under<br/>"mindclade.ai." becomes "api.mindclade.ai.". Use "" or "@" for the apex. Passing an<br/>already-qualified name is rejected rather than silently producing<br/>"api.mindclade.ai.mindclade.ai.", which resolves nowhere and looks like a propagation<br/>delay.<br/><br/>`dnssec` defaults per visibility: on for public, off for private. DNSSEC on a private zone<br/>signs against a resolver that was never untrusted, and costs a key that has to be rotated. | <pre>map(object({<br/>    dns_name = string<br/><br/>    # Falls back to a generated string. Not defaulted to "" — Cloud DNS rejects an empty<br/>    # description, and the error names the field without naming the zone.<br/>    description = optional(string)<br/><br/>    visibility = optional(string, "private")<br/>    dnssec     = optional(bool)<br/><br/>    # Overrides var.attached_networks for this zone only. Ignored on public zones.<br/>    networks = optional(list(string))<br/><br/>    # Keyed by an identifier that DEFAULTS to the relative owner name. Set<br/>    # `name` explicitly when one owner carries more than one type -- an apex<br/>    # holding CAA, MX, and SPF needs three entries that resolve to the same<br/>    # name, and a map cannot hold three "@" keys. Cloud DNS keys record sets by<br/>    # name AND type, so these are three distinct sets rather than a collision.<br/>    records = optional(map(object({<br/>      name    = optional(string)<br/>      type    = string<br/>      ttl     = optional(number, 300)<br/>      rrdatas = list(string)<br/>    })), {})<br/>  }))</pre> | n/a | yes |
+| <a name="input_zones"></a> [zones](#input\_zones) | Managed zones, keyed by a short name that becomes the Cloud DNS zone name.<br/><br/>`records` is keyed by the owner name RELATIVE to the zone — "api" under<br/>"mindclade.ai." becomes "api.mindclade.ai.". Use "" or "@" for the apex. Passing an<br/>already-qualified name is rejected rather than silently producing<br/>"api.mindclade.ai.mindclade.ai.", which resolves nowhere and looks like a propagation<br/>delay.<br/><br/>`dnssec` defaults per visibility: on for public, off for private. DNSSEC on a private zone<br/>signs against a resolver that was never untrusted, and costs a key that has to be rotated. | <pre>map(object({<br/>    dns_name = string<br/><br/>    # Falls back to a generated string. Not defaulted to "" — Cloud DNS rejects an empty<br/>    # description, and the error names the field without naming the zone.<br/>    description = optional(string)<br/><br/>    visibility = optional(string, "private")<br/>    dnssec     = optional(bool)<br/><br/>    # Overrides var.attached_networks for this zone only. Ignored on public zones.<br/>    networks = optional(list(string))<br/><br/>    # Exact records-map keys for reviewed public A, AAAA, or CNAME exceptions.<br/>    public_record_allowlist = optional(set(string), [])<br/><br/>    # Keyed by an identifier that DEFAULTS to the relative owner name. Set<br/>    # `name` explicitly when one owner carries more than one type -- an apex<br/>    # holding CAA, MX, and SPF needs three entries that resolve to the same<br/>    # name, and a map cannot hold three "@" keys. Cloud DNS keys record sets by<br/>    # name AND type, so these are three distinct sets rather than a collision.<br/>    records = optional(map(object({<br/>      name    = optional(string)<br/>      type    = string<br/>      ttl     = optional(number, 300)<br/>      rrdatas = list(string)<br/>    })), {})<br/>  }))</pre> | n/a | yes |
 
 ## Outputs
 
