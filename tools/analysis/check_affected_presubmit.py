@@ -117,27 +117,46 @@ def check(root: Path) -> list[str]:
         for contract in (
             'cron: "17 5 * * *"',
             "workflow_dispatch:",
-            "permissions:",
-            "actions: read",
-            "contents: read",
             "timeout-minutes: 90",
             "ci/nightly/pipeline.py",
             "retention-days: 35",
         ):
             source = (
                 nightly
-                if contract
-                in {
-                    'cron: "17 5 * * *"',
-                    "workflow_dispatch:",
-                    "permissions:",
-                    "actions: read",
-                    "contents: read",
-                }
+                if contract in {'cron: "17 5 * * *"', "workflow_dispatch:"}
                 else nightly_job or nightly
             )
             if contract not in source:
                 errors.append(f"CPU nightly workflow missing {contract}")
+
+        # The permission set is matched as ONE anchored block, not as three independent
+        # substrings. Spelled as `"permissions:" in nightly and "actions: read" in nightly and
+        # "contents: read" in nightly`, each test is satisfiable anywhere in the file, so
+        #
+        #     permissions:
+        #       contents: write
+        #       id-token: write
+        #       actions: read
+        #     ...
+        #       permissions:
+        #         contents: read
+        #
+        # passes unchanged. That is the opposite of what this contract is for: the nightly reads
+        # the repository and lists workflow runs, and nothing about it should be able to acquire
+        # a write scope without this check going red.
+        #
+        # Anchored at column zero so a job-level block cannot satisfy the workflow-level
+        # requirement, and terminated by a non-indented line or end of file so a fourth entry is
+        # a mismatch rather than trailing context.
+        expected_permissions = "permissions:\n  actions: read\n  contents: read\n"
+        declared = re.search(r"(?m)^permissions:\n(?:[ \t]+.*\n)*", nightly)
+        if declared is None:
+            errors.append("CPU nightly workflow must declare workflow-level permissions")
+        elif declared.group(0) != expected_permissions:
+            errors.append(
+                "CPU nightly workflow permissions must be exactly "
+                "actions: read and contents: read, got: " + " ".join(declared.group(0).split())
+            )
     return errors
 
 
