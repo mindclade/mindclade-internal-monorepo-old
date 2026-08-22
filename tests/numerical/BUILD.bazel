@@ -22,6 +22,19 @@ pytest_test(
     ],
 )
 
+pytest_test(
+    name = "test_tilelang_parity",
+    srcs = ["test_tilelang_parity.py"],
+    imports = ["../.."],
+    deps = [
+        "//kernels:kernel_core",
+        "//kernels/api",
+        "//kernels/qualification",
+        "//kernels/tilelang/testing",
+        "@pypi//torch",
+    ],
+)
+
 filegroup(
     name = "scaffold_files",
     srcs = glob(

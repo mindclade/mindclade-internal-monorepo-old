@@ -7,13 +7,14 @@
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Callable
 from dataclasses import dataclass
 from threading import RLock
 from typing import Any
 
 from kernels.api.capabilities import DeviceCapabilities
-from kernels.api.specs import ImplementationIdentity, KernelRequest, Provider
+from kernels.api.specs import ExecutionMode, ImplementationIdentity, KernelRequest, Provider
 
 Eligibility = Callable[[KernelRequest, DeviceCapabilities], str | None]
 KernelCallable = Callable[..., Any]
@@ -26,12 +27,50 @@ class KernelImplementation:
     invoke: KernelCallable
     eligibility: Eligibility
     priority: int = 0
+    execution_modes: frozenset[ExecutionMode] = frozenset({ExecutionMode.INFERENCE})
+    differentiable_inputs: frozenset[int] = frozenset()
+    deterministic: bool = True
+    artifact_digest: str | None = None
+
+    def __post_init__(self) -> None:
+        if not self.operation.strip():
+            raise ValueError("kernel operation must be non-empty")
+        if isinstance(self.priority, bool) or not isinstance(self.priority, int):
+            raise TypeError("kernel priority must be an integer")
+        if self.artifact_digest is not None and (
+            len(self.artifact_digest) != 64
+            or any(character not in "0123456789abcdef" for character in self.artifact_digest)
+        ):
+            raise ValueError("kernel artifact identity must be a lowercase SHA-256 digest")
+
+    @property
+    def toolchain_digest(self) -> str:
+        toolchain = f"{self.identity.compiler}-{self.identity.compiler_version}"
+        return hashlib.sha256(toolchain.encode()).hexdigest()
+
+    @property
+    def qualified_artifact_digest(self) -> str:
+        """Return the explicit deployed artifact digest.
+
+        Source identity is deliberately not a substitute: JIT compilation can
+        produce a different binary after dispatch has selected a candidate.
+        """
+
+        if self.artifact_digest is None:
+            raise ValueError("kernel implementation has no bound compiled artifact")
+        return self.artifact_digest
 
     def rejection_reason(
         self, request: KernelRequest, capabilities: DeviceCapabilities
     ) -> str | None:
         if request.operation != self.operation:
             return "operation_mismatch"
+        if request.execution_mode not in self.execution_modes:
+            return "execution_mode"
+        if not set(request.gradient_inputs).issubset(self.differentiable_inputs):
+            return "gradient_contract"
+        if request.deterministic and not self.deterministic:
+            return "determinism"
         return self.eligibility(request, capabilities)
 
 

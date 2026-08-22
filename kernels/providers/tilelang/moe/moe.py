@@ -59,31 +59,26 @@ def make_grouped_gemm_kernel(
                 T.ceildiv(reduction_dim, schedule.block_k),
                 num_stages=schedule.num_stages,
             ):
-                T.copy(
-                    Tokens[
-                        expert,
-                        row_block * schedule.block_m,
-                        reduction_block * schedule.block_k,
-                    ],
-                    tokens_shared,
-                )
-                T.copy(
-                    Weights[
-                        expert,
-                        reduction_block * schedule.block_k,
-                        column_block * schedule.block_n,
-                    ],
-                    weights_shared,
-                )
+                for row, reduction in T.Parallel(schedule.block_m, schedule.block_k):
+                    token = row_block * schedule.block_m + row
+                    reduction_index = reduction_block * schedule.block_k + reduction
+                    value = 0.0
+                    if token < capacity and reduction_index < reduction_dim:
+                        value = Tokens[expert, token, reduction_index]
+                    tokens_shared[row, reduction] = value
+                for reduction, column in T.Parallel(schedule.block_k, schedule.block_n):
+                    reduction_index = reduction_block * schedule.block_k + reduction
+                    output_index = column_block * schedule.block_n + column
+                    value = 0.0
+                    if reduction_index < reduction_dim and output_index < output_dim:
+                        value = Weights[expert, reduction_index, output_index]
+                    weights_shared[reduction, column] = value
                 T.gemm(tokens_shared, weights_shared, accumulator)
-            T.copy(
-                accumulator,
-                Output[
-                    expert,
-                    row_block * schedule.block_m,
-                    column_block * schedule.block_n,
-                ],
-            )
+            for row, column in T.Parallel(schedule.block_m, schedule.block_n):
+                token = row_block * schedule.block_m + row
+                output_index = column_block * schedule.block_n + column
+                if token < capacity and output_index < output_dim:
+                    Output[expert, token, output_index] = accumulator[row, column]
         return Output
 
     return grouped_gemm
