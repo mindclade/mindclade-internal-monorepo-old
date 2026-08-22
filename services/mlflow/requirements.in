@@ -1,10 +1,20 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
 
 # Keep the server and optional features in one independently locked image graph. The production
-# server requires SQL, GCS, basic-auth/workspaces, AI Gateway, and distributed budget state.
+# server requires SQL, GCS, basic-auth/workspaces, AI Gateway, and distributed budget state. The
+# Linux/amd64 lock targets manylinux_2_28 wheels, which remain compatible with the pinned Debian
+# Bookworm (glibc 2.36) base while permitting currently patched binary releases.
 mlflow[auth,genai]==3.15.1
 google-cloud-storage>=3.7.0,<4
 psycopg2-binary>=2.9.11,<3
 redis>=7.2.0,<8
+
+# Explicit transitive security floors keep clean lock regeneration from reintroducing fixed
+# vulnerable ranges. MLflow 3.15.1 currently requires cryptography<50 while the first patched
+# cryptography release is 50.0.0, so image promotion remains blocked on an upstream-compatible
+# MLflow release; do not bypass that resolver constraint.
+pillow>=12.3.0
+pyarrow>=23.0.1

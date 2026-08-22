@@ -1,7 +1,7 @@
 # MLflow production readiness
 
 **Decision:** implementation present; activation blocked; not approved for cluster reconciliation.
-**Review date:** 2026-08-21.
+**Review date:** 2026-08-22.
 **Target upstream:** MLflow 3.15.1.
 
 Evidence classes are explicit: **Observed** means repository or command evidence was inspected;
@@ -19,6 +19,8 @@ Evidence classes are explicit: **Observed** means repository or command evidence
 | Observed | Gateway authority isolation | PASS | native MLflow Gateway budget/serving configuration is absent; anonymous telemetry is disabled |
 | Observed | Database upgrade ordering | PASS | single PreSync Job gates rollout and keeps the URI out of manifest argv |
 | Observed | Runtime dependency graph | PASS | separate hash lock includes explicit auth/genai, PostgreSQL, GCS, upstream Redis-client compatibility, and uvicorn-standard roots |
+| Observed | Patched binary dependency floors | PASS | the hash lock carries Pillow 12.3.0 and PyArrow 25.0.1; direct minimums prevent clean regeneration from restoring their vulnerable ranges |
+| Observed | Cryptography advisory remediation | BLOCKED | `pip-audit` reports PYSEC-2026-3552: MLflow 3.15.1 requires `cryptography<50`, while the first patched release is 50.0.0; no override or exception is approved, so image promotion remains blocked until an upstream-compatible MLflow release is qualified |
 | Observed | Target platform | PASS | Linux CI binds the OCI digest; every host checks Linux/amd64, non-root identity, entrypoint, required extras, and Linux native extensions |
 | Observed | Trace privacy contract | PASS | Python exporter sends digest identity and bounded attributes, never inputs/outputs |
 | Inferred | CRD/operator need | NOT JUSTIFIED | upstream server and namespaced resources cover the requirement |
