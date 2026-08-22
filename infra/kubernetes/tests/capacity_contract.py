@@ -156,20 +156,16 @@ def check_active_contract(
         )
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--base", type=pathlib.Path, required=True)
-    parser.add_argument("--policies", type=pathlib.Path, required=True)
-    parser.add_argument("--queues", type=pathlib.Path, required=True)
-    parser.add_argument("--all", dest="all_resources", type=pathlib.Path, required=True)
-    parser.add_argument("--workloads", type=pathlib.Path, action="append", default=[])
-    args = parser.parse_args()
+def validate_contracts(
+    *,
+    base: list[Resource],
+    policies: list[Resource],
+    queues: list[Resource],
+    all_resources: list[Resource],
+    workloads: list[Resource],
+) -> list[str]:
+    """Return every capacity-contract violation without terminating the caller."""
 
-    base = load(args.base)
-    policies = load(args.policies)
-    queues = load(args.queues)
-    all_resources = load(args.all_resources)
-    workloads = [resource for path in args.workloads for resource in load(path)]
     failures: list[str] = []
 
     for namespace_name, (workload_class, flavor_name) in DOMAINS.items():
@@ -378,6 +374,26 @@ def main() -> None:
             and (resource.get("metadata", {}) or {}).get("name") in DOMAINS
         ):
             check_active_contract(all_resources, resource, failures)
+
+    return failures
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--base", type=pathlib.Path, required=True)
+    parser.add_argument("--policies", type=pathlib.Path, required=True)
+    parser.add_argument("--queues", type=pathlib.Path, required=True)
+    parser.add_argument("--all", dest="all_resources", type=pathlib.Path, required=True)
+    parser.add_argument("--workloads", type=pathlib.Path, action="append", default=[])
+    args = parser.parse_args()
+
+    failures = validate_contracts(
+        base=load(args.base),
+        policies=load(args.policies),
+        queues=load(args.queues),
+        all_resources=load(args.all_resources),
+        workloads=[resource for path in args.workloads for resource in load(path)],
+    )
 
     if failures:
         for failure in failures:

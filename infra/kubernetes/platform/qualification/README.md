@@ -10,6 +10,11 @@ quota is zero, every Job is suspended, and every container uses the zero digest 
 connected run can exercise full-node CUDA/NCCL behavior without claiming cross-node fabric
 coverage.
 
+The offline qualification contract verifies the exact CPU/H100/B200 inventory, zero quota,
+complete ingress/egress deny, tokenless identity, suspended zero-digest Jobs, node selectors,
+and resource envelopes. Its self-test mutates activation, quota, suspension, and B200 hardware
+selection and requires every mutation to be rejected.
+
 Only `mindclade/gitops` may compose an environment activation overlay. One overlay selects exactly
 one environment, cluster, and hardware profile and must atomically provide a signed qualification
 request, a real attested image digest, measured exact quota, an environment-bound node selector,

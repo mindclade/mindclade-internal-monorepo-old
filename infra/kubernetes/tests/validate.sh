@@ -801,6 +801,26 @@ binding_count="$(yq eval-all '[.] | flatten | map(select(.kind == "ValidatingAdm
 [[ "${vap_count}" == "7" && "${binding_count}" == "7" ]] ||
   fail "platform/security must render exactly seven reviewed VAPs and seven bindings"
 
+vap_contract_json="${validation_tmp_dir}/vap-contract.json"
+yq eval-all -o=json -I=0 '
+  [.] | flatten |
+  map(select(
+    .kind == "ValidatingAdmissionPolicy" or
+    .kind == "ValidatingAdmissionPolicyBinding"
+  )) |
+  map({
+    "apiVersion": .apiVersion,
+    "kind": .kind,
+    "metadata": {
+      "name": .metadata.name,
+      "annotations": .metadata.annotations
+    },
+    "spec": .spec
+  })
+' "${security_render}" >"${vap_contract_json}"
+python3 "${script_dir}/vap_contract.py" \
+  "${vap_contract_json}" "${script_dir}/vap-contract.sha256" --self-test
+
 expected_vap_matrix='[{"name":"mindclade-block-deployment-activation","failure":"Fail","groups":[["apps"]],"resources":[["deployments","statefulsets"]],"operations":[["CREATE","UPDATE"]]},{"name":"mindclade-block-job-activation","failure":"Fail","groups":[["batch"],["jobset.x-k8s.io"]],"resources":[["jobs"],["jobsets"]],"operations":[["CREATE","UPDATE"],["CREATE","UPDATE"]]},{"name":"mindclade-capacity-contract-object","failure":"Fail","groups":[[""]],"resources":[["configmaps"]],"operations":[["CREATE","UPDATE"]]},{"name":"mindclade-capacity-namespace-activation","failure":"Fail","groups":[[""]],"resources":[["namespaces"]],"operations":[["CREATE","UPDATE"]]},{"name":"mindclade-capacity-queue-contract","failure":"Fail","groups":[["batch"],["jobset.x-k8s.io"]],"resources":[["jobs"],["jobsets"]],"operations":[["CREATE","UPDATE"],["CREATE","UPDATE"]]},{"name":"mindclade-internal-services","failure":"Fail","groups":[[""]],"resources":[["services"]],"operations":[["CREATE","UPDATE"]]},{"name":"mindclade-restricted-pods","failure":"Fail","groups":[[""]],"resources":[["pods"]],"operations":[["CREATE","UPDATE"]]}]'
 actual_vap_matrix="$(yq eval-all -o=json -I=0 '
   [.] | flatten | map(select(.kind == "ValidatingAdmissionPolicy")) |
@@ -1024,9 +1044,19 @@ python3 "${script_dir}/capacity_contract.py" \
   --queues "${validation_tmp_dir}/platform__kueue.json" \
   --all "${combined_json}" \
   "${capacity_args[@]}"
+python3 "${script_dir}/capacity_contract_mutations.py" \
+  --base "${validation_tmp_dir}/base.json" \
+  --policies "${validation_tmp_dir}/policies.json" \
+  --queues "${validation_tmp_dir}/platform__kueue.json" \
+  --all "${combined_json}" \
+  "${capacity_args[@]}"
 python3 "${script_dir}/training_qualification_profile.py" \
   --workloads "${validation_tmp_dir}/workloads__training__overlays__h100.json" \
   --queues "${validation_tmp_dir}/platform__kueue.json"
+qualification_json="${validation_tmp_dir}/platform__qualification.json"
+yq eval-all -o=json -I=0 '[.] | flatten | map(select(.kind != null and .apiVersion != null))' \
+  "${validation_tmp_dir}/platform__qualification.yaml" >"${qualification_json}"
+python3 "${script_dir}/qualification_contract.py" "${qualification_json}" --self-test
 
 note "checking GMP selectors, ports, and Prometheus recording rules"
 
