@@ -10,13 +10,18 @@ import inspect
 from collections.abc import Callable
 from functools import partial
 
-from kernels.api.specs import ImplementationIdentity, Provider
+from kernels.api.specs import ExecutionMode, ImplementationIdentity, Provider
 from kernels.registry import KernelImplementation
 
 _REFERENCE_SCHEDULE_DIGEST = hashlib.sha256(b"pytorch-reference-v1").hexdigest()
 
 
-def reference_registration(operation: str, invoke: Callable[..., object]) -> KernelImplementation:
+def reference_registration(
+    operation: str,
+    invoke: Callable[..., object],
+    *,
+    differentiable_inputs: frozenset[int],
+) -> KernelImplementation:
     source_callable = invoke.func if isinstance(invoke, partial) else invoke
     binding = repr((invoke.args, invoke.keywords)) if isinstance(invoke, partial) else ""
     identity = ImplementationIdentity(
@@ -35,4 +40,6 @@ def reference_registration(operation: str, invoke: Callable[..., object]) -> Ker
         invoke=invoke,
         eligibility=lambda _request, _capabilities: None,
         priority=-1,
+        execution_modes=frozenset({ExecutionMode.INFERENCE, ExecutionMode.TRAINING}),
+        differentiable_inputs=differentiable_inputs,
     )

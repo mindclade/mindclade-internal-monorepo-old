@@ -7,18 +7,26 @@ load("@rules_python//python:defs.bzl", "py_library")
 
 package(default_visibility = ["//visibility:public"])
 
+exports_files(["accelerator-constraints.txt"])
+
+py_library(
+    name = "runtime_manifest",
+    srcs = ["manifest.py"],
+    imports = ["../../.."],
+)
+
 py_library(
     name = "tilelang",
     srcs = [
         "__init__.py",
         "adapter.py",
         "capabilities.py",
-        "manifest.py",
         "policy.py",
         "registry.py",
     ],
     imports = ["../../.."],
     deps = [
+        ":runtime_manifest",
         "//kernels:kernel_core",
         "//kernels/api",
         "//kernels/providers/tilelang/attention",

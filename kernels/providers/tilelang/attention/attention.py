@@ -19,30 +19,44 @@ from typing import Any
 
 from kernels.api.errors import KernelErrorCode, KernelUnavailableError
 from kernels.providers.tilelang.attention.schedules import FlashAttentionSchedule
+from kernels.providers.tilelang.manifest import (
+    TILELANG_VERSION,
+    TVM_FFI_RANGE,
+    validate_runtime_versions,
+)
 
 
 def _tilelang() -> tuple[Any, Any]:
     try:
+        import tvm_ffi
+
         import tilelang
         import tilelang.language as T
     except ImportError as exc:
         raise KernelUnavailableError(
             KernelErrorCode.PROVIDER_UNAVAILABLE,
-            "TileLang 0.1.13 is not installed in this accelerator environment",
+            f"TileLang {TILELANG_VERSION} and apache-tvm-ffi {TVM_FFI_RANGE} are required",
         ) from exc
-    version = getattr(tilelang, "__version__", "")
-    if version != "0.1.13":
+    tilelang_version = getattr(tilelang, "__version__", "")
+    tvm_ffi_version = getattr(tvm_ffi, "__version__", "")
+    try:
+        validate_runtime_versions(tilelang_version, tvm_ffi_version)
+    except ValueError as exc:
         raise KernelUnavailableError(
             KernelErrorCode.PROVIDER_UNAVAILABLE,
-            "the TileLang provider requires exactly version 0.1.13",
-            details={"observed_version": version},
-        )
+            str(exc),
+            details={
+                "tilelang_version": tilelang_version,
+                "tvm_ffi_version": tvm_ffi_version,
+            },
+        ) from exc
     return tilelang, T
 
 
 def make_flash_attention_kernel(
     schedule: FlashAttentionSchedule,
     *,
+    causal: bool = False,
     target: str | dict[str, str] | None = None,
 ) -> Any:
     """Build an eager TileLang kernel for dense or causal self/cross attention."""
@@ -51,7 +65,7 @@ def make_flash_attention_kernel(
     jit = tilelang.jit if target is None else tilelang.jit(target=target)
 
     @jit
-    def flash_attention(Q, K, V, causal: bool = False):
+    def flash_attention(Q, K, V):
         batch, heads, query_length, key_length, head_dim = T.const(
             "batch, heads, query_length, key_length, head_dim"
         )
@@ -80,7 +94,12 @@ def make_flash_attention_kernel(
             row_sum = T.alloc_fragment((schedule.block_m,), schedule.accum_dtype)
             tile_sum = T.alloc_fragment((schedule.block_m,), schedule.accum_dtype)
 
-            T.copy(Q[batch_index, head_index, query_offset, 0], q_shared)
+            for row, column in T.Parallel(schedule.block_m, head_dim):
+                query_index = query_offset + row
+                value = 0.0
+                if query_index < query_length:
+                    value = Q[batch_index, head_index, query_index, column]
+                q_shared[row, column] = value
             T.clear(output)
             T.fill(row_max, -T.infinity(schedule.accum_dtype))
             T.clear(row_sum)
@@ -90,21 +109,34 @@ def make_flash_attention_kernel(
                 T.ceildiv(key_length, schedule.block_n), num_stages=schedule.num_stages
             ):
                 key_offset = key_block * schedule.block_n
-                T.copy(K[batch_index, head_index, key_offset, 0], k_shared)
-                T.copy(V[batch_index, head_index, key_offset, 0], v_shared)
+                for row, column in T.Parallel(schedule.block_n, head_dim):
+                    key_index = key_offset + row
+                    k_value = 0.0
+                    v_value = 0.0
+                    if key_index < key_length:
+                        k_value = K[batch_index, head_index, key_index, column]
+                        v_value = V[batch_index, head_index, key_index, column]
+                    k_shared[row, column] = k_value
+                    v_shared[row, column] = v_value
                 T.clear(scores)
                 T.gemm(q_shared, k_shared, scores, transpose_B=True)
 
                 for row, column in T.Parallel(schedule.block_m, schedule.block_n):
                     query_index = query_offset + row
                     key_index = key_offset + column
-                    allowed = (key_index < key_length) and (
-                        (not causal) or (key_index <= query_index)
+                    allowed = (
+                        (query_index < query_length)
+                        and (key_index < key_length)
+                        and ((not causal) or (key_index <= query_index))
                     )
                     scores[row, column] = T.if_then_else(
-                        allowed,
-                        scores[row, column] * softmax_scale,
-                        -T.infinity(schedule.accum_dtype),
+                        query_index < query_length,
+                        T.if_then_else(
+                            allowed,
+                            scores[row, column] * softmax_scale,
+                            -T.infinity(schedule.accum_dtype),
+                        ),
+                        0.0,
                     )
 
                 T.copy(row_max, row_max_previous)
@@ -133,8 +165,11 @@ def make_flash_attention_kernel(
                 T.gemm(probabilities_shared, v_shared, output)
 
             for row, column in T.Parallel(schedule.block_m, head_dim):
-                output[row, column] /= row_sum[row]
-            T.copy(output, Output[batch_index, head_index, query_offset, 0])
+                query_index = query_offset + row
+                if query_index < query_length:
+                    Output[batch_index, head_index, query_index, column] = (
+                        output[row, column] / row_sum[row]
+                    )
 
         return Output
 

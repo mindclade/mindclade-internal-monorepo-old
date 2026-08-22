@@ -5,7 +5,13 @@
 
 """Stable provider-neutral kernel contracts."""
 
-from kernels.api.capabilities import PORTABLE_CPU, DeviceCapabilities, digest_runtime_environment
+from kernels.api.capabilities import (
+    PORTABLE_CPU,
+    DeviceCapabilities,
+    RuntimeCompatibility,
+    digest_runtime_environment,
+)
+from kernels.api.custom_ops import CustomOpDefinition
 from kernels.api.errors import (
     KernelCompilationError,
     KernelError,
@@ -14,7 +20,9 @@ from kernels.api.errors import (
     KernelUnavailableError,
     KernelValidationError,
 )
+from kernels.api.fake_tensor import output_like
 from kernels.api.specs import (
+    ExecutionMode,
     ImplementationIdentity,
     KernelRequest,
     Provider,
@@ -24,7 +32,9 @@ from kernels.api.specs import (
 
 __all__ = [
     "PORTABLE_CPU",
+    "CustomOpDefinition",
     "DeviceCapabilities",
+    "ExecutionMode",
     "ImplementationIdentity",
     "KernelCompilationError",
     "KernelError",
@@ -34,7 +44,9 @@ __all__ = [
     "KernelUnavailableError",
     "KernelValidationError",
     "Provider",
+    "RuntimeCompatibility",
     "TensorLayout",
     "TensorSpec",
     "digest_runtime_environment",
+    "output_like",
 ]
