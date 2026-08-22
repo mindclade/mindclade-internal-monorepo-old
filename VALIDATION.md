@@ -63,6 +63,13 @@ query behavior, versioned BEP/profile/selection evidence, and a stable
 `bazel / verdict` context. Merge groups, main pushes, global changes, and the
 new CPU nightly retain full `//...` execution.
 
+Repository-wide fallback inputs now live in one strict, versioned contract.
+Static presubmit inventories every root entry and every `tools/` authority, so a
+new graph-control surface cannot silently bypass full validation. A
+checksum-pinned target-determinator candidate remains activation-blocked by the
+unqualified remote cache, incomplete Linux full-graph evidence, checkout
+restoration behavior under interruption, and Bazel 9 version-string fallback.
+
 Connected pull-request, merge-group, scheduled-run, required-check, and 28-day
 latency evidence is pending. Local real-graph validation currently reaches the
 authoritative query and fails on pre-existing host materialization of

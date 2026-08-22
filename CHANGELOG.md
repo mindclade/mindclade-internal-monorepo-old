@@ -6,6 +6,18 @@ All notable changes to the repository architecture and released implementation
 surfaces are recorded here. Individual model, dataset, runtime, and service
 releases also carry immutable release manifests and evidence bundles.
 
+## 2026-08-22 — Fail-closed affected-input governance
+
+- moved repository-wide affected-selection inputs into a strict versioned contract consumed by
+  the selector and static architecture gate;
+- added behavioral inventory checks that reject any unreviewed root or `tools/` authority and
+  expanded full-graph fallback to omitted Bazel, Nix, Python, and Rust dependency inputs; and
+- recorded the checksum-pinned target-determinator candidate plus the measured blockers that keep
+  graph-native pull-request selection dormant.
+
+Merge groups and nightly runs retain full `//...` execution. No graph-native selector, cache,
+workflow gate, release, or deployment is activated by this source change.
+
 ## 2026-08-22 — Evidence ledger and production eligibility
 
 - added canonical, digest-sealed policy, claim, verification, deployment-bundle, and eligibility

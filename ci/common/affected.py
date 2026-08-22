@@ -25,51 +25,14 @@ from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from ci.common.affected_contract import ContractError, GlobalInputContract
+from ci.common.affected_contract import load_global_input_contract as _load_global_input_contract
+
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_VERSION = 1
 FULL_TARGET = "//..."
 LATENCY_SLO_SECONDS = 30 * 60
-
-GLOBAL_EXACT_PATHS = frozenset(
-    {
-        ".bazelrc",
-        ".bazelversion",
-        ".buildifier.json",
-        "BUILD",
-        "BUILD.bazel",
-        "Cargo.lock",
-        "Cargo.toml",
-        "MODULE.bazel",
-        "MODULE.bazel.lock",
-        "REPO.bazel",
-        "WORKSPACE",
-        "WORKSPACE.bazel",
-        "bazel_downloader.cfg",
-        "components.toml",
-        "deny.toml",
-        "flake.lock",
-        "flake.nix",
-        "go.mod",
-        "go.sum",
-        "maturity.toml",
-        "package.json",
-        "pnpm-lock.yaml",
-        "pnpm-workspace.yaml",
-        "pyproject.toml",
-        "uv.lock",
-    }
-)
-GLOBAL_PREFIXES = (
-    ".buildkite/",
-    ".github/",
-    "architecture/",
-    "ci/",
-    "protocols/",
-    "qualification/",
-    "tools/build/",
-    "tools/dev/bazel-repo-bin/",
-    "tools/qualification/",
-)
+GLOBAL_INPUT_CONTRACT_PATH = ROOT / "ci/common/affected_global_inputs.json"
 STRUCTURAL_STATUSES = frozenset({"C", "D", "R", "T", "U", "X", "B"})
 
 RUST_PREFIXES = (
@@ -93,8 +56,16 @@ RUST_PREFIXES = (
 )
 
 
-class SelectionError(RuntimeError):
+class SelectionError(ContractError):
     """The affected set could not be established authoritatively."""
+
+
+def load_global_input_contract(path: Path = GLOBAL_INPUT_CONTRACT_PATH) -> GlobalInputContract:
+    """Load the shared contract while preserving the selector's public error type."""
+    try:
+        return _load_global_input_contract(path)
+    except ContractError as error:
+        raise SelectionError(str(error)) from error
 
 
 @dataclass(frozen=True)
@@ -239,15 +210,15 @@ def git_changed(base: str, *, root: Path = ROOT) -> tuple[Change, ...]:
     return _normalize_changes(changes)
 
 
-def _global_reason(change: Change) -> str | None:
+def _global_reason(change: Change, contract: GlobalInputContract) -> str | None:
     if change.status in STRUCTURAL_STATUSES:
         return f"structural_{change.status.lower()}"
     path = change.path
-    if path in GLOBAL_EXACT_PATHS:
+    if path in contract.exact_paths:
         return f"global_path:{path}"
     if path.endswith(".bzl"):
         return f"starlark:{path}"
-    for prefix in GLOBAL_PREFIXES:
+    for prefix in contract.prefixes:
         if path.startswith(prefix):
             return f"global_prefix:{prefix}"
     return None
@@ -324,10 +295,12 @@ def select(
     event: str = "local",
     root: Path = ROOT,
     query: Query | None = None,
+    global_inputs: GlobalInputContract | None = None,
 ) -> Selection:
     if mode not in {"affected", "full"}:
         raise SelectionError(f"unsupported selection mode: {mode}")
     changes = _normalize_changes(changed)
+    input_contract = global_inputs or load_global_input_contract()
     head = head_sha or git_revision("HEAD", root=root)
     if mode == "full":
         return Selection(
@@ -343,7 +316,7 @@ def select(
         )
 
     for change in changes:
-        reason = _global_reason(change)
+        reason = _global_reason(change, input_contract)
         if reason is not None:
             return Selection(
                 mode="full",
