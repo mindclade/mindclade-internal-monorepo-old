@@ -142,6 +142,11 @@ def contract_fixture(root: Path) -> None:
     )
     write(root, "tools/qualification/rust/common.py", f'EXPECTED = "{RUST_VERSION}"\n')
     write(root, "tools/build/nix/toolchain-manifest.json", '{"tools":{"python":"3.14.7"}}\n')
+    write(
+        root,
+        "pyproject.toml",
+        f'[tool.ruff]\ntarget-version = "{contract.BOOTSTRAP_SYNTAX_TARGET}"\n',
+    )
     write(root, "MODULE.bazel", MODULE.format(version=RUST_VERSION, sha="0" * 64))
     patterns = ",\n".join(f'    "{pattern}"' for pattern in sorted(contract.REQUIRED_REPO_IGNORES))
     write(root, "REPO.bazel", f"ignore_directories([\n{patterns},\n])\n")
@@ -245,6 +250,17 @@ def test_repository_traversal_contract_reports_each_missing_pattern() -> None:
     assert errors == [
         f"REPO.bazel must ignore generated directory pattern {pattern}"
         for pattern in sorted(contract.REQUIRED_REPO_IGNORES)
+    ]
+
+
+def test_python_bootstrap_syntax_target_rejects_python_314_formatter_output() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        write(root, "pyproject.toml", '[tool.ruff]\ntarget-version = "py314"\n')
+        errors = contract.python_bootstrap_syntax_contract(root)
+    assert errors == [
+        "Ruff must preserve Python 3.13 syntax for pre-Nix repository checks; "
+        "expected py313, got 'py314'"
     ]
 
 

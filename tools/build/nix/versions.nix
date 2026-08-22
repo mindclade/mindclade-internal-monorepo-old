@@ -32,9 +32,14 @@
   # these checks are for.
   go = "1.26";
 
-  # Consumed by pyproject.toml's requires-python, [tool.ruff] target-version, and mypy's
-  # python_version. Major.minor for the same reason as go.
+  # Consumed by pyproject.toml's requires-python and mypy's python_version. Major.minor for the
+  # same reason as go.
   python = "3.14";
+
+  # Ruff's target-version controls which syntax the formatter may emit. Repository checks are
+  # imported by the bootstrap host before Nix establishes Python 3.14, so source must remain
+  # parseable by Python 3.13 even though the locked execution runtime is 3.14.
+  pythonSource = "3.13";
 
   # Consumed by package.json's engines.node. Major only: the devShell pins nodejs_22 and the
   # patch level follows nixpkgs.
