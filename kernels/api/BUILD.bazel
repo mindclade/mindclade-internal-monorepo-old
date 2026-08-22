@@ -12,9 +12,12 @@ py_library(
     srcs = [
         "__init__.py",
         "capabilities.py",
+        "custom_ops.py",
         "errors.py",
+        "fake_tensor.py",
         "specs.py",
         "validation.py",
     ],
     imports = ["../.."],
+    deps = ["@pypi//torch"],
 )

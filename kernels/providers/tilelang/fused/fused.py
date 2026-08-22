@@ -69,7 +69,7 @@ def make_triangle_multiplication_kernel(
         batch, sequence, channels = T.const("batch, sequence, channels")
         Left: T.Tensor((batch, sequence, sequence, channels), schedule.dtype)
         Right: T.Tensor((batch, sequence, sequence, channels), schedule.dtype)
-        Mask: T.Tensor((batch, sequence), "uint8")
+        Mask: T.Tensor((batch, sequence), "bool")
         Output = T.empty((batch, sequence, sequence, channels), schedule.dtype)
 
         with T.Kernel(

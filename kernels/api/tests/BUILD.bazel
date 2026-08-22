@@ -10,6 +10,7 @@ pytest_test(
     srcs = ["test_api.py"],
     imports = ["../../.."],
     deps = [
+        "//kernels",
         "//kernels:kernel_core",
         "//kernels/api",
     ],

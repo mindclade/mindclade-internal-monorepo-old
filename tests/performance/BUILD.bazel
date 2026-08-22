@@ -3,7 +3,19 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("//tools/build:pytest.bzl", "pytest_test")
+
 package(default_visibility = ["//visibility:private"])
+
+pytest_test(
+    name = "test_tilelang_regression",
+    srcs = ["test_tilelang_regression.py"],
+    imports = ["../.."],
+    deps = [
+        "//kernels/tilelang/testing",
+        "@pypi//torch",
+    ],
+)
 
 filegroup(
     name = "scaffold_files",

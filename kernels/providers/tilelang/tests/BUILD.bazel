@@ -1,24 +1,20 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
-load("@rules_python//python:defs.bzl", "py_library")
+load("//tools/build:pytest.bzl", "pytest_test")
 
-package(default_visibility = ["//visibility:public"])
-
-py_library(
-    name = "attention",
+pytest_test(
+    name = "test_provider",
     srcs = [
         "__init__.py",
-        "attention.py",
-        "configs.py",
-        "schedules.py",
+        "test_provider.py",
     ],
     imports = ["../../../.."],
     deps = [
+        "//kernels",
         "//kernels/api",
-        "//kernels/providers/tilelang:runtime_manifest",
+        "//kernels/providers/tilelang",
         "//kernels/tilelang/targets",
     ],
 )

@@ -4,6 +4,6 @@
 #
 
 from kernels.qualification.evidence import QualificationEvidence
-from kernels.qualification.promotion import PromotionPolicy, qualification_candidate
+from kernels.qualification.promotion import PromotionPolicy, qualification_candidates
 
-__all__ = ["PromotionPolicy", "QualificationEvidence", "qualification_candidate"]
+__all__ = ["PromotionPolicy", "QualificationEvidence", "qualification_candidates"]

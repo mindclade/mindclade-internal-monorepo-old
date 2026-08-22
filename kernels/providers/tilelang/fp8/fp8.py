@@ -57,8 +57,20 @@ def make_scaled_gemm_kernel(
             for k_block in T.Pipelined(
                 T.ceildiv(k, schedule.block_k), num_stages=schedule.num_stages
             ):
-                T.copy(A[block_m * schedule.block_m, k_block * schedule.block_k], a_shared)
-                T.copy(B[k_block * schedule.block_k, block_n * schedule.block_n], b_shared)
+                for row, reduction in T.Parallel(schedule.block_m, schedule.block_k):
+                    global_row = block_m * schedule.block_m + row
+                    global_k = k_block * schedule.block_k + reduction
+                    value = 0.0
+                    if global_row < m and global_k < k:
+                        value = A[global_row, global_k]
+                    a_shared[row, reduction] = value
+                for reduction, column in T.Parallel(schedule.block_k, schedule.block_n):
+                    global_k = k_block * schedule.block_k + reduction
+                    global_column = block_n * schedule.block_n + column
+                    value = 0.0
+                    if global_k < k and global_column < n:
+                        value = B[global_k, global_column]
+                    b_shared[reduction, column] = value
                 T.gemm(a_shared, b_shared, accumulator)
 
             for row, column in T.Parallel(schedule.block_m, schedule.block_n):
@@ -67,12 +79,10 @@ def make_scaled_gemm_kernel(
                     value = T.max(value, 0.0)
                 elif activation == "silu":
                     value = value * T.sigmoid(value)
-                accumulator[row, column] = value
-
-            T.copy(
-                accumulator,
-                Output[block_m * schedule.block_m, block_n * schedule.block_n],
-            )
+                global_row = block_m * schedule.block_m + row
+                global_column = block_n * schedule.block_n + column
+                if global_row < m and global_column < n:
+                    Output[global_row, global_column] = value
         return Output
 
     return scaled_gemm

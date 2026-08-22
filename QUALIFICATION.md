@@ -75,19 +75,32 @@ Promotion additionally requires:
 
 ## Kernel lane
 
-The kernel provider contract, PyTorch semantic references, fail-closed dispatch,
-TileLang source candidates, target legality, offline autotuning, compiler evidence,
-and qualification/revocation records are implemented. Local CPU evidence covers
-46 focused behavior/numerical tests and 13 Nix/Bazel test targets. The Python
-scaffold ratchet was lowered by thirteen placeholder files.
+The kernel provider contract, PyTorch semantic references, execution-mode-safe
+dispatch, TileLang source candidates, target legality, single-flight compile
+cache, offline autotuning, compiler inspection, and schema-v2 paired
+qualification/revocation records are implemented. The production workload
+catalog contains 124 reciprocal inference/training pairs (248 exact requests).
+Local CPU evidence covers API, numerical references, gradients, eligibility,
+cache concurrency/failure/fork behavior, qualification policy, tool
+orchestration, and scaffold integrity. Connected tests skip honestly off-GPU.
 
-No TileLang signature is promoted by this implementation. A connected x86_64
-Linux GPU lane must install exactly TileLang `0.1.13`, compile the exact
-source/schedule, inspect generated instructions, run sanitizers and adversarial
-forward/gradient parity, benchmark with device synchronization, and bind the
-result to the runtime-environment digest. CUDA `sm_90`, `sm_100`, `sm_120` and
-ROCm `gfx90a`, `gfx942`, `gfx950` are source target models, not local hardware
-claims.
+No TileLang signature is promoted by this implementation. The connected x86_64
+Linux lane must use exactly TileLang `0.1.13` and apache-tvm-ffi
+`>=0.1.11,<0.1.13`, compile the exact source/schedule, inspect generated
+instructions, run the complete sanitizer suite and adversarial parity, benchmark
+with synchronization, and bind results to artifact/toolchain/runtime-image and
+device digests. Only CUDA `sm_90` is runtime-registered. CUDA `sm_100`,
+`sm_120` and ROCm `gfx90a`, `gfx942`, `gfx950` remain source target models,
+not local hardware claims.
+
+## Model lane
+
+Locally tested PyTorch leaves now cover dense/causal attention, rotary
+embeddings, normalization, SwiGLU/feed-forward/residual components, a small
+decoder-only LLM, and bounded trusted-digest `torch.export` packaging. This is
+reference and contract evidence only. It is not end-to-end training,
+generation/cache, checkpoint-migration, ONNX/AOTInductor, distributed,
+quantized, accelerator-performance, or serving qualification.
 
 ## Explicit non-claims
 

@@ -12,6 +12,7 @@ py_library(
     srcs = [
         "__init__.py",
         "compile.py",
+        "connected.py",
         "devices.py",
         "goldens.py",
         "numerics.py",
@@ -19,8 +20,14 @@ py_library(
     ],
     imports = ["../../.."],
     deps = [
+        "//kernels",
+        "//kernels:kernel_core",
+        "//kernels/api",
+        "//kernels/providers/tilelang",
+        "//kernels/qualification",
         "//kernels/tilelang/autotune",
         "//kernels/tilelang/compiler",
+        "//kernels/tilelang/targets",
         "@pypi//torch",
     ],
 )
