@@ -58,6 +58,7 @@ def validate(image: Path, lock_path: Path, *, enforce_lock_digest: bool) -> str:
         "  target: //services/mlflow:image",
         "  platform: linux/amd64",
         "    version: 3.15.1",
+        "    version: 3.14.7-slim-bookworm",
     )
     for required_line in required_lock_lines:
         if lock_text.splitlines().count(required_line) != 1:
