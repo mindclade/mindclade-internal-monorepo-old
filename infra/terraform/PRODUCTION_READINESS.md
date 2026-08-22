@@ -1,19 +1,21 @@
 # Terraform production readiness
 
 **Current decision:** Not ready for production apply.  
-**Implementation status:** All 43 reusable modules are materialized and pass repository
-contracts, provider-schema validation, mock tests, TFLint, Trivy, Conftest fixtures,
-generated-interface governance, and the minimum/reviewed provider matrix; environment
-topology and live evidence remain external and unknown.
-**Last repository review:** 2026-08-20.
+**Implementation status:** All 44 reusable modules are materialized. The prior whole-tree
+qualification baseline covered 43 modules plus the now-retired `dns_hub` deployable root;
+the new Certificate Manager module and retired-root fixture pass scoped contracts,
+provider-schema validation, mock tests, and generated-interface governance. A fresh
+whole-tree qualification run is required before release. Environment topology and live
+evidence remain external and unknown.
+**Last repository review:** 2026-08-21.
 
 ## Promotion evidence
 
 | Gate | Status | Required evidence |
 |---|---|---|
-| Stable module contracts and owners | PASS | Generated interfaces for 43 modules plus `dns_hub`, versioned migration evidence, component ownership, and Platform/Security review routing |
+| Stable module contracts and owners | PASS | Generated interfaces for 44 modules, versioned migration evidence, component ownership, and Platform/Security review routing; `dns_hub` is retained only as a non-deployable DNS module test fixture |
 | Formatting and static repository checks | PASS | Terraform formatting, diff check, Actionlint, strict YAML lint, Nix flake evaluation/toolchain evidence, documentation build, and the repository static presubmit pass |
-| Backendless init/validate/mock tests | PASS | 47/47 configurations validate and 261/261 mock runs pass across 44 suites using committed locks |
+| Backendless init/validate/mock tests | PARTIAL | The 2026-08-20 baseline passed 47/47 configurations and 261/261 mock runs across 44 suites; current scoped Certificate Manager and DNS module tests pass, but the post-retirement whole-tree gate has not been rerun |
 | Provider-connected non-production plan | MISSING | Saved plan, plan JSON, provider versions, project/region, and expiration |
 | IaC security and policy checks | PARTIAL | CI pins TFLint 0.64.0 and Trivy 0.74.0; Trivy has zero unsuppressed findings, three resource-local exceptions, and one module-scoped embedded-check exception, all expiring 2027-08-20. Conftest's fail-closed policy and fixtures pass, and local Checkov reported 152 passed, 0 failed, 8 documented skips. An approved live profile, saved-plan evaluation, cost analysis, and retained reports remain missing |
 | IAM and public-access review | MISSING | Effective inherited IAM; WIF allow/deny; no keys/basic/public grants |
@@ -31,6 +33,11 @@ are enabled, service agents hold required grants, quotas/capacity exist, organiz
 policy permits a resource, a restore succeeds, or a workload meets its SLO.
 
 ## Local validation evidence
+
+The counts below are the 2026-08-20 pre-retirement repository baseline. They are retained
+as dated evidence and are not a claim about the current 44-module tree. The current DNS
+and certificate change has separate scoped validation; a new whole-tree run must replace
+this baseline before release.
 
 The 2026-08-20 repository gate used Terraform 1.15.8 on `darwin_arm64` and
 checksum-verified Google providers. All 44 deployable-unit locks select reviewed version

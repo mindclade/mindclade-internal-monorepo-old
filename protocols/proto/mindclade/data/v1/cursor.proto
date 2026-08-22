@@ -7,6 +7,11 @@ syntax = "proto3";
 
 package mindclade.data.v1;
 
-message CursorScaffold {
-  string reserved = 1;
+option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/data/v1;datav1";
+
+// SourceCursor is opaque provider state coupled to a Mindclade-owned monotonic
+// sequence. Consumers must compare sequence, never the opaque value.
+message SourceCursor {
+  bytes value = 1;
+  uint64 sequence = 2;
 }

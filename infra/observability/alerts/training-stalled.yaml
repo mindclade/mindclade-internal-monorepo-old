@@ -1,6 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
 
 ---
 {
@@ -12,8 +13,16 @@
   "deployment": {"provider": "google-cloud-monitoring", "terraformModule": "infra/terraform/modules/monitoring", "deployableKubernetesResource": false},
   "requiredEnvironmentInputs": ["emailNotificationChannelResourceNames", "environment", "googleChatNotificationChannelResourceNames", "httpsRunbookUrl", "projectId", "qualificationEvidenceSha256"],
   "signals": [
-    {"name": "training-progress-stalled", "description": "An admitted frontier-training run has made no bounded step or safe-point progress within its envelope.", "metric": "mindclade.training.seconds_since_progress", "condition": "above", "threshold": 1800, "duration": "15m", "severity": "ticket", "missingData": "fire", "minimumSamples": 3, "runbookAnchor": "training-progress-stalled"}
+    {"name": "training-progress-stalled", "description": "An admitted reference-training run has made no bounded step or safe-point progress beyond the explicitly proposed, unapproved source threshold.", "metric": "mindclade.training.seconds_since_progress", "condition": "above", "threshold": 1800, "duration": "15m", "severity": "ticket", "missingData": "fire", "minimumSamples": 3, "runbookAnchor": "training-progress-stalled", "thresholdStatus": "proposed"}
   ],
-  "cardinality": {"permittedDimensions": ["cluster", "environment", "location", "namespace", "result", "service"], "forbiddenDimensions": ["dataset", "feature", "label", "model", "molecule", "prompt", "request-id", "sequence", "tenant", "user"], "rawValuesInTelemetry": false},
+  "observedSignals": [
+    {"name": "training-active-runs", "description": "Active reference qualification runs split only by the fixed one-GPU and eight-GPU phases.", "metric": "mindclade.training.active_runs"},
+    {"name": "training-metric-contract", "description": "Versioned external-producer inventory status before any training alert may be enabled.", "metric": "mindclade.training.metric_contract_complete"},
+    {"name": "training-optimizer-steps", "description": "Five-minute count of globally committed optimizer steps split only by fixed qualification phase.", "metric": "mindclade.training.optimizer_steps_5m"},
+    {"name": "training-run-failure-ratio", "description": "Observed terminal run failure ratio with no approved SLO or promotion threshold.", "metric": "mindclade.training.run_failure_ratio"},
+    {"name": "training-run-outcomes", "description": "Fifteen-minute terminal run outcomes using only bounded result and reason classes.", "metric": "mindclade.training.run_outcomes_15m"},
+    {"name": "training-run-terminal-samples", "description": "Fifteen-minute terminal sample count used to prevent action on an undersized run population.", "metric": "mindclade.training.run_terminal_samples_15m"}
+  ],
+  "cardinality": {"permittedDimensions": ["cluster", "environment", "location", "namespace", "phase", "reason_class", "result", "service"], "forbiddenDimensions": ["dataset", "feature", "label", "model", "molecule", "prompt", "request-id", "sequence", "tenant", "user"], "rawValuesInTelemetry": false},
   "activationPolicy": {"enabledByDefault": false, "requiresSyntheticFireAndResolve": true, "requiresHealthyTelemetry": true, "requiresReviewedThresholds": true}
 }

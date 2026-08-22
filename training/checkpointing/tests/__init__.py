@@ -3,4 +3,4 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Tests for local resume; distributed reshard coverage remains scaffolded."""
+"""Tests for local and replicated DDP resume; distributed resharding remains scaffolded."""

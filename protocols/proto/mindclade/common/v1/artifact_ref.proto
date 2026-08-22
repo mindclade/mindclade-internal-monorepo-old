@@ -6,6 +6,8 @@
 syntax = "proto3";
 package mindclade.common.v1;
 
+option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/common/v1;commonv1";
+
 // ArtifactRef is immutable logical identity. URI/provider placement is not identity.
 message ArtifactRef {
   string digest = 1;          // canonical sha256:<hex>

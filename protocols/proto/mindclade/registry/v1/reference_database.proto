@@ -5,6 +5,8 @@
 
 syntax = "proto3";
 package mindclade.registry.v1;
+
+option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/registry/v1;registryv1";
 import "mindclade/common/v1/artifact_ref.proto";
 
 enum ReferenceDatabaseKind {

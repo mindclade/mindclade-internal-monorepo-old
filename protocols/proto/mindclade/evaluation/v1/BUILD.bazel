@@ -4,6 +4,7 @@
 #
 
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@rules_go//proto:def.bzl", "go_proto_library")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -28,14 +29,16 @@ proto_library(
     ],
 )
 
-filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["*.proto"],
-        exclude = [
-            "evaluation.proto",
-            "service.proto",
-        ],
-    ),
-    visibility = ["//visibility:public"],
+go_proto_library(
+    name = "evaluation_go_proto",
+    compilers = [
+        "@rules_go//proto:go_grpc_v2",
+        "@rules_go//proto:go_proto",
+    ],
+    importpath = "go.mindclade.dev/protocols/gen/go/mindclade/evaluation/v1",
+    protos = [
+        ":evaluation_proto",
+        ":evaluation_service_proto",
+    ],
+    deps = ["//protocols/proto/mindclade/common/v1:common_go_proto"],
 )

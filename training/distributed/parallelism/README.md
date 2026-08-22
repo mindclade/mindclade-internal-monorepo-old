@@ -1,35 +1,16 @@
 # Training / Distributed / Parallelism
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Python/PyTorch
+**Status:** replicated `DistributedDataParallel` wrapping implemented for the bounded reference
+topology; all other parallelism families remain scaffolded.
 
-## Purpose
+`wrap_ddp` accepts a validated active `DistributedContext` and a model already placed on that
+context's single CPU or CUDA device. It rejects pre-wrapped, empty, frozen-only, mixed-device, and
+non-float32 floating state. CPU/Gloo uses no device IDs; CUDA/NCCL binds exactly the torchrun local
+rank. Buffer synchronization is enabled and unused-parameter discovery is disabled for the bounded
+reference path.
 
-Authoritative training contracts, core state machine, engine adapters, distributed plans, checkpoint orchestration, optimizers, runtime mechanisms, and task objectives. This path specializes that domain for **parallelism**.
-
-## Boundary
-
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
-
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
-
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+The implemented topologies are one-node CPU/Gloo world 2 and one-node CUDA/NCCL world 8. FSDP,
+resharding, tensor/pipeline/context/expert/sequence parallelism, device meshes, compiled DDP,
+multi-node layouts, and elastic membership remain unimplemented or unqualified. The two-rank Gloo
+path is tested by `//training/distributed/tests:test_distributed_smoke`; the NCCL/H100 path still
+requires connected eight-GPU qualification evidence.

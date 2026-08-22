@@ -24,6 +24,9 @@ OWNERS_FILE = Path("OWNERS.toml")
 ADR_DIRECTORY = Path("docs/design")
 MAX_EXCEPTION_DAYS = 90
 _ADR_ID = re.compile(r"^ADR-\d{4}$")
+_XML_NUMERIC_CHARACTER_REFERENCE = re.compile(
+    r"&#(?:(?P<decimal>[0-9]+)|[xX](?P<hexadecimal>[0-9A-Fa-f]+));"
+)
 
 
 class PolicyError(ValueError):
@@ -132,9 +135,11 @@ def load_policy(path: Path, *, today: dt.date | None = None) -> Policy:
             raise PolicyError(f"{path}: every layer needs a name and package patterns")
         patterns: list[str] = []
         for pattern in raw_patterns:
-            if not isinstance(pattern, str) or not pattern.startswith("//"):
+            if not isinstance(pattern, str) or not pattern.removeprefix("-").startswith("//"):
                 raise PolicyError(f"{path}: invalid package pattern {pattern!r} in {name}")
             patterns.append(pattern)
+        if not any(not pattern.startswith("-") for pattern in patterns):
+            raise PolicyError(f"{path}: layer {name!r} must have a positive package pattern")
         layers[name] = tuple(patterns)
 
     raw_matrix = values["BAZEL_LAYER_ALLOW_MATRIX"]
@@ -221,6 +226,7 @@ def _package(label: str) -> str | None:
 
 
 def _matches_pattern(package: str, pattern: str) -> bool:
+    pattern = pattern.removeprefix("-")
     body = pattern[2:]
     if body.endswith("/..."):
         prefix = body[:-4].strip("/")
@@ -232,17 +238,21 @@ def classify(label: str, policy: Policy) -> tuple[str, ...]:
     package = _package(label)
     if package is None:
         return ()
-    return tuple(
-        name
-        for name, patterns in policy.layers.items()
-        if any(_matches_pattern(package, pattern) for pattern in patterns)
-    )
+    matches: list[str] = []
+    for name, patterns in policy.layers.items():
+        includes = tuple(pattern for pattern in patterns if not pattern.startswith("-"))
+        excludes = tuple(pattern for pattern in patterns if pattern.startswith("-"))
+        if any(_matches_pattern(package, pattern) for pattern in includes) and not any(
+            _matches_pattern(package, pattern) for pattern in excludes
+        ):
+            matches.append(name)
+    return tuple(matches)
 
 
 def direct_rule_graph(xml: str) -> RuleGraph:
     """Return internal rules and their direct rule-to-rule input edges."""
     try:
-        root = ET.fromstring(xml)
+        root = ET.fromstring(_sanitize_bazel_query_xml(xml))
     except ET.ParseError as error:
         raise PolicyError(f"invalid Bazel query XML: {error}") from error
 
@@ -260,6 +270,30 @@ def direct_rule_graph(xml: str) -> RuleGraph:
         if (target := rule_input.get("name", "")) in rules and target != source
     )
     return RuleGraph(rules, edges)
+
+
+def _sanitize_bazel_query_xml(xml: str) -> str:
+    """Remove only numeric references that XML 1.0 cannot represent.
+
+    Bazel may serialize control bytes from opaque rule attributes as references such as
+    ``&#0;``. Those references make the complete document unparsable even though this checker
+    consumes only rule names and ``rule-input`` labels, neither of which can contain those bytes.
+    Valid references remain byte-for-byte unchanged.
+    """
+
+    def replace(match: re.Match[str]) -> str:
+        encoded = match.group("decimal") or match.group("hexadecimal")
+        base = 10 if match.group("decimal") is not None else 16
+        codepoint = int(encoded, base)
+        valid = (
+            codepoint in (0x09, 0x0A, 0x0D)
+            or 0x20 <= codepoint <= 0xD7FF
+            or 0xE000 <= codepoint <= 0xFFFD
+            or 0x10000 <= codepoint <= 0x10FFFF
+        )
+        return match.group(0) if valid else ""
+
+    return _XML_NUMERIC_CHARACTER_REFERENCE.sub(replace, xml)
 
 
 def direct_rule_edges(xml: str) -> set[tuple[str, str]]:

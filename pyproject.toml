@@ -8,6 +8,8 @@ name = "mindclade-internal"
 version = "0.0.0"
 description = "Mindclade internal monorepo for biomolecular data, training, evaluation, and inference"
 requires-python = ">=3.12"
+license = "LicenseRef-Mindclade-Proprietary"
+license-files = ["LICENSE", "NOTICE"]
 
 # Runtime dependencies. This list was empty until the model work started, and the comment here
 # used to say the tree was stdlib-only "by design ... and must stay that way". That was a

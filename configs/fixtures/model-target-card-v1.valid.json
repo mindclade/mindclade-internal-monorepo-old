@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "mindclade.dev/model-target-card/v1",
+  "modelName": "legacy-fixture",
+  "family": "llm",
+  "owner": "modeling",
+  "dataClassification": "proprietary-internal",
+  "inputSchemaDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "outputSchemaDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "trainingDatasetDigests": ["sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"],
+  "evaluationDatasetDigests": ["sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"],
+  "metricGates": [
+    {
+      "name": "fixture.quality",
+      "direction": "at-least",
+      "threshold": 0.95,
+      "minimumSamples": 1000,
+      "evaluationDatasetDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    }
+  ],
+  "availabilityProfile": "critical-serving",
+  "trainingHardwareProfiles": ["h100-8x"],
+  "servingHardwareProfiles": ["cpu"],
+  "activation": {"state": "designed", "qualificationEvidenceDigest": null}
+}

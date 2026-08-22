@@ -9,3 +9,20 @@ kind: Kustomization
 
 resources:
   - ../../base
+
+patches:
+  - target: {group: gateway.networking.k8s.io, version: v1, kind: HTTPRoute, name: serving-api}
+    patch: |-
+      - op: replace
+        path: /spec/hostnames/0
+        value: api.staging.mindclade.ai
+  - target: {group: gateway.networking.k8s.io, version: v1, kind: HTTPRoute, name: training-api}
+    patch: |-
+      - op: replace
+        path: /spec/hostnames/0
+        value: train.staging.mindclade.ai
+  - target: {group: gateway.networking.k8s.io, version: v1, kind: HTTPRoute, name: model-registry}
+    patch: |-
+      - op: replace
+        path: /spec/hostnames/0
+        value: models.staging.mindclade.ai

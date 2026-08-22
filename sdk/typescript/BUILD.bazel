@@ -10,6 +10,12 @@ load("//tools/build/bazel/rules:typescript.bzl", "typescript_test")
 
 package(default_visibility = ["//visibility:private"])
 
+filegroup(
+    name = "generated_protobuf_sources",
+    srcs = glob(["src/generated/proto/**/*.ts"]),
+    visibility = ["//protocols:__pkg__"],
+)
+
 npm_link_all_packages(name = "node_modules")
 
 ts_config(
@@ -47,6 +53,9 @@ typescript_test(
         "src/**/*.ts",
         "tests/**/*.ts",
     ]),
-    data = [":node_modules"],
+    data = [
+        ":node_modules",
+        "//tests/integration/cross_language:checkpoint_contract_v1_json",
+    ],
     entry_point = "tests/run-tests.ts",
 )

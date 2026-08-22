@@ -14,3 +14,51 @@ pytest_test(
         "//services/workers/training",
     ],
 )
+
+pytest_test(
+    name = "test_reference_affine",
+    srcs = ["test_reference_affine.py"],
+    imports = ["../../../.."],
+    deps = [
+        "//libs/python/artifacts",
+        "//libs/python/errors",
+        "//libs/python/identifiers",
+        "//libs/python/serialization",
+        "//libs/python/worker_runtime",
+        "//protocols/proto/mindclade/training/v1:checkpoint_contract_py_pb2",
+        "//services/workers/training",
+        "//services/workers/training:qualification_lib",
+        "//training/runtime/telemetry:mlflow_exporter",
+        "@pypi//numpy",
+        "@pypi//safetensors",
+        "@pypi//torch",
+    ],
+)
+
+pytest_test(
+    name = "test_qualification",
+    srcs = ["test_qualification.py"],
+    imports = ["../../../.."],
+    deps = ["//services/workers/training:qualification_lib"],
+)
+
+pytest_test(
+    name = "test_distributed_engine",
+    timeout = "moderate",
+    srcs = [
+        "ddp_worker.py",
+        "test_distributed_engine.py",
+    ],
+    imports = ["../../../.."],
+    deps = [
+        "//libs/python/artifacts",
+        "//libs/python/identifiers",
+        "//libs/python/serialization",
+        "//libs/python/worker_runtime",
+        "//services/workers/training",
+        "//services/workers/training:qualification_lib",
+        "@pypi//numpy",
+        "@pypi//safetensors",
+        "@pypi//torch",
+    ],
+)

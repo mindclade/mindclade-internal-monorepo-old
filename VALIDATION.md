@@ -1,9 +1,32 @@
-# Repository scaffold validation
+# Mindclade · Repository scaffold validation
 
-**Validated:** 2026-08-13  
+**Baseline validated:** 2026-08-13
+
+**Latest focused validation:** 2026-08-21
+
 **Scope:** complete target-state monorepo scaffold, fully implemented reusable Go
 foundation, modular control-plane composition path, three runnable Go vertical
 slices, architecture/decision/module documentation, and blueprint coverage.
+
+## Documentation and licensing validation (2026-08-21)
+
+```text
+repository-home@2 and common-document@1                    PASS
+top-level Markdown links and heading hierarchy             PASS
+canonical LICENSE and CODE_OF_CONDUCT digests (7 repos)    PASS
+first-party proprietary header coverage                    PASS (320 repaired)
+cargo deny check licenses                                  PASS
+static presubmit architecture and implementation gates     PASS through 20 gates
+dependency budget                                          BLOCKED (pre-existing servicepolicy allowlist drift)
+```
+
+The header gate excludes independently licensed agent skills, vendored and
+generated files, Next.js machine-owned references, and lockfiles; their own
+license and provenance records remain authoritative. The static presubmit
+currently stops because `services/control_plane` imports
+`go.mindclade.dev/protocols/servicepolicy` outside its dependency allowlist.
+This is a source-architecture blocker, not a documentation or license failure,
+and no production qualification is inferred from the passing focused checks.
 
 ## Materialization statement
 

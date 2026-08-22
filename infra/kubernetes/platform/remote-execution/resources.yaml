@@ -5,27 +5,441 @@
 
 ---
 apiVersion: v1
+kind: Namespace
+metadata:
+  name: mindclade-build
+  labels:
+    kubernetes.io/metadata.name: mindclade-build
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted
+    mindclade.dev/owner: developer-platform
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bazel-remote-executor
+  namespace: mindclade-build
+  labels:
+    app.kubernetes.io/name: buildfarm
+    app.kubernetes.io/component: remote-execution
+  annotations:
+    mindclade.dev/credential-policy: keyless-gke-workload-identity-required
+    mindclade.dev/workload-activation: blocked
+automountServiceAccountToken: false
+---
+apiVersion: v1
 kind: ConfigMap
 metadata:
   name: mindclade-remote-execution-contract
-  namespace: mindclade-system
+  namespace: mindclade-build
 data:
-  activationState: blocked
+  activationState: blocked-pending-v0.4.0-and-connected-qualification
+  backend: buildfarm-2.17.0
   protocol: bazel-remote-execution-v2
   endpoint: unset
-  authentication: workload-identity-or-mtls-required
-  cacheConfidentiality: tenant-isolation-required
-  executionWorkers: disabled
+  transport: grpcs-and-private-connectivity-required
+  redisUri: operator-must-patch-private-ha-endpoint
+  executionBase: operator-must-patch-attested-nix-amd64-arm64-digests
+  rollback: remove-client-endpoint-before-scaling-workers-down
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: buildfarm-config
+  namespace: mindclade-build
+data:
+  logging.properties: |-
+    handlers=java.util.logging.ConsoleHandler
+    java.util.logging.ConsoleHandler.level=INFO
+    java.util.logging.ConsoleHandler.formatter=java.util.logging.SimpleFormatter
+    java.util.logging.SimpleFormatter.format=[%4$-7s] %2$s - %5$s %6$s %n
+  config.yml: |-
+    digestFunction: SHA256
+    defaultActionTimeout: 600
+    maximumActionTimeout: 3600
+    maxEntrySizeBytes: 2147483648
+    prometheusPort: 9090
+    allowSymlinkTargetAbsolute: false
+    server:
+      instanceType: SHARD
+      name: mindclade
+      port: 8980
+      bindAddress: ''
+      actionCacheReadOnly: false
+      ensureOutputsPresent: true
+      mergeExecutions: true
+      maxRequeueAttempts: 3
+      executeKeepaliveAfterSeconds: 60
+      gracefulShutdownSeconds: 60
+    backplane:
+      type: SHARD
+      redisUri: redis://REPLACE_WITH_PRIVATE_HA_REDIS:6379
+      jedisPoolMaxTotal: 200
+      actionCacheExpire: 2419200
+      operationExpire: 604800
+      casExpire: 604800
+      maxQueueDepth: 100000
+      maxPreQueueDepth: 1000000
+      queues:
+        - name: cpu
+          allowUnmatched: false
+          properties:
+            - name: OSFamily
+              value: Linux
+            - name: container-image
+              value: '*'
+    worker:
+      port: 8981
+      publicName: REPLACED_BY_POD_IP
+      capabilities:
+        cas: true
+        execution: true
+      root: /tmp/worker
+      inlineContentLimit: 1048567
+      operationPollPeriod: 1
+      dequeueMatchSettings:
+        allowUnmatched: false
+        properties:
+          - name: OSFamily
+            value: Linux
+      storages:
+        - type: FILESYSTEM
+          path: cache
+          maxSizeBytes: 53687091200
+          fileDirectoriesIndexInMemory: false
+          skipLoad: false
+      executeStageWidth: 4
+      inputFetchStageWidth: 2
+      reportResultStageWidth: 2
+      inputFetchDeadline: 300
+      linkExecFileSystem: true
+      linkInputDirectories: true
+      allowBringYourOwnContainer: false
+      gracefulShutdownSeconds: 120
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: buildfarm-server
+  namespace: mindclade-build
+  labels:
+    app.kubernetes.io/name: buildfarm
+    app.kubernetes.io/component: server
+    mindclade.dev/workload-state: blocked
+spec:
+  replicas: 0
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: buildfarm
+      app.kubernetes.io/component: server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: buildfarm
+        app.kubernetes.io/component: server
+        mindclade.dev/workload-state: blocked
+    spec:
+      automountServiceAccountToken: false
+      serviceAccountName: bazel-remote-executor
+      terminationGracePeriodSeconds: 90
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: buildfarm
+              app.kubernetes.io/component: server
+      containers:
+        - name: server
+          image: docker.io/bazelbuild/buildfarm-server@sha256:54567fa9a4d2fc374e200e57e537ba47ce969ec2dcb1e6fd35a25dc8f8a50949
+          env:
+            - name: CONFIG_PATH
+              value: /config/config.yml
+            - name: JAVA_TOOL_OPTIONS
+              value: -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.util.logging.config.file=/config/logging.properties
+          ports:
+            - name: grpc
+              containerPort: 8980
+            - name: metrics
+              containerPort: 9090
+          startupProbe:
+            grpc:
+              port: 8980
+            failureThreshold: 30
+            periodSeconds: 10
+          readinessProbe:
+            grpc:
+              port: 8980
+            periodSeconds: 10
+          livenessProbe:
+            grpc:
+              port: 8980
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "2"
+              memory: 4Gi
+              ephemeral-storage: 1Gi
+            limits:
+              cpu: "4"
+              memory: 8Gi
+              ephemeral-storage: 2Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          configMap:
+            name: buildfarm-config
+        - name: tmp
+          emptyDir:
+            sizeLimit: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: buildfarm-worker
+  namespace: mindclade-build
+  labels:
+    app.kubernetes.io/name: buildfarm
+    app.kubernetes.io/component: worker
+    mindclade.dev/workload-state: blocked
+spec:
+  replicas: 0
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: buildfarm
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: buildfarm
+        app.kubernetes.io/component: worker
+        mindclade.dev/workload-state: blocked
+    spec:
+      automountServiceAccountToken: false
+      serviceAccountName: bazel-remote-executor
+      terminationGracePeriodSeconds: 150
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      nodeSelector:
+        mindclade.dev/workload: bazel-remote-execution
+      tolerations:
+        - key: mindclade.dev/workload
+          operator: Equal
+          value: bazel-remote-execution
+          effect: NoSchedule
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: buildfarm
+              app.kubernetes.io/component: worker
+      containers:
+        - name: worker
+          image: docker.io/bazelbuild/buildfarm-worker@sha256:7a10e8f37daecf2e8485acf872e00b02ec6fb7519fe4b6fc32e71ce2b033747d
+          args:
+            - --public_name=$(POD_IP):8981
+          env:
+            - name: CONFIG_PATH
+              value: /config/config.yml
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: JAVA_TOOL_OPTIONS
+              value: -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.util.logging.config.file=/config/logging.properties
+          ports:
+            - name: grpc
+              containerPort: 8981
+            - name: metrics
+              containerPort: 9090
+          startupProbe:
+            grpc:
+              port: 8981
+            failureThreshold: 30
+            periodSeconds: 10
+          readinessProbe:
+            grpc:
+              port: 8981
+            periodSeconds: 10
+          livenessProbe:
+            grpc:
+              port: 8981
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "4"
+              memory: 8Gi
+              ephemeral-storage: 60Gi
+            limits:
+              cpu: "8"
+              memory: 16Gi
+              ephemeral-storage: 80Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: worker-data
+              mountPath: /tmp/worker
+      volumes:
+        - name: config
+          configMap:
+            name: buildfarm-config
+        - name: worker-data
+          emptyDir:
+            sizeLimit: 80Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: buildfarm-server
+  namespace: mindclade-build
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: buildfarm
+    app.kubernetes.io/component: server
+  ports:
+    - name: grpc
+      port: 8980
+      targetPort: grpc
+    - name: metrics
+      port: 9090
+      targetPort: metrics
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: buildfarm-worker
+  namespace: mindclade-build
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: buildfarm
+    app.kubernetes.io/component: worker
+  ports:
+    - name: grpc
+      port: 8981
+      targetPort: grpc
+    - name: metrics
+      port: 9090
+      targetPort: metrics
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: buildfarm-server
+  namespace: mindclade-build
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: buildfarm
+      app.kubernetes.io/component: server
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: buildfarm-worker
+  namespace: mindclade-build
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: buildfarm
+      app.kubernetes.io/component: worker
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: block-unqualified-remote-execution
-  namespace: mindclade-system
+  name: default-deny
+  namespace: mindclade-build
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: buildfarm-internal
+  namespace: mindclade-build
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/component: remote-execution
+      app.kubernetes.io/name: buildfarm
   policyTypes:
-    - Egress
     - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: buildfarm
+      ports:
+        - port: 8980
+          protocol: TCP
+        - port: 8981
+          protocol: TCP
+        - port: 9090
+          protocol: TCP
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: buildfarm
+      ports:
+        - port: 8980
+          protocol: TCP
+        - port: 8981
+          protocol: TCP

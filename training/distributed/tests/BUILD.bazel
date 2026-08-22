@@ -3,13 +3,49 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("//tools/build:pytest.bzl", "pytest_test")
+
 package(default_visibility = ["//visibility:private"])
 
+pytest_test(
+    name = "test_context",
+    srcs = ["test_context.py"],
+    imports = ["../../.."],
+    deps = [
+        "//training/contracts",
+        "//training/distributed:runtime",
+        "@pypi//torch",
+    ],
+)
+
+pytest_test(
+    name = "test_distributed_smoke",
+    timeout = "moderate",
+    srcs = [
+        "ddp_worker.py",
+        "test_distributed_smoke.py",
+    ],
+    imports = ["../../.."],
+    deps = [
+        "//libs/python/errors",
+        "//libs/python/identifiers",
+        "//models/reference:affine",
+        "//training/checkpointing",
+        "//training/contracts",
+        "//training/core:trainer",
+        "//training/distributed:runtime",
+        "//training/distributed/communication:loss_reduction",
+        "//training/distributed/parallelism:ddp",
+        "//training/tasks:supervised",
+        "@pypi//torch",
+    ],
+)
+
 filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
-    visibility = ["//visibility:public"],
+    name = "remaining_scaffold_files",
+    srcs = [
+        "test_initialization.py",
+        "test_plan_application.py",
+        "test_teardown.py",
+    ],
 )

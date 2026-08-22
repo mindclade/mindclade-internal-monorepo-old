@@ -15,6 +15,17 @@
 contracts. A concept can have several external projections, but every field has
 one authority or a tested mapping.
 
+All promoted protobuf packages compile through `//protocols:all_protos`.
+`//protocols:protobuf_governance_test` checks the complete descriptor surface,
+removed-symbol tombstones, Go package identity, and per-RPC auth/deadline/retry/
+idempotency policy. `//protocols:typescript_projection_test` proves that every
+canonical source has exactly one checked-in Protobuf-ES projection.
+`//protocols:protobuf_contract_image` packages those exact sources, the
+descriptor set, compatibility baseline, and maturity policy into one
+digest-addressed OCI release subject. `protobuf-contracts` is a closed catalog
+target in the reviewed release-request pipeline; it is not published by
+presubmit or by developer commands.
+
 ## What's here
 
 | Path | Responsibility |
@@ -66,5 +77,11 @@ file-scoped legacy naming exceptions are governed by
 `buf.gen.yaml` generates the checked-in Protobuf-ES consumer surface under
 `sdk/typescript/src/generated/proto`. The generated tree and the public OpenAPI
 types are verified for deterministic regeneration by `pnpm run generate:check`.
-Bazel remains the compilation authority; generated files are never edited by
-hand.
+Bazel remains the build, generation-graph, verification, and provenance
+authority. Buf is the pinned TypeScript projection engine and pnpm is only a
+developer wrapper; generated files are never edited by hand.
+
+Connected deployment qualification is defined in
+[`qualification/README.md`](qualification/README.md). It is intentionally
+separate from source maturity: local success cannot manufacture authenticated
+service or release-provenance evidence.

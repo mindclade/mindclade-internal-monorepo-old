@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mindclade.com/contracts/observability-backend-compatibility-1.0.0.schema.json",
+  "title": "Mindclade observability backend compatibility decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "name", "owner", "decision", "description", "authoritativeServices", "replacementSources", "forbiddenResponsibilities", "activationPolicy"],
+  "properties": {
+    "schemaVersion": {"const": "mindclade.dev/observability-backend-compatibility/v1"},
+    "name": {"enum": ["grafana-datasources", "otel-collector"]},
+    "owner": {"const": "platform-control"},
+    "decision": {"const": "non-deployable"},
+    "description": {"type": "string", "minLength": 40, "maxLength": 1000},
+    "authoritativeServices": {"type": "array", "minItems": 2, "maxItems": 4, "uniqueItems": true, "items": {"enum": ["cloud-logging", "cloud-monitoring", "cloud-trace", "google-managed-prometheus"]}},
+    "replacementSources": {"type": "array", "minItems": 2, "maxItems": 8, "uniqueItems": true, "items": {"type": "string", "pattern": "^infra/[A-Za-z0-9_./-]+$"}},
+    "forbiddenResponsibilities": {"type": "array", "minItems": 3, "maxItems": 8, "uniqueItems": true, "items": {"enum": ["alerting", "collector-deployment", "credential-distribution", "dashboard-deployment", "datasource-provisioning", "exporter-endpoints"]}},
+    "activationPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabledByDefault", "requiresConnectedQualification", "requiresEnvironmentComposition"],
+      "properties": {
+        "enabledByDefault": {"const": false},
+        "requiresConnectedQualification": {"const": true},
+        "requiresEnvironmentComposition": {"const": true}
+      }
+    }
+  }
+}

@@ -1,0 +1,214 @@
+{
+  "mindclade.artifact.v1.ArtifactLocation": {
+    "1": {
+      "label": "singular",
+      "name": "artifact",
+      "type": "ArtifactRef"
+    },
+    "2": {
+      "label": "singular",
+      "name": "provider",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "uri",
+      "type": "string"
+    },
+    "4": {
+      "label": "singular",
+      "name": "object_path",
+      "type": "string"
+    },
+    "5": {
+      "label": "singular",
+      "name": "generation",
+      "type": "string"
+    },
+    "6": {
+      "label": "singular",
+      "name": "region",
+      "type": "string"
+    }
+  },
+  "mindclade.artifact.v1.ArtifactRef": {
+    "1": {
+      "label": "singular",
+      "name": "digest",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "size_bytes",
+      "type": "uint64"
+    },
+    "3": {
+      "label": "singular",
+      "name": "media_type",
+      "type": "string"
+    },
+    "4": {
+      "label": "singular",
+      "name": "logical_kind",
+      "type": "string"
+    },
+    "5": {
+      "label": "singular",
+      "name": "schema_version",
+      "type": "uint32"
+    }
+  },
+  "mindclade.artifact.v1.CheckpointCommit": {
+    "1": {
+      "label": "singular",
+      "name": "schema_version",
+      "type": "uint32"
+    },
+    "2": {
+      "label": "singular",
+      "name": "checkpoint_id",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "run_id",
+      "type": "string"
+    },
+    "4": {
+      "label": "singular",
+      "name": "manifest",
+      "type": "mindclade.common.v1.ArtifactRef"
+    },
+    "5": {
+      "label": "singular",
+      "name": "checkpoint_attempt",
+      "type": "uint64"
+    },
+    "6": {
+      "label": "singular",
+      "name": "fencing_token",
+      "type": "uint64"
+    },
+    "7": {
+      "label": "singular",
+      "name": "writer_id",
+      "type": "string"
+    },
+    "8": {
+      "label": "singular",
+      "name": "committed_at",
+      "type": "google.protobuf.Timestamp"
+    },
+    "9": {
+      "label": "singular",
+      "name": "commit_digest",
+      "type": "string"
+    }
+  },
+  "mindclade.artifact.v1.GarbageCollectionCandidate": {
+    "1": {
+      "label": "singular",
+      "name": "artifact",
+      "type": "ArtifactRef"
+    },
+    "2": {
+      "label": "singular",
+      "name": "object_path",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "expected_object_version",
+      "type": "string"
+    }
+  },
+  "mindclade.artifact.v1.GarbageCollectionPlan": {
+    "1": {
+      "label": "singular",
+      "name": "plan_digest",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "created_unix_millis",
+      "type": "uint64"
+    },
+    "3": {
+      "label": "repeated",
+      "name": "candidates",
+      "type": "GarbageCollectionCandidate"
+    }
+  },
+  "mindclade.artifact.v1.GarbageCollectionReceipt": {
+    "1": {
+      "label": "singular",
+      "name": "plan_digest",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "completed_unix_millis",
+      "type": "uint64"
+    },
+    "3": {
+      "label": "repeated",
+      "name": "results",
+      "type": "GarbageCollectionResult"
+    }
+  },
+  "mindclade.artifact.v1.GarbageCollectionResult": {
+    "1": {
+      "label": "singular",
+      "name": "digest",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "object_path",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "outcome",
+      "type": "GarbageCollectionOutcome"
+    }
+  },
+  "mindclade.artifact.v1.GetArtifactRequest": {
+    "1": {
+      "label": "singular",
+      "name": "digest",
+      "type": "mindclade.common.v1.ContentDigest"
+    }
+  },
+  "mindclade.artifact.v1.GetArtifactResponse": {
+    "1": {
+      "label": "singular",
+      "name": "artifact",
+      "type": "ArtifactRef"
+    }
+  },
+  "mindclade.artifact.v1.ListArtifactsRequest": {
+    "1": {
+      "label": "singular",
+      "name": "page",
+      "type": "mindclade.common.v1.PageRequest"
+    },
+    "2": {
+      "label": "optional",
+      "name": "logical_kind",
+      "type": "string"
+    }
+  },
+  "mindclade.artifact.v1.ListArtifactsResponse": {
+    "1": {
+      "label": "repeated",
+      "name": "artifacts",
+      "type": "ArtifactRef"
+    },
+    "2": {
+      "label": "singular",
+      "name": "page",
+      "type": "mindclade.common.v1.PageResponse"
+    }
+  }
+}

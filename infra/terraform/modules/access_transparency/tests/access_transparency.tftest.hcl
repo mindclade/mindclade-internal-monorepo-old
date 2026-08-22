@@ -14,9 +14,9 @@ variables {
     filter = "logName:\"logs/cloudaudit.googleapis.com%2Faccess_transparency\""
     bucket = {
       name                   = "mc-access-transparency"
-      location               = "europe-west1"
+      location               = "us-central1"
       access_log_bucket_name = "mc-central-storage-access"
-      encryption_key         = "projects/mc-security-001/locations/europe-west1/keyRings/logs/cryptoKeys/access-transparency"
+      encryption_key         = "projects/mc-security-001/locations/us-central1/keyRings/logs/cryptoKeys/access-transparency"
       retention_days         = 2555
     }
   }
@@ -37,7 +37,7 @@ run "records_cannot_be_deleted_before_their_window_expires" {
       google_storage_bucket.access_transparency.public_access_prevention == "enforced" &&
       google_storage_bucket.access_transparency.deletion_policy == "PREVENT" &&
       google_storage_bucket.access_transparency.force_destroy == false &&
-      google_storage_bucket.access_transparency.encryption[0].default_kms_key_name == "projects/mc-security-001/locations/europe-west1/keyRings/logs/cryptoKeys/access-transparency" &&
+      google_storage_bucket.access_transparency.encryption[0].default_kms_key_name == "projects/mc-security-001/locations/us-central1/keyRings/logs/cryptoKeys/access-transparency" &&
       google_storage_bucket.access_transparency.logging[0].log_bucket == "mc-central-storage-access" &&
       google_storage_bucket.access_transparency.soft_delete_policy[0].retention_duration_seconds == 7776000
     )
@@ -69,9 +69,9 @@ run "a_filter_that_does_not_select_access_transparency_is_rejected" {
       filter = "resource.type=\"gce_instance\""
       bucket = {
         name                   = "mc-access-transparency"
-        location               = "europe-west1"
+        location               = "us-central1"
         access_log_bucket_name = "mc-central-storage-access"
-        encryption_key         = "projects/mc-security-001/locations/europe-west1/keyRings/logs/cryptoKeys/access-transparency"
+        encryption_key         = "projects/mc-security-001/locations/us-central1/keyRings/logs/cryptoKeys/access-transparency"
       }
     }
   }
@@ -90,9 +90,9 @@ run "a_short_retention_window_is_rejected" {
       filter = "logName:\"logs/cloudaudit.googleapis.com%2Faccess_transparency\""
       bucket = {
         name                   = "mc-access-transparency"
-        location               = "europe-west1"
+        location               = "us-central1"
         access_log_bucket_name = "mc-central-storage-access"
-        encryption_key         = "projects/mc-security-001/locations/europe-west1/keyRings/logs/cryptoKeys/access-transparency"
+        encryption_key         = "projects/mc-security-001/locations/us-central1/keyRings/logs/cryptoKeys/access-transparency"
         retention_days         = 30
       }
     }
@@ -112,7 +112,7 @@ run "a_cmek_outside_the_bucket_location_is_rejected" {
         name                   = "mc-access-transparency"
         location               = "us-central1"
         access_log_bucket_name = "mc-central-storage-access"
-        encryption_key         = "projects/mc-security-001/locations/europe-west1/keyRings/logs/cryptoKeys/access-transparency"
+        encryption_key         = "projects/mc-security-001/locations/us-east4/keyRings/logs-dr/cryptoKeys/access-transparency"
       }
     }
   }

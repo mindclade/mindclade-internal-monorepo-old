@@ -7,6 +7,19 @@ syntax = "proto3";
 
 package mindclade.data.v1;
 
-message SnapshotScaffold {
-  string reserved = 1;
+option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/data/v1;datav1";
+
+import "google/protobuf/timestamp.proto";
+import "mindclade/common/v1/artifact_ref.proto";
+import "mindclade/data/v1/cursor.proto";
+import "mindclade/data/v1/source.proto";
+
+// SourceSnapshot freezes one observed upstream version and the raw bytes from
+// which ingestion proceeds. It is immutable after registration.
+message SourceSnapshot {
+  string snapshot_id = 1;
+  SourceSpec source = 2;
+  mindclade.common.v1.ArtifactRef raw_artifact = 3;
+  SourceCursor cursor = 4;
+  google.protobuf.Timestamp observed_at = 5;
 }

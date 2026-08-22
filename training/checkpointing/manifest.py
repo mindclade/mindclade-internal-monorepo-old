@@ -207,7 +207,7 @@ class CheckpointManifest:
             )
         try:
             document = json.loads(value, object_pairs_hook=_unique_object)
-        except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
+        except (UnicodeDecodeError, json.JSONDecodeError, RecursionError, ValueError) as error:
             raise InvalidArgument(
                 "checkpoint manifest is not unique-key UTF-8 JSON",
                 reason="checkpoint_manifest_json",
@@ -244,7 +244,7 @@ class CheckpointManifest:
                 "checkpoint artifact references must be an object",
                 reason="checkpoint_manifest_artifacts",
             )
-        return cls(
+        manifest = cls(
             identity=CheckpointIdentity.from_document(document["identity"]),
             training_state=TrainingState(**state),
             data_position=document["data_position"],
@@ -254,6 +254,12 @@ class CheckpointManifest:
             schema_version=document["schema_version"],
             world_size=document["world_size"],
         )
+        if manifest.encode() != value:
+            raise InvalidArgument(
+                "checkpoint manifest must use its exact canonical JSON encoding",
+                reason="checkpoint_manifest_canonical",
+            )
+        return manifest
 
 
 def qualified_type(value: object) -> str:

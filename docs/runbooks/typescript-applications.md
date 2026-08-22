@@ -39,6 +39,18 @@ tools/dev/nixw develop .#ci-bazel --command \
   tools/dev/bazelw build //apps/console:release_archive //apps/admin:release_archive --config=ci
 ```
 
+Run the representative browser-accessibility matrix against optimized builds:
+
+```bash
+pnpm build
+pnpm exec playwright install chromium firefox webkit
+pnpm test:accessibility
+```
+
+On macOS, the Chromium projects use the installed stable Chrome channel;
+Firefox and WebKit remain Playwright-pinned. Linux CI installs all three pinned
+engines plus their system dependencies before running the same suite.
+
 The archives contain the Next standalone server, public files, and static
 assets with portable timestamps and no build stamping. A release lane must add
 an SBOM, provenance attestation, signature, immutable image digest, and
@@ -84,7 +96,8 @@ audit and policy owners confirm the incident boundary.
 ## Exit criteria
 
 Source qualification is complete when generation, type, unit, boundary,
-standalone build, and archive targets pass. Production qualification additionally
-requires connected IdP/API negative tests, ingress evidence, accessibility and
-browser automation, SLO dashboards/alerts, signed release evidence, canary, and
-a recorded rollback exercise.
+standalone build, browser accessibility automation, and archive targets pass.
+Production qualification additionally requires connected IdP/API negative
+tests, ingress evidence, manual assistive-technology review and browser checks
+through the production edge, SLO dashboards/alerts, signed release evidence,
+canary, and a recorded rollback exercise.

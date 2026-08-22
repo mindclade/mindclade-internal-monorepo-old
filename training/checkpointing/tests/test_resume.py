@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 from pathlib import Path
 
@@ -14,15 +15,17 @@ import pytest
 import torch
 
 from libs.python.errors import FailedPrecondition, InvalidArgument
-from libs.python.identifiers import Digest, IdGenerator, ResourceId
+from libs.python.identifiers import ArtifactRef, Digest, IdGenerator, ResourceId
 from models.reference import ReferenceAffine
 from training.checkpointing import (
     CheckpointIdentity,
     CheckpointManifest,
     restore_local_checkpoint,
     save_local_checkpoint,
+    save_local_trainer_checkpoint,
 )
-from training.checkpointing.serialization import encode_training_state
+from training.checkpointing import atomic_commit as atomic_commit_module
+from training.checkpointing.serialization import decode_training_state, encode_training_state
 from training.contracts import SupervisedBatch, TrainingState
 from training.core import Trainer
 from training.tasks import SupervisedMSETask
@@ -91,6 +94,52 @@ def _assert_tree_equal(actual: object, expected: object) -> None:
     assert actual == expected
 
 
+def _rehashed_artifact(reference: ArtifactRef, value: bytes) -> ArtifactRef:
+    return ArtifactRef(
+        digest=Digest.of(value),
+        size_bytes=len(value),
+        media_type=reference.media_type,
+        logical_kind=reference.logical_kind,
+        schema_version=reference.schema_version,
+    )
+
+
+def _rewrite_local_state(
+    destination: Path,
+    manifest: CheckpointManifest,
+    *,
+    model_delta: float = 0.0,
+    optimizer_step: float | None = None,
+) -> CheckpointManifest:
+    decoded = decode_training_state(
+        (destination / "state.json").read_bytes(),
+        (destination / "state.safetensors").read_bytes(),
+    )
+    model = dict(decoded.model)
+    if model_delta:
+        scale = model["scale"]
+        assert isinstance(scale, torch.Tensor)
+        model["scale"] = scale + model_delta
+    optimizer = dict(decoded.optimizer)
+    if optimizer_step is not None:
+        states = optimizer["state"]
+        assert isinstance(states, dict)
+        for state in states.values():
+            assert isinstance(state, dict)
+            step = state["step"]
+            assert isinstance(step, torch.Tensor)
+            step.fill_(optimizer_step)
+    metadata, tensors = encode_training_state(model, optimizer, decoded.torch_rng)
+    artifacts = dict(manifest.artifacts)
+    artifacts["state.json"] = _rehashed_artifact(artifacts["state.json"], metadata)
+    artifacts["state.safetensors"] = _rehashed_artifact(artifacts["state.safetensors"], tensors)
+    forged = replace(manifest, artifacts=artifacts)
+    (destination / "state.json").write_bytes(metadata)
+    (destination / "state.safetensors").write_bytes(tensors)
+    (destination / "manifest.json").write_bytes(forged.encode())
+    return forged
+
+
 def test_interrupted_resume_matches_uninterrupted_training_exactly(tmp_path: Path) -> None:
     uninterrupted = ReferenceAffine()
     uninterrupted_optimizer = _optimizer(uninterrupted)
@@ -145,6 +194,65 @@ def test_interrupted_resume_matches_uninterrupted_training_exactly(tmp_path: Pat
     _assert_tree_equal(resumed_optimizer.state_dict(), uninterrupted_optimizer.state_dict())
 
 
+def test_local_state_metadata_requires_exact_canonical_json() -> None:
+    model = ReferenceAffine()
+    optim = _optimizer(model)
+    metadata, tensors = encode_training_state(
+        model.state_dict(),
+        optim.state_dict(),
+        torch.get_rng_state(),
+    )
+    document = json.loads(metadata)
+    reordered = json.dumps(
+        dict(reversed(tuple(document.items()))),
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    noncanonical_number = metadata.replace(b'"schema_version":1', b'"schema_version":-0', 1)
+
+    for noncanonical in (b" " + metadata, reordered, noncanonical_number):
+        with pytest.raises(InvalidArgument, match="canonical JSON"):
+            decode_training_state(noncanonical, tensors)
+
+    boolean_version = metadata.replace(b'"schema_version":1', b'"schema_version":true', 1)
+    with pytest.raises(InvalidArgument, match="schema version"):
+        decode_training_state(boolean_version, tensors)
+
+
+def test_local_state_metadata_rejects_excessive_json_nesting() -> None:
+    deeply_nested = (b"[" * 10_000) + b"0" + (b"]" * 10_000)
+    with pytest.raises(InvalidArgument, match="UTF-8 JSON"):
+        decode_training_state(deeply_nested, b"not-read")
+
+
+def test_local_commit_rejects_silent_member_write_tamper(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_write = atomic_commit_module._write_durable
+
+    def tamper_write(path: Path, value: bytes) -> None:
+        if path.name == "state.json":
+            value = bytes((value[0] ^ 1,)) + value[1:]
+        original_write(path, value)
+
+    monkeypatch.setattr(atomic_commit_module, "_write_durable", tamper_write)
+    model = ReferenceAffine()
+    destination = tmp_path / "tampered-write"
+    with pytest.raises(InvalidArgument, match="write verification"):
+        save_local_checkpoint(
+            destination,
+            model=model,
+            optimizer=_optimizer(model),
+            training_state=TrainingState(),
+            identity=_identity(),
+            data_position=0,
+        )
+
+    assert not destination.exists()
+    assert not tuple(tmp_path.glob(".tampered-write.staging-*"))
+
+
 def test_manifest_is_canonical_and_artifacts_are_immutable(tmp_path: Path) -> None:
     model = ReferenceAffine()
     optimizer = _optimizer(model)
@@ -164,6 +272,136 @@ def test_manifest_is_canonical_and_artifacts_are_immutable(tmp_path: Path) -> No
     assert CheckpointManifest.decode(encoded).encode() == encoded
     with pytest.raises(TypeError):
         manifest.artifacts["extra"] = manifest.artifacts["state.json"]  # type: ignore[index]
+
+    zero_position = replace(manifest, data_position=0).encode()
+    document = json.loads(zero_position)
+    reordered = json.dumps(
+        dict(reversed(tuple(document.items()))),
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    noncanonical_number = zero_position.replace(b'"data_position":0', b'"data_position":-0', 1)
+    for noncanonical in (b" " + zero_position, reordered, noncanonical_number):
+        with pytest.raises(InvalidArgument, match="canonical JSON"):
+            CheckpointManifest.decode(noncanonical)
+
+
+def test_scheduler_backed_trainer_is_rejected_before_local_staging(tmp_path: Path) -> None:
+    model = ReferenceAffine()
+    optimizer = _optimizer(model)
+    scheduled = Trainer(
+        model,
+        SupervisedMSETask(),
+        optimizer,
+        scheduler=torch.optim.lr_scheduler.StepLR(optimizer, step_size=1),
+    )
+    _train_steps(scheduled, 1)
+    destination = tmp_path / "scheduled"
+
+    with pytest.raises(FailedPrecondition, match="scheduler"):
+        save_local_trainer_checkpoint(
+            destination,
+            trainer=scheduled,
+            identity=_identity(),
+            data_position=1,
+        )
+
+    assert not destination.exists()
+
+
+@pytest.mark.parametrize("step", [float("nan"), 1.5, 2.0, float(1 << 63)])
+def test_local_save_rejects_invalid_or_mismatched_adamw_steps(
+    tmp_path: Path,
+    step: float,
+) -> None:
+    model = ReferenceAffine()
+    optimizer = _optimizer(model)
+    trained = _trainer(model, optimizer)
+    _train_steps(trained, 1)
+    first_state = next(iter(optimizer.state.values()))
+    first_step = first_state["step"]
+    assert isinstance(first_step, torch.Tensor)
+    first_step.fill_(step)
+
+    with pytest.raises(InvalidArgument, match="step"):
+        save_local_checkpoint(
+            tmp_path / "invalid-step",
+            model=model,
+            optimizer=optimizer,
+            training_state=trained.state,
+            identity=_identity(),
+            data_position=1,
+        )
+
+    assert not (tmp_path / "invalid-step").exists()
+
+
+def test_local_restore_rejects_recomputed_optimizer_counter_before_mutation(
+    tmp_path: Path,
+) -> None:
+    model = ReferenceAffine()
+    optimizer = _optimizer(model)
+    trained = _trainer(model, optimizer)
+    _train_steps(trained, 1)
+    destination = tmp_path / "checkpoint"
+    identity = _identity()
+    manifest = save_local_checkpoint(
+        destination,
+        model=model,
+        optimizer=optimizer,
+        training_state=trained.state,
+        identity=identity,
+        data_position=1,
+    )
+    _rewrite_local_state(destination, manifest, optimizer_step=2.0)
+
+    fresh = ReferenceAffine()
+    fresh_optimizer = _optimizer(fresh)
+    before = {name: tensor.clone() for name, tensor in fresh.state_dict().items()}
+    with pytest.raises(InvalidArgument, match="TrainingState optimizer_steps"):
+        restore_local_checkpoint(
+            destination,
+            model=fresh,
+            optimizer=fresh_optimizer,
+            expected_identity=identity,
+        )
+
+    _assert_tree_equal(fresh.state_dict(), before)
+    assert not fresh_optimizer.state
+
+
+def test_external_manifest_anchor_rejects_whole_tree_recomputation(tmp_path: Path) -> None:
+    model = ReferenceAffine()
+    optimizer = _optimizer(model)
+    trained = _trainer(model, optimizer)
+    _train_steps(trained, 1)
+    destination = tmp_path / "checkpoint"
+    manifest = save_local_checkpoint(
+        destination,
+        model=model,
+        optimizer=optimizer,
+        training_state=trained.state,
+        identity=_identity(),
+        data_position=1,
+    )
+    admitted = Digest.parse(manifest.digest)
+    forged = _rewrite_local_state(destination, manifest, model_delta=10.0)
+    assert forged.digest != manifest.digest
+
+    fresh = ReferenceAffine()
+    fresh_optimizer = _optimizer(fresh)
+    before = {name: tensor.clone() for name, tensor in fresh.state_dict().items()}
+    with pytest.raises(FailedPrecondition, match="externally admitted digest"):
+        restore_local_checkpoint(
+            destination,
+            model=fresh,
+            optimizer=fresh_optimizer,
+            expected_identity=_identity(),
+            expected_manifest_digest=admitted,
+        )
+
+    _assert_tree_equal(fresh.state_dict(), before)
+    assert not fresh_optimizer.state
 
 
 @pytest.mark.parametrize(

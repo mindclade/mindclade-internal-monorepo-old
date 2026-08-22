@@ -1,18 +1,16 @@
 // Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 // Mindclade Proprietary and Confidential.
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
 
 syntax = "proto3";
 
 package mindclade.registry.v1;
 
+option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/registry/v1;registryv1";
+
 import "google/protobuf/timestamp.proto";
 import "mindclade/common/v1/identifiers.proto";
-
-message ModelBundleScaffold {
-  option deprecated = true;
-  string reserved = 1;
-}
 
 enum ModelStatus {
   MODEL_STATUS_UNSPECIFIED = 0;

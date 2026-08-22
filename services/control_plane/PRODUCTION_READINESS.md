@@ -59,6 +59,13 @@ Promotion still requires the release run's SBOM, provenance, signature, and
 rollback artifacts; repository code does not manufacture evidence for a release
 that did not happen.
 
+Release promotion itself is held fail-closed in the production factory: no active
+release-policy digest/epoch or typed evidence resolver is injected. The domain
+service rejects promotion until a connected authority resolves every immutable
+artifact, verifies its digest, signer/profile/freshness and derived result, and
+matches the approved policy. Caller-provided evidence labels and booleans cannot
+activate promotion.
+
 ## Roles still held fail-closed
 
 | Role | Remaining domain or provider gate |

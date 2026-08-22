@@ -34,9 +34,10 @@ module "bazel_remote_execution" {
 
 Terraform does **not** deploy the remote-execution server, Kubernetes namespace,
 KSA, NetworkPolicy, PodDisruptionBudget, autoscaler driven by execution backlog,
-certificates, load balancer, Bazel platform, Nix worker closure, or endpoint. Those
-belong to GitOps, Bazel, and Nix. `gitops_contract` is the exact handoff; a green
-Terraform plan is not a claim that remote execution works.
+certificates, load balancer, Bazel platform, Nix worker closure, or endpoint. The
+activation-blocked Kubernetes source lives under `infra/kubernetes/platform/remote-execution`;
+GitOps, Bazel, and Nix own the remaining boundaries. `gitops_contract` is the exact handoff;
+a green Terraform plan is not a claim that remote execution works.
 
 The remote cache bucket is created by `bazel_remote_cache`, never here. The executor
 can read and create objects but cannot administer the bucket or its lifecycle. CAS,
@@ -87,7 +88,7 @@ in-place edit.
 | <a name="input_executor_image"></a> [executor\_image](#input\_executor\_image) | Immutable executor image reference deployed by GitOps; tags are forbidden | `string` | n/a | yes |
 | <a name="input_executor_project_roles"></a> [executor\_project\_roles](#input\_executor\_project\_roles) | Additional additive project roles for the executor workload; administrative and basic roles are forbidden | `set(string)` | <pre>[<br/>  "roles/artifactregistry.reader"<br/>]</pre> | no |
 | <a name="input_executor_service_account_id"></a> [executor\_service\_account\_id](#input\_executor\_service\_account\_id) | Account ID for the keyless Bazel executor workload service account | `string` | `"bazel-remote-executor"` | no |
-| <a name="input_kubernetes_namespace"></a> [kubernetes\_namespace](#input\_kubernetes\_namespace) | Namespace of the executor Kubernetes service account deployed by GitOps | `string` | `"build"` | no |
+| <a name="input_kubernetes_namespace"></a> [kubernetes\_namespace](#input\_kubernetes\_namespace) | Namespace of the executor Kubernetes service account deployed by GitOps | `string` | `"mindclade-build"` | no |
 | <a name="input_kubernetes_service_account"></a> [kubernetes\_service\_account](#input\_kubernetes\_service\_account) | Executor Kubernetes service account deployed by GitOps | `string` | `"bazel-remote-executor"` | no |
 | <a name="input_machine_type"></a> [machine\_type](#input\_machine\_type) | Optional reviewed machine-type override | `string` | `null` | no |
 | <a name="input_max_pods_per_node"></a> [max\_pods\_per\_node](#input\_max\_pods\_per\_node) | Maximum pods per worker node | `number` | `32` | no |

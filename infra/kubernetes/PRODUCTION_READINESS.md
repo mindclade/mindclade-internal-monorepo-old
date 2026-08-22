@@ -17,7 +17,8 @@ for production apply.
 | Default-deny networking | PASS | DNS is the only allowed egress in `policies/network-policies.yaml` |
 | Workload activation is fail-closed | PASS | Pod and workload-object quotas are zero in every overlay |
 | Workload capacity domains are internally consistent | PASS | Separate CPU/H100/B200 namespaces, LimitRanges, queues, and coherent resource-flavor groups |
-| GPU packing contracts exist | PASS | Suspended one-GPU packed and eight-GPU full-node templates for H100 and B200 |
+| H100 qualification scheduling contract | PASS | Suspended zero-digest one-GPU smoke and exact single-node eight-GPU JobSet select the Terraform-owned on-demand H100 label; this is source evidence only |
+| B200 packing contract | PARTIAL | The older suspended two-node template remains outside the reference qualification claim |
 | Secrets are absent | PASS | Foundation contains only non-secret deployment identity |
 | Static render/schema/policy CI | PASS | Bazel receives declared tools and fixed-hash core/custom schemas; CI executes it in the pinned Nix closure |
 | Required merge enforcement | EXTERNAL | Stable `infra-static` check exists; the GitHub ruleset must require that context |
@@ -32,12 +33,17 @@ for production apply.
 | Queue and GPU/RDMA/NCCL activation | BLOCKED | Queues are held with zero quota; hardware, topology, transport, checkpoint, and rollback qualification is missing |
 | Operator observability source contract | PARTIAL | GMP PodMonitoring and namespaced recording Rules exist; external rotating auth/trust, exact RBAC, collector network access, and durable JobSet outcome telemetry remain blocked |
 | Control-admission observability source contract | PARTIAL | API and maintenance own private metrics listeners, named ports, fixed-cardinality exporters, exact per-replica inventory gates, bounded PodMonitoring, aggregate rules, and promtool fixtures; v14 receipt, representative PostgreSQL, exact collector ingress, connected scrape/rule, and alert fire/resolve evidence remain blocked |
+| Reference-training observability source contract | PARTIAL | Exact 73-series external producer contract, GMP recording rules, disabled proposed alerts, dashboard, and promtool fixtures exist; exporter, PodMonitoring, collector policy, connected query, and fire/resolve evidence remain blocked |
 | Observability operation and MLOps | BLOCKED | Collector reachability, target/rule health, Cloud Monitoring policies/channels, SLO tests, and data/model-quality evidence |
 | Connected non-production qualification | MISSING | Server-side validation, rollout, failure injection, and recovery exercise |
 
 An offline render proves syntax and composition only. It does not prove API
 availability, admission-controller behavior, cloud IAM, quotas, capacity,
 network reachability, image admission, storage durability, or SLO compliance.
+
+The reference profile makes no Spot, reservation, Flex Start, queued-provisioning, H200, B200,
+multi-node, cost, SLO, RPO, or RTO claim. Its namespace quota and Kueue quotas remain zero and
+held, and both workload images remain all-zero digest sentinels.
 
 ## Workload activation gate
 

@@ -34,6 +34,7 @@ run "isolated_h100_pool_contract" {
     owner                      = "ml-platform"
     capacity_mode              = "ON_DEMAND"
     node_labels = {
+      "mindclade.dev/capacity-type"             = "spot"
       "scheduling.mindclade.dev/workload-class" = "NOVA_gpu.1"
       "empty-value"                             = ""
     }
@@ -77,6 +78,9 @@ run "isolated_h100_pool_contract" {
 
   assert {
     condition = (
+      google_container_node_pool.this.node_config[0].labels["mindclade.dev/capacity-type"] == "on-demand" &&
+      google_container_node_pool.this.node_config[0].labels["mindclade.dev/gpu-profile"] == "gke-h100-a3-megagpu-8g" &&
+      google_container_node_pool.this.node_config[0].labels["mindclade.dev/node-pool"] == "gpu" &&
       google_container_node_pool.this.node_config[0].labels["scheduling.mindclade.dev/workload-class"] == "NOVA_gpu.1" &&
       google_container_node_pool.this.node_config[0].labels["empty-value"] == "" &&
       one([
@@ -84,7 +88,7 @@ run "isolated_h100_pool_contract" {
         if taint.key == "scheduling.mindclade.dev/dedicated"
       ]).value == "NOVA_gpu.1"
     )
-    error_message = "Valid qualified Kubernetes keys, mixed permitted value characters, and empty label values must reach the node configuration."
+    error_message = "Module-owned on-demand/profile/pool identity must override callers while valid qualified custom labels and taints reach the node configuration."
   }
 }
 

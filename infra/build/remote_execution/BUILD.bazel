@@ -1,0 +1,22 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+package(default_visibility = ["//visibility:private"])
+
+exports_files(
+    ["images.lock.json"],
+    visibility = ["//tools/qualification/build:__pkg__"],
+)
+
+filegroup(
+    name = "pinned_buildfarm_images",
+    srcs = [
+        ":images.lock.json",
+        "@buildfarm_server_linux_amd64",
+        "@buildfarm_server_linux_arm64",
+        "@buildfarm_worker_linux_amd64",
+        "@buildfarm_worker_linux_arm64",
+    ],
+    visibility = ["//visibility:public"],
+)

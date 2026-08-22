@@ -126,11 +126,11 @@ def load_catalog() -> dict[str, dict[str, Any]]:
         if target["rolloutClass"] not in ROLLOUT_CLASSES:
             raise ContractError(f"target {name} has an invalid rolloutClass")
         images = _mapping(target["images"], f"target {name} images")
-        # Shared workflow v5 has singular outputs. Keep the schema named now, but reject
-        # multiple images until a future immutable interface can carry the complete map.
+        # Shared workflow v4 has singular outputs. Keep the schema named now, but reject
+        # multiple images until the immutable v5 interface can carry the complete map.
         if set(images) != {"primary"}:
             raise ContractError(
-                f"target {name} images must contain exactly primary under workflow v5"
+                f"target {name} images must contain exactly primary until workflow v5"
             )
         image = _mapping(images["primary"], f"target {name} image primary")
         _exact_keys(
@@ -330,10 +330,7 @@ def build(request_path: str, source_sha: str, output: Path) -> None:
     )
     if not DIGEST_RE.fullmatch(digest):
         raise ContractError("Artifact Registry did not return a canonical image digest")
-    if (
-        contract["previousSubjectDigest"] is not None
-        and digest == contract["previousSubjectDigest"]
-    ):
+    if contract["previousSubjectDigest"] is not None and digest == contract["previousSubjectDigest"]:
         raise ContractError("candidate digest must differ from the previous release subject")
     image_ref = f"{repository}@{digest}"
 

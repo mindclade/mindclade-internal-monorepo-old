@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mindclade.com/contracts/model/scientific-model-intake-1.0.0.schema.json",
+  "title": "Mindclade scientific model implementation intake",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "intakeId", "purpose", "targetCard", "scientificSemantics", "preprocessingContract", "checkpointContract", "referenceVectorPack", "trainingDatasets", "evaluationDatasets", "evaluationPolicy", "servingContract", "runtimeConsumers", "safetyUsePolicy", "sourceRevision", "policyDigest", "biosecurityReviewRequired", "approvals"],
+  "properties": {
+    "schemaVersion": {"const": "mindclade.dev/scientific-model-intake/v1"},
+    "intakeId": {"$ref": "#/$defs/id"},
+    "purpose": {"enum": ["implementation-authorization", "template"]},
+    "targetCard": {"$ref": "#/$defs/targetCard"},
+    "scientificSemantics": {"$ref": "#/$defs/scientificSemantics"},
+    "preprocessingContract": {"$ref": "#/$defs/preprocessingContract"},
+    "checkpointContract": {"$ref": "#/$defs/checkpointContract"},
+    "referenceVectorPack": {"anyOf": [{"$ref": "#/$defs/referenceVectorPack"}, {"type": "null"}]},
+    "trainingDatasets": {"type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/dataset"}},
+    "evaluationDatasets": {"type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/dataset"}},
+    "evaluationPolicy": {"$ref": "#/$defs/evaluationPolicy"},
+    "servingContract": {"$ref": "#/$defs/servingContract"},
+    "runtimeConsumers": {"type": "array", "maxItems": 16, "uniqueItems": true, "items": {"$ref": "#/$defs/runtimeConsumer"}},
+    "safetyUsePolicy": {"$ref": "#/$defs/safetyUsePolicy"},
+    "sourceRevision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "policyDigest": {"$ref": "#/$defs/digest"},
+    "biosecurityReviewRequired": {"type": "boolean"},
+    "approvals": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/approval"}}
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,62}$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest", "size_bytes", "media_type", "logical_kind", "schema_version"],
+      "properties": {
+        "digest": {"$ref": "#/$defs/digest"},
+        "size_bytes": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615},
+        "media_type": {"type": "string", "minLength": 3, "maxLength": 255, "pattern": "^[a-z0-9!#$&^_.+-]+/[a-z0-9!#$&^_.+-]+$"},
+        "logical_kind": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-z][a-z0-9._-]{0,127}$"},
+        "schema_version": {"type": "integer", "minimum": 1, "maximum": 4294967295}
+      }
+    },
+    "targetCard": {
+      "allOf": [
+        {"$ref": "#/$defs/artifact"},
+        {"properties": {"media_type": {"const": "application/vnd.mindclade.model-target-card+json"}, "logical_kind": {"const": "model-target-card"}, "schema_version": {"const": 2}}}
+      ]
+    },
+    "scientificSemantics": {
+      "allOf": [
+        {"$ref": "#/$defs/artifact"},
+        {"properties": {"media_type": {"const": "application/vnd.mindclade.scientific-semantics+json"}, "logical_kind": {"const": "scientific-semantics"}, "schema_version": {"const": 1}}}
+      ]
+    },
+    "preprocessingContract": {
+      "allOf": [
+        {"$ref": "#/$defs/artifact"},
+        {"properties": {"media_type": {"const": "application/vnd.mindclade.preprocessing-contract+json"}, "logical_kind": {"const": "preprocessing-contract"}, "schema_version": {"const": 1}}}
+      ]
+    },
+    "checkpointContract": {
+      "allOf": [
+        {"$ref": "#/$defs/artifact"},
+        {"properties": {"media_type": {"const": "application/vnd.mindclade.checkpoint-contract+json"}, "logical_kind": {"const": "checkpoint-contract"}, "schema_version": {"const": 1}}}
+      ]
+    },
+    "referenceVectorPack": {
+      "allOf": [
+        {"$ref": "#/$defs/artifact"},
+        {"properties": {"media_type": {"const": "application/vnd.mindclade.reference-vector-pack+tar"}, "logical_kind": {"const": "reference-vector-pack"}, "schema_version": {"const": 1}}}
+      ]
+    },
+    "dataset": {
+      "allOf": [
+        {"$ref": "#/$defs/artifact"},
+        {"properties": {"media_type": {"const": "application/vnd.mindclade.dataset-manifest+json"}, "logical_kind": {"const": "dataset-manifest"}, "schema_version": {"const": 1}}}
+      ]
+    },
+    "evaluationPolicy": {
+      "allOf": [
+        {"$ref": "#/$defs/artifact"},
+        {"properties": {"media_type": {"const": "application/vnd.mindclade.evaluation-policy+json"}, "logical_kind": {"const": "evaluation-policy"}, "schema_version": {"const": 1}}}
+      ]
+    },
+    "servingContract": {
+      "allOf": [
+        {"$ref": "#/$defs/artifact"},
+        {"properties": {"media_type": {"const": "application/vnd.mindclade.serving-contract+json"}, "logical_kind": {"const": "serving-contract"}, "schema_version": {"const": 1}}}
+      ]
+    },
+    "runtimeConsumer": {
+      "allOf": [
+        {"$ref": "#/$defs/artifact"},
+        {"properties": {"media_type": {"const": "application/vnd.mindclade.serving-runtime-contract+json"}, "logical_kind": {"const": "serving-runtime-contract"}, "schema_version": {"const": 1}}}
+      ]
+    },
+    "safetyUsePolicy": {
+      "allOf": [
+        {"$ref": "#/$defs/artifact"},
+        {"properties": {"media_type": {"const": "application/vnd.mindclade.safety-use-policy+json"}, "logical_kind": {"const": "safety-use-policy"}, "schema_version": {"const": 1}}}
+      ]
+    },
+    "attestation": {
+      "allOf": [
+        {"$ref": "#/$defs/artifact"},
+        {"properties": {"media_type": {"const": "application/vnd.mindclade.scientific-intake-attestation+json"}, "logical_kind": {"const": "scientific-intake-attestation"}, "schema_version": {"const": 1}}}
+      ]
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "subjectDigest", "attestation"],
+      "properties": {
+        "role": {"enum": ["modeling", "data", "evaluation-training", "runtime", "platform-control", "release", "security", "biosecurity"]},
+        "subjectDigest": {"$ref": "#/$defs/digest"},
+        "attestation": {"$ref": "#/$defs/attestation"}
+      }
+    }
+  }
+}

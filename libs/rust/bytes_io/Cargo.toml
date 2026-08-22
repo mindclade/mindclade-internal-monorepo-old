@@ -8,6 +8,7 @@ name="mindclade_bytes_io"
 version.workspace=true
 edition.workspace=true
 publish=false
+license.workspace=true
 [dependencies]
 mindclade_faults={path="../faults"}
 [lints]

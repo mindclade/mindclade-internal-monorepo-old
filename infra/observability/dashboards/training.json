@@ -1,1 +1,137 @@
-{}
+{
+  "schemaVersion": "mindclade.dev/observability-dashboard/v1alpha1",
+  "name": "training",
+  "owner": "training-platform",
+  "serviceClass": "training",
+  "status": "activation-blocked",
+  "deployment": {
+    "provider": "google-cloud-monitoring",
+    "terraformModule": "infra/terraform/modules/monitoring",
+    "deployableArtifact": false
+  },
+  "requiredEnvironmentInputs": [
+    "emailNotificationChannelResourceNames",
+    "environment",
+    "googleChatNotificationChannelResourceNames",
+    "httpsRunbookUrl",
+    "projectId",
+    "qualificationEvidenceSha256"
+  ],
+  "refreshInterval": "30s",
+  "variables": ["cluster", "environment", "location", "namespace"],
+  "panels": [
+    {
+      "signal": "checkpoint-last-committed-age",
+      "title": "Checkpoint commit age",
+      "description": "Seconds since the newest manifest-last checkpoint while a qualification phase remains active.",
+      "metric": "mindclade.training.checkpoint_last_committed_age_seconds",
+      "recordingRule": "mindclade:training_checkpoint_last_committed_age_seconds:max",
+      "unit": "seconds",
+      "visualization": "line"
+    },
+    {
+      "signal": "checkpoint-publication-outcomes",
+      "title": "Checkpoint publication outcomes",
+      "description": "Fifteen-minute committed and failed checkpoint publication outcomes by fixed phase.",
+      "metric": "mindclade.training.checkpoint_publication_outcomes_15m",
+      "recordingRule": "mindclade:training_checkpoint_publications:increase15m",
+      "unit": "count",
+      "visualization": "line"
+    },
+    {
+      "signal": "checkpoint-restore-exact-ratio",
+      "title": "Exact checkpoint restore ratio",
+      "description": "Observed exact restore fraction for the bounded DCP compatibility claim, without an approved objective.",
+      "metric": "mindclade.training.checkpoint_restore_exact_ratio",
+      "recordingRule": "mindclade:training_checkpoint_restore_exact_ratio:ratio15m",
+      "unit": "ratio",
+      "visualization": "line"
+    },
+    {
+      "signal": "checkpoint-restore-outcomes",
+      "title": "Checkpoint restore outcomes",
+      "description": "Fifteen-minute exact, failed, and incompatible restore outcomes by fixed phase.",
+      "metric": "mindclade.training.checkpoint_restore_outcomes_15m",
+      "recordingRule": "mindclade:training_checkpoint_restores:increase15m",
+      "unit": "count",
+      "visualization": "line"
+    },
+    {
+      "signal": "checkpoint-terminal-failure-ratio",
+      "title": "Checkpoint publication failure ratio",
+      "description": "Observed publication failure fraction; its alert value remains a disabled, unapproved proposal.",
+      "metric": "mindclade.training.checkpoint_failure_ratio",
+      "recordingRule": "mindclade:training_checkpoint_publication_failure_ratio:ratio15m",
+      "unit": "ratio",
+      "visualization": "line"
+    },
+    {
+      "signal": "training-active-runs",
+      "title": "Active qualification runs",
+      "description": "Admitted non-terminal runs split only by the fixed one-GPU and eight-GPU phases.",
+      "metric": "mindclade.training.active_runs",
+      "recordingRule": "mindclade:training_active_runs:sum",
+      "unit": "count",
+      "visualization": "line"
+    },
+    {
+      "signal": "training-metric-contract",
+      "title": "Training metric contract",
+      "description": "External producer inventory status that must be complete before monitoring activation.",
+      "metric": "mindclade.training.metric_contract_complete",
+      "recordingRule": "mindclade:training_metric_contract_complete:max",
+      "unit": "status",
+      "visualization": "scorecard"
+    },
+    {
+      "signal": "training-optimizer-steps",
+      "title": "Committed optimizer steps",
+      "description": "Five-minute globally committed optimizer-step count by fixed qualification phase.",
+      "metric": "mindclade.training.optimizer_steps_5m",
+      "recordingRule": "mindclade:training_optimizer_steps:increase5m",
+      "unit": "count",
+      "visualization": "line"
+    },
+    {
+      "signal": "training-progress-stalled",
+      "title": "Seconds since committed progress",
+      "description": "Age of the oldest active phase progress; its alert value remains a disabled, unapproved proposal.",
+      "metric": "mindclade.training.seconds_since_progress",
+      "recordingRule": "mindclade:training_seconds_since_progress:max",
+      "unit": "seconds",
+      "visualization": "line"
+    },
+    {
+      "signal": "training-run-failure-ratio",
+      "title": "Terminal run failure ratio",
+      "description": "Observed terminal failure fraction by fixed qualification phase without an approved SLO.",
+      "metric": "mindclade.training.run_failure_ratio",
+      "recordingRule": "mindclade:training_run_failure_ratio:ratio15m",
+      "unit": "ratio",
+      "visualization": "line"
+    },
+    {
+      "signal": "training-run-outcomes",
+      "title": "Terminal run outcomes",
+      "description": "Fifteen-minute completed, canceled, and failed run outcomes by bounded reason class.",
+      "metric": "mindclade.training.run_outcomes_15m",
+      "recordingRule": "mindclade:training_run_outcomes:increase15m",
+      "unit": "count",
+      "visualization": "line"
+    },
+    {
+      "signal": "training-run-terminal-samples",
+      "title": "Terminal run samples",
+      "description": "Fifteen-minute terminal population used to keep ratios visibly sample-qualified.",
+      "metric": "mindclade.training.run_terminal_samples_15m",
+      "recordingRule": "mindclade:training_run_terminal_samples:increase15m",
+      "unit": "count",
+      "visualization": "line"
+    }
+  ],
+  "activationPolicy": {
+    "enabledByDefault": false,
+    "requiresConnectedQualification": true,
+    "requiresReviewedThresholds": true
+  }
+}

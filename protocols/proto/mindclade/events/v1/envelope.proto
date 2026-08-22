@@ -6,6 +6,8 @@
 syntax = "proto3";
 package mindclade.events.v1;
 
+option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/events/v1;eventsv1";
+
 // Durable at-least-once event envelope. Payload bytes are bounded by broker
 // policy; large scientific data is referenced through artifacts instead.
 message EventEnvelope {

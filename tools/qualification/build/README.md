@@ -1,7 +1,7 @@
 # Tools / Qualification / Build
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Bazel/Nix/Python/Go/Rust development and qualification tooling
+- **Status:** Remote-execution source qualification implemented; connected deployment evidence pending.
+- **Owner:** `@mindclade/platform`.
 
 ## Purpose
 
@@ -18,18 +18,18 @@ This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
 ground. It may depend only in the direction documented by
 `docs/architecture/dependency-rules.md` and the accepted ADRs.
 
-## Materialization requirements
+## Implemented contract
 
-Before this scaffold boundary is treated as implemented, add:
+`verify_execution_image.py` validates the Buildfarm 2.17.0 source/image lock and requires
+native AMD64/ARM64 Nix image attestations with two identical independent rebuilds per
+platform. `check_remote_execution.py` compares local and connected Buildfarm result evidence,
+including output digests, Bazel/toolchain/image identity, and proof that at least one action
+executed remotely rather than merely hitting a cache.
 
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
+Both validators fail if network access or host-path inputs are reported. The parity record is
+an evidence validator, not an evidence collector: the protected native qualification workflow
+must produce the input JSON from Bazel execution logs and uploaded output manifests.
 
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+No source-only invocation proves private connectivity, worker cancellation, cache eviction,
+multi-zone availability, or SLOs. Production clients must retain local execution as rollback
+until the exact endpoint and image digests pass the connected gates.

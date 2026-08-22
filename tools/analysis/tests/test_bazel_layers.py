@@ -52,6 +52,7 @@ def test_permitted_dependency_directions_pass() -> None:
         ("//services/control_plane:server", "//libs/go/servicekit:servicekit"),
         ("//apps/console:bundle", "//sdk/typescript:client"),
         ("//training/runtime:trainer", "//models/reference:model"),
+        ("//services/workers/training:worker", "//training/core:trainer"),
     )
 
 
@@ -61,11 +62,23 @@ def test_allow_matrix_rejects_undeclared_directions() -> None:
         ("//libs/python/runtime:runtime", "//models/reference:model"),
         ("//serving/runtime:runtime", "//training/runtime:trainer"),
         ("//services/runtime_gateway:gateway", "//research/benchmarks:benchmark"),
+        ("//services/control_plane:server", "//training/core:trainer"),
+        ("//services/workers/training:worker", "//control/registry:registry"),
     )
-    assert len(violations) == 4
+    assert len(violations) == 6
     assert all("undeclared Bazel dependency direction" in message for message in violations)
     assert any("apps -> services" in message for message in violations)
     assert any("foundation -> offline" in message for message in violations)
+    assert any("services -> training" in message for message in violations)
+    assert any("training_service -> runtime" in message for message in violations)
+
+
+def test_training_service_is_an_exact_non_overlapping_carve_out() -> None:
+    assert layers.classify("//services/workers/training:worker", POLICY) == ("training_service",)
+    assert layers.classify("//services/workers/training/tests:test", POLICY) == (
+        "training_service",
+    )
+    assert layers.classify("//services/workers/evaluation:worker", POLICY) == ("services",)
 
 
 def test_unclassified_and_multiply_classified_packages_fail() -> None:
@@ -98,6 +111,19 @@ def test_external_and_source_file_inputs_are_ignored() -> None:
       </rule>
     </query>"""
     assert not layers.check_graph(layers.direct_rule_graph(xml), POLICY)
+
+
+def test_bazel_opaque_control_byte_attributes_do_not_break_graph_parsing() -> None:
+    xml = """<query version="2">
+      <rule class="copy_to_directory" name="//apps/admin:bundle">
+        <dict name="renames"><pair><string value="&#0;"/></pair></dict>
+        <rule-input name="//apps/admin:source"/>
+      </rule>
+      <rule class="filegroup" name="//apps/admin:source"/>
+    </query>"""
+    assert layers.direct_rule_edges(xml) == {
+        ("//apps/admin:bundle", "//apps/admin:source")
+    }
 
 
 def test_empty_query_cannot_pass_vacuously() -> None:
@@ -193,3 +219,25 @@ def test_exception_expiry_is_bounded_to_ninety_days() -> None:
         assert "expired" in str(error)
     else:
         raise AssertionError("expired exception unexpectedly passed")
+
+
+def test_layer_requires_a_positive_pattern() -> None:
+    root = Path(tempfile.mkdtemp(prefix="mindclade-layer-negative-"))
+    policy_dir = root / "tools/build/bazel"
+    policy_dir.mkdir(parents=True)
+    (root / "OWNERS.toml").write_text(
+        'schema_version = 1\n[[owners]]\nteam = "release-engineering"\npaths = ["**"]\n',
+        encoding="utf-8",
+    )
+    (policy_dir / "layers.bzl").write_text(
+        'BAZEL_LAYERS = {"one": ["-//one/excluded/..."]}\n'
+        'BAZEL_LAYER_ALLOW_MATRIX = {"one": ["one"]}\n'
+        "BAZEL_LAYER_EXCEPTIONS = {}\n",
+        encoding="utf-8",
+    )
+    try:
+        layers.load_policy(policy_dir / "layers.bzl")
+    except layers.PolicyError as error:
+        assert "positive package pattern" in str(error)
+    else:
+        raise AssertionError("all-negative layer unexpectedly passed")

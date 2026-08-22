@@ -7,6 +7,16 @@ syntax = "proto3";
 
 package mindclade.data.v1;
 
-message RecordScaffold {
-  string reserved = 1;
+option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/data/v1;datav1";
+
+import "mindclade/common/v1/identifiers.proto";
+
+// CanonicalRecord identifies the immutable canonical JSON bytes for one
+// scientific record and the exact upstream record from which they were built.
+// The values themselves travel through the artifact plane, not inline.
+message CanonicalRecord {
+  mindclade.common.v1.ContentDigest digest = 1;
+  mindclade.common.v1.ContentDigest source_record_digest = 2;
+  mindclade.common.v1.ContentDigest values_artifact_digest = 3;
+  uint32 schema_version = 4;
 }

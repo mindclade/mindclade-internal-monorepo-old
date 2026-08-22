@@ -15,13 +15,16 @@ py_library(
     ],
     imports = ["../.."],
     visibility = [
+        "//models/reference/affine_worker:__pkg__",
         "//models/reference/tests:__pkg__",
+        "//services/workers/model_worker:__pkg__",
+        "//services/workers/training:__pkg__",
         "//serving:__subpackages__",
         "//tests/integration/serving:__pkg__",
         "//training:__subpackages__",
     ],
     deps = [
-        "@pypi//numpy",
+        "//libs/python/serialization",
         "@pypi//safetensors",
         "@pypi//torch",
     ],

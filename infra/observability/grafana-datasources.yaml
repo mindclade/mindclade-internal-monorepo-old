@@ -4,4 +4,17 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+{
+  "schemaVersion": "mindclade.dev/observability-backend-compatibility/v1",
+  "name": "grafana-datasources",
+  "owner": "platform-control",
+  "decision": "non-deployable",
+  "description": "Grafana datasource provisioning is not an authority of this monorepo; dashboards and alerting use Cloud Monitoring and Google Managed Service for Prometheus contracts.",
+  "authoritativeServices": ["cloud-monitoring", "google-managed-prometheus"],
+  "replacementSources": [
+    "infra/observability/dashboards/control-plane.json",
+    "infra/terraform/modules/monitoring/main.tf"
+  ],
+  "forbiddenResponsibilities": ["alerting", "dashboard-deployment", "datasource-provisioning"],
+  "activationPolicy": {"enabledByDefault": false, "requiresConnectedQualification": true, "requiresEnvironmentComposition": true}
+}

@@ -37,6 +37,16 @@ pytest_test(
 )
 
 filegroup(
+    name = "model_contract_fixtures",
+    srcs = [
+        "fixtures/model-target-card.valid.json",
+        "fixtures/model-target-card-v1.valid.json",
+        "fixtures/scientific-model-intake.valid.json",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
     name = "scaffold_files",
     srcs = glob(
         ["**"],

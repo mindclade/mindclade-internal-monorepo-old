@@ -31,6 +31,7 @@ jobs:
       rollout-class: ${{ steps.request.outputs.rollout-class }}
       previous-release-id: ${{ steps.request.outputs.previous-release-id }}
       previous-subject-digest: ${{ steps.request.outputs.previous-subject-digest }}
+      rollback-strategy: ${{ steps.request.outputs.rollback-strategy }}
     steps:
       - name: Reject non-platform or non-main events
         run: |
@@ -122,15 +123,17 @@ jobs:
       image-ref: ${{ needs.build.outputs.image-ref }}
 
   propose-promotion:
-    needs: [discover, build, deployment-attestation]
+    needs: [discover, build, qualify, deployment-attestation]
     permissions:
       contents: read
       id-token: write
     uses: mindclade/.github/.github/workflows/reusable-gitops-promote.yml@v5.0.0
     with:
-      application: ${{ needs.discover.outputs.application }}
       image-ref: ${{ needs.build.outputs.image-ref }}
-      release-kind: ${{ needs.discover.outputs.release-kind }}
       release-id: ${{ needs.build.outputs.release-id }}
+      application: ${{ needs.discover.outputs.application }}
+      release-kind: ${{ needs.discover.outputs.release-kind }}
+      producer-evidence-digest: ${{ needs.qualify.outputs.producer-evidence-digest }}
+      rollback-strategy: ${{ needs.discover.outputs.rollback-strategy }}
       previous-release-id: ${{ needs.discover.outputs.previous-release-id }}
       previous-subject-digest: ${{ needs.discover.outputs.previous-subject-digest }}

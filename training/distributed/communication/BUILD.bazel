@@ -3,13 +3,32 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-package(default_visibility = ["//visibility:private"])
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//visibility:public"])
+
+py_library(
+    name = "loss_reduction",
+    srcs = [
+        "__init__.py",
+        "loss_reduction.py",
+    ],
+    imports = ["../../.."],
+    deps = [
+        "//libs/python/errors",
+        "//training/core:trainer",
+        "//training/distributed:runtime",
+        "@pypi//torch",
+    ],
+)
 
 filegroup(
-    name = "scaffold_files",
+    name = "remaining_scaffold_files",
     srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
+        ["*.py"],
+        exclude = [
+            "__init__.py",
+            "loss_reduction.py",
+        ],
     ),
-    visibility = ["//visibility:public"],
 )

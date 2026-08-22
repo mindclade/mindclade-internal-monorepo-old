@@ -96,8 +96,7 @@ fixture_env=(
   PATH="${FAKE_TOOLS}:${PATH}"
 )
 
-expected_configurations="infra/terraform/environments/dns_hub
-infra/terraform/modules/alpha
+expected_configurations="infra/terraform/modules/alpha
 infra/terraform/modules/zeta"
 actual_configurations="$("${fixture_env[@]}" "${CHECK}" __list configurations)"
 [[ "${actual_configurations}" == "${expected_configurations}" ]]
@@ -112,7 +111,6 @@ validation_status=$?
 set -e
 [[ "${validation_status}" == "1" ]]
 grep -Fq "PASS validate infra/terraform/modules/alpha" <<<"${validation_output}"
-grep -Fq "PASS validate infra/terraform/environments/dns_hub" <<<"${validation_output}"
 grep -Fq "terraform validate failed" <<<"${validation_output}"
 grep -Fq "synthetic validation failure" <<<"${validation_output}"
 

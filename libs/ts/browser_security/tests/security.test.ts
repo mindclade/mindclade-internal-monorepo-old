@@ -1,6 +1,7 @@
 // Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 // Mindclade Proprietary and Confidential.
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -19,6 +20,13 @@ test("security headers include process and transport isolation", () => {
   assert.equal(headers.get("Cross-Origin-Opener-Policy"), "same-origin");
   assert.match(headers.get("Strict-Transport-Security") ?? "", /includeSubDomains/);
   assert.equal(headers.get("X-Frame-Options"), "DENY");
+});
+
+test("loopback smoke tests can omit transport upgrade without weakening isolation", () => {
+  const headers = new Map(browserSecurityHeaders({ secureTransport: false }).map(({ key, value }) => [key, value]));
+  assert.equal(headers.get("Strict-Transport-Security"), undefined);
+  assert.doesNotMatch(headers.get("Content-Security-Policy") ?? "", /upgrade-insecure-requests/);
+  assert.match(headers.get("Content-Security-Policy") ?? "", /frame-ancestors 'none'/);
 });
 
 test("request nonces remove unsafe inline script execution", () => {

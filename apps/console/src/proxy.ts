@@ -1,8 +1,9 @@
 // Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 // Mindclade Proprietary and Confidential.
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
 
-import { browserSecurityHeaders } from "@mindclade/libs-ts-browser-security";
+import { browserSecurityHeaders, isLoopbackHostname } from "@mindclade/libs-ts-browser-security";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
@@ -13,6 +14,7 @@ export function proxy(request: NextRequest): NextResponse {
   const responseHeaders = browserSecurityHeaders({
     development,
     nonce,
+    secureTransport: !development && !isLoopbackHostname(request.nextUrl.hostname),
     connectEndpoints: [process.env.NEXT_PUBLIC_API_BASE_URL, process.env.NEXT_PUBLIC_TELEMETRY_ENDPOINT],
   });
   const requestHeaders = new Headers(request.headers);

@@ -8,6 +8,11 @@ output "cluster_id" {
   value       = google_container_cluster.this.id
 }
 
+output "project_id" {
+  description = "Project containing the GKE cluster"
+  value       = var.project_id
+}
+
 output "cluster_name" {
   description = "GKE cluster name"
   value       = google_container_cluster.this.name

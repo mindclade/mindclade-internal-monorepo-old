@@ -10,8 +10,21 @@ package(default_visibility = ["//visibility:private"])
 filegroup(
     name = "templates",
     srcs = [
+        "cohort.schema.json",
         "h100-1g-smoke.json",
         "h100-8g-ddp-dcp.json",
+        "qualification-set.schema.json",
+    ],
+)
+
+py_library(
+    name = "evidence",
+    srcs = ["evidence.py"],
+    imports = ["../../.."],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//libs/python/identifiers",
+        "//libs/python/serialization",
     ],
 )
 
@@ -30,9 +43,42 @@ py_binary(
     visibility = ["//visibility:public"],
 )
 
+py_binary(
+    name = "verify_qualification",
+    srcs = ["verify_qualification.py"],
+    deps = [":evidence"],
+)
+
+pytest_test(
+    name = "test_evidence",
+    srcs = ["tests/test_evidence.py"],
+    data = [":templates"],
+    imports = ["../../../.."],
+    deps = [
+        ":evidence",
+        "//configs:contract_validation",
+        "//libs/python/identifiers",
+        "//libs/python/serialization",
+    ],
+)
+
 pytest_test(
     name = "test_run",
     srcs = ["tests/test_run.py"],
+    data = [":templates"],
     imports = ["../../../.."],
-    deps = [":run_lib"],
+    deps = [
+        ":run_lib",
+        "//configs:contract_validation",
+    ],
+)
+
+pytest_test(
+    name = "test_release_contract",
+    srcs = ["tests/test_release_contract.py"],
+    imports = ["../../../.."],
+    deps = [
+        ":evidence",
+        "//protocols/proto/mindclade/registry/v1:release_py_pb2",
+    ],
 )

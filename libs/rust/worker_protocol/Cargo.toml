@@ -8,6 +8,7 @@ name="mindclade_worker_protocol"
 version.workspace=true
 edition.workspace=true
 publish=false
+license.workspace=true
 [dependencies]
 ed25519-dalek.workspace = true
 mindclade_bytes_io={path="../bytes_io"}

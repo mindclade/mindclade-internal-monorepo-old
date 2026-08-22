@@ -7,6 +7,16 @@ syntax = "proto3";
 
 package mindclade.data.v1;
 
-message ShardScaffold {
-  string reserved = 1;
+option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/data/v1;datav1";
+
+import "mindclade/common/v1/artifact_ref.proto";
+import "mindclade/common/v1/identifiers.proto";
+
+// DatasetShard is one ordered, immutable partition of canonical records.
+message DatasetShard {
+  string shard_id = 1;
+  uint32 ordinal = 2;
+  uint64 record_count = 3;
+  mindclade.common.v1.ArtifactRef artifact = 4;
+  mindclade.common.v1.ContentDigest index_digest = 5;
 }

@@ -4,6 +4,8 @@
 #
 
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@protobuf//bazel:py_proto_library.bzl", "py_proto_library")
+load("@rules_go//proto:def.bzl", "go_proto_library")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -24,14 +26,49 @@ proto_library(
     ],
 )
 
+proto_library(
+    name = "checkpoint_commit_proto",
+    srcs = ["checkpoint.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = [
+        "//protocols/proto/mindclade/common/v1:artifact_ref_proto",
+        "@protobuf//:timestamp_proto",
+    ],
+)
+
+proto_library(
+    name = "manifest_proto",
+    srcs = ["manifest.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = [
+        "//protocols/proto/mindclade/common/v1:artifact_ref_proto",
+        "@protobuf//:timestamp_proto",
+    ],
+)
+
+py_proto_library(
+    name = "checkpoint_commit_py_pb2",
+    deps = [":checkpoint_commit_proto"],
+)
+
 filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["*.proto"],
-        exclude = [
-            "artifact.proto",
-            "service.proto",
-        ],
-    ),
-    visibility = ["//visibility:public"],
+    name = "cargo_checkpoint_proto_sources",
+    srcs = ["checkpoint.proto"],
+    visibility = ["//protocols/rust:__pkg__"],
+)
+
+go_proto_library(
+    name = "artifact_go_proto",
+    compilers = [
+        "@rules_go//proto:go_grpc_v2",
+        "@rules_go//proto:go_proto",
+    ],
+    importpath = "go.mindclade.dev/protocols/gen/go/mindclade/artifact/v1",
+    protos = [
+        ":artifact_proto",
+        ":artifact_service_proto",
+        ":checkpoint_commit_proto",
+        ":manifest_proto",
+    ],
+    deps = ["//protocols/proto/mindclade/common/v1:common_go_proto"],
 )

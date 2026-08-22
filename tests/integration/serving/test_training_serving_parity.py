@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import time
 from pathlib import Path
 from threading import Event
@@ -20,6 +19,7 @@ from models.reference import (
     REFERENCE_AFFINE_MODEL_NAME,
     REFERENCE_AFFINE_OPERATION,
     ReferenceAffine,
+    reference_affine_config_bytes,
     save_reference_affine,
 )
 from serving.model_worker.reference import (
@@ -53,17 +53,7 @@ def test_trained_safetensors_bundle_matches_verified_serving_runtime(tmp_path: P
     checkpoint = tmp_path / "checkpoint"
     checkpoint.mkdir()
     save_reference_affine(model, checkpoint / "model.safetensors")
-    (checkpoint / "config.json").write_text(
-        json.dumps(
-            {
-                "architecture": REFERENCE_AFFINE_MODEL_NAME,
-                "dtype": "float32",
-                "operation": REFERENCE_AFFINE_OPERATION,
-            },
-            sort_keys=True,
-        ),
-        encoding="utf-8",
-    )
+    (checkpoint / "config.json").write_bytes(reference_affine_config_bytes(model.config))
     bundle = tmp_path / "bundle"
     manifest = build(checkpoint, bundle, REFERENCE_AFFINE_MODEL_NAME, schema_version=1)
 

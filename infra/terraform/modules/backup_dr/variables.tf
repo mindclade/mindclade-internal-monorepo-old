@@ -1,6 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
 
 variable "project_id" { type = string }
 variable "gke_backup" {
@@ -29,6 +30,7 @@ variable "bucket_replication" {
     source_bucket                              = string
     destination_bucket                         = string
     destination_region                         = string
+    kms_key_name                               = string
     delete_objects_unique_in_sink              = bool
     delete_objects_from_source_after_transfer  = bool
     overwrite_objects_already_existing_in_sink = bool
@@ -39,9 +41,14 @@ variable "bucket_replication" {
     condition = length(var.bucket_replication) > 0 && alltrue([
       for replica in values(var.bucket_replication) :
       !replica.delete_objects_unique_in_sink && !replica.delete_objects_from_source_after_transfer &&
-      replica.retention_days >= 30 && can(regex("^[0-9]+ [0-9]+ \\* \\* \\*$", replica.schedule))
+      replica.retention_days >= 30 &&
+      can(regex("^(?:0 \\*|[0-5]?[0-9] (?:[01]?[0-9]|2[0-3])) \\* \\* \\*$", replica.schedule)) &&
+      can(regex(
+        "^projects/[a-z][a-z0-9-]{4,28}[a-z0-9]/locations/${replica.destination_region}/keyRings/[A-Za-z0-9_-]+/cryptoKeys/[A-Za-z0-9_-]+$",
+        replica.kms_key_name,
+      ))
     ])
-    error_message = "DR replicas must never propagate deletion, retain at least 30 days, and use a daily UTC schedule."
+    error_message = "DR replicas must never propagate deletion, retain at least 30 days, use an hourly or daily UTC schedule, and use a CMEK in the destination region."
   }
 }
 variable "labels" {

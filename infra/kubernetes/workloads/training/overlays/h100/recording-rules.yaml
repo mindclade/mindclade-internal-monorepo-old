@@ -1,0 +1,112 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+---
+# The external producer named by infra/observability/training-metrics.json does not exist yet.
+# Keeping the Rules next to the held workload profile records exact query semantics without
+# pretending there is a scrape target or enabling an alert policy.
+apiVersion: monitoring.googleapis.com/v1
+kind: Rules
+metadata:
+  name: reference-training-recording
+  annotations:
+    mindclade.dev/activation-blocker: external-producer-scrape-and-connected-evidence-missing
+spec:
+  groups:
+    - name: mindclade.reference-training
+      interval: 30s
+      rules:
+        - record: mindclade:training_active_runs:sum
+          expr: >-
+            sum by (cluster, location, namespace, phase)
+            (mindclade_training_active_runs)
+        - record: mindclade:training_checkpoint_last_committed_age_seconds:max
+          expr: >-
+            clamp_min(
+              time() - max by (cluster, location, namespace, phase)
+              (mindclade_training_checkpoint_last_committed_timestamp_seconds),
+              0
+            )
+            and on (cluster, location, namespace, phase)
+            sum by (cluster, location, namespace, phase)
+            (mindclade_training_active_runs) > 0
+        - record: mindclade:training_checkpoint_publication_failure_ratio:ratio15m
+          expr: >-
+            (
+              sum by (cluster, location, namespace, phase)
+              (increase(mindclade_training_checkpoint_publications_total{result="failed"}[15m]))
+              or
+              0 * sum by (cluster, location, namespace, phase)
+              (increase(mindclade_training_checkpoint_publications_total[15m]))
+            )
+            /
+            clamp_min(
+              sum by (cluster, location, namespace, phase)
+              (increase(mindclade_training_checkpoint_publications_total[15m])),
+              1
+            )
+        - record: mindclade:training_checkpoint_publications:increase15m
+          expr: >-
+            sum by (cluster, location, namespace, phase, result)
+            (increase(mindclade_training_checkpoint_publications_total[15m]))
+        - record: mindclade:training_checkpoint_restore_exact_ratio:ratio15m
+          expr: >-
+            (
+              sum by (cluster, location, namespace, phase)
+              (increase(mindclade_training_checkpoint_restores_total{result="exact"}[15m]))
+              or
+              0 * sum by (cluster, location, namespace, phase)
+              (increase(mindclade_training_checkpoint_restores_total[15m]))
+            )
+            /
+            clamp_min(
+              sum by (cluster, location, namespace, phase)
+              (increase(mindclade_training_checkpoint_restores_total[15m])),
+              1
+            )
+        - record: mindclade:training_checkpoint_restores:increase15m
+          expr: >-
+            sum by (cluster, location, namespace, phase, result)
+            (increase(mindclade_training_checkpoint_restores_total[15m]))
+        - record: mindclade:training_metric_contract_complete:max
+          expr: >-
+            max by (cluster, location, namespace)
+            (mindclade_training_metric_contract_info{schema="v1"})
+        - record: mindclade:training_optimizer_steps:increase5m
+          expr: >-
+            sum by (cluster, location, namespace, phase)
+            (increase(mindclade_training_optimizer_steps_committed_total[5m]))
+        - record: mindclade:training_run_failure_ratio:ratio15m
+          expr: >-
+            (
+              sum by (cluster, location, namespace, phase)
+              (increase(mindclade_training_runs_terminal_total{result="failed"}[15m]))
+              or
+              0 * sum by (cluster, location, namespace, phase)
+              (increase(mindclade_training_runs_terminal_total[15m]))
+            )
+            /
+            clamp_min(
+              sum by (cluster, location, namespace, phase)
+              (increase(mindclade_training_runs_terminal_total[15m])),
+              1
+            )
+        - record: mindclade:training_run_outcomes:increase15m
+          expr: >-
+            sum by (cluster, location, namespace, phase, reason_class, result)
+            (increase(mindclade_training_runs_terminal_total[15m]))
+        - record: mindclade:training_run_terminal_samples:increase15m
+          expr: >-
+            sum by (cluster, location, namespace, phase)
+            (increase(mindclade_training_runs_terminal_total[15m]))
+        - record: mindclade:training_seconds_since_progress:max
+          expr: >-
+            clamp_min(
+              time() - min by (cluster, location, namespace, phase)
+              (mindclade_training_oldest_active_progress_timestamp_seconds),
+              0
+            )
+            and on (cluster, location, namespace, phase)
+            sum by (cluster, location, namespace, phase)
+            (mindclade_training_active_runs) > 0

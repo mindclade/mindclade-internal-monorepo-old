@@ -10,6 +10,18 @@ package(default_visibility = ["//visibility:private"])
 pytest_test(
     name = "test_contracts",
     srcs = ["test_contracts.py"],
+    data = ["//configs:model_contract_fixtures"],
     imports = ["../../.."],
     deps = ["//models/contracts:target_card"],
+)
+
+pytest_test(
+    name = "test_scientific_intake",
+    srcs = ["test_scientific_intake.py"],
+    data = ["//configs:model_contract_fixtures"],
+    imports = ["../../.."],
+    deps = [
+        "//libs/python/identifiers",
+        "//models/contracts:scientific_intake",
+    ],
 )

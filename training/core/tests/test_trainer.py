@@ -87,6 +87,27 @@ def test_batch_size_one_path_overfits_tiny_affine_problem() -> None:
     assert trainer.state == TrainingState(microbatches=40, optimizer_steps=40, samples=200)
 
 
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is unavailable")
+def test_cuda_float32_path_uses_explicit_same_device_batches() -> None:
+    device = torch.device("cuda", 0)
+    model = linear_model().to(device)
+    item = SupervisedBatch(
+        torch.tensor([[1.0], [2.0]], device=device),
+        torch.tensor([[2.0], [4.0]], device=device),
+    )
+    trainer = Trainer(
+        model,
+        SupervisedMSETask(),
+        torch.optim.SGD(model.parameters(), lr=0.01, foreach=False),
+    )
+
+    result = trainer.train((item,))[0]
+
+    assert result.optimizer_step
+    assert all(parameter.device == device for parameter in model.parameters())
+    assert all(parameter.grad is None for parameter in model.parameters())
+
+
 def test_evaluation_restores_mode_and_does_not_mutate_parameters_gradients_or_state() -> None:
     model = linear_model()
     trainer = Trainer(
@@ -198,6 +219,30 @@ def test_cancellation_after_forward_clears_gradients_without_advancing_state() -
     for parameter, expected in zip(model.parameters(), before, strict=True):
         torch.testing.assert_close(parameter, expected, rtol=0.0, atol=0.0)
         assert parameter.grad is None
+
+
+def test_cancellation_first_observed_after_optimizer_commit_returns_committed_result() -> None:
+    cancellation = {"requested": False}
+
+    class CancelAfterStep(torch.optim.SGD):
+        def step(self, closure: Callable[[], float] | None = None):
+            result = super().step(closure)
+            cancellation["requested"] = True
+            return result
+
+    model = linear_model()
+    optimizer = CancelAfterStep(model.parameters(), lr=0.1, foreach=False)
+    trainer = Trainer(model, SupervisedMSETask(), optimizer)
+
+    results = trainer.train(
+        (batch([1.0], [2.0]),),
+        cancellation_check=lambda: cancellation["requested"],
+    )
+
+    assert cancellation["requested"] is True
+    assert len(results) == 1
+    assert results[0].state == TrainingState(microbatches=1, optimizer_steps=1, samples=1)
+    assert trainer.state == results[0].state
 
 
 def test_optimizer_and_scheduler_order_is_explicit() -> None:

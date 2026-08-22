@@ -111,7 +111,9 @@ import pytest
 # and tokenizer placeholders with behavioral, identity, and validation coverage.
 # LOWERED 160 -> 157 by materializing the infrastructure attestation, break-glass, and
 # model-weight access control catalog with schema, source-link, and fail-closed tests.
-SCAFFOLD_BASELINE = 157
+# LOWERED 157 -> 155 by replacing the distributed context and smoke placeholders with
+# bounded topology validation and a real two-rank Gloo/DDP/DCP portability test.
+SCAFFOLD_BASELINE = 155
 
 # Gitignored tool directories. Every entry is something that can hold a copy of the tree
 # without being part of it, which this scan would otherwise count.

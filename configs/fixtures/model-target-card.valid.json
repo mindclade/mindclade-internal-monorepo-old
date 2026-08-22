@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "mindclade.dev/model-target-card/v1",
+  "schemaVersion": "mindclade.dev/model-target-card/v2",
   "modelName": "contract-fixture",
   "family": "llm",
   "owner": "modeling",
@@ -14,11 +14,13 @@
       "direction": "at-least",
       "threshold": 0.95,
       "minimumSamples": 1000,
-      "evaluationDatasetDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      "evaluationDatasetDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "requiredSlices": ["safety-critical"]
     }
   ],
   "availabilityProfile": "critical-serving",
   "trainingHardwareProfiles": ["h100-8x", "h200-8x", "b200-8x"],
   "servingHardwareProfiles": ["cpu", "h100-8x"],
+  "safetyReviewRequired": true,
   "activation": {"state": "designed", "qualificationEvidenceDigest": null}
 }

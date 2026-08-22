@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mindclade.com/contracts/model/scientific-model-intake-decision-1.0.0.schema.json",
+  "title": "Mindclade scientific model intake decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "intakeDigest", "policyDigest", "accepted", "rejectionReasons", "attestationDigests", "authorizationScope"],
+  "properties": {
+    "schemaVersion": {"const": "mindclade.dev/scientific-model-intake-decision/v1"},
+    "intakeDigest": {"$ref": "#/$defs/digest"},
+    "policyDigest": {"$ref": "#/$defs/digest"},
+    "accepted": {"type": "boolean"},
+    "rejectionReasons": {"type": "array", "maxItems": 17, "uniqueItems": true, "items": {"enum": ["artifact-contract-mismatch", "artifact-identity-mismatch", "approval-subject-mismatch", "duplicate-approval-role", "duplicate-artifact-digest", "missing-reference-vectors", "missing-required-approval", "policy-digest-mismatch", "runtime-consumer-required", "target-card-dataset-mismatch", "target-card-invalid", "target-card-must-be-designed", "target-card-safety-review-required", "target-card-v2-required", "template-intake", "train-evaluation-data-overlap", "unresolved-artifact"]}},
+    "attestationDigests": {"type": "array", "maxItems": 8, "uniqueItems": true, "items": {"$ref": "#/$defs/digest"}},
+    "authorizationScope": {"const": "implementation-only"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"accepted": {"const": true}}},
+      "then": {"properties": {"rejectionReasons": {"maxItems": 0}}},
+      "else": {"properties": {"rejectionReasons": {"minItems": 1}}}
+    }
+  ],
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}

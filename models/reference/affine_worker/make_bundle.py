@@ -11,8 +11,11 @@ import argparse
 import json
 import struct
 from pathlib import Path
+from typing import cast
 
 from tools.release.build_model_bundle import build
+
+from models.reference import ReferenceAffineConfig, reference_affine_config_bytes
 
 MODEL_NAME = "reference-affine-v1"
 
@@ -37,22 +40,8 @@ def write_safetensors(path: Path) -> None:
 def generate(out: Path) -> dict[str, object]:
     checkpoint = out.parent / f"{out.name}.checkpoint"
     write_safetensors(checkpoint / "model.safetensors")
-    (checkpoint / "config.json").write_text(
-        json.dumps(
-            {
-                "architecture": MODEL_NAME,
-                "bias": 0.5,
-                "dtype": "float32",
-                "operation": "reference.affine.v1",
-                "scale": 2.0,
-            },
-            indent=2,
-            sort_keys=True,
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-    return build(checkpoint, out, name=MODEL_NAME, schema_version=1)
+    (checkpoint / "config.json").write_bytes(reference_affine_config_bytes(ReferenceAffineConfig()))
+    return cast(dict[str, object], build(checkpoint, out, name=MODEL_NAME, schema_version=1))
 
 
 def main() -> int:

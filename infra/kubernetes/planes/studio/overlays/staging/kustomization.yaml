@@ -26,3 +26,13 @@ patches:
       - op: replace
         path: /spec/ingress/0/from/0/ipBlock/cidr
         value: 10.32.32.0/24
+  - target: {group: gateway.networking.k8s.io, version: v1, kind: HTTPRoute, name: studio-https-redirect}
+    patch: |-
+      - op: replace
+        path: /spec/hostnames/0
+        value: staging.mindclade.studio
+  - target: {group: gateway.networking.k8s.io, version: v1, kind: HTTPRoute, name: studio}
+    patch: |-
+      - op: replace
+        path: /spec/hostnames/0
+        value: staging.mindclade.studio
