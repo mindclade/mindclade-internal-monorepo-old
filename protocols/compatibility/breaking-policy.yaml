@@ -18,8 +18,6 @@ protobuf:
     profile: FILE
     comparison: pull_request_base_branch
     ci_job: lint
-    wrapper: protocols/compatibility/check_breaking.py
-    one_time_waiver: protocols/compatibility/scaffold-removal-waiver.json
 
 # Bazel owns schema compilation and test graph admission. Buf owns the
 # deterministic checked-in Protobuf-ES projection, while generated Python
