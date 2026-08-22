@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("@rules_python//python:defs.bzl", "py_binary", "py_library")
 load("//tools/build:pytest.bzl", "pytest_test")
 
@@ -37,4 +39,50 @@ pytest_test(
     ],
     imports = ["../../.."],
     deps = [":run_lib"],
+)
+
+test_suite(
+    name = "tests",
+    tests = [
+        ":test_run",
+        "//tools/qualification/gke/probe:probe_test",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+pkg_tar(
+    name = "foundation_probe_layer",
+    files = {
+        "//tools/qualification/gke/cmd/release_hardware_qualification:release_hardware_qualification_linux_amd64": "/opt/mindclade/bin/release-hardware-qualification",
+    },
+    mode = "0555",
+)
+
+# The source image fully implements CPU, scratch-storage, and Unix-socket qualification.
+# H100/B200 execution additionally requires a separately reviewed, digest-pinned
+# `/opt/mindclade/bin/release-gpu-qualification` CUDA/NCCL/DCGM helper layer. Its absence is a
+# hard failure, never a partial pass or a claim of connected hardware qualification.
+oci_image(
+    name = "foundation_image",
+    base = "@distroless_static_linux_amd64",
+    entrypoint = ["/opt/mindclade/bin/release-hardware-qualification"],
+    tars = [":foundation_probe_layer"],
+    user = "65532:65532",
+    visibility = ["//visibility:public"],
+)
+
+oci_load(
+    name = "foundation_load",
+    image = ":foundation_image",
+    repo_tags = ["foundation-gke-qualification:local"],
+)
+
+# The repository remains localhost-only. Release workflow target catalog, immutable provenance,
+# connected ARC qualification, and GitOps receiver readiness must be added by a separate review
+# before any registry destination can become authoritative.
+oci_push(
+    name = "foundation_push",
+    image = ":foundation_image",
+    repository = "localhost/mindclade/foundation-gke-qualification",
+    visibility = ["//visibility:public"],
 )

@@ -1024,6 +1024,12 @@ python3 "${script_dir}/capacity_contract.py" \
   --queues "${validation_tmp_dir}/platform__kueue.json" \
   --all "${combined_json}" \
   "${capacity_args[@]}"
+
+qualification_json="${validation_tmp_dir}/platform__qualification.json"
+yq eval-all -o=json -I=0 '[.] | flatten | map(select(.kind != null and .apiVersion != null))' \
+  "${validation_tmp_dir}/platform__qualification.yaml" >"${qualification_json}"
+python3 "${script_dir}/qualification_contract.py" "${qualification_json}"
+
 python3 "${script_dir}/training_qualification_profile.py" \
   --workloads "${validation_tmp_dir}/workloads__training__overlays__h100.json" \
   --queues "${validation_tmp_dir}/platform__kueue.json"
