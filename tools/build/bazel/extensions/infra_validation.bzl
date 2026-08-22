@@ -177,7 +177,9 @@ def _terraform_google_provider_repository_impl(repository_ctx):
         ),
     )
 
-    provider_root = provider_dir + "/.provider-root"
+    # The marker lives at the root Terraform expects for a filesystem mirror;
+    # its children retain the registry/namespace/type/version/platform layout.
+    provider_root = "providers/.provider-root"
     repository_ctx.file(provider_root, platform + "\n")
     repository_ctx.file(
         "BUILD.bazel",
