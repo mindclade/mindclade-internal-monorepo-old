@@ -1,6 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
 """Prove the source qualification package cannot consume live capacity."""
 
 from __future__ import annotations
