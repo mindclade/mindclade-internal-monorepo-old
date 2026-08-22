@@ -213,6 +213,9 @@
             + nixpkgs.lib.optionalString pkgs.stdenv.hostPlatform.isDarwin ''
               export PATH="${xcodeSelectCompat}/bin:$PATH"
             '';
+          atticClient =
+            assert pkgs.attic-client.src.rev == "7a19204df10d606c5070e6bb72615c3461900c05";
+            pkgs.attic-client;
           defaultPackages =
             (with pkgs; [
               bazel_9
@@ -305,6 +308,15 @@
               ])
               ++ infraValidationPackages;
             shellHook = standardShellHook;
+          };
+          nix-cache-publisher = pkgs.mkShell {
+            packages = [
+              atticClient
+              pkgs.git
+              pkgs.nix
+              pkgs.python314
+            ];
+            shellHook = baseShellHook;
           };
           ci = pkgs.mkShell {
             # actionlint/shellcheck/yamllint feed the `lint` lane, terraform the `terraform`

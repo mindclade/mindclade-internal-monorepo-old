@@ -25,14 +25,27 @@ are rejected. Nix signing keys are intentionally outside Terraform state: sign N
 metadata in a hardened build/signing service, distribute only the trusted public
 key, verify signatures on every client, and publish payloads before metadata.
 
+The bucket is deliberately **not** exposed as a Nix substituter. Raw private GCS
+does not provide the authenticated Nix cache protocol, cache metadata, or
+server-side managed signing required by clients. `substituter_uri` therefore
+remains `null`; `storage_https_uri` and `gs_uri` identify backend storage only.
+`client_activation_contract` stays disabled until a separately reviewed service
+publishes an HTTPS substituter endpoint, a trusted public key, and qualified
+read authentication without giving clients a signing key.
+
 ## Integration and operations
 
 The separately governed logging bucket must grant
 `group:cloud-storage-analytics@google.com` `roles/storage.objectCreator`; the exact
 grant is returned by `required_access_log_writer_grant`. Grant the Cloud Storage
 service agent `roles/cloudkms.cryptoKeyEncrypterDecrypter` on the selected key
-outside this module. Authenticated HTTPS use may require client credential/header
-integration; never interpret the returned substituter URI as anonymous access.
+outside this module. Attic is a possible service boundary, but its current S3
+backend requires HMAC credentials for the GCS XML API. Never create those
+credentials in Terraform: their secret would enter state. Keep automatic Attic
+garbage collection disabled against this create-only bucket, write the HMAC
+secret out of band to a governed secret store, and qualify multipart cleanup,
+duplicate content uploads, presigned downloads, database recovery, credential
+rotation, and denial of object deletion before activation.
 
 Retention lock is optional and off by default. Enabling it is irreversible and
 requires the exact acknowledgement. Review legal retention, recovery, KMS
@@ -84,10 +97,12 @@ No providers.
 | Name | Description |
 | ---- | ----------- |
 | <a name="output_bucket"></a> [bucket](#output\_bucket) | Hardened Nix binary-cache bucket resource |
+| <a name="output_client_activation_contract"></a> [client\_activation\_contract](#output\_client\_activation\_contract) | Fail-closed client boundary for the raw private storage backend |
 | <a name="output_gs_uri"></a> [gs\_uri](#output\_gs\_uri) | Cloud Storage URI used by authenticated publication tooling |
 | <a name="output_iam_contract"></a> [iam\_contract](#output\_iam\_contract) | Additive non-public bucket IAM contract; publishers are also effective readers |
 | <a name="output_immutable_policy"></a> [immutable\_policy](#output\_immutable\_policy) | Reviewable immutable-publication durability and deletion contract |
 | <a name="output_kms_key_name"></a> [kms\_key\_name](#output\_kms\_key\_name) | Default CMEK CryptoKey |
 | <a name="output_required_access_log_writer_grant"></a> [required\_access\_log\_writer\_grant](#output\_required\_access\_log\_writer\_grant) | Additive grant the separately owned access-log bucket must implement |
-| <a name="output_substituter_uri"></a> [substituter\_uri](#output\_substituter\_uri) | Authenticated HTTPS Nix substituter URI; this is not a public URL |
+| <a name="output_storage_https_uri"></a> [storage\_https\_uri](#output\_storage\_https\_uri) | Private Cloud Storage HTTPS endpoint for backend integration; this is not a Nix substituter |
+| <a name="output_substituter_uri"></a> [substituter\_uri](#output\_substituter\_uri) | Reserved client substituter URI; null because a raw private GCS bucket is storage, not an authenticated Nix substituter |
 <!-- END_TF_DOCS -->

@@ -19,6 +19,19 @@ releases also carry immutable release manifests and evidence bundles.
 This is source qualification only. The applied key, identity, database migration, IAP route, and
 connected production workflow remain protected activation and operational-evidence requirements.
 
+## 2026-08-22 — Activation-blocked Nix binary cache source
+
+- corrected the reusable binary-cache module so a raw private GCS backend is never advertised
+  as an authenticated Nix substituter, and exposed a machine-readable disabled client contract;
+- added the exact x86_64 Linux CI-shell and package population inventory with protected-main,
+  clean-SHA, no-client-signing-key enforcement; and
+- added a zero-replica, no-egress, digest-pinned Attic source boundary that remains unusable until
+  endpoint, authentication, HMAC, database, recovery, and cache-behavior evidence is reviewed.
+
+No substituter, publisher, Kubernetes workload, secret value, or cloud resource is activated by
+this source change. Attic remains upstream-labeled an early prototype and requires connected
+review.
+
 ## 2026-08-21 — Common-document governance baseline
 
 - replaced the one-line proprietary notice with the estate-wide, versioned

@@ -9,7 +9,12 @@ output "bucket" {
 }
 
 output "substituter_uri" {
-  description = "Authenticated HTTPS Nix substituter URI; this is not a public URL"
+  description = "Reserved client substituter URI; null because a raw private GCS bucket is storage, not an authenticated Nix substituter"
+  value       = null
+}
+
+output "storage_https_uri" {
+  description = "Private Cloud Storage HTTPS endpoint for backend integration; this is not a Nix substituter"
   value       = "https://storage.googleapis.com/${var.bucket_name}"
 }
 
@@ -54,6 +59,19 @@ output "iam_contract" {
       members = var.writer_members
     }
     object_admin_members = toset([])
+  }
+}
+
+output "client_activation_contract" {
+  description = "Fail-closed client boundary for the raw private storage backend"
+  value = {
+    enabled                     = false
+    substituter_uri             = null
+    trusted_public_key          = null
+    authentication             = "unqualified"
+    backend_protocol            = "gcs-json-xml-storage-only"
+    reason                      = "raw-private-gcs-is-not-a-nix-substituter"
+    signing_key_in_client_scope = false
   }
 }
 

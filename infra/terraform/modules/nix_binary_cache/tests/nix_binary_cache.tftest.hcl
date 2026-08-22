@@ -26,7 +26,14 @@ run "immutable_binary_cache_contract" {
 
   assert {
     condition = (
-      output.substituter_uri == "https://storage.googleapis.com/mindclade-production-nix-cache" &&
+      output.substituter_uri == null &&
+      output.storage_https_uri == "https://storage.googleapis.com/mindclade-production-nix-cache" &&
+      output.client_activation_contract.enabled == false &&
+      output.client_activation_contract.substituter_uri == null &&
+      output.client_activation_contract.trusted_public_key == null &&
+      output.client_activation_contract.authentication == "unqualified" &&
+      output.client_activation_contract.reason == "raw-private-gcs-is-not-a-nix-substituter" &&
+      output.client_activation_contract.signing_key_in_client_scope == false &&
       output.immutable_policy.data_lifecycle == "immutable" &&
       output.immutable_policy.data_classification == "internal" &&
       output.immutable_policy.versioning_enabled == true &&
@@ -36,7 +43,7 @@ run "immutable_binary_cache_contract" {
       output.immutable_policy.public_access_prevention == "enforced" &&
       output.immutable_policy.deletion_policy == "PREVENT"
     )
-    error_message = "The Nix backend must expose the reviewed private, versioned, immutable-publication contract."
+    error_message = "The Nix backend must expose private immutable storage without misrepresenting raw GCS as a usable substituter."
   }
 
   assert {

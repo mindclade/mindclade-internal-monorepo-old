@@ -1,0 +1,25 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+load("@rules_python//python:defs.bzl", "py_binary", "py_test")
+
+package(default_visibility = ["//visibility:public"])
+
+py_binary(
+    name = "populate",
+    srcs = ["populate.py"],
+    data = ["population.json"],
+    main = "populate.py",
+)
+
+py_test(
+    name = "populate_test",
+    srcs = [
+        "populate.py",
+        "tests/test_populate.py",
+    ],
+    data = ["population.json"],
+    imports = ["../.."],
+    main = "tests/test_populate.py",
+)
