@@ -176,3 +176,4 @@ export enum CheckpointLifecycle {
  */
 export const CheckpointLifecycleSchema: GenEnum<CheckpointLifecycle> = /*@__PURE__*/
   enumDesc(file_mindclade_registry_v1_checkpoint, 0);
+

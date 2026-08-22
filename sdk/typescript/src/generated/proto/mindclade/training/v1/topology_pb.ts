@@ -159,3 +159,4 @@ export enum TrainingDeviceType {
  */
 export const TrainingDeviceTypeSchema: GenEnum<TrainingDeviceType> = /*@__PURE__*/
   enumDesc(file_mindclade_training_v1_topology, 1);
+

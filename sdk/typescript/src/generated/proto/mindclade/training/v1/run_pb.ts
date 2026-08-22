@@ -182,3 +182,4 @@ export type TrainingRunResult = Message<"mindclade.training.v1.TrainingRunResult
  */
 export const TrainingRunResultSchema: GenMessage<TrainingRunResult> = /*@__PURE__*/
   messageDesc(file_mindclade_training_v1_run, 2);
+

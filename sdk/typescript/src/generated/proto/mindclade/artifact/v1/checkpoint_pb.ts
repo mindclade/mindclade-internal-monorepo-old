@@ -104,3 +104,4 @@ export type CheckpointCommit = Message<"mindclade.artifact.v1.CheckpointCommit">
  */
 export const CheckpointCommitSchema: GenMessage<CheckpointCommit> = /*@__PURE__*/
   messageDesc(file_mindclade_artifact_v1_checkpoint, 1);
+

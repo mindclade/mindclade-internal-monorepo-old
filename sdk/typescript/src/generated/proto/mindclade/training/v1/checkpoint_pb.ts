@@ -278,3 +278,4 @@ export enum CheckpointTensorLayout {
  */
 export const CheckpointTensorLayoutSchema: GenEnum<CheckpointTensorLayout> = /*@__PURE__*/
   enumDesc(file_mindclade_training_v1_checkpoint, 1);
+

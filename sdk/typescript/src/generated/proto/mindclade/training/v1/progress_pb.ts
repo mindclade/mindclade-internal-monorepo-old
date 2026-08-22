@@ -169,3 +169,4 @@ export enum TrainingRunState {
  */
 export const TrainingRunStateSchema: GenEnum<TrainingRunState> = /*@__PURE__*/
   enumDesc(file_mindclade_training_v1_progress, 0);
+
