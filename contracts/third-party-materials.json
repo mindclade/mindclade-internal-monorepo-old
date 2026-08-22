@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "repository": "mindclade/mindclade-internal-monorepo",
+  "inventorySources": [
+    {
+      "type": "vendored-provenance",
+      "path": ".agents/skills/LICENSE",
+      "sha256": "65d75666be49e69ec9a041d0eb80b7735eae391fd085c7290f6ac06a550f8d18"
+    }
+  ],
+  "materials": [
+    {
+      "name": "PyTorch Codex Skills",
+      "version": "2026.08.21",
+      "licenseExpression": "MIT",
+      "attribution": "Copyright © 2026 PyTorch Codex Skills contributors.",
+      "sourceUrl": "https://github.com/pytorch-labs/pytorch-codex-skills",
+      "licenseText": {
+        "path": ".agents/skills/LICENSE",
+        "sha256": "65d75666be49e69ec9a041d0eb80b7735eae391fd085c7290f6ac06a550f8d18"
+      },
+      "includedPaths": [".agents/skills"],
+      "evidencePaths": [".agents/skills/LICENSE"],
+      "sbomNames": ["pytorch-codex-skills"]
+    }
+  ]
+}

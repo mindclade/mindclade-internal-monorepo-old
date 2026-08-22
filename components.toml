@@ -552,3 +552,10 @@ path = "tools/qualification"
 status = "implemented"
 owner = "release-engineering"
 tests = ["tools/qualification/tests/test_release_evidence.py"]
+
+[[component]]
+name = "release.spdx_sbom"
+path = "tools/release"
+status = "implemented"
+owner = "release-engineering"
+tests = ["tools/release/tests/test_sbom.py"]

@@ -1,4 +1,13 @@
-# Engineering governance
+<!-- mindclade-doc: governance@1 -->
+
+# Mindclade governance · internal monorepo
+
+| Document control | Value |
+| --- | --- |
+| Owner | Mindclade Engineering |
+| Version | 1.0 |
+| Last reviewed | August 21, 2026 |
+| Authority | Product, platform, model, data, training, serving, and SDK source |
 
 ## Decision authority
 

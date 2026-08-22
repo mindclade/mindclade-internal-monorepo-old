@@ -47,3 +47,13 @@ Delete this section when the change does not touch `infra/terraform`.
 - [ ] A breaking interface/address change has a SemVer increment, migration record, consumer
       steps, rollback, and qualification evidence; otherwise no breaking change was detected.
 - [ ] No plan/apply/state or live IAM mutation is implied by repository-only test evidence.
+
+## Contributor authorization
+
+- [ ] I am authorized under a current written agreement with Mindclade, LLC. to
+      submit every part of this contribution.
+- [ ] I identified every third-party component, dataset, model, font, media,
+      specification, or generated artifact and preserved its source, license,
+      provenance, and required notices.
+- [ ] I updated `LICENSE`, `NOTICE`, the SBOM, or other license evidence when
+      the included or distributed material changed.

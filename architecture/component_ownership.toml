@@ -427,3 +427,9 @@ owner = "release-engineering"
 criticality = "tier-2"
 language = "python"
 security_review = true
+
+[component."release.spdx_sbom"]
+owner = "release-engineering"
+criticality = "tier-2"
+language = "python"
+security_review = true

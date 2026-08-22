@@ -161,7 +161,7 @@ spec:
         candidate.write_text(
             json.dumps(
                 {
-                    "schemaVersion": 3,
+                    "schemaVersion": 4,
                     "releaseKind": "application",
                     "application": "platform-go-vanity",
                     "rolloutClass": "stateless",
@@ -195,6 +195,10 @@ spec:
                         "rollback": {
                             "path": rollback.name,
                             "sha256": release_request._sha256(rollback),
+                        },
+                        "thirdPartyNotices": {
+                            "path": provenance.name,
+                            "sha256": release_request._sha256(provenance),
                         },
                         "buildAttestor": "projects/example/attestors/build",
                     },
