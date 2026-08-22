@@ -7,6 +7,7 @@ package registry
 
 import (
 	"database/sql"
+	"strings"
 
 	"go.mindclade.dev/libs/go/audit"
 	auditpostgres "go.mindclade.dev/libs/go/audit/postgres"
@@ -47,6 +48,8 @@ const (
 	migrationGatewayReservations
 	migrationWorkQueueTerminalRetention
 	migrationGatewayAdmissionObservability
+	migrationGatewayPolicyGovernance
+	migrationGatewayDispatchLifecycle
 )
 
 // newMigrationManifest orders the schemas the shared adapters declare for the
@@ -106,6 +109,18 @@ func newMigrationManifest() (*migrate.Manifest, error) {
 	if err != nil {
 		return nil, err
 	}
+	governanceDDL, err := admissionstore.GovernanceDDL(
+		admissionstore.DefaultBundleTable,
+		admissionstore.DefaultProposalTable,
+		admissionstore.DefaultReceiptTable,
+	)
+	if err != nil {
+		return nil, err
+	}
+	dispatchLifecycleDDL, err := admissionstore.ReservationLifecycleDDL(admissionstore.DefaultReservationTable)
+	if err != nil {
+		return nil, err
+	}
 	manifest, err := migrate.NewManifest(
 		migrate.Migration{Version: migrationAudit, Name: "audit_events", Up: auditDDL},
 		migrate.Migration{Version: migrationIdempotency, Name: "idempotency_records", Up: idempotencyDDL},
@@ -121,6 +136,8 @@ func newMigrationManifest() (*migrate.Manifest, error) {
 		migrate.Migration{Version: migrationGatewayReservations, Name: "gateway_reservations", Up: admissionDDL[2]},
 		migrate.Migration{Version: migrationWorkQueueTerminalRetention, Name: "work_items_terminal_retention", Up: workQueueTerminalRetentionDDL},
 		migrate.Migration{Version: migrationGatewayAdmissionObservability, Name: "gateway_admission_observability", Up: admissionObservabilityDDL},
+		migrate.Migration{Version: migrationGatewayPolicyGovernance, Name: "gateway_policy_governance", Up: strings.Join(governanceDDL, "\n")},
+		migrate.Migration{Version: migrationGatewayDispatchLifecycle, Name: "gateway_dispatch_lifecycle", Up: dispatchLifecycleDDL},
 	)
 	if err != nil {
 		return nil, err

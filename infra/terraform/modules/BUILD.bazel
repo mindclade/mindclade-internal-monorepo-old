@@ -52,6 +52,7 @@ filegroup(
         "//infra/terraform/modules/redis:scaffold_files",
         "//infra/terraform/modules/scc:scaffold_files",
         "//infra/terraform/modules/secret_manager:scaffold_files",
+        "//infra/terraform/modules/secure_web_proxy:scaffold_files",
         "//infra/terraform/modules/service_perimeter:scaffold_files",
         "//infra/terraform/modules/storage:scaffold_files",
         "//infra/terraform/modules/storage_collection:scaffold_files",

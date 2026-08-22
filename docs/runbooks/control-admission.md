@@ -8,8 +8,8 @@ authorization/accounting invariant violation.
 
 ## control-admission-api-metric-contract-incomplete
 
-Compare the desired API replica count with the versioned per-replica inventory: 30 decision
-counter series, 36 histogram buckets, three histogram counts, and three histogram sums. Treat a
+Compare the desired API replica count with the versioned per-replica inventory: 60 decision
+counter series, 72 histogram buckets, six histogram counts, and six histogram sums. Treat a
 missing series as missing SLI evidence; do not reconstruct traffic from logs or another replica.
 
 ## control-admission-api-target-absent

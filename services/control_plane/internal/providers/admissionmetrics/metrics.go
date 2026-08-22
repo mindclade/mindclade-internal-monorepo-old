@@ -28,9 +28,12 @@ import (
 type Operation string
 
 const (
-	OperationAdmit   Operation = "admit"
-	OperationCommit  Operation = "commit"
-	OperationRelease Operation = "release"
+	OperationAdmit                 Operation = "admit"
+	OperationDispatch              Operation = "dispatch"
+	OperationReconciliationPending Operation = "reconciliation_pending"
+	OperationCommit                Operation = "commit"
+	OperationReconcile             Operation = "reconcile"
+	OperationRelease               Operation = "release"
 
 	resultAllow       = "allow"
 	resultDeny        = "deny"
@@ -45,7 +48,7 @@ const (
 )
 
 var (
-	operations = [...]Operation{OperationAdmit, OperationCommit, OperationRelease}
+	operations = [...]Operation{OperationAdmit, OperationDispatch, OperationReconciliationPending, OperationCommit, OperationReconcile, OperationRelease}
 	results    = [...]string{
 		resultAllow,
 		resultDeny,
@@ -62,7 +65,7 @@ var (
 
 func (operation Operation) valid() bool {
 	switch operation {
-	case OperationAdmit, OperationCommit, OperationRelease:
+	case OperationAdmit, OperationDispatch, OperationReconciliationPending, OperationCommit, OperationReconcile, OperationRelease:
 		return true
 	default:
 		return false
