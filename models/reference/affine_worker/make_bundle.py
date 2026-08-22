@@ -13,9 +13,8 @@ import struct
 from pathlib import Path
 from typing import cast
 
-from tools.release.build_model_bundle import build
-
 from models.reference import ReferenceAffineConfig, reference_affine_config_bytes
+from tools.release.build_model_bundle import build
 
 MODEL_NAME = "reference-affine-v1"
 

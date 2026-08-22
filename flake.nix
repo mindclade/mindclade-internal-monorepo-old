@@ -430,12 +430,11 @@
           toolchain-manifest = manifest.file;
         }
         // nixpkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
-          remote-execution-base = (
-            import ./tools/build/nix/images/default.nix {
+          remote-execution-base =
+            (import ./tools/build/nix/images/default.nix {
               inherit ccToolchain pkgs;
               system = pkgs.system;
-            }
-          ).cpu;
+            }).cpu;
         }
       );
 

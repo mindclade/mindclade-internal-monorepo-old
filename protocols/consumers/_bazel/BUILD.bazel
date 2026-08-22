@@ -1,0 +1,25 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+load("@rules_go//go:def.bzl", "go_test")
+
+package(default_visibility = ["//protocols/consumers:__pkg__"])
+
+go_test(
+    name = "generated_go_test",
+    srcs = ["generated_go_test.go"],
+    deps = [
+        "//protocols/proto/mindclade/artifact/v1:artifact_go_proto",
+        "//protocols/proto/mindclade/common/v1:common_go_proto",
+        "//protocols/proto/mindclade/data/v1:data_go_proto",
+        "//protocols/proto/mindclade/evaluation/v1:evaluation_go_proto",
+        "//protocols/proto/mindclade/events/v1:events_go_proto",
+        "//protocols/proto/mindclade/inference/v1:inference_go_proto",
+        "//protocols/proto/mindclade/orchestration/v1:orchestration_go_proto",
+        "//protocols/proto/mindclade/registry/v1:registry_go_proto",
+        "//protocols/proto/mindclade/runtime/v1:runtime_go_proto",
+        "//protocols/proto/mindclade/training/v1:training_go_proto",
+        "@org_golang_google_protobuf//proto",
+    ],
+)

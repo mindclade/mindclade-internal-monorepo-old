@@ -13,6 +13,13 @@ mock_provider "google" {}
 run "retired_dns_hub_is_only_a_composition_fixture" {
   command = plan
 
+  # Alternate test modules do not implicitly receive the test file's provider
+  # selection. Pass the mocked default explicitly so this source-only fixture
+  # can never fall through to Application Default Credentials.
+  providers = {
+    google = google
+  }
+
   module {
     source = "./tests/fixtures/dns_hub"
   }

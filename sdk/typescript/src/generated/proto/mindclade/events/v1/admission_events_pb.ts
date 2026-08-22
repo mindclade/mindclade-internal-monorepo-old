@@ -73,3 +73,4 @@ export type AdmissionEventEnvelope = Message<"mindclade.events.v1.AdmissionEvent
  */
 export const AdmissionEventEnvelopeSchema: GenMessage<AdmissionEventEnvelope> = /*@__PURE__*/
   messageDesc(file_mindclade_events_v1_admission_events, 0);
+
