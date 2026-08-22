@@ -268,10 +268,10 @@ pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
 pip.parse(
     experimental_extra_index_urls = ["https://download.pytorch.org/whl/cpu"],
     hub_name = "pypi",
-    requirements_by_platform = {{
+    requirements_by_platform = {
         "//:requirements.darwin.lock.txt": "osx_aarch64",
         "//:requirements.lock.txt": "linux_*",
-    }},
+    },
 )
 """,
         )
@@ -313,6 +313,20 @@ def test_python_platform_lock_contract_rejects_cross_platform_torch_metadata() -
     assert errors == [
         "requirements.darwin.lock.txt must select the Darwin Torch version without a local suffix"
     ]
+
+
+def test_python_platform_lock_contract_rejects_a_global_secondary_index() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        contract_fixture(root)
+        write(
+            root,
+            "requirements.lock.txt",
+            "--extra-index-url https://download.pytorch.org/whl/cpu\n"
+            + LOCK.format(platform="linux", suffix="+cpu", digest="0" * 64),
+        )
+        errors = contract.python_platform_lock_contract(root)
+    assert errors == ["requirements.lock.txt must not expose package indexes to every requirement"]
 
 
 def test_pytest_init_contract_requires_the_shared_macro() -> None:

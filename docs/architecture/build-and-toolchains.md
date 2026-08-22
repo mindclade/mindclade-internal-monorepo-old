@@ -65,12 +65,14 @@ nested generated trees. Node dependency trees, Python bytecode/tool caches, and
 Terraform provider caches stay out of `//...`; committed sources and lock files
 remain visible to Bazel governance targets.
 
-The root Python environment has separate hash-locked Linux and Darwin requirements
+The root Python environment has separate hash-locked Linux and arm64 Darwin requirements
 files. PyTorch's CPU index publishes different local-version metadata on those
 platforms, so feeding a universal export to rules_python can associate a Linux wheel
-with Darwin hashes. `MODULE.bazel` maps each generated lock to its target OS; uv.lock
-continues to own developer resolution, and the Linux lock is the independent
-dependency-audit input.
+with Darwin hashes. `MODULE.bazel` maps each generated lock to its supported target
+platform and uses rules_python's package-scoped index override: PyPI remains authoritative
+for transitive packages, while only Torch can resolve from the CPU index. The generated
+locks therefore contain no global extra-index option. `uv.lock` continues to own developer
+resolution, and the Linux lock is the independent dependency-audit input.
 
 Every development and CI shell exports `MINDCLADE_CC_TOOLCHAIN_ROOT` from
 `packages.<system>.cc-toolchain-bundle`. The bundle records Clang and binutils,

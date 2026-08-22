@@ -217,21 +217,22 @@ python.toolchain(
 # and the Python CI lane. The platform locks are generated, never hand-edited:
 #
 #     uv pip compile pyproject.toml --group dev --generate-hashes --python-version 3.14 \
-#       --python-platform linux --only-binary :all: --emit-index-url \
-#       --index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match \
+#       --python-platform linux --only-binary :all: \
 #       --output-file requirements.lock.txt
-#     uv pip compile pyproject.toml --group dev --generate-hashes --python-version 3.14 \
-#       --python-platform macos --only-binary :all: --emit-index-url \
-#       --index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match \
+#     MACOSX_DEPLOYMENT_TARGET=14.0 uv pip compile pyproject.toml --group dev \
+#       --generate-hashes --python-version 3.14 \
+#       --python-platform aarch64-apple-darwin --only-binary :all: \
 #       --output-file requirements.darwin.lock.txt
 #
 # PyTorch publishes `2.13.0` metadata on macOS and `2.13.0+cpu` on its Linux CPU index.
 # rules_python merges duplicate normalized names in a universal requirements export, which can
 # pair the Linux wheel with the macOS hashes. Separate OS locks keep that choice unambiguous.
-# unsafe-best-match is necessary because the PyTorch index mirrors stale transitive packages;
-# every selected distribution remains version-pinned and hash-locked, and pip-audit checks the
-# Linux lock independently. rules_python cannot read uv.lock, so these compiled locks are the
-# platform-specific bridge.
+# The Darwin lock is arm64-only because x86_64-darwin is explicitly outside the Nix-supported
+# system set; Torch 2.13 requires macOS 14. The locks intentionally contain no global extra-index
+# option. The Bazel downloader sends only Torch to the CPU index, preventing that index's mirrored
+# copies of transitive packages from competing with PyPI artifacts. Every selected distribution
+# remains version-pinned and hash-locked, and pip-audit checks the Linux lock independently.
+# rules_python cannot read uv.lock, so these compiled locks are the platform-specific bridge.
 #
 # Wheels are fetched per package and on demand: depending on @pypi//pytest does not download
 # torch. That matters here, because torch is the largest dependency in the tree by two orders

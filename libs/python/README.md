@@ -43,9 +43,10 @@ formats.
 
 The root uv lock is the developer dependency source of truth. Bazel uses independently
 hash-pinned `requirements.lock.txt` and `requirements.darwin.lock.txt` inputs so Linux and
-Darwin PyTorch metadata cannot be merged across platforms. The repository is not installed as
-a wheel (`tool.uv.package = false`); Bazel `py_library` targets are the supported internal
-consumption path. Implemented packages include `py.typed` in their runfiles.
+arm64 Darwin PyTorch metadata cannot be merged across platforms. Bazel routes only Torch to
+the CPU index; all transitive dependencies remain scoped to PyPI. The repository is not
+installed as a wheel (`tool.uv.package = false`); Bazel `py_library` targets are the supported
+internal consumption path. Implemented packages include `py.typed` in their runfiles.
 
 Run the production checks from the repository root:
 
