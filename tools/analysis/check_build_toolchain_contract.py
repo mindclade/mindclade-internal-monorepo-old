@@ -23,6 +23,7 @@ FORBIDDEN = [
 SCAN = {".bzl", ".bazel", ".sh", ".py", ".yml", ".yaml", ".nix"}
 REQUIRED_REPO_IGNORES = frozenset(
     {
+        "**/.codex-worktrees",
         "**/.mypy_cache",
         "**/.pytest_cache",
         "**/.ruff_cache",
@@ -31,6 +32,7 @@ REQUIRED_REPO_IGNORES = frozenset(
         "**/node_modules",
     }
 )
+BOOTSTRAP_SYNTAX_TARGET = "py313"
 PYTEST_MACRO = "tools/build/pytest.bzl"
 ROOT_PYPI_HUB = "pypi"
 ROOT_PYPI_INDEX = "https://pypi.org/simple"
@@ -336,6 +338,25 @@ def python_toolchain_version_contract(root: Path) -> list[str]:
     return errors
 
 
+def python_bootstrap_syntax_contract(root: Path) -> list[str]:
+    """Keep formatter output parseable before Nix establishes Python 3.14."""
+
+    path = root / "pyproject.toml"
+    if not path.is_file():
+        return ["pyproject.toml is required for Python syntax governance"]
+    try:
+        document = tomllib.loads(path.read_text(encoding="utf-8"))
+        target = document["tool"]["ruff"]["target-version"]
+    except (OSError, tomllib.TOMLDecodeError, KeyError, TypeError) as error:
+        return [f"pyproject.toml has no valid Ruff target-version: {type(error).__name__}"]
+    if target != BOOTSTRAP_SYNTAX_TARGET:
+        return [
+            "Ruff must preserve Python 3.13 syntax for pre-Nix repository checks; "
+            f"expected {BOOTSTRAP_SYNTAX_TARGET}, got {target!r}"
+        ]
+    return []
+
+
 def pytest_init_contract(root: Path) -> list[str]:
     """Keep pytest runfiles source-authoritative.
 
@@ -456,6 +477,7 @@ def check(root: Path):
     errors.extend(rust_version_contract(root))
     errors.extend(repository_traversal_contract(root))
     errors.extend(python_toolchain_version_contract(root))
+    errors.extend(python_bootstrap_syntax_contract(root))
     errors.extend(python_repository_resolution_contract(root))
     errors.extend(pytest_init_contract(root))
     errors.extend(python_platform_lock_contract(root))

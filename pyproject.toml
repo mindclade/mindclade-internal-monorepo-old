@@ -100,7 +100,10 @@ testpaths = ["tests", "ci", "tools", "data", "evaluation", "kernels", "libs", "m
 python_files = ["test_*.py", "*_test.py"]
 
 [tool.ruff]
-target-version = "py314"
+# The locked runtime is Python 3.14, but repository checks are imported by the bootstrap host
+# before Nix establishes that runtime. Keep repository syntax parseable by Python 3.13; mypy and
+# the Bazel/Nix toolchain still validate and execute against 3.14.
+target-version = "py313"
 line-length = 100
 exclude = [".agents/skills", "research/notebooks"]
 
