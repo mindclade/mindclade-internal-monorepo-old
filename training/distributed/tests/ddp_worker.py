@@ -273,7 +273,7 @@ def main() -> None:
                 identity=identity("cpu-world-size-2"),
                 data_position=2 * global_item.batch_size,
             )
-        except FailedPrecondition, RuntimeError:
+        except (FailedPrecondition, RuntimeError):
             pass
         else:
             raise AssertionError("rank-local DCP encode failure was accepted")
@@ -303,7 +303,7 @@ def main() -> None:
                 identity=identity("cpu-world-size-2"),
                 data_position=2 * global_item.batch_size,
             )
-        except FailedPrecondition, OSError:
+        except (FailedPrecondition, OSError):
             pass
         else:
             raise AssertionError("rank-local DCP write failure was accepted")
@@ -334,7 +334,7 @@ def main() -> None:
                 identity=identity("cpu-world-size-2"),
                 data_position=2 * global_item.batch_size,
             )
-        except FailedPrecondition, InvalidArgument:
+        except (FailedPrecondition, InvalidArgument):
             pass
         else:
             raise AssertionError("silent rank-local DCP write tamper was accepted")
@@ -363,7 +363,7 @@ def main() -> None:
                 optimizer=corrupt_optimizer,
                 expected_identity=identity("cpu-world-size-2"),
             )
-        except FailedPrecondition, InvalidArgument:
+        except (FailedPrecondition, InvalidArgument):
             pass
         else:
             raise AssertionError("rank-local corrupt DCP member was accepted")

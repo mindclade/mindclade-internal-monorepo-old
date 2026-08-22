@@ -65,7 +65,7 @@ def validate_dependency(
     if path := value.get("path"):
         try:
             (directory / path).resolve().relative_to(ROOT)
-        except OSError, ValueError:
+        except (OSError, ValueError):
             return [f"{label}: path dependency escapes the repository"]
         return []
     version = value.get("version")

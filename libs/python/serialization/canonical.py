@@ -297,7 +297,7 @@ def canonical_json_bytes(
                 )
             encoded_chunks.append(encoded)
         return b"".join(encoded_chunks)
-    except InvalidArgument, ResourceExhausted:
+    except (InvalidArgument, ResourceExhausted):
         raise
     except (TypeError, ValueError) as error:  # pragma: no cover - normalization owns these
         raise InvalidArgument(
