@@ -93,7 +93,7 @@ class WorkerServer:
         try:
             async with self._pending:
                 await self._handle_client(reader, writer)
-        except (ConnectionError, asyncio.IncompleteReadError, TimeoutError, ProtocolError):
+        except ConnectionError, asyncio.IncompleteReadError, TimeoutError, ProtocolError:
             pass
         finally:
             writer.close()
