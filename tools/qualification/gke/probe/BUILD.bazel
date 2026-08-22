@@ -1,0 +1,27 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:private"])
+
+go_library(
+    name = "probe",
+    srcs = ["probe.go"],
+    embedsrcs = ["contract.json"],
+    importpath = "go.mindclade.dev/tools/qualification/gke/probe",
+    visibility = ["//tools/qualification/gke:__subpackages__"],
+)
+
+filegroup(
+    name = "contract",
+    srcs = ["contract.json"],
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "probe_test",
+    srcs = ["probe_test.go"],
+    embed = [":probe"],
+)

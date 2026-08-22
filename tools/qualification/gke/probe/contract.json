@@ -1,0 +1,11 @@
+{
+  "contract_version": "1.0.0",
+  "gke_version": "1.36.2-gke.2064000",
+  "gpu_helper_schema": "mindclade.dev/gpu-qualification-helper-result/v1",
+  "probe_schema": "mindclade.dev/gke-foundation-probe-result/v1",
+  "qualification_contract": "gke-foundation-v1",
+  "request_schema": "mindclade.dev/gke-foundation-qualification-request/v1",
+  "result_schema": "mindclade.dev/gke-foundation-qualification-result/v1",
+  "source_repository": "mindclade/mindclade-internal-monorepo",
+  "target_id": "foundation-gke-qualification"
+}

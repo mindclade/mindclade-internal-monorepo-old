@@ -22,8 +22,10 @@ and an unsuspended uniquely named Job. During that run the namespace activation 
 `qualification`, never `active`. Cleanup must delete the run, restore zero quota, and return this
 namespace to `workload-activation=blocked`. It must not unhold or modify a normal workload queue.
 
-The source image initially contains the CPU/local-storage/UDS probe. GPU runs remain fail-closed
-until the release image also contains a pinned CUDA/NCCL helper and its provenance; seeing a GPU
+The source image `//tools/qualification/gke:foundation_image` contains the
+CPU/local-storage/UDS probe and remains outside the release catalog with only a localhost push
+target. GPU runs remain fail-closed until a separately reviewed release image also contains a
+pinned CUDA/NCCL helper and its provenance; seeing a GPU
 through `nvidia-smi` is not accepted as CUDA/NCCL qualification. The helper contract requires all
 eight CUDA devices, at least a 1 GiB NCCL all-reduce, a positive measured bus bandwidth, at least
 1 GiB of tested GPU memory, and a passing DCGM health result.
