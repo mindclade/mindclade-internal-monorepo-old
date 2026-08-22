@@ -374,10 +374,11 @@ func (store *Store) updateReservation(ctx context.Context, expected resourcevers
 actual_requests=$3,actual_input_tokens=$4,actual_output_tokens=$5,actual_cost_micros=$6,
 finalized_at=$7,resource_version=$8,resource_generation=$9,document=$10::jsonb,written_at=$11
 WHERE reservation_id=$1 AND resource_version=$12`, store.reservations)
+	finalizedAt := sql.NullTime{Time: reservation.FinalizedAt, Valid: !reservation.FinalizedAt.IsZero()}
 	result, err := store.executor(ctx).ExecContext(ctx, query,
 		reservation.ID.String(), string(reservation.State), int64(reservation.Actual[admission.UnitRequests]),
 		int64(reservation.Actual[admission.UnitInputTokens]), int64(reservation.Actual[admission.UnitOutputTokens]),
-		int64(reservation.Actual[admission.UnitCostMicros]), reservation.FinalizedAt, reservation.Version.String(),
+		int64(reservation.Actual[admission.UnitCostMicros]), finalizedAt, reservation.Version.String(),
 		generation, document, now, expected.String())
 	if err != nil {
 		return provider(ctx, err, "admission.postgres.UpdateReservation")
