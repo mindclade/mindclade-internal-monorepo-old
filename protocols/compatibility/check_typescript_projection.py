@@ -71,6 +71,9 @@ def main() -> int:
             errors.append(f"{path}: generator identity differs")
         if marker in text:
             relative = path.as_posix().split("/sdk/typescript/src/generated/proto/", 1)[1]
+            if not relative.endswith("_pb.ts"):
+                errors.append(f"{path}: generated filename is not *_pb.ts")
+                continue
             source = f"proto/{relative.removesuffix('_pb.ts')}.proto"
             if source not in scaffold_allowlist:
                 errors.append(f"{path}: removed scaffold symbol remains")
