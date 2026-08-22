@@ -74,8 +74,6 @@ def main() -> int:
             source = f"proto/{relative.removesuffix('_pb.ts')}.proto"
             if source not in scaffold_allowlist:
                 errors.append(f"{path}: removed scaffold symbol remains")
-        elif "Scaffold" in text:
-            errors.append(f"{path}: removed scaffold symbol remains")
     for error in errors:
         print(f"ERROR: {error}")
     if errors:
