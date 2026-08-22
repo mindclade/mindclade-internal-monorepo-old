@@ -111,15 +111,26 @@ tools/dev/nixw develop .#ci-bazel --command \
   tools/dev/bazelw build //... --nobuild --config=ci
 ```
 
-Presubmit loads every BUILD file, checks the language-independent dependency
-graph, performs full configured analysis, and runs all non-manual Bazel tests.
-The analysis and test phases each emit a JSON Build Event Protocol stream and a
-compressed trace profile. CI publishes normalized wall/analysis/execution and
-critical-path timing, graph/action/cache/runner counts, and test outcomes to the
-job summary, then retains the raw and normalized evidence for 14 days. These
-metrics establish an observational baseline; they are not performance gates.
-Release and remote-execution claims still require their own platform evidence;
-passing the local/CI graph is not a claim about an unconfigured remote cluster.
+Every presubmit loads all BUILD files, checks the language-independent
+dependency graph, and validates the registered toolchain. Ordinary pull
+requests then use `ci/common/affected.py` to map changed files to owning-package
+seeds and ask Bazel for `rdeps(//..., seeds)`. Bazel's post-loading graph—not a
+BUILD-file regex—selects configured-analysis rules and test targets. The query
+is deliberately conservative across `select()` branches.
+
+CI, Starlark, toolchain, dependency-lock, protocol, architecture, component,
+maturity, deletion, rename, and unmapped changes expand to `//...`. Merge-group
+and protected-main events always use `//...`, so affected presubmit cannot
+allow a change to merge without a complete configured merge-result check. The
+daily CPU nightly provides an additional complete default-branch run.
+
+Analysis and test phases emit a JSON Build Event Protocol stream, compressed
+trace profile, normalized summaries, versioned selection record, exact target
+files, and run metrics retained for 35 days. Affected pull requests have a
+30-minute p95 objective after a 28-day burn-in; correctness and query failures
+remain fail-closed. Release and remote-execution claims still require their own
+platform evidence; passing this graph is not a claim about an unconfigured
+remote cluster.
 
 ## Go module checksum closure
 

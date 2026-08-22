@@ -14,6 +14,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -71,6 +72,36 @@ jobs:
           --event "${GITHUB_EVENT_NAME}"
           --evidence-dir "${RUNNER_TEMP}/bazel-evidence"
           --job-started-at-file "${RUNNER_TEMP}/bazel-job-started"
+
+      - name: Qualify the rolling affected-presubmit latency SLO
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          metrics="${RUNNER_TEMP}/bazel-latency-history"
+          mkdir -p "${metrics}"
+          while IFS=$'\t' read -r artifact_id workflow_run_id; do
+            read -r workflow_path event conclusion < <(
+              gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${workflow_run_id}" \
+                --jq '[.path, .event, .conclusion] | @tsv'
+            )
+            if [[ "${workflow_path}" != ".github/workflows/presubmit.yml" || \
+                  "${event}" != "pull_request" || "${conclusion}" != "success" ]]; then
+              continue
+            fi
+            archive="${metrics}/${artifact_id}.zip"
+            gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" \
+              > "${archive}"
+            unzip -p "${archive}" run-metrics.json > "${metrics}/${artifact_id}.json"
+            rm "${archive}"
+          done < <(
+            gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" \
+              --jq '.artifacts[] | select(.expired == false) | select(.name | startswith("bazel-metrics-")) | [.id, .workflow_run.id] | @tsv'
+          )
+          python3 ci/nightly/qualify_latency.py \
+            --metrics-root "${metrics}" \
+            --json-output "${RUNNER_TEMP}/bazel-evidence/latency-slo.json" \
+            --markdown-output "${RUNNER_TEMP}/bazel-evidence/latency-slo.md"
+          cat "${RUNNER_TEMP}/bazel-evidence/latency-slo.md" >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Upload nightly Bazel evidence
         if: always()

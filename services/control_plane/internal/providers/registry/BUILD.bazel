@@ -69,6 +69,7 @@ go_test(
     ],
     embed = [":registry"],
     deps = [
+        "//control/artifacts",
         "//control/registry/models",
         "//control/registry/releases",
         "//libs/go/identifiers",

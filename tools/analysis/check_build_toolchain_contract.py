@@ -31,6 +31,10 @@ REQUIRED_REPO_IGNORES = frozenset(
     }
 )
 PYTEST_MACRO = "tools/build/pytest.bzl"
+ROOT_PYPI_HUB = "pypi"
+ROOT_PYPI_INDEX = "https://pypi.org/simple"
+ROOT_TORCH_INDEX = "https://download.pytorch.org/whl/cpu"
+ROOT_PYPI_PLATFORMS = frozenset({"linux_aarch64", "linux_x86_64", "osx_aarch64"})
 
 # Files that ENFORCE this same contract, and therefore contain the forbidden strings as
 # pattern literals rather than as commands.
@@ -133,6 +137,82 @@ def repository_traversal_contract(root: Path) -> list[str]:
     return errors
 
 
+def python_repository_resolution_contract(root: Path) -> list[str]:
+    """Keep Bazel's hashed Python lock target-aware and wheel-only.
+
+    An unconfigured ``bazel query`` traverses every PEP 508 marker fork. If rules_python falls
+    back to host pip, Linux attempts to resolve the Darwin Torch fork and macOS attempts the
+    Linux CPU fork. Parse MODULE.bazel structurally so comments or dead strings cannot satisfy
+    the control.
+    """
+
+    path = root / "MODULE.bazel"
+    if not path.is_file():
+        return ["MODULE.bazel is required for Python repository governance"]
+    try:
+        module = ast.parse(path.read_text(errors="replace"), filename="MODULE.bazel")
+    except SyntaxError as error:
+        return [f"MODULE.bazel is not parseable for Python repository governance: {error.msg}"]
+
+    extensions = {
+        target.id
+        for node in module.body
+        if isinstance(node, ast.Assign)
+        and len(node.targets) == 1
+        and isinstance((target := node.targets[0]), ast.Name)
+        and isinstance(node.value, ast.Call)
+        and isinstance(node.value.func, ast.Name)
+        and node.value.func.id == "use_extension"
+        and len(node.value.args) >= 2
+        and isinstance(node.value.args[0], ast.Constant)
+        and node.value.args[0].value == "@rules_python//python/extensions:pip.bzl"
+        and isinstance(node.value.args[1], ast.Constant)
+        and node.value.args[1].value == "pip"
+    }
+    parse_calls = [
+        node
+        for node in ast.walk(module)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "parse"
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id in extensions
+        and any(
+            keyword.arg == "hub_name"
+            and isinstance(keyword.value, ast.Constant)
+            and keyword.value.value == ROOT_PYPI_HUB
+            for keyword in node.keywords
+        )
+    ]
+    if len(parse_calls) != 1:
+        return ["MODULE.bazel must declare exactly one root pypi pip.parse repository"]
+
+    kwargs = {keyword.arg: keyword.value for keyword in parse_calls[0].keywords if keyword.arg}
+
+    def literal(name: str):
+        value = kwargs.get(name)
+        if value is None:
+            return None
+        try:
+            return ast.literal_eval(value)
+        except (ValueError, TypeError):
+            return None
+
+    errors = []
+    if literal("requirements_lock") != "//:requirements.lock.txt":
+        errors.append("root pypi repository must consume //:requirements.lock.txt")
+    if literal("download_only") is not True:
+        errors.append("root pypi repository must be wheel-only")
+    if literal("experimental_index_url") != ROOT_PYPI_INDEX:
+        errors.append("root pypi repository must use the canonical PyPI simple index")
+    if literal("experimental_index_url_overrides") != {"torch": ROOT_TORCH_INDEX}:
+        errors.append("root pypi repository must route Torch exclusively to the CPU index")
+    platforms = literal("experimental_target_platforms")
+    if not isinstance(platforms, (list, tuple)) or set(platforms) != ROOT_PYPI_PLATFORMS:
+        errors.append("root pypi repository must declare the supported Linux and Apple targets")
+    return errors
+
+
 def pytest_init_contract(root: Path) -> list[str]:
     """Keep pytest runfiles source-authoritative.
 
@@ -209,6 +289,7 @@ def check(root: Path):
         errors.append("legacy WORKSPACE is forbidden; Bzlmod owns Bazel dependencies")
     errors.extend(rust_version_contract(root))
     errors.extend(repository_traversal_contract(root))
+    errors.extend(python_repository_resolution_contract(root))
     errors.extend(pytest_init_contract(root))
     for p in root.rglob("*"):
         if (

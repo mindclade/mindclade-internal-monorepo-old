@@ -14,6 +14,13 @@ dependency. Until that dependency budget is reconciled, the complete static
 lane is not qualified. These results are repository-only evidence and do not
 replace connected provider, GPU, deployment, or production-promotion evidence.
 
+Affected Bazel selection and the CPU nightly lane are implemented with
+versioned evidence, owning Bazel tests, a real-graph fixture, operational
+limits, and fail-closed Git/query behavior. They remain `implemented`, not
+`qualified`: the exact GitHub check contexts, merge-group full run,
+intentional-negative enforcement, scheduled nightly evidence, and 28-day
+latency objective require connected observation.
+
 ## Implemented and locally qualified
 
 - Full reusable Go foundation under `libs/go`.
@@ -120,7 +127,7 @@ qualification, or production readiness.
 
 ## Final hardening promotion boundary (2026-08-13)
 
-All ten post-architecture hardening items are represented by executable source, policy, or qualification machinery: Rust lock/toolchain gating, supply-chain policy, rolling compatibility, failure injection, performance budgets, node diagnostics, resource-budget observability, finished artifact-GC semantics, canonical workload envelopes, and golden vertical release slices. Affected-test selection and component ownership/enforcement metadata are also active presubmit invariants.
+All ten post-architecture hardening items are represented by executable source, policy, or qualification machinery: Rust lock/toolchain gating, supply-chain policy, rolling compatibility, failure injection, performance budgets, node diagnostics, resource-budget observability, finished artifact-GC semantics, canonical workload envelopes, and golden vertical release slices. Affected-test selection and component ownership metadata are active source invariants; connected required-check enforcement remains a separate governance qualification gate.
 
 The canonical Rust presubmit and offline qualification pass. `qualified` and
 `production` maturity still require connected Linux/Bazel/Nix release evidence,

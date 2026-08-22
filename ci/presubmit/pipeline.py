@@ -46,9 +46,10 @@ def main() -> int:
     parser.add_argument("--job-started-at-file", type=Path)
     args = parser.parse_args()
 
-    if not args.bazel_only:
-        if run([sys.executable, str(REPO / "tools/analysis/run_architecture_checks.py")]):
-            return 1
+    if not args.bazel_only and run(
+        [sys.executable, str(REPO / "tools/analysis/run_architecture_checks.py")]
+    ):
+        return 1
     if args.static_only:
         return 0
     if args.mode == "affected" and not args.base:

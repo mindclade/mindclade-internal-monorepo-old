@@ -58,9 +58,7 @@ assert "@v1.1.0" not in SECURITY
 
 bazel_job = PRESUBMIT.split("\n  bazel:\n", maxsplit=1)[1]
 bazel_job = bazel_job.split("\n  # Stable, always-reported", maxsplit=1)[0]
-assert "timeout-minutes: 75" in bazel_job
-assert bazel_job.count("unset BAZELISK_GITHUB_TOKEN") == 2
-assert "--build_event_json_file=" in bazel_job
+assert "timeout-minutes: 90" in bazel_job
 assert "bazel-performance-${{ github.run_id }}-${{ github.run_attempt }}" in bazel_job
 assert "tools/dev/bazelw query '//...' --config=ci" in bazel_job
 assert re.search(r"smoke_test --config=ci\s*$", bazel_job, re.MULTILINE)

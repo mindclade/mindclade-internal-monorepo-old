@@ -112,7 +112,7 @@ def test_affected_selection_uses_bazel_rdeps_and_tests(tmp_path: Path) -> None:
     assert selection.analysis_targets == ("//consumer:binary", "//pkg:library")
     assert selection.test_targets == ("//consumer:library_test", "//pkg:library_test")
     assert len(expressions) == 2
-    assert all("rdeps(//..., set(\"//pkg:*\"))" in expression for expression in expressions)
+    assert all('rdeps(//..., set("//pkg:*"))' in expression for expression in expressions)
     assert all('attr("tags", "[\\\\[ ]manual[,\\\\]]"' in expression for expression in expressions)
 
 
@@ -170,9 +170,7 @@ def test_git_changed_is_rename_aware_and_validates_base(
             "--find-renames",
             f"{base}...{head}",
         ):
-            return subprocess.CompletedProcess(
-                args, 0, b"R100\0original.txt\0renamed.txt\0", b""
-            )
+            return subprocess.CompletedProcess(args, 0, b"R100\0original.txt\0renamed.txt\0", b"")
         if command == ("rev-parse", "--verify", "does-not-exist^{commit}"):
             return subprocess.CompletedProcess(args, 128, b"", b"unknown revision")
         raise AssertionError(f"unexpected git command: {command}")
@@ -206,6 +204,42 @@ def test_selection_evidence_is_versioned_and_outside_checkout(tmp_path: Path) ->
 
     with pytest.raises(affected.SelectionError, match="outside"):
         affected.execute_selection(selection, root / "evidence", root=root)
+
+
+def test_evidence_phases_do_not_inherit_bazelisk_token(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _workspace(tmp_path / "repo")
+    evidence = tmp_path / "evidence"
+    evidence.mkdir()
+    commands: list[list[str]] = []
+    environments: list[dict[str, str]] = []
+
+    def fake_run(command, **kwargs):
+        if command[0] == str(root / "tools/dev/bazelw"):
+            commands.append(command)
+            environments.append(kwargs["env"])
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setenv("BAZELISK_GITHUB_TOKEN", "must-not-reach-bazel")
+    monkeypatch.setattr(affected.subprocess, "run", fake_run)
+
+    for phase in ("analysis", "test"):
+        result = affected._run_phase(
+            phase,
+            ("//pkg:library",),
+            evidence_dir=evidence,
+            root=root,
+        )
+        assert result["status"] == "passed"
+
+    assert len(environments) == 2
+    assert all("BAZELISK_GITHUB_TOKEN" not in environment for environment in environments)
+    assert [command[1] for command in commands] == ["build", "test"]
+    assert all(
+        any(argument.startswith("--build_event_json_file=") for argument in command)
+        for command in commands
+    )
 
 
 def test_unsafe_changed_path_is_rejected(tmp_path: Path) -> None:

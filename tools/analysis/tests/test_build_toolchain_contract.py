@@ -74,6 +74,22 @@ rust_toolchains.toolchain(
 )
 use_repo(rust_toolchains, "rust_toolchains")
 register_toolchains("@rust_toolchains//:all")
+
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    download_only = True,
+    experimental_index_url = "https://pypi.org/simple",
+    experimental_index_url_overrides = {{
+        "torch": "https://download.pytorch.org/whl/cpu",
+    }},
+    experimental_target_platforms = [
+        "linux_aarch64",
+        "linux_x86_64",
+        "osx_aarch64",
+    ],
+    hub_name = "pypi",
+    requirements_lock = "//:requirements.lock.txt",
+)
 """
 
 
@@ -213,6 +229,37 @@ def test_rust_version_contract_rejects_bazel_version_drift() -> None:
         write(root, "MODULE.bazel", MODULE.format(version="9.99.9"))
         errors = contract.rust_version_contract(root)
     assert errors == ["Bazel rules_rust version does not match Cargo rust-version"]
+
+
+def test_python_repository_contract_accepts_target_aware_wheel_resolution() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        write(root, "MODULE.bazel", MODULE.format(version=RUST_VERSION))
+        assert contract.python_repository_resolution_contract(root) == []
+
+
+def test_python_repository_contract_rejects_host_pip_and_shared_indexes() -> None:
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        write(
+            root,
+            "MODULE.bazel",
+            """\
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    experimental_extra_index_urls = ["https://download.pytorch.org/whl/cpu"],
+    hub_name = "pypi",
+    requirements_lock = "//:requirements.lock.txt",
+)
+""",
+        )
+        errors = contract.python_repository_resolution_contract(root)
+    assert errors == [
+        "root pypi repository must be wheel-only",
+        "root pypi repository must use the canonical PyPI simple index",
+        "root pypi repository must route Torch exclusively to the CPU index",
+        "root pypi repository must declare the supported Linux and Apple targets",
+    ]
 
 
 def test_pytest_init_contract_requires_the_shared_macro() -> None:

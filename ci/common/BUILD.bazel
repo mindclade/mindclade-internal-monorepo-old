@@ -28,14 +28,14 @@ py_binary(
 py_binary(
     name = "validate_affected_integration",
     srcs = ["validate_affected_integration.py"],
-    deps = [":affected"],
     imports = ["../.."],
     visibility = ["//visibility:public"],
+    deps = [":affected"],
 )
 
 pytest_test(
     name = "affected_test",
     srcs = ["tests/test_affected.py"],
-    deps = [":affected"],
     imports = ["../.."],
+    deps = [":affected"],
 )

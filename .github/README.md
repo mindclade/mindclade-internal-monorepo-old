@@ -14,14 +14,15 @@
 
 | Workflow | Gates |
 |---|---|
-| `presubmit.yml` | The PR gate: architecture invariants, Go, Rust, Python, actionlint/yamllint, Terraform, Bazel loading, pnpm workspace integrity |
+| `presubmit.yml` | The PR gate: architecture invariants, Go, Rust, Python, actionlint/yamllint, Terraform, affected Bazel configured analysis/tests, pnpm workspace integrity |
+| `nightly.yml` | Daily/manual CPU qualification of the complete configured Bazel graph and all non-manual tests |
 | `release.yml` | Image build, sign, and attest. The filename is load-bearing — bootstrap binds the attestor identity to this exact path |
 | `security.yml` | CodeQL and the security lane. Holds the only `security-events: write` in the repository |
 | `license-headers.yml` | The four-line header every source file carries |
 
-`gpu.yml` and `nightly.yml` are reserved by the blueprint and deliberately not
-written. They need self-hosted runners and a release process that do not exist
-yet, and an empty workflow that reports success is worse than an absent one.
+`gpu.yml` remains reserved because it requires qualified self-hosted hardware.
+The CPU-only nightly is intentionally hosted and makes no GPU, provider,
+remote-execution, release, or deployment claim.
 
 ## The `ci` job id is load-bearing
 
@@ -35,6 +36,11 @@ never satisfied, and a default branch nothing can merge into.
 `terraform` jobs now use stable ids and display names, but remain staged until a
 real pull request confirms their exact emitted contexts; the separate ruleset
 change then makes them merge-blocking without risking an unsatisfiable branch.
+
+The Bazel job emits the exact `bazel / verdict` context on pull requests,
+merge groups, and protected-main pushes. Its governance rule remains in
+evaluate mode until successful and intentional-negative connected canaries are
+reviewed. Renaming it requires an evaluate-mode context migration first.
 
 ## Shared workflow access is load-bearing
 
@@ -60,7 +66,9 @@ selection is reviewable and runnable locally rather than embedded in YAML. The
 architecture lane is `python3 ci/presubmit/pipeline.py --static-only`.
 
 Bazel is the test execution authority. CI selects targets; it does not duplicate
-build logic.
+build logic. Ordinary pull requests select owning packages and their Bazel
+reverse dependencies; merge groups, main pushes, nightly, and global build or
+architecture changes execute `//...`.
 
 ## Buildkite retirement status
 

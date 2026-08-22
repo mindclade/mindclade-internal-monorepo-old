@@ -13,7 +13,7 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from ci.common import affected
+from ci.common import affected  # noqa: E402
 
 
 def main() -> int:

@@ -11,9 +11,9 @@ py_binary(
     name = "pipeline",
     srcs = ["pipeline.py"],
     data = ["targets.yaml"],
-    deps = ["//ci/common:affected"],
     imports = ["../.."],
     main = "pipeline.py",
+    deps = ["//ci/common:affected"],
 )
 
 pytest_test(
@@ -22,6 +22,6 @@ pytest_test(
         "pipeline.py",
         "test_pipeline.py",
     ],
-    deps = ["//ci/common:affected"],
     imports = ["../.."],
+    deps = ["//ci/common:affected"],
 )

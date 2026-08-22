@@ -21,7 +21,7 @@ import sys
 import time
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -150,7 +150,7 @@ Query = Callable[[str], Sequence[str]]
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
 def _normalize_path(raw: str) -> str:
@@ -278,7 +278,7 @@ def _query_expression(seeds: Sequence[str], *, tests: bool) -> str:
     selected = "tests($affected)" if tests else 'kind(".* rule", $affected)'
     return (
         f"let affected = {affected} in "
-        f"({selected} except attr(\"tags\", {manual_pattern}, $affected))"
+        f'({selected} except attr("tags", {manual_pattern}, $affected))'
     )
 
 
@@ -569,9 +569,7 @@ def execute_selection(
     _write_json(directory / "selection.json", payload)
 
     execution: list[dict[str, Any]] = []
-    analysis = _run_phase(
-        "analysis", selection.analysis_targets, evidence_dir=directory, root=root
-    )
+    analysis = _run_phase("analysis", selection.analysis_targets, evidence_dir=directory, root=root)
     execution.append(analysis)
     if analysis["exit_code"] == 0:
         execution.append(
@@ -644,9 +642,7 @@ def main() -> int:
     if args.format == "json":
         print(json.dumps(selection.as_dict(), indent=2, sort_keys=True))
     else:
-        targets = (
-            selection.analysis_targets if args.kind == "analysis" else selection.test_targets
-        )
+        targets = selection.analysis_targets if args.kind == "analysis" else selection.test_targets
         print("\n".join(targets))
     return 0
 

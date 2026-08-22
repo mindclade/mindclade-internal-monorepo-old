@@ -229,6 +229,23 @@ python.toolchain(
 # of magnitude and almost nothing needs it at build time.
 pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
 pip.parse(
+    download_only = True,
+    # Resolve exact wheel URLs from lock-authoritative simple indexes and let Bazel's downloader
+    # verify their uv-exported hashes. The package-specific Torch route avoids dependency
+    # confusion, keeps foreign platform forks away from host pip during unconfigured graph
+    # queries, and prevents accidental source builds.
+    experimental_index_url = "https://pypi.org/simple",
+    experimental_index_url_overrides = {
+        "torch": "https://download.pytorch.org/whl/cpu",
+    },
+    # Bazel's unconfigured graph queries traverse every marker fork. Tell rules_python which
+    # production and development targets those forks represent so repository resolution remains
+    # target-aware instead of asking host pip to resolve a foreign Torch requirement.
+    experimental_target_platforms = [
+        "linux_aarch64",
+        "linux_x86_64",
+        "osx_aarch64",
+    ],
     hub_name = "pypi",
     python_version = "3.12",
     requirements_lock = "//:requirements.lock.txt",

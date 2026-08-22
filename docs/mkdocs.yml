@@ -119,6 +119,7 @@ nav:
       - Runtime ingestion worker: runbooks/runtime-ingestion-worker.md
       - Runtime model worker: runbooks/runtime-model-worker.md
       - Runtime serving core: runbooks/runtime-serving-core.md
+      - CI Bazel validation: runbooks/ci-bazel-validation.md
   - Service objectives:
       - AI gateway provider edge: slo/ai-gateway-provider-edge.md
       - Artifact control: slo/artifact-control.md
@@ -138,6 +139,7 @@ nav:
       - Runtime ingestion worker: slo/runtime-ingestion-worker.md
       - Runtime model worker: slo/runtime-model-worker.md
       - Runtime serving core: slo/runtime-serving-core.md
+      - CI Bazel validation: slo/ci-bazel-validation.md
   - Security:
       - Threat model: security/threat-model.md
       - Tenant isolation: security/tenant-isolation.md

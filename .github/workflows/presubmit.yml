@@ -397,7 +397,7 @@ jobs:
     # compiling the upstream C++/protobuf tool graph. Keep a bounded ceiling with enough room
     # for a cold cache; the BEP/profile artifact makes regressions diagnosable without a count
     # that drifts every time a test target is added.
-    timeout-minutes: 75
+    timeout-minutes: 90
     steps:
       - name: Record Bazel verdict start
         run: date +%s > "${RUNNER_TEMP}/bazel-job-started"
@@ -469,6 +469,8 @@ jobs:
         env:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
+          # The shared executor removes setup-bazel's short-lived download token from each
+          # evidence-producing subprocess so neither analysis nor test BEP can record it.
           evidence="${RUNNER_TEMP}/bazel-evidence"
           mode="full"
           base_args=()
@@ -495,6 +497,15 @@ jobs:
           name: bazel-performance-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/bazel-evidence/*
           if-no-files-found: warn
+          retention-days: 35
+
+      - name: Upload Bazel latency metric
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: bazel-metrics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bazel-evidence/run-metrics.json
+          if-no-files-found: ignore
           retention-days: 35
 
   # Stable, always-reported infrastructure context. Do not add path filters or rename the job:
