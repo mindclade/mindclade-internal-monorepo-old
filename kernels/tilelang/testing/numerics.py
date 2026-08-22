@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 import torch
@@ -18,8 +19,11 @@ class Tolerance:
     atol: float
 
     def __post_init__(self) -> None:
-        if self.rtol < 0 or self.atol < 0:
-            raise ValueError("tolerances must be non-negative")
+        for name, value in (("rtol", self.rtol), ("atol", self.atol)):
+            if isinstance(value, bool) or not isinstance(value, int | float):
+                raise TypeError(f"{name} must be a real number")
+            if not math.isfinite(value) or value < 0:
+                raise ValueError("tolerances must be finite and non-negative")
 
 
 TOLERANCES: dict[torch.dtype, Tolerance] = {
@@ -48,8 +52,20 @@ def parity_report(
     tolerance: Tolerance | None = None,
     equal_nan: bool = False,
 ) -> ParityReport:
+    if not isinstance(actual, torch.Tensor) or not isinstance(expected, torch.Tensor):
+        raise TypeError("parity inputs must be torch.Tensor values")
     if actual.shape != expected.shape:
         raise ValueError("parity tensors must have identical shapes")
+    if actual.dtype != expected.dtype:
+        raise TypeError("parity tensors must have identical dtypes")
+    if actual.device != expected.device:
+        raise ValueError("parity tensors must be on the same device")
+    if actual.layout != expected.layout:
+        raise ValueError("parity tensors must have identical layouts")
+    if not isinstance(equal_nan, bool):
+        raise TypeError("equal_nan must be boolean")
+    if tolerance is not None and not isinstance(tolerance, Tolerance):
+        raise TypeError("tolerance must be a Tolerance or None")
     policy = TOLERANCES.get(expected.dtype) if tolerance is None else tolerance
     if policy is None:
         raise ValueError(f"no tolerance policy for dtype {expected.dtype}")

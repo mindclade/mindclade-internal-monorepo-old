@@ -3,12 +3,21 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Scaffold boundary for kernels/api/fake_tensor.py.
-
-Scientific and numerical behavior must be implemented in the owning Python
-domain and qualified before this module is promoted.
-"""
+"""Small FakeTensor helpers shared by graph-safe custom operators."""
 
 from __future__ import annotations
 
-SCAFFOLD_PATH: str = "kernels/api/fake_tensor.py"
+import torch
+
+
+def output_like(
+    reference: torch.Tensor,
+    shape: tuple[int, ...],
+    *,
+    dtype: torch.dtype | None = None,
+) -> torch.Tensor:
+    """Allocate metadata-only output while preserving device and layout semantics."""
+
+    if not shape or any(dimension <= 0 for dimension in shape):
+        raise ValueError("fake output shapes must contain positive dimensions")
+    return reference.new_empty(shape, dtype=reference.dtype if dtype is None else dtype)

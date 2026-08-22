@@ -1,35 +1,34 @@
-# Tools / Qualification / Kernels
+# Kernel qualification tools
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Bazel/Nix/Python/Go/Rust development and qualification tooling
+- **Status:** Implemented fail-closed tooling; no manifest is published by these commands.
+- **Owner:** `biology-ml`
 
-## Purpose
+This package owns four Bazel entry points:
 
-Repository-owned code generation, analysis, developer, qualification, and release tools. Tools are invoked through Bazel targets in production/CI paths. This path specializes that domain for **kernels**.
+- `autotune_tilelang` accepts a bounded content-addressed candidate list and
+  invokes a worker subprocess without a shell. It enforces a deadline and a
+  strict, size-bounded JSON response, but does not provide operating-system or
+  container isolation. Untrusted workers require an external sandbox. A
+  candidate is timed only after the worker reports parity, and results are
+  published atomically without overwriting an existing result path.
+- `inspect_tilelang_ir` performs bounded lexical checks for required and
+  forbidden architecture tokens after excluding C/C++-style comments, then
+  emits its content digest. This is heuristic evidence, not proof that an
+  instruction is emitted in final machine code or executes at runtime.
+- `qualify_tilelang` evaluates reciprocal inference/training evidence and
+  emits an unsigned schema-v2 candidate manifest without overwriting an
+  existing path. It cannot publish or change runtime dispatch.
+- `verify_tilelang_manifest` validates pair integrity, revocations, and
+  a mandatory trusted manifest digest. Non-empty manifests additionally
+  require exact environment, toolchain, and compiled-artifact identities.
 
-## Boundary
+All inputs are explicit JSON or captured source files. The autotune specification,
+accepted worker streams, candidate counts, configuration sizes, sample counts,
+sample values, and inspection source are bounded. Output files are machine-readable
+and content-addressed. The subprocess inherits its caller's filesystem, network,
+credentials, environment, and accelerator access unless the caller supplies an
+external sandbox. Failures are terminal for the current candidate and never silently
+create a qualification.
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
-
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
-
-## Materialization requirements
-
-Before this scaffold boundary is treated as implemented, add:
-
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
-
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+The connected invocation is selected by [`ci/gpu/targets.yaml`](../../../ci/gpu/targets.yaml).
+Promotion remains a separate reviewed release authority.
