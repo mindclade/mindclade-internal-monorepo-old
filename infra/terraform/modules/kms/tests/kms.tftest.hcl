@@ -5,6 +5,59 @@
 
 mock_provider "google" {}
 
+run "protected_ring_only_contract" {
+  command = plan
+
+  variables {
+    project_id    = "mindclade-security-prod"
+    location      = "us-central1"
+    key_ring_name = "binary-authorization"
+    ring_only     = true
+    keys          = {}
+    signing_keys  = {}
+  }
+
+  assert {
+    condition = (
+      output.ring_only == true &&
+      length(google_kms_crypto_key.this) == 0 &&
+      length(google_kms_crypto_key.signing) == 0
+    )
+    error_message = "Ring-only ownership must create the protected ring without claiming any CryptoKey."
+  }
+}
+
+run "rejects_empty_key_owner" {
+  command = plan
+
+  variables {
+    project_id    = "mindclade-security-prod"
+    location      = "us-central1"
+    key_ring_name = "empty-owner"
+    keys          = {}
+    signing_keys  = {}
+  }
+
+  expect_failures = [var.signing_keys]
+}
+
+run "rejects_keys_in_ring_only_state" {
+  command = plan
+
+  variables {
+    project_id    = "mindclade-security-prod"
+    location      = "us-central1"
+    key_ring_name = "conflicting-owner"
+    ring_only     = true
+    keys = {
+      forbidden = {}
+    }
+    signing_keys = {}
+  }
+
+  expect_failures = [var.signing_keys]
+}
+
 run "software_key_contract" {
   command = plan
 

@@ -33,6 +33,12 @@ variable "key_ring_name" {
   }
 }
 
+variable "ring_only" {
+  description = "Create only the protected key ring; separately governed states must own disjoint keys in that ring."
+  type        = bool
+  default     = false
+}
+
 variable "labels" {
   description = "Non-sensitive labels merged into every CryptoKey"
   type        = map(string)
@@ -147,8 +153,12 @@ variable "signing_keys" {
   }
 
   validation {
-    condition     = length(var.keys) + length(var.signing_keys) > 0
-    error_message = "This module creates a key ring; give it at least one key or signing key, or do not instantiate it."
+    condition = (
+      var.ring_only
+      ? length(var.keys) + length(var.signing_keys) == 0
+      : length(var.keys) + length(var.signing_keys) > 0
+    )
+    error_message = "ring_only=true requires empty keys and signing_keys; otherwise at least one key is required."
   }
 
   validation {

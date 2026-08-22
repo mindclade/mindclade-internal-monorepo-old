@@ -13,6 +13,11 @@ output "key_ring_name" {
   value       = google_kms_key_ring.this.name
 }
 
+output "ring_only" {
+  description = "Whether this state intentionally owns only the protected key ring."
+  value       = var.ring_only
+}
+
 output "crypto_key_ids" {
   description = "Fully qualified CryptoKey resource IDs keyed by key name"
   value       = { for name, key in google_kms_crypto_key.this : name => key.id }
