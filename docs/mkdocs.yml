@@ -91,6 +91,7 @@ nav:
       - ADR-0024 Dependency layering over counts: design/adr-0024-dependency-layering-over-counts.md
       - ADR-0025 Training-service composition: design/adr-0025-training-service-composition-layer.md
   - Runbooks:
+      - AI gateway provider edge: runbooks/ai-gateway-provider-edge.md
       - Control-plane outage: runbooks/control-plane-outage.md
       - Artifact corruption: runbooks/artifact-corruption.md
       - Checkpoint failure: runbooks/checkpoint-failure.md
@@ -119,6 +120,7 @@ nav:
       - Runtime model worker: runbooks/runtime-model-worker.md
       - Runtime serving core: runbooks/runtime-serving-core.md
   - Service objectives:
+      - AI gateway provider edge: slo/ai-gateway-provider-edge.md
       - Artifact control: slo/artifact-control.md
       - Artifact proxy: slo/artifact-proxy.md
       - Control admission: slo/control-admission.md
@@ -144,6 +146,7 @@ nav:
       - Supply chain: security/supply-chain.md
   - Qualification:
       - Overview: qualification/README.md
+      - AI gateway proxy: qualification/ai-gateway-proxy.md
       - Foundation freeze: qualification/foundation-freeze.md
       - Go qualification: qualification/go/README.md
       - AI Gateway admission: qualification/go/ai-gateway-admission.md
