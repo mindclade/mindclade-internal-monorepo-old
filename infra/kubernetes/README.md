@@ -124,7 +124,10 @@ verifies artifact and controller digests, proves phase union/disjointness,
 renders all environments, checks object scope, selectors, target ports, quota
 and queue relationships, validates core and custom resources against fixed-hash
 schemas, asserts the exact fail-closed admission contract, runs Conftest, and
-checks GMP recording rules with `promtool`. It performs no cluster operation.
+checks GMP recording rules with `promtool`. The capacity and foundation-qualification
+contracts also run negative mutations for CPU, H100, and B200, while the complete VAP name/spec
+set and reviewed sync waves are locked by `tests/vap-contract.sha256`. It performs no cluster
+operation.
 
 Before any live diff, follow `RUNBOOK.md`, identify the exact context and
 namespace, and verify that GitOps is not the active writer. Applying, deleting,

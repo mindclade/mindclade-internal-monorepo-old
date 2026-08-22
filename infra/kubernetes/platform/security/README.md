@@ -36,6 +36,11 @@ suffix equality, and exact Namespace-to-ConfigMap digest equality. The base rend
 immutable `mindclade-capacity-contract-schema-v1` examples whose
 capacity values are explicitly absent; there is no fabricated active capacity contract.
 
+Offline validation content-addresses the complete seven-policy/seven-binding name and spec set.
+Only the reviewed Argo CD sync-wave annotation (`10` for policies and `11` for bindings) is
+accepted in that contract; additional annotations, changed CEL, changed messages, selector
+changes, and weakened validation actions fail the digest and mutation checks.
+
 ## Rollout and break glass
 
 Render and schema-check first, then apply policies with their bindings in `Audit` plus `Deny` as
