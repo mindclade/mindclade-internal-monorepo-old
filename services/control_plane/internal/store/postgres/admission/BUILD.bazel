@@ -19,6 +19,7 @@ go_library(
         "ddl.go",
         "errors.go",
         "events.go",
+        "governance.go",
         "reservations.go",
         "store.go",
     ],

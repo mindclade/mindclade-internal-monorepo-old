@@ -13,7 +13,7 @@ metadata:
     mindclade.dev/activation-blocker: >-
       connected-gmp-rule-and-alert-translation-qualification-missing
     mindclade.dev/metrics-contract: >-
-      admission-api-v1:30-decision-counters:36-histogram-buckets:3-histogram-counts:3-histogram-sums-per-replica
+      admission-api-v2:60-decision-counters:72-histogram-buckets:6-histogram-counts:6-histogram-sums-per-replica
 spec:
   groups:
     - name: mindclade.control-admission.api
@@ -42,7 +42,7 @@ spec:
                 (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
               )
               == bool
-              30 * max by (cluster, location, namespace)
+              60 * max by (cluster, location, namespace)
               (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
             )
             *
@@ -52,7 +52,7 @@ spec:
                   count by (cluster, location, namespace, pod, operation, result) (
                     mindclade_control_admission_decisions_total{
                       service="control-admission",role="api",
-                      operation=~"admit|commit|release",
+                      operation=~"admit|dispatch|reconciliation_pending|commit|reconcile|release",
                       result=~"allow|deny|exhausted|conflict|not_found|unavailable|internal|deadline|canceled|invalid"
                     }
                   ) == 1
@@ -60,7 +60,7 @@ spec:
                 or 0 * max by (cluster, location, namespace)
                 (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
               )
-              == bool 30 * max by (cluster, location, namespace)
+              == bool 60 * max by (cluster, location, namespace)
               (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
             )
             *
@@ -73,7 +73,7 @@ spec:
                 (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
               )
               == bool
-              36 * max by (cluster, location, namespace)
+              72 * max by (cluster, location, namespace)
               (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
             )
             *
@@ -82,7 +82,7 @@ spec:
                 count by (cluster, location, namespace) (
                   count by (cluster, location, namespace, pod, operation, le) (
                     mindclade_control_admission_decision_duration_seconds_bucket{
-                      service="control-admission",role="api",operation=~"admit|commit|release",
+                      service="control-admission",role="api",operation=~"admit|dispatch|reconciliation_pending|commit|reconcile|release",
                       le=~"0[.]005|0[.]01|0[.]025|0[.]05|0[.]1|0[.]25|0[.]5|1|2[.]5|5|10|[+]Inf"
                     }
                   ) == 1
@@ -90,7 +90,7 @@ spec:
                 or 0 * max by (cluster, location, namespace)
                 (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
               )
-              == bool 36 * max by (cluster, location, namespace)
+              == bool 72 * max by (cluster, location, namespace)
               (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
             )
             *
@@ -103,7 +103,7 @@ spec:
                 (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
               )
               == bool
-              3 * max by (cluster, location, namespace)
+              6 * max by (cluster, location, namespace)
               (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
             )
             *
@@ -112,14 +112,14 @@ spec:
                 count by (cluster, location, namespace) (
                   count by (cluster, location, namespace, pod, operation) (
                     mindclade_control_admission_decision_duration_seconds_count{
-                      service="control-admission",role="api",operation=~"admit|commit|release"
+                      service="control-admission",role="api",operation=~"admit|dispatch|reconciliation_pending|commit|reconcile|release"
                     }
                   ) == 1
                 )
                 or 0 * max by (cluster, location, namespace)
                 (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
               )
-              == bool 3 * max by (cluster, location, namespace)
+              == bool 6 * max by (cluster, location, namespace)
               (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
             )
             *
@@ -132,7 +132,7 @@ spec:
                 (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
               )
               == bool
-              3 * max by (cluster, location, namespace)
+              6 * max by (cluster, location, namespace)
               (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
             )
             *
@@ -141,14 +141,14 @@ spec:
                 count by (cluster, location, namespace) (
                   count by (cluster, location, namespace, pod, operation) (
                     mindclade_control_admission_decision_duration_seconds_sum{
-                      service="control-admission",role="api",operation=~"admit|commit|release"
+                      service="control-admission",role="api",operation=~"admit|dispatch|reconciliation_pending|commit|reconcile|release"
                     }
                   ) == 1
                 )
                 or 0 * max by (cluster, location, namespace)
                 (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
               )
-              == bool 3 * max by (cluster, location, namespace)
+              == bool 6 * max by (cluster, location, namespace)
               (kube_deployment_spec_replicas{namespace="mindclade-system",deployment="control-plane-api"})
             )
         - record: mindclade:control_admission_decision_events:increase5m

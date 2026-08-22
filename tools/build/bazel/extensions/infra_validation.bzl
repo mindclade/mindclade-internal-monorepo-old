@@ -69,6 +69,10 @@ _PINNED_CRDS = {
         "https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/477d172e6ac5eccb82b65781ddb8f924afec4170/config/crd/standard/gateway.networking.k8s.io_httproutes.yaml",
         "98c6777c22309d319292e9c288ee632006c9ffdd4272383d6f9dffa3fbccaf14",
     ),
+    "gateway.networking.k8s.io_referencegrants.yaml": (
+        "https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/477d172e6ac5eccb82b65781ddb8f924afec4170/config/crd/standard/gateway.networking.k8s.io_referencegrants.yaml",
+        "d74fc2f8e90094f4c4d6dc13a2d720011a40e30e5640b3e2a2051fac820f6584",
+    ),
     "monitoring.googleapis.com_podmonitorings.yaml": (
         "https://raw.githubusercontent.com/GoogleCloudPlatform/prometheus-engine/82d36e33af2fbedd0a58af10bb6f000aaddef832/charts/operator/crds/monitoring.googleapis.com_podmonitorings.yaml",
         "e14f6b033dae70890e27d69943dc1b6c0874ad0db73425483e2e4a65597d2e19",
@@ -80,6 +84,10 @@ _PINNED_CRDS = {
     "networking.gke.io_gcpbackendpolicies.yaml": (
         "https://raw.githubusercontent.com/GoogleCloudPlatform/gke-gateway-api/a663dec06e3fa9e07fd252480b1f55043dd1863a/config/crd/networking.gke.io_gcpbackendpolicies.yaml",
         "4386a156a7f616f857dea99eba7c740f30062d972a9dc9a1a4659237f92c2262",
+    ),
+    "networking.gke.io_healthcheckpolicies.yaml": (
+        "https://raw.githubusercontent.com/GoogleCloudPlatform/gke-gateway-api/a663dec06e3fa9e07fd252480b1f55043dd1863a/config/crd/networking.gke.io_healthcheckpolicies.yaml",
+        "84ab87aa2728506e77c8069599ae1d814d4686a930ed4791e0aa43a8d8dd3356",
     ),
 }
 

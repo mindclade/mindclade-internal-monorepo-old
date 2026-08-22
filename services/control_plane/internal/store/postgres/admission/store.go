@@ -12,14 +12,17 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"time"
 
 	"go.mindclade.dev/control/admission"
 	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/identifiers"
 	"go.mindclade.dev/libs/go/retry"
 	"go.mindclade.dev/libs/go/storage/sql/transaction"
 )
 
 var _ admission.Repository = (*Store)(nil)
+var _ admission.PolicyRepository = (*Store)(nil)
 
 type executor interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
@@ -43,6 +46,9 @@ func (store *Store) Readiness(ctx context.Context) error {
 reserved_requests,reserved_input_tokens,reserved_output_tokens,reserved_cost_micros,
 actual_requests,actual_input_tokens,actual_output_tokens,actual_cost_micros,
 created_at,expires_at,finalized_at,resource_version,resource_generation,document,written_at FROM %s LIMIT 0`, store.reservations),
+		fmt.Sprintf(`SELECT workspace_id,tenant_id,bundle_id,policy_epoch,resource_version,resource_generation,effective_at,expires_at,document,written_at FROM %s LIMIT 0`, store.bundles),
+		fmt.Sprintf(`SELECT proposal_id,workspace_id,tenant_id,base_resource_version,proposer_key,state,decision_key,proposed_at,expires_at,decided_at,resource_version,resource_generation,document,written_at FROM %s LIMIT 0`, store.proposals),
+		fmt.Sprintf(`SELECT receipt_id,proposal_id,workspace_id,bundle_id,bundle_resource_version,applied_at,document,written_at FROM %s LIMIT 0`, store.receipts),
 	}
 	for _, query := range queries {
 		rows, err := store.db.QueryContext(ctx, query)
@@ -137,30 +143,11 @@ func (store *Store) Snapshot(ctx context.Context, subject, workspace string) (ad
 	if err := store.validate(ctx, operation); err != nil {
 		return admission.PolicySnapshot{}, err
 	}
-	var entitlementDocument []byte
-	err := store.db.QueryRowContext(ctx,
-		fmt.Sprintf(`SELECT document FROM %s WHERE subject=$1 AND workspace=$2`, store.entitlements),
-		subject, workspace).Scan(&entitlementDocument)
-	if errors.Is(err, sql.ErrNoRows) {
-		return admission.PolicySnapshot{}, domainError(ctx, faults.CodeNotFound, "entitlement_not_found", "entitlement was not found", operation)
-	}
-	if err != nil {
-		return admission.PolicySnapshot{}, provider(ctx, err, operation)
-	}
-	entitlement, err := decodeDocument[admission.Entitlement](ctx, entitlementDocument, operation)
+	entitlement, err := store.GetEntitlement(ctx, subject, workspace)
 	if err != nil {
 		return admission.PolicySnapshot{}, err
 	}
-	var budgetDocument []byte
-	err = store.db.QueryRowContext(ctx,
-		fmt.Sprintf(`SELECT document FROM %s WHERE workspace=$1`, store.budgets), workspace).Scan(&budgetDocument)
-	if errors.Is(err, sql.ErrNoRows) {
-		return admission.PolicySnapshot{}, domainError(ctx, faults.CodeNotFound, "budget_not_found", "budget was not found", operation)
-	}
-	if err != nil {
-		return admission.PolicySnapshot{}, provider(ctx, err, operation)
-	}
-	budget, err := decodeDocument[admission.Budget](ctx, budgetDocument, operation)
+	budget, err := store.GetBudget(ctx, workspace)
 	if err != nil {
 		return admission.PolicySnapshot{}, err
 	}
@@ -169,6 +156,54 @@ func (store *Store) Snapshot(ctx context.Context, subject, workspace string) (ad
 		return admission.PolicySnapshot{}, internal(ctx, err, operation, "admission_policy_snapshot_invalid")
 	}
 	return snapshot, nil
+}
+
+// GetEntitlement returns the exact server-sealed entitlement for one subject
+// and workspace. It uses an ambient transaction when the caller is composing a
+// larger policy operation, but never starts one for a read.
+func (store *Store) GetEntitlement(ctx context.Context, subject, workspace string) (admission.Entitlement, error) {
+	const operation = "admission.postgres.GetEntitlement"
+	if err := store.validate(ctx, operation); err != nil {
+		return admission.Entitlement{}, err
+	}
+	var entitlementDocument []byte
+	err := store.executor(ctx).QueryRowContext(ctx,
+		fmt.Sprintf(`SELECT document FROM %s WHERE subject=$1 AND workspace=$2`, store.entitlements),
+		subject, workspace).Scan(&entitlementDocument)
+	if errors.Is(err, sql.ErrNoRows) {
+		return admission.Entitlement{}, domainError(ctx, faults.CodeNotFound, "entitlement_not_found", "entitlement was not found", operation)
+	}
+	if err != nil {
+		return admission.Entitlement{}, provider(ctx, err, operation)
+	}
+	entitlement, err := decodeDocument[admission.Entitlement](ctx, entitlementDocument, operation)
+	if err != nil {
+		return admission.Entitlement{}, err
+	}
+	return entitlement, nil
+}
+
+// GetBudget returns the exact server-sealed active or most-recent workspace
+// budget. Publication logic decides whether the window is currently usable.
+func (store *Store) GetBudget(ctx context.Context, workspace string) (admission.Budget, error) {
+	const operation = "admission.postgres.GetBudget"
+	if err := store.validate(ctx, operation); err != nil {
+		return admission.Budget{}, err
+	}
+	var budgetDocument []byte
+	err := store.executor(ctx).QueryRowContext(ctx,
+		fmt.Sprintf(`SELECT document FROM %s WHERE workspace=$1`, store.budgets), workspace).Scan(&budgetDocument)
+	if errors.Is(err, sql.ErrNoRows) {
+		return admission.Budget{}, domainError(ctx, faults.CodeNotFound, "budget_not_found", "budget was not found", operation)
+	}
+	if err != nil {
+		return admission.Budget{}, provider(ctx, err, operation)
+	}
+	budget, err := decodeDocument[admission.Budget](ctx, budgetDocument, operation)
+	if err != nil {
+		return admission.Budget{}, err
+	}
+	return budget, nil
 }
 
 func (store *Store) PutEntitlement(ctx context.Context, entitlement admission.Entitlement) error {
@@ -198,7 +233,9 @@ entitlement_id=EXCLUDED.entitlement_id,policy_epoch=EXCLUDED.policy_epoch,
 resource_version=EXCLUDED.resource_version,resource_generation=EXCLUDED.resource_generation,
 not_before=EXCLUDED.not_before,expires_at=EXCLUDED.expires_at,
 document=EXCLUDED.document,written_at=EXCLUDED.written_at
-WHERE %s.resource_generation < EXCLUDED.resource_generation`, store.entitlements, store.entitlements)
+WHERE %s.resource_generation = EXCLUDED.resource_generation - 1
+AND %s.entitlement_id = EXCLUDED.entitlement_id
+AND %s.policy_epoch = EXCLUDED.policy_epoch - 1`, store.entitlements, store.entitlements, store.entitlements, store.entitlements)
 		result, execErr := store.executor(txContext).ExecContext(txContext, query,
 			entitlement.Subject, entitlement.Workspace, entitlement.ID.String(), policyEpoch,
 			entitlement.Version.String(), generation, entitlement.NotBefore, entitlement.ExpiresAt,
@@ -221,7 +258,7 @@ WHERE %s.resource_generation < EXCLUDED.resource_generation`, store.entitlements
 			if storedVersion == entitlement.Version.String() {
 				return struct{}{}, nil
 			}
-			return struct{}{}, domainError(txContext, faults.CodeConflict, "entitlement_version_not_monotonic", "entitlement version must increase", operation)
+			return struct{}{}, domainError(txContext, faults.CodeConflict, "entitlement_update_invalid", "entitlement identity, policy epoch, and version must advance exactly", operation)
 		}
 		return struct{}{}, store.emitPolicy(txContext, "ai_gateway.entitlement.put", "gateway_entitlement",
 			entitlement.ID, entitlement.Workspace, "control.admission.entitlement.v1", document)
@@ -229,10 +266,20 @@ WHERE %s.resource_generation < EXCLUDED.resource_generation`, store.entitlements
 	return err
 }
 
-func (store *Store) PutBudget(ctx context.Context, budget admission.Budget) error {
+func (store *Store) PutBudget(ctx context.Context, budget admission.Budget, publicationTime ...time.Time) error {
 	const operation = "admission.postgres.PutBudget"
 	if err := budget.Validate(); err != nil {
 		return err
+	}
+	if len(publicationTime) > 1 {
+		return domainError(ctx, faults.CodeInvalidArgument, "budget_publication_time_ambiguous", "budget publication time must not be repeated", operation)
+	}
+	now := store.clock.Now().Round(0).UTC()
+	if len(publicationTime) == 1 {
+		now = publicationTime[0].Round(0).UTC()
+	}
+	if now.IsZero() || !budget.ActiveAt(now) {
+		return domainError(ctx, faults.CodeFailedPrecondition, "budget_publication_window_inactive", "budget must be active at publication time", operation)
 	}
 	generation, err := sqlUint(budget.Version.Generation(), "resource_generation")
 	if err != nil {
@@ -242,6 +289,14 @@ func (store *Store) PutBudget(ctx context.Context, budget admission.Budget) erro
 	if err != nil {
 		return err
 	}
+	limits := make([]int64, 0, 4)
+	for _, unit := range []admission.Unit{admission.UnitRequests, admission.UnitInputTokens, admission.UnitOutputTokens, admission.UnitCostMicros} {
+		limit, limitErr := sqlUint(budget.Limit[unit], "budget_limit")
+		if limitErr != nil {
+			return limitErr
+		}
+		limits = append(limits, limit)
+	}
 	_, err = runMutation(ctx, store, operation, func(txContext context.Context) (struct{}, error) {
 		query := fmt.Sprintf(`INSERT INTO %s (
 workspace,budget_id,resource_version,resource_generation,starts_at,expires_at,document,written_at
@@ -250,10 +305,22 @@ ON CONFLICT (workspace) DO UPDATE SET
 budget_id=EXCLUDED.budget_id,resource_version=EXCLUDED.resource_version,
 resource_generation=EXCLUDED.resource_generation,starts_at=EXCLUDED.starts_at,
 expires_at=EXCLUDED.expires_at,document=EXCLUDED.document,written_at=EXCLUDED.written_at
-WHERE %s.resource_generation < EXCLUDED.resource_generation`, store.budgets, store.budgets)
+WHERE %s.resource_generation = EXCLUDED.resource_generation - 1
+AND ((%s.budget_id <> EXCLUDED.budget_id
+      AND %s.expires_at <= $8 AND EXCLUDED.starts_at >= %s.expires_at)
+  OR (%s.budget_id = EXCLUDED.budget_id
+      AND %s.starts_at = EXCLUDED.starts_at AND %s.expires_at = EXCLUDED.expires_at
+      AND (SELECT
+        COALESCE(SUM(CASE WHEN ledger.state='reserved' AND ledger.expires_at > $8 OR ledger.state IN ('dispatched','reconciliation_pending') THEN ledger.reserved_requests WHEN ledger.state='committed' THEN ledger.actual_requests ELSE 0 END),0) <= $9
+        AND COALESCE(SUM(CASE WHEN ledger.state='reserved' AND ledger.expires_at > $8 OR ledger.state IN ('dispatched','reconciliation_pending') THEN ledger.reserved_input_tokens WHEN ledger.state='committed' THEN ledger.actual_input_tokens ELSE 0 END),0) <= $10
+        AND COALESCE(SUM(CASE WHEN ledger.state='reserved' AND ledger.expires_at > $8 OR ledger.state IN ('dispatched','reconciliation_pending') THEN ledger.reserved_output_tokens WHEN ledger.state='committed' THEN ledger.actual_output_tokens ELSE 0 END),0) <= $11
+        AND COALESCE(SUM(CASE WHEN ledger.state='reserved' AND ledger.expires_at > $8 OR ledger.state IN ('dispatched','reconciliation_pending') THEN ledger.reserved_cost_micros WHEN ledger.state='committed' THEN ledger.actual_cost_micros ELSE 0 END),0) <= $12
+      FROM %s AS ledger WHERE ledger.budget_id=%s.budget_id)))`,
+			store.budgets, store.budgets, store.budgets, store.budgets, store.budgets,
+			store.budgets, store.budgets, store.budgets, store.reservations, store.budgets)
 		result, execErr := store.executor(txContext).ExecContext(txContext, query,
 			budget.Workspace, budget.ID.String(), budget.Version.String(), generation,
-			budget.StartsAt, budget.ExpiresAt, document, store.clock.Now().Round(0).UTC())
+			budget.StartsAt, budget.ExpiresAt, document, now, limits[0], limits[1], limits[2], limits[3])
 		if execErr != nil {
 			return struct{}{}, provider(txContext, execErr, operation)
 		}
@@ -271,10 +338,36 @@ WHERE %s.resource_generation < EXCLUDED.resource_generation`, store.budgets, sto
 			if storedVersion == budget.Version.String() {
 				return struct{}{}, nil
 			}
-			return struct{}{}, domainError(txContext, faults.CodeConflict, "budget_version_not_monotonic", "budget version must increase", operation)
+			used, usageErr := store.budgetUsage(txContext, budget.ID, now)
+			if usageErr != nil {
+				return struct{}{}, usageErr
+			}
+			if !used.Fits(budget.Limit) {
+				return struct{}{}, domainError(txContext, faults.CodeFailedPrecondition, "budget_limit_below_usage", "budget limit cannot be reduced below durable usage", operation)
+			}
+			return struct{}{}, domainError(txContext, faults.CodeConflict, "budget_update_invalid", "budget identity, window, and version transition is invalid", operation)
 		}
 		return struct{}{}, store.emitPolicy(txContext, "ai_gateway.budget.put", "gateway_budget",
 			budget.ID, budget.Workspace, "control.admission.budget.v1", document)
 	})
 	return err
+}
+
+func (store *Store) budgetUsage(ctx context.Context, budgetID identifiers.ID, now time.Time) (admission.Quota, error) {
+	const operation = "admission.postgres.BudgetUsage"
+	query := fmt.Sprintf(`SELECT
+COALESCE(SUM(CASE WHEN state='reserved' AND expires_at > $2 OR state IN ('dispatched','reconciliation_pending') THEN reserved_requests WHEN state='committed' THEN actual_requests ELSE 0 END),0),
+COALESCE(SUM(CASE WHEN state='reserved' AND expires_at > $2 OR state IN ('dispatched','reconciliation_pending') THEN reserved_input_tokens WHEN state='committed' THEN actual_input_tokens ELSE 0 END),0),
+COALESCE(SUM(CASE WHEN state='reserved' AND expires_at > $2 OR state IN ('dispatched','reconciliation_pending') THEN reserved_output_tokens WHEN state='committed' THEN actual_output_tokens ELSE 0 END),0),
+COALESCE(SUM(CASE WHEN state='reserved' AND expires_at > $2 OR state IN ('dispatched','reconciliation_pending') THEN reserved_cost_micros WHEN state='committed' THEN actual_cost_micros ELSE 0 END),0)
+FROM %s WHERE budget_id=$1`, store.reservations)
+	values := [4]int64{}
+	if err := store.executor(ctx).QueryRowContext(ctx, query, budgetID.String(), now).Scan(
+		&values[0], &values[1], &values[2], &values[3]); err != nil {
+		return nil, provider(ctx, err, operation)
+	}
+	return admission.Quota{
+		admission.UnitRequests: uint64(values[0]), admission.UnitInputTokens: uint64(values[1]),
+		admission.UnitOutputTokens: uint64(values[2]), admission.UnitCostMicros: uint64(values[3]),
+	}, nil
 }

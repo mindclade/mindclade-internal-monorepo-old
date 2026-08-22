@@ -49,11 +49,6 @@ spec:
       targetPort: http
       protocol: TCP
       appProtocol: http
-    - name: grpc
-      port: 9090
-      targetPort: grpc
-      protocol: TCP
-      appProtocol: grpc
 ---
 apiVersion: v1
 kind: Service

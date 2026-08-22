@@ -149,11 +149,15 @@ func (service Service) Admit(ctx context.Context, request AdmitRequest) (Decisio
 		EntitlementVersion: snapshot.Entitlement.Version,
 		BudgetID:           snapshot.Budget.ID,
 		BudgetVersion:      snapshot.Budget.Version,
-		Reserved:           request.Requested.Clone(),
-		RequestedTTL:       request.TTL,
-		State:              ReservationReserved,
-		CreatedAt:          now,
-		ExpiresAt:          expiresAt,
+		// Reserve the authoritative entitlement ceiling. Requested is accepted
+		// only as a bounded declaration; allowing it to define the durable
+		// reservation would let a compromised transport under-reserve before
+		// dispatching a larger provider request.
+		Reserved:     snapshot.Entitlement.MaximumRequest.Clone(),
+		RequestedTTL: request.TTL,
+		State:        ReservationReserved,
+		CreatedAt:    now,
+		ExpiresAt:    expiresAt,
 	}
 	candidate, err = versionReservation(candidate, 1)
 	if err != nil {
@@ -189,21 +193,49 @@ func (service Service) Commit(ctx context.Context, id identifiers.ID, expected r
 	return Decision{Reservation: reservation, Replayed: replayed}, err
 }
 
+func (service Service) Dispatch(ctx context.Context, id identifiers.ID, expected resourceversion.Version, requestDigest identifiers.Digest, subject string) (Decision, error) {
+	if err := service.validateLifecycle(ctx, subject); err != nil {
+		return Decision{}, err
+	}
+	reservation, replayed, err := service.Repository.Dispatch(ctx, id, expected, requestDigest, subject, service.now())
+	return Decision{Reservation: reservation, Replayed: replayed}, err
+}
+
+func (service Service) MarkReconciliationPending(ctx context.Context, id identifiers.ID, expected resourceversion.Version, requestDigest identifiers.Digest, subject string) (Decision, error) {
+	if err := service.validateLifecycle(ctx, subject); err != nil {
+		return Decision{}, err
+	}
+	reservation, replayed, err := service.Repository.MarkReconciliationPending(ctx, id, expected, requestDigest, subject, service.now())
+	return Decision{Reservation: reservation, Replayed: replayed}, err
+}
+
+func (service Service) Reconcile(ctx context.Context, id identifiers.ID, expected resourceversion.Version, requestDigest identifiers.Digest, subject string) (Decision, error) {
+	if err := service.validateLifecycle(ctx, subject); err != nil {
+		return Decision{}, err
+	}
+	reservation, replayed, err := service.Repository.Reconcile(ctx, id, expected, requestDigest, subject, service.now())
+	return Decision{Reservation: reservation, Replayed: replayed}, err
+}
+
 func (service Service) Release(ctx context.Context, id identifiers.ID, expected resourceversion.Version, requestDigest identifiers.Digest, subject string) (Decision, error) {
-	if ctx == nil {
-		return Decision{}, invalid("context_nil", "context is required", nil)
-	}
-	if nilInterface(service.Repository) {
-		return Decision{}, unavailable("repository_unavailable", "admission repository is unavailable", nil)
-	}
-	if service.Clock != nil && nilInterface(service.Clock) {
-		return Decision{}, unavailable("clock_unavailable", "admission clock is unavailable", nil)
-	}
-	if err := validateName(subject, "subject"); err != nil {
+	if err := service.validateLifecycle(ctx, subject); err != nil {
 		return Decision{}, err
 	}
 	reservation, replayed, err := service.Repository.Release(ctx, id, expected, requestDigest, subject, service.now())
 	return Decision{Reservation: reservation, Replayed: replayed}, err
+}
+
+func (service Service) validateLifecycle(ctx context.Context, subject string) error {
+	if ctx == nil {
+		return invalid("context_nil", "context is required", nil)
+	}
+	if nilInterface(service.Repository) {
+		return unavailable("repository_unavailable", "admission repository is unavailable", nil)
+	}
+	if service.Clock != nil && nilInterface(service.Clock) {
+		return unavailable("clock_unavailable", "admission clock is unavailable", nil)
+	}
+	return validateName(subject, "subject")
 }
 
 func (service Service) now() time.Time {
