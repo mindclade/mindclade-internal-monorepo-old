@@ -298,6 +298,10 @@
                 bazel_9
                 buildifier
                 python312
+                # The full graph executes the DNS module's sandboxed Terraform test. Keep
+                # Terraform in this lane only; Kubernetes/GitOps static validation does not
+                # require the larger Terraform closure.
+                terraform
               ])
               ++ infraValidationPackages;
             shellHook = standardShellHook;
