@@ -20,6 +20,7 @@ import (
 	idempotencypostgres "go.mindclade.dev/libs/go/idempotency/postgres"
 	"go.mindclade.dev/services/control_plane/internal/bootstrap"
 	"go.mindclade.dev/services/control_plane/internal/providers"
+	registrystore "go.mindclade.dev/services/control_plane/internal/store/postgres"
 	admissionstore "go.mindclade.dev/services/control_plane/internal/store/postgres/admission"
 )
 
@@ -113,14 +114,14 @@ func TestMigrationRunnerCarriesEveryAdapterSchema(t *testing.T) {
 	}
 }
 
-func TestMigrationManifestPreservesReleasedBytesAndAppendsGatewayLifecycle(t *testing.T) {
+func TestMigrationManifestPreservesReleasedBytesAndAppendsEvidenceLedger(t *testing.T) {
 	manifest, err := newMigrationManifest()
 	if err != nil {
 		t.Fatal(err)
 	}
 	migrations := manifest.Migrations()
-	if len(migrations) != int(migrationGatewayDispatchLifecycle) {
-		t.Fatalf("migration count = %d, want %d", len(migrations), migrationGatewayDispatchLifecycle)
+	if len(migrations) != int(migrationEligibilityRevocations) {
+		t.Fatalf("migration count = %d, want %d", len(migrations), migrationEligibilityRevocations)
 	}
 	for index, migration := range migrations {
 		if migration.Version != uint64(index+1) {
@@ -181,6 +182,20 @@ func TestMigrationManifestPreservesReleasedBytesAndAppendsGatewayLifecycle(t *te
 		!strings.Contains(lifecycle.Up, "lifecycle_finalization_check") ||
 		!strings.Contains(lifecycle.Up, "lifecycle_usage_check") {
 		t.Fatalf("gateway dispatch lifecycle v16 = %+v", lifecycle)
+	}
+	for version, want := range map[uint64]struct {
+		name  string
+		table string
+	}{
+		migrationEvidenceClaims:         {"evidence_claims", registrystore.DefaultEvidenceClaimTable},
+		migrationEvidenceVerifications:  {"evidence_verifications", registrystore.DefaultEvidenceVerificationTable},
+		migrationEligibilityDecisions:   {"eligibility_decisions", registrystore.DefaultEligibilityDecisionTable},
+		migrationEligibilityRevocations: {"eligibility_revocations", registrystore.DefaultEligibilityRevocationTable},
+	} {
+		migration := migrations[version-1]
+		if migration.Name != want.name || !strings.Contains(migration.Up, "CREATE TABLE IF NOT EXISTS "+want.table) {
+			t.Fatalf("migration v%d = %+v, want %s creating %s", version, migration, want.name, want.table)
+		}
 	}
 }
 

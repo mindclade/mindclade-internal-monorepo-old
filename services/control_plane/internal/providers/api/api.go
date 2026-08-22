@@ -156,6 +156,7 @@ func (factory *APIFactory) Create(ctx context.Context, profile bootstrap.Profile
 
 	var admissionSurface admissionEngine
 	var policySurface policyEngine
+	var eligibilitySurface eligibilityEngine
 	if profile.Role == bootstrap.RoleAPI {
 		admissionSurface = admission.Service{Repository: admissions, Clock: shared.Clock}
 	} else {
@@ -164,6 +165,10 @@ func (factory *APIFactory) Create(ctx context.Context, profile bootstrap.Profile
 			IDs:        shared.IDs,
 			Clock:      shared.Clock,
 			Signer:     shared.Signer,
+		}
+		eligibilitySurface, err = newEligibilityEngine(ctx, settings, stores.DB, shared.Clock)
+		if err != nil {
+			return bootstrap.Runtime{}, err
 		}
 	}
 	var metrics *admissionmetrics.Runtime
@@ -175,7 +180,7 @@ func (factory *APIFactory) Create(ctx context.Context, profile bootstrap.Profile
 		release = append(release, func() { _ = metrics.Close() })
 	}
 
-	inbound, err := newServing(settings, shared.Observability, authenticator, bearerTokenHeader, admissionSurface, policySurface, metrics)
+	inbound, err := newServing(settings, shared.Observability, authenticator, bearerTokenHeader, admissionSurface, policySurface, eligibilitySurface, metrics)
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}

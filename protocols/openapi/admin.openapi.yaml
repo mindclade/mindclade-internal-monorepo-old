@@ -4,4 +4,124 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+openapi: 3.1.1
+info:
+  title: Mindclade Administrative API
+  version: 1.1.0
+  description: Protected IAP surface for evidence ingestion and signed production-eligibility decisions.
+servers:
+  - url: https://admin.mindclade.ai
+security:
+  - iapAssertion: []
+tags:
+  - name: Evidence
+  - name: Production Eligibility
+paths:
+  /v1/evidence/claims:
+    post:
+      operationId: submitEvidenceClaim
+      tags: [Evidence]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: './components/evidence.yaml#/schemas/EvidenceRecord' }
+      responses:
+        '201':
+          description: Sealed claim and policy-bound verification appended.
+          content:
+            application/json:
+              schema: { $ref: './components/evidence.yaml#/schemas/EvidenceRecord' }
+        default: { $ref: '#/components/responses/Error' }
+  /v1/evidence/subjects/{subjectDigest}/claims:
+    get:
+      operationId: listSubjectEvidence
+      tags: [Evidence]
+      parameters:
+        - $ref: '#/components/parameters/SubjectDigest'
+      responses:
+        '200':
+          description: Append-only evidence history for one immutable subject.
+          content:
+            application/json:
+              schema: { $ref: './components/evidence.yaml#/schemas/EvidenceRecords' }
+        default: { $ref: '#/components/responses/Error' }
+  /v1/production-eligibility/decisions:
+    post:
+      operationId: evaluateProductionEligibility
+      tags: [Production Eligibility]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: './components/evidence.yaml#/schemas/DeploymentBundle' }
+      responses:
+        '201':
+          description: Signed, time-bounded production-eligibility decision.
+          content:
+            application/json:
+              schema: { $ref: './components/evidence.yaml#/schemas/EligibilityDecisionResponse' }
+        default: { $ref: '#/components/responses/Error' }
+  /v1/production-eligibility/decisions/{decisionDigest}:
+    get:
+      operationId: getProductionEligibilityDecision
+      tags: [Production Eligibility]
+      parameters:
+        - $ref: '#/components/parameters/DecisionDigest'
+      responses:
+        '200':
+          description: Signed decision and current revocation state.
+          content:
+            application/json:
+              schema: { $ref: './components/evidence.yaml#/schemas/EligibilityDecisionResponse' }
+        default: { $ref: '#/components/responses/Error' }
+  /v1/production-eligibility/decisions/{decisionDigest}/revocations:
+    post:
+      operationId: revokeProductionEligibilityDecision
+      tags: [Production Eligibility]
+      parameters:
+        - $ref: '#/components/parameters/DecisionDigest'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: './components/evidence.yaml#/schemas/RevocationRequest' }
+      responses:
+        '204': { description: Decision revocation appended. }
+        default: { $ref: '#/components/responses/Error' }
+components:
+  securitySchemes:
+    iapAssertion:
+      type: apiKey
+      in: header
+      name: X-Goog-IAP-JWT-Assertion
+  parameters:
+    SubjectDigest:
+      name: subjectDigest
+      in: path
+      required: true
+      schema: { $ref: './components/evidence.yaml#/schemas/Digest' }
+    DecisionDigest:
+      name: decisionDigest
+      in: path
+      required: true
+      schema: { $ref: './components/evidence.yaml#/schemas/Digest' }
+  schemas:
+    Problem:
+      type: object
+      required: [type, title, status, detail, code, reason]
+      properties:
+        type: { type: string, format: uri-reference }
+        title: { type: string, maxLength: 128 }
+        status: { type: integer, minimum: 400, maximum: 599 }
+        detail: { type: string, maxLength: 2048 }
+        instance: { type: string, maxLength: 512 }
+        code: { type: string, maxLength: 64 }
+        reason: { type: string, maxLength: 128 }
+      additionalProperties: false
+  responses:
+    Error:
+      description: RFC 9457 problem response.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }

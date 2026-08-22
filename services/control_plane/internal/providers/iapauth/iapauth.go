@@ -8,6 +8,7 @@ package iapauth
 
 import (
 	"context"
+	"regexp"
 	"strings"
 	"time"
 
@@ -31,10 +32,12 @@ type tokenValidator interface {
 }
 
 type authenticator struct {
-	audience    string
-	validator   tokenValidator
-	clock       clock.Clock
-	permissions auth.PermissionSet
+	audience                 string
+	evaluatorEmail           string
+	validator                tokenValidator
+	clock                    clock.Clock
+	administratorPermissions auth.PermissionSet
+	evaluatorPermissions     auth.PermissionSet
 }
 
 func NewAuthenticator(ctx context.Context, settings config.Settings, value clock.Clock) (auth.Authenticator, error) {
@@ -49,11 +52,22 @@ func NewAuthenticator(ctx context.Context, settings config.Settings, value clock
 	if err != nil {
 		return nil, misconfigured("iap_validator_unavailable")
 	}
-	permissions, err := policyPermissions()
+	administratorPermissions, err := administratorPolicyPermissions()
 	if err != nil {
 		return nil, err
 	}
-	return &authenticator{audience: audience, validator: validator, clock: value, permissions: permissions}, nil
+	evaluatorPermissions, err := evaluatorPolicyPermissions()
+	if err != nil {
+		return nil, err
+	}
+	return &authenticator{
+		audience:                 audience,
+		evaluatorEmail:           strings.ToLower(strings.TrimSpace(settings.EligibilityEvaluatorEmail)),
+		validator:                validator,
+		clock:                    value,
+		administratorPermissions: administratorPermissions,
+		evaluatorPermissions:     evaluatorPermissions,
+	}, nil
 }
 
 func (value *authenticator) Authenticate(ctx context.Context, credential auth.Credential) (auth.Principal, error) {
@@ -87,8 +101,19 @@ func (value *authenticator) Authenticate(ctx context.Context, credential auth.Cr
 	if !strings.HasPrefix(subject, "accounts.google.com:") {
 		return auth.Principal{}, unauthenticated("iap_subject_invalid")
 	}
+	email, ok := payload.Claims["email"].(string)
+	email = strings.ToLower(strings.TrimSpace(email))
+	if !ok || !iapEmail.MatchString(email) {
+		return auth.Principal{}, unauthenticated("iap_email_invalid")
+	}
+	permissions := value.administratorPermissions
+	if email == value.evaluatorEmail && value.evaluatorEmail != "" {
+		permissions = value.evaluatorPermissions
+	} else if strings.HasSuffix(email, ".gserviceaccount.com") {
+		return auth.Principal{}, unauthenticated("iap_service_account_unauthorized")
+	}
 	principal, err := auth.NewPrincipal(auth.PrincipalKindUser, subject,
-		auth.WithIssuer(Issuer), auth.WithPermissions(value.permissions),
+		auth.WithIssuer(Issuer), auth.WithPermissions(permissions),
 		auth.WithAuthenticationTimes(issuedAt, expiresAt))
 	if err != nil {
 		return auth.Principal{}, unauthenticated("iap_subject_invalid")
@@ -96,15 +121,30 @@ func (value *authenticator) Authenticate(ctx context.Context, credential auth.Cr
 	return principal, nil
 }
 
-func policyPermissions() (auth.PermissionSet, error) {
-	values := []string{
+func administratorPolicyPermissions() (auth.PermissionSet, error) {
+	return parsePermissions(
 		"ai_gateway.policies.read",
 		"ai_gateway.policy_proposals.create",
 		"ai_gateway.policy_proposals.read",
 		"ai_gateway.policy_proposals.approve",
 		"ai_gateway.policy_proposals.reject",
 		"ai_gateway.policy_proposals.cancel",
-	}
+		"evidence.claims.read",
+		"production_eligibility.decisions.read",
+		"production_eligibility.decisions.revoke",
+	)
+}
+
+func evaluatorPolicyPermissions() (auth.PermissionSet, error) {
+	return parsePermissions(
+		"evidence.claims.read",
+		"evidence.claims.submit",
+		"production_eligibility.decisions.evaluate",
+		"production_eligibility.decisions.read",
+	)
+}
+
+func parsePermissions(values ...string) (auth.PermissionSet, error) {
 	permissions := make([]auth.Permission, 0, len(values))
 	for _, item := range values {
 		permission, err := auth.ParsePermission(item)
@@ -115,6 +155,8 @@ func policyPermissions() (auth.PermissionSet, error) {
 	}
 	return auth.NewPermissionSet(permissions...)
 }
+
+var iapEmail = regexp.MustCompile(`^[^@\s]+@[^@\s]+$`)
 
 func unauthenticated(reason string) error {
 	return faults.New(faults.CodeUnauthenticated, "IAP authentication failed",

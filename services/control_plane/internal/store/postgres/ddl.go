@@ -123,6 +123,72 @@ CREATE INDEX IF NOT EXISTS %s
 	), nil
 }
 
+// EvidenceLedgerDDL returns append-only tables for claims, their independent
+// verifications, signed production-eligibility decisions, and revocations.
+func EvidenceLedgerDDL(claimTable, verificationTable, decisionTable, revocationTable string) ([]string, error) {
+	for table, reason := range map[string]string{
+		claimTable:        "invalid_claim_table",
+		verificationTable: "invalid_verification_table",
+		decisionTable:     "invalid_decision_table",
+		revocationTable:   "invalid_revocation_table",
+	} {
+		if err := checkTable(table, reason, "registry.postgres.EvidenceLedgerDDL"); err != nil {
+			return nil, err
+		}
+	}
+	claims := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (
+    claim_digest     text PRIMARY KEY,
+    subject_digest   text NOT NULL,
+    control_id       text NOT NULL,
+    owner            text NOT NULL,
+    valid_until      timestamptz NOT NULL,
+    document         jsonb NOT NULL,
+    written_at       timestamptz NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS %s
+    ON %s (subject_digest, control_id, valid_until DESC);
+`, claimTable, indexName(claimTable, "subject_control_idx"), claimTable)
+	verifications := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (
+    verification_digest text PRIMARY KEY,
+    claim_digest        text NOT NULL REFERENCES %s (claim_digest),
+    policy_digest       text NOT NULL,
+    policy_epoch        bigint NOT NULL CHECK (policy_epoch > 0),
+    result              text NOT NULL CHECK (result IN ('pass', 'fail')),
+    verified_at         timestamptz NOT NULL,
+    valid_until         timestamptz NOT NULL,
+    document            jsonb NOT NULL,
+    written_at          timestamptz NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS %s
+    ON %s (claim_digest, verified_at DESC, verification_digest DESC);
+`, verificationTable, claimTable, indexName(verificationTable, "claim_time_idx"), verificationTable)
+	decisions := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (
+    decision_digest text PRIMARY KEY,
+    bundle_digest   text NOT NULL,
+    policy_digest   text NOT NULL,
+    policy_epoch    bigint NOT NULL CHECK (policy_epoch > 0),
+    result          text NOT NULL CHECK (result IN ('eligible', 'eligible_with_exceptions', 'ineligible', 'indeterminate')),
+    evaluated_at    timestamptz NOT NULL,
+    expires_at      timestamptz NOT NULL,
+    document        jsonb NOT NULL,
+    written_at      timestamptz NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS %s
+    ON %s (bundle_digest, evaluated_at DESC);
+`, decisionTable, indexName(decisionTable, "bundle_time_idx"), decisionTable)
+	revocations := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (
+    decision_digest text PRIMARY KEY REFERENCES %s (decision_digest),
+    reason          text NOT NULL,
+    revoked_at      timestamptz NOT NULL,
+    written_at      timestamptz NOT NULL
+);
+`, revocationTable, decisionTable)
+	return []string{claims, verifications, decisions, revocations}, nil
+}
+
 // DDL returns the three statements in the order a migration must apply them.
 // The composition root owns migration versioning, so this returns statements
 // rather than a migration.

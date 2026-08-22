@@ -23,8 +23,8 @@ lane.
 - complete layered `libs/go` mechanism foundation and durable coordination;
 - standard Go process assembly through `servicekit/production`;
 - typed Go control-plane domains under `control/`, including runtime authority,
-  routing, artifacts, orchestration, reference releases, and release-evidence
-  validation seams;
+  routing, artifacts, orchestration, reference releases, canonical evidence,
+  append-only evidence-ledger storage, and signed production-eligibility decisions;
 - Go architecture, dependency, root-module, and library-admission enforcement;
 - runnable Go control-plane, event-dispatcher, and ingestion integrations;
 - the user-supplied Rust foundation adopted as the literal starting point and
