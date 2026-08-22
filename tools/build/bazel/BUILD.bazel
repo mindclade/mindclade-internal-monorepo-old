@@ -3,11 +3,26 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
 package(default_visibility = ["//visibility:private"])
 
 exports_files(
-    ["layers.bzl"],
+    [
+        "layers.bzl",
+        "terraform_test.bzl",
+        "terraform_test_runner.sh",
+    ],
     visibility = ["//visibility:public"],
+)
+
+sh_test(
+    name = "terraform_test_runner_test",
+    srcs = ["terraform_test_runner_test.sh"],
+    data = ["terraform_test_runner.sh"],
+    env = {
+        "MINDCLADE_TERRAFORM_TEST_RUNNER_RLOCATION": "$(rlocationpath :terraform_test_runner.sh)",
+    },
 )
 
 filegroup(
