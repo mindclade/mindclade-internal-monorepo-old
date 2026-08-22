@@ -1,0 +1,18 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+load("@rules_go//go:def.bzl", "go_library")
+
+package(default_visibility = ["//services/control_plane:__subpackages__"])
+
+go_library(
+    name = "kms",
+    srcs = ["ed25519.go"],
+    importpath = "go.mindclade.dev/services/control_plane/internal/providers/kms",
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/signing",
+        "@org_golang_google_api//cloudkms/v1:cloudkms",
+    ],
+)

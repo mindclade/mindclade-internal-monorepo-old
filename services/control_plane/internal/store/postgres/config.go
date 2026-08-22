@@ -18,9 +18,13 @@ import (
 // this database uses, because one database holds every adapter's tables and
 // the registry role owns their migration ordering.
 const (
-	DefaultDescriptorTable    = "mindclade_registry_model_descriptors"
-	DefaultReleaseTable       = "mindclade_registry_releases"
-	DefaultEvidenceGraphTable = "mindclade_registry_evidence_graphs"
+	DefaultDescriptorTable            = "mindclade_registry_model_descriptors"
+	DefaultReleaseTable               = "mindclade_registry_releases"
+	DefaultEvidenceGraphTable         = "mindclade_registry_evidence_graphs"
+	DefaultEvidenceClaimTable         = "mindclade_evidence_claims"
+	DefaultEvidenceVerificationTable  = "mindclade_evidence_verifications"
+	DefaultEligibilityDecisionTable   = "mindclade_eligibility_decisions"
+	DefaultEligibilityRevocationTable = "mindclade_eligibility_revocations"
 )
 
 // Option configures a Store.
@@ -76,6 +80,37 @@ func WithEvidenceGraphTable(value string) Option {
 	}
 }
 
+// WithEvidenceClaimTable overrides the append-only evidence claim table name.
+func WithEvidenceClaimTable(value string) Option {
+	return evidenceTableOption(value, "invalid_claim_table", func(store *Store, table string) { store.claims = table })
+}
+
+// WithEvidenceVerificationTable overrides the evidence verification table name.
+func WithEvidenceVerificationTable(value string) Option {
+	return evidenceTableOption(value, "invalid_verification_table", func(store *Store, table string) { store.verifications = table })
+}
+
+// WithEligibilityDecisionTable overrides the signed eligibility decision table name.
+func WithEligibilityDecisionTable(value string) Option {
+	return evidenceTableOption(value, "invalid_decision_table", func(store *Store, table string) { store.decisions = table })
+}
+
+// WithEligibilityRevocationTable overrides the decision revocation table name.
+func WithEligibilityRevocationTable(value string) Option {
+	return evidenceTableOption(value, "invalid_revocation_table", func(store *Store, table string) { store.revocations = table })
+}
+
+func evidenceTableOption(value, reason string, assign func(*Store, string)) Option {
+	return func(store *Store) error {
+		value = strings.TrimSpace(value)
+		if !validQualifiedIdentifier(value) {
+			return invalidConfig("invalid evidence ledger table name", reason)
+		}
+		assign(store, value)
+		return nil
+	}
+}
+
 // Store implements the control/registry repository contracts against one
 // PostgreSQL database. It is safe for concurrent use by every handler in a
 // process, and holds no per-request state.
@@ -86,11 +121,15 @@ func WithEvidenceGraphTable(value string) Option {
 // over the same *sql.DB would still work, but would make it easy to construct
 // them against different handles and lose that guarantee silently.
 type Store struct {
-	db          *sql.DB
-	clock       clock.Clock
-	descriptors string
-	releases    string
-	graphs      string
+	db            *sql.DB
+	clock         clock.Clock
+	descriptors   string
+	releases      string
+	graphs        string
+	claims        string
+	verifications string
+	decisions     string
+	revocations   string
 }
 
 // New constructs a Store over db.
@@ -99,11 +138,15 @@ func New(db *sql.DB, options ...Option) (*Store, error) {
 		return nil, invalidConfig("database must not be nil", "nil_database")
 	}
 	store := &Store{
-		db:          db,
-		clock:       clock.RealClock{},
-		descriptors: DefaultDescriptorTable,
-		releases:    DefaultReleaseTable,
-		graphs:      DefaultEvidenceGraphTable,
+		db:            db,
+		clock:         clock.RealClock{},
+		descriptors:   DefaultDescriptorTable,
+		releases:      DefaultReleaseTable,
+		graphs:        DefaultEvidenceGraphTable,
+		claims:        DefaultEvidenceClaimTable,
+		verifications: DefaultEvidenceVerificationTable,
+		decisions:     DefaultEligibilityDecisionTable,
+		revocations:   DefaultEligibilityRevocationTable,
 	}
 	for _, option := range options {
 		if option != nil {
@@ -115,7 +158,7 @@ func New(db *sql.DB, options ...Option) (*Store, error) {
 	if nilInterface(store.clock) {
 		return nil, invalidConfig("invalid registry PostgreSQL configuration", "invalid_configuration")
 	}
-	for _, table := range []string{store.descriptors, store.releases, store.graphs} {
+	for _, table := range []string{store.descriptors, store.releases, store.graphs, store.claims, store.verifications, store.decisions, store.revocations} {
 		if !validQualifiedIdentifier(table) {
 			return nil, invalidConfig("invalid registry PostgreSQL configuration", "invalid_configuration")
 		}
@@ -127,9 +170,13 @@ func New(db *sql.DB, options ...Option) (*Store, error) {
 // names so the composition root can emit DDL for the same tables the store
 // reads. Applying a fixed schema next to a renamed store is how a migration
 // and its reader stop describing the same table.
-func (store *Store) DescriptorTable() string    { return store.descriptors }
-func (store *Store) ReleaseTable() string       { return store.releases }
-func (store *Store) EvidenceGraphTable() string { return store.graphs }
+func (store *Store) DescriptorTable() string            { return store.descriptors }
+func (store *Store) ReleaseTable() string               { return store.releases }
+func (store *Store) EvidenceGraphTable() string         { return store.graphs }
+func (store *Store) EvidenceClaimTable() string         { return store.claims }
+func (store *Store) EvidenceVerificationTable() string  { return store.verifications }
+func (store *Store) EligibilityDecisionTable() string   { return store.decisions }
+func (store *Store) EligibilityRevocationTable() string { return store.revocations }
 
 // validQualifiedIdentifier accepts a lowercase, optionally schema-qualified
 // PostgreSQL identifier. Table names reach string-formatted SQL, so this is

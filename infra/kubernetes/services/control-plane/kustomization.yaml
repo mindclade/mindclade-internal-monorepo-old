@@ -9,6 +9,7 @@ kind: Kustomization
 resources:
   - admin-ingress.yaml
   - deployment.yaml
+  - eligibility-policy.yaml
   - network-policy.yaml
   - pod-disruption-budget.yaml
   - pod-monitoring.yaml

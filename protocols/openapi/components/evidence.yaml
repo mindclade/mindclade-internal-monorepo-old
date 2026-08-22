@@ -1,0 +1,169 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+---
+schemas:
+  Digest:
+    type: string
+    pattern: '^sha256:[0-9a-f]{64}$'
+    maxLength: 71
+  CanonicalName:
+    type: string
+    pattern: '^[a-z][a-z0-9_.-]{1,127}$'
+    maxLength: 128
+  Timestamp:
+    type: string
+    format: date-time
+    maxLength: 35
+  Artifact:
+    type: object
+    required: [uri, digest, media_type]
+    properties:
+      uri: { type: string, pattern: '^(gs|https|oci)://', maxLength: 2048 }
+      digest: { $ref: '#/schemas/Digest' }
+      media_type: { type: string, minLength: 3, maxLength: 128 }
+    additionalProperties: false
+  EvidenceClaim:
+    type: object
+    required: [schema_version, claim_digest, subject_kind, subject_digest, control_id, owner, scope, artifact, source_authority, issued_at, valid_until]
+    properties:
+      schema_version: { type: string, const: mindclade.dev/evidence-claim/v1 }
+      claim_digest: { $ref: '#/schemas/Digest' }
+      subject_kind: { $ref: '#/schemas/CanonicalName' }
+      subject_digest: { $ref: '#/schemas/Digest' }
+      control_id: { $ref: '#/schemas/CanonicalName' }
+      owner: { $ref: '#/schemas/CanonicalName' }
+      scope: { type: string, minLength: 1, maxLength: 512 }
+      artifact: { $ref: '#/schemas/Artifact' }
+      source_authority: { $ref: '#/schemas/CanonicalName' }
+      issued_at: { $ref: '#/schemas/Timestamp' }
+      valid_until: { $ref: '#/schemas/Timestamp' }
+    additionalProperties: false
+  EvidenceVerification:
+    type: object
+    required: [schema_version, verification_digest, claim_digest, policy_digest, policy_epoch, result, reasons, artifact, verified_at, valid_until]
+    properties:
+      schema_version: { type: string, const: mindclade.dev/evidence-verification/v1 }
+      verification_digest: { $ref: '#/schemas/Digest' }
+      claim_digest: { $ref: '#/schemas/Digest' }
+      policy_digest: { $ref: '#/schemas/Digest' }
+      policy_epoch: { type: integer, minimum: 1 }
+      result: { type: string, enum: [pass, fail] }
+      reasons:
+        type: array
+        maxItems: 128
+        items: { $ref: '#/schemas/CanonicalName' }
+      artifact: { $ref: '#/schemas/Artifact' }
+      verified_at: { $ref: '#/schemas/Timestamp' }
+      valid_until: { $ref: '#/schemas/Timestamp' }
+    additionalProperties: false
+  EvidenceRecord:
+    type: object
+    required: [claim, verification]
+    properties:
+      claim: { $ref: '#/schemas/EvidenceClaim' }
+      verification: { $ref: '#/schemas/EvidenceVerification' }
+    additionalProperties: false
+  EvidenceRecords:
+    type: object
+    required: [records]
+    properties:
+      records:
+        type: array
+        maxItems: 4096
+        items: { $ref: '#/schemas/EvidenceRecord' }
+    additionalProperties: false
+  RepositoryRevision:
+    type: object
+    required: [repository, commit]
+    properties:
+      repository: { type: string, minLength: 1, maxLength: 128 }
+      commit: { type: string, pattern: '^[0-9a-f]{40}$', maxLength: 40 }
+    additionalProperties: false
+  DeploymentBundle:
+    type: object
+    required: [schema_version, bundle_digest, change_reference, environment, repositories, release_digests, gitops_render_digest, deployment_selection_digest, infrastructure_handoff_digest, governance_audit_digest, workflow_release, policy_bundle_digest]
+    properties:
+      schema_version: { type: string, const: mindclade.dev/deployment-bundle/v1 }
+      bundle_digest: { $ref: '#/schemas/Digest' }
+      change_reference: { type: string, pattern: '^(CHG|SEC|DR)-[A-Za-z0-9._-]+$', maxLength: 128 }
+      environment: { type: string, const: production }
+      repositories:
+        type: array
+        minItems: 7
+        maxItems: 7
+        items: { $ref: '#/schemas/RepositoryRevision' }
+      release_digests:
+        type: array
+        minItems: 1
+        maxItems: 64
+        items: { $ref: '#/schemas/Digest' }
+      gitops_render_digest: { $ref: '#/schemas/Digest' }
+      deployment_selection_digest: { $ref: '#/schemas/Digest' }
+      infrastructure_handoff_digest: { $ref: '#/schemas/Digest' }
+      governance_audit_digest: { $ref: '#/schemas/Digest' }
+      workflow_release: { type: string, pattern: '^v[0-9]+\.[0-9]+\.[0-9]+$', maxLength: 32 }
+      policy_bundle_digest: { $ref: '#/schemas/Digest' }
+    additionalProperties: false
+  EvidenceSelection:
+    type: object
+    required: [control_id, claim_digest, verification_digest]
+    properties:
+      control_id: { $ref: '#/schemas/CanonicalName' }
+      claim_digest: { $ref: '#/schemas/Digest' }
+      verification_digest: { $ref: '#/schemas/Digest' }
+    additionalProperties: false
+  EligibilityDecision:
+    type: object
+    required: [schema_version, decision_digest, bundle_digest, policy_digest, policy_epoch, result, reasons, selections, exceptions, evaluated_at, expires_at]
+    properties:
+      schema_version: { type: string, const: mindclade.dev/production-eligibility/v1 }
+      decision_digest: { $ref: '#/schemas/Digest' }
+      bundle_digest: { $ref: '#/schemas/Digest' }
+      policy_digest: { $ref: '#/schemas/Digest' }
+      policy_epoch: { type: integer, minimum: 1 }
+      result: { type: string, enum: [eligible, eligible_with_exceptions, ineligible, indeterminate] }
+      reasons:
+        type: array
+        maxItems: 256
+        items: { $ref: '#/schemas/CanonicalName' }
+      selections:
+        type: array
+        maxItems: 128
+        items: { $ref: '#/schemas/EvidenceSelection' }
+      exceptions:
+        type: array
+        maxItems: 128
+        items: { $ref: '#/schemas/CanonicalName' }
+      evaluated_at: { $ref: '#/schemas/Timestamp' }
+      expires_at: { $ref: '#/schemas/Timestamp' }
+    additionalProperties: false
+  Signature:
+    type: object
+    required: [algorithm, key_id, value]
+    properties:
+      algorithm: { type: string, const: ed25519 }
+      key_id: { type: string, minLength: 1, maxLength: 256 }
+      value: { type: string, format: byte, maxLength: 128 }
+    additionalProperties: false
+  SignedEligibilityDecision:
+    type: object
+    required: [decision, signature]
+    properties:
+      decision: { $ref: '#/schemas/EligibilityDecision' }
+      signature: { $ref: '#/schemas/Signature' }
+    additionalProperties: false
+  EligibilityDecisionResponse:
+    type: object
+    required: [signed_decision, revoked]
+    properties:
+      signed_decision: { $ref: '#/schemas/SignedEligibilityDecision' }
+      revoked: { type: boolean }
+    additionalProperties: false
+  RevocationRequest:
+    type: object
+    required: [reason]
+    properties:
+      reason: { $ref: '#/schemas/CanonicalName' }
+    additionalProperties: false

@@ -68,6 +68,21 @@ spec:
   hostnames:
     - "mindclade.studio"
   rules:
+    # Signed production-eligibility evidence and decisions. These paths terminate at the
+    # isolated admin binary and inherit that Service's IAP policy; no browser-plane backend
+    # receives evidence records or signing authority.
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /v1/evidence
+        - path:
+            type: PathPrefix
+            value: /v1/production-eligibility
+      backendRefs:
+        - name: control-plane-admin
+          namespace: mindclade-system
+          port: 8080
+
     # Governed AI policy administration. The target is deliberately a different Service and
     # namespace: IAP and timeout policy attach to the backend Service, while the matching
     # ReferenceGrant in mindclade-system authorizes only this one cross-namespace reference.

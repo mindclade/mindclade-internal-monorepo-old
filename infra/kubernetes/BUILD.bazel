@@ -20,6 +20,7 @@ filegroup(
             "BUILD.bazel",
         ],
     ) + [
+        "//contracts/evidence:production-controls.json",
         "//infra/kubernetes/overlays/development:manifests",
         "//infra/kubernetes/overlays/production:manifests",
         "//infra/kubernetes/overlays/staging:manifests",

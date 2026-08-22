@@ -7,6 +7,7 @@ package postgres
 
 import (
 	"context"
+	"crypto/ed25519"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -18,9 +19,12 @@ import (
 
 	_ "github.com/lib/pq"
 
+	"go.mindclade.dev/control/evidence"
 	"go.mindclade.dev/control/registry/models"
 	"go.mindclade.dev/libs/go/clock"
 	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/signing"
 	"go.mindclade.dev/libs/go/storage/lease"
 	leasepostgres "go.mindclade.dev/libs/go/storage/lease/postgres"
 	"go.mindclade.dev/libs/go/storage/sql/transaction"
@@ -70,6 +74,10 @@ func livePostgresStore(t *testing.T) (*Store, *sql.DB) {
 	descriptorTable := schema + ".descriptors"
 	releaseTable := schema + ".releases"
 	graphTable := schema + ".graphs"
+	claimTable := schema + ".claims"
+	verificationTable := schema + ".verifications"
+	decisionTable := schema + ".decisions"
+	revocationTable := schema + ".revocations"
 	statements, err := DDL(descriptorTable, releaseTable, graphTable)
 	if err != nil {
 		t.Fatal(err)
@@ -79,16 +87,112 @@ func livePostgresStore(t *testing.T) (*Store, *sql.DB) {
 			t.Fatalf("apply registry DDL: %v", err)
 		}
 	}
+	evidenceStatements, err := EvidenceLedgerDDL(claimTable, verificationTable, decisionTable, revocationTable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, statement := range evidenceStatements {
+		if _, err := db.ExecContext(ctx, statement); err != nil {
+			t.Fatalf("apply evidence ledger DDL: %v", err)
+		}
+	}
 	store, err := New(db,
 		WithClock(clock.RealClock{}),
 		WithDescriptorTable(descriptorTable),
 		WithReleaseTable(releaseTable),
 		WithEvidenceGraphTable(graphTable),
+		WithEvidenceClaimTable(claimTable),
+		WithEvidenceVerificationTable(verificationTable),
+		WithEligibilityDecisionTable(decisionTable),
+		WithEligibilityRevocationTable(revocationTable),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return store, db
+}
+
+func TestLivePostgresEvidenceLedgerRoundTrip(t *testing.T) {
+	store, _ := livePostgresStore(t)
+	now := time.Now().Round(0).UTC()
+	subject := identifiers.SHA256String("deployment-bundle")
+	claim := evidence.Claim{
+		SchemaVersion: evidence.SchemaClaimV1, SubjectKind: "deployment_bundle", SubjectDigest: subject,
+		ControlID: "source_ci", Owner: "platform", Scope: "production",
+		Artifact:        evidence.Artifact{URI: "gs://evidence/source-ci.json", Digest: identifiers.SHA256String("source-ci"), MediaType: "application/json"},
+		SourceAuthority: "gitops", IssuedAt: now, ValidUntil: now.Add(time.Hour),
+	}
+	if err := claim.Seal(); err != nil {
+		t.Fatal(err)
+	}
+	verification := evidence.Verification{
+		SchemaVersion: evidence.SchemaVerificationV1, ClaimDigest: claim.ClaimDigest,
+		PolicyDigest: identifiers.SHA256String("policy"), PolicyEpoch: 1, Result: evidence.ResultPass,
+		Reasons: []string{"verified"}, Artifact: claim.Artifact, VerifiedAt: now, ValidUntil: now.Add(time.Hour),
+	}
+	if err := verification.Seal(); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.AppendClaim(context.Background(), claim, verification); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.AppendClaim(context.Background(), claim, verification); err != nil {
+		t.Fatalf("idempotent evidence append: %v", err)
+	}
+	resolvedClaim, resolvedVerification, err := store.Current(context.Background(), subject, claim.ControlID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !resolvedClaim.ClaimDigest.Equal(claim.ClaimDigest) || !resolvedVerification.VerificationDigest.Equal(verification.VerificationDigest) {
+		t.Fatal("evidence ledger returned different sealed records")
+	}
+
+	decision := sealedSignedDecision(t, subject, verification.PolicyDigest, now)
+	if err := store.PutDecision(context.Background(), decision); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Revoke(context.Background(), decision.Decision.DecisionDigest, "artifact_compromised", now.Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	resolvedDecision, revoked, err := store.Decision(context.Background(), decision.Decision.DecisionDigest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !revoked || !resolvedDecision.Decision.DecisionDigest.Equal(decision.Decision.DecisionDigest) {
+		t.Fatal("signed decision or revocation did not round trip")
+	}
+}
+
+func sealedSignedDecision(t *testing.T, bundleDigest, policyDigest identifiers.Digest, now time.Time) evidence.SignedDecision {
+	t.Helper()
+	decision := evidence.Decision{
+		SchemaVersion: evidence.SchemaDecisionV1, BundleDigest: bundleDigest, PolicyDigest: policyDigest, PolicyEpoch: 1,
+		Result: evidence.ResultEligible, EvaluatedAt: now, ExpiresAt: now.Add(time.Hour),
+	}
+	if err := decision.Seal(); err != nil {
+		t.Fatal(err)
+	}
+	_, privateKey, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyID, err := signing.ParseKeyID("production-eligibility-v1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	signer, err := signing.NewEd25519Signer(keyID, privateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload, err := decision.CanonicalBytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	signature, err := signer.Sign(context.Background(), payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return evidence.SignedDecision{Decision: decision, Signature: signature}
 }
 
 func TestLivePostgresRegistryRoundTrip(t *testing.T) {

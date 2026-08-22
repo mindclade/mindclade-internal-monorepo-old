@@ -1,0 +1,31 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:private"])
+
+go_library(
+    name = "evidence",
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    importpath = "go.mindclade.dev/control/evidence",
+    visibility = ["//services:__subpackages__"],
+    deps = [
+        "//libs/go/clock",
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+        "//libs/go/signing",
+    ],
+)
+
+go_test(
+    name = "evidence_test",
+    srcs = glob(["*_test.go"]),
+    embed = [":evidence"],
+    deps = [
+        "//libs/go/clock",
+        "//libs/go/identifiers",
+        "//libs/go/signing",
+    ],
+)
