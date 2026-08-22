@@ -126,6 +126,34 @@ def port_is_exposed(port: Any, templates: list[Resource]) -> bool:
     return (isinstance(port, str) and port in names) or (isinstance(port, int) and port in numbers)
 
 
+def grants_service_reference(
+    grants: list[Resource], route_namespace: str, service_namespace: str, service_name: str
+) -> bool:
+    """Require an exact Gateway API ReferenceGrant for a cross-namespace Service."""
+    for grant in grants:
+        metadata = grant.get("metadata", {}) or {}
+        if str(metadata.get("namespace", "")) != service_namespace:
+            continue
+        spec = grant.get("spec", {}) or {}
+        allowed_from = any(
+            isinstance(source, dict)
+            and source.get("group") == "gateway.networking.k8s.io"
+            and source.get("kind") == "HTTPRoute"
+            and source.get("namespace") == route_namespace
+            for source in spec.get("from", []) or []
+        )
+        allowed_to = any(
+            isinstance(target, dict)
+            and target.get("group", "") in {"", "core"}
+            and target.get("kind") == "Service"
+            and target.get("name") == service_name
+            for target in spec.get("to", []) or []
+        )
+        if allowed_from and allowed_to:
+            return True
+    return False
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("manifest_json", type=pathlib.Path)
@@ -146,6 +174,7 @@ def main() -> None:
     service_accounts: set[tuple[str, str]] = set()
     services: dict[tuple[str, str], Resource] = {}
     roles: set[tuple[str, str, str]] = set()
+    reference_grants: list[Resource] = []
     for resource in resources:
         if not isinstance(resource, dict):
             continue
@@ -159,6 +188,11 @@ def main() -> None:
             services[(namespace, name)] = resource
         elif kind in {"Role", "ClusterRole"}:
             roles.add((str(kind), namespace, name))
+        elif (
+            kind == "ReferenceGrant"
+            and resource.get("apiVersion") == "gateway.networking.k8s.io/v1beta1"
+        ):
+            reference_grants.append(resource)
         for template in pod_templates(resource):
             templates.append((resource, template))
 
@@ -275,6 +309,13 @@ def main() -> None:
                                     f"HTTPRoute/{namespace}/{name}: backend Service/{backend_namespace}/{backend_name} is not rendered"
                                 )
                             continue
+                        if backend_namespace != namespace and not grants_service_reference(
+                            reference_grants, namespace, backend_namespace, backend_name
+                        ):
+                            failures.append(
+                                f"HTTPRoute/{namespace}/{name}: cross-namespace backend "
+                                f"Service/{backend_namespace}/{backend_name} lacks an exact ReferenceGrant"
+                            )
                         if unresolved_ref in allowed_unresolved_refs:
                             failures.append(
                                 f"HTTPRoute/{namespace}/{name}: stale unresolved-ref exception {unresolved_ref}"

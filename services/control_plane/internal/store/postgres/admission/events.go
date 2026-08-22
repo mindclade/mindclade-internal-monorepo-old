@@ -49,6 +49,8 @@ type reservationEvent struct {
 	Actual             admission.Quota            `json:"actual,omitempty"`
 	State              admission.ReservationState `json:"state"`
 	ExpiresAt          string                     `json:"expires_at"`
+	DispatchedAt       string                     `json:"dispatched_at,omitempty"`
+	ReconciliationAt   string                     `json:"reconciliation_pending_at,omitempty"`
 	FinalizedAt        string                     `json:"finalized_at,omitempty"`
 	ResourceVersion    string                     `json:"resource_version"`
 }
@@ -61,8 +63,9 @@ func (store *Store) emitReservation(ctx context.Context, action string, reservat
 		BudgetID: reservation.BudgetID.String(), BudgetVersion: reservation.BudgetVersion.String(),
 		Reserved: reservation.Reserved.Clone(), RequestedTTL: reservation.RequestedTTL.String(),
 		Actual: reservation.Actual.Clone(), State: reservation.State,
-		ExpiresAt:   reservation.ExpiresAt.UTC().Format(time.RFC3339Nano),
-		FinalizedAt: optionalTimestamp(reservation.FinalizedAt), ResourceVersion: reservation.Version.String(),
+		ExpiresAt: reservation.ExpiresAt.UTC().Format(time.RFC3339Nano), DispatchedAt: optionalTimestamp(reservation.DispatchedAt),
+		ReconciliationAt: optionalTimestamp(reservation.ReconciliationAt),
+		FinalizedAt:      optionalTimestamp(reservation.FinalizedAt), ResourceVersion: reservation.Version.String(),
 	})
 	if err != nil {
 		return internal(ctx, err, "admission.postgres.emitReservation", "admission_event_encoding_failed")

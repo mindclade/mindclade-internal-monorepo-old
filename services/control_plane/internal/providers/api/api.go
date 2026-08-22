@@ -35,6 +35,7 @@ import (
 	"go.mindclade.dev/services/control_plane/internal/providers/admissionmetrics"
 	"go.mindclade.dev/services/control_plane/internal/providers/apikeys"
 	"go.mindclade.dev/services/control_plane/internal/providers/durable"
+	"go.mindclade.dev/services/control_plane/internal/providers/iapauth"
 	admissionstore "go.mindclade.dev/services/control_plane/internal/store/postgres/admission"
 )
 
@@ -110,7 +111,14 @@ func (factory *APIFactory) Create(ctx context.Context, profile bootstrap.Profile
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}
-	authenticator, err := apikeys.NewAuthenticator(settings, shared.Clock)
+	var authenticator auth.Authenticator
+	bearerTokenHeader := ""
+	if profile.Role == bootstrap.RoleAPI {
+		authenticator, err = apikeys.NewAuthenticator(settings, shared.Clock)
+	} else {
+		authenticator, err = iapauth.NewAuthenticator(ctx, settings, shared.Clock)
+		bearerTokenHeader = iapauth.HeaderName
+	}
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}
@@ -146,10 +154,18 @@ func (factory *APIFactory) Create(ctx context.Context, profile bootstrap.Profile
 		return bootstrap.Runtime{}, err
 	}
 
-	engine := admissionEngine(admission.Service{
-		Repository: admissions,
-		Clock:      shared.Clock,
-	})
+	var admissionSurface admissionEngine
+	var policySurface policyEngine
+	if profile.Role == bootstrap.RoleAPI {
+		admissionSurface = admission.Service{Repository: admissions, Clock: shared.Clock}
+	} else {
+		policySurface = admission.GovernanceService{
+			Repository: admissions,
+			IDs:        shared.IDs,
+			Clock:      shared.Clock,
+			Signer:     shared.Signer,
+		}
+	}
 	var metrics *admissionmetrics.Runtime
 	if profile.Role == bootstrap.RoleAPI {
 		metrics, err = admissionmetrics.New(settings.MetricsAddress, settings.DrainTimeout)
@@ -159,7 +175,7 @@ func (factory *APIFactory) Create(ctx context.Context, profile bootstrap.Profile
 		release = append(release, func() { _ = metrics.Close() })
 	}
 
-	inbound, err := newServing(settings, shared.Observability, authenticator, engine, metrics)
+	inbound, err := newServing(settings, shared.Observability, authenticator, bearerTokenHeader, admissionSurface, policySurface, metrics)
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}

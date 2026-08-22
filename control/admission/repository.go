@@ -38,7 +38,10 @@ func (snapshot PolicySnapshot) Validate() error {
 type Repository interface {
 	Snapshot(context.Context, string, string) (PolicySnapshot, error)
 	Reserve(context.Context, PolicySnapshot, Reservation, time.Time) (Reservation, bool, error)
+	Dispatch(context.Context, identifiers.ID, resourceversion.Version, identifiers.Digest, string, time.Time) (Reservation, bool, error)
+	MarkReconciliationPending(context.Context, identifiers.ID, resourceversion.Version, identifiers.Digest, string, time.Time) (Reservation, bool, error)
 	Commit(context.Context, identifiers.ID, resourceversion.Version, identifiers.Digest, string, Quota, time.Time) (Reservation, bool, error)
+	Reconcile(context.Context, identifiers.ID, resourceversion.Version, identifiers.Digest, string, time.Time) (Reservation, bool, error)
 	Release(context.Context, identifiers.ID, resourceversion.Version, identifiers.Digest, string, time.Time) (Reservation, bool, error)
 	Get(context.Context, identifiers.ID) (Reservation, error)
 }
@@ -51,6 +54,9 @@ type MemoryRepository struct {
 	budgets         map[string]Budget
 	reservations    map[string]Reservation
 	byIdempotency   map[string]string
+	bundles         map[string]WorkspacePolicyBundle
+	proposals       map[string]PolicyProposal
+	receipts        map[string]PolicyApprovalReceipt
 	maxReservations int
 }
 
@@ -63,6 +69,9 @@ func NewMemoryRepository(maxReservations int) *MemoryRepository {
 		budgets:         make(map[string]Budget),
 		reservations:    make(map[string]Reservation),
 		byIdempotency:   make(map[string]string),
+		bundles:         make(map[string]WorkspacePolicyBundle),
+		proposals:       make(map[string]PolicyProposal),
+		receipts:        make(map[string]PolicyApprovalReceipt),
 		maxReservations: maxReservations,
 	}
 }
@@ -86,14 +95,38 @@ func (repository *MemoryRepository) PutEntitlement(ctx context.Context, entitlem
 	repository.mu.Lock()
 	defer repository.mu.Unlock()
 	key := policyKey(entitlement.Subject, entitlement.Workspace)
-	if current, exists := repository.entitlements[key]; exists && entitlement.Version.Generation() <= current.Version.Generation() {
-		return conflict("entitlement_version_not_monotonic", "entitlement version must increase")
+	if current, exists := repository.entitlements[key]; exists {
+		if current.Version.Generation() == ^uint64(0) || entitlement.Version.Generation() != current.Version.Generation()+1 {
+			return conflict("entitlement_version_not_monotonic", "entitlement version must increase by one")
+		}
+		if entitlement.ID != current.ID {
+			return conflict("entitlement_identity_changed", "entitlement identity cannot change")
+		}
+		if current.PolicyEpoch == ^uint64(0) || entitlement.PolicyEpoch != current.PolicyEpoch+1 {
+			return conflict("policy_epoch_not_monotonic", "entitlement policy epoch must increase by one")
+		}
 	}
 	repository.entitlements[key] = entitlement.clone()
 	return nil
 }
 
-func (repository *MemoryRepository) PutBudget(ctx context.Context, budget Budget) error {
+func (repository *MemoryRepository) GetEntitlement(ctx context.Context, subject, workspace string) (Entitlement, error) {
+	if ctx == nil {
+		return Entitlement{}, invalid("context_nil", "context is required", nil)
+	}
+	if err := ctx.Err(); err != nil {
+		return Entitlement{}, err
+	}
+	repository.mu.RLock()
+	defer repository.mu.RUnlock()
+	entitlement, exists := repository.entitlements[policyKey(subject, workspace)]
+	if !exists {
+		return Entitlement{}, notFound("entitlement_not_found", "entitlement was not found")
+	}
+	return entitlement.clone(), nil
+}
+
+func (repository *MemoryRepository) PutBudget(ctx context.Context, budget Budget, publicationTime ...time.Time) error {
 	if ctx == nil {
 		return invalid("context_nil", "context is required", nil)
 	}
@@ -103,13 +136,75 @@ func (repository *MemoryRepository) PutBudget(ctx context.Context, budget Budget
 	if err := budget.Validate(); err != nil {
 		return err
 	}
+	now := budget.StartsAt
+	if len(publicationTime) > 1 {
+		return invalid("budget_publication_time_ambiguous", "budget publication time must not be repeated", nil)
+	}
+	if len(publicationTime) == 1 {
+		now = publicationTime[0].Round(0).UTC()
+	}
+	if now.IsZero() || !budget.ActiveAt(now) {
+		return failedPrecondition("budget_publication_window_inactive", "budget must be active at publication time")
+	}
 	repository.mu.Lock()
 	defer repository.mu.Unlock()
-	if current, exists := repository.budgets[budget.Workspace]; exists && budget.Version.Generation() <= current.Version.Generation() {
-		return conflict("budget_version_not_monotonic", "budget version must increase")
+	if current, exists := repository.budgets[budget.Workspace]; exists {
+		if current.Version.Generation() == ^uint64(0) || budget.Version.Generation() != current.Version.Generation()+1 {
+			return conflict("budget_version_not_monotonic", "budget version must increase by one")
+		}
+		sameWindow := budget.StartsAt.Equal(current.StartsAt) && budget.ExpiresAt.Equal(current.ExpiresAt)
+		if budget.ID == current.ID && !sameWindow {
+			return conflict("budget_window_identity_mismatch", "a budget identity cannot change windows")
+		}
+		if budget.ID != current.ID && (sameWindow || budget.StartsAt.Before(current.ExpiresAt)) {
+			return conflict("budget_rollover_invalid", "a replacement budget requires a non-overlapping window and new identity")
+		}
+		if budget.ID == current.ID {
+			used := make(Quota)
+			for _, reservation := range repository.reservations {
+				if reservation.BudgetID != current.ID {
+					continue
+				}
+				var amount Quota
+				switch {
+				case reservation.State == ReservationReserved && now.Before(reservation.ExpiresAt):
+					amount = reservation.Reserved
+				case reservation.State == ReservationDispatched || reservation.State == ReservationReconciliationPending:
+					amount = reservation.Reserved
+				case reservation.State == ReservationCommitted:
+					amount = reservation.Actual
+				default:
+					continue
+				}
+				var err error
+				used, err = used.add(amount)
+				if err != nil {
+					return err
+				}
+			}
+			if !used.Fits(budget.Limit) {
+				return failedPrecondition("budget_limit_below_usage", "budget limit cannot be reduced below durable usage")
+			}
+		}
 	}
 	repository.budgets[budget.Workspace] = budget.clone()
 	return nil
+}
+
+func (repository *MemoryRepository) GetBudget(ctx context.Context, workspace string) (Budget, error) {
+	if ctx == nil {
+		return Budget{}, invalid("context_nil", "context is required", nil)
+	}
+	if err := ctx.Err(); err != nil {
+		return Budget{}, err
+	}
+	repository.mu.RLock()
+	defer repository.mu.RUnlock()
+	budget, exists := repository.budgets[workspace]
+	if !exists {
+		return Budget{}, notFound("budget_not_found", "budget was not found")
+	}
+	return budget.clone(), nil
 }
 
 func (repository *MemoryRepository) Snapshot(ctx context.Context, subject, workspace string) (PolicySnapshot, error) {
@@ -215,6 +310,10 @@ func (repository *MemoryRepository) Reserve(ctx context.Context, snapshot Policy
 		amount := Quota(nil)
 		switch reservation.State {
 		case ReservationReserved:
+			if now.Before(reservation.ExpiresAt) {
+				amount = reservation.Reserved
+			}
+		case ReservationDispatched, ReservationReconciliationPending:
 			amount = reservation.Reserved
 		case ReservationCommitted:
 			amount = reservation.Actual
@@ -235,14 +334,26 @@ func (repository *MemoryRepository) Reserve(ctx context.Context, snapshot Policy
 }
 
 func (repository *MemoryRepository) Commit(ctx context.Context, id identifiers.ID, expected resourceversion.Version, requestDigest identifiers.Digest, subject string, actual Quota, now time.Time) (Reservation, bool, error) {
-	return repository.finalize(ctx, id, expected, requestDigest, subject, actual, ReservationCommitted, now)
+	return repository.transitionReservation(ctx, id, expected, requestDigest, subject, now, ReservationCommitted, actual)
 }
 
 func (repository *MemoryRepository) Release(ctx context.Context, id identifiers.ID, expected resourceversion.Version, requestDigest identifiers.Digest, subject string, now time.Time) (Reservation, bool, error) {
-	return repository.finalize(ctx, id, expected, requestDigest, subject, nil, ReservationReleased, now)
+	return repository.transitionReservation(ctx, id, expected, requestDigest, subject, now, ReservationReleased, nil)
 }
 
-func (repository *MemoryRepository) finalize(ctx context.Context, id identifiers.ID, expected resourceversion.Version, requestDigest identifiers.Digest, subject string, actual Quota, target ReservationState, now time.Time) (Reservation, bool, error) {
+func (repository *MemoryRepository) Dispatch(ctx context.Context, id identifiers.ID, expected resourceversion.Version, requestDigest identifiers.Digest, subject string, now time.Time) (Reservation, bool, error) {
+	return repository.transitionReservation(ctx, id, expected, requestDigest, subject, now, ReservationDispatched, nil)
+}
+
+func (repository *MemoryRepository) MarkReconciliationPending(ctx context.Context, id identifiers.ID, expected resourceversion.Version, requestDigest identifiers.Digest, subject string, now time.Time) (Reservation, bool, error) {
+	return repository.transitionReservation(ctx, id, expected, requestDigest, subject, now, ReservationReconciliationPending, nil)
+}
+
+func (repository *MemoryRepository) Reconcile(ctx context.Context, id identifiers.ID, expected resourceversion.Version, requestDigest identifiers.Digest, subject string, now time.Time) (Reservation, bool, error) {
+	return repository.transitionReservation(ctx, id, expected, requestDigest, subject, now, ReservationCommitted, nil)
+}
+
+func (repository *MemoryRepository) transitionReservation(ctx context.Context, id identifiers.ID, expected resourceversion.Version, requestDigest identifiers.Digest, subject string, now time.Time, target ReservationState, actual Quota) (Reservation, bool, error) {
 	if ctx == nil {
 		return Reservation{}, false, invalid("context_nil", "context is required", nil)
 	}
@@ -267,19 +378,16 @@ func (repository *MemoryRepository) finalize(ctx context.Context, id identifiers
 	if current.Subject != subject {
 		return Reservation{}, false, denied("reservation_subject_mismatch", "subject does not own reservation")
 	}
-	if current.State == ReservationExpired {
-		return Reservation{}, false, failedPrecondition("reservation_expired", "reservation has expired")
-	}
-	if current.State == target && (target != ReservationCommitted || current.Actual.Equal(actual)) {
+	if current.State == target && (target != ReservationCommitted || len(actual) == 0 && current.Actual.Equal(current.Reserved) || current.Actual.Equal(actual)) {
 		return current.clone(), true, nil
 	}
-	if current.State != ReservationReserved {
-		return Reservation{}, false, conflict("reservation_terminal", "reservation is already terminal")
+	if current.State == ReservationExpired {
+		return Reservation{}, false, failedPrecondition("reservation_expired", "reservation has expired")
 	}
 	if current.Version.String() != expected.String() {
 		return Reservation{}, false, conflict("reservation_version_stale", "reservation version is stale")
 	}
-	if !now.Before(current.ExpiresAt) {
+	if target == ReservationDispatched && !now.Before(current.ExpiresAt) || target == ReservationReleased && !now.Before(current.ExpiresAt) {
 		updated, err := current.Expire(now)
 		if err != nil {
 			return Reservation{}, false, err
@@ -288,10 +396,21 @@ func (repository *MemoryRepository) finalize(ctx context.Context, id identifiers
 		return Reservation{}, false, failedPrecondition("reservation_expired", "reservation has expired")
 	}
 	var err error
-	if target == ReservationCommitted {
-		current, err = current.Commit(actual, now)
-	} else {
+	switch target {
+	case ReservationDispatched:
+		current, err = current.Dispatch(now)
+	case ReservationReconciliationPending:
+		current, err = current.MarkReconciliationPending(now)
+	case ReservationCommitted:
+		if len(actual) == 0 {
+			current, err = current.Reconcile(now)
+		} else {
+			current, err = current.Commit(actual, now)
+		}
+	case ReservationReleased:
 		current, err = current.Release(now)
+	default:
+		err = invalid("reservation_transition_invalid", "reservation transition is invalid", nil)
 	}
 	if err != nil {
 		return Reservation{}, false, err

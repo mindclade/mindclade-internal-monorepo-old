@@ -1,0 +1,66 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+# This file contains the entire external trust bridge for the policy-administration listener.
+# It grants only Studio HTTPRoutes access to one Service, enables IAP on that Service, and
+# points the managed load-balancer health check at the unauthenticated liveness endpoint.
+# Workload replicas remain zero until the environment supplies the exact IAP audience and the
+# observed managed-proxy subnet proves the NetworkPolicy contract.
+
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: studio-to-control-plane-admin
+  namespace: mindclade-system
+spec:
+  from:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: studio
+  to:
+    - group: ""
+      kind: Service
+      name: control-plane-admin
+
+---
+apiVersion: networking.gke.io/v1
+kind: GCPBackendPolicy
+metadata:
+  name: control-plane-admin
+  namespace: mindclade-system
+spec:
+  targetRef:
+    group: ""
+    kind: Service
+    name: control-plane-admin
+  default:
+    timeoutSec: 30
+    iap:
+      enabled: true
+
+---
+apiVersion: networking.gke.io/v1
+kind: HealthCheckPolicy
+metadata:
+  name: control-plane-admin
+  namespace: mindclade-system
+spec:
+  targetRef:
+    group: ""
+    kind: Service
+    name: control-plane-admin
+  default:
+    checkIntervalSec: 15
+    timeoutSec: 5
+    healthyThreshold: 2
+    unhealthyThreshold: 2
+    logConfig:
+      enabled: true
+    config:
+      type: HTTP
+      httpHealthCheck:
+        portSpecification: USE_SERVING_PORT
+        requestPath: /livez

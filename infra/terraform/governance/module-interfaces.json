@@ -6688,6 +6688,57 @@
         "terraform": ">= 1.9.0, < 2.0.0"
       }
     },
+    "secure_web_proxy": {
+      "inputs": {
+        "proxies": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "map(object({ project_id = string region = string name = string scope = string address = string network = string subnetwork = string gateway_certificate_url = string tls_inspection_policy_url = string allowed_hosts = set(string) }))",
+          "validation_fingerprints": [
+            "sha256:af4bf49216273c2972f4d6c80c5ff8f4ec618a34dc5b35bfb63806c55fde8e2c"
+          ]
+        }
+      },
+      "managed_resource_addresses": [
+        "google_network_security_gateway_security_policy.proxy",
+        "google_network_security_gateway_security_policy_rule.allow_provider_hosts",
+        "google_network_security_gateway_security_policy_rule.deny_all",
+        "google_network_services_gateway.proxy"
+      ],
+      "module_calls": {},
+      "moved": [],
+      "outputs": {
+        "allowed_hosts": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:5180af6bdf8a84a6bde6ca9a6ff6628990148981440f837d43b174c558cfd848"
+        },
+        "gateway_ids": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:40ae2b5852c1c872673740c8b4ff0b596e425aef9a81d96d26bd2aa57836fa91"
+        },
+        "https_proxy_urls": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:28e90682fe189fa33a102e3a6b7938c758eba63de98e53d475e1f4201d5a10bb"
+        }
+      },
+      "path": "infra/terraform/modules/secure_web_proxy",
+      "provider_contracts": {
+        "google": {
+          "configuration_aliases": [],
+          "source": "registry.terraform.io/hashicorp/google"
+        }
+      },
+      "requirements": {
+        "google": ">= 7.41.0, < 8.0.0",
+        "terraform": ">= 1.9.0, < 2.0.0"
+      }
+    },
     "service_perimeter": {
       "inputs": {
         "access_levels": {
