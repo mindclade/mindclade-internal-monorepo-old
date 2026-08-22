@@ -7,9 +7,15 @@ import hashlib
 import json
 from collections.abc import Mapping
 
+import pytest
+
 from kernels.tilelang.autotune import Candidate, TuningBudget, bounded_candidates, run_candidates
-from kernels.tilelang.autotune.objective import LatencyDistribution, stable_winner
-from kernels.tilelang.autotune.validation import CandidateStatus
+from kernels.tilelang.autotune.objective import (
+    MAXIMUM_LATENCY_SAMPLES,
+    LatencyDistribution,
+    stable_winner,
+)
+from kernels.tilelang.autotune.validation import CandidateResult, CandidateStatus
 
 _SOURCE = hashlib.sha256(b"source").hexdigest()
 _ENVIRONMENT = hashlib.sha256(b"environment").hexdigest()
@@ -72,3 +78,75 @@ def test_winner_uses_median_and_rejects_unstable_samples() -> None:
         }
     )
     assert winner == "stable"
+
+
+@pytest.mark.parametrize(
+    "kwargs, error_type",
+    [
+        ({"max_candidates": True}, TypeError),
+        ({"warmup_samples": 1.5}, TypeError),
+        ({"benchmark_samples": 10_001}, ValueError),
+        ({"compile_timeout_seconds": float("nan")}, ValueError),
+        ({"candidate_timeout_seconds": float("inf")}, ValueError),
+        ({"candidate_timeout_seconds": 3_601.0}, ValueError),
+    ],
+)
+def test_tuning_budget_rejects_ambiguous_and_unbounded_values(
+    kwargs: dict[str, object], error_type: type[Exception]
+) -> None:
+    with pytest.raises(error_type):
+        TuningBudget(**kwargs)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    "samples, error_type",
+    [
+        ((1.0, 1.0, 1.0, 1.0, float("nan")), ValueError),
+        ((1.0, 1.0, 1.0, 1.0, float("inf")), ValueError),
+        ((1.0, 1.0, 1.0, 1.0, 0.0), ValueError),
+        ((1.0, 1.0, 1.0, 1.0, True), TypeError),
+        ([1.0, 1.0, 1.0, 1.0, 1.0], TypeError),
+        ((1.0,) * (MAXIMUM_LATENCY_SAMPLES + 1), ValueError),
+    ],
+)
+def test_latency_distribution_rejects_nonfinite_typed_and_unbounded_samples(
+    samples: object, error_type: type[Exception]
+) -> None:
+    with pytest.raises(error_type):
+        LatencyDistribution(samples)  # type: ignore[arg-type]
+
+
+def test_candidate_result_requires_exact_digests_and_consistent_state() -> None:
+    latency = LatencyDistribution((1.0, 1.0, 1.0, 1.0, 1.0))
+    with pytest.raises(ValueError, match="candidate_digest"):
+        CandidateResult("A" * 64, CandidateStatus.PARITY_FAILED)
+    with pytest.raises(TypeError, match="CandidateStatus"):
+        CandidateResult(_SOURCE, "passed")  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="LatencyDistribution"):
+        CandidateResult(
+            _SOURCE,
+            CandidateStatus.PASSED,
+            latency="not-latency",  # type: ignore[arg-type]
+            generated_source_digest=_GENERATED,
+        )
+    with pytest.raises(ValueError, match="generated_source_digest"):
+        CandidateResult(
+            _SOURCE,
+            CandidateStatus.PASSED,
+            latency=latency,
+            generated_source_digest="not-a-digest",
+        )
+    with pytest.raises(ValueError, match="failure identity"):
+        CandidateResult(
+            _SOURCE,
+            CandidateStatus.PASSED,
+            latency=latency,
+            failure_digest=_ENVIRONMENT,
+            generated_source_digest=_GENERATED,
+        )
+    with pytest.raises(ValueError, match="generated source identity"):
+        CandidateResult(
+            _SOURCE,
+            CandidateStatus.PARITY_FAILED,
+            generated_source_digest=_GENERATED,
+        )

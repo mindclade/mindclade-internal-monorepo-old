@@ -7,7 +7,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+import os
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
 from kernels.api.capabilities import DeviceCapabilities
@@ -16,12 +17,23 @@ from kernels.manifest import QualificationManifest, QualificationRecord
 from kernels.registry import KernelImplementation, KernelRegistry
 
 TILELANG_KILL_SWITCH = "MINDCLADE_DISABLE_TILELANG"
+TILELANG_OPERATION_KILL_SWITCH = "MINDCLADE_DISABLE_TILELANG_OPERATIONS"
 
 
 @dataclass(frozen=True, slots=True)
 class Rejection:
     implementation: str
     reason: str
+
+
+@dataclass(frozen=True, slots=True)
+class DispatchEvent:
+    request_digest: str
+    operation: str
+    selected_implementation: str
+    selected_provider: Provider
+    used_fallback: bool
+    rejection_reasons: tuple[str, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,10 +54,38 @@ class KernelDispatcher:
         manifest: QualificationManifest,
         *,
         environment: Mapping[str, str] | None = None,
+        event_sink: Callable[[DispatchEvent], None] | None = None,
     ) -> None:
         self._registry = registry
         self._manifest = manifest
-        self._environment = dict(environment or {})
+        # Snapshot the process environment at construction so the documented
+        # emergency switches work in real callers while a supplied mapping
+        # remains deterministic in tests and dependency-injected runtimes.
+        self._environment = dict(os.environ if environment is None else environment)
+        self._event_sink = event_sink
+
+    def _decision(
+        self,
+        request: KernelRequest,
+        implementation: KernelImplementation,
+        qualification: QualificationRecord | None,
+        rejections: list[Rejection],
+    ) -> DispatchDecision:
+        decision = DispatchDecision(implementation, qualification, tuple(rejections))
+        if self._event_sink is not None:
+            self._event_sink(
+                DispatchEvent(
+                    request_digest=request.digest,
+                    operation=request.operation,
+                    selected_implementation=implementation.identity.name,
+                    selected_provider=implementation.identity.provider,
+                    used_fallback=decision.used_fallback,
+                    rejection_reasons=tuple(
+                        f"{item.implementation}:{item.reason}" for item in rejections
+                    ),
+                )
+            )
+        return decision
 
     def select(self, request: KernelRequest, capabilities: DeviceCapabilities) -> DispatchDecision:
         rejections: list[Rejection] = []
@@ -54,20 +94,35 @@ class KernelDispatcher:
             "true",
             "yes",
         }
+        disabled_operations = {
+            operation.strip()
+            for operation in self._environment.get(TILELANG_OPERATION_KILL_SWITCH, "").split(",")
+            if operation.strip()
+        }
 
         for candidate in self._registry.candidates(request.operation):
             if candidate.identity.provider == Provider.PYTORCH:
                 continue
-            if candidate.identity.provider == Provider.TILELANG and disabled:
+            if candidate.identity.provider == Provider.TILELANG and (
+                disabled or request.operation in disabled_operations
+            ):
                 rejections.append(Rejection(candidate.identity.name, "kill_switch"))
                 continue
             reason = candidate.rejection_reason(request, capabilities)
             if reason is not None:
                 rejections.append(Rejection(candidate.identity.name, reason))
                 continue
+            if candidate.artifact_digest is None:
+                rejections.append(Rejection(candidate.identity.name, "artifact_unbound"))
+                continue
             qualification = self._manifest.qualification(request.digest, candidate.identity.digest)
             if qualification is None:
                 rejections.append(Rejection(candidate.identity.name, "unqualified"))
+                continue
+            if qualification.execution_mode != request.execution_mode:
+                rejections.append(
+                    Rejection(candidate.identity.name, "qualification_execution_mode")
+                )
                 continue
             if (
                 qualification.target != request.target
@@ -83,13 +138,21 @@ class KernelDispatcher:
             if qualification.toolchain != expected_toolchain:
                 rejections.append(Rejection(candidate.identity.name, "qualification_toolchain"))
                 continue
+            if qualification.toolchain_digest != candidate.toolchain_digest:
+                rejections.append(
+                    Rejection(candidate.identity.name, "qualification_toolchain_digest")
+                )
+                continue
+            if qualification.artifact_digest != candidate.artifact_digest:
+                rejections.append(Rejection(candidate.identity.name, "qualification_artifact"))
+                continue
             if (
                 not capabilities.runtime_environment_digest
                 or qualification.environment_digest != capabilities.runtime_environment_digest
             ):
                 rejections.append(Rejection(candidate.identity.name, "qualification_environment"))
                 continue
-            return DispatchDecision(candidate, qualification, tuple(rejections))
+            return self._decision(request, candidate, qualification, rejections)
 
         fallback = self._registry.reference(request.operation)
         reason = fallback.rejection_reason(request, capabilities)
@@ -97,4 +160,4 @@ class KernelDispatcher:
             raise LookupError(
                 f"reference implementation {fallback.identity.name!r} rejected request: {reason}"
             )
-        return DispatchDecision(fallback, None, tuple(rejections))
+        return self._decision(request, fallback, None, rejections)

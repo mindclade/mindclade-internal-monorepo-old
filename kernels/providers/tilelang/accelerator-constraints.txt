@@ -1,0 +1,5 @@
+# Accelerator-image input only. The root uv lock intentionally remains CPU-only.
+# Image builds must resolve these constraints into a hash-locked x86_64 CUDA/ROCm
+# requirements file and record the resulting image digest in qualification evidence.
+tilelang==0.1.13
+apache-tvm-ffi>=0.1.11,<0.1.13

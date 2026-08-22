@@ -1,15 +1,61 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
-package(default_visibility = ["//visibility:private"])
+load("@rules_python//python:defs.bzl", "py_binary")
+load("//tools/build:pytest.bzl", "pytest_test")
 
-filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
-    visibility = ["//visibility:public"],
+package(default_visibility = ["//visibility:public"])
+
+py_binary(
+    name = "autotune_tilelang",
+    srcs = ["autotune_tilelang.py"],
+    imports = ["../../.."],
+    main = "autotune_tilelang.py",
+    deps = ["//kernels/tilelang/autotune"],
+)
+
+pytest_test(
+    name = "test_kernel_tools",
+    srcs = [
+        "autotune_tilelang.py",
+        "inspect_tilelang_ir.py",
+        "qualify_tilelang.py",
+        "test_kernel_tools.py",
+        "verify_tilelang_manifest.py",
+    ],
+    imports = ["../../.."],
+    deps = [
+        "//kernels:kernel_core",
+        "//kernels/qualification",
+        "//kernels/tilelang/autotune",
+        "//kernels/tilelang/compiler",
+    ],
+)
+
+py_binary(
+    name = "inspect_tilelang_ir",
+    srcs = ["inspect_tilelang_ir.py"],
+    imports = ["../../.."],
+    main = "inspect_tilelang_ir.py",
+    deps = ["//kernels/tilelang/compiler"],
+)
+
+py_binary(
+    name = "qualify_tilelang",
+    srcs = ["qualify_tilelang.py"],
+    imports = ["../../.."],
+    main = "qualify_tilelang.py",
+    deps = [
+        "//kernels:kernel_core",
+        "//kernels/qualification",
+    ],
+)
+
+py_binary(
+    name = "verify_tilelang_manifest",
+    srcs = ["verify_tilelang_manifest.py"],
+    imports = ["../../.."],
+    main = "verify_tilelang_manifest.py",
+    deps = ["//kernels:kernel_core"],
 )

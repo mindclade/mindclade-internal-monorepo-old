@@ -18,18 +18,29 @@ from kernels.registry import KernelRegistry
 
 
 def register_references(registry: KernelRegistry) -> None:
-    implementations: dict[str, Callable[..., object]] = {
-        "attention.sdpa": attention_reference,
-        "diffusion.modulated_residual": modulated_residual_reference,
-        "fp8.scaled_gemm": scaled_gemm_reference,
-        "fused.swiglu": swiglu_reference,
-        "moe.grouped_gemm": padded_grouped_gemm_reference,
-        "pairformer.triangle_incoming": functools.partial(
-            triangle_multiplication_reference, orientation="incoming"
+    implementations: dict[str, tuple[Callable[..., object], frozenset[int]]] = {
+        "attention.sdpa": (attention_reference, frozenset({0, 1, 2})),
+        "diffusion.modulated_residual": (
+            modulated_residual_reference,
+            frozenset({0, 1, 2, 3, 4}),
         ),
-        "pairformer.triangle_outgoing": functools.partial(
-            triangle_multiplication_reference, orientation="outgoing"
+        "fp8.scaled_gemm": (scaled_gemm_reference, frozenset({0, 1, 2, 3})),
+        "fused.swiglu": (swiglu_reference, frozenset({0, 1})),
+        "moe.grouped_gemm": (padded_grouped_gemm_reference, frozenset({0, 1})),
+        "pairformer.triangle_incoming": (
+            functools.partial(triangle_multiplication_reference, orientation="incoming"),
+            frozenset({0, 1}),
+        ),
+        "pairformer.triangle_outgoing": (
+            functools.partial(triangle_multiplication_reference, orientation="outgoing"),
+            frozenset({0, 1}),
         ),
     }
-    for operation, invoke in implementations.items():
-        registry.register(reference_registration(operation, invoke))
+    for operation, (invoke, differentiable_inputs) in implementations.items():
+        registry.register(
+            reference_registration(
+                operation,
+                invoke,
+                differentiable_inputs=differentiable_inputs,
+            )
+        )

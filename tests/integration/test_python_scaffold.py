@@ -113,7 +113,10 @@ import pytest
 # model-weight access control catalog with schema, source-link, and fail-closed tests.
 # LOWERED 157 -> 155 by replacing the distributed context and smoke placeholders with
 # bounded topology validation and a real two-rank Gloo/DDP/DCP portability test.
-SCAFFOLD_BASELINE = 155
+# LOWERED 155 -> 153 by replacing the connected-H100 TileLang numerical and performance
+# placeholders with deterministic CPU contract coverage and fail-closed accelerator gates.
+# The GPU cases skip honestly unless the explicit cuda/sm_90 qualification contract is set.
+SCAFFOLD_BASELINE = 153
 
 # Gitignored tool directories. Every entry is something that can hold a copy of the tree
 # without being part of it, which this scan would otherwise count.
