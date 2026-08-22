@@ -26,8 +26,6 @@ from types import MappingProxyType
 from typing import Final, Literal, cast
 
 import torch
-from build_model_bundle import MANIFEST_MEDIA_TYPE
-from build_model_bundle import build as build_model_bundle
 from safetensors.torch import load as load_safetensors
 from torch import nn
 
@@ -53,6 +51,8 @@ from models.reference import (
     reference_affine_config_bytes,
     save_reference_affine,
 )
+from tools.release.build_model_bundle import MANIFEST_MEDIA_TYPE
+from tools.release.build_model_bundle import build as build_model_bundle
 from training.checkpointing import (
     CheckpointIdentity,
     restore_distributed_checkpoint,

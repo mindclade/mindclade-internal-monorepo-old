@@ -401,7 +401,7 @@ def build_checkpoint_manifest(
         schema_version=1,
         checkpoint_id=request.checkpoint_id,
         run_id=request.run_id,
-        attempt=request.attempt,
+        attempt_id=f"attempt-{request.attempt}",
         checkpoint_attempt=request.checkpoint_attempt,
         data_position=request.dcp_manifest.data_position,
     )
@@ -993,7 +993,7 @@ def _validate_manifest(
         manifest.schema_version != 1
         or manifest.checkpoint_id != request.checkpoint_id
         or manifest.run_id != request.run_id
-        or manifest.attempt != request.attempt
+        or manifest.attempt_id != f"attempt-{request.attempt}"
         or manifest.checkpoint_attempt != request.checkpoint_attempt
         or manifest.counters.microbatches != request.dcp_manifest.training_state.microbatches
         or manifest.counters.optimizer_steps != request.dcp_manifest.training_state.optimizer_steps

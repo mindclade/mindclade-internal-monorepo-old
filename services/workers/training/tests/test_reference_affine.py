@@ -343,6 +343,10 @@ def test_reference_engine_trains_resumes_and_publishes_exact_outputs(tmp_path: P
     assert first.metrics["optimizer_steps"] == 4.0
     assert first.metrics["reached_maximum_optimizer_steps"] == 0.0
     assert not list(tmp_path.glob("stage_*.a*.f*"))
+    first_manifest = training_checkpoint_pb2.CheckpointManifest()
+    first_manifest.ParseFromString(store.bytes[first.outputs[0].digest.text])
+    assert first_manifest.attempt_id == "attempt-1"
+    assert first_manifest.checkpoint_attempt == 1
     first_evidence = json.loads(store.bytes[first.outputs[3].digest.text])
     assert first_evidence["checkpoint_manifest"] == first.outputs[0].to_document()
     assert first_evidence["checkpoint_commit"] == first.outputs[1].to_document()
