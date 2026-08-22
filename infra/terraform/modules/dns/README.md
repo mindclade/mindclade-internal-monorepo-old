@@ -11,8 +11,8 @@ live configuration and consume released module versions rather than a branch ref
 **It creates no project and no network.** Both are inputs. A DNS module that also created its
 project would put zone lifecycle and project lifecycle in one state file, and losing a
 delegation as a side effect of a project refactor is not a failure worth leaving reachable.
-The project comes from `3-networks/dns-project`; the networks come from
-`3-networks/shared-vpc-host`.
+For the public domain portfolio, `1-org/common-projects` creates and protects
+`mc-common-dns`; the networks come from `3-networks/shared-vpc-host`.
 
 **It does not manage Certificate Manager authorization records.** The dedicated
 `certificate_manager` module owns only the generated CNAME returned by each regional

@@ -153,9 +153,9 @@ run "an_over_qualified_owner_name_is_rejected" {
   expect_failures = [var.zones]
 }
 
-# The estate's central DNS claim is that no application hostname resolves
-# publicly. One A record on a public zone would undo it in a single apply, with
-# nothing else reporting the change.
+# Public application address records remain denied unless their exact reviewed
+# map keys are allowlisted. One unreviewed A record on a public zone would undo
+# that fail-closed boundary in a single apply, with nothing else reporting it.
 run "a_public_zone_may_not_carry_an_address_record" {
   command = plan
 
@@ -278,5 +278,24 @@ run "public_zones_are_protected_from_deletion" {
   assert {
     condition     = google_dns_managed_zone.this["ai"].force_destroy == false
     error_message = "A public zone must not be force-destroyable; losing it drops the delegation for the whole domain."
+  }
+}
+
+run "public_zones_enable_dnssec_by_default" {
+  command = plan
+
+  variables {
+    project_id = "mc-common-dns"
+    zones = {
+      ai = {
+        dns_name   = "example.ai."
+        visibility = "public"
+      }
+    }
+  }
+
+  assert {
+    condition     = google_dns_managed_zone.this["ai"].dnssec_config[0].state == "on"
+    error_message = "Public zones must configure the provider-supported DNSSEC state as on by default."
   }
 }
