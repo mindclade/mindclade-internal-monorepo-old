@@ -69,6 +69,7 @@ def main() -> int:
         text = path.read_text(encoding="utf-8")
         if generator_marker not in text:
             errors.append(f"{path}: generator identity differs")
+            continue
         if marker in text:
             relative = path.as_posix().split("/sdk/typescript/src/generated/proto/", 1)[1]
             if not relative.endswith("_pb.ts"):
