@@ -77,7 +77,13 @@ user.bazelrc
 # index already had to learn about them: .bazelignore names the directory, and
 # tools/analysis/check_go_modules.py skips it so every worktree's go.mod stops reading as an
 # unexpected module boundary.
+#
+# .codex-worktrees is the same thing for a different agent, and was covered by none of the
+# three. It appeared in checkouts as an untracked 710-BUILD-file duplicate of the tree — the
+# exact `git add -A` hazard this block was written about, and the reason a source-walking
+# selector could emit labels for packages that do not exist in this workspace.
 .claude/
+.codex-worktrees/
 
 # --- Local environment. Never commit these: they are the one place a real credential
 #     plausibly lands in this repo. ---

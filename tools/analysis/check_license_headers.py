@@ -71,6 +71,7 @@ BY_NAME: dict[str, str] = {
 SKIP_DIRS = frozenset(
     {
         ".claude",
+        ".codex-worktrees",
         ".git",
         ".generated",
         ".mypy_cache",
