@@ -11,10 +11,9 @@
 runs architecture policy without a Bazel toolchain. `--bazel-only` selects and
 executes configured Bazel validation inside the pinned `.#ci-bazel` shell.
 
-Protected pull requests, merge groups, and protected-main pushes currently use
-full mode. The Bazel post-loading reverse-dependency selector remains available
-only through explicit local qualification while its activation blockers remain.
-After future activation, changes to CI, toolchains, dependency locks, Starlark,
+Protected pull requests use the Bazel post-loading reverse-dependency selector.
+Merge groups and protected-main pushes use full mode. Changes to CI, toolchains,
+dependency locks, Starlark,
 protocols, architecture, component, or maturity policy still force full mode.
 The exact inputs and review-boundary inventory are versioned in
 `../common/affected_global_inputs.json`; a new repository root or a new
@@ -51,13 +50,14 @@ target-determinator candidate and its blockers are recorded in the global-input
 contract. Activation requires a qualified remote cache, an externally pinned
 required workflow, a complete x86_64 Linux full-graph comparison, a wrapper that
 restores the checkout after interruption, and review of the Bazel 9 version-parsing
-fallback. Until those are satisfied, every protected event remains full graph.
+fallback. Until those are satisfied, the graph-native implementation remains
+inactive; the repository-owned Bazel-query selector continues serving pull requests.
 
-Artifact-plan Phase 5 is therefore **incomplete**. The live pull-request path is full
-graph; the conservative Bazel-query implementation is exercised only by local and
-fixture qualification. Workflow YAML is parsed structurally, the complete ordered
-Bazel step sequence is digest-pinned, and a tested event state machine rejects
-affected mode for every protected gate. The governed step invokes the root-owned Nix
+Artifact-plan Phase 5 is therefore **incomplete**. The live pull-request path uses
+the conservative Bazel-query implementation; graph-native migration remains blocked.
+Workflow YAML is parsed structurally, the complete ordered Bazel step sequence is
+digest-pinned, and a tested event state machine permits affected mode only for pull
+requests. The governed step invokes the root-owned Nix
 installation by absolute path, uses a read-only Nix-store Git, requires the exact event
 `GITHUB_SHA` in a clean checkout, accepts only the exact `$RUNNER_TEMP` cache contract,
 and parses a canonical non-future integer job-start epoch. These repository-local
@@ -66,9 +66,9 @@ enforce the gate from outside a pull request's mutable trust boundary.
 
 ## Rollback
 
-Keep protected events in full mode. Activation requires one coordinated reviewed
-change to the blocker contract, event policy, semantic workflow contract, and
-orchestration tests after connected evidence exists. Changing only the workflow
-argument fails closed.
+Keep merge groups, protected-main pushes, and nightly runs in full mode. A
+graph-native migration requires one coordinated reviewed change to the blocker
+contract, semantic workflow contract, and orchestration tests after connected
+evidence exists. Changing only the workflow argument fails closed.
 Retain the exact `bazel / verdict` job name; do not disable the job, weaken failure
 behavior, or rename a required context during incident recovery.

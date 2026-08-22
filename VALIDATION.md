@@ -60,9 +60,9 @@ A materialized scaffold path is not a production release claim.
 The presubmit implementation now uses Bazel's post-loading reverse-dependency
 graph, separate analysis/test target files, rename-aware Git input, fail-closed
 query behavior, versioned BEP/profile/selection evidence, and a stable
-`bazel / verdict` context. Pull requests, merge groups, main pushes, global
-changes, and the new CPU nightly retain full `//...` execution while affected
-activation is blocked.
+`bazel / verdict` context. Pull requests use affected selection and always
+include `//:gazelle_check`; global or structurally unsafe changes, merge groups,
+main pushes, and the CPU nightly retain full `//...` execution.
 
 Repository-wide fallback inputs now live in one strict, versioned contract.
 Static presubmit inventories every root entry and every `tools/` authority, so a
@@ -73,8 +73,8 @@ Linux full-graph evidence, checkout restoration behavior under interruption, and
 Bazel 9 version-string fallback.
 Artifact-plan Phase 5 is explicitly incomplete; this source does not activate or
 claim graph-native selection. Immutable fallback anchors and event-policy tests
-preserve full pull-request, merge-group, protected-main, and nightly correctness
-gates meanwhile.
+preserve affected pull-request behavior with full fallback, plus full
+merge-group, protected-main, and nightly correctness gates meanwhile.
 
 Connected pull-request, merge-group, scheduled-run, required-check, and 28-day
 latency evidence is pending, as is activation of the pinned organization required

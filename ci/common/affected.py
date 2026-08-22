@@ -32,7 +32,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_VERSION = 1
 FULL_TARGET = "//..."
 LATENCY_SLO_SECONDS = 30 * 60
-AFFECTED_PRESUBMIT_ACTIVE = False
+GRAPH_NATIVE_AFFECTED_ACTIVE = False
 GLOBAL_INPUT_CONTRACT_PATH = ROOT / "ci/common/affected_global_inputs.json"
 NIX_STORE_ROOT = Path("/nix/store")
 STRUCTURAL_STATUSES = frozenset({"C", "D", "R", "T", "U", "X", "B"})
@@ -104,7 +104,7 @@ def resolve_selection_mode(
 
     expected_mode: str | None
     if event == "pull_request":
-        expected_mode = "affected" if AFFECTED_PRESUBMIT_ACTIVE else "full"
+        expected_mode = "affected"
     elif event == "merge_group":
         expected_mode = "full"
     elif event in {"push", "schedule", "workflow_dispatch"}:
@@ -639,7 +639,7 @@ def select(
     test_expression = _query_expression(ordered_seeds, tests=True)
     run_query = query or (lambda expression: bazel_query(expression, root=root))
     analysis_targets = tuple(sorted(set(run_query(analysis_expression))))
-    test_targets = tuple(sorted(set(run_query(test_expression))))
+    test_targets = tuple(sorted(set(run_query(test_expression)) | {"//:gazelle_check"}))
     return Selection(
         mode="affected",
         reason="bazel_reverse_dependencies",

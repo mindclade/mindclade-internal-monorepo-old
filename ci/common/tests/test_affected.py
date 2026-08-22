@@ -252,6 +252,7 @@ def test_affected_selection_uses_bazel_rdeps_and_tests(tmp_path: Path) -> None:
     assert selection.seeds == ("//pkg:*",)
     assert selection.analysis_targets == ("//consumer:binary", "//pkg:library")
     assert selection.test_targets == (
+        "//:gazelle_check",
         "//consumer:library_test",
         "//pkg:library_test",
     )
@@ -423,7 +424,7 @@ def test_unsafe_changed_path_is_rejected(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     "event,ref,base,expected",
     [
-        ("pull_request", "refs/pull/1/merge", "0" * 40, "full"),
+        ("pull_request", "refs/pull/1/merge", "0" * 40, "affected"),
         ("merge_group", "refs/heads/gh-readonly-queue/main/pr-1", None, "full"),
         ("push", "refs/heads/main", None, "full"),
         ("schedule", "refs/heads/main", None, "full"),
@@ -439,7 +440,7 @@ def test_protected_events_have_one_selection_mode(
 @pytest.mark.parametrize(
     "event,ref,base,alternate",
     [
-        ("pull_request", "refs/pull/1/merge", "0" * 40, "affected"),
+        ("pull_request", "refs/pull/1/merge", "0" * 40, "full"),
         ("merge_group", "refs/heads/gh-readonly-queue/main/pr-1", None, "affected"),
         ("push", "refs/heads/main", None, "affected"),
         ("schedule", "refs/heads/main", None, "affected"),

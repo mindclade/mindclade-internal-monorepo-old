@@ -21,9 +21,11 @@ releases also carry immutable release manifests and evidence bundles.
 - recorded the checksum-pinned target-determinator candidate plus the measured blockers that keep
   graph-native pull-request selection dormant.
 
-Pull requests, merge groups, main pushes, and nightly runs retain full `//...` execution. No
-affected workflow selector, authenticated remote cache,
-workflow gate, release, or deployment is activated by this source change.
+Pull requests retain the existing Bazel-query affected selector with mandatory
+`//:gazelle_check` and fail-closed full fallback. Merge groups, main pushes, and
+nightly runs retain full `//...` execution. No graph-native selector,
+authenticated remote cache, workflow gate, release, or deployment is activated
+by this source change.
 Artifact-plan Phase 5 remains incomplete pending the retained evidence above and activation of
 the pinned organization required workflow outside the pull request's mutable trust boundary.
 

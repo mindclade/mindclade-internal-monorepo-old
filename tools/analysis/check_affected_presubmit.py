@@ -690,7 +690,7 @@ def _nightly_workflow_errors(workflow: dict[str, Any]) -> list[str]:
 
 def _selection_policy_errors() -> list[str]:
     cases = (
-        ("pull_request", "refs/pull/1/merge", "0" * 40, "full"),
+        ("pull_request", "refs/pull/1/merge", "0" * 40, "affected"),
         ("merge_group", "refs/heads/gh-readonly-queue/main/pr-1", None, "full"),
         ("push", "refs/heads/main", None, "full"),
         ("schedule", "refs/heads/main", None, "full"),
@@ -727,7 +727,7 @@ def _selection_policy_errors() -> list[str]:
 
 def _presubmit_orchestration_errors() -> list[str]:
     cases = (
-        ("pull_request", "refs/pull/1/merge", "0" * 40, "full"),
+        ("pull_request", "refs/pull/1/merge", "0" * 40, "affected"),
         ("merge_group", "refs/heads/gh-readonly-queue/main/pr-1", "", "full"),
         ("push", "refs/heads/main", "", "full"),
     )
@@ -1016,7 +1016,7 @@ def check(root: Path) -> list[str]:
         errors.append(_error("AFFECTED-CODE-003", "affected selector uses a forbidden parser"))
     if {"GLOBAL_EXACT_PATHS", "GLOBAL_PREFIXES"} & affected_assignments:
         errors.append(_error("AFFECTED-CODE-004", "selector embeds mutable global inputs"))
-    if affected.AFFECTED_PRESUBMIT_ACTIVE is not False:
+    if affected.GRAPH_NATIVE_AFFECTED_ACTIVE is not False:
         errors.append(_error("AFFECTED-CODE-008", "affected workflow activation is premature"))
     if "main" not in pipeline_symbols:
         errors.append(_error("AFFECTED-CODE-005", "presubmit pipeline entry point is missing"))

@@ -294,11 +294,13 @@ def test_selection_policy_behavior_rejects_mutated_resolver(
     ]
 
 
-def test_selection_policy_rejects_premature_activation(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(check_affected_presubmit.affected, "AFFECTED_PRESUBMIT_ACTIVE", True)
-    assert check_affected_presubmit._selection_policy_errors() == [
-        "[AFFECTED-WORKFLOW-008] selection event policy is invalid"
-    ]
+def test_selection_policy_is_independent_of_graph_native_activation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        check_affected_presubmit.affected, "GRAPH_NATIVE_AFFECTED_ACTIVE", True
+    )
+    assert check_affected_presubmit._selection_policy_errors() == []
 
 
 def test_nightly_target_contract_rejects_duplicate_keys(tmp_path: Path) -> None:

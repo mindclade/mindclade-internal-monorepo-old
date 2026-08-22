@@ -129,22 +129,20 @@ tools/dev/nixw develop .#ci-bazel --command \
 
 Every presubmit loads all BUILD files, checks the language-independent
 dependency graph, and validates the registered toolchain. Protected pull
-requests currently retain full `//...` configured analysis and tests. An
-explicit local qualification path uses `ci/common/affected.py` to map changed
-files to owning-package seeds and ask Bazel for `rdeps(//..., seeds)`. Bazel's
-post-loading graph—not a BUILD-file regex—selects rules and tests, but this
-latency optimization remains dormant in workflows.
+requests use `ci/common/affected.py` to map changed files to owning-package
+seeds and ask Bazel for `rdeps(//..., seeds)`. Bazel's post-loading graph—not a
+BUILD-file regex—selects rules and tests, while mandatory Gazelle qualification
+remains in every non-empty affected test set.
 
 CI, Starlark, toolchain, dependency-lock, protocol, architecture, component,
-maturity, deletion, rename, and unmapped changes expand to `//...` even after
-future activation. Pull-request, merge-group, protected-main, and nightly events
-all use `//...` now, so no incomplete Phase 5 path can reach main.
+maturity, deletion, rename, and unmapped changes expand to `//...`. Merge-group,
+protected-main, and nightly events always use `//...`; pull requests use affected
+selection only when the diff and Bazel graph are authoritative.
 
 Analysis and test phases emit a JSON Build Event Protocol stream, compressed
 trace profile, normalized summaries, versioned selection record, exact target
 files, and run metrics retained for 35 days. The affected-pull-request 30-minute
-p95 objective starts only after activation and a 28-day burn-in; it has no live
-sample while protected pull requests remain full. Release and remote-execution
+p95 objective qualifies after a 28-day burn-in of retained live samples. Release and remote-execution
 claims still require separate platform evidence.
 
 ## Go module checksum closure
