@@ -59,6 +59,47 @@ cache namespace or remove the affected cache through the reviewed GitHub cache o
 weaken tests or reuse a cache across a changed toolchain fingerprint. Rollback removes the restore,
 save, and generated `user.bazelrc` steps; the next run must succeed as a cold local build.
 
+## GCS remote-cache activation
+
+The production successor is the loopback gateway at
+`//tools/build/bazel/cache_gateway/cmd:cache_gateway`, backed by the separately hardened common-CI
+Cloud Storage bucket. It implements Bazel's HTTP AC/CAS paths while keeping cloud authentication
+out of Bazel: the auth action's external-account file is validated, moved from the checkout into a
+private runtime directory, and inherited only by the gateway process. The gateway publishes with
+generation-zero create-only preconditions, verifies CAS body digests, pins object generations on
+reads, and treats identical duplicate uploads as idempotent. A different payload at an existing
+key is a redacted `immutable_collision`, never an overwrite.
+
+Activation currently remains blocked in `ci/bazel_cache/activation.json`. The Bazel jobs also omit
+`id-token: write`; therefore the server-side repository variable cannot activate WIF by itself.
+The reviewed activation change must do all of the following together:
+
+1. Confirm immutable module release `v0.4.0` and exact applied bucket
+   `${CI_PROJECT_ID}-bazel-cache`.
+2. Record a restricted, retention-governed evidence object generation, its SHA-256, reviewer, and
+   UTC review timestamp under
+   `gs://mc-production-qualification-evidence/bazel-cache/` in the activation contract.
+3. Prove bucket retention, CMEK, versioning, soft-delete recovery, public-access prevention,
+   access logging, denied reader writes, denied writer deletes, cold rebuild, warm hit, CAS
+   integrity, identical duplicate, immutable collision, corrupt-download rejection, cache loss,
+   and every positive and negative WIF route.
+4. Change the source record and governed repository variable to `qualified-v1` and add job-scoped
+   `id-token: write` to only the Bazel jobs. Workflow-level OIDC permission remains forbidden.
+5. Observe pull requests in reader mode and protected main, merge group, and scheduled nightly in
+   writer mode. Manual nightly remains disabled and continues using the disk cache.
+
+When qualified, the disk-cache steps are mutually exclusive with the remote path. The gateway
+listens only on `127.0.0.1`, permits at most one-GiB objects, emits counters without keys or
+digests, and is stopped before its credentials are removed. `cache-metrics.json` records the
+gateway binary SHA-256, role, hits/misses, create/idempotent/rejected/collision counts, and bytes;
+`cache-gateway.log` contains only stable error codes and methods. BEP/profile evidence remains the
+authority for Bazel action-cache hits and critical-path changes.
+
+Rollback first returns the governed repository variable to `blocked`, then removes job OIDC in a
+reviewed source change and restores the source record to `blocked`. The disk cache becomes active
+on the next run. Do not delete cache objects as part of client rollback; lifecycle policy and a
+separate reviewed incident operation own deletion.
+
 ## Failure triage
 
 1. Read `selection.json` first. Confirm event, base/head, effective mode,
