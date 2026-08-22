@@ -1,0 +1,218 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mindclade-cache
+  labels:
+    kubernetes.io/metadata.name: mindclade-cache
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted
+    mindclade.dev/owner: developer-platform
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: attic
+  namespace: mindclade-cache
+  labels:
+    app.kubernetes.io/name: attic
+    app.kubernetes.io/component: binary-cache
+  annotations:
+    mindclade.dev/credential-policy: server-secrets-from-external-secret-source
+    mindclade.dev/workload-activation: blocked
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nix-cache-activation-contract
+  namespace: mindclade-cache
+data:
+  activationState: blocked-pending-connected-qualification
+  server: attic-9eda345a743f50999de04f59a170806c3e029eea
+  endpoint: https://nix-cache.invalid/
+  backend: private-cmek-gcs-via-s3-xml-hmac
+  clientAuthentication: unqualified
+  clientSigningKey: forbidden
+  automaticGarbageCollection: disabled
+  deploymentAuthority: gitops-operator-overlay-required
+  rollback: remove-all-client-substituters-before-scaling-server-down
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: attic-server-config
+  namespace: mindclade-cache
+data:
+  server.toml: |-
+    listen = "[::]:8080"
+    allowed-hosts = ["nix-cache.invalid"]
+    api-endpoint = "https://nix-cache.invalid/"
+    substituter-endpoint = "https://nix-cache.invalid/"
+    soft-delete-caches = true
+    require-proof-of-possession = true
+
+    [database]
+    heartbeat = true
+
+    [storage]
+    type = "s3"
+    region = "auto"
+    bucket = "mindclade-activation-blocked"
+    endpoint = "https://storage.googleapis.com"
+
+    [chunking]
+
+    [garbage-collection]
+    interval = "0s"
+    default-retention-period = "0s"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: attic
+  namespace: mindclade-cache
+  labels:
+    app.kubernetes.io/name: attic
+    app.kubernetes.io/component: binary-cache
+    mindclade.dev/workload-state: blocked
+spec:
+  replicas: 0
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: attic
+      app.kubernetes.io/component: binary-cache
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: attic
+        app.kubernetes.io/component: binary-cache
+        mindclade.dev/workload-state: blocked
+    spec:
+      automountServiceAccountToken: false
+      serviceAccountName: attic
+      terminationGracePeriodSeconds: 90
+      nodeSelector:
+        kubernetes.io/arch: amd64
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: attic
+              app.kubernetes.io/component: binary-cache
+      containers:
+        - name: attic
+          image: ghcr.io/zhaofengli/attic@sha256:fbb4f72df38f9262eab039c54f1d2722ba710a4cadd72bb282ea8a99e03de677
+          args:
+            - -f
+            - /config/server.toml
+            - --mode
+            - monolithic
+          env:
+            - name: ATTIC_SERVER_TOKEN_RS256_SECRET_BASE64
+              valueFrom:
+                secretKeyRef:
+                  name: attic-runtime
+                  key: token-rs256-secret-base64
+            - name: ATTIC_SERVER_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: attic-runtime
+                  key: database-url
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: attic-runtime
+                  key: gcs-hmac-access-key-id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: attic-runtime
+                  key: gcs-hmac-secret-access-key
+          ports:
+            - name: http
+              containerPort: 8080
+          startupProbe:
+            tcpSocket:
+              port: http
+            failureThreshold: 30
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "1"
+              memory: 2Gi
+              ephemeral-storage: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+              ephemeral-storage: 2Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          configMap:
+            name: attic-server-config
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: attic
+  namespace: mindclade-cache
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: attic
+    app.kubernetes.io/component: binary-cache
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: mindclade-cache
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress

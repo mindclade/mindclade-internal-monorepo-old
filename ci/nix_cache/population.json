@@ -1,0 +1,23 @@
+{
+  "activation": {
+    "enabled": false,
+    "reason": "endpoint-authentication-and-backend-qualification-incomplete"
+  },
+  "attic_client_commit": "7a19204df10d606c5070e6bb72615c3461900c05",
+  "attic_server_name": "mindclade",
+  "caller_workflow_ref": "mindclade/mindclade-internal-monorepo/.github/workflows/nix-cache.yml@refs/heads/main",
+  "dev_shells": [
+    "ci-bazel",
+    "ci-infra",
+    "ci-lint",
+    "ci-terraform"
+  ],
+  "package_selector": ".#packages.x86_64-linux.*",
+  "schema_version": 1,
+  "system": "x86_64-linux",
+  "trusted_events": [
+    "push",
+    "schedule",
+    "workflow_dispatch"
+  ]
+}

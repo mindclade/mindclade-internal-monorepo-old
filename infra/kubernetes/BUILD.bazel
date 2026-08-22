@@ -29,6 +29,7 @@ filegroup(
         "//infra/kubernetes/platform/kueue:manifests",
         "//infra/kubernetes/platform/mlflow:chart",
         "//infra/kubernetes/platform/nccl:manifests",
+        "//infra/kubernetes/platform/nix-cache:manifests",
         "//infra/kubernetes/platform/observability:manifests",
         "//infra/kubernetes/platform/operator-system:manifests",
         "//infra/kubernetes/platform/qualification:manifests",

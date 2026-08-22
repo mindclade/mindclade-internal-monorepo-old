@@ -38,6 +38,7 @@ spec:
     - platform/jobset
     - platform/kueue
     - platform/nccl
+    - platform/nix-cache
     - platform/observability
     - platform/qualification
     - platform/rdma
@@ -228,6 +229,7 @@ spec:
     - planes/studio/overlays/production
     - planes/studio/overlays/staging
     - platform/jobset
+    - platform/nix-cache
     - platform/qualification
     - platform/remote-execution
     - services/artifact-proxy
@@ -266,6 +268,7 @@ spec:
     - planes/studio/overlays/production
     - planes/studio/overlays/staging
     - platform/qualification
+    - platform/nix-cache
     - platform/remote-execution
     - services/artifact-proxy
     - services/ai-gateway-proxy

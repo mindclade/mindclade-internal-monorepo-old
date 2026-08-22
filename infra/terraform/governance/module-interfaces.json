@@ -4390,6 +4390,11 @@
           "sensitive": false,
           "value_fingerprint": "sha256:f68b7fa48b51d51b9354fd2ce00230943e87b3c0e809ee8bdccde4b9b8ec3003"
         },
+        "client_activation_contract": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:a30e150c0487732fd4a90251a517a8329f0f8904c265f75b32d286c9af08c28a"
+        },
         "gs_uri": {
           "ephemeral": false,
           "sensitive": false,
@@ -4415,10 +4420,15 @@
           "sensitive": false,
           "value_fingerprint": "sha256:597a95213d2f17315f9a28d82727eeabec9d26b506a4566e9370889736db7c78"
         },
-        "substituter_uri": {
+        "storage_https_uri": {
           "ephemeral": false,
           "sensitive": false,
           "value_fingerprint": "sha256:5484ce5fc329688bcf64ad17d9c3560ba05277967c83bc27e4a72b7aa2b11aae"
+        },
+        "substituter_uri": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
         }
       },
       "path": "infra/terraform/modules/nix_binary_cache",
