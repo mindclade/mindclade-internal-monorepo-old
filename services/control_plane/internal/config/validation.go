@@ -6,6 +6,7 @@
 package config
 
 import (
+	"regexp"
 	"strings"
 
 	"go.mindclade.dev/libs/go/faults"
@@ -27,6 +28,18 @@ func (settings Settings) Validate() error {
 	if _, err := signing.ParseKeyID(settings.SigningKeyID); err != nil {
 		return err
 	}
+	if _, err := signing.ParseKeyID(settings.EligibilitySigningKeyID); err != nil {
+		return err
+	}
+	policyConfigured := strings.TrimSpace(settings.EligibilityPolicyPath) != ""
+	keyConfigured := strings.TrimSpace(settings.EligibilityKMSKeyVersion) != ""
+	evaluatorConfigured := strings.TrimSpace(settings.EligibilityEvaluatorEmail) != ""
+	if policyConfigured != keyConfigured || policyConfigured != evaluatorConfigured {
+		return invalid("eligibility_configuration_incomplete", "controlplane.config.Settings.Validate", nil)
+	}
+	if evaluatorConfigured && !serviceAccountEmail.MatchString(settings.EligibilityEvaluatorEmail) {
+		return invalid("eligibility_evaluator_invalid", "controlplane.config.Settings.Validate", nil)
+	}
 	if settings.PaginationTTL <= 0 {
 		return invalid("invalid_pagination_ttl", "controlplane.config.Settings.Validate", nil)
 	}
@@ -46,6 +59,8 @@ func (settings Settings) Validate() error {
 	}
 	return nil
 }
+
+var serviceAccountEmail = regexp.MustCompile(`^[a-z][a-z0-9-]{4,28}[a-z0-9]@[a-z][a-z0-9-]{4,28}[a-z0-9]\.iam\.gserviceaccount\.com$`)
 
 // insecureSSLModes are the libpq sslmode values that either send credentials
 // and rows in the clear or accept any certificate presented to them. "prefer"

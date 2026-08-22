@@ -6,6 +6,19 @@ All notable changes to the repository architecture and released implementation
 surfaces are recorded here. Individual model, dataset, runtime, and service
 releases also carry immutable release manifests and evidence bundles.
 
+## 2026-08-22 — Evidence ledger and production eligibility
+
+- added canonical, digest-sealed policy, claim, verification, deployment-bundle, and eligibility
+  decision contracts with cross-language serialization vectors;
+- added append-only PostgreSQL evidence, signed-decision, and revocation storage plus the isolated
+  administrative API surface;
+- added an HSM-backed Cloud KMS Ed25519 signer and fail-closed runtime configuration; and
+- separated human evidence read/revoke permissions from the exact non-human submit/evaluate
+  identity and rejected every other IAP service account.
+
+This is source qualification only. The applied key, identity, database migration, IAP route, and
+connected production workflow remain protected activation and operational-evidence requirements.
+
 ## 2026-08-21 — Common-document governance baseline
 
 - replaced the one-line proprietary notice with the estate-wide, versioned

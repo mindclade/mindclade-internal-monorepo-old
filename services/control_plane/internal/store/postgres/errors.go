@@ -29,4 +29,8 @@ var (
 	// ErrGraphImmutable is returned when an evidence graph is rewritten under a
 	// release identifier that already holds a different graph.
 	ErrGraphImmutable = errors.New("registry postgres: evidence graph is immutable")
+
+	// ErrEvidenceImmutable is returned when a sealed ledger identity already
+	// exists with different signed content.
+	ErrEvidenceImmutable = errors.New("registry postgres: evidence ledger record is immutable")
 )

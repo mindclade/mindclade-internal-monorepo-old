@@ -74,6 +74,7 @@ go_test(
         "//control/registry/releases",
         "//libs/go/identifiers",
         "//libs/go/storage/sql/sqltest",
+        "//services/control_plane/internal/store/postgres",
         "@com_github_lib_pq//:pq",
     ],
 )

@@ -12,7 +12,9 @@ py_library(
     name = "contract_validation",
     srcs = ["validate_contracts.py"],
     data = [
+        "admin.openapi.yaml",
         "components/admission.yaml",
+        "components/evidence.yaml",
         "public.openapi.yaml",
         "//protocols/events:admission_schemas",
         "//protocols/mappings:admission_contract",

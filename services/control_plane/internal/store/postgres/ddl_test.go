@@ -33,6 +33,28 @@ func TestDDLCoversTheConfiguredTables(t *testing.T) {
 	}
 }
 
+func TestEvidenceLedgerDDLCoversTheConfiguredTables(t *testing.T) {
+	t.Parallel()
+	tables := []string{
+		DefaultEvidenceClaimTable,
+		DefaultEvidenceVerificationTable,
+		DefaultEligibilityDecisionTable,
+		DefaultEligibilityRevocationTable,
+	}
+	statements, err := EvidenceLedgerDDL(tables[0], tables[1], tables[2], tables[3])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(statements) != len(tables) {
+		t.Fatalf("statements=%d", len(statements))
+	}
+	for index, table := range tables {
+		if !strings.Contains(statements[index], "CREATE TABLE IF NOT EXISTS "+table) {
+			t.Fatalf("statement %d does not create %s", index, table)
+		}
+	}
+}
+
 // Table names reach string-formatted SQL, so a rejected name is the boundary
 // that keeps configuration from becoming an injection point.
 func TestDDLRefusesAnUnsafeTableName(t *testing.T) {
@@ -48,6 +70,9 @@ func TestDDLRefusesAnUnsafeTableName(t *testing.T) {
 			}
 			if _, err := New(nil, WithDescriptorTable(table)); err == nil {
 				t.Fatalf("store accepted table name %q", table)
+			}
+			if _, err := EvidenceLedgerDDL(table, DefaultEvidenceVerificationTable, DefaultEligibilityDecisionTable, DefaultEligibilityRevocationTable); err == nil {
+				t.Fatalf("evidence ledger accepted table name %q", table)
 			}
 		})
 	}

@@ -19,6 +19,7 @@ import (
 // join a caller's transaction instead of opening its own.
 type executor interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
@@ -45,7 +46,11 @@ func (store *Store) validate(ctx context.Context, operation string) error {
 	if store == nil || store.db == nil || nilInterface(store.clock) ||
 		!validQualifiedIdentifier(store.descriptors) ||
 		!validQualifiedIdentifier(store.releases) ||
-		!validQualifiedIdentifier(store.graphs) {
+		!validQualifiedIdentifier(store.graphs) ||
+		!validQualifiedIdentifier(store.claims) ||
+		!validQualifiedIdentifier(store.verifications) ||
+		!validQualifiedIdentifier(store.decisions) ||
+		!validQualifiedIdentifier(store.revocations) {
 		return faults.Wrap(ErrInvalidConfig, faults.CodeFailedPrecondition,
 			"registry PostgreSQL store is not configured",
 			faults.WithReason("registry_store_unconfigured"),

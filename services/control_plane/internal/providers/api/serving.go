@@ -60,7 +60,7 @@ type serving struct {
 	bind       func(*production.Runtime) error
 }
 
-func newServing(settings config.Settings, telemetry *observability.Runtime, authenticator auth.Authenticator, bearerTokenHeader string, admissions admissionEngine, policies policyEngine, metrics *admissionmetrics.Runtime) (result serving, err error) {
+func newServing(settings config.Settings, telemetry *observability.Runtime, authenticator auth.Authenticator, bearerTokenHeader string, admissions admissionEngine, policies policyEngine, eligibility eligibilityEngine, metrics *admissionmetrics.Runtime) (result serving, err error) {
 	value := &transport.Prober{}
 
 	closers := make([]func(), 0, 2)
@@ -79,7 +79,7 @@ func newServing(settings config.Settings, telemetry *observability.Runtime, auth
 	}
 	closers = append(closers, func() { _ = httpListener.Close() })
 
-	handler, connectMounted, err := newHandler(value, telemetry, authenticator, bearerTokenHeader, admissions, policies, metrics)
+	handler, connectMounted, err := newHandler(value, telemetry, authenticator, bearerTokenHeader, admissions, policies, eligibility, metrics)
 	if err != nil {
 		return serving{}, err
 	}
@@ -127,6 +127,7 @@ func newHandler(
 	bearerTokenHeader string,
 	admissions admissionEngine,
 	policies policyEngine,
+	eligibility eligibilityEngine,
 	metrics *admissionmetrics.Runtime,
 ) (http.Handler, bool, error) {
 	root := http.NewServeMux()
@@ -160,12 +161,12 @@ func newHandler(
 	var api http.Handler
 	var authorization middleware.AuthorizationResolver
 	switch {
-	case admissions != nil && policies == nil:
+	case admissions != nil && policies == nil && eligibility == nil:
 		api, err = newAdmissionMux(admissions, metrics)
 		authorization = middleware.AuthorizationResolverFunc(resolveAdmissionAuthorization)
 	case admissions == nil && policies != nil:
-		api, err = newPolicyMux(policies)
-		authorization = middleware.AuthorizationResolverFunc(resolvePolicyAuthorization)
+		api, err = newAdminMux(policies, eligibility)
+		authorization = middleware.AuthorizationResolverFunc(resolveAdminAuthorization)
 	default:
 		return nil, false, faults.New(faults.CodeFailedPrecondition,
 			"request-serving role must own exactly one HTTP domain surface",

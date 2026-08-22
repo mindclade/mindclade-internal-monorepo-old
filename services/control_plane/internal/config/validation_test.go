@@ -98,3 +98,23 @@ func TestSSLModeParsingIsCaseAndQuoteInsensitive(t *testing.T) {
 		}
 	}
 }
+
+func TestEligibilityConfigurationRequiresExactEvaluatorIdentity(t *testing.T) {
+	base := map[string]string{
+		"eligibility.policy_path":     "/etc/mindclade/evidence/production-controls.json",
+		"eligibility.kms_key_version": "projects/security/locations/us/keyRings/control/cryptoKeys/eligibility/cryptoKeyVersions/1",
+	}
+	_, err := Load(context.Background(), "control-plane-admin", foundationconfig.MapSource{SourceName: "test", Values: base})
+	if err == nil || faults.ReasonOf(err) != "eligibility_configuration_incomplete" {
+		t.Fatalf("err=%v", err)
+	}
+	base["eligibility.evaluator_email"] = "not-a-service-account"
+	_, err = Load(context.Background(), "control-plane-admin", foundationconfig.MapSource{SourceName: "test", Values: base})
+	if err == nil || faults.ReasonOf(err) != "eligibility_evaluator_invalid" {
+		t.Fatalf("err=%v", err)
+	}
+	base["eligibility.evaluator_email"] = "sa-prod-qual-evaluator@security-123.iam.gserviceaccount.com"
+	if _, err := Load(context.Background(), "control-plane-admin", foundationconfig.MapSource{SourceName: "test", Values: base}); err != nil {
+		t.Fatalf("err=%v", err)
+	}
+}

@@ -1222,6 +1222,38 @@ control_admission_metrics_address="$(yq eval-all -r 'select(
   .data.MINDCLADE_METRICS_ADDRESS' "${control_plane_render}")"
 [[ "${control_admission_metrics_address}" == "0.0.0.0:9464" ]] ||
   fail "control-plane metrics listener must bind the declared TCP 9464 port"
+eligibility_policy="$(yq eval-all -r 'select(
+  .kind == "ConfigMap" and .metadata.name == "control-plane-eligibility-policy") |
+  .data."production-controls.json"' "${control_plane_render}")"
+diff -u \
+  <(jq -S . "${repository_root}/contracts/evidence/production-controls.json") \
+  <(printf '%s\n' "${eligibility_policy}" | jq -S .) >/dev/null ||
+  fail "rendered production-eligibility policy differs from the distributed policy contract"
+eligibility_admin_contract_count="$(yq eval-all '[.] | flatten | map(select(
+  .kind == "Deployment" and .metadata.name == "control-plane-admin")) |
+  map(select(
+    [.spec.template.spec.containers[].env[]? |
+      select(.name == "MINDCLADE_ELIGIBILITY_POLICY_PATH" and
+        .value == "/etc/mindclade/evidence/production-controls.json")] | length == 1 and
+    [.spec.template.spec.containers[].env[]? |
+      select(.name == "MINDCLADE_ELIGIBILITY_SIGNING_KEY_ID" and
+        .value == "production-eligibility-v1")] | length == 1 and
+    [.spec.template.spec.containers[].env[]? |
+      select(.name == "MINDCLADE_ELIGIBILITY_KMS_KEY_VERSION" and
+        .valueFrom.configMapKeyRef.name == "control-plane-eligibility" and
+        .valueFrom.configMapKeyRef.key == "kms-key-version")] | length == 1 and
+    [.spec.template.spec.containers[].env[]? |
+      select(.name == "MINDCLADE_ELIGIBILITY_EVALUATOR_EMAIL" and
+        .valueFrom.configMapKeyRef.name == "control-plane-eligibility" and
+        .valueFrom.configMapKeyRef.key == "evaluator-service-account")] | length == 1 and
+    [.spec.template.spec.containers[].volumeMounts[]? |
+      select(.name == "eligibility-policy" and .readOnly == true)] | length == 1 and
+    [.spec.template.spec.volumes[]? |
+      select(.name == "eligibility-policy" and
+        .configMap.name == "control-plane-eligibility-policy")] | length == 1)) |
+  length' "${control_plane_render}")"
+[[ "${eligibility_admin_contract_count}" == "1" ]] ||
+  fail "control-plane admin eligibility policy, evaluator, key version, or read-only mount contract drifted"
 control_admission_deployment_count="$(yq eval-all '[.] | flatten | map(select(
   .kind == "Deployment" and
   .spec.template.metadata.labels."observability.mindclade.dev/control-admission" == "true" and

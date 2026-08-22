@@ -12,6 +12,9 @@
 # - Secret/control-plane-signing: hmac-key (at least the library minimum);
 # - Secret/control-plane-api-keys: registry (service API-key registry syntax);
 # - ConfigMap/control-plane-admin-iap: audience (the exact IAP backend-service audience);
+# - ConfigMap/control-plane-eligibility: kms-key-version (the immutable applied
+#   Cloud KMS Ed25519 key-version resource name) and evaluator-service-account
+#   (the sole non-human evidence submit/evaluate identity);
 # - Secret/control-plane-grpc-tls: tls.crt, tls.key, ca.crt (PEM values);
 # - Secret/control-plane-cache: password;
 # - ConfigMap/control-plane-provider-config: blob-bucket, cache-address,
@@ -388,12 +391,22 @@ spec:
               valueFrom: { secretKeyRef: { name: control-plane-signing, key: hmac-key } }
             - name: MINDCLADE_AUTH_IAP_AUDIENCE
               valueFrom: { configMapKeyRef: { name: control-plane-admin-iap, key: audience } }
+            - { name: MINDCLADE_ELIGIBILITY_POLICY_PATH, value: /etc/mindclade/evidence/production-controls.json }
+            - { name: MINDCLADE_ELIGIBILITY_SIGNING_KEY_ID, value: production-eligibility-v1 }
+            - name: MINDCLADE_ELIGIBILITY_KMS_KEY_VERSION
+              valueFrom: { configMapKeyRef: { name: control-plane-eligibility, key: kms-key-version } }
+            - name: MINDCLADE_ELIGIBILITY_EVALUATOR_EMAIL
+              valueFrom: { configMapKeyRef: { name: control-plane-eligibility, key: evaluator-service-account } }
             - name: MINDCLADE_GRPC_TLS_CERTIFICATE
               valueFrom: { secretKeyRef: { name: control-plane-grpc-tls, key: tls.crt } }
             - name: MINDCLADE_GRPC_TLS_KEY
               valueFrom: { secretKeyRef: { name: control-plane-grpc-tls, key: tls.key } }
             - name: MINDCLADE_GRPC_TLS_CLIENT_CA
               valueFrom: { secretKeyRef: { name: control-plane-grpc-tls, key: ca.crt } }
+          volumeMounts:
+            - name: eligibility-policy
+              mountPath: /etc/mindclade/evidence
+              readOnly: true
           securityContext:
             allowPrivilegeEscalation: false
             capabilities: { drop: ["ALL"] }
@@ -417,6 +430,13 @@ spec:
             periodSeconds: 5
             failureThreshold: 2
             timeoutSeconds: 2
+      volumes:
+        - name: eligibility-policy
+          configMap:
+            name: control-plane-eligibility-policy
+            items:
+              - key: production-controls.json
+                path: production-controls.json
 ---
 apiVersion: apps/v1
 kind: Deployment
