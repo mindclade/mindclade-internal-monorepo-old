@@ -237,7 +237,7 @@ func Execute(ctx context.Context, config Config, dependencies Dependencies) (Res
 	result.Checks = append(result.Checks, storage)
 	ipc, err := probeUnixIPC(ctx, config.Scratch, config.IPCBytes)
 	if err != nil {
-		return Result{}, fmt.Errorf("Unix IPC qualification failed: %w", err)
+		return Result{}, fmt.Errorf("unix IPC qualification failed: %w", err)
 	}
 	result.Checks = append(result.Checks, ipc)
 	result.Checks = append(result.Checks, Check{
@@ -341,7 +341,7 @@ func (reader constantByteReader) Read(buffer []byte) (int, error) {
 func probeUnixIPC(ctx context.Context, scratch string, byteCount int64) (Check, error) {
 	path := filepath.Join(scratch, fmt.Sprintf("mcq-%d.sock", os.Getpid()))
 	if len(path) > 100 {
-		return Check{}, fmt.Errorf("Unix socket path exceeds portable length: %s", path)
+		return Check{}, fmt.Errorf("unix socket path exceeds portable length: %s", path)
 	}
 	os.Remove(path)
 	listener, err := net.Listen("unix", path)
