@@ -318,7 +318,7 @@ func probeStorage(scratch string, byteCount int64) (Check, error) {
 func probeUnixIPC(scratch string, byteCount int64) (Check, error) {
 	path := filepath.Join(scratch, fmt.Sprintf("mcq-%d.sock", os.Getpid()))
 	if len(path) > 100 {
-		return Check{}, fmt.Errorf("Unix socket path exceeds portable length: %s", path)
+		return Check{}, fmt.Errorf("unix socket path exceeds portable length: %s", path)
 	}
 	os.Remove(path)
 	listener, err := net.Listen("unix", path)
