@@ -1,0 +1,15 @@
+{
+  "activation": {
+    "enabled": false,
+    "reason": "bucket-application-and-workload-identity-binding-unqualified"
+  },
+  "bucket_output": "https_uri",
+  "endpoint_variable": "BAZEL_REMOTE_CACHE_URI",
+  "schema_version": 1,
+  "terraform_module": "infra/terraform/modules/bazel_remote_cache",
+  "trusted_writer_events": [
+    "push",
+    "schedule",
+    "workflow_dispatch"
+  ]
+}

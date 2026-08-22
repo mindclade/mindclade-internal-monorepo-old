@@ -18,9 +18,19 @@ py_library(
 )
 
 py_library(
+    name = "bazel_remote_cache_lib",
+    srcs = ["bazel_remote_cache.py"],
+    # The contract travels with the library: load_contract() reads it by runfiles path, so a
+    # target that depends on this without the JSON fails at run time rather than at analysis.
+    data = ["bazel_remote_cache.json"],
+    imports = ["../.."],
+)
+
+py_library(
     name = "bazel_disk_cache_lib",
     srcs = ["bazel_disk_cache.py"],
     imports = ["../.."],
+    deps = [":bazel_remote_cache_lib"],
 )
 
 py_binary(
@@ -58,4 +68,11 @@ pytest_test(
     srcs = ["tests/test_bazel_disk_cache.py"],
     imports = ["../.."],
     deps = [":bazel_disk_cache_lib"],
+)
+
+pytest_test(
+    name = "bazel_remote_cache_test",
+    srcs = ["tests/test_bazel_remote_cache.py"],
+    imports = ["../.."],
+    deps = [":bazel_remote_cache_lib"],
 )
