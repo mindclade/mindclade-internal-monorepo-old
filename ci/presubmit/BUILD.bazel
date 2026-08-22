@@ -1,15 +1,27 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
-package(default_visibility = ["//visibility:private"])
+load("@rules_python//python:defs.bzl", "py_binary")
+load("//tools/build:pytest.bzl", "pytest_test")
 
-filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
-    visibility = ["//visibility:public"],
+package(default_visibility = ["//visibility:public"])
+
+py_binary(
+    name = "pipeline",
+    srcs = ["pipeline.py"],
+    data = ["targets.yaml"],
+    deps = ["//ci/common:affected"],
+    imports = ["../.."],
+    main = "pipeline.py",
+)
+
+pytest_test(
+    name = "test_pipeline",
+    srcs = [
+        "pipeline.py",
+        "test_pipeline.py",
+    ],
+    deps = ["//ci/common:affected"],
+    imports = ["../.."],
 )

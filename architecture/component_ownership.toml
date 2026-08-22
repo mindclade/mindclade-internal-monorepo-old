@@ -591,3 +591,19 @@ owner = "release-engineering"
 criticality = "tier-2"
 language = "python"
 security_review = true
+
+[component."ci.presubmit"]
+owner = "release-engineering"
+criticality = "tier-1"
+language = "python"
+slo = "docs/slo/ci-bazel-validation.md"
+runbook = "docs/runbooks/ci-bazel-validation.md"
+security_review = true
+
+[component."ci.cpu_nightly"]
+owner = "release-engineering"
+criticality = "tier-1"
+language = "python"
+slo = "docs/slo/ci-bazel-validation.md"
+runbook = "docs/runbooks/ci-bazel-validation.md"
+security_review = true

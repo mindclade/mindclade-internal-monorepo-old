@@ -1,0 +1,82 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# Credential-free CPU qualification of the complete Bazel graph. GPU, provider,
+# remote-execution, and release evidence remain separate connected lanes.
+name: CPU nightly
+
+on:
+  schedule:
+    # Off the top of the hour to reduce hosted-runner scheduling contention.
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cpu-nightly-bazel
+  # Preserve a complete qualification record; a later scheduled run waits rather than
+  # cancelling an evidence-producing invocation midway through its graph.
+  cancel-in-progress: false
+
+jobs:
+  bazel-nightly:
+    name: nightly Bazel / verdict
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Record nightly verdict start
+        run: date +%s > "${RUNNER_TEMP}/bazel-job-started"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Prepare GitHub-hosted runner disk for Nix
+        run: ci/common/prepare_nix_runner.sh
+
+      - uses: bazel-contrib/setup-bazel@4fd964a13a440a8aeb0be47350db2fc640f19ca8  # v0.15.0
+        with:
+          # Repository inputs are safe to cache. Compiled action outputs stay in Bazel's output
+          # base; duplicating them in Actions cache previously exhausted hosted-runner storage.
+          bazelisk-cache: true
+          repository-cache: true
+
+      - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = false
+
+      - name: Validate complete loading, formatting, and layer policy
+        run: |
+          nix develop .#ci-bazel --command buildifier --mode=check -r .
+          nix develop .#ci-bazel --command tools/dev/bazelw query \
+            '//...' --config=ci --output=label > /dev/null
+          nix develop .#ci-bazel --command python3 tools/analysis/check_bazel_layers.py
+
+      - name: Validate and resolve the registered C/C++ toolchain
+        run: |
+          nix develop .#ci-bazel --command python3 tools/analysis/validate_cc_toolchain_bundle.py
+          nix develop .#ci-bazel --command tools/dev/bazelw test \
+            //tools/build/bazel/toolchains/cc:smoke_test --config=ci
+          nix develop .#ci-bazel --command python3 tools/analysis/verify_cc_toolchain_selection.py
+
+      - name: Analyze and test the complete configured graph
+        run: >-
+          nix develop .#ci-bazel --command python3 ci/nightly/pipeline.py
+          --event "${GITHUB_EVENT_NAME}"
+          --evidence-dir "${RUNNER_TEMP}/bazel-evidence"
+          --job-started-at-file "${RUNNER_TEMP}/bazel-job-started"
+
+      - name: Upload nightly Bazel evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: bazel-nightly-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bazel-evidence/*
+          if-no-files-found: warn
+          retention-days: 35

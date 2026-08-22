@@ -55,6 +55,7 @@
 /infra/                             @mindclade/platform
 /infra/terraform/                   @mindclade/platform @mindclade/security
 /tools/                             @mindclade/platform
+/ci/                                @mindclade/platform @mindclade/security
 /tools/qualification/training_gke/  @mindclade/platform @mindclade/research @mindclade/security
 /architecture/                      @mindclade/platform
 

@@ -1,35 +1,49 @@
-# Ci / Presubmit
+# CI / Presubmit
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** CI configuration and Bazel target selection
+- **Status:** Implemented; connected check-context and latency qualification remain pending.
+- **Owner:** Release Engineering
+- **SLO:** [`../../docs/slo/ci-bazel-validation.md`](../../docs/slo/ci-bazel-validation.md)
+- **Runbook:** [`../../docs/runbooks/ci-bazel-validation.md`](../../docs/runbooks/ci-bazel-validation.md)
 
-## Purpose
+## Responsibility
 
-CI entry points that select repository-owned Bazel qualification targets. Workflow files coordinate execution but do not duplicate build, test, or release logic. This path specializes that domain for **presubmit**.
+`pipeline.py` owns the repository-local presubmit contract. `--static-only`
+runs architecture policy without a Bazel toolchain. `--bazel-only` selects and
+executes configured Bazel validation inside the pinned `.#ci-bazel` shell.
 
-## Boundary
+Ordinary pull requests use an explicit base SHA and Bazel's post-loading graph
+to calculate package reverse dependencies. Merge groups and protected-main
+pushes use full mode. Changes to CI, toolchains, dependency locks, Starlark,
+protocols, architecture, component, or maturity policy also force full mode.
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+## Interfaces
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+```text
+pipeline.py --static-only
+pipeline.py --bazel-only --mode affected --base <commit> --evidence-dir <outside-checkout>
+pipeline.py --bazel-only --mode full --evidence-dir <outside-checkout>
+```
 
-## Materialization requirements
+Affected mode fails when the base is missing, is not an ancestor of `HEAD`, the
+diff is malformed, an owning package cannot be established, or Bazel query
+fails. A successful diff and query that select no Bazel targets is recorded as
+an explicit skip rather than expanded to a false full-graph claim.
 
-Before this scaffold boundary is treated as implemented, add:
+## Evidence and limits
 
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
+The lane writes a versioned selection record, target-pattern files, BEP and
+trace-profile evidence, normalized summaries, and run metrics. Evidence paths
+must be outside the checkout and must not be symbolic links. Raw Bazel evidence
+is produced only after removing the setup action's short-lived launcher token
+from the subprocess environment.
 
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+The selector still loads the full unconfigured Bazel universe. It reduces
+configured analysis, compilation, and test execution; it does not promise that
+loading or external-repository resolution is free. GPU, provider,
+remote-execution, release, and deployment qualification remain out of scope.
+
+## Rollback
+
+Set the presubmit Bazel invocation to `--mode full` while retaining the exact
+`bazel / verdict` job name. Do not disable the job, weaken failure behavior, or
+rename a required context during incident recovery.

@@ -2,10 +2,9 @@
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 
----
-{
-  "schema_version": 1,
-  "mode": "full",
-  "analysis_targets": ["//..."],
-  "test_targets": ["//..."]
-}
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+sh_test(
+    name = "unrelated_test",
+    srcs = ["unrelated_test.sh"],
+)

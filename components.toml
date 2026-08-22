@@ -807,3 +807,22 @@ path = "tools/release"
 status = "implemented"
 owner = "release-engineering"
 tests = ["tools/release/tests/test_sbom.py"]
+
+[[component]]
+name = "ci.presubmit"
+path = "ci/presubmit"
+status = "implemented"
+owner = "release-engineering"
+tests = [
+    "ci/common/tests/test_affected.py",
+    "ci/presubmit/test_pipeline.py",
+]
+qualification = "ci/presubmit/QUALIFICATION.md"
+
+[[component]]
+name = "ci.cpu_nightly"
+path = "ci/nightly"
+status = "implemented"
+owner = "release-engineering"
+tests = ["ci/nightly/test_pipeline.py"]
+qualification = "ci/nightly/QUALIFICATION.md"
