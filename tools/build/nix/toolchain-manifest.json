@@ -32,9 +32,10 @@
     "nodeMajor": 22,
     "pnpmMajor": 11,
     "python": "3.14",
+    "pythonSource": "3.13",
     "rust": "1.97.1"
   },
-  "schema": 1,
+  "schema": 2,
   "tools": {
     "bazel": "9.1.1",
     "buf": "1.72.0",

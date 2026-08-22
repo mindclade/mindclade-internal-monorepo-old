@@ -637,7 +637,7 @@ def _allocatable_gpus(node: dict[str, Any]) -> float:
     candidate = node.get("status", {}).get("allocatable", {}).get("nvidia.com/gpu", 0)
     try:
         numeric = float(candidate)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return -1
     return numeric if math.isfinite(numeric) and numeric >= 0 else -1
 

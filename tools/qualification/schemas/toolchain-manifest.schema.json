@@ -9,7 +9,7 @@
   "properties": {
     "schema": {
       "description": "Manifest format version. Bumped only when a consumer would break.",
-      "const": 1
+      "const": 2
     },
     "nixpkgs": {
       "description": "The nixpkgs revision from flake.lock. With the tool versions below, this is what makes the closure recoverable.",
@@ -20,12 +20,13 @@
       "description": "The declared pins from tools/build/nix/versions.nix, so a versions.nix edit that no compatibility file mirrors also shows up as manifest drift.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["bazel", "rust", "go", "python", "nodeMajor", "pnpmMajor", "darwinDeploymentTarget"],
+      "required": ["bazel", "rust", "go", "python", "pythonSource", "nodeMajor", "pnpmMajor", "darwinDeploymentTarget"],
       "properties": {
         "bazel": { "$ref": "#/$defs/exactVersion" },
         "rust": { "$ref": "#/$defs/exactVersion" },
         "go": { "$ref": "#/$defs/languageLevel" },
         "python": { "$ref": "#/$defs/languageLevel" },
+        "pythonSource": { "$ref": "#/$defs/languageLevel" },
         "nodeMajor": { "$ref": "#/$defs/major" },
         "pnpmMajor": { "$ref": "#/$defs/major" },
         "darwinDeploymentTarget": { "$ref": "#/$defs/languageLevel" }

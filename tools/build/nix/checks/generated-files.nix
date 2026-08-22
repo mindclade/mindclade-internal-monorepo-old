@@ -45,6 +45,7 @@ pkgs.runCommand "mindclade-generated-files"
     rust = "${versions.rust}"
     go = "${versions.go}"
     python_version = "${versions.python}"
+    python_source = "${versions.pythonSource}"
     node_major = "${toString versions.nodeMajor}"
     pnpm_major = "${toString versions.pnpmMajor}"
     pnpm = "${pkgs.pnpm.version}"
@@ -111,7 +112,7 @@ pkgs.runCommand "mindclade-generated-files"
         target = search(
             r'^target-version\s*=\s*"(py\d+)"', text, "pyproject.toml", "[tool.ruff] target-version"
         )
-        expected_target = "py" + python_version.replace(".", "")
+        expected_target = "py" + python_source.replace(".", "")
         if target is not None and target != expected_target:
             fail("pyproject.toml [tool.ruff] target-version", expected_target, target)
 
