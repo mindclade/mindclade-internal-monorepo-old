@@ -41,6 +41,15 @@ class PopulationTests(unittest.TestCase):
             "RUNNER_OS": "Linux",
         }
 
+    def repo_with_caller_workflow(self, root: Path) -> Path:
+        """A checkout containing the workflow the contract names as its trusted caller."""
+        reference = str(self.contract["caller_workflow_ref"])
+        name = reference.split("@", 1)[0].split("/.github/workflows/", 1)[1]
+        workflow = root / ".github" / "workflows" / name
+        workflow.parent.mkdir(parents=True, exist_ok=True)
+        workflow.write_text("name: nix-cache\n", encoding="utf-8")
+        return root
+
     def git_result(self, command: list[str]) -> subprocess.CompletedProcess[str]:
         output = "a" * 40 + "\n" if command[1:3] == ["rev-parse", "HEAD"] else ""
         return subprocess.CompletedProcess(command, 0, stdout=output, stderr="")
@@ -84,10 +93,68 @@ class PopulationTests(unittest.TestCase):
         self, run: mock.Mock, _machine: mock.Mock
     ) -> None:
         run.side_effect = lambda command, **_kwargs: self.git_result(command)
-        populate.authorize(self.activated_contract(), self.environment(), repo=Path("/repo"))
+        # A real directory, because authorize now requires the trusted caller workflow to exist
+        # on disk. git is still mocked; only the workflow lookup touches the filesystem.
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.repo_with_caller_workflow(Path(directory))
+            populate.authorize(self.activated_contract(), self.environment(), repo=repo)
         self.assertEqual(run.call_count, 4)
         for call in run.call_args_list:
             self.assertNotIn("ATTIC_CACHE_WRITE_TOKEN", call.kwargs["env"])
+
+    @mock.patch.object(platform, "machine", return_value="x86_64")
+    @mock.patch.object(subprocess, "run")
+    def test_activation_requires_the_caller_workflow_to_exist(
+        self, run: mock.Mock, _machine: mock.Mock
+    ) -> None:
+        """The contract has always named a workflow the repository does not contain.
+
+        Staged, that is correct and unreachable -- authorize refuses on the activation gate
+        first. This asserts the gap surfaces on the day activation is enabled, rather than at
+        first publish with a live token and endpoint in scope.
+        """
+        run.side_effect = lambda command, **_kwargs: self.git_result(command)
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            self.assertRaisesRegex(
+                populate.PopulationError, "trusted caller workflow does not exist"
+            ),
+        ):
+            populate.authorize(self.activated_contract(), self.environment(), repo=Path(directory))
+
+    def test_staged_contract_never_reaches_the_workflow_check(self) -> None:
+        """The checked-in contract must still refuse on activation, not on the missing file."""
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            self.assertRaisesRegex(populate.PopulationError, "population is blocked"),
+        ):
+            populate.authorize(self.contract, self.environment(), repo=Path(directory))
+
+    def test_caller_workflow_reference_must_name_a_workflow_path(self) -> None:
+        contract = self.activated_contract()
+        contract["caller_workflow_ref"] = "mindclade/mindclade-internal-monorepo/Makefile@main"
+        with self.assertRaisesRegex(
+            populate.PopulationError, "must name one canonical .github/workflows file"
+        ):
+            populate._require_caller_workflow_present(contract, repo=Path("/repo"))
+
+    def test_caller_workflow_reference_cannot_traverse_or_use_a_symlink(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            outside = repo / "outside.yml"
+            outside.write_text("name: outside\n", encoding="utf-8")
+            contract = self.activated_contract()
+            contract["caller_workflow_ref"] = (
+                "mindclade/mindclade-internal-monorepo/.github/workflows/../../outside.yml@main"
+            )
+            with self.assertRaisesRegex(populate.PopulationError, "one canonical"):
+                populate._require_caller_workflow_present(contract, repo=repo)
+
+            workflows = repo / ".github" / "workflows"
+            workflows.mkdir(parents=True)
+            (workflows / "nix-cache.yml").symlink_to(outside)
+            with self.assertRaisesRegex(populate.PopulationError, "does not exist"):
+                populate._require_caller_workflow_present(self.activated_contract(), repo=repo)
 
     @mock.patch.object(populate, "_run")
     def test_package_inventory_is_sorted_and_exact(self, run: mock.Mock) -> None:

@@ -133,6 +133,47 @@ def _validate_endpoint(raw: str) -> None:
         raise PopulationError("Attic endpoint must be a credential-free qualified HTTPS URL")
 
 
+def _require_caller_workflow_present(contract: Mapping[str, Any], *, repo: Path = ROOT) -> None:
+    """The trusted caller must be a workflow that exists in this repository.
+
+    load_contract pins caller_workflow_ref to an exact string, and authorize compares the
+    runtime GITHUB_WORKFLOW_REF against it. Neither establishes that the named workflow EXISTS
+    -- and it does not: the contract has always referenced
+    .github/workflows/nix-cache.yml, which was never added, because activation is staged.
+
+    While activation stays disabled that is correct and this check never runs; authorize
+    refuses on the activation gate several lines above. What it prevents is enabling activation
+    and discovering the gap at first publish, when a real token and a real endpoint are already
+    in scope. The trust boundary here is a workflow identity, so a dangling one is the same
+    class of defect as the runner group restricted to a workflow ref nobody publishes.
+
+    Path only. The `owner/repo` prefix is already constrained by the GITHUB_REPOSITORY check,
+    and the `@ref` suffix names the branch the workflow runs FROM, which is not a path in this
+    checkout.
+    """
+    reference = str(contract["caller_workflow_ref"])
+    path_part = reference.split("@", 1)[0]
+    _, separator, workflow_path = path_part.partition("/.github/workflows/")
+    relative = Path(workflow_path)
+    if (
+        not separator
+        or not workflow_path
+        or relative.is_absolute()
+        or len(relative.parts) != 1
+        or relative.name != workflow_path
+        or relative.suffix not in {".yml", ".yaml"}
+    ):
+        raise PopulationError(
+            "caller workflow reference must name one canonical .github/workflows file: " + reference
+        )
+    candidate = repo / ".github" / "workflows" / workflow_path
+    if candidate.is_symlink() or not candidate.is_file():
+        raise PopulationError(
+            f"trusted caller workflow does not exist in this repository: "
+            f".github/workflows/{workflow_path}"
+        )
+
+
 def authorize(
     contract: Mapping[str, Any],
     environment: Mapping[str, str],
@@ -206,6 +247,11 @@ def authorize(
     token = _required(environment, "ATTIC_CACHE_WRITE_TOKEN")
     if any(character.isspace() for character in token):
         raise PopulationError("Attic write token must not contain whitespace")
+
+    # Last, deliberately. This is the only check here that touches the filesystem, and every
+    # cheaper environment check above should report its own specific refusal rather than be
+    # masked by this one.
+    _require_caller_workflow_present(contract, repo=repo)
 
 
 def _run(
