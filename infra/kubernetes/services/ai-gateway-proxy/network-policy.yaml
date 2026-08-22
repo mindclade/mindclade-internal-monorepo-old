@@ -1,0 +1,76 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ai-gateway-proxy-default-deny
+  namespace: ai
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ai-gateway-proxy
+  policyTypes: [Ingress, Egress]
+  ingress: []
+  egress: []
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ai-gateway-proxy-allow-required
+  namespace: ai
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ai-gateway-proxy
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - ipBlock:
+            # Development managed-proxy subnet. Every environment overlay must
+            # replace this with its observed GKE Gateway proxy subnet.
+            cidr: 10.16.32.0/24
+      ports:
+        - { protocol: TCP, port: 8080 }
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: gmp-system
+      ports:
+        - { protocol: TCP, port: 8080 }
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: mindclade-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: control-plane-api
+      ports:
+        - { protocol: TCP, port: 8080 }
+    - to:
+        - ipBlock:
+            # restricted.googleapis.com; DNS policy must resolve the JWKS host
+            # to this restricted VIP range before activation.
+            cidr: 199.36.153.4/30
+      ports:
+        - { protocol: TCP, port: 443 }
+    - to:
+        - ipBlock:
+            # Placeholder Secure Web Proxy address, patched from Terraform
+            # output together with MINDCLADE_AI_GATEWAY_EGRESS_PROXY_URL.
+            cidr: 10.0.0.10/32
+      ports:
+        - { protocol: TCP, port: 443 }

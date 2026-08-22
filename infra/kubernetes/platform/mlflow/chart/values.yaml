@@ -24,14 +24,12 @@ server:
   secretsCacheTTLSeconds: 30
   secretsCacheMaxSize: 1000
   terminationGracePeriodSeconds: 60
-  gatewayBudgetRefreshIntervalSeconds: 30
 
 auth:
   existingSecret: SET_BY_ACTIVATION_BUNDLE
   authConfigKey: auth-config.ini
   backendStoreURIKey: backend-store-uri
   flaskSecretKey: flask-secret-key
-  gatewayBudgetRedisURIKey: gateway-budget-redis-uri
   traceArchivalConfigKey: trace-archival.yaml
 
 artifacts:
@@ -71,9 +69,6 @@ networkPolicy:
   ingressNamespaceNames: []
   database:
     port: 5432
-    cidrs: []
-  redis:
-    port: 6379
     cidrs: []
   httpsCIDRs: []
   workloadIdentityMetadata: true

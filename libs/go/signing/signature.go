@@ -82,3 +82,24 @@ func (signature Signature) MarshalJSON() ([]byte, error) {
 	type alias Signature
 	return json.Marshal(alias(signature))
 }
+
+// UnmarshalJSON is paired explicitly with MarshalJSON. Signature implements
+// encoding.TextUnmarshaler for compact header values; without this method the
+// standard library would incorrectly require that JSON signatures be strings
+// even though MarshalJSON emits the documented object representation.
+func (signature *Signature) UnmarshalJSON(value []byte) error {
+	if signature == nil {
+		return invalid(ErrInvalidSignature, "invalid detached signature", "nil_signature_destination", "signing.Signature.UnmarshalJSON", nil)
+	}
+	type alias Signature
+	var decoded alias
+	if err := json.Unmarshal(value, &decoded); err != nil {
+		return invalid(ErrInvalidSignature, "invalid detached signature", "invalid_signature_json", "signing.Signature.UnmarshalJSON", nil)
+	}
+	parsed := Signature(decoded)
+	if err := parsed.Validate(); err != nil {
+		return err
+	}
+	*signature = parsed.Clone()
+	return nil
+}

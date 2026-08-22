@@ -74,7 +74,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: control-plane-admin-allow-labeled-clients
+  name: control-plane-admin-allow-managed-gateway-proxy
   namespace: mindclade-system
   labels:
     app.kubernetes.io/name: control-plane
@@ -86,12 +86,36 @@ spec:
     - Ingress
   ingress:
     - from:
-        - podSelector:
-            matchLabels:
-              networking.mindclade.dev/control-plane-admin-client: "true"
+        - ipBlock:
+            # Development managed-proxy subnet. Environment overlays must
+            # replace this with the observed subnet before activation.
+            cidr: 10.16.32.0/24
       ports:
         - { protocol: TCP, port: 8080 }
-        - { protocol: TCP, port: 9090 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: control-plane-api-allow-ai-gateway
+  namespace: mindclade-system
+  labels:
+    app.kubernetes.io/name: control-plane
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: control-plane-api
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ai
+          podSelector:
+            matchLabels:
+              networking.mindclade.dev/control-plane-api-client: "true"
+      ports:
+        - { protocol: TCP, port: 8080 }
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

@@ -60,7 +60,7 @@ type serving struct {
 	bind       func(*production.Runtime) error
 }
 
-func newServing(settings config.Settings, telemetry *observability.Runtime, authenticator auth.Authenticator, admissions admissionEngine, metrics *admissionmetrics.Runtime) (result serving, err error) {
+func newServing(settings config.Settings, telemetry *observability.Runtime, authenticator auth.Authenticator, bearerTokenHeader string, admissions admissionEngine, policies policyEngine, metrics *admissionmetrics.Runtime) (result serving, err error) {
 	value := &transport.Prober{}
 
 	closers := make([]func(), 0, 2)
@@ -79,7 +79,7 @@ func newServing(settings config.Settings, telemetry *observability.Runtime, auth
 	}
 	closers = append(closers, func() { _ = httpListener.Close() })
 
-	handler, connectMounted, err := newHandler(value, telemetry, authenticator, admissions, metrics)
+	handler, connectMounted, err := newHandler(value, telemetry, authenticator, bearerTokenHeader, admissions, policies, metrics)
 	if err != nil {
 		return serving{}, err
 	}
@@ -124,7 +124,9 @@ func newHandler(
 	value *transport.Prober,
 	telemetry *observability.Runtime,
 	authenticator auth.Authenticator,
+	bearerTokenHeader string,
 	admissions admissionEngine,
+	policies policyEngine,
 	metrics *admissionmetrics.Runtime,
 ) (http.Handler, bool, error) {
 	root := http.NewServeMux()
@@ -155,7 +157,21 @@ func newHandler(
 		return nil, false, err
 	}
 
-	api, err := newAdmissionMux(admissions, metrics)
+	var api http.Handler
+	var authorization middleware.AuthorizationResolver
+	switch {
+	case admissions != nil && policies == nil:
+		api, err = newAdmissionMux(admissions, metrics)
+		authorization = middleware.AuthorizationResolverFunc(resolveAdmissionAuthorization)
+	case admissions == nil && policies != nil:
+		api, err = newPolicyMux(policies)
+		authorization = middleware.AuthorizationResolverFunc(resolvePolicyAuthorization)
+	default:
+		return nil, false, faults.New(faults.CodeFailedPrecondition,
+			"request-serving role must own exactly one HTTP domain surface",
+			faults.WithReason("request_surface_role_invalid"), faults.WithOperation("controlplane.api.newHandler"),
+			faults.WithRetryPolicy(faults.NoRetry()))
+	}
 	if err != nil {
 		return nil, false, err
 	}
@@ -165,10 +181,10 @@ func newHandler(
 		PanicObserver:     panicObserver(telemetry),
 		Security:          middleware.SecurityHeadersConfig{},
 		MaximumBodyBytes:  maximumRequestBody,
-		Authentication:    &middleware.AuthenticationConfig{Authenticator: authenticator},
+		Authentication:    &middleware.AuthenticationConfig{Authenticator: authenticator, BearerTokenHeader: bearerTokenHeader},
 		Authorization: &middleware.AuthorizationConfig{
 			Authorizer:     auth.PermissionAuthorizer{},
-			Resolver:       middleware.AuthorizationResolverFunc(resolveAdmissionAuthorization),
+			Resolver:       authorization,
 			RequireMapping: true,
 		},
 		Additional: []middleware.Middleware{transport.Preconditions()},

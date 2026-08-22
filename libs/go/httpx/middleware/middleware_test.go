@@ -73,6 +73,38 @@ func TestAuthenticationRejectsMultipleCredentials(t *testing.T) {
 	}
 }
 
+func TestAuthenticationAcceptsOneConfiguredProxyBearerHeader(t *testing.T) {
+	principal, err := auth.NewPrincipal(auth.PrincipalKindUser, "iap-user", auth.WithIssuer("https://cloud.google.com/iap"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	authenticator := auth.AuthenticatorFunc(func(_ context.Context, credential auth.Credential) (auth.Principal, error) {
+		if credential.Scheme() != auth.CredentialSchemeBearer || string(credential.Value()) != "signed-iap-assertion" {
+			t.Fatal("proxy bearer header was not projected as a bearer credential")
+		}
+		return principal, nil
+	})
+	handler := Authentication(AuthenticationConfig{
+		Authenticator: authenticator, BearerTokenHeader: "x-goog-iap-jwt-assertion",
+	})(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) { writer.WriteHeader(http.StatusNoContent) }))
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	request.Header.Set("x-goog-iap-jwt-assertion", "signed-iap-assertion")
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/", nil)
+	request.Header.Set("x-goog-iap-jwt-assertion", "signed-iap-assertion")
+	request.Header.Set("Authorization", "Bearer competing-token")
+	recorder = httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("competing credentials status=%d", recorder.Code)
+	}
+}
+
 func TestRecoverySanitizesPanic(t *testing.T) {
 	handler := Recovery(nil)(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { panic("secret") }))
 	recorder := httptest.NewRecorder()

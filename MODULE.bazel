@@ -129,6 +129,7 @@ crate.from_cargo(
         "//libs/rust/worker_runtime:Cargo.toml",
         "//serving/runtime:Cargo.toml",
         "//services/artifact_proxy:Cargo.toml",
+        "//services/ai_gateway_proxy:Cargo.toml",
         "//services/node_agent:Cargo.toml",
         "//services/runtime_gateway:Cargo.toml",
         "//services/runtime_host:Cargo.toml",

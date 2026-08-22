@@ -11,6 +11,7 @@
 #   verify-ca, or verify-full);
 # - Secret/control-plane-signing: hmac-key (at least the library minimum);
 # - Secret/control-plane-api-keys: registry (service API-key registry syntax);
+# - ConfigMap/control-plane-admin-iap: audience (the exact IAP backend-service audience);
 # - Secret/control-plane-grpc-tls: tls.crt, tls.key, ca.crt (PEM values);
 # - Secret/control-plane-cache: password;
 # - ConfigMap/control-plane-provider-config: blob-bucket, cache-address,
@@ -338,7 +339,7 @@ metadata:
     mindclade.dev/control-plane-role: admin
   annotations:
     mindclade.dev/deployment-status: disabled
-    mindclade.dev/activation-blocker: oci-release-and-provider-egress-contracts-missing
+    mindclade.dev/activation-blocker: iap-backend-audience-network-and-oci-release-evidence-missing
 spec:
   replicas: 0
   revisionHistoryLimit: 5
@@ -385,8 +386,8 @@ spec:
               valueFrom: { secretKeyRef: { name: control-plane-database, key: dsn } }
             - name: MINDCLADE_SIGNING_HMAC_KEY
               valueFrom: { secretKeyRef: { name: control-plane-signing, key: hmac-key } }
-            - name: MINDCLADE_AUTH_API_KEYS
-              valueFrom: { secretKeyRef: { name: control-plane-api-keys, key: registry } }
+            - name: MINDCLADE_AUTH_IAP_AUDIENCE
+              valueFrom: { configMapKeyRef: { name: control-plane-admin-iap, key: audience } }
             - name: MINDCLADE_GRPC_TLS_CERTIFICATE
               valueFrom: { secretKeyRef: { name: control-plane-grpc-tls, key: tls.crt } }
             - name: MINDCLADE_GRPC_TLS_KEY

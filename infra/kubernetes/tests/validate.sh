@@ -205,6 +205,11 @@ while IFS= read -r unresolved_service_ref; do
   [[ -n "${unresolved_service_ref}" ]] || continue
   cross_resource_args+=(--allow-unresolved-service-ref "${unresolved_service_ref}")
 done < <(yq eval -r '.spec.activationGatedUnresolvedServiceRefs[]' "${validation_config}")
+cross_root_resource_args=()
+while IFS= read -r cross_root_service_ref; do
+  [[ -n "${cross_root_service_ref}" ]] || continue
+  cross_root_resource_args+=(--allow-unresolved-service-ref "${cross_root_service_ref}")
+done < <(yq eval -r '.spec.crossRootServiceRefs[]' "${validation_config}")
 while IFS= read -r unmatched_network_policy; do
   [[ -n "${unmatched_network_policy}" ]] || continue
   cross_resource_args+=(--allow-unmatched-network-policy "${unmatched_network_policy}")
@@ -984,7 +989,7 @@ while IFS= read -r root_name; do
   yq eval-all -o=json -I=0 '[.] | flatten | map(select(.kind != null and .apiVersion != null))' \
     "${output_file}" >"${normalized_output}"
   python3 "${script_dir}/cross_resource.py" "${normalized_output}" --label "${root_name}" \
-    "${cross_resource_args[@]}"
+    "${cross_resource_args[@]}" "${cross_root_resource_args[@]}"
 
   printf 'POLICY            %s\n' "${root_name}"
 done <"${policy_roots}"
@@ -1241,8 +1246,8 @@ control_admission_api_metrics_contract="$(yq eval-all -r 'select(
   .metadata.name == "control-admission-api-recording") |
   .metadata.annotations."mindclade.dev/metrics-contract"' "${control_plane_render}")"
 [[ "${control_admission_api_metrics_contract}" == \
-  "admission-api-v1:30-decision-counters:36-histogram-buckets:3-histogram-counts:3-histogram-sums-per-replica" ]] ||
-  fail "control-admission API rules must pin the exact v1 per-replica metric inventory"
+  "admission-api-v2:60-decision-counters:72-histogram-buckets:6-histogram-counts:6-histogram-sums-per-replica" ]] ||
+  fail "control-admission API rules must pin the exact v2 per-replica metric inventory"
 control_admission_maintenance_rules_blocker="$(yq eval-all -r 'select(
   .apiVersion == "monitoring.googleapis.com/v1" and .kind == "Rules" and
   .metadata.name == "control-admission-maintenance-recording") |
