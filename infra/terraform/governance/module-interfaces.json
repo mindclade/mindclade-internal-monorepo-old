@@ -2198,12 +2198,15 @@
           "nullable": true,
           "required": true,
           "sensitive": false,
-          "type": "map(object({ dns_name = string # Falls back to a generated string. Not defaulted to \"\" — Cloud DNS rejects an empty # description, and the error names the field without naming the zone. description = optional(string) visibility = optional(string, \"private\") dnssec = optional(bool) # Overrides var.attached_networks for this zone only. Ignored on public zones. networks = optional(list(string)) # Keyed by an identifier that DEFAULTS to the relative owner name. Set # `name` explicitly when one owner carries more than one type -- an apex # holding CAA, MX, and SPF needs three entries that resolve to the same # name, and a map cannot hold three \"@\" keys. Cloud DNS keys record sets by # name AND type, so these are three distinct sets rather than a collision. records = optional(map(object({ name = optional(string) type = string ttl = optional(number, 300) rrdatas = list(string) })), {}) }))",
+          "type": "map(object({ dns_name = string # Falls back to a generated string. Not defaulted to \"\" — Cloud DNS rejects an empty # description, and the error names the field without naming the zone. description = optional(string) visibility = optional(string, \"private\") dnssec = optional(bool) # Overrides var.attached_networks for this zone only. Ignored on public zones. networks = optional(list(string)) # Exact records-map keys for reviewed public A, AAAA, or CNAME exceptions. Public # address records remain denied by default; private zones may not use this escape hatch. public_record_allowlist = optional(set(string), []) # Keyed by an identifier that DEFAULTS to the relative owner name. Set # `name` explicitly when one owner carries more than one type -- an apex # holding CAA, MX, and SPF needs three entries that resolve to the same # name, and a map cannot hold three \"@\" keys. Cloud DNS keys record sets by # name AND type, so these are three distinct sets rather than a collision. records = optional(map(object({ name = optional(string) type = string ttl = optional(number, 300) rrdatas = list(string) })), {}) }))",
           "validation_fingerprints": [
+            "sha256:261edf636909cfeec6b84bee1103688e8b73025602b8636cb5e0bd5263a827b6",
             "sha256:4f6102bbe4f814b91b86c04cee2ac03165ee363604cfa810bcf660251c705334",
-            "sha256:582f41ab5b4ce99c4950272e030b82823407657d6a718024c968e055d5f3554d",
+            "sha256:6c48becf281f2cdffbd0d067e88016945ae74ef984d6e51bb768d8a0d2ce8b8a",
             "sha256:a58e83e342b58f9c5b84ccf89a9a0cf2c9ba9001922f436e21b97588f40397e1",
-            "sha256:ea2e29ab2536356f63e671370431644b29fbc4d7f2ad8836b995dd2da04f72e4"
+            "sha256:d835a26898f9bc7be9d9cc9feaffe4ce4972f3ec940bf2021e969ad167e1db51",
+            "sha256:ea2e29ab2536356f63e671370431644b29fbc4d7f2ad8836b995dd2da04f72e4",
+            "sha256:eaea015252e4acc745e1a7e547fc3157c1f7935bf53caf48ef04c20d21d53a03"
           ]
         }
       },
