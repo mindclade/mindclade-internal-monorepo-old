@@ -229,7 +229,7 @@ func Execute(ctx context.Context, config Config, dependencies Dependencies) (Res
 	result.Checks = append(result.Checks, storage)
 	ipc, err := probeUnixIPC(config.Scratch, config.IPCBytes)
 	if err != nil {
-		return Result{}, fmt.Errorf("Unix IPC qualification failed: %w", err)
+		return Result{}, fmt.Errorf("unix IPC qualification failed: %w", err)
 	}
 	result.Checks = append(result.Checks, ipc)
 	result.Checks = append(result.Checks, Check{
