@@ -68,7 +68,7 @@ output "client_activation_contract" {
     enabled                     = false
     substituter_uri             = null
     trusted_public_key          = null
-    authentication             = "unqualified"
+    authentication              = "unqualified"
     backend_protocol            = "gcs-json-xml-storage-only"
     reason                      = "raw-private-gcs-is-not-a-nix-substituter"
     signing_key_in_client_scope = false
