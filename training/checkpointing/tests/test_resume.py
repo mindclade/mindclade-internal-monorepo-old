@@ -225,6 +225,19 @@ def test_local_state_metadata_rejects_excessive_json_nesting() -> None:
         decode_training_state(deeply_nested, b"not-read")
 
 
+def test_local_state_metadata_does_not_count_quoted_json_syntax_as_nesting() -> None:
+    quoted_syntax = '[{"quoted":"\\\\value"}]' * 128
+    metadata, tensors = encode_training_state(
+        {"quoted_syntax": quoted_syntax},
+        {},
+        torch.get_rng_state(),
+    )
+
+    decoded = decode_training_state(metadata, tensors)
+
+    assert decoded.model["quoted_syntax"] == quoted_syntax
+
+
 def test_local_commit_rejects_silent_member_write_tamper(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

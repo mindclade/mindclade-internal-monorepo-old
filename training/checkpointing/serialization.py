@@ -22,6 +22,9 @@ from libs.python.serialization import canonical_json_bytes
 
 STATE_SCHEMA_VERSION: Final = 1
 MAXIMUM_TREE_DEPTH: Final = 64
+# JSON has additional object/list wrappers around each typed tree node. Bound the encoded
+# syntax before parsing so acceptance does not depend on the interpreter's recursion limit.
+MAXIMUM_JSON_DEPTH: Final = 256
 MAXIMUM_TREE_NODES: Final = 1_000_000
 MAXIMUM_TENSORS: Final = 100_000
 MAXIMUM_TENSOR_BYTES: Final = 256 << 20
@@ -266,14 +269,7 @@ def encode_training_state(
 
 
 def decode_training_state(metadata: bytes, tensor_bytes: bytes) -> DecodedTrainingState:
-    try:
-        document = json.loads(metadata, object_pairs_hook=_unique_object)
-    except (UnicodeDecodeError, json.JSONDecodeError, RecursionError, ValueError) as error:
-        raise InvalidArgument(
-            "checkpoint state metadata is not unique-key UTF-8 JSON",
-            reason="checkpoint_state_json",
-            cause=error,
-        ) from error
+    document = _load_unique_json(metadata, label="checkpoint state metadata")
     if not isinstance(document, dict) or set(document) != {
         "schema_version",
         "model",
@@ -519,14 +515,7 @@ def _decode_distributed_document(
     metadata: bytes,
     tensor_bytes: bytes,
 ) -> tuple[dict[str, object], _Decoder, Mapping[str, torch.Tensor]]:
-    try:
-        document = json.loads(metadata, object_pairs_hook=_unique_object)
-    except (UnicodeDecodeError, json.JSONDecodeError, RecursionError, ValueError) as error:
-        raise InvalidArgument(
-            "distributed checkpoint metadata is not unique-key UTF-8 JSON",
-            reason="checkpoint_state_json",
-            cause=error,
-        ) from error
+    document = _load_unique_json(metadata, label="distributed checkpoint metadata")
     if not isinstance(document, dict):
         raise InvalidArgument(
             "distributed checkpoint metadata must be an object",
@@ -616,6 +605,45 @@ def _validate_cuda_rng_state(value: torch.Tensor) -> None:
                 reason="checkpoint_cuda_rng_state",
                 cause=error,
             ) from error
+
+
+def _load_unique_json(metadata: bytes, *, label: str) -> object:
+    """Parse unique-key JSON after a runtime-independent structural depth check."""
+
+    try:
+        _validate_json_nesting(metadata)
+        return json.loads(metadata, object_pairs_hook=_unique_object)
+    except (UnicodeDecodeError, json.JSONDecodeError, RecursionError, ValueError) as error:
+        raise InvalidArgument(
+            f"{label} is not unique-key UTF-8 JSON",
+            reason="checkpoint_state_json",
+            cause=error,
+        ) from error
+
+
+def _validate_json_nesting(metadata: bytes) -> None:
+    """Reject excessive object/array nesting without mistaking quoted bytes for syntax."""
+
+    depth = 0
+    in_string = False
+    escaped = False
+    for value in metadata:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif value == ord("\\"):
+                escaped = True
+            elif value == ord('"'):
+                in_string = False
+            continue
+        if value == ord('"'):
+            in_string = True
+        elif value in (ord("{"), ord("[")):
+            depth += 1
+            if depth > MAXIMUM_JSON_DEPTH:
+                raise ValueError(f"JSON nesting exceeds {MAXIMUM_JSON_DEPTH}")
+        elif value in (ord("}"), ord("]")):
+            depth -= 1
 
 
 def _unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
