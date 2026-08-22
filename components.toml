@@ -752,3 +752,10 @@ tests = [
     "protocols/compatibility/check_typescript_projection.py",
 ]
 qualification = "protocols/qualification/README.md"
+
+[[component]]
+name = "release.spdx_sbom"
+path = "tools/release"
+status = "implemented"
+owner = "release-engineering"
+tests = ["tools/release/tests/test_sbom.py"]

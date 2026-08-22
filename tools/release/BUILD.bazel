@@ -17,9 +17,8 @@ filegroup(
     visibility = ["//visibility:public"],
 )
 
-# The one materialized tool in this directory; the other eighteen are still SCAFFOLD_PATH
-# stubs. Kept as its own py_binary rather than folded into a glob over the package, so that
-# building it does not depend on nineteen files of which eighteen do nothing.
+# Materialized release tools remain narrow targets rather than a glob over the package, so a
+# production release path never depends on reserved SCAFFOLD_PATH modules.
 #
 # NO DEPS. It parses the safetensors header directly rather than importing safetensors, and
 # never imports torch — see the module docstring. A tool whose purpose is to avoid
@@ -45,6 +44,25 @@ py_binary(
     name = "emit_annotations",
     srcs = ["emit_annotations.py"],
     visibility = ["//visibility:public"],
+)
+
+py_library(
+    name = "sbom_lib",
+    srcs = ["sbom.py"],
+    imports = ["."],
+    visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "sbom",
+    srcs = ["sbom.py"],
+    visibility = ["//visibility:public"],
+)
+
+pytest_test(
+    name = "sbom_test",
+    srcs = ["tests/test_sbom.py"],
+    deps = [":sbom_lib"],
 )
 
 pytest_test(
