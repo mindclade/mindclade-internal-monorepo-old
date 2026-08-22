@@ -37,12 +37,12 @@ _LINK = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
 # genuine in-repo reports -- while structured_files parsed every JSON/TOML/YAML shipped by
 # torch and numpy on the way past.
 #
-# .claude holds agent worktrees -- full checkouts of this repository nested inside it. Without
-# it every finding is reported once per live worktree, and a transient agent checkout is not
-# something the repository should be validating.
+# Agent worktree roots hold full checkouts of this repository. Without pruning them, every
+# finding is reported once per live worktree and transient checkouts are treated as source.
 _VENDORED = frozenset(
     {
         ".claude",
+        ".codex-worktrees",
         ".git",
         ".mypy_cache",
         ".pytest_cache",
