@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import sys
 from pathlib import Path
@@ -76,82 +77,46 @@ def test_graph_native_activation_cannot_bypass_evidence(tmp_path: Path) -> None:
     ]
 
 
-def _presubmit_workflow(*, mode: str = "auto", comment_only_contract: bool = False) -> str:
-    governed_command = (
-        "/nix/var/nix/profiles/default/bin/nix develop .#ci-bazel "
-        "--command python3 -I ci/presubmit/pipeline.py "
-        f'--bazel-only --mode {mode} --base "${{PR_BASE_SHA}}" '
-        '--event "${GITHUB_EVENT_NAME}" --ref "${GITHUB_REF}" '
-        '--head "${GITHUB_SHA}" '
-        '--evidence-dir "${RUNNER_TEMP}/bazel-evidence" '
-        '--job-started-at-file "${RUNNER_TEMP}/bazel-job-started"'
-    )
-    run = (
-        f"# {governed_command}\n          echo unsafe"
-        if comment_only_contract
-        else governed_command
-    )
-    return f"""---
-name: Presubmit
-on:
-  push:
-    branches: [main]
-  pull_request:
-  merge_group:
-permissions:
-  contents: read
-concurrency:
-  group: ${{{{ github.workflow }}}}-${{{{ github.ref }}}}
-  cancel-in-progress: true
-jobs:
-  bazel:
-    name: bazel / verdict
-    runs-on: ubuntu-24.04
-    timeout-minutes: 90
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Run event-governed Bazel validation
-        env:
-          BASH_ENV: ""
-          PR_BASE_SHA: ${{{{ github.event.pull_request.base.sha }}}}
-        run: >-
-          {run}
-      - name: Upload Bazel performance evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: bazel-performance-${{{{ github.run_id }}}}-${{{{ github.run_attempt }}}}
-          path: ${{{{ runner.temp }}}}/bazel-evidence/*
-          if-no-files-found: warn
-          retention-days: 35
-      - name: Upload Bazel latency metric
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: bazel-metrics-${{{{ github.run_id }}}}-${{{{ github.run_attempt }}}}
-          path: ${{{{ runner.temp }}}}/bazel-evidence/run-metrics.json
-          if-no-files-found: ignore
-          retention-days: 35
-"""
+def test_activation_contract_requires_external_workflow_blocker(tmp_path: Path) -> None:
+    source = ROOT / "ci/common/affected_global_inputs.json"
+    payload = json.loads(source.read_text(encoding="utf-8"))
+    payload["activation"]["blockers"].remove("external_required_workflow_not_active")
+    candidate = tmp_path / "affected_global_inputs.json"
+    candidate.write_text(json.dumps(payload), encoding="utf-8")
+    assert check_affected_presubmit._activation_errors(candidate) == [
+        "[AFFECTED-GLOBAL-009] graph-native blockers are invalid"
+    ]
+
+
+def _presubmit_workflow() -> dict[str, object]:
+    return workflow_yaml.parse_workflow(ROOT / ".github/workflows/presubmit.yml")
 
 
 def test_structural_workflow_parser_accepts_governed_event_routing() -> None:
-    workflow = workflow_yaml.parse_workflow_text(_presubmit_workflow())
-    assert check_affected_presubmit._presubmit_workflow_errors(workflow) == []
+    assert check_affected_presubmit._presubmit_workflow_errors(_presubmit_workflow()) == []
 
 
 def test_workflow_comment_cannot_satisfy_governed_command() -> None:
-    workflow = workflow_yaml.parse_workflow_text(_presubmit_workflow(comment_only_contract=True))
+    workflow = _presubmit_workflow()
+    step = next(
+        item
+        for item in workflow["jobs"]["bazel"]["steps"]
+        if item.get("name") == "Run event-governed Bazel validation"
+    )
+    step["run"] = f"# {step['run']}\necho unsafe"
     assert "[AFFECTED-WORKFLOW-005] governed Bazel command is invalid" in (
         check_affected_presubmit._presubmit_workflow_errors(workflow)
     )
 
 
-def test_workflow_rejects_alternate_pull_request_mode() -> None:
-    workflow = workflow_yaml.parse_workflow_text(_presubmit_workflow(mode="full"))
+def test_workflow_rejects_alternate_selection_mode() -> None:
+    workflow = _presubmit_workflow()
+    step = next(
+        item
+        for item in workflow["jobs"]["bazel"]["steps"]
+        if item.get("name") == "Run event-governed Bazel validation"
+    )
+    step["run"] = step["run"].replace("--mode auto", "--mode affected")
     assert "[AFFECTED-WORKFLOW-005] governed Bazel command is invalid" in (
         check_affected_presubmit._presubmit_workflow_errors(workflow)
     )
@@ -171,7 +136,7 @@ def test_workflow_parser_rejects_quoted_key_alias() -> None:
 
 @pytest.mark.parametrize("scope", ["job", "governed-step"])
 def test_presubmit_rejects_expression_continue_on_error(scope: str) -> None:
-    workflow = workflow_yaml.parse_workflow_text(_presubmit_workflow())
+    workflow = _presubmit_workflow()
     job = workflow["jobs"]["bazel"]
     if scope == "job":
         job["continue-on-error"] = "${{ true }}"
@@ -186,7 +151,7 @@ def test_presubmit_rejects_expression_continue_on_error(scope: str) -> None:
 
 
 def test_presubmit_rejects_disabled_evidence_upload() -> None:
-    workflow = workflow_yaml.parse_workflow_text(_presubmit_workflow())
+    workflow = _presubmit_workflow()
     upload = next(
         item
         for item in workflow["jobs"]["bazel"]["steps"]
@@ -199,7 +164,7 @@ def test_presubmit_rejects_disabled_evidence_upload() -> None:
 
 
 def test_presubmit_rejects_governed_step_shell_override() -> None:
-    workflow = workflow_yaml.parse_workflow_text(_presubmit_workflow())
+    workflow = _presubmit_workflow()
     step = next(
         item
         for item in workflow["jobs"]["bazel"]["steps"]
@@ -213,7 +178,7 @@ def test_presubmit_rejects_governed_step_shell_override() -> None:
 
 @pytest.mark.parametrize("field", ["defaults", "env", "needs", "permissions"])
 def test_presubmit_rejects_bazel_job_control_overrides(field: str) -> None:
-    workflow = workflow_yaml.parse_workflow_text(_presubmit_workflow())
+    workflow = _presubmit_workflow()
     workflow["jobs"]["bazel"][field] = {}
     assert "[AFFECTED-WORKFLOW-004] presubmit Bazel job is invalid" in (
         check_affected_presubmit._presubmit_workflow_errors(workflow)
@@ -221,7 +186,7 @@ def test_presubmit_rejects_bazel_job_control_overrides(field: str) -> None:
 
 
 def test_presubmit_rejects_duplicate_or_disabled_checkout() -> None:
-    workflow = workflow_yaml.parse_workflow_text(_presubmit_workflow())
+    workflow = _presubmit_workflow()
     job = workflow["jobs"]["bazel"]
     checkout = next(item for item in job["steps"] if "uses" in item and "checkout@" in item["uses"])
     checkout["if"] = "${{ false }}"
@@ -235,6 +200,72 @@ def test_presubmit_rejects_duplicate_or_disabled_checkout() -> None:
     assert "[AFFECTED-WORKFLOW-004] presubmit checkout is incomplete" in (
         check_affected_presubmit._presubmit_workflow_errors(workflow)
     )
+
+
+@pytest.mark.parametrize("mutation", ["insert", "reorder", "action-sha", "duplicate-step"])
+def test_presubmit_rejects_any_step_sequence_drift(mutation: str) -> None:
+    workflow = _presubmit_workflow()
+    steps = workflow["jobs"]["bazel"]["steps"]
+    governed_index = next(
+        index
+        for index, item in enumerate(steps)
+        if item.get("name") == "Run event-governed Bazel validation"
+    )
+    if mutation == "insert":
+        steps.insert(governed_index, {"name": "Unreviewed preparation", "run": "echo unsafe"})
+    elif mutation == "reorder":
+        steps[0], steps[1] = steps[1], steps[0]
+    elif mutation == "action-sha":
+        action = next(item for item in steps if str(item.get("uses", "")).startswith("actions/"))
+        action["uses"] = "actions/checkout@0000000000000000000000000000000000000000"
+    else:
+        steps.insert(governed_index, copy.deepcopy(steps[governed_index]))
+    assert "[AFFECTED-WORKFLOW-009] presubmit Bazel steps drifted" in (
+        check_affected_presubmit._presubmit_workflow_errors(workflow)
+    )
+
+
+def test_presubmit_rejects_duplicate_or_spoofed_verdict_context() -> None:
+    workflow = _presubmit_workflow()
+    workflow["jobs"]["spoofed"] = {
+        "name": "bazel / verdict",
+        "runs-on": "ubuntu-24.04",
+        "steps": [{"run": "true"}],
+    }
+    assert "[AFFECTED-WORKFLOW-004] presubmit verdict job is ambiguous" in (
+        check_affected_presubmit._presubmit_workflow_errors(workflow)
+    )
+
+
+def test_repository_rejects_verdict_context_from_another_workflow() -> None:
+    workflows = {
+        ".github/workflows/presubmit.yml": _presubmit_workflow(),
+        ".github/workflows/nightly.yml": _nightly_workflow(),
+        ".github/workflows/spoof.yml": {
+            "jobs": {"spoof": {"name": "bazel / verdict", "steps": [{"run": "true"}]}},
+        },
+    }
+    assert check_affected_presubmit._verdict_context_errors(workflows) == [
+        "[AFFECTED-WORKFLOW-010] Bazel verdict context is ambiguous"
+    ]
+
+
+def test_repository_rejects_dynamic_job_name_that_can_spoof_verdict_context() -> None:
+    workflows = {
+        ".github/workflows/presubmit.yml": _presubmit_workflow(),
+        ".github/workflows/nightly.yml": _nightly_workflow(),
+        ".github/workflows/spoof.yml": {
+            "jobs": {
+                "spoof": {
+                    "name": "${{ format('{0} / verdict', 'bazel') }}",
+                    "steps": [{"run": "true"}],
+                }
+            },
+        },
+    }
+    assert check_affected_presubmit._verdict_context_errors(workflows) == [
+        "[AFFECTED-WORKFLOW-010] Bazel verdict context is ambiguous"
+    ]
 
 
 def test_workflow_parser_redacts_invalid_utf8(tmp_path: Path) -> None:
@@ -263,6 +294,13 @@ def test_selection_policy_behavior_rejects_mutated_resolver(
     ]
 
 
+def test_selection_policy_rejects_premature_activation(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(check_affected_presubmit.affected, "AFFECTED_PRESUBMIT_ACTIVE", True)
+    assert check_affected_presubmit._selection_policy_errors() == [
+        "[AFFECTED-WORKFLOW-008] selection event policy is invalid"
+    ]
+
+
 def test_nightly_target_contract_rejects_duplicate_keys(tmp_path: Path) -> None:
     path = tmp_path / "targets.yaml"
     path.write_text(
@@ -276,45 +314,7 @@ def test_nightly_target_contract_rejects_duplicate_keys(tmp_path: Path) -> None:
 
 
 def _nightly_workflow() -> dict[str, object]:
-    return {
-        "name": "CPU nightly",
-        "on": {
-            "schedule": [{"cron": "17 5 * * *"}],
-            "workflow_dispatch": {},
-        },
-        "permissions": {"actions": "read", "contents": "read"},
-        "concurrency": {"group": "cpu-nightly-bazel", "cancel-in-progress": False},
-        "jobs": {
-            "bazel-nightly": {
-                "name": "nightly Bazel / verdict",
-                "if": "github.ref == 'refs/heads/main'",
-                "runs-on": "ubuntu-24.04",
-                "timeout-minutes": 90,
-                "steps": [
-                    {
-                        "uses": check_affected_presubmit.CHECKOUT_ACTION,
-                        "with": {"persist-credentials": False},
-                    },
-                    {
-                        "name": "Analyze and test the complete configured graph",
-                        "env": {"BASH_ENV": ""},
-                        "run": " ".join(check_affected_presubmit.NIGHTLY_BAZEL_COMMAND),
-                    },
-                    {
-                        "name": "Upload nightly Bazel evidence",
-                        "if": "always()",
-                        "uses": check_affected_presubmit.UPLOAD_ARTIFACT_ACTION,
-                        "with": {
-                            "name": "bazel-nightly-${{ github.run_id }}-${{ github.run_attempt }}",
-                            "path": "${{ runner.temp }}/bazel-evidence/*",
-                            "if-no-files-found": "warn",
-                            "retention-days": 35,
-                        },
-                    },
-                ],
-            }
-        },
-    }
+    return workflow_yaml.parse_workflow(ROOT / ".github/workflows/nightly.yml")
 
 
 def test_nightly_workflow_contract_is_full_and_non_bypassable() -> None:
@@ -333,6 +333,42 @@ def test_nightly_rejects_expression_continue_on_error() -> None:
     assert "[AFFECTED-WORKFLOW-005] nightly Bazel command is invalid" in (
         check_affected_presubmit._nightly_workflow_errors(workflow)
     )
+
+
+@pytest.mark.parametrize("mutation", ["insert", "reorder", "action-sha", "duplicate-step"])
+def test_nightly_rejects_any_step_sequence_drift(mutation: str) -> None:
+    workflow = _nightly_workflow()
+    steps = workflow["jobs"]["bazel-nightly"]["steps"]
+    governed_index = next(
+        index
+        for index, item in enumerate(steps)
+        if item.get("name") == "Analyze and test the complete configured graph"
+    )
+    if mutation == "insert":
+        steps.insert(governed_index, {"name": "Unreviewed preparation", "run": "echo unsafe"})
+    elif mutation == "reorder":
+        steps[0], steps[1] = steps[1], steps[0]
+    elif mutation == "action-sha":
+        action = next(item for item in steps if str(item.get("uses", "")).startswith("actions/"))
+        action["uses"] = "actions/checkout@0000000000000000000000000000000000000000"
+    else:
+        steps.insert(governed_index, copy.deepcopy(steps[governed_index]))
+    assert "[AFFECTED-WORKFLOW-009] nightly Bazel steps drifted" in (
+        check_affected_presubmit._nightly_workflow_errors(workflow)
+    )
+
+
+def test_nightly_rejects_permissions_or_spoofed_verdict_context() -> None:
+    workflow = _nightly_workflow()
+    workflow["permissions"] = {"contents": "read"}
+    workflow["jobs"]["spoofed"] = {
+        "name": "nightly Bazel / verdict",
+        "runs-on": "ubuntu-24.04",
+        "steps": [{"run": "true"}],
+    }
+    errors = check_affected_presubmit._nightly_workflow_errors(workflow)
+    assert "[AFFECTED-WORKFLOW-004] nightly permissions are invalid" in errors
+    assert "[AFFECTED-WORKFLOW-004] nightly verdict job is ambiguous" in errors
 
 
 def test_pipeline_orchestration_is_exercised_behaviorally() -> None:

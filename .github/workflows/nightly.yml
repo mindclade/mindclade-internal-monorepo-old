@@ -124,6 +124,7 @@ jobs:
           --head "${GITHUB_SHA}"
           --evidence-dir "${RUNNER_TEMP}/bazel-evidence"
           --job-started-at-file "${RUNNER_TEMP}/bazel-job-started"
+          --runner-temp "${RUNNER_TEMP}"
 
       - name: Qualify the rolling affected-presubmit latency SLO
         env:

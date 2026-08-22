@@ -2,6 +2,7 @@
   "activation": {
     "blockers": [
       "bazel_version_parse_not_qualified",
+      "external_required_workflow_not_active",
       "full_graph_linux_not_qualified",
       "remote_cache_not_qualified",
       "workspace_restoration_not_hardened"

@@ -2003,13 +2003,12 @@ more complex through speculative abstractions.
 
 ### Affected-test selection
 
-Presubmit uses `ci/common/affected.py` to seed changed owning packages and asks
-Bazel's post-loading graph for their complete reverse dependencies. It writes
-separate configured-analysis and test target files; it does not parse BUILD
-syntax. CI, Starlark, toolchain, lock, protocol, architecture, component,
-maturity, deletion, rename, and unknown changes expand to `//...`. Merge-group,
-protected-main, and daily CPU-nightly events always run `//...`. Git or Bazel
-query failure is a red verdict, never an empty affected set.
+An explicit local qualification path uses `ci/common/affected.py` to seed changed
+owning packages and asks Bazel's post-loading graph for their complete reverse
+dependencies. It writes separate configured-analysis and test target files; it
+does not parse BUILD syntax. Protected pull-request, merge-group, protected-main,
+and daily CPU-nightly events remain `//...` while Phase 5 activation is blocked.
+Git or Bazel query failure is a red verdict, never an empty affected set.
 
 ### Artifact garbage collection
 

@@ -128,25 +128,24 @@ tools/dev/nixw develop .#ci-bazel --command \
 ```
 
 Every presubmit loads all BUILD files, checks the language-independent
-dependency graph, and validates the registered toolchain. Ordinary pull
-requests then use `ci/common/affected.py` to map changed files to owning-package
-seeds and ask Bazel for `rdeps(//..., seeds)`. Bazel's post-loading graph—not a
-BUILD-file regex—selects configured-analysis rules and test targets. The query
-is deliberately conservative across `select()` branches.
+dependency graph, and validates the registered toolchain. Protected pull
+requests currently retain full `//...` configured analysis and tests. An
+explicit local qualification path uses `ci/common/affected.py` to map changed
+files to owning-package seeds and ask Bazel for `rdeps(//..., seeds)`. Bazel's
+post-loading graph—not a BUILD-file regex—selects rules and tests, but this
+latency optimization remains dormant in workflows.
 
 CI, Starlark, toolchain, dependency-lock, protocol, architecture, component,
-maturity, deletion, rename, and unmapped changes expand to `//...`. Merge-group
-and protected-main events always use `//...`, so affected presubmit cannot
-allow a change to merge without a complete configured merge-result check. The
-daily CPU nightly provides an additional complete default-branch run.
+maturity, deletion, rename, and unmapped changes expand to `//...` even after
+future activation. Pull-request, merge-group, protected-main, and nightly events
+all use `//...` now, so no incomplete Phase 5 path can reach main.
 
 Analysis and test phases emit a JSON Build Event Protocol stream, compressed
 trace profile, normalized summaries, versioned selection record, exact target
-files, and run metrics retained for 35 days. Affected pull requests have a
-30-minute p95 objective after a 28-day burn-in; correctness and query failures
-remain fail-closed. Release and remote-execution claims still require their own
-platform evidence; passing this graph is not a claim about an unconfigured
-remote cluster.
+files, and run metrics retained for 35 days. The affected-pull-request 30-minute
+p95 objective starts only after activation and a 28-day burn-in; it has no live
+sample while protected pull requests remain full. Release and remote-execution
+claims still require separate platform evidence.
 
 ## Go module checksum closure
 

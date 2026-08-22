@@ -4,8 +4,9 @@
 
 `//:gazelle` owns native Go BUILD metadata and `//:gazelle_check` verifies the checkout without
 modifying it. The generator is intentionally limited to Gazelle's Go language extension; Python,
-Proto, and visibility generation remain outside its authority. Every non-empty affected test
-selection includes `//:gazelle_check`, while protected full-graph runs include it through `//...`.
+Proto, and visibility generation remain outside its authority. The affected selector never
+injects this target because comparison bases may predate its creation. Invoke it explicitly when
+qualifying Gazelle; protected full-graph runs include every target present at their revision.
 
 Run the generator only when reconciling reviewed Go source changes:
 

@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -251,7 +252,6 @@ def test_affected_selection_uses_bazel_rdeps_and_tests(tmp_path: Path) -> None:
     assert selection.seeds == ("//pkg:*",)
     assert selection.analysis_targets == ("//consumer:binary", "//pkg:library")
     assert selection.test_targets == (
-        "//:gazelle_check",
         "//consumer:library_test",
         "//pkg:library_test",
     )
@@ -347,7 +347,7 @@ def test_git_changed_is_rename_aware_and_validates_base(
             return subprocess.CompletedProcess(args, 128, b"", b"unknown revision")
         raise AssertionError(f"unexpected git command: {command}")
 
-    monkeypatch.setattr(affected, "_run_git", fake_run_git)
+    monkeypatch.setattr(affected, "run_git", fake_run_git)
     changes = affected.git_changed("base", root=tmp_path)
     assert changes == (affected.Change(status="R", path="renamed.txt", old_path="original.txt"),)
     with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-003\]"):
@@ -423,7 +423,7 @@ def test_unsafe_changed_path_is_rejected(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     "event,ref,base,expected",
     [
-        ("pull_request", "refs/pull/1/merge", "0" * 40, "affected"),
+        ("pull_request", "refs/pull/1/merge", "0" * 40, "full"),
         ("merge_group", "refs/heads/gh-readonly-queue/main/pr-1", None, "full"),
         ("push", "refs/heads/main", None, "full"),
         ("schedule", "refs/heads/main", None, "full"),
@@ -439,7 +439,7 @@ def test_protected_events_have_one_selection_mode(
 @pytest.mark.parametrize(
     "event,ref,base,alternate",
     [
-        ("pull_request", "refs/pull/1/merge", "0" * 40, "full"),
+        ("pull_request", "refs/pull/1/merge", "0" * 40, "affected"),
         ("merge_group", "refs/heads/gh-readonly-queue/main/pr-1", None, "affected"),
         ("push", "refs/heads/main", None, "affected"),
         ("schedule", "refs/heads/main", None, "affected"),
@@ -453,15 +453,13 @@ def test_protected_events_reject_alternate_selection_modes(
         affected.resolve_selection_mode(alternate, event=event, ref=ref, base_sha=base)
 
 
-def test_protected_event_rejects_wrong_ref_and_missing_base() -> None:
+def test_protected_event_rejects_wrong_ref_and_local_affected_requires_base() -> None:
     with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-009\]"):
         affected.resolve_selection_mode(
             "auto", event="push", ref="refs/heads/feature", base_sha=None
         )
     with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-011\]"):
-        affected.resolve_selection_mode(
-            "auto", event="pull_request", ref="refs/pull/1/merge", base_sha=None
-        )
+        affected.resolve_selection_mode("affected", event="local", ref=None, base_sha=None)
 
 
 def test_failure_evidence_redacts_untrusted_exception_content(tmp_path: Path) -> None:
@@ -496,11 +494,99 @@ def test_checkout_integrity_rejects_dirty_or_wrong_head(
             return subprocess.CompletedProcess(args, 0, f"{revision}\n".encode(), b"")
         return subprocess.CompletedProcess(args, 0, b" M secret.py\0", b"")
 
-    monkeypatch.setattr(affected, "_run_git", fake_run_git)
+    monkeypatch.setattr(affected, "run_git", fake_run_git)
     with pytest.raises(affected.SelectionError) as captured:
         affected.assert_clean_checkout("expected", root=tmp_path)
     assert captured.value.code == "AFFECTED-SELECT-019"
     assert "secret" not in str(captured.value)
+
+
+def _initialized_git_repo(path: Path) -> tuple[Path, str]:
+    path.mkdir()
+    for command in (
+        ["init", "--initial-branch=main"],
+        ["config", "user.email", "ci@mindclade.invalid"],
+        ["config", "user.name", "Mindclade CI"],
+    ):
+        result = affected.run_git(command, root=path)
+        assert result.returncode == 0
+    (path / "tracked.txt").write_text("trusted\n", encoding="utf-8")
+    assert affected.run_git(["add", "tracked.txt"], root=path).returncode == 0
+    assert affected.run_git(["commit", "-m", "fixture"], root=path).returncode == 0
+    return path, affected.git_revision("HEAD", root=path)
+
+
+def test_checkout_integrity_compares_head_index_and_worktree(tmp_path: Path) -> None:
+    root, head = _initialized_git_repo(tmp_path / "repo")
+    affected.assert_clean_checkout(head, root=root)
+
+    (root / "tracked.txt").write_text("worktree drift\n", encoding="utf-8")
+    with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-019\]"):
+        affected.assert_clean_checkout(head, root=root)
+
+    assert affected.run_git(["checkout", "--", "tracked.txt"], root=root).returncode == 0
+    (root / "tracked.txt").write_text("index drift\n", encoding="utf-8")
+    assert affected.run_git(["add", "tracked.txt"], root=root).returncode == 0
+    with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-019\]"):
+        affected.assert_clean_checkout(head, root=root)
+
+    assert affected.run_git(["reset", "--hard", "HEAD"], root=root).returncode == 0
+    (root / "untracked.txt").write_text("untracked\n", encoding="utf-8")
+    with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-019\]"):
+        affected.assert_clean_checkout(head, root=root)
+
+
+@pytest.mark.parametrize("flag", ["--assume-unchanged", "--skip-worktree"])
+def test_checkout_integrity_rejects_hidden_index_flags(tmp_path: Path, flag: str) -> None:
+    root, head = _initialized_git_repo(tmp_path / "repo")
+    assert affected.run_git(["update-index", flag, "tracked.txt"], root=root).returncode == 0
+    with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-019\]"):
+        affected.assert_clean_checkout(head, root=root)
+
+
+def test_git_metadata_ignores_inherited_repository_overrides(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root, head = _initialized_git_repo(tmp_path / "repo")
+    for name, value in {
+        "GIT_CONFIG_COUNT": "1",
+        "GIT_CONFIG_KEY_0": "core.bare",
+        "GIT_CONFIG_VALUE_0": "true",
+        "GIT_DIR": str(tmp_path / "spoofed-git-dir"),
+        "GIT_INDEX_FILE": str(tmp_path / "spoofed-index"),
+        "GIT_WORK_TREE": str(tmp_path / "spoofed-worktree"),
+    }.items():
+        monkeypatch.setenv(name, value)
+    affected.assert_clean_checkout(head, root=root)
+
+
+@pytest.mark.parametrize("value", [None, "git", "/tmp/missing-mindclade-git"])
+def test_trusted_git_launcher_rejects_missing_or_unpinned_paths(
+    monkeypatch: pytest.MonkeyPatch, value: str | None
+) -> None:
+    if value is None:
+        monkeypatch.delenv("MINDCLADE_GIT", raising=False)
+    else:
+        monkeypatch.setenv("MINDCLADE_GIT", value)
+    with pytest.raises(affected.SelectionError) as captured:
+        affected.trusted_git_launcher()
+    assert captured.value.code == "AFFECTED-SELECT-022"
+    assert value is None or value not in str(captured.value)
+
+
+def test_trusted_git_launcher_rejects_mutable_binary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = affected.trusted_git_launcher()
+    store = tmp_path / "nix/store"
+    mutable = store / "fixture-git/bin/git"
+    mutable.parent.mkdir(parents=True)
+    shutil.copy2(source, mutable)
+    mutable.chmod(0o755)
+    monkeypatch.setattr(affected, "NIX_STORE_ROOT", store)
+    monkeypatch.setenv("MINDCLADE_GIT", str(mutable))
+    with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-022\]"):
+        affected.trusted_git_launcher()
 
 
 @pytest.mark.parametrize(
@@ -515,7 +601,9 @@ def test_checkout_integrity_rejects_dirty_or_wrong_head(
 )
 def test_bazelrc_runtime_contract_is_exact(tmp_path: Path, event: str, upload: str) -> None:
     root = _workspace(tmp_path / "repo")
-    cache = tmp_path / "cache"
+    runner_temp = tmp_path / "runner-temp"
+    runner_temp.mkdir()
+    cache = runner_temp / "mindclade-bazel-disk-cache"
     cache.mkdir()
     lines = (
         affected.BAZELRC_FIXED_LINES[0],
@@ -524,16 +612,86 @@ def test_bazelrc_runtime_contract_is_exact(tmp_path: Path, event: str, upload: s
         *affected.BAZELRC_FIXED_LINES[1:],
     )
     (root / "user.bazelrc").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    affected.assert_bazelrc_contract(event, root=root)
+    affected.assert_bazelrc_contract(event, runner_temp, root=root)
 
     (root / "user.bazelrc").write_text(
         "\n".join((*lines, "build --nobuild secret-option")) + "\n",
         encoding="utf-8",
     )
     with pytest.raises(affected.SelectionError) as captured:
-        affected.assert_bazelrc_contract(event, root=root)
+        affected.assert_bazelrc_contract(event, runner_temp, root=root)
     assert captured.value.code == "AFFECTED-SELECT-020"
     assert "secret-option" not in str(captured.value)
+
+    other_cache = tmp_path / "other-cache"
+    other_cache.mkdir()
+    wrong_lines = (lines[0], f"build --disk_cache={other_cache}", *lines[2:])
+    (root / "user.bazelrc").write_text("\n".join(wrong_lines) + "\n", encoding="utf-8")
+    with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-020\]"):
+        affected.assert_bazelrc_contract(event, runner_temp, root=root)
+
+
+def test_job_started_epoch_is_exact_positive_integer_seconds(tmp_path: Path) -> None:
+    path = tmp_path / "bazel-job-started"
+    path.write_text("1700000000\n", encoding="utf-8")
+    assert (
+        affected.load_job_started_epoch(
+            path,
+            runner_temp=tmp_path,
+            now_epoch=1700000001,
+        )
+        == 1700000000
+    )
+
+    alternate = tmp_path / "alternate-job-started"
+    alternate.write_text("1700000000\n", encoding="utf-8")
+    with pytest.raises(affected.SelectionError) as captured:
+        affected.load_job_started_epoch(
+            alternate,
+            runner_temp=tmp_path,
+            now_epoch=1700000001,
+        )
+    assert captured.value.code == "AFFECTED-SELECT-014"
+    assert str(captured.value) == "[AFFECTED-SELECT-014] job-start timestamp is invalid"
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        "",
+        "0\n",
+        "-1\n",
+        "+1\n",
+        "01\n",
+        "1.0\n",
+        "1e3\n",
+        "nan\n",
+        "inf\n",
+        " 1\n",
+        "1 \n",
+        "1\n\n",
+        "1700000002\n",
+    ],
+)
+def test_job_started_epoch_rejects_noncanonical_or_future_values(
+    tmp_path: Path, payload: str
+) -> None:
+    path = tmp_path / "job-started"
+    path.write_text(payload, encoding="utf-8")
+    with pytest.raises(affected.SelectionError) as captured:
+        affected.load_job_started_epoch(path, now_epoch=1700000001)
+    assert captured.value.code == "AFFECTED-SELECT-014"
+    assert str(captured.value) == "[AFFECTED-SELECT-014] job-start timestamp is invalid"
+
+
+def test_job_started_epoch_redacts_read_and_unicode_errors(tmp_path: Path) -> None:
+    for path in (tmp_path / "missing", tmp_path / "invalid"):
+        if path.name == "invalid":
+            path.write_bytes(b"\xffsecret-timestamp")
+        with pytest.raises(affected.SelectionError) as captured:
+            affected.load_job_started_epoch(path, now_epoch=1700000001)
+        assert captured.value.code == "AFFECTED-SELECT-014"
+        assert "secret-timestamp" not in str(captured.value)
 
 
 def test_execution_oserror_is_redacted_and_evidenced(

@@ -40,11 +40,8 @@ jobs:
   # The repository's own architecture invariants — dependency budgets and layering, Go module
   # and admission rules, Rust workspace shape, Cargo/Bazel dep parity, component maturity.
   #
-  # tools/analysis/check_affected_presubmit.py asserts this job exists and that the checkout is
-  # unshallow, because ci/presubmit/pipeline.py derives the affected target set from git history.
-  #
   # `--static-only` stops after the architecture checks. The Bazel job invokes the same pipeline's
-  # evidence-producing affected path inside the pinned Bazel/Nix environment.
+  # evidence-producing full path while affected-mode activation remains blocked.
   architecture:
     name: architecture
     runs-on: ubuntu-24.04
@@ -52,8 +49,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          # Full history. affected.git_changed() diffs against a base ref; a shallow clone makes
-          # that diff either empty or an error, and an empty diff silently selects no targets.
+          # Retain full history so the dormant selector's behavioral qualification can compare
+          # revisions without changing the live full-graph event policy.
           fetch-depth: 0
           persist-credentials: false
 
@@ -404,8 +401,8 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          # Affected mode validates and diffs the exact pull-request base. Missing history is a
-          # hard selector error, never an empty target set.
+          # Full history is retained for the real-graph affected fixture and future activation;
+          # the event policy below still resolves every protected event to full mode.
           fetch-depth: 0
           persist-credentials: false
 
@@ -529,8 +526,8 @@ jobs:
         env:
           BASH_ENV: ""
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        # Event-to-mode routing lives in the tested Python state machine. Passing the pull-request
-        # base unconditionally is safe: non-PR events receive an empty value and are forced to full.
+        # Event-to-mode routing lives in the tested Python state machine. The pull-request base is
+        # retained for future activation, but every protected event currently resolves to full.
         run: >-
           /nix/var/nix/profiles/default/bin/nix develop .#ci-bazel
           --command python3 -I ci/presubmit/pipeline.py
@@ -542,6 +539,7 @@ jobs:
           --head "${GITHUB_SHA}"
           --evidence-dir "${RUNNER_TEMP}/bazel-evidence"
           --job-started-at-file "${RUNNER_TEMP}/bazel-job-started"
+          --runner-temp "${RUNNER_TEMP}"
 
       - name: Measure bounded Bazel persistent action cache
         id: bazel-cache-size

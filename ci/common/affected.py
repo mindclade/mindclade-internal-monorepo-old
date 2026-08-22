@@ -32,7 +32,9 @@ ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_VERSION = 1
 FULL_TARGET = "//..."
 LATENCY_SLO_SECONDS = 30 * 60
+AFFECTED_PRESUBMIT_ACTIVE = False
 GLOBAL_INPUT_CONTRACT_PATH = ROOT / "ci/common/affected_global_inputs.json"
+NIX_STORE_ROOT = Path("/nix/store")
 STRUCTURAL_STATUSES = frozenset({"C", "D", "R", "T", "U", "X", "B"})
 VALID_CHANGE_STATUSES = STRUCTURAL_STATUSES | {"A", "M"}
 PACKAGE_BOUNDARY_FILES = frozenset({"BUILD", "BUILD.bazel"})
@@ -102,7 +104,7 @@ def resolve_selection_mode(
 
     expected_mode: str | None
     if event == "pull_request":
-        expected_mode = "affected"
+        expected_mode = "affected" if AFFECTED_PRESUBMIT_ACTIVE else "full"
     elif event == "merge_group":
         expected_mode = "full"
     elif event in {"push", "schedule", "workflow_dispatch"}:
@@ -229,15 +231,70 @@ def rust_qualification_required(changed: Iterable[Change | str]) -> bool:
     )
 
 
-def _run_git(args: Sequence[str], *, root: Path = ROOT) -> subprocess.CompletedProcess[bytes]:
+def trusted_git_launcher() -> Path:
+    """Return the read-only Nix-store Git selected by the CI shell."""
+
+    value = os.environ.get("MINDCLADE_GIT", "")
+    launcher = Path(value)
     try:
-        return subprocess.run(["git", *args], cwd=root, check=False, capture_output=True)
-    except OSError as error:
+        relative = launcher.relative_to(NIX_STORE_ROOT)
+        if (
+            not value
+            or not launcher.is_absolute()
+            or ".." in launcher.parts
+            or len(relative.parts) < 2
+            or launcher.resolve(strict=True) != launcher
+            or not launcher.is_file()
+            or not launcher.stat().st_mode & 0o111
+        ):
+            raise OSError("invalid launcher")
+        current = NIX_STORE_ROOT / relative.parts[0]
+        for part in relative.parts[1:]:
+            if current.is_symlink() or current.stat().st_mode & 0o222:
+                raise OSError("mutable launcher")
+            current /= part
+        if current.is_symlink() or current.stat().st_mode & 0o222:
+            raise OSError("mutable launcher")
+    except (OSError, RuntimeError, ValueError) as error:
+        raise SelectionError("AFFECTED-SELECT-022", "trusted Git launcher is invalid") from error
+    return launcher
+
+
+def _git_environment() -> dict[str, str]:
+    return {
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_NO_REPLACE_OBJECTS": "1",
+        "GIT_OPTIONAL_LOCKS": "0",
+        "GIT_TERMINAL_PROMPT": "0",
+        "LANG": "C",
+        "LC_ALL": "C",
+    }
+
+
+def run_git(args: Sequence[str], *, root: Path = ROOT) -> subprocess.CompletedProcess[bytes]:
+    launcher = trusted_git_launcher()
+    try:
+        return subprocess.run(
+            [
+                str(launcher),
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "core.untrackedCache=false",
+                *args,
+            ],
+            cwd=root,
+            env=_git_environment(),
+            check=False,
+            capture_output=True,
+        )
+    except (OSError, ValueError) as error:
         raise SelectionError("AFFECTED-SELECT-003", "Git metadata is unavailable") from error
 
 
 def git_revision(revision: str, *, root: Path = ROOT) -> str:
-    result = _run_git(["rev-parse", "--verify", f"{revision}^{{commit}}"], root=root)
+    result = run_git(["rev-parse", "--verify", f"{revision}^{{commit}}"], root=root)
     if result.returncode:
         raise SelectionError("AFFECTED-SELECT-003", "Git revision is unavailable")
     try:
@@ -251,16 +308,64 @@ def assert_clean_checkout(expected_head: str, *, root: Path = ROOT) -> None:
 
     if git_revision("HEAD", root=root) != git_revision(expected_head, root=root):
         raise SelectionError("AFFECTED-SELECT-019", "checkout integrity validation failed")
-    status = _run_git(
-        ["status", "--porcelain=v1", "-z", "--untracked-files=all"],
-        root=root,
-    )
-    if status.returncode or status.stdout:
+    flags = run_git(["ls-files", "-v", "-z"], root=root)
+    if flags.returncode:
         raise SelectionError("AFFECTED-SELECT-019", "checkout integrity validation failed")
+    for entry in (field for field in flags.stdout.split(b"\0") if field):
+        if len(entry) < 3 or entry[1:2] != b" ":
+            raise SelectionError("AFFECTED-SELECT-019", "checkout integrity validation failed")
+        tag = entry[:1]
+        if tag == b"S" or b"a" <= tag <= b"z":
+            raise SelectionError("AFFECTED-SELECT-019", "checkout integrity validation failed")
+    comparisons = (
+        ["diff-index", "--cached", "--quiet", "--ignore-submodules=none", "HEAD", "--"],
+        ["diff-files", "--quiet", "--ignore-submodules=none", "--"],
+        ["ls-files", "--others", "--exclude-standard", "-z"],
+    )
+    for command in comparisons:
+        result = run_git(command, root=root)
+        if result.returncode or result.stdout:
+            raise SelectionError("AFFECTED-SELECT-019", "checkout integrity validation failed")
 
 
-def assert_bazelrc_contract(event: str, *, root: Path = ROOT) -> None:
-    """Reject ignored Bazel options outside the bounded CI cache contract."""
+def load_job_started_epoch(
+    path: Path,
+    *,
+    runner_temp: Path | None = None,
+    now_epoch: int | None = None,
+) -> int:
+    """Load an exact, non-future Unix-seconds timestamp without float coercion."""
+
+    if runner_temp is not None and path != runner_temp / "bazel-job-started":
+        raise SelectionError("AFFECTED-SELECT-014", "job-start timestamp is invalid")
+    try:
+        payload = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as error:
+        raise SelectionError("AFFECTED-SELECT-014", "job-start timestamp is invalid") from error
+    if payload.endswith("\n"):
+        payload = payload[:-1]
+    if (
+        not payload
+        or any(character < "0" or character > "9" for character in payload)
+        or (len(payload) > 1 and payload.startswith("0"))
+    ):
+        raise SelectionError("AFFECTED-SELECT-014", "job-start timestamp is invalid")
+    try:
+        epoch = int(payload)
+    except ValueError as error:
+        raise SelectionError("AFFECTED-SELECT-014", "job-start timestamp is invalid") from error
+    current = int(time.time()) if now_epoch is None else now_epoch
+    if type(current) is not int or epoch <= 0 or current <= 0 or epoch > current:
+        raise SelectionError("AFFECTED-SELECT-014", "job-start timestamp is invalid")
+    return epoch
+
+
+def assert_bazelrc_contract(event: str, runner_temp: Path, *, root: Path = ROOT) -> None:
+    """Reject ignored Bazel options outside the exact bounded CI cache contract."""
+
+    expected_cache = runner_temp / "mindclade-bazel-disk-cache"
+    if not runner_temp.is_absolute() or runner_temp.is_symlink():
+        raise SelectionError("AFFECTED-SELECT-020", "Bazel runtime contract is invalid")
 
     path = root / "user.bazelrc"
     try:
@@ -286,19 +391,22 @@ def assert_bazelrc_contract(event: str, *, root: Path = ROOT) -> None:
     cache_value = lines[1][len(disk_prefix) :]
     cache_path = Path(cache_value)
     if (
-        not cache_value
-        or any(character.isspace() for character in cache_value)
+        cache_value != str(expected_cache)
         or not cache_path.is_absolute()
         or cache_path.is_symlink()
     ):
         raise SelectionError("AFFECTED-SELECT-020", "Bazel runtime contract is invalid")
     try:
-        cache_path.resolve(strict=True).relative_to(root.resolve(strict=True))
-    except ValueError:
-        pass
-    except OSError as error:
+        resolved_cache = cache_path.resolve(strict=True)
+        resolved_runner_temp = runner_temp.resolve(strict=True)
+        resolved_root = root.resolve(strict=True)
+    except (OSError, RuntimeError) as error:
         raise SelectionError("AFFECTED-SELECT-020", "Bazel runtime contract is invalid") from error
-    else:
+    if (
+        resolved_runner_temp != runner_temp
+        or resolved_cache != resolved_runner_temp / "mindclade-bazel-disk-cache"
+        or resolved_cache.is_relative_to(resolved_root)
+    ):
         raise SelectionError("AFFECTED-SELECT-020", "Bazel runtime contract is invalid")
 
     expected_lines = (
@@ -316,12 +424,12 @@ def git_changed(base: str, *, root: Path = ROOT) -> tuple[Change, ...]:
 
     base_sha = git_revision(base, root=root)
     head_sha = git_revision("HEAD", root=root)
-    ancestor = _run_git(["merge-base", "--is-ancestor", base_sha, head_sha], root=root)
+    ancestor = run_git(["merge-base", "--is-ancestor", base_sha, head_sha], root=root)
     if ancestor.returncode:
         raise SelectionError(
             "AFFECTED-SELECT-004", "base revision is not an ancestor of the selected head"
         )
-    result = _run_git(
+    result = run_git(
         ["diff", "--name-status", "-z", "--find-renames", f"{base_sha}...{head_sha}"],
         root=root,
     )
@@ -531,7 +639,7 @@ def select(
     test_expression = _query_expression(ordered_seeds, tests=True)
     run_query = query or (lambda expression: bazel_query(expression, root=root))
     analysis_targets = tuple(sorted(set(run_query(analysis_expression))))
-    test_targets = tuple(sorted(set(run_query(test_expression)) | {"//:gazelle_check"}))
+    test_targets = tuple(sorted(set(run_query(test_expression))))
     return Selection(
         mode="affected",
         reason="bazel_reverse_dependencies",
@@ -700,7 +808,7 @@ def _execute_selection(
     selection: Selection,
     evidence_dir: Path,
     *,
-    job_started_epoch: float | None = None,
+    job_started_epoch: int | None = None,
     root: Path = ROOT,
 ) -> int:
     directory = _safe_evidence_dir(evidence_dir, root=root)
@@ -762,7 +870,7 @@ def execute_selection(
     selection: Selection,
     evidence_dir: Path,
     *,
-    job_started_epoch: float | None = None,
+    job_started_epoch: int | None = None,
     root: Path = ROOT,
 ) -> int:
     """Execute a selection behind a stable, redacted infrastructure-error boundary."""

@@ -2,11 +2,11 @@
 
 ## Objective
 
-After a 28-day burn-in, 95% of ordinary pull-request runs whose effective
-selection mode remains `affected` complete the `bazel / verdict` job within 30
-minutes. Global-fallback, merge-group, protected-main, and nightly full runs are
-excluded from this latency percentile and retain hard ceilings of 75, 75, and
-90 minutes as applicable.
+After future activation and a 28-day burn-in, 95% of pull-request runs whose
+effective selection mode is `affected` must complete the `bazel / verdict` job
+within 30 minutes. The objective is dormant while pull requests remain full
+graph. Global-fallback, merge-group, protected-main, and nightly full runs are
+excluded from this latency percentile.
 
 ## Correctness
 

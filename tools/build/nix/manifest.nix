@@ -75,6 +75,7 @@ let
     actionlint = pkgs.actionlint.version;
     cargo-deny = pkgs.cargo-deny.version;
     conftest = pkgs.conftest.version;
+    git = pkgs.git.version;
     helm = pkgs.kubernetes-helm.version;
     kubeconform = pkgs.kubeconform.version;
     kustomize = pkgs.kustomize.version;

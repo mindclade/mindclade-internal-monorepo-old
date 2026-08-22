@@ -13,11 +13,16 @@ releases also carry immutable release manifests and evidence bundles.
 - added immutable minimum anchors, structural YAML/event-policy checks, and redacted error codes
   that reject weakened review boundaries or alternate protected-gate modes;
 - expanded full-graph fallback to omitted Bazel, Nix, Python, Rust, launcher, and package-boundary
-  inputs; and
+  inputs;
+- pinned Git to the read-only Nix closure, reject hidden index flags and host Git overrides,
+  bind the disk cache to exact runner temporary storage, and validate canonical start epochs;
+- digest-pinned each parsed Bazel workflow step in order and reject extra, reordered, duplicated,
+  repinned, or spoofed verdict paths; and
 - recorded the checksum-pinned target-determinator candidate plus the measured blockers that keep
   graph-native pull-request selection dormant.
 
-Merge groups and nightly runs retain full `//...` execution. No graph-native selector, cache,
+Pull requests, merge groups, main pushes, and nightly runs retain full `//...` execution. No
+affected workflow selector, authenticated remote cache,
 workflow gate, release, or deployment is activated by this source change.
 Artifact-plan Phase 5 remains incomplete pending the retained evidence above and activation of
 the pinned organization required workflow outside the pull request's mutable trust boundary.

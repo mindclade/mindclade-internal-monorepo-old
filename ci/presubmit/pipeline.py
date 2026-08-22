@@ -25,17 +25,6 @@ def run(command: list[str]) -> int:
     return subprocess.call(command, cwd=REPO)
 
 
-def _job_started_epoch(path: Path | None) -> float | None:
-    if path is None:
-        return None
-    try:
-        return float(path.read_text(encoding="utf-8").strip())
-    except (OSError, ValueError) as error:
-        raise affected.SelectionError(
-            "AFFECTED-SELECT-014", "job-start timestamp is invalid"
-        ) from error
-
-
 def main() -> int:
     parser = argparse.ArgumentParser()
     phase = parser.add_mutually_exclusive_group()
@@ -48,6 +37,7 @@ def main() -> int:
     parser.add_argument("--head", default=os.environ.get("GITHUB_SHA"))
     parser.add_argument("--evidence-dir", type=Path)
     parser.add_argument("--job-started-at-file", type=Path)
+    parser.add_argument("--runner-temp", type=Path)
     args = parser.parse_args()
 
     if not args.bazel_only and run(
@@ -60,6 +50,7 @@ def main() -> int:
     evidence_dir = args.evidence_dir or Path(tempfile.mkdtemp(prefix="mindclade-bazel-"))
     base_sha: str | None = None
     resolved_mode = args.mode
+    job_started_epoch: int | None = None
     try:
         resolved_mode = affected.resolve_selection_mode(
             args.mode,
@@ -72,8 +63,22 @@ def main() -> int:
                 raise affected.SelectionError(
                     "AFFECTED-SELECT-019", "checkout integrity validation failed"
                 )
+            if args.runner_temp is None:
+                raise affected.SelectionError(
+                    "AFFECTED-SELECT-020", "Bazel runtime contract is invalid"
+                )
+            if args.job_started_at_file is None:
+                raise affected.SelectionError(
+                    "AFFECTED-SELECT-014", "job-start timestamp is invalid"
+                )
             affected.assert_clean_checkout(args.head)
-            affected.assert_bazelrc_contract(args.event)
+            affected.assert_bazelrc_contract(args.event, args.runner_temp)
+            job_started_epoch = affected.load_job_started_epoch(
+                args.job_started_at_file,
+                runner_temp=args.runner_temp,
+            )
+        elif args.job_started_at_file is not None:
+            job_started_epoch = affected.load_job_started_epoch(args.job_started_at_file)
         if resolved_mode == "affected":
             if not args.base:
                 raise affected.SelectionError(
@@ -112,7 +117,7 @@ def main() -> int:
         return affected.execute_selection(
             selection,
             evidence_dir,
-            job_started_epoch=_job_started_epoch(args.job_started_at_file),
+            job_started_epoch=job_started_epoch,
         )
     except affected.SelectionError as error:
         print(f"affected Bazel selection failed: {error}", file=sys.stderr)

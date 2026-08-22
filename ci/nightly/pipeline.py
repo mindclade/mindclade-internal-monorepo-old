@@ -97,22 +97,12 @@ def load_contract(path: Path) -> NightlyContract:
         ) from error
 
 
-def _job_started_epoch(path: Path | None) -> float | None:
-    if path is None:
-        return None
-    try:
-        return float(path.read_text(encoding="utf-8").strip())
-    except (OSError, ValueError) as error:
-        raise affected.SelectionError(
-            "AFFECTED-SELECT-014", "job-start timestamp is invalid"
-        ) from error
-
-
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--targets", type=Path, default=Path(__file__).with_name("targets.yaml"))
     parser.add_argument("--evidence-dir", type=Path)
     parser.add_argument("--job-started-at-file", type=Path)
+    parser.add_argument("--runner-temp", type=Path)
     parser.add_argument("--event", default=os.environ.get("GITHUB_EVENT_NAME", "schedule"))
     parser.add_argument("--ref", default=os.environ.get("GITHUB_REF"))
     parser.add_argument("--head", default=os.environ.get("GITHUB_SHA"))
@@ -130,8 +120,14 @@ def main() -> int:
             raise affected.SelectionError(
                 "AFFECTED-SELECT-019", "checkout integrity validation failed"
             )
+        if args.runner_temp is None:
+            raise affected.SelectionError(
+                "AFFECTED-SELECT-020", "Bazel runtime contract is invalid"
+            )
+        if args.job_started_at_file is None:
+            raise affected.SelectionError("AFFECTED-SELECT-014", "job-start timestamp is invalid")
         affected.assert_clean_checkout(args.head)
-        affected.assert_bazelrc_contract(args.event)
+        affected.assert_bazelrc_contract(args.event, args.runner_temp)
         selection = affected.select([], mode=mode, event=args.event)
         if selection.analysis_targets != contract.analysis_targets:
             raise affected.SelectionError(
@@ -144,7 +140,10 @@ def main() -> int:
         return affected.execute_selection(
             selection,
             evidence_dir,
-            job_started_epoch=_job_started_epoch(args.job_started_at_file),
+            job_started_epoch=affected.load_job_started_epoch(
+                args.job_started_at_file,
+                runner_temp=args.runner_temp,
+            ),
         )
     except affected.SelectionError as error:
         print(f"nightly Bazel qualification failed: {error}", file=sys.stderr)
