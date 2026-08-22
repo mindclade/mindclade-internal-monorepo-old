@@ -109,7 +109,7 @@ func (service PolicyService) ApplyEntitlement(ctx context.Context, spec Entitlem
 	}
 
 	generation := uint64(1)
-	id := identifiers.ID{}
+	var id identifiers.ID
 	if exists {
 		if current.PolicyEpoch == math.MaxUint64 {
 			return Entitlement{}, false, unavailable("policy_epoch_exhausted", "entitlement policy epoch is exhausted", nil)
@@ -170,7 +170,7 @@ func (service PolicyService) ApplyBudget(ctx context.Context, spec BudgetSpec, p
 
 	now := service.now()
 	generation := uint64(1)
-	id := identifiers.ID{}
+	var id identifiers.ID
 	if exists {
 		generation = current.Version.Generation() + 1
 		if generation == 0 {

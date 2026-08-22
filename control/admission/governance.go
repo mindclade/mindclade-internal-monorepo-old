@@ -537,7 +537,7 @@ func (service GovernanceService) Approve(ctx context.Context, approver auth.Prin
 	if exists && current.Version != proposal.BaseVersion || !exists && !proposal.BaseVersion.IsZero() {
 		return WorkspacePolicyBundle{}, PolicyApprovalReceipt{}, conflict("policy_proposal_base_stale", "policy proposal base bundle is stale")
 	}
-	bundleID := identifiers.ID{}
+	var bundleID identifiers.ID
 	generation := uint64(1)
 	if exists {
 		bundleID = current.ID

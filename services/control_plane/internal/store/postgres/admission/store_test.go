@@ -875,6 +875,41 @@ func TestFinalizationUsesStoreClockInsteadOfCallerTimestamp(t *testing.T) {
 	}
 }
 
+func TestDispatchPersistsNullFinalizedAt(t *testing.T) {
+	fixture := newDomainFixture(t)
+	document, err := json.Marshal(fixture.reservation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sawUpdate bool
+	state := &sqltest.State{
+		Query: func(context.Context, string, []driver.NamedValue) (driver.Rows, error) {
+			return sqltest.NewRows([]string{"document"}, []driver.Value{document}), nil
+		},
+		Exec: func(_ context.Context, query string, arguments []driver.NamedValue) (driver.Result, error) {
+			if !strings.Contains(query, "UPDATE "+DefaultReservationTable) {
+				t.Fatalf("unexpected dispatch mutation: %s", query)
+			}
+			sawUpdate = true
+			if arguments[6].Value != nil {
+				t.Fatalf("dispatched finalized_at argument = %v (%T), want NULL", arguments[6].Value, arguments[6].Value)
+			}
+			return driver.RowsAffected(1), nil
+		},
+	}
+	store, _ := newTestStore(t, state, fixture.clock, audit.NopRecorder{})
+	dispatched, replayed, err := store.Dispatch(
+		context.Background(), fixture.reservation.ID, fixture.reservation.Version,
+		fixture.reservation.RequestDigest, fixture.reservation.Subject, testNow,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if replayed || dispatched.State != admission.ReservationDispatched || !dispatched.FinalizedAt.IsZero() || !sawUpdate {
+		t.Fatalf("replayed=%t dispatched=%+v saw_update=%t", replayed, dispatched, sawUpdate)
+	}
+}
+
 func TestFinalizationSamplesStoreClockAfterRowLock(t *testing.T) {
 	for _, test := range []struct {
 		name     string
