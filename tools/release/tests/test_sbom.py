@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 
 import pytest
-from sbom import LICENSE_ID, PACKAGE_ID, SbomError, enrich_document, validate_document
+from tools.release.sbom import LICENSE_ID, PACKAGE_ID, SbomError, enrich_document, validate_document
 
 ROOT = Path(__file__).resolve().parents[3]
 LICENSE_TEXT = (ROOT / "LICENSE").read_text(encoding="utf-8")
