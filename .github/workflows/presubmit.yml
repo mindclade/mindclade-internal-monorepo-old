@@ -407,7 +407,11 @@ jobs:
       - name: Prepare GitHub-hosted runner disk for Nix
         run: ci/common/prepare_nix_runner.sh
 
-      # Provides Bazel disk/repository cache integration. The launcher itself comes from
+      # Provides Bazel launcher/repository cache integration. Do not enable setup-bazel's local
+      # action-output disk cache here: the complete output tree already lives in Bazel's output
+      # base, and retaining a second copy exhausted the hosted runner during the full test phase.
+      # The repository cache keeps immutable source archives without duplicating compiled outputs.
+      # The launcher itself comes from
       # .#ci-bazel as pkgs.bazel_9 and is verified against .bazelversion by tools/dev/bazelw;
       # the action-installed Bazelisk is a compatibility fallback, not toolchain authority.
       #
@@ -418,7 +422,6 @@ jobs:
       - uses: bazel-contrib/setup-bazel@4fd964a13a440a8aeb0be47350db2fc640f19ca8  # v0.15.0
         with:
           bazelisk-cache: true
-          disk-cache: ${{ github.workflow }}
           repository-cache: true
 
       # buildifier comes from the flake, like every other linter in this repository, so the
