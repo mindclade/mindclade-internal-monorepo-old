@@ -9,7 +9,7 @@ activation:
   releaseEvidenceDigest: sha256:1111111111111111111111111111111111111111111111111111111111111111
 image:
   repository: us-docker.pkg.dev/mc-development-research/mindclade/mlflow-server
-  digest: sha256:da91d1acf3348629130521dcad2eecaad0e56ca9d901ab49c3324c6d563ca4c1
+  digest: sha256:472e9b5f1ce33d934b638dd441ac75aa894ea329e1e2e60178e3cdcdecdfbfa5
 server:
   allowedHosts:
     - mlflow.development.internal.mindclade.dev
