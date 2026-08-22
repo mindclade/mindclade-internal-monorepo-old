@@ -6,11 +6,30 @@
 
 # Models
 
-> **Maturity:** Scaffolded; no production model capability is claimed here.
+> **Maturity:** Scaffolded overall, with implemented and locally tested
+> PyTorch leaves; no production model capability is claimed here.
 > **Primary implementation:** Python and PyTorch.
 
 `models/` reserves the contracts and reusable implementation boundaries for
 model families, components, adapters, references, and registry metadata.
+
+## Implemented, unqualified leaves
+
+- Dense multi-head scaled-dot-product attention, boolean allowed masks,
+  rotary embeddings, and an injectable attention-operator boundary.
+- RMSNorm, LayerNorm, SwiGLU, feed-forward, and residual components with
+  explicit shape, dtype, and finite-parameter validation.
+- A deterministic decoder-only LLM reference stack with pre-normalization,
+  causal RoPE attention, SwiGLU blocks, tied embeddings, and stable outputs.
+- A bounded `torch.export` package format with exact tensor contracts,
+  content digests, non-overwriting atomic publication, trusted-digest loading,
+  and fresh-module eager/export parity checks.
+
+These are reusable reference and integration slices, not a claim that every
+model family or adapter is implemented. Generation/cache semantics,
+checkpoint migration, training systems, ONNX/AOTInductor export, distributed
+execution, quantization, serving integration, and accelerator qualification
+remain outside the implemented boundary.
 
 ## What's here
 

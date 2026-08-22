@@ -3649,6 +3649,15 @@
             "sha256:4be8488ef61f0545236d900f8dccad4829ccd19b0509813a6eb7045250d233fa"
           ]
         },
+        "ring_only": {
+          "default": false,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "bool",
+          "validation_fingerprints": []
+        },
         "signing_keys": {
           "default": {},
           "ephemeral": false,
@@ -3659,7 +3668,7 @@
           "validation_fingerprints": [
             "sha256:3119af8449ecf2e5998ac85575d6180f9a2135d118f34330e17ce64d53a30fc4",
             "sha256:3ecfaefdaba2b24b719174f2cc18324b59d2c46d1764d21f58ba27e51374c47e",
-            "sha256:9710085b35e58fefc6cad98ba6450a97b9c174b1251df04de4cbf62ad7366d87"
+            "sha256:7f11709d365cbd945cd9a372c76d17509d99cd49601db4c4b9c21906fabe0080"
           ]
         }
       },
@@ -3696,6 +3705,11 @@
           "ephemeral": false,
           "sensitive": false,
           "value_fingerprint": "sha256:de7bd10191c1b442bbaec6d7975570bf56ce84605eaf36d730c72a799c6c237f"
+        },
+        "ring_only": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:7ddfe16afca81f27986e1d30ebb0fa80f4db049595c6f786c6408e27e7bcd89d"
         },
         "signing_key_ids": {
           "ephemeral": false,

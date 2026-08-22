@@ -16,7 +16,8 @@ from kernels.ops.fused.validation import validate_binary, validate_triangle
 
 def swiglu_reference(gate: torch.Tensor, up: torch.Tensor) -> torch.Tensor:
     validate_binary(gate, up, "SwiGLU")
-    result = torch.nn.functional.silu(gate.float()) * up.float()
+    compute_dtype = torch.float64 if gate.dtype is torch.float64 else torch.float32
+    result = torch.nn.functional.silu(gate.to(compute_dtype)) * up.to(compute_dtype)
     return result.to(gate.dtype)
 
 

@@ -151,6 +151,46 @@ owner = "modeling"
 tests = ["models/reference/tests/test_reference.py"]
 
 [[component]]
+name = "models.export"
+path = "models/adapters/export"
+status = "implemented"
+owner = "modeling"
+tests = ["models/adapters/export/tests/test_export.py"]
+qualification = "QUALIFICATION.md"
+
+[[component]]
+name = "models.attention"
+path = "models/components/attention"
+status = "implemented"
+owner = "modeling"
+tests = ["models/components/attention/tests/test_attention.py"]
+qualification = "QUALIFICATION.md"
+
+[[component]]
+name = "models.nn"
+path = "models/components/nn"
+status = "implemented"
+owner = "modeling"
+tests = ["models/components/nn/tests/test_nn.py"]
+qualification = "QUALIFICATION.md"
+
+[[component]]
+name = "models.normalization"
+path = "models/components/normalization"
+status = "implemented"
+owner = "modeling"
+tests = ["models/components/normalization/tests/test_normalization.py"]
+qualification = "QUALIFICATION.md"
+
+[[component]]
+name = "models.llm_reference"
+path = "models/families/llm"
+status = "implemented"
+owner = "modeling"
+tests = ["models/families/llm/tests/test_llm.py"]
+qualification = "QUALIFICATION.md"
+
+[[component]]
 name = "training"
 path = "training"
 status = "scaffolded"

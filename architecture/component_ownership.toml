@@ -158,6 +158,36 @@ criticality = "tier-2"
 language = "python"
 security_review = false
 
+[component."models.export"]
+owner = "modeling"
+criticality = "tier-2"
+language = "python"
+security_review = true
+
+[component."models.attention"]
+owner = "modeling"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
+[component."models.nn"]
+owner = "modeling"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
+[component."models.normalization"]
+owner = "modeling"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
+[component."models.llm_reference"]
+owner = "modeling"
+criticality = "tier-2"
+language = "python"
+security_review = false
+
 [component."training"]
 owner = "training-platform"
 criticality = "tier-2"

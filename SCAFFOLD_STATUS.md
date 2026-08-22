@@ -30,6 +30,9 @@ empty target-state placeholders:
   network/provider qualification;
 - deterministic Python configuration resolution and preprocessing
   contract/DAG/cache/provenance foundations;
+- package-tested PyTorch attention, normalization, neural-network primitives,
+  decoder-only LLM reference, and trusted-digest export leaves, without
+  accelerator, serving, or production qualification claims;
 - runtime/artifact/reference/evidence protocol contracts and cross-language
   fixtures;
 - the public OpenAPI projection, generated TypeScript SDK and protobuf bindings,

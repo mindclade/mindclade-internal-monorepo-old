@@ -116,7 +116,10 @@ import pytest
 # LOWERED 155 -> 153 by replacing the connected-H100 TileLang numerical and performance
 # placeholders with deterministic CPU contract coverage and fail-closed accelerator gates.
 # The GPU cases skip honestly unless the explicit cuda/sm_90 qualification contract is set.
-SCAFFOLD_BASELINE = 153
+# LOWERED 153 -> 148 by replacing the export, attention, neural-network primitive,
+# normalization, and decoder-only LLM placeholders with package-level behavioral,
+# numerical, state, failure, and artifact-integrity coverage.
+SCAFFOLD_BASELINE = 148
 
 # Gitignored tool directories. Every entry is something that can hold a copy of the tree
 # without being part of it, which this scan would otherwise count.

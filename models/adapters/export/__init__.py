@@ -3,4 +3,37 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Mindclade scaffold package for models/adapters/export."""
+"""Verified local PyTorch export bundles and parity validation."""
+
+from models.adapters.export.torch_export import (
+    EXPORT_FORMAT,
+    EXPORT_MANIFEST_FILENAME,
+    EXPORT_MANIFEST_SCHEMA_VERSION,
+    EXPORT_USAGE,
+    EXPORTED_PROGRAM_FILENAME,
+    MAXIMUM_EXPORTED_PROGRAM_BYTES,
+    DynamicDimension,
+    ExportManifest,
+    LoadedExportBundle,
+    TensorInputContract,
+    export_bundle,
+    load_export_bundle,
+)
+from models.adapters.export.validation import ParityReport, validate_export_parity
+
+__all__ = [
+    "EXPORTED_PROGRAM_FILENAME",
+    "EXPORT_FORMAT",
+    "EXPORT_MANIFEST_FILENAME",
+    "EXPORT_MANIFEST_SCHEMA_VERSION",
+    "EXPORT_USAGE",
+    "MAXIMUM_EXPORTED_PROGRAM_BYTES",
+    "DynamicDimension",
+    "ExportManifest",
+    "LoadedExportBundle",
+    "ParityReport",
+    "TensorInputContract",
+    "export_bundle",
+    "load_export_bundle",
+    "validate_export_parity",
+]

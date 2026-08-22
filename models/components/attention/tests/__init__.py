@@ -3,4 +3,4 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Mindclade scaffold package for models/components/attention/tests."""
+"""Tests for dense attention operators and rotary embeddings."""
