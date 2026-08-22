@@ -1,0 +1,32 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+package(default_visibility = ["//visibility:private"])
+
+go_library(
+    name = "release_hardware_qualification_lib",
+    srcs = ["main.go"],
+    importpath = "go.mindclade.dev/tools/qualification/gke/cmd/release_hardware_qualification",
+    deps = ["//tools/qualification/gke/probe"],
+)
+
+go_binary(
+    name = "release_hardware_qualification",
+    embed = [":release_hardware_qualification_lib"],
+)
+
+go_binary(
+    name = "release_hardware_qualification_linux_amd64",
+    embed = [":release_hardware_qualification_lib"],
+    gc_linkopts = [
+        "-s",
+        "-w",
+    ],
+    goarch = "amd64",
+    goos = "linux",
+    pure = "on",
+    visibility = ["//tools/qualification/gke:__pkg__"],
+)
