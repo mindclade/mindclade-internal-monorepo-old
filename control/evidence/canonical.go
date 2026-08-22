@@ -83,8 +83,6 @@ func (encoder *canonicalEncoder) strings(key string, values []string) {
 	encoder.field(key, payload.Bytes())
 }
 
-func (encoder *canonicalEncoder) nested(key string, value []byte) { encoder.field(key, value) }
-
 func (encoder *canonicalEncoder) bytes() ([]byte, error) {
 	if encoder.err != nil {
 		return nil, encoder.err
