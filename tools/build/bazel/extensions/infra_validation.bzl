@@ -19,9 +19,18 @@ _TOOLS = [
     "kustomize",
     "promtool",
     "python3",
+    "terraform",
     "yamllint",
     "yq",
 ]
+
+_TERRAFORM_GOOGLE_PROVIDER_VERSION = "7.45.0"
+_TERRAFORM_GOOGLE_PROVIDER_SHA256 = {
+    "darwin_amd64": "58dadd7b96b7b706e2995a04f356862be7cfd6b55f6257464c8b10986abf8efa",
+    "darwin_arm64": "172c9e4902e9a01b1111bbbb9063a47804ec5f4207b2221df9c398239ff3b350",
+    "linux_amd64": "fb1b9d1ea7bc79b7409f02aa7c19ba39afa22dbead69e83ae7eb2691ac5c2426",
+    "linux_arm64": "7230a5e49abed243317b9de0ee7fd365b4a2775b532a5d66006b39c4703978ac",
+}
 
 _KUBERNETES_SCHEMA_REVISION = "c8f4e61c63bc529749125ac566bccc6986e08d45"
 _KUBERNETES_SCHEMA_BASE = (
@@ -126,6 +135,64 @@ _validation_tools_repository = repository_rule(
     local = True,
 )
 
+def _terraform_google_provider_repository_impl(repository_ctx):
+    os_name = repository_ctx.os.name.lower()
+    if os_name.startswith("mac"):
+        operating_system = "darwin"
+    elif os_name.startswith("linux"):
+        operating_system = "linux"
+    else:
+        fail("unsupported Terraform provider host operating system: %s" % repository_ctx.os.name)
+
+    architecture_name = repository_ctx.os.arch.lower()
+    if architecture_name in ["aarch64", "arm64"]:
+        architecture = "arm64"
+    elif architecture_name in ["amd64", "x86_64"]:
+        architecture = "amd64"
+    else:
+        fail("unsupported Terraform provider host architecture: %s" % repository_ctx.os.arch)
+
+    platform = operating_system + "_" + architecture
+    archive_name = "terraform-provider-google_%s_%s.zip" % (
+        _TERRAFORM_GOOGLE_PROVIDER_VERSION,
+        platform,
+    )
+    provider_dir = "providers/registry.terraform.io/hashicorp/google/%s/%s" % (
+        _TERRAFORM_GOOGLE_PROVIDER_VERSION,
+        platform,
+    )
+    repository_ctx.download_and_extract(
+        output = provider_dir,
+        sha256 = _TERRAFORM_GOOGLE_PROVIDER_SHA256[platform],
+        url = "https://releases.hashicorp.com/terraform-provider-google/%s/%s" % (
+            _TERRAFORM_GOOGLE_PROVIDER_VERSION,
+            archive_name,
+        ),
+    )
+
+    provider_root = provider_dir + "/.provider-root"
+    repository_ctx.file(provider_root, platform + "\n")
+    repository_ctx.file(
+        "BUILD.bazel",
+        """package(default_visibility = [\"//visibility:public\"])
+
+filegroup(
+    name = \"provider_root\",
+    srcs = [\"%s\"],
+)
+
+filegroup(
+    name = \"provider\",
+    srcs = glob([\"providers/**\"]),
+)
+""" % provider_root,
+    )
+
+_terraform_google_provider_repository = repository_rule(
+    implementation = _terraform_google_provider_repository_impl,
+    configure = True,
+)
+
 def _kubernetes_schemas_repository_impl(repository_ctx):
     for name, sha256 in _KUBERNETES_SCHEMAS.items():
         repository_ctx.download(
@@ -170,12 +237,15 @@ _kubernetes_schemas_repository = repository_rule(
 
 def _infra_validation_impl(_module_ctx):
     _validation_tools_repository(name = "mindclade_infra_validation_tools")
+    _terraform_google_provider_repository(name = "mindclade_terraform_google_provider")
     _kubernetes_schemas_repository(name = "mindclade_kubernetes_schemas")
 
-# The extension always declares the same two repositories. The validation-tool repository is
+# The extension always declares the same three repositories. The validation-tool repository is
 # local and PATH-sensitive, so Bazel refreshes its symlinks independently of the module lock;
 # marking the extension OS-dependent would instead require committing a lock entry generated
-# on every CI host OS even though the generated repository specifications are identical.
+# on every CI host OS even though the generated repository specifications are identical. The
+# configured provider repository selects one of four fixed-output HashiCorp artifacts for the
+# execution host without allowing Terraform tests to contact the provider registry.
 infra_validation = module_extension(
     implementation = _infra_validation_impl,
 )

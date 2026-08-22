@@ -85,6 +85,7 @@ use_repo(
     infra_validation,
     "mindclade_infra_validation_tools",
     "mindclade_kubernetes_schemas",
+    "mindclade_terraform_google_provider",
 )
 
 # Rust third-party dependencies are derived from the canonical Cargo workspace.
