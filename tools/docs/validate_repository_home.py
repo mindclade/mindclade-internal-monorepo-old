@@ -13,6 +13,7 @@ import html
 import re
 import sys
 from pathlib import Path
+from urllib.parse import urlsplit
 
 MARKER = "<!-- mindclade-doc: repository-home@2 -->"
 THEME_DIRECTIVE = '%%{init: {"theme":"base"'
@@ -310,6 +311,18 @@ def image_sources(markdown: str) -> list[str]:
     return values
 
 
+def has_remote_shields_reference(markdown: str) -> bool:
+    """Return whether Markdown contains a URL hosted by the Shields service."""
+    urls = re.findall(r"https?://[^\s<>\"')]+", markdown, flags=re.I)
+    for url in urls:
+        try:
+            if urlsplit(url).hostname == "img.shields.io":
+                return True
+        except ValueError:
+            continue
+    return False
+
+
 def prose_word_count(markdown: str) -> int:
     text = re.sub(r"```.*?```", " ", markdown, flags=re.S)
     text = re.sub(r"<!--.*?-->", " ", text, flags=re.S)
@@ -475,7 +488,7 @@ def validate(root: Path) -> list[str]:
         destination = source.split("#", 1)[0]
         if destination and not (root / destination).is_file():
             errors.append(f"broken local README image: {destination}")
-    if "img.shields.io" in markdown:
+    if has_remote_shields_reference(markdown):
         errors.append("remote Shields badges are not allowed")
     if re.search(r"\.gif(?:[\"')\s]|$)", markdown, flags=re.I):
         errors.append("animated GIFs are not allowed in root READMEs")
