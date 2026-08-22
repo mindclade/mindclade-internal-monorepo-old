@@ -132,7 +132,7 @@ def _validate_backend_compatibility(root: Path) -> list[str]:
             candidate = repository / source
             try:
                 candidate.resolve().relative_to(repository.resolve())
-            except OSError, ValueError:
+            except (OSError, ValueError):
                 errors.append(f"{filename}: replacement source escapes the repository: {source!r}")
                 continue
             if not candidate.is_file():

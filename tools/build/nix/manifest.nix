@@ -88,7 +88,7 @@ let
   };
 
   attrs = {
-    schema = 1;
+    schema = 2;
     nixpkgs = nixpkgsRev;
     pins = versions;
     cxx = {
