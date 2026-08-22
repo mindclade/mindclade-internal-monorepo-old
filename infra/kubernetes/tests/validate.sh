@@ -205,6 +205,11 @@ while IFS= read -r unresolved_service_ref; do
   [[ -n "${unresolved_service_ref}" ]] || continue
   cross_resource_args+=(--allow-unresolved-service-ref "${unresolved_service_ref}")
 done < <(yq eval -r '.spec.activationGatedUnresolvedServiceRefs[]' "${validation_config}")
+cross_root_resource_args=()
+while IFS= read -r cross_root_service_ref; do
+  [[ -n "${cross_root_service_ref}" ]] || continue
+  cross_root_resource_args+=(--allow-unresolved-service-ref "${cross_root_service_ref}")
+done < <(yq eval -r '.spec.crossRootServiceRefs[]' "${validation_config}")
 while IFS= read -r unmatched_network_policy; do
   [[ -n "${unmatched_network_policy}" ]] || continue
   cross_resource_args+=(--allow-unmatched-network-policy "${unmatched_network_policy}")
@@ -984,7 +989,7 @@ while IFS= read -r root_name; do
   yq eval-all -o=json -I=0 '[.] | flatten | map(select(.kind != null and .apiVersion != null))' \
     "${output_file}" >"${normalized_output}"
   python3 "${script_dir}/cross_resource.py" "${normalized_output}" --label "${root_name}" \
-    "${cross_resource_args[@]}"
+    "${cross_resource_args[@]}" "${cross_root_resource_args[@]}"
 
   printf 'POLICY            %s\n' "${root_name}"
 done <"${policy_roots}"

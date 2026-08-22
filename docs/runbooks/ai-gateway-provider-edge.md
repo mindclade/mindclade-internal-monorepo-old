@@ -9,6 +9,9 @@ secret access, deployment, reconciliation, or a GitOps promotion.
    metadata-only audit records. Never collect prompts, responses, bearer tokens, or provider keys.
 2. Confirm the Rust proxy and Go API target health, then inspect the reservation lifecycle. A
    dispatched or reconciliation-pending reservation represents possibly consumed provider usage.
+   Confirm the reservation subject is the expected `google-<sha256>` value and the authenticated
+   control-plane actor is the dedicated gateway proxy; never substitute an email or raw token
+   subject.
 3. Compare the local endpoint snapshot with the authoritative resolved bundle: operation, route,
    connection reference, pricing version, maximum request, body limit, and trace/usage posture must
    match exactly.
@@ -20,7 +23,7 @@ secret access, deployment, reconciliation, or a GitOps promotion.
 
 | Symptom | Safe interpretation | Containment |
 |---|---|---|
-| 401/403 before reservation | caller token/audience or entitlement mismatch | keep the request denied; correct identity or approve a new bundle |
+| 401/403 before reservation | caller token/audience, delegated-subject permission, or entitlement mismatch | keep the request denied; correct identity or approve a new bundle |
 | 409 policy mismatch | local connection snapshot is stale or tampered | hold the endpoint; reconcile the approved snapshot, never ignore the epoch |
 | 429 before dispatch | entitlement/workspace budget exhausted | preserve rejection; use two-person administration if a real policy change is required |
 | provider error after dispatch | outcome can be billable | leave pending or max-charge; never release based only on client-visible failure |
