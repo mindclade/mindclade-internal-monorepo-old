@@ -104,6 +104,12 @@ target-version = "py312"
 line-length = 100
 exclude = [".agents/skills", "research/notebooks"]
 
+[tool.ruff.format]
+# These two files are byte-exact policy-bundle projections from the protected canonical
+# `.github` commit. Ruff still lints them; formatting is excluded because changing whitespace
+# would break the manifest-bound digest and make local source differ from CI policy authority.
+exclude = ["scripts/enrich-spdx-license.py", "scripts/generate-third-party-notices.py"]
+
 # Untyped third-party modules, under a global `strict = true`.
 #
 # All three DIRECT dependencies — torch, numpy, safetensors — ship a py.typed marker, so none
