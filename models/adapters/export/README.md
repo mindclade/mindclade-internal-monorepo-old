@@ -22,8 +22,12 @@ containing exactly:
 
 The frozen manifest records the artifact byte size and SHA-256 plus caller-owned
 SHA-256 identities for resolved configuration, source, runtime, and kernel
-manifest. It also records the PyTorch version and complete input contract. These
-identities use the canonical `sha256:<64 lowercase hex>` spelling.
+manifest. It also records the PyTorch version, complete input contract, and the
+exact `source-reference-only` usage boundary. This schema intentionally has no
+output contract, so it cannot be admitted to a deployment catalog. A future
+deployment-capable schema must add bounded output names/order/nesting, dtypes,
+shapes, and semantics under separate review. These identities use the canonical
+`sha256:<64 lowercase hex>` spelling.
 
 ## Atomicity and load safety
 
@@ -43,6 +47,10 @@ It reads through no-follow descriptors and checks for changes during each read.
 `torch.export.load` is pickle-capable in PyTorch. This adapter invokes it only
 after the externally anchored manifest and artifact have both verified. A digest
 received from the same untrusted source as the bundle is not a trust anchor.
+The byte limits bound pre-deserialization file I/O only. They do not bound memory,
+CPU, or other resources consumed by an authenticated PT2 payload, so they are not
+a defense against deserialization denial of service. Even trusted bundles require
+an externally isolated runtime before any future deployment use is authorized.
 
 ## Validation and limits
 
@@ -50,6 +58,7 @@ received from the same untrusted source as the bundle is not a trust anchor.
 key, shape, dtype, device, and layout to match before restoration, strictly
 restores a clone of the exported state, and compares eager and loaded-program
 outputs across bounded input cases with finite explicit tolerances. Tests cover
-minimum and maximum dynamic shapes on CPU, including the decoder-only LLM slice.
+minimum and maximum dynamic shapes on CPU, including a fresh-process artifact
+load/parity check and the decoder-only LLM slice.
 This package does not establish accelerator,
 ONNX, AOTInductor, performance, registry, serving, or deployment qualification.

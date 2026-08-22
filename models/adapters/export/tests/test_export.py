@@ -9,7 +9,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
+import subprocess
+import sys
+import textwrap
 from dataclasses import FrozenInstanceError
 from pathlib import Path
 from typing import Any
@@ -21,6 +25,7 @@ from torch import nn
 from models.adapters.export import (
     EXPORT_MANIFEST_FILENAME,
     EXPORT_MANIFEST_SCHEMA_VERSION,
+    EXPORT_USAGE,
     EXPORTED_PROGRAM_FILENAME,
     DynamicDimension,
     ExportManifest,
@@ -143,6 +148,7 @@ def test_round_trip_manifest_and_dynamic_boundary_parity(
     assert manifest.source_sha256 == SOURCE_SHA256
     assert manifest.runtime_sha256 == RUNTIME_SHA256
     assert manifest.kernel_manifest_sha256 == KERNEL_MANIFEST_SHA256
+    assert manifest.usage == EXPORT_USAGE
 
     loaded = _load(path, manifest.sha256)
     assert loaded.manifest == manifest
@@ -372,6 +378,112 @@ def test_duplicate_manifest_key_is_rejected(
     manifest_path.write_bytes(duplicate)
     with pytest.raises(ValueError, match="duplicate"):
         _load(path, _sha256(duplicate))
+
+
+def test_excessively_nested_manifest_fails_closed_before_deserialization(
+    exported_template: tuple[Path, ExportManifest, torch.Tensor],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    template, _, _ = exported_template
+    path = _copy_bundle(template, tmp_path)
+    manifest_path = path / EXPORT_MANIFEST_FILENAME
+    original = manifest_path.read_bytes()
+
+    def recursive_decoder(*_args: object, **_kwargs: object) -> object:
+        raise RecursionError("injected excessive manifest nesting")
+
+    monkeypatch.setattr(json, "loads", recursive_decoder)
+    monkeypatch.setattr(
+        torch.export,
+        "load",
+        lambda *_args, **_kwargs: pytest.fail("hostile manifest reached deserialization"),
+    )
+    with pytest.raises(ValueError, match="valid UTF-8 JSON"):
+        _load(path, _sha256(original))
+
+
+def test_manifest_cannot_claim_deployment_authority(
+    exported_template: tuple[Path, ExportManifest, torch.Tensor],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    template, _, _ = exported_template
+    path = _copy_bundle(template, tmp_path)
+    manifest_path = path / EXPORT_MANIFEST_FILENAME
+    document = json.loads(manifest_path.read_text(encoding="utf-8"))
+    document["usage"] = "deployment"
+    content = _canonical_document(document)
+    manifest_path.write_bytes(content)
+    monkeypatch.setattr(
+        torch.export,
+        "load",
+        lambda *_args, **_kwargs: pytest.fail("deployment claim reached deserialization"),
+    )
+    with pytest.raises(ValueError, match="not authorized for deployment"):
+        _load(path, _sha256(content))
+
+
+def test_fresh_process_load_and_parity(
+    exported_template: tuple[Path, ExportManifest, torch.Tensor],
+) -> None:
+    path, manifest, _ = exported_template
+    child = textwrap.dedent(
+        """
+        import pathlib
+        import sys
+
+        import torch
+        from torch import nn
+
+        from models.adapters.export import load_export_bundle, validate_export_parity
+
+
+        class FreshTinyExportModel(nn.Module):
+            def __init__(self) -> None:
+                super().__init__()
+                self.projection = nn.Linear(4, 3)
+
+            def forward(self, features: torch.Tensor) -> torch.Tensor:
+                return torch.tanh(self.projection(features))
+
+
+        bundle = load_export_bundle(
+            pathlib.Path(sys.argv[1]),
+            expected_manifest_sha256=sys.argv[2],
+            expected_runtime_sha256=sys.argv[3],
+            expected_kernel_manifest_sha256=sys.argv[4],
+        )
+        minimum = torch.arange(8, dtype=torch.float32).reshape(1, 2, 4)
+        maximum = torch.arange(96, dtype=torch.float32).reshape(4, 6, 4)
+        report = validate_export_parity(
+            bundle,
+            FreshTinyExportModel,
+            ((minimum,), (maximum,)),
+            rtol=1e-5,
+            atol=1e-6,
+        )
+        if report.case_count != 2:
+            raise SystemExit("fresh-process parity did not validate both boundary cases")
+        """
+    )
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            child,
+            str(path),
+            manifest.sha256,
+            RUNTIME_SHA256,
+            KERNEL_MANIFEST_SHA256,
+        ],
+        check=False,
+        capture_output=True,
+        env={**os.environ, "PYTHONPATH": os.pathsep.join(sys.path)},
+        text=True,
+        timeout=120,
+    )
+    assert completed.returncode == 0, completed.stderr
 
 
 def test_contract_and_tolerance_failures_are_explicit(

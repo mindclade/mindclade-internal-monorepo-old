@@ -28,6 +28,7 @@ from libs.python.serialization import canonical_json_bytes
 
 EXPORT_MANIFEST_SCHEMA_VERSION: Final = 1
 EXPORT_FORMAT: Final = "torch.export.pt2"
+EXPORT_USAGE: Final = "source-reference-only"
 EXPORTED_PROGRAM_FILENAME: Final = "program.pt2"
 EXPORT_MANIFEST_FILENAME: Final = "manifest.json"
 MAXIMUM_EXPORTED_PROGRAM_BYTES: Final = 512 << 20
@@ -76,6 +77,7 @@ _MANIFEST_FIELDS: Final = frozenset(
         "kernel_manifest_sha256",
         "torch_version",
         "input_contracts",
+        "usage",
     }
 )
 
@@ -266,7 +268,7 @@ class TensorInputContract:
 
 @dataclass(frozen=True, slots=True)
 class ExportManifest:
-    """Immutable schema-v1 identity and input contract for one PT2 artifact."""
+    """Immutable schema-v1 identity and source-reference contract for one PT2 artifact."""
 
     artifact_sha256: str
     artifact_size_bytes: int
@@ -279,6 +281,7 @@ class ExportManifest:
     schema_version: int = EXPORT_MANIFEST_SCHEMA_VERSION
     format: str = EXPORT_FORMAT
     artifact_filename: str = EXPORTED_PROGRAM_FILENAME
+    usage: str = EXPORT_USAGE
 
     def __post_init__(self) -> None:
         for field_name in (
@@ -326,6 +329,8 @@ class ExportManifest:
             raise ValueError(f"export manifest format must be {EXPORT_FORMAT!r}")
         if self.artifact_filename != EXPORTED_PROGRAM_FILENAME:
             raise ValueError("export manifest artifact filename is not supported")
+        if self.usage != EXPORT_USAGE:
+            raise ValueError("export manifest is not authorized for deployment")
         object.__setattr__(self, "input_contracts", contracts)
 
     def to_document(self) -> dict[str, object]:
@@ -341,6 +346,7 @@ class ExportManifest:
             "kernel_manifest_sha256": self.kernel_manifest_sha256,
             "torch_version": self.torch_version,
             "input_contracts": [item.to_document() for item in self.input_contracts],
+            "usage": self.usage,
         }
 
     def canonical_bytes(self) -> bytes:
@@ -376,6 +382,7 @@ class ExportManifest:
             schema_version=cast(int, document["schema_version"]),
             format=cast(str, document["format"]),
             artifact_filename=cast(str, document["artifact_filename"]),
+            usage=cast(str, document["usage"]),
         )
 
 
@@ -624,7 +631,7 @@ def _decode_manifest(content: bytes) -> ExportManifest:
             object_pairs_hook=object_without_duplicates,
             parse_constant=reject_constant,
         )
-    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+    except (UnicodeDecodeError, json.JSONDecodeError, RecursionError) as error:
         raise ValueError("export manifest is not valid UTF-8 JSON") from error
     if not isinstance(document, Mapping):
         raise ValueError("export manifest root must be an object")
