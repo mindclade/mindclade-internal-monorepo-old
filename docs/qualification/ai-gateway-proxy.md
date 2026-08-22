@@ -1,6 +1,7 @@
 # Governed AI Gateway proxy qualification
 
-**Candidate date:** 2026-08-21  
+**Candidate date:** 2026-08-21
+
 **Owner:** platform-serving
 
 `services/ai_gateway_proxy` is the only proposed provider-egress path for OpenAI-compatible chat
@@ -11,6 +12,9 @@ MLflow's optional metadata mirror.
 
 - Google service-account ID tokens are verified against an exact audience, issuer, signature,
   bounded lifetime, and bounded/cached JWKS response before workspace policy lookup.
+- The verified Google issuer/subject pair is reduced to a stable `google-<sha256>` policy subject.
+  That non-PII subject is delegated on resolution and every reservation lifecycle call; the Go API
+  accepts it only from a service/workload principal with `ai_gateway.proxy.delegate`.
 - Route matching is exact. Native provider passthrough, redirects, split routing, silent fallback,
   streaming, and unqualified guardrails fail closed.
 - Every request resolves the current Go bundle, compares route, operation, connection reference,
@@ -23,9 +27,10 @@ MLflow's optional metadata mirror.
   debug-redacted, payloads are absent from counters/faults, and outbound TLS trusts only the
   externally mounted interception CA through the explicit Secure Web Proxy.
 
-Local tests cover measured commit, provider rejection/max charge, ambiguous transport, and
-identity rejection before reservation. Cargo tests and `clippy -D warnings` use the repository's
-pinned Rust 1.97.1 toolchain.
+Local tests cover the cross-language identity-key contract, delegated ownership, delegation
+permission/type/format rejection, measured commit, provider rejection/max charge, ambiguous
+transport, and identity rejection before reservation. Cargo tests and `clippy -D warnings` use the
+repository's pinned Rust 1.97.1 toolchain.
 
 ## Deployment boundary
 

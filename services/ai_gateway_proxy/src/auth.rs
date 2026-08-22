@@ -181,8 +181,11 @@ impl GoogleIdTokenVerifier {
         let now = unix_seconds()?;
         let now_i64 = i64::try_from(now)
             .map_err(|_| Fault::new(Code::OutOfRange, "system time exceeds i64"))?;
+        let latest_iat = now_i64
+            .checked_add(30)
+            .ok_or_else(|| Fault::new(Code::OutOfRange, "token clock-skew bound overflows i64"))?;
         if claims.iat <= 0
-            || claims.iat > now_i64.saturating_add(30)
+            || claims.iat > latest_iat
             || claims.exp <= claims.iat
             || now_i64 >= claims.exp
         {
@@ -205,11 +208,11 @@ impl GoogleIdTokenVerifier {
         let now = unix_seconds()?;
         {
             let state = self.state.read().await;
-            if now.saturating_sub(state.fetched_at) < 3600 {
+            if elapsed_is_below(now, state.fetched_at, 3600) {
                 if let Some(key) = state.keys.get(kid) {
                     return Ok(key.clone());
                 }
-                if now.saturating_sub(state.last_unknown_refresh) < 60 {
+                if elapsed_is_below(now, state.last_unknown_refresh, 60) {
                     return Err(unauthenticated(
                         "Google ID token names an unknown signing key",
                     ));
@@ -230,7 +233,7 @@ impl GoogleIdTokenVerifier {
         let _guard = self.refresh.lock().await;
         {
             let state = self.state.read().await;
-            if now.saturating_sub(state.fetched_at) < 60 && !state.keys.is_empty() {
+            if elapsed_is_below(now, state.fetched_at, 60) && !state.keys.is_empty() {
                 return Ok(());
             }
         }
@@ -356,6 +359,16 @@ fn unix_seconds() -> FaultResult<u64> {
         })
 }
 
+fn elapsed_is_below(now: u64, earlier: u64, upper_bound: u64) -> bool {
+    // A timestamp observed just after this caller captured `now` can be in the
+    // future when another refresh wins the mutex. Treat that explicitly as a
+    // fresh observation; all other subtraction is checked.
+    match now.checked_sub(earlier) {
+        Some(elapsed) => elapsed < upper_bound,
+        None => true,
+    }
+}
+
 fn unauthenticated(message: &str) -> Fault {
     Fault::new(Code::Unauthenticated, message)
 }
@@ -374,5 +387,12 @@ mod tests {
             identity.policy_subject(),
             "google-ef8168663494fc8a1b3267fb3a9f929b155bd6a9fce5a83735c2d80f3830197c"
         );
+    }
+
+    #[test]
+    fn cache_freshness_handles_concurrent_future_observations_explicitly() {
+        assert!(super::elapsed_is_below(100, 101, 60));
+        assert!(super::elapsed_is_below(100, 41, 60));
+        assert!(!super::elapsed_is_below(100, 40, 60));
     }
 }

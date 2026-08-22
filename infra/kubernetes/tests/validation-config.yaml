@@ -78,6 +78,13 @@ spec:
     - dev/docs:8080
     - dev/sdk:8080
 
+  # Policy roots are validated independently before the combined estate inventory. This exact
+  # cross-root reference must therefore be unresolved in the Studio plane render, then resolved
+  # globally together with an exact ReferenceGrant in the backend namespace. The combined check
+  # receives no exception, so a missing Service or grant still fails closed.
+  crossRootServiceRefs:
+    - mindclade-system/control-plane-admin:8080
+
   # Quarantine policies deliberately predate the workloads they will isolate. The relational
   # gate rejects a stale exception as soon as a matching Pod template is materialized.
   activationGatedUnmatchedNetworkPolicies:

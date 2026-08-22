@@ -22,6 +22,10 @@ accounting authority.
 - The machine API resolves only an active subject entitlement joined to the current active bundle;
   the response contains the exact policy epoch, route, connection reference, pricing version,
   metadata-only trace posture, and subject reservation ceiling.
+- A delegated `google-<sha256>` subject is accepted only from service/workload principals granted
+  `ai_gateway.proxy.delegate`. The same subject is required for endpoint resolution, admission,
+  dispatch, reconciliation, commit, and release; repeated, malformed, user-originated, and
+  unprivileged delegation headers fail before state mutation.
 - Reservation admission always reserves the server-owned entitlement maximum. Caller-supplied
   quota is only a bounded declaration and cannot under-reserve the provider call.
 - Local isolated Go package tests pass for admission, API/admin composition, IAP authentication,
