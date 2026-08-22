@@ -76,8 +76,9 @@ user.bazelrc
 # `git add -A` away from being committed, and tools that walk the filesystem rather than the
 # index already had to learn about them: .bazelignore names the directory, and
 # tools/analysis/check_go_modules.py skips it so every worktree's go.mod stops reading as an
-# unexpected module boundary.
+# unexpected module boundary. .codex-worktrees is the corresponding Codex scratch container.
 .claude/
+.codex-worktrees/
 
 # --- Local environment. Never commit these: they are the one place a real credential
 #     plausibly lands in this repo. ---

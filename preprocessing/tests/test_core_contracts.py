@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+from dataclasses import replace
+
 from preprocessing.cache.keys import msa_search_key
 from preprocessing.contracts import ArtifactRef
 from preprocessing.pipeline import plan_structure_pipeline
@@ -28,7 +30,7 @@ def test_structure_plan_and_cache_are_deterministic():
 
 
 def test_provenance_manifest_digest_changes_with_database():
-    db = DatabaseSnapshot(
+    database = DatabaseSnapshot(
         "refdb_x",
         "uniref",
         "1",
@@ -39,7 +41,19 @@ def test_provenance_manifest_digest_changes_with_database():
         "1",
         ("sha256:" + "2" * 64,),
     )
-    m = Manifest(
-        1, "p1", "sha256:" + "3" * 64, ("sha256:" + "4" * 64,), (db,), (), (), "sha256:" + "5" * 64
+    baseline_manifest = Manifest(
+        1,
+        "p1",
+        "sha256:" + "3" * 64,
+        ("sha256:" + "4" * 64,),
+        (database,),
+        (),
+        (),
+        "sha256:" + "5" * 64,
     )
-    assert m.digest.startswith("sha256:")
+    changed_database = replace(database, snapshot_digest="sha256:" + "6" * 64)
+    changed_manifest = replace(baseline_manifest, reference_databases=(changed_database,))
+
+    assert baseline_manifest.digest.startswith("sha256:")
+    assert changed_manifest.digest.startswith("sha256:")
+    assert baseline_manifest.digest != changed_manifest.digest

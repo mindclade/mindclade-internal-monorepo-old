@@ -31,7 +31,7 @@ tests = ["control/runtime_authority/ticket_test.go"]
 [[component]]
 name = "control.routing"
 path = "control/routing"
-status = "implemented"
+status = "experimental"
 owner = "platform-control"
 tests = ["control/routing/policy_test.go"]
 
@@ -81,7 +81,7 @@ tests = ["control/ingestion/pipeline_test.go", "control/ingestion/state_test.go"
 [[component]]
 name = "preprocessing.core"
 path = "preprocessing"
-status = "implemented"
+status = "experimental"
 owner = "biology-ml"
 tests = ["preprocessing/tests/test_core_contracts.py"]
 

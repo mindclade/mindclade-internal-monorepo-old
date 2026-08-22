@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -43,6 +44,19 @@ type testSQLStateError string
 
 func (value testSQLStateError) Error() string    { return string(value) }
 func (value testSQLStateError) SQLState() string { return string(value) }
+
+func TestSQLUintPreservesRequestContext(t *testing.T) {
+	const requestID = "request_018f3f4a5b6c7d8e8f900123456789ab"
+	ctx := faults.ContextWithRequestID(context.Background(), requestID)
+
+	_, err := sqlUint(ctx, uint64(math.MaxInt64)+1, "budget_limit")
+	if !faults.IsReason(err, "admission_budget_limit_out_of_range") {
+		t.Fatalf("sqlUint reason=%q error=%v", faults.ReasonOf(err), err)
+	}
+	if got := faults.FieldsOf(err)[faults.FieldRequestID]; got != requestID {
+		t.Fatalf("sqlUint request ID=%v, want %q", got, requestID)
+	}
+}
 
 func newDomainFixture(t *testing.T) domainFixture {
 	t.Helper()

@@ -45,3 +45,4 @@ result
 # packages rather than on anything a developer changed. Naming the directory makes the skip
 # intentional instead of incidental.
 .claude/worktrees
+.codex-worktrees
