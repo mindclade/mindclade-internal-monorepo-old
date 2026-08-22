@@ -19,29 +19,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file mindclade/artifact/v1/checkpoint.proto.
  */
 export const file_mindclade_artifact_v1_checkpoint: GenFile = /*@__PURE__*/
-  fileDesc("CiZtaW5kY2xhZGUvYXJ0aWZhY3QvdjEvY2hlY2twb2ludC5wcm90bxIVbWluZGNsYWRlLmFydGlmYWN0LnYxIioKEkNoZWNrcG9pbnRTY2FmZm9sZBIQCghyZXNlcnZlZBgBIAEoCToCGAEilAIKEENoZWNrcG9pbnRDb21taXQSFgoOc2NoZW1hX3ZlcnNpb24YASABKA0SFQoNY2hlY2twb2ludF9pZBgCIAEoCRIOCgZydW5faWQYAyABKAkSMgoIbWFuaWZlc3QYBCABKAsyIC5taW5kY2xhZGUuY29tbW9uLnYxLkFydGlmYWN0UmVmEhoKEmNoZWNrcG9pbnRfYXR0ZW1wdBgFIAEoBBIVCg1mZW5jaW5nX3Rva2VuGAYgASgEEhEKCXdyaXRlcl9pZBgHIAEoCRIwCgxjb21taXR0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhUKDWNvbW1pdF9kaWdlc3QYCSABKAlCRFpCZ28ubWluZGNsYWRlLmRldi9wcm90b2NvbHMvZ2VuL2dvL21pbmRjbGFkZS9hcnRpZmFjdC92MTthcnRpZmFjdHYxYgZwcm90bzM", [file_google_protobuf_timestamp, file_mindclade_common_v1_artifact_ref]);
-
-/**
- * CheckpointScaffold is retained only for source and wire compatibility with
- * the reserved pre-implementation surface.
- *
- * @generated from message mindclade.artifact.v1.CheckpointScaffold
- * @deprecated
- */
-export type CheckpointScaffold = Message<"mindclade.artifact.v1.CheckpointScaffold"> & {
-  /**
-   * @generated from field: string reserved = 1;
-   */
-  reserved: string;
-};
-
-/**
- * Describes the message mindclade.artifact.v1.CheckpointScaffold.
- * Use `create(CheckpointScaffoldSchema)` to create a new message.
- * @deprecated
- */
-export const CheckpointScaffoldSchema: GenMessage<CheckpointScaffold> = /*@__PURE__*/
-  messageDesc(file_mindclade_artifact_v1_checkpoint, 0);
+  fileDesc("CiZtaW5kY2xhZGUvYXJ0aWZhY3QvdjEvY2hlY2twb2ludC5wcm90bxIVbWluZGNsYWRlLmFydGlmYWN0LnYxIpQCChBDaGVja3BvaW50Q29tbWl0EhYKDnNjaGVtYV92ZXJzaW9uGAEgASgNEhUKDWNoZWNrcG9pbnRfaWQYAiABKAkSDgoGcnVuX2lkGAMgASgJEjIKCG1hbmlmZXN0GAQgASgLMiAubWluZGNsYWRlLmNvbW1vbi52MS5BcnRpZmFjdFJlZhIaChJjaGVja3BvaW50X2F0dGVtcHQYBSABKAQSFQoNZmVuY2luZ190b2tlbhgGIAEoBBIRCgl3cml0ZXJfaWQYByABKAkSMAoMY29tbWl0dGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIVCg1jb21taXRfZGlnZXN0GAkgASgJQkRaQmdvLm1pbmRjbGFkZS5kZXYvcHJvdG9jb2xzL2dlbi9nby9taW5kY2xhZGUvYXJ0aWZhY3QvdjE7YXJ0aWZhY3R2MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_mindclade_common_v1_artifact_ref]);
 
 /**
  * CheckpointCommit is the manifest-last, create-only publication receipt. A
@@ -103,5 +81,5 @@ export type CheckpointCommit = Message<"mindclade.artifact.v1.CheckpointCommit">
  * Use `create(CheckpointCommitSchema)` to create a new message.
  */
 export const CheckpointCommitSchema: GenMessage<CheckpointCommit> = /*@__PURE__*/
-  messageDesc(file_mindclade_artifact_v1_checkpoint, 1);
+  messageDesc(file_mindclade_artifact_v1_checkpoint, 0);
 

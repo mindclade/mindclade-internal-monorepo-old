@@ -9,13 +9,6 @@ package mindclade.training.v1;
 
 option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/training/v1;trainingv1";
 
-// TopologyScaffold is retained only for source and wire compatibility with the
-// reserved pre-implementation surface.
-message TopologyScaffold {
-  option deprecated = true;
-  string reserved = 1;
-}
-
 // CollectiveBackend selects the process-group implementation. Consumers must
 // reject UNSPECIFIED rather than silently selecting a backend.
 enum CollectiveBackend {

@@ -12,13 +12,6 @@ option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/training/v1;tra
 import "google/protobuf/timestamp.proto";
 import "mindclade/common/v1/artifact_ref.proto";
 
-// ProgressScaffold is retained only for source and wire compatibility with the
-// reserved pre-implementation surface.
-message ProgressScaffold {
-  option deprecated = true;
-  string reserved = 1;
-}
-
 // TrainingRunState is an observation, not a command. The orchestration stage
 // envelope remains authoritative for cancellation and retry.
 enum TrainingRunState {

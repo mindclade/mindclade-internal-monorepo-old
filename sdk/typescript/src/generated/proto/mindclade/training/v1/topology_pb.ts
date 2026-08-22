@@ -15,29 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file mindclade/training/v1/topology.proto.
  */
 export const file_mindclade_training_v1_topology: GenFile = /*@__PURE__*/
-  fileDesc("CiRtaW5kY2xhZGUvdHJhaW5pbmcvdjEvdG9wb2xvZ3kucHJvdG8SFW1pbmRjbGFkZS50cmFpbmluZy52MSIoChBUb3BvbG9neVNjYWZmb2xkEhAKCHJlc2VydmVkGAEgASgJOgIYASLHAgoQVHJhaW5pbmdUb3BvbG9neRISCgp3b3JsZF9zaXplGAEgASgNEhgKEGxvY2FsX3dvcmxkX3NpemUYAiABKA0SEgoKbm9kZV9jb3VudBgDIAEoDRIaChJkYXRhX3BhcmFsbGVsX3NpemUYBCABKA0SHAoUdGVuc29yX3BhcmFsbGVsX3NpemUYBSABKA0SHgoWcGlwZWxpbmVfcGFyYWxsZWxfc2l6ZRgGIAEoDRI5CgdiYWNrZW5kGAcgASgOMigubWluZGNsYWRlLnRyYWluaW5nLnYxLkNvbGxlY3RpdmVCYWNrZW5kEj4KC2RldmljZV90eXBlGAggASgOMikubWluZGNsYWRlLnRyYWluaW5nLnYxLlRyYWluaW5nRGV2aWNlVHlwZRIcChR0b3BvbG9neV9maW5nZXJwcmludBgJIAEoCSpxChFDb2xsZWN0aXZlQmFja2VuZBIiCh5DT0xMRUNUSVZFX0JBQ0tFTkRfVU5TUEVDSUZJRUQQABIbChdDT0xMRUNUSVZFX0JBQ0tFTkRfR0xPTxABEhsKF0NPTExFQ1RJVkVfQkFDS0VORF9OQ0NMEAIqdwoSVHJhaW5pbmdEZXZpY2VUeXBlEiQKIFRSQUlOSU5HX0RFVklDRV9UWVBFX1VOU1BFQ0lGSUVEEAASHAoYVFJBSU5JTkdfREVWSUNFX1RZUEVfQ1BVEAESHQoZVFJBSU5JTkdfREVWSUNFX1RZUEVfQ1VEQRACQkRaQmdvLm1pbmRjbGFkZS5kZXYvcHJvdG9jb2xzL2dlbi9nby9taW5kY2xhZGUvdHJhaW5pbmcvdjE7dHJhaW5pbmd2MWIGcHJvdG8z");
-
-/**
- * TopologyScaffold is retained only for source and wire compatibility with the
- * reserved pre-implementation surface.
- *
- * @generated from message mindclade.training.v1.TopologyScaffold
- * @deprecated
- */
-export type TopologyScaffold = Message<"mindclade.training.v1.TopologyScaffold"> & {
-  /**
-   * @generated from field: string reserved = 1;
-   */
-  reserved: string;
-};
-
-/**
- * Describes the message mindclade.training.v1.TopologyScaffold.
- * Use `create(TopologyScaffoldSchema)` to create a new message.
- * @deprecated
- */
-export const TopologyScaffoldSchema: GenMessage<TopologyScaffold> = /*@__PURE__*/
-  messageDesc(file_mindclade_training_v1_topology, 0);
+  fileDesc("CiRtaW5kY2xhZGUvdHJhaW5pbmcvdjEvdG9wb2xvZ3kucHJvdG8SFW1pbmRjbGFkZS50cmFpbmluZy52MSLHAgoQVHJhaW5pbmdUb3BvbG9neRISCgp3b3JsZF9zaXplGAEgASgNEhgKEGxvY2FsX3dvcmxkX3NpemUYAiABKA0SEgoKbm9kZV9jb3VudBgDIAEoDRIaChJkYXRhX3BhcmFsbGVsX3NpemUYBCABKA0SHAoUdGVuc29yX3BhcmFsbGVsX3NpemUYBSABKA0SHgoWcGlwZWxpbmVfcGFyYWxsZWxfc2l6ZRgGIAEoDRI5CgdiYWNrZW5kGAcgASgOMigubWluZGNsYWRlLnRyYWluaW5nLnYxLkNvbGxlY3RpdmVCYWNrZW5kEj4KC2RldmljZV90eXBlGAggASgOMikubWluZGNsYWRlLnRyYWluaW5nLnYxLlRyYWluaW5nRGV2aWNlVHlwZRIcChR0b3BvbG9neV9maW5nZXJwcmludBgJIAEoCSpxChFDb2xsZWN0aXZlQmFja2VuZBIiCh5DT0xMRUNUSVZFX0JBQ0tFTkRfVU5TUEVDSUZJRUQQABIbChdDT0xMRUNUSVZFX0JBQ0tFTkRfR0xPTxABEhsKF0NPTExFQ1RJVkVfQkFDS0VORF9OQ0NMEAIqdwoSVHJhaW5pbmdEZXZpY2VUeXBlEiQKIFRSQUlOSU5HX0RFVklDRV9UWVBFX1VOU1BFQ0lGSUVEEAASHAoYVFJBSU5JTkdfREVWSUNFX1RZUEVfQ1BVEAESHQoZVFJBSU5JTkdfREVWSUNFX1RZUEVfQ1VEQRACQkRaQmdvLm1pbmRjbGFkZS5kZXYvcHJvdG9jb2xzL2dlbi9nby9taW5kY2xhZGUvdHJhaW5pbmcvdjE7dHJhaW5pbmd2MWIGcHJvdG8z");
 
 /**
  * TrainingTopology is the immutable logical process layout recorded on every
@@ -100,7 +78,7 @@ export type TrainingTopology = Message<"mindclade.training.v1.TrainingTopology">
  * Use `create(TrainingTopologySchema)` to create a new message.
  */
 export const TrainingTopologySchema: GenMessage<TrainingTopology> = /*@__PURE__*/
-  messageDesc(file_mindclade_training_v1_topology, 1);
+  messageDesc(file_mindclade_training_v1_topology, 0);
 
 /**
  * CollectiveBackend selects the process-group implementation. Consumers must

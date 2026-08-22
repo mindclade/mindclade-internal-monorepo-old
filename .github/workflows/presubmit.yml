@@ -397,7 +397,7 @@ jobs:
     # compiling the upstream C++/protobuf tool graph. Keep a bounded ceiling with enough room
     # for a cold cache; the BEP/profile artifact makes regressions diagnosable without a count
     # that drifts every time a test target is added.
-    timeout-minutes: 75
+    timeout-minutes: 90
     steps:
       - name: Record Bazel verdict start
         run: date +%s > "${RUNNER_TEMP}/bazel-job-started"

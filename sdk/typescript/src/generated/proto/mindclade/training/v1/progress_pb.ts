@@ -19,29 +19,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file mindclade/training/v1/progress.proto.
  */
 export const file_mindclade_training_v1_progress: GenFile = /*@__PURE__*/
-  fileDesc("CiRtaW5kY2xhZGUvdHJhaW5pbmcvdjEvcHJvZ3Jlc3MucHJvdG8SFW1pbmRjbGFkZS50cmFpbmluZy52MSIoChBQcm9ncmVzc1NjYWZmb2xkEhAKCHJlc2VydmVkGAEgASgJOgIYASJSChBUcmFpbmluZ0NvdW50ZXJzEhQKDG1pY3JvYmF0Y2hlcxgBIAEoBBIXCg9vcHRpbWl6ZXJfc3RlcHMYAiABKAQSDwoHc2FtcGxlcxgDIAEoBCK3AgoQVHJhaW5pbmdQcm9ncmVzcxIOCgZydW5faWQYASABKAkSEgoKYXR0ZW1wdF9pZBgCIAEoCRI2CgVzdGF0ZRgDIAEoDjInLm1pbmRjbGFkZS50cmFpbmluZy52MS5UcmFpbmluZ1J1blN0YXRlEjkKCGNvdW50ZXJzGAQgASgLMicubWluZGNsYWRlLnRyYWluaW5nLnYxLlRyYWluaW5nQ291bnRlcnMSFQoNZGF0YV9wb3NpdGlvbhgFIAEoBBJEChpsYXRlc3RfY2hlY2twb2ludF9tYW5pZmVzdBgGIAEoCzIgLm1pbmRjbGFkZS5jb21tb24udjEuQXJ0aWZhY3RSZWYSLwoLb2JzZXJ2ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wKv4BChBUcmFpbmluZ1J1blN0YXRlEiIKHlRSQUlOSU5HX1JVTl9TVEFURV9VTlNQRUNJRklFRBAAEh4KGlRSQUlOSU5HX1JVTl9TVEFURV9QRU5ESU5HEAESHgoaVFJBSU5JTkdfUlVOX1NUQVRFX1JVTk5JTkcQAhIkCiBUUkFJTklOR19SVU5fU1RBVEVfQ0hFQ0tQT0lOVElORxADEiAKHFRSQUlOSU5HX1JVTl9TVEFURV9TVUNDRUVERUQQBBIdChlUUkFJTklOR19SVU5fU1RBVEVfRkFJTEVEEAUSHwobVFJBSU5JTkdfUlVOX1NUQVRFX0NBTkNFTEVEEAZCRFpCZ28ubWluZGNsYWRlLmRldi9wcm90b2NvbHMvZ2VuL2dvL21pbmRjbGFkZS90cmFpbmluZy92MTt0cmFpbmluZ3YxYgZwcm90bzM", [file_google_protobuf_timestamp, file_mindclade_common_v1_artifact_ref]);
-
-/**
- * ProgressScaffold is retained only for source and wire compatibility with the
- * reserved pre-implementation surface.
- *
- * @generated from message mindclade.training.v1.ProgressScaffold
- * @deprecated
- */
-export type ProgressScaffold = Message<"mindclade.training.v1.ProgressScaffold"> & {
-  /**
-   * @generated from field: string reserved = 1;
-   */
-  reserved: string;
-};
-
-/**
- * Describes the message mindclade.training.v1.ProgressScaffold.
- * Use `create(ProgressScaffoldSchema)` to create a new message.
- * @deprecated
- */
-export const ProgressScaffoldSchema: GenMessage<ProgressScaffold> = /*@__PURE__*/
-  messageDesc(file_mindclade_training_v1_progress, 0);
+  fileDesc("CiRtaW5kY2xhZGUvdHJhaW5pbmcvdjEvcHJvZ3Jlc3MucHJvdG8SFW1pbmRjbGFkZS50cmFpbmluZy52MSJSChBUcmFpbmluZ0NvdW50ZXJzEhQKDG1pY3JvYmF0Y2hlcxgBIAEoBBIXCg9vcHRpbWl6ZXJfc3RlcHMYAiABKAQSDwoHc2FtcGxlcxgDIAEoBCK3AgoQVHJhaW5pbmdQcm9ncmVzcxIOCgZydW5faWQYASABKAkSEgoKYXR0ZW1wdF9pZBgCIAEoCRI2CgVzdGF0ZRgDIAEoDjInLm1pbmRjbGFkZS50cmFpbmluZy52MS5UcmFpbmluZ1J1blN0YXRlEjkKCGNvdW50ZXJzGAQgASgLMicubWluZGNsYWRlLnRyYWluaW5nLnYxLlRyYWluaW5nQ291bnRlcnMSFQoNZGF0YV9wb3NpdGlvbhgFIAEoBBJEChpsYXRlc3RfY2hlY2twb2ludF9tYW5pZmVzdBgGIAEoCzIgLm1pbmRjbGFkZS5jb21tb24udjEuQXJ0aWZhY3RSZWYSLwoLb2JzZXJ2ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wKv4BChBUcmFpbmluZ1J1blN0YXRlEiIKHlRSQUlOSU5HX1JVTl9TVEFURV9VTlNQRUNJRklFRBAAEh4KGlRSQUlOSU5HX1JVTl9TVEFURV9QRU5ESU5HEAESHgoaVFJBSU5JTkdfUlVOX1NUQVRFX1JVTk5JTkcQAhIkCiBUUkFJTklOR19SVU5fU1RBVEVfQ0hFQ0tQT0lOVElORxADEiAKHFRSQUlOSU5HX1JVTl9TVEFURV9TVUNDRUVERUQQBBIdChlUUkFJTklOR19SVU5fU1RBVEVfRkFJTEVEEAUSHwobVFJBSU5JTkdfUlVOX1NUQVRFX0NBTkNFTEVEEAZCRFpCZ28ubWluZGNsYWRlLmRldi9wcm90b2NvbHMvZ2VuL2dvL21pbmRjbGFkZS90cmFpbmluZy92MTt0cmFpbmluZ3YxYgZwcm90bzM", [file_google_protobuf_timestamp, file_mindclade_common_v1_artifact_ref]);
 
 /**
  * TrainingCounters advance only after the corresponding operation commits.
@@ -70,7 +48,7 @@ export type TrainingCounters = Message<"mindclade.training.v1.TrainingCounters">
  * Use `create(TrainingCountersSchema)` to create a new message.
  */
 export const TrainingCountersSchema: GenMessage<TrainingCounters> = /*@__PURE__*/
-  messageDesc(file_mindclade_training_v1_progress, 1);
+  messageDesc(file_mindclade_training_v1_progress, 0);
 
 /**
  * TrainingProgress is a bounded point-in-time projection of one attempt.
@@ -119,7 +97,7 @@ export type TrainingProgress = Message<"mindclade.training.v1.TrainingProgress">
  * Use `create(TrainingProgressSchema)` to create a new message.
  */
 export const TrainingProgressSchema: GenMessage<TrainingProgress> = /*@__PURE__*/
-  messageDesc(file_mindclade_training_v1_progress, 2);
+  messageDesc(file_mindclade_training_v1_progress, 1);
 
 /**
  * TrainingRunState is an observation, not a command. The orchestration stage

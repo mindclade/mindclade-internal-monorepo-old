@@ -14,13 +14,6 @@ import "mindclade/common/v1/artifact_ref.proto";
 import "mindclade/training/v1/progress.proto";
 import "mindclade/training/v1/topology.proto";
 
-// RunScaffold is retained only for source and wire compatibility with the
-// reserved pre-implementation surface.
-message RunScaffold {
-  option deprecated = true;
-  string reserved = 1;
-}
-
 // TrainingRunSpecification is the immutable input to one admitted training
 // operation. The workload StageEnvelope owns execution identity, fencing,
 // deadlines, and cancellation; this message owns training semantics only.
