@@ -11,16 +11,16 @@ spec:
   target: //services/mlflow:image
   platform: linux/amd64
   repositorySuffix: /mlflow-server
-  imageDigest: sha256:da91d1acf3348629130521dcad2eecaad0e56ca9d901ab49c3324c6d563ca4c1
+  imageDigest: sha256:472e9b5f1ce33d934b638dd441ac75aa894ea329e1e2e60178e3cdcdecdfbfa5
   mlflow:
     version: 3.15.1
     requirementsLock: services/mlflow/requirements.lock.txt
-    requirementsDigest: sha256:d57d615664e9f82f0a9467bafbea38f06fac105eafc25ca7541debacd1d2f32a
+    requirementsDigest: sha256:90b9f96046f52de722dc8794ebe98a3e0117abb28a00519dc29f5ffb79e44634
   base:
     image: docker.io/library/python
-    version: 3.12.12-slim-bookworm
-    indexDigest: sha256:593bd06efe90efa80dc4eee3948be7c0fde4134606dd40d8dd8dbcade98e669c
+    version: 3.14.7-slim-bookworm
+    indexDigest: sha256:23c59390fc717bf09f9336908199a0ae75d9c4264bf296123f94ad772fea3b52
     platforms:
-      linux/amd64: sha256:2986c55feb36e6cae00fa1fefb454283e4b33f35e75ff8bdd123b134130be301
-  qualifiedAt: "2026-08-22T09:46:41Z"
+      linux/amd64: sha256:ff4ceef5258b9303b40c004af0bd31ac82c6248a6b951f9d9b329bf456f1f4b7
+  qualifiedAt: "2026-08-21T22:10:14Z"
   qualification: //services/mlflow:validate_image

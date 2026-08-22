@@ -52,7 +52,7 @@ let
     nodejs = pkgs.nodejs_22.version;
     pnpm = pkgs.pnpm.version;
     protobuf = pkgs.protobuf.version;
-    python = pkgs.python312.version;
+    python = pkgs.python314.version;
     ruff = pkgs.ruff.version;
     uv = pkgs.uv.version;
 

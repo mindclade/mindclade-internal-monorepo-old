@@ -1,6 +1,6 @@
 # Python foundational libraries
 
-`libs/python` contains reusable, process-local mechanisms for Python 3.12. It has no HTTP
+`libs/python` contains reusable, process-local mechanisms for Python 3.14. It has no HTTP
 routes, CLI entry points, provider construction, databases, or deployment composition roots;
 those belong to `services/`, domain packages, or SDKs.
 

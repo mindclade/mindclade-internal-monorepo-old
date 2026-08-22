@@ -210,7 +210,7 @@ go_sdk.download(version = "1.26.6")
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(
     is_default = True,
-    python_version = "3.12",
+    python_version = "3.14",
 )
 
 # Third-party wheels, resolved from the SAME uv lock that `uv sync` and the Python CI lane
@@ -247,7 +247,7 @@ pip.parse(
         "osx_aarch64",
     ],
     hub_name = "pypi",
-    python_version = "3.12",
+    python_version = "3.14",
     requirements_lock = "//:requirements.lock.txt",
 )
 pip.parse(
@@ -256,9 +256,14 @@ pip.parse(
     # to pip. Unlike uv, pip does not expand an explicit manylinux platform to older compatible
     # tags, so spell out packaging.tags' complete glibc 2.28 compatibility set. The MLflow
     # image is pinned to Debian Bookworm (glibc 2.36), and 2.28 is the oldest supported tag
-    # that admits the patched Pillow release. Do not pin an ABI: CPython 3.12 must also admit
+    # that admits the patched Pillow release. Do not pin an ABI: CPython 3.14 must also admit
     # compatible abi3 and pure-Python wheels.
     extra_pip_args = [
+        # Bazel materializes independent wheel repositories concurrently. Fresh runners can
+        # otherwise exhaust PyPI's 15-second default while downloading the 100+ package MLflow
+        # graph, misreporting transport timeouts as "No matching distribution" failures.
+        "--timeout=60",
+        "--retries=8",
         "--platform=manylinux_2_28_x86_64",
         "--platform=manylinux_2_27_x86_64",
         "--platform=manylinux_2_26_x86_64",
@@ -286,11 +291,11 @@ pip.parse(
         "--platform=manylinux_2_6_x86_64",
         "--platform=manylinux_2_5_x86_64",
         "--platform=manylinux1_x86_64",
-        "--python-version=312",
+        "--python-version=314",
         "--implementation=cp",
     ],
     hub_name = "mlflow_pypi",
-    python_version = "3.12",
+    python_version = "3.14",
     requirements_by_platform = {
         "//services/mlflow:requirements.lock.txt": "linux_x86_64",
     },
@@ -318,7 +323,7 @@ oci.pull(
 )
 oci.pull(
     name = "python_slim",
-    digest = "sha256:593bd06efe90efa80dc4eee3948be7c0fde4134606dd40d8dd8dbcade98e669c",
+    digest = "sha256:23c59390fc717bf09f9336908199a0ae75d9c4264bf296123f94ad772fea3b52",
     image = "docker.io/library/python",
     platforms = ["linux/amd64"],
 )

@@ -59,7 +59,7 @@ jobs:
 
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
         with:
-          python-version: "3.12.12"
+          python-version: "3.14.7"
 
       # Stdlib only by design, so there is nothing to install first.
       - run: python3 ci/presubmit/pipeline.py --static-only
@@ -156,7 +156,7 @@ jobs:
   python:
     uses: mindclade/.github/.github/workflows/reusable-uv-ci.yml@7e4b7a873fc9312c2985ed262b251455c71756fe  # v3.0.0
     with:
-      python-version: "3.12.12"
+      python-version: "3.14.7"
       # Empty, not "--all-packages". pyproject sets `[tool.uv] package = false` and declares no
       # uv workspace members, so this is a single root project — `--all-packages` errors.
       packages: ""
@@ -180,7 +180,7 @@ jobs:
 
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
         with:
-          python-version: "3.12.12"
+          python-version: "3.14.7"
 
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9  # v9.0.0
         with:

@@ -16,11 +16,12 @@ This module owns the *format*. Which kinds exist is a domain decision and stays
 with the packages that mint them, exactly as Go splits ``Kind`` validation from
 the domain's list of valid kinds.
 
-The UUIDv7 generator is written out here because ``uuid.uuid7`` does not exist in
-the Python this repository pins (3.12; it arrives in 3.14). It follows RFC 9562's
-method 2 for intra-millisecond monotonicity: the 12-bit ``rand_a`` field is used
-as a counter within a millisecond rather than as noise, so two IDs minted in the
-same millisecond still order by creation.
+The UUIDv7 generator is written out here even though Python 3.14 provides
+``uuid.uuid7``. The standard-library API does not expose the explicit timestamp
+and process-local method-2 counter contract this module requires. This implementation
+follows RFC 9562 method 2 for intra-millisecond monotonicity: the 12-bit ``rand_a``
+field is used as a counter within a millisecond rather than as noise, so two IDs
+minted in the same millisecond still order by creation.
 """
 
 from __future__ import annotations
