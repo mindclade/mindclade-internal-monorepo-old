@@ -27,7 +27,7 @@ resolve_runfile() {
     return 0
   fi
   if [[ -n "${RUNFILES_MANIFEST_FILE:-}" && -f "${RUNFILES_MANIFEST_FILE}" ]]; then
-    resolved="$(awk -v key="$logical" '$1 == key {sub($1 FS, ""); print; exit}' "${RUNFILES_MANIFEST_FILE}")"
+    resolved="$(awk -v key="$logical" '$1 == key {print substr($0, length(key) + 2); exit}' "${RUNFILES_MANIFEST_FILE}")"
     if [[ -n "$resolved" && -e "$resolved" ]]; then
       printf '%s\n' "$resolved"
       return 0
@@ -37,24 +37,27 @@ resolve_runfile() {
   return 1
 }
 
-terraform_binary="$(resolve_runfile "${MINDCLADE_TERRAFORM_RLOCATION:?}")"
-provider_marker="$(resolve_runfile "${MINDCLADE_TERRAFORM_PROVIDER_MIRROR_MARKER_RLOCATION:?}")"
-module_marker="$(resolve_runfile "${MINDCLADE_TERRAFORM_MODULE_MARKER_RLOCATION:?}")"
-[[ -x "$terraform_binary" ]] || {
-  printf 'ERROR: Terraform executable is missing: %s\n' "$terraform_binary" >&2
-  exit 1
-}
+main() {
+  local terraform_binary provider_marker module_marker task_terraform_data task_terraform_config
+  local provider_mirror module_dir
+  terraform_binary="$(resolve_runfile "${MINDCLADE_TERRAFORM_RLOCATION:?}")"
+  provider_marker="$(resolve_runfile "${MINDCLADE_TERRAFORM_PROVIDER_MIRROR_MARKER_RLOCATION:?}")"
+  module_marker="$(resolve_runfile "${MINDCLADE_TERRAFORM_MODULE_MARKER_RLOCATION:?}")"
+  [[ -x "$terraform_binary" ]] || {
+    printf 'ERROR: Terraform executable is missing: %s\n' "$terraform_binary" >&2
+    return 1
+  }
 
-task_terraform_data="${TEST_TMPDIR:?}/terraform-data"
-task_terraform_config="${TEST_TMPDIR}/terraform.rc"
-export TF_DATA_DIR="$task_terraform_data"
-export TF_CLI_CONFIG_FILE="$task_terraform_config"
-export TF_IN_AUTOMATION=1
-export CHECKPOINT_DISABLE=1
-mkdir -p "$task_terraform_data"
+  task_terraform_data="${TEST_TMPDIR:?}/terraform-data"
+  task_terraform_config="${TEST_TMPDIR}/terraform.rc"
+  export TF_DATA_DIR="$task_terraform_data"
+  export TF_CLI_CONFIG_FILE="$task_terraform_config"
+  export TF_IN_AUTOMATION=1
+  export CHECKPOINT_DISABLE=1
+  mkdir -p "$task_terraform_data"
 
-provider_mirror="$(dirname "$provider_marker")"
-cat >"$task_terraform_config" <<EOF
+  provider_mirror="$(dirname "$provider_marker")"
+  cat >"$task_terraform_config" <<EOF
 provider_installation {
   filesystem_mirror {
     path    = "$provider_mirror"
@@ -63,10 +66,15 @@ provider_installation {
 }
 EOF
 
-module_dir="$(dirname "$module_marker")"
-"$terraform_binary" -chdir="$module_dir" init \
-  -backend=false \
-  -input=false \
-  -lockfile=readonly \
-  -no-color
-exec "$terraform_binary" -chdir="$module_dir" test -no-color
+  module_dir="$(dirname "$module_marker")"
+  "$terraform_binary" -chdir="$module_dir" init \
+    -backend=false \
+    -input=false \
+    -lockfile=readonly \
+    -no-color
+  exec "$terraform_binary" -chdir="$module_dir" test -no-color
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

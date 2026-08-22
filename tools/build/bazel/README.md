@@ -32,7 +32,9 @@ Google provider mirror, and every module input as runfiles. Its shared runner
 uses a test-private data directory, performs `terraform init -backend=false
 -lockfile=readonly`, and then runs `terraform test`. The explicit filesystem
 mirror is the only provider installation method, so a missing provider fails
-closed instead of contacting the registry.
+closed instead of contacting the registry. The macro rejects source overrides,
+host-environment inheritance, local/no-sandbox/network tags, and other attempts
+to bypass the pinned runner or repository-wide network-denied sandbox.
 
 ## Boundary
 

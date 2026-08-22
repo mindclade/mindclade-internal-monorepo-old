@@ -23,6 +23,13 @@ def terraform_test(
         visibility = None,
         **kwargs):
     """Runs terraform init and terraform test against the pinned provider mirror."""
+    for reserved in ["srcs", "env_inherit", "local"]:
+        if reserved in kwargs:
+            fail("terraform_test owns the %s attribute" % reserved)
+    requested_tags = tags or []
+    for forbidden_tag in ["local", "no-sandbox", "requires-network"]:
+        if forbidden_tag in requested_tags:
+            fail("terraform_test forbids the %s tag" % forbidden_tag)
     controlled_env = dict(env or {})
     controlled_env.update({
         "MINDCLADE_TERRAFORM_MODULE_MARKER_RLOCATION": "$(rlocationpath %s)" % module_marker,
@@ -39,7 +46,7 @@ def terraform_test(
             "@mindclade_terraform_google_provider//:terraform",
         ]),
         env = controlled_env,
-        tags = _unique((tags or []) + ["offline", "terraform"]),
+        tags = _unique(requested_tags + ["offline", "terraform"]),
     )
     if visibility != None:
         rule_args["visibility"] = visibility
