@@ -102,8 +102,9 @@ type Settings struct {
 	// by ";". Only roles whose production profile demands
 	// CapabilityAuthentication read it, and those factories fail closed when
 	// it is empty.
-	AuthAPIKeys   string
-	PaginationTTL time.Duration
+	AuthAPIKeys     string
+	AuthIAPAudience string
+	PaginationTTL   time.Duration
 
 	OutboundAllowedHosts []string
 }
@@ -151,6 +152,7 @@ func Schema(serviceName string) []foundationconfig.Field {
 		{Key: "signing.key_id", Default: foundationconfig.String("development/control-plane")},
 		{Key: "signing.hmac_key", Secret: true},
 		{Key: "auth.api_keys", Secret: true},
+		{Key: "auth.iap_audience"},
 		{Key: "pagination.ttl", Default: foundationconfig.String("15m"), Validate: positiveDuration("pagination.ttl")},
 		{Key: "outbound.allowed_hosts", Default: foundationconfig.String("")},
 	}
@@ -191,6 +193,7 @@ func EnvironmentSource() foundationconfig.EnvSource {
 		"signing.key_id":         "MINDCLADE_SIGNING_KEY_ID",
 		"signing.hmac_key":       "MINDCLADE_SIGNING_HMAC_KEY",
 		"auth.api_keys":          "MINDCLADE_AUTH_API_KEYS",
+		"auth.iap_audience":      "MINDCLADE_AUTH_IAP_AUDIENCE",
 		"pagination.ttl":         "MINDCLADE_PAGINATION_TTL",
 		"outbound.allowed_hosts": "MINDCLADE_OUTBOUND_ALLOWED_HOSTS",
 	}}
@@ -252,6 +255,7 @@ func Decode(snapshot foundationconfig.Snapshot) (Settings, error) {
 		SigningKeyID:          snapshot.MustGet("signing.key_id"),
 		SigningHMACKey:        value(snapshot, "signing.hmac_key"),
 		AuthAPIKeys:           value(snapshot, "auth.api_keys"),
+		AuthIAPAudience:       value(snapshot, "auth.iap_audience"),
 		OutboundAllowedHosts:  splitCSV(value(snapshot, "outbound.allowed_hosts")),
 	}
 	var err error

@@ -19,23 +19,31 @@ go_library(
         "//services:__subpackages__",
     ],
     deps = [
+        "//libs/go/auth",
         "//libs/go/clock",
         "//libs/go/faults",
         "//libs/go/idempotency",
         "//libs/go/identifiers",
         "//libs/go/resourceversion",
+        "//libs/go/signing",
     ],
 )
 
 go_test(
     name = "admission_test",
-    srcs = ["admission_test.go"],
+    srcs = [
+        "admission_test.go",
+        "governance_test.go",
+        "policy_test.go",
+    ],
     embed = [":admission"],
     deps = [
+        "//libs/go/auth",
         "//libs/go/clock",
         "//libs/go/faults",
         "//libs/go/idempotency",
         "//libs/go/identifiers",
         "//libs/go/resourceversion",
+        "//libs/go/signing",
     ],
 )

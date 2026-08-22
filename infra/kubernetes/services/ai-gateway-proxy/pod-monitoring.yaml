@@ -1,0 +1,31 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+---
+apiVersion: monitoring.googleapis.com/v1
+kind: PodMonitoring
+metadata:
+  name: ai-gateway-proxy
+  namespace: ai
+  annotations:
+    mindclade.dev/activation-blocker: connected-gmp-scrape-slo-and-alert-qualification-missing
+spec:
+  selector:
+    matchLabels:
+      observability.mindclade.dev/service: ai-gateway-proxy
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      timeout: 10s
+      metricRelabeling:
+        - sourceLabels: [__name__]
+          regex: ^(up|mindclade_ai_gateway_(accepted|rejected|dispatched|committed|reconciliation_pending|reconciled)_total)$
+          action: keep
+  limits:
+    samples: 100
+    labels: 16
+    labelNameLength: 128
+    labelValueLength: 256
+  filterRunning: true

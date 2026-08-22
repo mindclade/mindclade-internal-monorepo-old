@@ -218,11 +218,22 @@ func TestAdmissionHTTPReserveReplayAndCommit(t *testing.T) {
 		t.Fatalf("unexpected replay: %+v", replayed)
 	}
 
+	dispatchPath := reservationPrefix + decision.Reservation.ID.String() + "/dispatch"
+	dispatch := fixture.call(t, http.MethodPost, dispatchPath, finalizeHTTPRequest{
+		RequestDigest: fixture.request.RequestDigest,
+	}, map[string]string{"If-Match": decision.Reservation.Version.ETag()}, fixture.principal)
+	if dispatch.Code != http.StatusOK {
+		t.Fatalf("dispatch status=%d body=%s", dispatch.Code, dispatch.Body.String())
+	}
+	var dispatched admission.Decision
+	if err := json.Unmarshal(dispatch.Body.Bytes(), &dispatched); err != nil {
+		t.Fatal(err)
+	}
 	commitPath := reservationPrefix + decision.Reservation.ID.String() + "/commit"
 	committed := fixture.call(t, http.MethodPost, commitPath, finalizeHTTPRequest{
 		RequestDigest: fixture.request.RequestDigest,
 		Actual:        admission.Quota{admission.UnitRequests: 1, admission.UnitInputTokens: 90, admission.UnitOutputTokens: 40, admission.UnitCostMicros: 450},
-	}, map[string]string{"If-Match": decision.Reservation.Version.ETag()}, fixture.principal)
+	}, map[string]string{"If-Match": dispatched.Reservation.Version.ETag()}, fixture.principal)
 	if committed.Code != http.StatusOK {
 		t.Fatalf("commit status=%d body=%s", committed.Code, committed.Body.String())
 	}
@@ -230,7 +241,7 @@ func TestAdmissionHTTPReserveReplayAndCommit(t *testing.T) {
 	if err := json.Unmarshal(committed.Body.Bytes(), &terminal); err != nil {
 		t.Fatal(err)
 	}
-	if terminal.Reservation.State != admission.ReservationCommitted || terminal.Reservation.Version.Generation() != 2 {
+	if terminal.Reservation.State != admission.ReservationCommitted || terminal.Reservation.Version.Generation() != 3 {
 		t.Fatalf("unexpected terminal reservation: %+v", terminal.Reservation)
 	}
 	if terminal.Reservation.FinalizedAt.IsZero() || !bytes.Contains(committed.Body.Bytes(), []byte("finalized_at")) {
@@ -270,6 +281,120 @@ func TestAdmissionHTTPFinalizationRequiresVersionAndOwner(t *testing.T) {
 	}
 }
 
+func TestAdmissionHTTPDelegationIsExplicitOpaqueAndOwnerBound(t *testing.T) {
+	fixture := newAdmissionHTTPFixture(t)
+	delegatedSubject := "google-" + identifiers.SHA256String("https://accounts.google.com\x00caller-subject").Hex()
+	entitlement := admission.Entitlement{
+		ID:             admissionHTTPID(t, "entitlement", admissionHTTPNow.Add(2*time.Millisecond)),
+		Subject:        delegatedSubject,
+		Workspace:      fixture.request.Workspace,
+		PolicyEpoch:    fixture.request.PolicyEpoch,
+		Routes:         []admission.GatewayRoute{fixture.request.Route},
+		MaximumRequest: admission.Quota{admission.UnitRequests: 1, admission.UnitInputTokens: 1000, admission.UnitOutputTokens: 500, admission.UnitCostMicros: 5000},
+		NotBefore:      admissionHTTPNow.Add(-time.Minute),
+		ExpiresAt:      admissionHTTPNow.Add(time.Hour),
+	}
+	var err error
+	entitlement, err = entitlement.Seal(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := fixture.repository.PutEntitlement(context.Background(), entitlement); err != nil {
+		t.Fatal(err)
+	}
+	permissions, err := auth.NewPermissionSet(
+		auth.MustParsePermission("ai_gateway.reservations.*"),
+		delegatedSubjectPermission,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxy, err := auth.NewPrincipal(auth.PrincipalKindService, "ai-gateway-proxy",
+		auth.WithIssuer("control-plane/api-keys"), auth.WithPermissions(permissions))
+	if err != nil {
+		t.Fatal(err)
+	}
+	headers := map[string]string{
+		httpx.HeaderIdempotencyKey: "delegated-request-0001",
+		delegatedSubjectHeader:     delegatedSubject,
+	}
+	created := fixture.call(t, http.MethodPost, reservationsPath, fixture.request, headers, proxy)
+	if created.Code != http.StatusCreated {
+		t.Fatalf("delegated create status=%d body=%s", created.Code, created.Body.String())
+	}
+	var decision admission.Decision
+	if err := json.Unmarshal(created.Body.Bytes(), &decision); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := fixture.repository.Get(context.Background(), decision.Reservation.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Subject != delegatedSubject {
+		t.Fatalf("reservation subject=%q want delegated digest %q", stored.Subject, delegatedSubject)
+	}
+	release := fixture.call(t, http.MethodPost,
+		reservationPrefix+decision.Reservation.ID.String()+"/release",
+		finalizeHTTPRequest{RequestDigest: fixture.request.RequestDigest},
+		map[string]string{"If-Match": decision.Reservation.Version.ETag(), delegatedSubjectHeader: delegatedSubject},
+		proxy,
+	)
+	if release.Code != http.StatusOK {
+		t.Fatalf("delegated release status=%d body=%s", release.Code, release.Body.String())
+	}
+
+	withoutDelegation := fixture.call(t, http.MethodPost, reservationsPath, fixture.request,
+		map[string]string{httpx.HeaderIdempotencyKey: "delegated-request-0002"}, proxy)
+	if withoutDelegation.Code != http.StatusNotFound || admissionProblem(t, withoutDelegation).Reason != "entitlement_not_found" {
+		t.Fatalf("missing delegation status=%d body=%s", withoutDelegation.Code, withoutDelegation.Body.String())
+	}
+
+	noDelegatePermission, err := auth.NewPrincipal(auth.PrincipalKindService, "ai-gateway-proxy",
+		auth.WithIssuer("control-plane/api-keys"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	forbidden := fixture.call(t, http.MethodPost, reservationsPath, fixture.request,
+		map[string]string{httpx.HeaderIdempotencyKey: "delegated-request-0003", delegatedSubjectHeader: delegatedSubject},
+		noDelegatePermission,
+	)
+	if forbidden.Code != http.StatusForbidden || admissionProblem(t, forbidden).Reason != "delegated_subject_forbidden" {
+		t.Fatalf("unprivileged delegation status=%d body=%s", forbidden.Code, forbidden.Body.String())
+	}
+	user, err := auth.NewPrincipal(auth.PrincipalKindUser, "gateway-user",
+		auth.WithIssuer("test"), auth.WithPermissions(permissions))
+	if err != nil {
+		t.Fatal(err)
+	}
+	userForbidden := fixture.call(t, http.MethodPost, reservationsPath, fixture.request,
+		map[string]string{httpx.HeaderIdempotencyKey: "delegated-request-0004", delegatedSubjectHeader: delegatedSubject},
+		user,
+	)
+	if userForbidden.Code != http.StatusForbidden || admissionProblem(t, userForbidden).Reason != "delegated_subject_principal_forbidden" {
+		t.Fatalf("user delegation status=%d body=%s", userForbidden.Code, userForbidden.Body.String())
+	}
+	invalid := fixture.call(t, http.MethodPost, reservationsPath, fixture.request,
+		map[string]string{httpx.HeaderIdempotencyKey: "delegated-request-0005", delegatedSubjectHeader: "caller-subject"},
+		proxy,
+	)
+	if invalid.Code != http.StatusBadRequest || admissionProblem(t, invalid).Reason != "delegated_subject_invalid" {
+		t.Fatalf("invalid delegation status=%d body=%s", invalid.Code, invalid.Body.String())
+	}
+	payload, err := json.Marshal(fixture.request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ambiguousHeaders := http.Header{
+		"Content-Type":             {"application/json"},
+		httpx.HeaderIdempotencyKey: {"delegated-request-0006"},
+		delegatedSubjectHeader:     {delegatedSubject, delegatedSubject},
+	}
+	ambiguous := callAdmissionHTTP(t, fixture.handler, http.MethodPost, reservationsPath, payload, ambiguousHeaders, &proxy)
+	if ambiguous.Code != http.StatusBadRequest || admissionProblem(t, ambiguous).Reason != "delegated_subject_ambiguous" {
+		t.Fatalf("ambiguous delegation status=%d body=%s", ambiguous.Code, ambiguous.Body.String())
+	}
+}
+
 func TestAdmissionAuthorizationIsExplicitAndUnknownRoutesStayUnmapped(t *testing.T) {
 	request := httptest.NewRequest(http.MethodPost, reservationsPath, nil)
 	target, mapped, err := resolveAdmissionAuthorization(request)
@@ -280,10 +405,14 @@ func TestAdmissionAuthorizationIsExplicitAndUnknownRoutesStayUnmapped(t *testing
 		t.Fatalf("collection authorization unexpectedly targeted ID %s", target.Resource.ID())
 	}
 	reservationID := admissionHTTPID(t, "reservation", admissionHTTPNow)
-	for _, action := range []string{"commit", "release"} {
+	for action, permission := range map[string]string{
+		"dispatch": "ai_gateway.reservations.dispatch", "reconciliation-pending": "ai_gateway.reservations.reconcile",
+		"commit": "ai_gateway.reservations.commit", "reconcile": "ai_gateway.reservations.reconcile",
+		"release": "ai_gateway.reservations.release",
+	} {
 		request = httptest.NewRequest(http.MethodPost, reservationPrefix+reservationID.String()+"/"+action, nil)
 		target, mapped, err = resolveAdmissionAuthorization(request)
-		if err != nil || !mapped || target.Resource.ID().String() != reservationID.String() {
+		if err != nil || !mapped || target.Resource.ID().String() != reservationID.String() || target.Permission.String() != permission {
 			t.Fatalf("%s target=%+v mapped=%t error=%v", action, target, mapped, err)
 		}
 	}
@@ -656,11 +785,27 @@ type terminalAdmissionEngine struct {
 	err error
 }
 
+func (engine *terminalAdmissionEngine) ResolveEndpoint(context.Context, string, string, string, admission.GatewayOperation) (admission.ResolvedEndpoint, error) {
+	return admission.ResolvedEndpoint{}, engine.err
+}
+
 func (engine *terminalAdmissionEngine) Admit(context.Context, admission.AdmitRequest) (admission.Decision, error) {
 	return admission.Decision{}, engine.err
 }
 
 func (engine *terminalAdmissionEngine) Commit(context.Context, identifiers.ID, resourceversion.Version, identifiers.Digest, string, admission.Quota) (admission.Decision, error) {
+	return admission.Decision{}, engine.err
+}
+
+func (engine *terminalAdmissionEngine) Dispatch(context.Context, identifiers.ID, resourceversion.Version, identifiers.Digest, string) (admission.Decision, error) {
+	return admission.Decision{}, engine.err
+}
+
+func (engine *terminalAdmissionEngine) MarkReconciliationPending(context.Context, identifiers.ID, resourceversion.Version, identifiers.Digest, string) (admission.Decision, error) {
+	return admission.Decision{}, engine.err
+}
+
+func (engine *terminalAdmissionEngine) Reconcile(context.Context, identifiers.ID, resourceversion.Version, identifiers.Digest, string) (admission.Decision, error) {
 	return admission.Decision{}, engine.err
 }
 

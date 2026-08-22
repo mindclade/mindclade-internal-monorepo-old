@@ -60,7 +60,8 @@ metrics backend.
 | `mindclade.control_admission.maintenance_metric_contract_complete` | exact maintenance series inventory per desired replica | `mindclade:control_admission_maintenance_metric_contract_complete:min` |
 | `mindclade.control_admission.maintenance_target_up` | service-scoped maintenance `up` plus desired Deployment replicas | `mindclade:control_admission_maintenance_target_up:min` |
 
-Decision `operation` is restricted to `admit`, `commit`, and `release`. Decision `result` is
+Decision `operation` is restricted to `admit`, `dispatch`, `reconciliation_pending`, `commit`,
+`reconcile`, and `release`. Decision `result` is
 restricted to `allow`, `deny`, `exhausted`, `conflict`, `not_found`, `unavailable`, `internal`,
 `deadline`, `canceled`, and `invalid`. Caller-owned `canceled` decisions are omitted from both
 availability and latency populations. Only `unavailable`, `internal`, and `deadline` consume
@@ -71,8 +72,8 @@ provider, model, prompt, request, idempotency, and reservation identifiers are f
 Decision counters and histogram buckets sum across API replicas. Target health uses the minimum
 service-scoped `up` value and requires the discovered target count to equal the desired Deployment
 replica count; an unrelated role label, failed scrape, or missing replica therefore cannot be
-hidden by one healthy target. The API v1 metric contract additionally requires exactly 30
-decision counters, 36 histogram buckets, three histogram counts, and three histogram sums per
+hidden by one healthy target. The API v2 metric contract additionally requires exactly 60
+decision counters, 72 histogram buckets, six histogram counts, and six histogram sums per
 desired replica. Maintenance backlog, oldest age, drift, and consecutive-backlog
 values use the conservative maximum. Sweep and probe age use the minimum reported success
 timestamp, which yields the oldest replica age, while snapshot success uses the minimum across

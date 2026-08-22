@@ -1,0 +1,70 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+package(default_visibility = ["//libs/rust:repo_consumers"])
+
+rust_library(
+    name = "mindclade_ai_gateway_proxy",
+    srcs = glob(
+        ["src/**/*.rs"],
+        exclude = ["src/main.rs"],
+    ),
+    crate_name = "mindclade_ai_gateway_proxy",
+    edition = "2024",
+    deps = [
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/telemetry:mindclade_telemetry",
+        "@crates//:axum",
+        "@crates//:base64",
+        "@crates//:bytes",
+        "@crates//:futures-util",
+        "@crates//:reqwest",
+        "@crates//:ring",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:tokio",
+        "@crates//:tower",
+    ],
+)
+
+rust_binary(
+    name = "mindclade_ai_gateway_proxy_bin",
+    srcs = ["src/main.rs"],
+    crate_name = "mindclade_ai_gateway_proxy_bin",
+    edition = "2024",
+    deps = [
+        ":mindclade_ai_gateway_proxy",
+        "//libs/rust/faults:mindclade_faults",
+        "@crates//:axum",
+        "@crates//:tokio",
+    ],
+)
+
+rust_test(
+    name = "integration",
+    srcs = ["tests/integration.rs"],
+    edition = "2024",
+    deps = [
+        ":mindclade_ai_gateway_proxy",
+        "//libs/rust/faults:mindclade_faults",
+        "@crates//:axum",
+        "@crates//:bytes",
+        "@crates//:reqwest",
+        "@crates//:serde_json",
+        "@crates//:tokio",
+        "@crates//:tower",
+    ],
+)
+
+filegroup(
+    name = "package_sources",
+    srcs = glob(
+        ["**"],
+        exclude = ["target/**"],
+    ),
+    visibility = ["//libs/rust:repo_consumers"],
+)

@@ -161,6 +161,26 @@ func TestDDLIsCompleteAndRejectsUnsafeIdentifiers(t *testing.T) {
 	}
 }
 
+func TestReservationLifecycleDDLIsAppendOnlyAndFailClosed(t *testing.T) {
+	statement, err := ReservationLifecycleDDL(DefaultReservationTable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, required := range []string{
+		"state IN ('reserved','dispatched','reconciliation_pending','committed','released','expired')",
+		"lifecycle_finalization_check",
+		"lifecycle_usage_check",
+		"actual_cost_micros<=reserved_cost_micros",
+	} {
+		if !strings.Contains(statement, required) {
+			t.Fatalf("lifecycle DDL lacks %q", required)
+		}
+	}
+	if _, err := ReservationLifecycleDDL("unsafe;drop_table"); err == nil {
+		t.Fatal("lifecycle DDL accepted an unsafe table name")
+	}
+}
+
 func TestObservabilityDDLIsAdditiveBoundedAndRejectsUnsafeIdentifiers(t *testing.T) {
 	statement, err := ObservabilityDDL(DefaultReservationTable, "mindclade_audit_events", "mindclade_outbox", "mindclade_work_items")
 	if err != nil {
@@ -256,7 +276,7 @@ func TestReadinessRequiresEveryAdmissionTableShape(t *testing.T) {
 	if err := store.Readiness(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if queryIndex != 3 {
+	if queryIndex != 6 {
 		t.Fatalf("readiness queries=%d", queryIndex)
 	}
 	component := store.Component("admission-schema")
@@ -810,6 +830,13 @@ func TestFinalizationUsesStoreClockInsteadOfCallerTimestamp(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			fixture := newDomainFixture(t)
+			if test.name == "commit" {
+				var err error
+				fixture.reservation, err = fixture.reservation.Dispatch(testNow)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
 			decisionNow := testNow.Add(10 * time.Second)
 			if err := fixture.clock.Set(decisionNow); err != nil {
 				t.Fatal(err)
@@ -854,15 +881,11 @@ func TestFinalizationSamplesStoreClockAfterRowLock(t *testing.T) {
 		finalize func(*Store, domainFixture) (admission.Reservation, bool, error)
 	}{
 		{
-			name: "commit",
+			name: "dispatch",
 			finalize: func(store *Store, fixture domainFixture) (admission.Reservation, bool, error) {
-				return store.Commit(
+				return store.Dispatch(
 					context.Background(), fixture.reservation.ID, fixture.reservation.Version,
-					fixture.reservation.RequestDigest, fixture.reservation.Subject,
-					admission.Quota{
-						admission.UnitRequests: 1, admission.UnitInputTokens: 90,
-						admission.UnitOutputTokens: 40, admission.UnitCostMicros: 450,
-					}, testNow,
+					fixture.reservation.RequestDigest, fixture.reservation.Subject, testNow,
 				)
 			},
 		},

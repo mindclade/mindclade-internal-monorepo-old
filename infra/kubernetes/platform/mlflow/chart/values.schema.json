@@ -27,7 +27,7 @@
     "server": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["port", "workers", "allowedHosts", "corsAllowedOrigins", "xFrameOptions", "secretsCacheTTLSeconds", "secretsCacheMaxSize", "terminationGracePeriodSeconds", "gatewayBudgetRefreshIntervalSeconds"],
+      "required": ["port", "workers", "allowedHosts", "corsAllowedOrigins", "xFrameOptions", "secretsCacheTTLSeconds", "secretsCacheMaxSize", "terminationGracePeriodSeconds"],
       "properties": {
         "port": {"type": "integer", "minimum": 1024, "maximum": 65535},
         "workers": {"type": "integer", "minimum": 1, "maximum": 16},
@@ -36,20 +36,18 @@
         "xFrameOptions": {"enum": ["DENY", "SAMEORIGIN"]},
         "secretsCacheTTLSeconds": {"type": "integer", "minimum": 10, "maximum": 300},
         "secretsCacheMaxSize": {"type": "integer", "minimum": 1, "maximum": 10000},
-        "terminationGracePeriodSeconds": {"type": "integer", "minimum": 30, "maximum": 300},
-        "gatewayBudgetRefreshIntervalSeconds": {"type": "integer", "minimum": 10, "maximum": 600}
+        "terminationGracePeriodSeconds": {"type": "integer", "minimum": 30, "maximum": 300}
       }
     },
     "auth": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["existingSecret", "authConfigKey", "backendStoreURIKey", "flaskSecretKey", "gatewayBudgetRedisURIKey", "traceArchivalConfigKey"],
+      "required": ["existingSecret", "authConfigKey", "backendStoreURIKey", "flaskSecretKey", "traceArchivalConfigKey"],
       "properties": {
         "existingSecret": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,253}$"},
         "authConfigKey": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,253}$"},
         "backendStoreURIKey": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,253}$"},
         "flaskSecretKey": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,253}$"},
-        "gatewayBudgetRedisURIKey": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,253}$"},
         "traceArchivalConfigKey": {"type": "string", "pattern": "^[A-Za-z0-9_.-]{1,253}$"}
       }
     },
@@ -105,19 +103,10 @@
     "networkPolicy": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["ingressNamespaceNames", "database", "redis", "httpsCIDRs", "workloadIdentityMetadata"],
+      "required": ["ingressNamespaceNames", "database", "httpsCIDRs", "workloadIdentityMetadata"],
       "properties": {
         "ingressNamespaceNames": {"type": "array", "maxItems": 32, "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"}},
         "database": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["port", "cidrs"],
-          "properties": {
-            "port": {"type": "integer", "minimum": 1, "maximum": 65535},
-            "cidrs": {"type": "array", "maxItems": 32, "uniqueItems": true, "items": {"type": "string", "pattern": "^[0-9a-fA-F:.]+/[0-9]{1,3}$"}}
-          }
-        },
-        "redis": {
           "type": "object",
           "additionalProperties": false,
           "required": ["port", "cidrs"],
@@ -170,7 +159,6 @@
             "properties": {
               "ingressNamespaceNames": {"minItems": 1},
               "database": {"properties": {"cidrs": {"minItems": 1}}},
-              "redis": {"properties": {"cidrs": {"minItems": 1}}},
               "httpsCIDRs": {"minItems": 1}
             }
           },

@@ -98,6 +98,14 @@ slo = "docs/slo/runtime-gateway.md"
 runbook = "docs/runbooks/runtime-gateway-degraded.md"
 security_review = true
 
+[component."runtime.ai_gateway_proxy"]
+owner = "runtime-platform"
+criticality = "tier-0"
+language = "rust"
+slo = "docs/slo/ai-gateway-provider-edge.md"
+runbook = "docs/runbooks/ai-gateway-provider-edge.md"
+security_review = true
+
 [component."runtime.host"]
 owner = "runtime-platform"
 criticality = "tier-0"
