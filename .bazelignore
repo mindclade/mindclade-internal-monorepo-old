@@ -44,5 +44,12 @@ result
 # a partial or sparse checkout -- would be walked, and `//...` would fail on duplicate
 # packages rather than on anything a developer changed. Naming the directory makes the skip
 # intentional instead of incidental.
+#
+# BOTH agent roots are named because both are in use. `.claude/worktrees` was listed here while
+# the directory actually appearing in checkouts was `.codex-worktrees`, which carried a full
+# duplicate tree -- 710 BUILD files -- and was covered by neither this file nor .gitignore. It
+# survived only on the same accident described above. A tool that walks the source tree without
+# consulting Bazel gets no such accident: the affected-test selector used to enumerate BUILD
+# files directly and emitted `//.codex-worktrees/...` labels for a change to a real package.
 .claude/worktrees
 .codex-worktrees
