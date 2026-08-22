@@ -29,6 +29,9 @@ are not transactional.
   live state and restore checks decoded state before either PyTorch load API can mutate objects.
 - Tensor state is bounded to 256 MiB and the committed directory to 512 MiB.
 - Only dense, non-complex, non-quantized tensors and bounded JSON-safe optimizer state are accepted.
+- Metadata is rejected before parsing when JSON syntax exceeds 256 nested objects/arrays, so the
+  admission boundary is identical across supported Python runtimes and ignores bracket bytes inside
+  quoted strings.
 - A checkpoint destination is immutable. Retry with a new checkpoint ID and directory.
 - Data-loader/sampler state remains caller-owned and is represented by the validated data position.
 
