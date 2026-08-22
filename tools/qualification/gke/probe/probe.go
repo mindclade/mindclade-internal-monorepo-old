@@ -404,7 +404,7 @@ func probeUnixIPC(ctx context.Context, scratch string, byteCount int64) (Check, 
 			return Check{}, err
 		}
 	case <-ctx.Done():
-		return Check{}, fmt.Errorf("Unix IPC qualification canceled: %w", ctx.Err())
+		return Check{}, fmt.Errorf("unix IPC qualification canceled: %w", ctx.Err())
 	}
 	duration := time.Since(started)
 	return Check{
