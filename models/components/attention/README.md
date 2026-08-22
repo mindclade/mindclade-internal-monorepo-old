@@ -1,35 +1,39 @@
 # Models / Components / Attention
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
-- **Primary implementation ownership:** Python/PyTorch
+**Status:** Dense PyTorch component implemented and package-tested on CPU; sparse
+attention remains scaffolded and accelerator qualification remains separate.
 
-## Purpose
+## Tensor contract
 
-Model contracts, reusable components, independent model families, adapters, references, and registry metadata. Model families do not import one another. This path specializes that domain for **attention**.
+`DenseMultiheadAttention` accepts query `[B,Tq,C]`, key/value `[B,Tk,C]`, and
+returns `[B,Tq,C]` on the same device and with the same floating dtype. `C` must
+equal `embed_dim`; key and value sequence lengths must match. Empty sequences,
+mixed devices/dtypes, and implicit channel broadcasting are rejected.
 
-## Boundary
+Masks are boolean with `True` meaning allowed. Accepted layouts are `[B,Tk]`,
+`[B,Tq,Tk]`, and `[B,1|H,Tq,Tk]`. Explicit masks may be combined with causal
+attention. A query row with no allowed keys returns an exact zero after the
+output projection, so projection bias cannot turn a padded row into data.
+Finite inputs use PyTorch's stable SDPA implementation and produce finite values
+for fully masked rows; NaN or infinity in caller inputs is outside this contract.
 
-Reusable implementation belongs in this owning package. Deployable entry points,
-provider construction, health/drain wiring, and deployment evidence belong under
-`services/`. Cross-language data exchanged outside a process uses versioned
-contracts under `protocols/` rather than language-private structures.
+`RotaryEmbedding` accepts `[...,T,D]`, uses interleaved even/odd channel pairs,
+and optionally accepts integer positions `[T]` on the same device. `D` must be
+the configured positive even head dimension.
 
-This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
-ground. It may depend only in the direction documented by
-`docs/architecture/dependency-rules.md` and the accepted ADRs.
+## Operator boundary
 
-## Materialization requirements
+`AttentionOperator` is an injected, registered child-module seam over projected
+`[B,H,T,D]` tensors. `PyTorchSDPAOperator` is the only default. TileLang or vendor
+operators must be supplied by a caller after their exact semantic and runtime
+domain is qualified; importing this package never enables one.
 
-Before this scaffold boundary is treated as implemented, add:
+Dropout follows normal module state: configured dropout is active only in
+training mode and is zero in evaluation. Parameters and rotary frequencies use
+ordinary `state_dict` serialization.
 
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
+## Remaining work
 
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+`sparse.py` remains an explicit scaffold. CUDA/reduced-precision parity,
+performance, compilation, and deployment evidence are also outside the local CPU
+qualification represented by the package tests.

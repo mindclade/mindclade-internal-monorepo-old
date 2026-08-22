@@ -1,11 +1,20 @@
-# Models / Components / Nn
+# Models / Components / Neural network primitives
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
+- **Status:** Eager PyTorch SwiGLU, feed-forward, and residual primitives are package-tested.
 - **Primary implementation ownership:** Python/PyTorch
 
-## Purpose
+## Implemented contract
 
-Model contracts, reusable components, independent model families, adapters, references, and registry metadata. Model families do not import one another. This path specializes that domain for **nn**.
+`SwiGLU` is the eager semantic reference: it computes SiLU in float32 before
+multiplying and casting to the input dtype. Qualified accelerator providers
+must demonstrate parity with this equation.
+`SwiGLUFeedForward` maps `[..., hidden_size]` through registered `gate_proj`,
+`up_proj`, and `down_proj` layers while preserving all leading dimensions.
+`ResidualAdd` performs strict, non-broadcasting `residual + scale * update`.
+
+All inputs are nonempty dense strided floating tensors. Operands and parameters
+must already share shape where applicable, dtype, and device; the caller owns
+placement. These primitives contain no stochastic train/eval behavior.
 
 ## Boundary
 
@@ -18,18 +27,15 @@ This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
 ground. It may depend only in the direction documented by
 `docs/architecture/dependency-rules.md` and the accepted ADRs.
 
-## Materialization requirements
+## Remaining scaffolds and qualification
 
-Before this scaffold boundary is treated as implemented, add:
+Dropout, stochastic depth, and parametrization remain explicit scaffold files.
+This package does not choose a qualified accelerator kernel or claim hardware
+performance. Model-owned adapters may replace the reference activation only
+through the repository's qualification-gated kernel boundary.
 
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
+Focused validation:
 
-See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
-artifact-wide implementation status.
+```text
+bazel test //models/components/nn/tests:test_nn
+```

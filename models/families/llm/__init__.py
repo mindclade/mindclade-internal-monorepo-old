@@ -3,4 +3,24 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Mindclade scaffold package for models/families/llm."""
+"""Bounded decoder-only language-model components."""
+
+from .attention import CausalSelfAttention, RotaryAttentionOperator
+from .config import LLMConfig
+from .embeddings import TokenEmbedding
+from .feed_forward import DecoderFeedForward
+from .layer import DecoderLayer
+from .model import AttentionOperatorFactory, DecoderOnlyLanguageModel
+from .outputs import CausalLMOutput
+
+__all__ = [
+    "AttentionOperatorFactory",
+    "CausalLMOutput",
+    "CausalSelfAttention",
+    "DecoderFeedForward",
+    "DecoderLayer",
+    "DecoderOnlyLanguageModel",
+    "LLMConfig",
+    "RotaryAttentionOperator",
+    "TokenEmbedding",
+]

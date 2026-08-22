@@ -3,4 +3,4 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Mindclade scaffold package for models/adapters/export/tests."""
+"""Tests for bounded, verified PyTorch export bundles."""

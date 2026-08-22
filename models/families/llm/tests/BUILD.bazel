@@ -3,13 +3,19 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("//tools/build:pytest.bzl", "pytest_test")
+
 package(default_visibility = ["//visibility:private"])
 
-filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
-    visibility = ["//visibility:public"],
+pytest_test(
+    name = "test_llm",
+    srcs = ["test_llm.py"],
+    imports = ["../../../.."],
+    deps = [
+        "//models/adapters/export",
+        "//models/components/attention",
+        "//models/families/llm",
+        "//models/families/llm:tiny_reference",
+        "@pypi//torch",
+    ],
 )

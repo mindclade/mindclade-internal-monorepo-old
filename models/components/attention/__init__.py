@@ -3,4 +3,15 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Mindclade scaffold package for models/components/attention."""
+"""Reusable dense attention and rotary embedding components."""
+
+from models.components.attention.api import AttentionOperator, PyTorchSDPAOperator
+from models.components.attention.dense import DenseMultiheadAttention
+from models.components.attention.rotary import RotaryEmbedding
+
+__all__ = [
+    "AttentionOperator",
+    "DenseMultiheadAttention",
+    "PyTorchSDPAOperator",
+    "RotaryEmbedding",
+]

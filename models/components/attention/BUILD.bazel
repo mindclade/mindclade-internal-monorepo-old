@@ -3,13 +3,25 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_python//python:defs.bzl", "py_library")
+
 package(default_visibility = ["//visibility:private"])
+
+py_library(
+    name = "attention",
+    srcs = [
+        "__init__.py",
+        "api.py",
+        "dense.py",
+        "rotary.py",
+    ],
+    imports = ["../../.."],
+    visibility = ["//visibility:public"],
+    deps = ["@pypi//torch"],
+)
 
 filegroup(
     name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
+    srcs = ["sparse.py"],
     visibility = ["//visibility:public"],
 )
