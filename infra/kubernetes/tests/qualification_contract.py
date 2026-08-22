@@ -2,11 +2,13 @@
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
+
 """Prove the source qualification package cannot consume live capacity."""
 
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import pathlib
 from typing import Any
@@ -91,10 +93,7 @@ def validate(resources: list[Resource]) -> list[str]:
         kind = str(resource.get("kind", ""))
         actual_kinds[kind] = actual_kinds.get(kind, 0) + 1
     if actual_kinds != expected_kinds:
-        failures.append(
-            f"resource inventory must be exact: expected {expected_kinds}, got {actual_kinds}"
-        )
-        return failures
+        return [f"resource inventory must be exact: expected {expected_kinds}, got {actual_kinds}"]
 
     try:
         namespace = one(resources, "Namespace", NAMESPACE)
@@ -103,8 +102,7 @@ def validate(resources: list[Resource]) -> list[str]:
         limit_range = one(resources, "LimitRange", "mindclade-qualification-bounds")
         network_policy = one(resources, "NetworkPolicy", "default-deny")
     except ValueError as error:
-        failures.append(str(error))
-        return failures
+        return [str(error)]
 
     namespace_labels = (namespace.get("metadata", {}) or {}).get("labels", {}) or {}
     required_namespace_labels = {
@@ -124,11 +122,11 @@ def validate(resources: list[Resource]) -> list[str]:
     if "mindclade.dev/queue-enforcement" in namespace_labels:
         failures.append("qualification Namespace must not attach to a workload queue")
 
-    sa_metadata = service_account.get("metadata", {}) or {}
+    service_account_metadata = service_account.get("metadata", {}) or {}
     if (
-        sa_metadata.get("namespace") != NAMESPACE
+        service_account_metadata.get("namespace") != NAMESPACE
         or service_account.get("automountServiceAccountToken") is not False
-        or (sa_metadata.get("labels", {}) or {}).get("mindclade.dev/identity-mode")
+        or (service_account_metadata.get("labels", {}) or {}).get("mindclade.dev/identity-mode")
         != "kubernetes-only"
     ):
         failures.append("qualification ServiceAccount identity contract drifted")
@@ -223,13 +221,56 @@ def validate(resources: list[Resource]) -> list[str]:
             or (containers[0].get("resources", {}) or {}).get("limits") != expected["limits"]
         ):
             failures.append(f"qualification Job/{profile} fail-closed contract drifted")
-
     return failures
+
+
+def mutation_self_test(resources: list[Resource]) -> int:
+    cases: list[tuple[str, Resource, tuple[str, ...], Any]] = []
+
+    quota = one(resources, "ResourceQuota", "mindclade-qualification-capacity")
+    cases.append(("quota", quota, ("spec", "hard", "pods"), "1"))
+    namespace = one(resources, "Namespace", NAMESPACE)
+    cases.append(
+        (
+            "namespace activation",
+            namespace,
+            ("metadata", "labels", "mindclade.dev/workload-activation"),
+            "active",
+        )
+    )
+    for profile in PROFILES:
+        job = one(resources, "Job", f"mindclade-foundation-qualification-{profile}")
+        cases.append((f"{profile} suspension", job, ("spec", "suspend"), False))
+    b200 = one(resources, "Job", "mindclade-foundation-qualification-b200")
+    cases.append(
+        (
+            "B200 selector",
+            b200,
+            ("spec", "template", "spec", "nodeSelector", "mindclade.dev/gpu-profile"),
+            "gke-h100-a3-megagpu-8g",
+        )
+    )
+
+    for label, target, path, value in cases:
+        candidate = copy.deepcopy(resources)
+        candidate_target = one(
+            candidate,
+            str(target.get("kind")),
+            str((target.get("metadata", {}) or {}).get("name")),
+        )
+        cursor: Any = candidate_target
+        for key in path[:-1]:
+            cursor = cursor[key]
+        cursor[path[-1]] = value
+        if not validate(candidate):
+            raise AssertionError(f"qualification contract accepted mutation: {label}")
+    return len(cases)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("manifest_json", type=pathlib.Path)
+    parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
     value = json.loads(args.manifest_json.read_text(encoding="utf-8"))
     if not isinstance(value, list) or not all(isinstance(item, dict) for item in value):
@@ -239,7 +280,12 @@ def main() -> None:
         for failure in failures:
             print(f"ERROR: qualification contract: {failure}")
         raise SystemExit(1)
-    print("QUALIFICATION      blocked namespace, zero quota, and 3 suspended profiles")
+    mutation_count = mutation_self_test(value) if args.self_test else 0
+    suffix = f"; {mutation_count} fail-closed mutations rejected" if args.self_test else ""
+    print(
+        "QUALIFICATION      blocked namespace, zero quota, and 3 suspended "
+        f"CPU/H100/B200 profiles{suffix}"
+    )
 
 
 if __name__ == "__main__":

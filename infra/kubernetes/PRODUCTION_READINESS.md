@@ -20,7 +20,7 @@ for production apply.
 | H100 qualification scheduling contract | PASS | Suspended zero-digest one-GPU smoke and exact single-node eight-GPU JobSet select the Terraform-owned on-demand H100 label; this is source evidence only |
 | B200 packing contract | PARTIAL | The older suspended two-node template remains outside the reference qualification claim |
 | Secrets are absent | PASS | Foundation contains only non-secret deployment identity |
-| Static render/schema/policy CI | PASS | Bazel receives declared tools and fixed-hash core/custom schemas; CI executes it in the pinned Nix closure |
+| Static render/schema/policy CI | PASS | Bazel receives declared tools and fixed-hash core/custom schemas; whole-VAP digest checks and CPU/H100/B200 contract mutations run in the pinned Nix closure |
 | Required merge enforcement | EXTERNAL | Stable `infra-static` check exists; the GitHub ruleset must require that context |
 | Validator tool repository | TRANSITIONAL | Actions declare and stage inputs, but CLI paths are captured from the pinned Nix shell during Bazel repository evaluation; replace with platform-specific fixed-output tool repositories |
 | Named component owner and security review | MISSING | Infra component/maturity records and required approvals |
