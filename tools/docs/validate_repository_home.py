@@ -237,9 +237,7 @@ def validate_common_documents(root: Path, repository: str) -> list[str]:
         if value.lower() not in support.lower():
             errors.append(f"SUPPORT.md lacks required routing term: {value}")
 
-    pull_request = re.sub(
-        r"\s+", " ", texts.get(".github/PULL_REQUEST_TEMPLATE.md", "")
-    )
+    pull_request = re.sub(r"\s+", " ", texts.get(".github/PULL_REQUEST_TEMPLATE.md", ""))
     for value in (
         "current written agreement with Mindclade, LLC.",
         "third-party",
@@ -269,14 +267,14 @@ def parse_contract(path: Path) -> dict[str, object]:
                 continue
             key, value = match.groups()
             if value:
-                result[key] = value.strip().strip('"\'')
+                result[key] = value.strip().strip("\"'")
                 active_list = None
             else:
                 result[key] = []
                 active_list = key
             continue
         if active_list and re.match(r"^\s+-\s+", raw):
-            value = re.sub(r"^\s+-\s+", "", line).strip().strip('"\'')
+            value = re.sub(r"^\s+-\s+", "", line).strip().strip("\"'")
             values = result[active_list]
             if isinstance(values, list):
                 values.append(value)
@@ -374,9 +372,7 @@ def validate_local_validator(source: Path, root: Path, requested_path: str) -> l
     if not candidate.is_file():
         return [f"local validator mirror does not exist: {requested_path}"]
     if candidate.read_bytes() != source.resolve().read_bytes():
-        return [
-            f"local validator mirror differs from the released action: {requested_path}"
-        ]
+        return [f"local validator mirror differs from the released action: {requested_path}"]
     return []
 
 
@@ -395,7 +391,10 @@ def validate(root: Path) -> list[str]:
 
     if markdown.count(MARKER) != 1 or not markdown.startswith(MARKER):
         errors.append(f"README.md must begin with exactly one {MARKER}")
-    if "Brand source: mindclade/.github-private/mindclade-brand-assets (MONO family)." not in markdown:
+    if (
+        "Brand source: mindclade/.github-private/mindclade-brand-assets (MONO family)."
+        not in markdown
+    ):
         errors.append("README.md must identify the canonical MONO brand source")
     if len(re.findall(r"^# ", markdown, flags=re.M)) != 1:
         errors.append("README.md must contain exactly one level-one heading")
@@ -500,7 +499,9 @@ def validate(root: Path) -> list[str]:
             if target not in headings_by_file:
                 headings_by_file[target] = {
                     markdown_slug(match.group(1))
-                    for match in re.finditer(r"^#{1,6}\s+(.+)$", target.read_text(encoding="utf-8"), re.M)
+                    for match in re.finditer(
+                        r"^#{1,6}\s+(.+)$", target.read_text(encoding="utf-8"), re.M
+                    )
                 }
             if anchor not in headings_by_file[target]:
                 errors.append(f"broken local README anchor: {destination}")
@@ -554,9 +555,7 @@ def main() -> int:
             return 1
         write_badges(root, parse_contract(contract_path))
     errors = validate(root)
-    errors.extend(
-        validate_local_validator(Path(__file__), root, args.local_validator_path)
-    )
+    errors.extend(validate_local_validator(Path(__file__), root, args.local_validator_path))
     if errors:
         print("repository-home validation failed:", file=sys.stderr)
         for error in errors:

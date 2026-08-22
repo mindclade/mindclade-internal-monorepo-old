@@ -83,13 +83,13 @@ def compare(local: dict[str, Any], remote: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("remote: remoteExecution fields are not exact")
     if metadata["backend"] != "buildfarm-2.17.0":
         raise ValueError("remote: backend must be buildfarm-2.17.0")
-    if not isinstance(metadata["endpoint"], str) or not metadata["endpoint"].startswith(
-        "grpcs://"
-    ):
+    if not isinstance(metadata["endpoint"], str) or not metadata["endpoint"].startswith("grpcs://"):
         raise ValueError("remote: a TLS grpcs:// endpoint is required")
-    if metadata["cacheOnly"] is not False or not isinstance(
-        metadata["executedActions"], int
-    ) or metadata["executedActions"] < 1:
+    if (
+        metadata["cacheOnly"] is not False
+        or not isinstance(metadata["executedActions"], int)
+        or metadata["executedActions"] < 1
+    ):
         raise ValueError("remote: evidence must prove at least one remotely executed action")
     if not isinstance(metadata["invocationId"], str) or not metadata["invocationId"].strip():
         raise ValueError("remote: invocationId is required")

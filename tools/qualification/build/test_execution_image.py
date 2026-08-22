@@ -17,9 +17,7 @@ class ExecutionImageTest(unittest.TestCase):
     def test_committed_lock(self) -> None:
         validate_lock(
             json.loads(
-                (ROOT / "infra/build/remote_execution/images.lock.json").read_text(
-                    encoding="utf-8"
-                )
+                (ROOT / "infra/build/remote_execution/images.lock.json").read_text(encoding="utf-8")
             )
         )
 

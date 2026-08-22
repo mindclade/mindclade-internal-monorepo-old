@@ -121,9 +121,7 @@ def test_bazel_opaque_control_byte_attributes_do_not_break_graph_parsing() -> No
       </rule>
       <rule class="filegroup" name="//apps/admin:source"/>
     </query>"""
-    assert layers.direct_rule_edges(xml) == {
-        ("//apps/admin:bundle", "//apps/admin:source")
-    }
+    assert layers.direct_rule_edges(xml) == {("//apps/admin:bundle", "//apps/admin:source")}
 
 
 def test_empty_query_cannot_pass_vacuously() -> None:
