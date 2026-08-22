@@ -403,7 +403,7 @@ def select(
     test_expression = _query_expression(ordered_seeds, tests=True)
     run_query = query or (lambda expression: bazel_query(expression, root=root))
     analysis_targets = tuple(sorted(set(run_query(analysis_expression))))
-    test_targets = tuple(sorted(set(run_query(test_expression))))
+    test_targets = tuple(sorted(set(run_query(test_expression)) | {"//:gazelle_check"}))
     return Selection(
         mode="affected",
         reason="bazel_reverse_dependencies",

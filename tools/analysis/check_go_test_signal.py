@@ -11,7 +11,7 @@ import os
 from collections.abc import Iterator
 from pathlib import Path
 
-SIGNAL_METHODS = frozenset({"Error", "Errorf", "Fail", "FailNow", "Fatal", "Fatalf", "Run"})
+SIGNAL_METHODS = frozenset({"Error", "Errorf", "Fail", "FailNow", "Fatal", "Fatalf"})
 IGNORED_PARTS = frozenset(
     {
         ".claude",

@@ -110,7 +110,11 @@ def test_affected_selection_uses_bazel_rdeps_and_tests(tmp_path: Path) -> None:
     assert selection.reason == "bazel_reverse_dependencies"
     assert selection.seeds == ("//pkg:*",)
     assert selection.analysis_targets == ("//consumer:binary", "//pkg:library")
-    assert selection.test_targets == ("//consumer:library_test", "//pkg:library_test")
+    assert selection.test_targets == (
+        "//:gazelle_check",
+        "//consumer:library_test",
+        "//pkg:library_test",
+    )
     assert len(expressions) == 2
     assert all('rdeps(//..., set("//pkg:*"))' in expression for expression in expressions)
     assert all('attr("tags", "[\\\\[ ]manual[,\\\\]]"' in expression for expression in expressions)

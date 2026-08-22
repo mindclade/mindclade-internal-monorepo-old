@@ -124,6 +124,15 @@ pytest_test(
 )
 
 pytest_test(
+    name = "control_plane_commands_test",
+    srcs = [
+        "check_control_plane_commands.py",
+        "go_import_graph.py",
+        "tests/test_control_plane_commands.py",
+    ],
+)
+
+pytest_test(
     name = "foundation_consumption_test",
     srcs = ["tests/test_foundation_consumption.py"],
     data = [
