@@ -1019,15 +1019,20 @@ python3 "${script_dir}/capacity_contract.py" \
   --queues "${validation_tmp_dir}/platform__kueue.json" \
   --all "${combined_json}" \
   "${capacity_args[@]}"
+python3 "${script_dir}/training_qualification_profile.py" \
+  --workloads "${validation_tmp_dir}/workloads__training__overlays__h100.json" \
+  --queues "${validation_tmp_dir}/platform__kueue.json"
 
 note "checking GMP selectors, ports, and Prometheus recording rules"
 
 observability_render="${validation_tmp_dir}/platform__observability.yaml"
 control_plane_render="${validation_tmp_dir}/services__control-plane.yaml"
+training_render="${validation_tmp_dir}/workloads__training__overlays__h100.yaml"
 prometheus_rules="${validation_tmp_dir}/gmp-recording-rules.yaml"
 prometheus_tests="${validation_tmp_dir}/promtool-tests.yaml"
 [[ -s "${observability_render}" ]] || fail "platform/observability did not produce a render"
 [[ -s "${control_plane_render}" ]] || fail "services/control-plane did not produce a render"
+[[ -s "${training_render}" ]] || fail "H100 training profile did not produce a render"
 
 pod_monitor_count="$(yq eval-all '[.] | flatten | map(select(
   .apiVersion == "monitoring.googleapis.com/v1" and .kind == "PodMonitoring")) | length' \
@@ -1262,12 +1267,12 @@ yq eval-all -o=yaml -I=2 \
   '[.] | flatten |
   map(select(.apiVersion == "monitoring.googleapis.com/v1" and .kind == "Rules")) |
   map(.spec.groups[]) | {"groups": .}' \
-  "${observability_render}" "${control_plane_render}" >"${prometheus_rules}"
+  "${observability_render}" "${control_plane_render}" "${training_render}" >"${prometheus_rules}"
 rules_document_count="$(yq eval-all '[.] | flatten | map(select(.kind == "Rules")) | length' \
-  "${observability_render}" "${control_plane_render}")"
+  "${observability_render}" "${control_plane_render}" "${training_render}")"
 rules_group_count="$(yq eval '.groups | length' "${prometheus_rules}")"
-[[ "${rules_document_count}" == "4" && "${rules_group_count}" == "4" ]] ||
-  fail "expected all four GMP Rules documents to contribute exactly one Prometheus group"
+[[ "${rules_document_count}" == "5" && "${rules_group_count}" == "5" ]] ||
+  fail "expected all five GMP Rules documents to contribute exactly one Prometheus group"
 promtool check rules "${prometheus_rules}"
 sed "s|__RULE_FILE__|${prometheus_rules}|g" "${script_dir}/promtool-tests.yaml" >"${prometheus_tests}"
 promtool test rules "${prometheus_tests}"

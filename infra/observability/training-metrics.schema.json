@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mindclade.com/contracts/observability/training-metrics-1.0.0.schema.json",
+  "title": "Mindclade reference-training metric contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "status", "producer", "metrics", "maximumExporterSeries", "recordingRules", "privacy", "activationPolicy"],
+  "properties": {
+    "schemaVersion": {"const": "mindclade.dev/training-metrics/v1"},
+    "status": {"const": "external-producer-contract"},
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "owner", "implementationState", "sourceAuthority", "metricsEndpoint"],
+      "properties": {
+        "name": {"const": "reference-training-outcome-exporter"},
+        "owner": {"const": "training-platform"},
+        "implementationState": {"const": "external-contract-required"},
+        "sourceAuthority": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^protocols/proto/mindclade/training/v1/(checkpoint|progress|run)\\.proto$"}
+        },
+        "metricsEndpoint": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["transport", "path", "portName", "podMonitoringState"],
+          "properties": {
+            "transport": {"const": "openmetrics-http"},
+            "path": {"const": "/metrics"},
+            "portName": {"const": "metrics"},
+            "podMonitoringState": {"const": "blocked-until-exporter-exists"}
+          }
+        }
+      }
+    },
+    "metrics": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "items": {"$ref": "#/$defs/metric"}
+    },
+    "maximumExporterSeries": {"const": 73},
+    "recordingRules": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 12,
+      "items": {"$ref": "#/$defs/recordingRule"}
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["forbiddenLabels", "rawValuesInTelemetry"],
+      "properties": {
+        "forbiddenLabels": {
+          "type": "array",
+          "minItems": 12,
+          "maxItems": 24,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/id"}
+        },
+        "rawValuesInTelemetry": {"const": false}
+      }
+    },
+    "activationPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabledByDefault", "requiresImplementedExporter", "requiresConnectedScrapeEvidence", "requiresSyntheticFireAndResolve"],
+      "properties": {
+        "enabledByDefault": {"const": false},
+        "requiresImplementedExporter": {"const": true},
+        "requiresConnectedScrapeEvidence": {"const": true},
+        "requiresSyntheticFireAndResolve": {"const": true}
+      }
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]{1,127}$"},
+    "metricName": {"type": "string", "pattern": "^mindclade_training_[a-z0-9_]{2,127}$"},
+    "recordingName": {"type": "string", "pattern": "^mindclade:training_[a-z0-9_:]{2,127}$"},
+    "semanticName": {"type": "string", "pattern": "^mindclade\\.training\\.[a-z0-9_.]{2,127}$"},
+    "metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type", "unit", "description", "labels", "allowedLabelValues", "maximumSeries"],
+      "properties": {
+        "name": {"$ref": "#/$defs/metricName"},
+        "type": {"enum": ["counter", "gauge"]},
+        "unit": {"enum": ["count", "seconds", "status"]},
+        "description": {"type": "string", "minLength": 30, "maxLength": 1000},
+        "labels": {"type": "array", "minItems": 1, "maxItems": 4, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "allowedLabelValues": {
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 4,
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 16,
+            "uniqueItems": true,
+            "items": {"$ref": "#/$defs/id"}
+          }
+        },
+        "maximumSeries": {"type": "integer", "minimum": 1, "maximum": 128}
+      }
+    },
+    "recordingRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "semanticMetric", "sourceMetrics", "unit"],
+      "properties": {
+        "name": {"$ref": "#/$defs/recordingName"},
+        "semanticMetric": {"$ref": "#/$defs/semanticName"},
+        "sourceMetrics": {"type": "array", "minItems": 1, "maxItems": 3, "uniqueItems": true, "items": {"$ref": "#/$defs/metricName"}},
+        "unit": {"enum": ["count", "ratio", "seconds", "status"]}
+      }
+    }
+  }
+}

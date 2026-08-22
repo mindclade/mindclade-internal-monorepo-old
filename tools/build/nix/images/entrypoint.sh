@@ -3,4 +3,15 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-# Scaffold file: tools/build/nix/images/entrypoint.sh
+set -euo pipefail
+
+umask 0022
+export HOME="${HOME:-/tmp/home}"
+export TMPDIR="${TMPDIR:-/tmp}"
+mkdir -p "$HOME" "$TMPDIR"
+
+if [[ "$#" -eq 0 ]]; then
+  exec /bin/bash --noprofile --norc
+fi
+
+exec "$@"

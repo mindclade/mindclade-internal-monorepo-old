@@ -18,13 +18,21 @@ This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
 ground. It may depend only in the direction documented by
 `docs/architecture/dependency-rules.md` and the accepted ADRs.
 
-## Implemented target-card boundary
+## Implemented target-card and intake boundaries
 
 `target_card.py` gives biology, diffusion, LLM, MoE, and multimodal families one fail-closed
 contract for immutable input/output schemas, proprietary dataset identities, evaluation gates,
-availability and hardware profiles, and activation evidence. A card defaults to `designed` and
-cannot enter `approved` without a canonical qualification-evidence digest. It does not choose
-scientific thresholds or claim that any family is implemented or qualified.
+availability and hardware profiles, and activation evidence. Version 2 requires predeclared
+evaluation slices and an explicit safety-review policy. Version 1 remains read-only compatibility.
+A card defaults to `designed` and cannot enter `approved` without a canonical qualification-
+evidence digest.
+
+`scientific_intake.py` is the closed, provider-neutral input to the qualification gate. It binds a
+target card, scientific and preprocessing semantics, checkpoint rules, reference vectors,
+disjoint training/evaluation dataset manifests, evaluation and serving policies, a real runtime
+consumer, safety/use policy, source and policy digests, and immutable role attestations. An intake
+decision can authorize implementation only. It cannot register, qualify, approve, release, or
+deploy a model, and it does not choose scientific thresholds or claim any family is implemented.
 
 ## Remaining materialization requirements
 

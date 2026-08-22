@@ -36,6 +36,29 @@ def test_profiles_are_proposals_not_activation_claims() -> None:
     }
 
 
+def test_compatibility_files_cannot_deploy_a_second_backend() -> None:
+    grafana = load_json_yaml(ROOT / "grafana-datasources.yaml")
+    collector = load_json_yaml(ROOT / "otel-collector.yaml")
+
+    for decision in (grafana, collector):
+        assert decision["decision"] == "non-deployable"
+        assert decision["activationPolicy"] == {
+            "enabledByDefault": False,
+            "requiresConnectedQualification": True,
+            "requiresEnvironmentComposition": True,
+        }
+    assert grafana["authoritativeServices"] == [
+        "cloud-monitoring",
+        "google-managed-prometheus",
+    ]
+    assert collector["authoritativeServices"] == [
+        "cloud-logging",
+        "cloud-monitoring",
+        "cloud-trace",
+        "google-managed-prometheus",
+    ]
+
+
 def test_control_admission_contract_is_bounded_and_fail_closed() -> None:
     contract = load_json_yaml(ROOT / "alerts/control-admission-degraded.yaml")
     signals = {item["name"]: item for item in contract["signals"]}

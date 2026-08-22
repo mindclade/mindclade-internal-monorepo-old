@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mindclade.com/contracts/qualification/training-cohort-1.0.0.schema.json",
+  "title": "Mindclade H100 training qualification cohort",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_repository",
+    "source_revision",
+    "resolved_config_digest",
+    "dataset_digest",
+    "model_contract_digest",
+    "toolchain_digest",
+    "trainer_image",
+    "checkpoint_agent_image",
+    "checkpoint_schema_version",
+    "zone",
+    "node_profile",
+    "capacity_type",
+    "pricing_snapshot_digest",
+    "phases"
+  ],
+  "properties": {
+    "schema_version": {"const": "mindclade.dev/training-qualification-cohort/v1"},
+    "source_repository": {"const": "mindclade/mindclade-internal-monorepo"},
+    "source_revision": {"type": "string", "pattern": "^(?!0{40}$)[0-9a-f]{40}$"},
+    "resolved_config_digest": {"$ref": "#/$defs/digest"},
+    "dataset_digest": {"$ref": "#/$defs/digest"},
+    "model_contract_digest": {"$ref": "#/$defs/digest"},
+    "toolchain_digest": {"$ref": "#/$defs/digest"},
+    "trainer_image": {"$ref": "#/$defs/image"},
+    "checkpoint_agent_image": {"$ref": "#/$defs/image"},
+    "checkpoint_schema_version": {"const": "mindclade.dev/training-checkpoint/dcp-v1"},
+    "zone": {"type": "string", "pattern": "^[a-z]+-[a-z]+[0-9]-[a-z]$"},
+    "node_profile": {"const": "gke-h100-a3-megagpu-8g"},
+    "capacity_type": {"const": "on-demand"},
+    "pricing_snapshot_digest": {"$ref": "#/$defs/digest"},
+    "phases": {"const": ["h100-1g-smoke", "h100-8g-ddp-dcp"]}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:(?!0{64}$)[0-9a-f]{64}$"},
+    "image": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._/:~-]*@sha256:(?!0{64}$)[0-9a-f]{64}$"}
+  }
+}

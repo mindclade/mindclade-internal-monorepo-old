@@ -7,30 +7,95 @@
 // @generated from file mindclade/data/v1/source.proto (package mindclade.data.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file mindclade/data/v1/source.proto.
  */
 export const file_mindclade_data_v1_source: GenFile = /*@__PURE__*/
-  fileDesc("Ch5taW5kY2xhZGUvZGF0YS92MS9zb3VyY2UucHJvdG8SEW1pbmRjbGFkZS5kYXRhLnYxIiIKDlNvdXJjZVNjYWZmb2xkEhAKCHJlc2VydmVkGAEgASgJYgZwcm90bzM");
+  fileDesc("Ch5taW5kY2xhZGUvZGF0YS92MS9zb3VyY2UucHJvdG8SEW1pbmRjbGFkZS5kYXRhLnYxIn8KClNvdXJjZVNwZWMSEQoJc291cmNlX2lkGAEgASgJEisKBGtpbmQYAiABKA4yHS5taW5kY2xhZGUuZGF0YS52MS5Tb3VyY2VLaW5kEg8KB2xvY2F0b3IYAyABKAkSDwoHdmVyc2lvbhgEIAEoCRIPCgdsaWNlbnNlGAUgASgJKqcBCgpTb3VyY2VLaW5kEhsKF1NPVVJDRV9LSU5EX1VOU1BFQ0lGSUVEEAASEwoPU09VUkNFX0tJTkRfUERCEAESFwoTU09VUkNFX0tJTkRfVU5JUFJPVBACEhoKFlNPVVJDRV9LSU5EX1JOQUNFTlRSQUwQAxIcChhTT1VSQ0VfS0lORF9PQkpFQ1RfU1RPUkUQBBIUChBTT1VSQ0VfS0lORF9IVFRQEAVCPFo6Z28ubWluZGNsYWRlLmRldi9wcm90b2NvbHMvZ2VuL2dvL21pbmRjbGFkZS9kYXRhL3YxO2RhdGF2MWIGcHJvdG8z");
 
 /**
- * @generated from message mindclade.data.v1.SourceScaffold
+ * SourceSpec contains only credential-free source identity and versioning.
+ *
+ * @generated from message mindclade.data.v1.SourceSpec
  */
-export type SourceScaffold = Message<"mindclade.data.v1.SourceScaffold"> & {
+export type SourceSpec = Message<"mindclade.data.v1.SourceSpec"> & {
   /**
-   * @generated from field: string reserved = 1;
+   * @generated from field: string source_id = 1;
    */
-  reserved: string;
+  sourceId: string;
+
+  /**
+   * @generated from field: mindclade.data.v1.SourceKind kind = 2;
+   */
+  kind: SourceKind;
+
+  /**
+   * @generated from field: string locator = 3;
+   */
+  locator: string;
+
+  /**
+   * @generated from field: string version = 4;
+   */
+  version: string;
+
+  /**
+   * @generated from field: string license = 5;
+   */
+  license: string;
 };
 
 /**
- * Describes the message mindclade.data.v1.SourceScaffold.
- * Use `create(SourceScaffoldSchema)` to create a new message.
+ * Describes the message mindclade.data.v1.SourceSpec.
+ * Use `create(SourceSpecSchema)` to create a new message.
  */
-export const SourceScaffoldSchema: GenMessage<SourceScaffold> = /*@__PURE__*/
+export const SourceSpecSchema: GenMessage<SourceSpec> = /*@__PURE__*/
   messageDesc(file_mindclade_data_v1_source, 0);
+
+/**
+ * SourceKind identifies a supported provider-neutral discovery contract.
+ *
+ * @generated from enum mindclade.data.v1.SourceKind
+ */
+export enum SourceKind {
+  /**
+   * @generated from enum value: SOURCE_KIND_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: SOURCE_KIND_PDB = 1;
+   */
+  PDB = 1,
+
+  /**
+   * @generated from enum value: SOURCE_KIND_UNIPROT = 2;
+   */
+  UNIPROT = 2,
+
+  /**
+   * @generated from enum value: SOURCE_KIND_RNACENTRAL = 3;
+   */
+  RNACENTRAL = 3,
+
+  /**
+   * @generated from enum value: SOURCE_KIND_OBJECT_STORE = 4;
+   */
+  OBJECT_STORE = 4,
+
+  /**
+   * @generated from enum value: SOURCE_KIND_HTTP = 5;
+   */
+  HTTP = 5,
+}
+
+/**
+ * Describes the enum mindclade.data.v1.SourceKind.
+ */
+export const SourceKindSchema: GenEnum<SourceKind> = /*@__PURE__*/
+  enumDesc(file_mindclade_data_v1_source, 0);
 

@@ -3,13 +3,29 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-package(default_visibility = ["//visibility:private"])
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@rules_go//proto:def.bzl", "go_proto_library")
 
-filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
-    visibility = ["//visibility:public"],
+package(default_visibility = ["//visibility:public"])
+
+proto_library(
+    name = "envelope_proto",
+    srcs = ["envelope.proto"],
+    strip_import_prefix = "/protocols/proto",
+)
+
+proto_library(
+    name = "admission_events_proto",
+    srcs = ["admission_events.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = ["@protobuf//:timestamp_proto"],
+)
+
+go_proto_library(
+    name = "events_go_proto",
+    importpath = "go.mindclade.dev/protocols/gen/go/mindclade/events/v1",
+    protos = [
+        ":admission_events_proto",
+        ":envelope_proto",
+    ],
 )

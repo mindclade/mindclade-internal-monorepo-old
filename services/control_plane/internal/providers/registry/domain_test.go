@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"go.mindclade.dev/control/artifacts"
 	"go.mindclade.dev/control/registry/releases"
 	"go.mindclade.dev/libs/go/identifiers"
 	"go.mindclade.dev/libs/go/storage/sql/sqltest"
@@ -23,12 +24,18 @@ type releaseRepository struct {
 	releaseError  error
 }
 
+type releaseVerifier struct{}
+
+func (releaseVerifier) VerifyEvidence(context.Context, releases.EvidenceGraph, releases.EvidenceNode) error {
+	return nil
+}
+
 func (repository *releaseRepository) PutGraph(context.Context, releases.EvidenceGraph) error {
 	repository.graphWrites++
 	return nil
 }
 
-func (repository *releaseRepository) PutRelease(context.Context, releases.Release) error {
+func (repository *releaseRepository) PromoteRelease(context.Context, releases.Release) error {
 	repository.releaseWrites++
 	return repository.releaseError
 }
@@ -46,6 +53,10 @@ func releaseFixture(t *testing.T) (releases.Release, releases.EvidenceGraph) {
 			NodeID: "source", Kind: releases.EvidenceSourceCommit,
 			SubjectDigest: subject, PolicyDigest: policy, Passed: true,
 			Created: time.Unix(1_800_000_000, 0).UTC(),
+			Artifact: artifacts.Ref{
+				Digest: identifiers.SHA256String("source"), SizeBytes: 1,
+				MediaType: "application/json", LogicalKind: "source", SchemaVersion: 1,
+			},
 		}},
 	}
 	digest, err := graph.Digest()
@@ -54,7 +65,7 @@ func releaseFixture(t *testing.T) (releases.Release, releases.EvidenceGraph) {
 	}
 	return releases.Release{
 		ReleaseID: graph.ReleaseID, ModelBundleDigest: subject,
-		EvidenceGraphDigest: digest, Channel: "candidate", Status: "qualified",
+		EvidenceGraphDigest: digest, Channel: "candidate", Status: "qualified", ResourceVersion: 3,
 	}, graph
 }
 
@@ -68,11 +79,17 @@ func TestReleasePromotionUsesOneTransaction(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = db.Close() })
 	repository := &releaseRepository{}
+	release, graph := releaseFixture(t)
 	engine := transactionalReleaseEngine{
 		beginner: db,
-		service:  releases.Service{Repository: repository, Policy: releases.PromotionPolicy{RequireAllPassed: true}},
+		service: releases.Service{
+			Repository: repository,
+			Policy: releases.PromotionPolicy{
+				RequireAllPassed: true, ActivePolicyDigest: graph.PolicyDigest, ActivePolicyEpoch: graph.PolicyEpoch,
+			},
+			Verifier: releaseVerifier{},
+		},
 	}
-	release, graph := releaseFixture(t)
 	if err := engine.Promote(context.Background(), release, graph); err != nil {
 		t.Fatal(err)
 	}
@@ -92,11 +109,17 @@ func TestReleasePromotionRollsBackARejectedReleaseWrite(t *testing.T) {
 	t.Cleanup(func() { _ = db.Close() })
 	sentinel := errors.New("injected release write failure")
 	repository := &releaseRepository{releaseError: sentinel}
+	release, graph := releaseFixture(t)
 	engine := transactionalReleaseEngine{
 		beginner: db,
-		service:  releases.Service{Repository: repository, Policy: releases.PromotionPolicy{RequireAllPassed: true}},
+		service: releases.Service{
+			Repository: repository,
+			Policy: releases.PromotionPolicy{
+				RequireAllPassed: true, ActivePolicyDigest: graph.PolicyDigest, ActivePolicyEpoch: graph.PolicyEpoch,
+			},
+			Verifier: releaseVerifier{},
+		},
 	}
-	release, graph := releaseFixture(t)
 	if err := engine.Promote(context.Background(), release, graph); !errors.Is(err, sentinel) {
 		t.Fatalf("Promote error = %v, want injected failure", err)
 	}

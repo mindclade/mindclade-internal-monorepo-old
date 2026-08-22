@@ -290,8 +290,32 @@ oci.pull(
     image = "docker.io/library/python",
     platforms = ["linux/amd64"],
 )
+oci.pull(
+    name = "buildfarm_server",
+    digest = "sha256:54567fa9a4d2fc374e200e57e537ba47ce969ec2dcb1e6fd35a25dc8f8a50949",
+    image = "docker.io/bazelbuild/buildfarm-server",
+    platforms = [
+        "linux/amd64",
+        "linux/arm64",
+    ],
+)
+oci.pull(
+    name = "buildfarm_worker",
+    digest = "sha256:7a10e8f37daecf2e8485acf872e00b02ec6fb7519fe4b6fc32e71ce2b033747d",
+    image = "docker.io/bazelbuild/buildfarm-worker",
+    platforms = [
+        "linux/amd64",
+        "linux/arm64",
+    ],
+)
 use_repo(
     oci,
+    "buildfarm_server",
+    "buildfarm_server_linux_amd64",
+    "buildfarm_server_linux_arm64",
+    "buildfarm_worker",
+    "buildfarm_worker_linux_amd64",
+    "buildfarm_worker_linux_arm64",
     "distroless_static",
     "distroless_static_linux_amd64",
     "python_slim",

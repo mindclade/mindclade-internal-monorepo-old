@@ -4,6 +4,7 @@
 #
 
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@rules_go//proto:def.bzl", "go_proto_library")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -39,15 +40,43 @@ proto_library(
     ],
 )
 
-filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["*.proto"],
-        exclude = [
-            "run.proto",
-            "service.proto",
-            "stage.proto",
-        ],
-    ),
-    visibility = ["//visibility:public"],
+proto_library(
+    name = "workflow_proto",
+    srcs = ["workflow.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = [
+        ":stage_proto",
+        "//protocols/proto/mindclade/common/v1:identifiers_proto",
+    ],
+)
+
+proto_library(
+    name = "workload_proto",
+    srcs = ["workload.proto"],
+    strip_import_prefix = "/protocols/proto",
+    deps = [
+        ":stage_proto",
+        "//protocols/proto/mindclade/common/v1:artifact_ref_proto",
+        "//protocols/proto/mindclade/runtime/v1:execution_ticket_proto",
+    ],
+)
+
+go_proto_library(
+    name = "orchestration_go_proto",
+    compilers = [
+        "@rules_go//proto:go_grpc_v2",
+        "@rules_go//proto:go_proto",
+    ],
+    importpath = "go.mindclade.dev/protocols/gen/go/mindclade/orchestration/v1",
+    protos = [
+        ":run_proto",
+        ":run_service_proto",
+        ":stage_proto",
+        ":workflow_proto",
+        ":workload_proto",
+    ],
+    deps = [
+        "//protocols/proto/mindclade/common/v1:common_go_proto",
+        "//protocols/proto/mindclade/runtime/v1:runtime_go_proto",
+    ],
 )

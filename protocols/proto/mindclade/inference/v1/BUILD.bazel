@@ -4,6 +4,7 @@
 #
 
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@rules_go//proto:def.bzl", "go_proto_library")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -52,5 +53,25 @@ proto_library(
         ":request_proto",
         ":response_proto",
         ":stream_proto",
+    ],
+)
+
+go_proto_library(
+    name = "inference_go_proto",
+    compilers = [
+        "@rules_go//proto:go_grpc_v2",
+        "@rules_go//proto:go_proto",
+    ],
+    importpath = "go.mindclade.dev/protocols/gen/go/mindclade/inference/v1",
+    protos = [
+        ":inference_service_proto",
+        ":model_proto",
+        ":request_proto",
+        ":response_proto",
+        ":stream_proto",
+    ],
+    deps = [
+        "//protocols/proto/mindclade/artifact/v1:artifact_go_proto",
+        "//protocols/proto/mindclade/common/v1:common_go_proto",
     ],
 )

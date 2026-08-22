@@ -48,8 +48,8 @@ copy_to_bin(
 # paid by whoever next wrote a rule that needed one.
 #
 # WHAT IS NOT HERE. Root files that are tool configuration rather than repository metadata —
-# .bazelrc, .editorconfig, deny.toml, rustfmt.toml, license-header.txt and friends. They are
-# read by the tools that own them, from the workspace root, not through a Bazel label. Adding
+# .bazelrc, .editorconfig, deny.toml, rustfmt.toml, and the proprietary source-header template.
+# They are read by the tools that own them, from the workspace root, not through a Bazel label. Adding
 # them would imply a dependency edge that does not exist.
 
 _GOVERNANCE = [
@@ -62,6 +62,7 @@ _GOVERNANCE = [
     "OWNERS.toml",
     "README.md",
     "SECURITY.md",
+    "SUPPORT.md",
 ]
 
 # Machine-readable component state plus the prose that interprets it. components.toml and

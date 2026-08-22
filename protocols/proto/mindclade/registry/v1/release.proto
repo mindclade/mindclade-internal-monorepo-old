@@ -5,6 +5,8 @@
 
 syntax = "proto3";
 package mindclade.registry.v1;
+
+option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/registry/v1;registryv1";
 import "mindclade/common/v1/artifact_ref.proto";
 
 enum EvidenceKind {
@@ -26,6 +28,18 @@ enum EvidenceKind {
   EVIDENCE_KIND_PROVENANCE = 15;
   EVIDENCE_KIND_SIGNATURE = 16;
   EVIDENCE_KIND_TOOLCHAIN = 17;
+  EVIDENCE_KIND_CHECKPOINT_RESUME = 18;
+  EVIDENCE_KIND_PERFORMANCE = 19;
+  EVIDENCE_KIND_RELIABILITY_QUALIFICATION = 20;
+  EVIDENCE_KIND_SLO_APPROVAL = 21;
+  EVIDENCE_KIND_ALERT_FIRE_RESOLVE = 22;
+  EVIDENCE_KIND_COST_QUALIFICATION = 23;
+  EVIDENCE_KIND_SECURITY_QUALIFICATION = 24;
+  EVIDENCE_KIND_LINEAGE = 25;
+  EVIDENCE_KIND_ROLLBACK_DRILL = 26;
+  EVIDENCE_KIND_H100_1G_QUALIFICATION = 27;
+  EVIDENCE_KIND_H100_8G_QUALIFICATION = 28;
+  EVIDENCE_KIND_VULNERABILITY_SCAN = 29;
 }
 message EvidenceNode {
   string node_id = 1;

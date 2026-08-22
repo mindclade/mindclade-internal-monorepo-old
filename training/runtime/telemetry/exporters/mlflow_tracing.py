@@ -1,6 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
 
 """Payload-free MLflow trace projection with bounded explicit lifecycles."""
 
@@ -220,7 +221,8 @@ class MLflowTraceExporter:
                 self._active[trace_id] = {span_id}
                 return TraceHandle(trace_id, span_id)
             except Exception as error:
-                return self._failed(error)
+                self._failed(error)
+                return None
 
     def start_span(
         self,
@@ -260,7 +262,8 @@ class MLflowTraceExporter:
                 spans.add(span_id)
                 return SpanHandle(trace.trace_id, span_id)
             except Exception as error:
-                return self._failed(error)
+                self._failed(error)
+                return None
 
     def end_span(
         self,

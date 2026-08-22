@@ -1,0 +1,37 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_python//python:defs.bzl", "py_library")
+load("//tools/build:pytest.bzl", "pytest_test")
+
+package(default_visibility = ["//visibility:private"])
+
+py_library(
+    name = "gate",
+    srcs = [
+        "__init__.py",
+        "gate.py",
+    ],
+    imports = ["../.."],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//libs/python/identifiers",
+        "//libs/python/serialization",
+        "//models/contracts:scientific_intake",
+        "//models/contracts:target_card",
+    ],
+)
+
+pytest_test(
+    name = "test_gate",
+    srcs = ["tests/test_gate.py"],
+    imports = ["../../.."],
+    deps = [
+        ":gate",
+        "//libs/python/identifiers",
+        "//models/contracts:scientific_intake",
+        "//models/contracts:target_card",
+    ],
+)

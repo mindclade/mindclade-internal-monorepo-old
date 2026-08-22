@@ -10,10 +10,7 @@ package(default_visibility = ["//visibility:private"])
 py_library(
     name = "interface_governance",
     srcs = ["interface_governance.py"],
-    visibility = [
-        "//infra/terraform/environments/dns_hub:__pkg__",
-        "//infra/terraform/modules:__pkg__",
-    ],
+    visibility = ["//infra/terraform/modules:__pkg__"],
 )
 
 filegroup(
@@ -26,8 +23,5 @@ filegroup(
             "migrations/*.toml",
         ],
     ),
-    visibility = [
-        "//infra/terraform/environments/dns_hub:__pkg__",
-        "//infra/terraform/modules:__pkg__",
-    ],
+    visibility = ["//infra/terraform/modules:__pkg__"],
 )

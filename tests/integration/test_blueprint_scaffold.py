@@ -129,6 +129,12 @@ import pytest
 # This number is now a tight floor rather than 90 counts of slack. The assertion below is
 # two-sided on purpose: lower it as these close, and do not raise it without saying which
 # movement raised it.
+#
+# RECONCILED at 0 for the accepted ADR-0014 protocol-authority cleanup. Twenty-seven scaffold
+# paths were removed from the blueprint when their duplicate protocol sources were deliberately
+# deleted in favor of the smaller canonical descriptor surface. The target-state manifest must
+# track that accepted authority; restoring duplicate schemas or raising the ratchet would both be
+# regressions.
 MATERIALIZATION_BASELINE = 0
 
 

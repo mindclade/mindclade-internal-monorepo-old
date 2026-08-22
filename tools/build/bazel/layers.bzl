@@ -49,9 +49,14 @@ BAZEL_LAYERS = {
         "//control/...",
         "//serving/...",
     ],
-    "services": ["//services/..."],
+    "services": [
+        "//services/...",
+        "-//services/workers/training/...",
+    ],
     "test_support": ["//tests/..."],
     "training": ["//training/..."],
+    # ADR-0025 grants exactly this deployable composition root access to training semantics.
+    "training_service": ["//services/workers/training/..."],
 }
 
 # Explicit source -> allowed destination matrix. New dependency directions are denied until
@@ -78,6 +83,7 @@ BAZEL_LAYER_ALLOW_MATRIX = {
         "services",
         "test_support",
         "training",
+        "training_service",
     ],
     "foundation": [
         "build_support",
@@ -106,6 +112,7 @@ BAZEL_LAYER_ALLOW_MATRIX = {
         "services",
         "test_support",
         "training",
+        "training_service",
     ],
     "release_support": [
         "apps",
@@ -120,6 +127,7 @@ BAZEL_LAYER_ALLOW_MATRIX = {
         "services",
         "test_support",
         "training",
+        "training_service",
     ],
     "research": [
         "apps",
@@ -134,6 +142,7 @@ BAZEL_LAYER_ALLOW_MATRIX = {
         "services",
         "test_support",
         "training",
+        "training_service",
     ],
     "root_support": [
         "apps",
@@ -148,6 +157,7 @@ BAZEL_LAYER_ALLOW_MATRIX = {
         "services",
         "test_support",
         "training",
+        "training_service",
     ],
     "runtime": [
         "build_support",
@@ -181,6 +191,7 @@ BAZEL_LAYER_ALLOW_MATRIX = {
         "services",
         "test_support",
         "training",
+        "training_service",
     ],
     "training": [
         "build_support",
@@ -190,6 +201,16 @@ BAZEL_LAYER_ALLOW_MATRIX = {
         "root_support",
         "test_support",
         "training",
+    ],
+    "training_service": [
+        "build_support",
+        "foundation",
+        "offline",
+        "release_support",
+        "root_support",
+        "test_support",
+        "training",
+        "training_service",
     ],
 }
 

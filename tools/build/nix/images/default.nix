@@ -3,4 +3,11 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-{ ... }: { }
+{
+  pkgs,
+  ccToolchain,
+  system,
+}:
+{
+  cpu = import ./cpu.nix { inherit pkgs ccToolchain system; };
+}

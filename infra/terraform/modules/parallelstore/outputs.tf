@@ -1,6 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
 
 output "instances" {
   value = { for key, instance in google_parallelstore_instance.this : key => { name = instance.name, access_points = instance.access_points } }

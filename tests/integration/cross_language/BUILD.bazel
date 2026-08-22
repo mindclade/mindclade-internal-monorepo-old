@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("@rules_go//go:def.bzl", "go_test")
 load("//tools/build:pytest.bzl", "pytest_test")
 
@@ -26,6 +27,17 @@ filegroup(
 filegroup(
     name = "golden_fixtures",
     srcs = glob(["fixtures/**"]),
+)
+
+filegroup(
+    name = "checkpoint_contract_v1_fixture",
+    srcs = ["fixtures/checkpoint_contract_v1.json"],
+)
+
+js_library(
+    name = "checkpoint_contract_v1_json",
+    srcs = ["fixtures/checkpoint_contract_v1.json"],
+    visibility = ["//sdk/typescript:__pkg__"],
 )
 
 pytest_test(

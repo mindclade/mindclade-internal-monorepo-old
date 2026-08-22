@@ -8,6 +8,7 @@ name="mindclade_bio_formats"
 version.workspace=true
 edition.workspace=true
 publish=false
+license.workspace=true
 [dependencies]
 mindclade_bounded_parse={path="../bounded_parse"}
 mindclade_faults={path="../faults"}

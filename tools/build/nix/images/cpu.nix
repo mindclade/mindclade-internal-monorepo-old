@@ -3,4 +3,13 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-{ ... }: { }
+{
+  pkgs,
+  ccToolchain,
+  system,
+}:
+
+import ../lib/mk-exec-image.nix {
+  inherit pkgs ccToolchain system;
+  name = "mindclade-bazel-exec-base";
+}

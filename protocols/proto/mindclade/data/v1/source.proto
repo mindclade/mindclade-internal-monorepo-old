@@ -7,6 +7,23 @@ syntax = "proto3";
 
 package mindclade.data.v1;
 
-message SourceScaffold {
-  string reserved = 1;
+option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/data/v1;datav1";
+
+// SourceKind identifies a supported provider-neutral discovery contract.
+enum SourceKind {
+  SOURCE_KIND_UNSPECIFIED = 0;
+  SOURCE_KIND_PDB = 1;
+  SOURCE_KIND_UNIPROT = 2;
+  SOURCE_KIND_RNACENTRAL = 3;
+  SOURCE_KIND_OBJECT_STORE = 4;
+  SOURCE_KIND_HTTP = 5;
+}
+
+// SourceSpec contains only credential-free source identity and versioning.
+message SourceSpec {
+  string source_id = 1;
+  SourceKind kind = 2;
+  string locator = 3;
+  string version = 4;
+  string license = 5;
 }

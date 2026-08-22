@@ -1,6 +1,7 @@
 // Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 // Mindclade Proprietary and Confidential.
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -27,6 +28,14 @@ test("admin binds no-store HTML rendering to a request nonce", async () => {
   assert.doesNotMatch(scriptSource, /unsafe-inline/);
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.equal(response.headers.get("referrer-policy"), "no-referrer");
+});
+
+test("admin preserves nonce CSP on an HTTP loopback smoke test", () => {
+  const response = proxy(new NextRequest("http://localhost:4412/releases"));
+  const policy = response.headers.get("content-security-policy") ?? "";
+  assert.match(policy, /'strict-dynamic'/);
+  assert.doesNotMatch(policy, /upgrade-insecure-requests/);
+  assert.equal(response.headers.get("strict-transport-security"), null);
 });
 
 test("approval readiness requires mutation authority, immutable evidence, reason, and exact phrase", () => {

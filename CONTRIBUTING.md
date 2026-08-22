@@ -1,4 +1,6 @@
-# Contributing to the Mindclade internal monorepo
+<!-- mindclade-doc: contributing@1 -->
+
+# Contributing to Mindclade · internal monorepo
 
 This repository is a target-state production scaffold with one intentionally
 complete implementation surface: the shared Go control-plane foundation and
@@ -95,3 +97,32 @@ license, consent, database snapshot, transformation, and artifact provenance.
 
 Report security issues using the private process in `SECURITY.md` rather than a
 public issue.
+
+
+## Contributor authorization and intellectual property
+
+A contribution may be submitted only by a person authorized under a current
+written employment, contractor, assignment, or other contribution agreement
+with Mindclade, LLC. Before opening or updating a pull request, the contributor
+must confirm that:
+
+- they have the right and authority to submit every part of the contribution;
+- first-party work is covered by the contributor's controlling written
+  agreement with Mindclade, LLC.;
+- third-party code, data, models, media, fonts, specifications, and generated
+  material are identified with their source, version, license, provenance, and
+  required notices;
+- the contribution contains no material whose confidentiality, license,
+  consent, acceptable-use terms, export controls, or other restrictions
+  prohibit submission; and
+- the change description and validation evidence are complete and accurate.
+
+By submitting or updating a pull request, the contributor represents that these
+statements are true. Submission is not acceptance and does not by itself alter
+ownership, grant a license, or replace the controlling written agreement.
+Signed commits establish source identity and integrity; they are not a
+substitute for the required written agreement.
+
+If authorization or ownership is unclear, stop before submission and use the
+legal or contract channel named in the applicable agreement. Do not place
+confidential material in a public issue or an unapproved email.

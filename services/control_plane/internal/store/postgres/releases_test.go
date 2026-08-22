@@ -52,6 +52,13 @@ func evidenceGraph(t *testing.T) releases.EvidenceGraph {
 				PolicyDigest:  policy,
 				Passed:        true,
 				Created:       writeTime,
+				Artifact: artifacts.Ref{
+					Digest:        identifiers.SHA256String("evaluation"),
+					SizeBytes:     1024,
+					MediaType:     "application/json",
+					LogicalKind:   "evaluation",
+					SchemaVersion: 1,
+				},
 			},
 		},
 		Edges: []releases.EvidenceEdge{{From: "evaluation", To: "build", Relation: "evaluates"}},
@@ -230,6 +237,84 @@ func TestPutReleaseReportsALostSwapAsConflict(t *testing.T) {
 	}
 	if policy := faults.RetryPolicyOf(err); policy.Retryable() {
 		t.Fatal("a lost swap was marked retryable; the caller must re-read first")
+	}
+}
+
+func promotableRelease(t *testing.T) releases.Release {
+	t.Helper()
+	release := qualifiedRelease(t)
+	release.Channel = "candidate"
+	release.Status = "qualified"
+	release.ResourceVersion = 4
+	return release
+}
+
+func TestPromoteReleaseOnlySwapsADurableMatchingQualifiedCandidate(t *testing.T) {
+	t.Parallel()
+	release := promotableRelease(t)
+	state := &sqltest.State{Exec: func(_ context.Context, query string, arguments []driver.NamedValue) (driver.Result, error) {
+		for _, required := range []string{
+			"UPDATE", "status='promoted'", "resource_version=resource_version+1",
+			"model_bundle_digest=$2", "evidence_graph_digest=$3",
+			"channel='candidate'", "status='qualified'", "resource_version=$5",
+		} {
+			if !strings.Contains(query, required) {
+				t.Fatalf("promotion query does not require %q: %q", required, query)
+			}
+		}
+		if strings.Contains(query, "INSERT") || len(arguments) != 5 {
+			t.Fatalf("promotion must be update-only: query=%q args=%d", query, len(arguments))
+		}
+		if got := arguments[4].Value; got != int64(4) {
+			t.Fatalf("swapped on version %v, want 4", got)
+		}
+		return driver.RowsAffected(1), nil
+	}}
+	store, _ := newStore(t, state)
+	if err := store.PromoteRelease(context.Background(), release); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPromoteReleaseRejectsCreateAndArbitraryLifecycleBeforeSQL(t *testing.T) {
+	t.Parallel()
+	for name, mutate := range map[string]func(*releases.Release){
+		"create":            func(value *releases.Release) { value.ResourceVersion = 0 },
+		"arbitrary_channel": func(value *releases.Release) { value.Channel = "production" },
+		"arbitrary_status":  func(value *releases.Release) { value.Status = "promoted" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			release := promotableRelease(t)
+			mutate(&release)
+			state := &sqltest.State{Exec: func(context.Context, string, []driver.NamedValue) (driver.Result, error) {
+				t.Fatal("invalid promotion source reached SQL")
+				return nil, nil
+			}}
+			store, _ := newStore(t, state)
+			if err := store.PromoteRelease(context.Background(), release); err == nil {
+				t.Fatal("invalid promotion source was accepted")
+			}
+		})
+	}
+}
+
+func TestPromoteReleaseRejectsAbsentDriftedOrStaleDurableState(t *testing.T) {
+	t.Parallel()
+	for _, condition := range []string{"absent", "identity_drift", "stale_resource_version"} {
+		t.Run(condition, func(t *testing.T) {
+			t.Parallel()
+			state := &sqltest.State{Exec: func(context.Context, string, []driver.NamedValue) (driver.Result, error) {
+				// Every condition is intentionally indistinguishable to the caller:
+				// the full qualified-candidate predicate matched no durable row.
+				return driver.RowsAffected(0), nil
+			}}
+			store, _ := newStore(t, state)
+			err := store.PromoteRelease(context.Background(), promotableRelease(t))
+			if err == nil || faults.CodeOf(err) != faults.CodeConflict || faults.RetryPolicyOf(err).Retryable() {
+				t.Fatalf("promotion condition %s was not a non-retryable conflict: %v", condition, err)
+			}
+		})
 	}
 }
 

@@ -1,18 +1,16 @@
 // Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 // Mindclade Proprietary and Confidential.
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
 
 syntax = "proto3";
 
 package mindclade.evaluation.v1;
 
+option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/evaluation/v1;evaluationv1";
+
 import "google/protobuf/timestamp.proto";
 import "mindclade/common/v1/identifiers.proto";
-
-message EvaluationScaffold {
-  option deprecated = true;
-  string reserved = 1;
-}
 
 enum EvaluationStatus {
   EVALUATION_STATUS_UNSPECIFIED = 0;

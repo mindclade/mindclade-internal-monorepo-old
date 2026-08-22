@@ -14,6 +14,8 @@
 | Durable JobSet outcome signal | PARTIAL | Bounded/idempotent ledger, atomic checkpoint, aggregate OpenMetrics source, recording rules, and behavior fixtures are implemented; connected watcher/RBAC/storage/scrape and restart/relist qualification remain required before capacity |
 | Control-admission decision signals | PARTIAL | Bounded decision counter/latency contracts, GMP allowlist/rules, 99.95-percent profile, alerts, dashboard, and promtool fixtures exist; connected volume and target/rule evidence remain required |
 | Control-admission maintenance signals | PARTIAL | Bounded indexed expiration/lineage sampler, private listener, fixed-cardinality metrics, v14 indexes, per-replica inventory gate, and source/live PostgreSQL tests exist; connected migration receipt, representative volume, GMP target/rules, alert translation, and fire/resolve evidence remain blocked |
+| Reference-training metric contract | PARTIAL | Closed 73-series external producer schema, semantic validator, aggregate GMP rules, dashboard, disabled proposed alerts, and promtool behavior fixtures exist; producer implementation and replay qualification are missing |
+| Reference-training collection | BLOCKED | No source exporter, metrics port, PodMonitoring, exact collector NetworkPolicy identity, or connected target/rule evidence exists |
 | Kubernetes Alertmanager or `ServiceMonitor` dependency | PASS | Deliberately absent |
 | Cloud Monitoring ownership | PASS | Terraform monitoring module and alert contracts |
 | Exact collector NetworkPolicy identity | BLOCKED | Must be observed in each qualification cluster |
@@ -31,3 +33,8 @@ remains an additional requirement for the authenticated controller endpoints.
 Cloud Monitoring alert policies remain disabled outside a controlled environment repository. The
 repository never commits channel credentials, service-account keys, TLS private keys, or an
 Alertmanager configuration Secret.
+
+The training threshold values and completion profile are proposals, not accepted SLO, RPO, RTO,
+or cost targets. Activation requires named environment owners to review them and attach non-production
+query plus synthetic fire-and-resolve evidence without changing the source contract to imply a live
+producer.

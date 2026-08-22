@@ -1,6 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
 
 output "backup_plan" { value = google_gke_backup_backup_plan.this.name }
 output "replica_buckets" { value = { for key, bucket in google_storage_bucket.replica : key => bucket.name } }

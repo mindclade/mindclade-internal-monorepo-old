@@ -3,14 +3,17 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-//! Committed Rust projections of canonical Mindclade protobuf contracts.
+//! Rust projections of canonical Mindclade protobuf contracts.
 //!
-//! Bazel owns canonical protobuf code generation.  This crate keeps a checked-in
-//! projection for Cargo-native qualification and local runtime leaves.  The
-//! cross-language qualification lane proves these layouts stay compatible with
-//! `protocols/proto/mindclade/runtime/v1` and
-//! `protocols/proto/mindclade/inference/v1`.
+//! Runtime and inference retain their established checked-in projections, while
+//! the checkpoint contract is generated from its canonical protobuf sources by
+//! this crate's build script. Cross-language qualification freezes the canonical
+//! bytes shared with Python and TypeScript.
 #![forbid(unsafe_code)]
 
+pub mod artifact;
+pub mod common;
 pub mod inference;
+pub mod registry;
 pub mod runtime;
+pub mod training;

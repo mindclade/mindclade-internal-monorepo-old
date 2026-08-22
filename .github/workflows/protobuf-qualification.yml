@@ -1,0 +1,119 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+name: Protobuf connected qualification
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - protocols/**
+      - sdk/typescript/src/generated/proto/**
+      - .github/workflows/protobuf-qualification.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: protobuf-connected-production
+  cancel-in-progress: false
+
+jobs:
+  connected-canary:
+    name: Authenticated gRPC and provenance canary
+    if: github.repository == 'mindclade/mindclade-internal-monorepo' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: protobuf-production-canary
+    timeout-minutes: 20
+    permissions:
+      artifact-metadata: write
+      attestations: write
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Prepare GitHub-hosted runner disk for Nix
+        run: ci/common/prepare_nix_runner.sh
+
+      - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = false
+
+      # The protected environment owns these identities. The workflow accepts
+      # no caller-selected endpoint, audience, image, service account, or WIF
+      # provider, so workflow_dispatch cannot redirect privileged credentials.
+      - id: registry-auth
+        name: Mint short-lived Artifact Registry credential
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3.0.0
+        with:
+          create_credentials_file: false
+          project_id: ${{ vars.PROTOBUF_CANARY_PROJECT_ID }}
+          service_account: ${{ vars.PROTOBUF_CANARY_SERVICE_ACCOUNT }}
+          token_format: access_token
+          workload_identity_provider: ${{ vars.PROTOBUF_CANARY_WIF_PROVIDER }}
+
+      - id: endpoint-auth
+        name: Mint audience-bound canary identity
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3.0.0
+        with:
+          create_credentials_file: false
+          id_token_audience: ${{ vars.PROTOBUF_CANARY_AUDIENCE }}
+          id_token_include_email: true
+          project_id: ${{ vars.PROTOBUF_CANARY_PROJECT_ID }}
+          service_account: ${{ vars.PROTOBUF_CANARY_SERVICE_ACCOUNT }}
+          token_format: id_token
+          workload_identity_provider: ${{ vars.PROTOBUF_CANARY_WIF_PROVIDER }}
+
+      - name: Verify released contract provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE_REF: ${{ vars.PROTOBUF_CONTRACT_IMAGE_REF }}
+          REGISTRY_TOKEN: ${{ steps.registry-auth.outputs.access_token }}
+        run: |
+          set -euo pipefail
+          [[ "$IMAGE_REF" =~ ^[a-z0-9][a-z0-9.-]*-docker\.pkg\.dev/[a-z0-9._/-]+@sha256:[0-9a-f]{64}$ ]]
+          registry="${IMAGE_REF%%/*}"
+          printf '%s' "$REGISTRY_TOKEN" | docker login "$registry" \
+            --username oauth2accesstoken --password-stdin
+          gh attestation verify "oci://$IMAGE_REF" \
+            --repo "$GITHUB_REPOSITORY" \
+            --predicate-type https://slsa.dev/provenance/v1
+
+      - name: Run authenticated read-only gRPC canaries
+        env:
+          MINDCLADE_CANARY_TOKEN: ${{ steps.endpoint-auth.outputs.id_token }}
+        run: >-
+          nix develop .#ci-lint --command python3
+          protocols/qualification/canary.py
+          --endpoint '${{ vars.PROTOBUF_CANARY_ENDPOINT }}'
+          --token-env MINDCLADE_CANARY_TOKEN
+          --evidence protobuf-canary-evidence.json
+
+      - name: Attest connected canary evidence
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32  # v4.1.0
+        with:
+          subject-path: protobuf-canary-evidence.json
+
+      - name: Verify connected canary evidence provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh attestation verify protobuf-canary-evidence.json
+          --repo "$GITHUB_REPOSITORY"
+          --predicate-type https://slsa.dev/provenance/v1
+
+      - name: Retain immutable canary evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          if-no-files-found: error
+          name: protobuf-canary-${{ github.sha }}
+          path: protobuf-canary-evidence.json
+          retention-days: 90

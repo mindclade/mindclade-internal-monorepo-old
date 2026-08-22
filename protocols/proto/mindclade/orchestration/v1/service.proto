@@ -1,19 +1,17 @@
 // Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 // Mindclade Proprietary and Confidential.
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
 
 syntax = "proto3";
 
 package mindclade.orchestration.v1;
 
+option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/orchestration/v1;orchestrationv1";
+
 import "mindclade/common/v1/identifiers.proto";
 import "mindclade/common/v1/pagination.proto";
 import "mindclade/orchestration/v1/run.proto";
-
-message ServiceScaffold {
-  option deprecated = true;
-  string reserved = 1;
-}
 
 message ListRunsRequest {
   mindclade.common.v1.PageRequest page = 1;

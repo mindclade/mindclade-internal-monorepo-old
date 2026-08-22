@@ -181,20 +181,3 @@ py_binary(
         "//tools/qualification:release_evidence",
     ],
 )
-
-# The two files this check compares are data, not srcs: the point of the test is
-# that the committed Terraform and the committed cert-manager manifest agree, so
-# a fixture-only test would pass while the real pair drifted.
-pytest_test(
-    name = "dns_caa_alignment_test",
-    srcs = ["tests/test_dns_caa_alignment.py"],
-    data = [
-        "check_dns_caa_alignment.py",
-        # Neither file is its own target: cert-manager/base is not a Bazel
-        # package at all, and dns_hub exports a filegroup rather than
-        # individual files. Both enclosing scaffold_files groups glob "**" and
-        # are public, so these are the labels that actually resolve.
-        "//infra/kubernetes:scaffold_files",
-        "//infra/terraform/environments/dns_hub:scaffold_files",
-    ],
-)

@@ -7,6 +7,22 @@ syntax = "proto3";
 
 package mindclade.artifact.v1;
 
-message ManifestScaffold {
-  string reserved = 1;
+option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/artifact/v1;artifactv1";
+
+import "google/protobuf/timestamp.proto";
+import "mindclade/common/v1/artifact_ref.proto";
+
+// ArtifactManifest is a bounded, immutable collection of artifact identities.
+// The manifest digest is computed over the deterministic serialization with
+// manifest_digest omitted. Storage locations are deliberately excluded from
+// identity and may change without changing this record.
+message ArtifactManifest {
+  uint32 schema_version = 1;
+  string manifest_id = 2;
+  repeated mindclade.common.v1.ArtifactRef artifacts = 3;
+  string owner = 4;
+  google.protobuf.Timestamp created_at = 5;
+  string manifest_digest = 6;
+  optional string supersedes_manifest_digest = 7;
+  map<string, string> annotations = 8;
 }

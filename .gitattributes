@@ -74,6 +74,9 @@ protocols/**/*.pb.go        linguist-generated=true
 protocols/**/*_pb2.py       linguist-generated=true
 protocols/**/*_pb2.pyi      linguist-generated=true
 protocols/**/*_connect.go   linguist-generated=true
+# protoc-gen-es emits one deliberate blank line after its final declaration.
+# Keep all other whitespace checks active while accepting that deterministic EOF.
+sdk/typescript/src/generated/** linguist-generated=true whitespace=-blank-at-eof
 
 # Vendored blueprint manifests. docs/blueprint/production-monorepo-paths.txt is a 4,475-line
 # path list; it is data the scaffold checker reads, not prose anyone reviews line by line.

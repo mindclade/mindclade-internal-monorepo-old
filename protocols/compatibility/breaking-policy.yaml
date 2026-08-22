@@ -4,7 +4,7 @@
 #
 
 ---
-schema_version: 1
+schema_version: 2
 authority: protocols/buf.yaml
 canonical_source: protocols/proto
 
@@ -18,16 +18,50 @@ protobuf:
     profile: FILE
     comparison: pull_request_base_branch
     ci_job: lint
+    wrapper: protocols/compatibility/check_breaking.py
+    one_time_waiver: protocols/compatibility/scaffold-removal-waiver.json
 
-# Buf generation is deliberately not enabled as an empty success. Language
-# bindings are Bazel-owned, and only the runtime subset currently has concrete
-# generation targets. Adding a language output requires its Bazel target,
-# committed/generated-output policy, and cross-language contract tests in the
-# same change.
+# Bazel owns schema compilation and test graph admission. Buf owns the
+# deterministic checked-in Protobuf-ES projection, while generated Python
+# modules remain Bazel action outputs rather than vendored source.
 generation:
-  authority: bazel
-  status: partial
-  buf_generate_enabled: false
+  orchestration_authority: bazel
+  compilation_authority: bazel
+  status: implemented
+  buf_generate_enabled: true
+  checked_in:
+    - language: typescript
+      path: sdk/typescript/src/generated/proto
+      generator: buf/protoc-gen-es@2.14.0
+      bazel_verification: //protocols:typescript_projection_test
+      clean_room_verification: pnpm --filter @mindclade/sdk-typescript generate:check
+  bazel_action_outputs:
+    - language: go
+      targets:
+        - //protocols/proto/mindclade/artifact/v1:artifact_go_proto
+        - //protocols/proto/mindclade/common/v1:common_go_proto
+        - //protocols/proto/mindclade/data/v1:data_go_proto
+        - //protocols/proto/mindclade/evaluation/v1:evaluation_go_proto
+        - //protocols/proto/mindclade/events/v1:events_go_proto
+        - //protocols/proto/mindclade/inference/v1:inference_go_proto
+        - //protocols/proto/mindclade/orchestration/v1:orchestration_go_proto
+        - //protocols/proto/mindclade/registry/v1:registry_go_proto
+        - //protocols/proto/mindclade/runtime/v1:runtime_go_proto
+        - //protocols/proto/mindclade/training/v1:training_go_proto
+    - language: python
+      targets:
+        - //protocols/proto/mindclade/runtime/v1:runtime_worker_py_pb2
+        - //protocols/proto/mindclade/training/v1:checkpoint_contract_py_pb2
+        - //protocols/proto/mindclade/artifact/v1:checkpoint_commit_py_pb2
+        - //protocols/proto/mindclade/registry/v1:checkpoint_record_py_pb2
+    - language: rust
+      targets:
+        - //protocols/rust:mindclade_protocols
+
+governance:
+  descriptor_baseline: protocols/compatibility/protobuf-v1-descriptor.json
+  surfaces: protocols/compatibility/protobuf-surfaces.json
+  bazel_test: //protocols:protobuf_governance_test
 
 # Published names are compatibility surface. These exceptions correspond
 # exactly to ignore_only entries in buf.yaml and must not be widened to a

@@ -24,6 +24,7 @@
 /control/                           @mindclade/platform
 /libs/go/                           @mindclade/platform
 /services/                          @mindclade/platform
+/services/workers/training/         @mindclade/platform @mindclade/research
 
 # ---------------------------------------------------------------------------------------
 # Rust — online/runtime data plane and node execution
@@ -53,6 +54,7 @@
 /infra/                             @mindclade/platform
 /infra/terraform/                   @mindclade/platform @mindclade/security
 /tools/                             @mindclade/platform
+/tools/qualification/training_gke/  @mindclade/platform @mindclade/research @mindclade/security
 /architecture/                      @mindclade/platform
 
 # Bazel graph and dependency policy. Root files need explicit routes because the directory
@@ -72,6 +74,7 @@
 
 # Release evidence. These files are the record that a component was allowed to ship.
 /qualification/                     @mindclade/platform @mindclade/security
+/qualification/scientific_model_intake/ @mindclade/platform @mindclade/research @mindclade/security
 /QUALIFICATION.md                   @mindclade/platform @mindclade/security
 /VALIDATION.md                      @mindclade/platform @mindclade/security
 /components.toml                    @mindclade/platform @mindclade/security

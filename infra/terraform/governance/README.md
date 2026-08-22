@@ -1,7 +1,8 @@
 # Terraform module-interface governance
 
 This directory owns generated Terraform API documentation and the versioned public
-interface contract for every reusable module plus the `dns_hub` root. Manifest schema 2
+interface contract for every reusable module. Deployable compositions are owned by the
+separately controlled live configuration and are deliberately excluded. Manifest schema 2
 also fingerprints variable validation conditions, `nullable`/`ephemeral` behavior,
 output value expressions, and required-provider source/aliases. It never runs
 `terraform plan` or accesses a backend, credentials, state, or a cloud API.

@@ -77,7 +77,7 @@ def test_optimizer_config_rejects_invalid_values(config) -> None:
     [
         ([], "at least one"),
         ([parameter(), torch.tensor([1.0])], "nn.Parameter"),
-        ([nn.Parameter(torch.ones(1, dtype=torch.float64))], "CPU float32"),
+        ([nn.Parameter(torch.ones(1, dtype=torch.float64))], "CPU or CUDA float32"),
     ],
 )
 def test_factory_rejects_invalid_parameter_collections(parameters, message: str) -> None:
@@ -104,3 +104,19 @@ def test_built_optimizer_performs_expected_sgd_update() -> None:
     optimizer.step()
 
     torch.testing.assert_close(value.detach(), torch.tensor([0.5]), rtol=0.0, atol=0.0)
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is unavailable")
+@pytest.mark.parametrize(
+    "config",
+    [SGDConfig(learning_rate=0.1), AdamWConfig(learning_rate=0.01)],
+)
+def test_factory_builds_explicit_cuda_float32_optimizer(config) -> None:
+    value = nn.Parameter(torch.tensor([1.0], dtype=torch.float32, device="cuda"))
+
+    optimizer = build_optimizer([value], config)
+    value.grad = torch.tensor([2.0], dtype=torch.float32, device="cuda")
+    optimizer.step()
+
+    assert value.device.type == "cuda"
+    assert torch.isfinite(value).all()

@@ -8,6 +8,23 @@ load("//tools/build:pytest.bzl", "pytest_test")
 package(default_visibility = ["//visibility:private"])
 
 pytest_test(
+    name = "test_dcp",
+    srcs = ["test_dcp.py"],
+    imports = ["../../.."],
+    deps = [
+        "//libs/python/errors",
+        "//libs/python/identifiers",
+        "//libs/python/serialization",
+        "//models/reference:affine",
+        "//training/checkpointing",
+        "//training/contracts",
+        "//training/core:trainer",
+        "//training/tasks:supervised",
+        "@pypi//torch",
+    ],
+)
+
+pytest_test(
     name = "test_resume",
     srcs = ["test_resume.py"],
     imports = ["../../.."],

@@ -13,6 +13,7 @@ import stat
 import struct
 import tempfile
 import time
+from dataclasses import replace
 from pathlib import Path
 from threading import Event
 
@@ -27,6 +28,7 @@ from serving.model_worker.reference import (
     ReferenceEngine,
     ReferenceEngineConfig,
     ReferenceInput,
+    ReferenceOutput,
     ReferenceRequest,
 )
 
@@ -133,10 +135,22 @@ def test_config_is_versioned_bounded_and_rejects_unknown_fields(tmp_path: Path) 
     path = tmp_path / "worker.json"
     path.write_text(json.dumps(document))
     assert WorkerProcessConfig.from_file(path) == config
+    symlink = tmp_path / "worker-link.json"
+    symlink.symlink_to(path)
+    with pytest.raises(ValueError, match="opened safely"):
+        WorkerProcessConfig.from_file(symlink)
+    path.write_text('{"schema_version":1,"schema_version":1}')
+    with pytest.raises(ValueError, match="valid UTF-8 JSON"):
+        WorkerProcessConfig.from_file(path)
+    path.write_text(json.dumps(document))
     document["unexpected"] = True
     path.write_text(json.dumps(document))
     with pytest.raises(ValueError, match="fields are invalid"):
         WorkerProcessConfig.from_file(path)
+    with pytest.raises(ValueError, match="reference_chunk_elements"):
+        replace(config, reference_chunk_elements=(1 << 24) + 1).validate()
+    with pytest.raises(ValueError, match="exactly one iteration"):
+        replace(config, reference_iterations=2).validate()
 
 
 def test_reference_engine_verifies_and_executes_affine_bundle(tmp_path: Path) -> None:
@@ -264,14 +278,27 @@ def test_worker_ipc_completes_and_rejects_oversized_frames(tmp_path: Path) -> No
 
 async def _exercise_cancellation(tmp_path: Path) -> None:
     bundle, inputs, outputs = _roots(tmp_path)
-    config = _process_config(bundle, inputs, outputs, iterations=1_000_000)
+    config = _process_config(bundle, inputs, outputs)
     payload = struct.pack("<f", 1.0)
     input_path = inputs / "request.f32"
     input_path.write_bytes(payload)
     socket_parent = Path(tempfile.mkdtemp(prefix="mindclade-worker-", dir=Path("/tmp").resolve()))
     os.chmod(socket_parent, stat.S_IRWXU)
     socket_path = socket_parent / "worker.sock"
-    server = WorkerServer(config, _engine(config))
+
+    class CancellationEngine(ReferenceEngine):
+        def __init__(self) -> None:
+            # This test double exercises the IPC cancellation handshake without
+            # changing the one-step reference.affine.v1 numerical contract.
+            pass
+
+        def execute(self, request: ReferenceRequest, cancelled: Event) -> ReferenceOutput:
+            del request
+            if not cancelled.wait(timeout=5):
+                raise AssertionError("IPC server did not signal cancellation")
+            raise ExecutionCancelled("execution cancelled")
+
+    server = WorkerServer(config, CancellationEngine())
     await server.start(socket_path)
     try:
         reader, writer = await asyncio.open_unix_connection(socket_path)

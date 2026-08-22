@@ -24,6 +24,23 @@ pytest_test(
     ],
 )
 
+pytest_test(
+    name = "test_training_worker_parity",
+    srcs = ["test_training_worker_parity.py"],
+    imports = ["../../.."],
+    deps = [
+        "//libs/python/identifiers",
+        "//libs/python/serialization",
+        "//libs/python/worker_runtime",
+        "//services/workers/training",
+        "//services/workers/training:qualification_lib",
+        "//serving/model_worker",
+        "@pypi//numpy",
+        "@pypi//safetensors",
+        "@pypi//torch",
+    ],
+)
+
 filegroup(
     name = "scaffold_files",
     srcs = [

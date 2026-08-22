@@ -7,6 +7,8 @@ syntax = "proto3";
 
 package mindclade.training.v1;
 
+option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/training/v1;trainingv1";
+
 // TopologyScaffold is retained only for source and wire compatibility with the
 // reserved pre-implementation surface.
 message TopologyScaffold {

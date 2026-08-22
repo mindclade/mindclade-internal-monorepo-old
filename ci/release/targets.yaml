@@ -20,6 +20,21 @@ targets:
     qualificationMode: test
     qualificationTargets:
       - //services/go_vanity/...
+  protobuf-contracts:
+    releaseKind: bundle
+    application: platform-protobuf-contracts
+    rolloutClass: platform
+    images:
+      primary:
+        repository: releases/protobuf-contracts
+        buildTarget: //protocols:protobuf_contract_image
+        pushTarget: //protocols:protobuf_contract_push
+    artifacts: []
+    qualificationMode: test
+    qualificationTargets:
+      - //protocols:protobuf_governance_test
+      - //protocols:typescript_projection_test
+      - //protocols/consumers:generated_go_test
   weights-fixture:
     releaseKind: model
     application: research-weights-fixture

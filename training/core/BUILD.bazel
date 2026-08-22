@@ -11,6 +11,7 @@ py_library(
     name = "trainer",
     srcs = [
         "__init__.py",
+        "reduction.py",
         "trainer.py",
     ],
     imports = ["../.."],
@@ -27,6 +28,7 @@ filegroup(
         ["*.py"],
         exclude = [
             "__init__.py",
+            "reduction.py",
             "trainer.py",
         ],
     ),

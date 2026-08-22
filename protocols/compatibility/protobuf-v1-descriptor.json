@@ -1,0 +1,6254 @@
+{
+  "packages": {
+    "mindclade.artifact.v1": {
+      "enums": {
+        "mindclade.artifact.v1.GarbageCollectionOutcome": {
+          "reserved_names": [],
+          "reserved_ranges": [],
+          "values": [
+            {
+              "name": "GARBAGE_COLLECTION_OUTCOME_UNSPECIFIED",
+              "number": 0
+            },
+            {
+              "name": "GARBAGE_COLLECTION_OUTCOME_DELETED",
+              "number": 1
+            },
+            {
+              "name": "GARBAGE_COLLECTION_OUTCOME_ALREADY_ABSENT",
+              "number": 2
+            },
+            {
+              "name": "GARBAGE_COLLECTION_OUTCOME_STALE",
+              "number": 3
+            }
+          ]
+        }
+      },
+      "files": [
+        "mindclade/artifact/v1/artifact.proto",
+        "mindclade/artifact/v1/checkpoint.proto",
+        "mindclade/artifact/v1/manifest.proto",
+        "mindclade/artifact/v1/service.proto"
+      ],
+      "messages": {
+        "mindclade.artifact.v1.ArtifactLocation": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "artifact",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.artifact.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "provider",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "uri",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "object_path",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "generation",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "region",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.artifact.v1.ArtifactManifest": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "schema_version",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "manifest_id",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "artifacts",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "owner",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "created_at",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "google.protobuf.Timestamp"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "manifest_digest",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "supersedes_manifest_digest",
+              "number": 7,
+              "oneof": "_supersedes_manifest_digest",
+              "proto3_optional": true,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "annotations",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.artifact.v1.ArtifactManifest.AnnotationsEntry"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.artifact.v1.ArtifactManifest.AnnotationsEntry": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "key",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "value",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.artifact.v1.ArtifactRef": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "digest",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "size_bytes",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "media_type",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "logical_kind",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "schema_version",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.artifact.v1.CheckpointCommit": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "schema_version",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "checkpoint_id",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "run_id",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "manifest",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "checkpoint_attempt",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "fencing_token",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "writer_id",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "committed_at",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "google.protobuf.Timestamp"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "commit_digest",
+              "number": 9,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.artifact.v1.GarbageCollectionCandidate": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "artifact",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.artifact.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "object_path",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "expected_object_version",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.artifact.v1.GarbageCollectionPlan": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "plan_digest",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "created_unix_millis",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "candidates",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.artifact.v1.GarbageCollectionCandidate"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.artifact.v1.GarbageCollectionReceipt": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "plan_digest",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "completed_unix_millis",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "results",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.artifact.v1.GarbageCollectionResult"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.artifact.v1.GarbageCollectionResult": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "digest",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "object_path",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "outcome",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.artifact.v1.GarbageCollectionOutcome"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.artifact.v1.GetArtifactRequest": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "digest",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ContentDigest"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.artifact.v1.GetArtifactResponse": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "artifact",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.artifact.v1.ArtifactRef"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.artifact.v1.ListArtifactsRequest": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "page",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.PageRequest"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "logical_kind",
+              "number": 2,
+              "oneof": "_logical_kind",
+              "proto3_optional": true,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.artifact.v1.ListArtifactsResponse": {
+          "fields": [
+            {
+              "label": "LABEL_REPEATED",
+              "name": "artifacts",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.artifact.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "page",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.PageResponse"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        }
+      },
+      "services": {
+        "mindclade.artifact.v1.ArtifactService": {
+          "methods": [
+            {
+              "client_streaming": false,
+              "input": "mindclade.artifact.v1.ListArtifactsRequest",
+              "name": "ListArtifacts",
+              "output": "mindclade.artifact.v1.ListArtifactsResponse",
+              "server_streaming": false
+            },
+            {
+              "client_streaming": false,
+              "input": "mindclade.artifact.v1.GetArtifactRequest",
+              "name": "GetArtifact",
+              "output": "mindclade.artifact.v1.GetArtifactResponse",
+              "server_streaming": false
+            }
+          ]
+        }
+      }
+    },
+    "mindclade.common.v1": {
+      "enums": {
+        "mindclade.common.v1.ErrorCode": {
+          "reserved_names": [],
+          "reserved_ranges": [],
+          "values": [
+            {
+              "name": "ERROR_CODE_UNSPECIFIED",
+              "number": 0
+            },
+            {
+              "name": "ERROR_CODE_INVALID_ARGUMENT",
+              "number": 1
+            },
+            {
+              "name": "ERROR_CODE_UNAUTHENTICATED",
+              "number": 2
+            },
+            {
+              "name": "ERROR_CODE_PERMISSION_DENIED",
+              "number": 3
+            },
+            {
+              "name": "ERROR_CODE_NOT_FOUND",
+              "number": 4
+            },
+            {
+              "name": "ERROR_CODE_CONFLICT",
+              "number": 5
+            },
+            {
+              "name": "ERROR_CODE_RESOURCE_EXHAUSTED",
+              "number": 6
+            },
+            {
+              "name": "ERROR_CODE_DEADLINE_EXCEEDED",
+              "number": 7
+            },
+            {
+              "name": "ERROR_CODE_UNAVAILABLE",
+              "number": 8
+            },
+            {
+              "name": "ERROR_CODE_INTERNAL",
+              "number": 9
+            }
+          ]
+        }
+      },
+      "files": [
+        "mindclade/common/v1/artifact_ref.proto",
+        "mindclade/common/v1/errors.proto",
+        "mindclade/common/v1/identifiers.proto",
+        "mindclade/common/v1/pagination.proto"
+      ],
+      "messages": {
+        "mindclade.common.v1.ArtifactLocation": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "artifact",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "provider",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "uri",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "generation",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "region",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.common.v1.ArtifactRef": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "digest",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "size_bytes",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "media_type",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "logical_kind",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "schema_version",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.common.v1.ContentDigest": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "algorithm",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "value",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_BYTES"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.common.v1.ErrorDetail": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "code",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ErrorCode"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "message",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "request_id",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "field_violations",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.FieldViolation"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "retry_after_millis",
+              "number": 5,
+              "oneof": "_retry_after_millis",
+              "proto3_optional": true,
+              "type": "TYPE_UINT64"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.common.v1.FieldViolation": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "field",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "description",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.common.v1.PageRequest": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "page_size",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_INT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "page_token",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.common.v1.PageResponse": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "next_page_token",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.common.v1.ResourceId": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "value",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.common.v1.ResourceVersion": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "value",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        }
+      },
+      "services": {}
+    },
+    "mindclade.data.v1": {
+      "enums": {
+        "mindclade.data.v1.DatasetStatus": {
+          "reserved_names": [],
+          "reserved_ranges": [],
+          "values": [
+            {
+              "name": "DATASET_STATUS_UNSPECIFIED",
+              "number": 0
+            },
+            {
+              "name": "DATASET_STATUS_BUILDING",
+              "number": 1
+            },
+            {
+              "name": "DATASET_STATUS_READY",
+              "number": 2
+            },
+            {
+              "name": "DATASET_STATUS_DEPRECATED",
+              "number": 3
+            },
+            {
+              "name": "DATASET_STATUS_QUARANTINED",
+              "number": 4
+            }
+          ]
+        },
+        "mindclade.data.v1.SourceKind": {
+          "reserved_names": [],
+          "reserved_ranges": [],
+          "values": [
+            {
+              "name": "SOURCE_KIND_UNSPECIFIED",
+              "number": 0
+            },
+            {
+              "name": "SOURCE_KIND_PDB",
+              "number": 1
+            },
+            {
+              "name": "SOURCE_KIND_UNIPROT",
+              "number": 2
+            },
+            {
+              "name": "SOURCE_KIND_RNACENTRAL",
+              "number": 3
+            },
+            {
+              "name": "SOURCE_KIND_OBJECT_STORE",
+              "number": 4
+            },
+            {
+              "name": "SOURCE_KIND_HTTP",
+              "number": 5
+            }
+          ]
+        }
+      },
+      "files": [
+        "mindclade/data/v1/cursor.proto",
+        "mindclade/data/v1/dataset.proto",
+        "mindclade/data/v1/record.proto",
+        "mindclade/data/v1/service.proto",
+        "mindclade/data/v1/shard.proto",
+        "mindclade/data/v1/snapshot.proto",
+        "mindclade/data/v1/source.proto"
+      ],
+      "messages": {
+        "mindclade.data.v1.CanonicalRecord": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "digest",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ContentDigest"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "source_record_digest",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ContentDigest"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "values_artifact_digest",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ContentDigest"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "schema_version",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.data.v1.Dataset": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ResourceId"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "name",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "version",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "manifest_digest",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ContentDigest"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "record_count",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "size_bytes",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "created_at",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "google.protobuf.Timestamp"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "status",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.data.v1.DatasetStatus"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "license",
+              "number": 9,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "lineage_summary",
+              "number": 10,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.data.v1.DatasetShard": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "shard_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "ordinal",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "record_count",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "artifact",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "index_digest",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ContentDigest"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.data.v1.GetDatasetRequest": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "dataset_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ResourceId"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.data.v1.GetDatasetResponse": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "dataset",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.data.v1.Dataset"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.data.v1.ListDatasetsRequest": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "page",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.PageRequest"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.data.v1.ListDatasetsResponse": {
+          "fields": [
+            {
+              "label": "LABEL_REPEATED",
+              "name": "datasets",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.data.v1.Dataset"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "page",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.PageResponse"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.data.v1.SourceCursor": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "value",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_BYTES"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "sequence",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.data.v1.SourceSnapshot": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "snapshot_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "source",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.data.v1.SourceSpec"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "raw_artifact",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "cursor",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.data.v1.SourceCursor"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "observed_at",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "google.protobuf.Timestamp"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.data.v1.SourceSpec": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "source_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "kind",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.data.v1.SourceKind"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "locator",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "version",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "license",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        }
+      },
+      "services": {
+        "mindclade.data.v1.DatasetService": {
+          "methods": [
+            {
+              "client_streaming": false,
+              "input": "mindclade.data.v1.ListDatasetsRequest",
+              "name": "ListDatasets",
+              "output": "mindclade.data.v1.ListDatasetsResponse",
+              "server_streaming": false
+            },
+            {
+              "client_streaming": false,
+              "input": "mindclade.data.v1.GetDatasetRequest",
+              "name": "GetDataset",
+              "output": "mindclade.data.v1.GetDatasetResponse",
+              "server_streaming": false
+            }
+          ]
+        }
+      }
+    },
+    "mindclade.evaluation.v1": {
+      "enums": {
+        "mindclade.evaluation.v1.EvaluationStatus": {
+          "reserved_names": [],
+          "reserved_ranges": [],
+          "values": [
+            {
+              "name": "EVALUATION_STATUS_UNSPECIFIED",
+              "number": 0
+            },
+            {
+              "name": "EVALUATION_STATUS_QUEUED",
+              "number": 1
+            },
+            {
+              "name": "EVALUATION_STATUS_RUNNING",
+              "number": 2
+            },
+            {
+              "name": "EVALUATION_STATUS_PASSED",
+              "number": 3
+            },
+            {
+              "name": "EVALUATION_STATUS_FAILED",
+              "number": 4
+            },
+            {
+              "name": "EVALUATION_STATUS_BLOCKED",
+              "number": 5
+            }
+          ]
+        }
+      },
+      "files": [
+        "mindclade/evaluation/v1/evaluation.proto",
+        "mindclade/evaluation/v1/service.proto"
+      ],
+      "messages": {
+        "mindclade.evaluation.v1.Evaluation": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ResourceId"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "model_id",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ResourceId"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "suite",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "status",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.evaluation.v1.EvaluationStatus"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "created_at",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "google.protobuf.Timestamp"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "metrics",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.evaluation.v1.EvaluationMetric"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "evidence_digest",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ContentDigest"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "holdout_protected",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_BOOL"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.evaluation.v1.EvaluationMetric": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "name",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "value",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_DOUBLE"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "unit",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "threshold",
+              "number": 4,
+              "oneof": "_threshold",
+              "proto3_optional": true,
+              "type": "TYPE_DOUBLE"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "passed",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_BOOL"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.evaluation.v1.GetEvaluationRequest": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "evaluation_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ResourceId"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.evaluation.v1.GetEvaluationResponse": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "evaluation",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.evaluation.v1.Evaluation"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.evaluation.v1.ListEvaluationsRequest": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "page",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.PageRequest"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.evaluation.v1.ListEvaluationsResponse": {
+          "fields": [
+            {
+              "label": "LABEL_REPEATED",
+              "name": "evaluations",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.evaluation.v1.Evaluation"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "page",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.PageResponse"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        }
+      },
+      "services": {
+        "mindclade.evaluation.v1.EvaluationService": {
+          "methods": [
+            {
+              "client_streaming": false,
+              "input": "mindclade.evaluation.v1.ListEvaluationsRequest",
+              "name": "ListEvaluations",
+              "output": "mindclade.evaluation.v1.ListEvaluationsResponse",
+              "server_streaming": false
+            },
+            {
+              "client_streaming": false,
+              "input": "mindclade.evaluation.v1.GetEvaluationRequest",
+              "name": "GetEvaluation",
+              "output": "mindclade.evaluation.v1.GetEvaluationResponse",
+              "server_streaming": false
+            }
+          ]
+        }
+      }
+    },
+    "mindclade.events.v1": {
+      "enums": {},
+      "files": [
+        "mindclade/events/v1/admission_events.proto",
+        "mindclade/events/v1/envelope.proto"
+      ],
+      "messages": {
+        "mindclade.events.v1.AdmissionEventEnvelope": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "event_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "topic",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "partition_key",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "schema_version",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "canonical_payload",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_BYTES"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "occurred_at",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "google.protobuf.Timestamp"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "payload_digest",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "producer",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.events.v1.EventEnvelope": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "event_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "schema",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "tenant_id",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "workspace_id",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "aggregate_kind",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "aggregate_id",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "aggregate_version",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "ordering_key",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "correlation_id",
+              "number": 9,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "causation_id",
+              "number": 10,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "occurred_at_unix_millis",
+              "number": 11,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "payload_type",
+              "number": 12,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "payload",
+              "number": 13,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_BYTES"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "payload_digest",
+              "number": 14,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        }
+      },
+      "services": {}
+    },
+    "mindclade.inference.v1": {
+      "enums": {
+        "mindclade.inference.v1.ExecutionKind": {
+          "reserved_names": [],
+          "reserved_ranges": [],
+          "values": [
+            {
+              "name": "EXECUTION_KIND_UNSPECIFIED",
+              "number": 0
+            },
+            {
+              "name": "EXECUTION_KIND_FORWARD",
+              "number": 1
+            },
+            {
+              "name": "EXECUTION_KIND_DIFFUSION_SAMPLE",
+              "number": 2
+            },
+            {
+              "name": "EXECUTION_KIND_EMBEDDING",
+              "number": 3
+            },
+            {
+              "name": "EXECUTION_KIND_SCORING",
+              "number": 4
+            }
+          ]
+        },
+        "mindclade.inference.v1.ModelLifecycle": {
+          "reserved_names": [],
+          "reserved_ranges": [],
+          "values": [
+            {
+              "name": "MODEL_LIFECYCLE_UNSPECIFIED",
+              "number": 0
+            },
+            {
+              "name": "MODEL_LIFECYCLE_DRAFT",
+              "number": 1
+            },
+            {
+              "name": "MODEL_LIFECYCLE_QUALIFIED",
+              "number": 2
+            },
+            {
+              "name": "MODEL_LIFECYCLE_SERVING",
+              "number": 3
+            },
+            {
+              "name": "MODEL_LIFECYCLE_DEPRECATED",
+              "number": 4
+            },
+            {
+              "name": "MODEL_LIFECYCLE_REVOKED",
+              "number": 5
+            }
+          ]
+        },
+        "mindclade.inference.v1.ModelPrecision": {
+          "reserved_names": [],
+          "reserved_ranges": [],
+          "values": [
+            {
+              "name": "MODEL_PRECISION_UNSPECIFIED",
+              "number": 0
+            },
+            {
+              "name": "MODEL_PRECISION_FP32",
+              "number": 1
+            },
+            {
+              "name": "MODEL_PRECISION_TF32",
+              "number": 2
+            },
+            {
+              "name": "MODEL_PRECISION_BF16",
+              "number": 3
+            },
+            {
+              "name": "MODEL_PRECISION_FP16",
+              "number": 4
+            },
+            {
+              "name": "MODEL_PRECISION_FP8",
+              "number": 5
+            }
+          ]
+        }
+      },
+      "files": [
+        "mindclade/inference/v1/model.proto",
+        "mindclade/inference/v1/request.proto",
+        "mindclade/inference/v1/response.proto",
+        "mindclade/inference/v1/service.proto",
+        "mindclade/inference/v1/stream.proto"
+      ],
+      "messages": {
+        "mindclade.inference.v1.CompatibilityClass": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "class_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "execution_kind",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.inference.v1.ExecutionKind"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "precision",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.inference.v1.ModelPrecision"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "shape_bucket",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "maximum_batch_requests",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "maximum_batch_gpu_bytes",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "maximum_input_units",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "maximum_output_units",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.inference.v1.InferenceAccepted": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "request_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.inference.v1.InferenceInput": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "sequence",
+              "number": 1,
+              "oneof": "value",
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "artifact_digest",
+              "number": 2,
+              "oneof": "value",
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ContentDigest"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.inference.v1.InferenceProgress": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "progress",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_DOUBLE"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "stage",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.inference.v1.InferenceRequest": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "model",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.inference.v1.ModelSelection"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "input",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.inference.v1.InferenceInput"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "deadline_millis",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "seed",
+              "number": 4,
+              "oneof": "_seed",
+              "proto3_optional": true,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "parameters",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.inference.v1.InferenceRequest.ParametersEntry"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "idempotency_key",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.inference.v1.InferenceRequest.ParametersEntry": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "key",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "value",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_DOUBLE"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.inference.v1.InferenceResponse": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "request_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "model_id",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ResourceId"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "model_version",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "artifacts",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.artifact.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "confidence",
+              "number": 5,
+              "oneof": "_confidence",
+              "proto3_optional": true,
+              "type": "TYPE_DOUBLE"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "usage",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.inference.v1.InferenceUsage"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.inference.v1.InferenceStreamEvent": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "accepted",
+              "number": 1,
+              "oneof": "event",
+              "proto3_optional": false,
+              "type": "mindclade.inference.v1.InferenceAccepted"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "progress",
+              "number": 2,
+              "oneof": "event",
+              "proto3_optional": false,
+              "type": "mindclade.inference.v1.InferenceProgress"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "result",
+              "number": 3,
+              "oneof": "event",
+              "proto3_optional": false,
+              "type": "mindclade.inference.v1.InferenceResponse"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "error",
+              "number": 4,
+              "oneof": "event",
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ErrorDetail"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.inference.v1.InferenceUsage": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "input_units",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "output_units",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "wall_time_millis",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.inference.v1.ModelDescriptor": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "descriptor_digest",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "model_id",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "family",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "version",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "lifecycle",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.inference.v1.ModelLifecycle"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "model_bundle_digest",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "engine_bundle_digest",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "resolved_config_digest",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "kernel_manifest_digest",
+              "number": 9,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "safety_policy_digest",
+              "number": 10,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "capabilities",
+              "number": 11,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "compatibility_classes",
+              "number": 12,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.inference.v1.CompatibilityClass"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "envelope",
+              "number": 13,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.inference.v1.ModelResourceEnvelope"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "accelerator_capability",
+              "number": 14,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "minimum_runtime_version",
+              "number": 15,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "schema_version",
+              "number": 16,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "policy_epoch",
+              "number": 17,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "created_unix_millis",
+              "number": 18,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "expires_unix_millis",
+              "number": 19,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.inference.v1.ModelResourceEnvelope": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "weights_resident_bytes",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "host_memory_bytes",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "gpu_memory_floor_bytes",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "gpu_memory_per_request_bytes",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "maximum_concurrent_requests",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "load_deadline_millis",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "drain_deadline_millis",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.inference.v1.ModelSelection": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "model_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ResourceId"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "version",
+              "number": 2,
+              "oneof": "_version",
+              "proto3_optional": true,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.inference.v1.PredictRequest": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "request",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.inference.v1.InferenceRequest"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.inference.v1.PredictResponse": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "response",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.inference.v1.InferenceResponse"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.inference.v1.StreamPredictRequest": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "request",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.inference.v1.InferenceRequest"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.inference.v1.StreamPredictResponse": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "event",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.inference.v1.InferenceStreamEvent"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        }
+      },
+      "services": {
+        "mindclade.inference.v1.InferenceService": {
+          "methods": [
+            {
+              "client_streaming": false,
+              "input": "mindclade.inference.v1.PredictRequest",
+              "name": "Predict",
+              "output": "mindclade.inference.v1.PredictResponse",
+              "server_streaming": false
+            },
+            {
+              "client_streaming": false,
+              "input": "mindclade.inference.v1.StreamPredictRequest",
+              "name": "StreamPredict",
+              "output": "mindclade.inference.v1.StreamPredictResponse",
+              "server_streaming": true
+            }
+          ]
+        }
+      }
+    },
+    "mindclade.orchestration.v1": {
+      "enums": {
+        "mindclade.orchestration.v1.RunKind": {
+          "reserved_names": [],
+          "reserved_ranges": [],
+          "values": [
+            {
+              "name": "RUN_KIND_UNSPECIFIED",
+              "number": 0
+            },
+            {
+              "name": "RUN_KIND_PREPROCESSING",
+              "number": 1
+            },
+            {
+              "name": "RUN_KIND_TRAINING",
+              "number": 2
+            },
+            {
+              "name": "RUN_KIND_EVALUATION",
+              "number": 3
+            },
+            {
+              "name": "RUN_KIND_BATCH_INFERENCE",
+              "number": 4
+            },
+            {
+              "name": "RUN_KIND_ONLINE_INFERENCE",
+              "number": 5
+            },
+            {
+              "name": "RUN_KIND_CURATION",
+              "number": 6
+            }
+          ]
+        },
+        "mindclade.orchestration.v1.RunState": {
+          "reserved_names": [],
+          "reserved_ranges": [],
+          "values": [
+            {
+              "name": "RUN_STATE_UNSPECIFIED",
+              "number": 0
+            },
+            {
+              "name": "RUN_STATE_QUEUED",
+              "number": 1
+            },
+            {
+              "name": "RUN_STATE_PREPARING",
+              "number": 2
+            },
+            {
+              "name": "RUN_STATE_RUNNING",
+              "number": 3
+            },
+            {
+              "name": "RUN_STATE_SUCCEEDED",
+              "number": 4
+            },
+            {
+              "name": "RUN_STATE_FAILED",
+              "number": 5
+            },
+            {
+              "name": "RUN_STATE_CANCELLING",
+              "number": 6
+            },
+            {
+              "name": "RUN_STATE_CANCELLED",
+              "number": 7
+            }
+          ]
+        },
+        "mindclade.orchestration.v1.StageKind": {
+          "reserved_names": [],
+          "reserved_ranges": [],
+          "values": [
+            {
+              "name": "STAGE_KIND_UNSPECIFIED",
+              "number": 0
+            },
+            {
+              "name": "STAGE_KIND_INGESTION",
+              "number": 1
+            },
+            {
+              "name": "STAGE_KIND_CURATE",
+              "number": 2
+            },
+            {
+              "name": "STAGE_KIND_PREPROCESS",
+              "number": 3
+            },
+            {
+              "name": "STAGE_KIND_REFERENCE_BUILD",
+              "number": 4
+            },
+            {
+              "name": "STAGE_KIND_BATCH_INFERENCE",
+              "number": 5
+            },
+            {
+              "name": "STAGE_KIND_EVALUATION",
+              "number": 6
+            },
+            {
+              "name": "STAGE_KIND_TRAINING",
+              "number": 7
+            },
+            {
+              "name": "STAGE_KIND_CHECKPOINT_TRANSFER",
+              "number": 8
+            },
+            {
+              "name": "STAGE_KIND_ARTIFACT_TRANSFER",
+              "number": 9
+            },
+            {
+              "name": "STAGE_KIND_ROLLOUT",
+              "number": 10
+            },
+            {
+              "name": "STAGE_KIND_SIMULATION",
+              "number": 11
+            }
+          ]
+        }
+      },
+      "files": [
+        "mindclade/orchestration/v1/run.proto",
+        "mindclade/orchestration/v1/service.proto",
+        "mindclade/orchestration/v1/stage.proto",
+        "mindclade/orchestration/v1/workflow.proto",
+        "mindclade/orchestration/v1/workload.proto"
+      ],
+      "messages": {
+        "mindclade.orchestration.v1.CancelRunRequest": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "run_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ResourceId"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "idempotency_key",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "reason",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.orchestration.v1.CancelRunResponse": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "run",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.orchestration.v1.Run"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.orchestration.v1.CreateRunRequest": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "run",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.orchestration.v1.CreateRunSpec"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "idempotency_key",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.orchestration.v1.CreateRunResponse": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "run",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.orchestration.v1.Run"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.orchestration.v1.CreateRunSpec": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "name",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "kind",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.orchestration.v1.RunKind"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "configuration_digest",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ContentDigest"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "model_id",
+              "number": 4,
+              "oneof": "_model_id",
+              "proto3_optional": true,
+              "type": "mindclade.common.v1.ResourceId"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "dataset_id",
+              "number": 5,
+              "oneof": "_dataset_id",
+              "proto3_optional": true,
+              "type": "mindclade.common.v1.ResourceId"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "labels",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.orchestration.v1.CreateRunSpec.LabelsEntry"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.orchestration.v1.CreateRunSpec.LabelsEntry": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "key",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "value",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.orchestration.v1.GetRunRequest": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "run_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ResourceId"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.orchestration.v1.GetRunResponse": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "run",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.orchestration.v1.Run"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.orchestration.v1.ListRunsRequest": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "page",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.PageRequest"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "state",
+              "number": 2,
+              "oneof": "_state",
+              "proto3_optional": true,
+              "type": "mindclade.orchestration.v1.RunState"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.orchestration.v1.ListRunsResponse": {
+          "fields": [
+            {
+              "label": "LABEL_REPEATED",
+              "name": "runs",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.orchestration.v1.Run"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "page",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.PageResponse"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.orchestration.v1.Run": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ResourceId"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "name",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "kind",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.orchestration.v1.RunKind"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "state",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.orchestration.v1.RunState"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "created_at",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "google.protobuf.Timestamp"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "updated_at",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "google.protobuf.Timestamp"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "progress",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_DOUBLE"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "current_stage",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "owner",
+              "number": 9,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "model_id",
+              "number": 10,
+              "oneof": "_model_id",
+              "proto3_optional": true,
+              "type": "mindclade.common.v1.ResourceId"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "output_artifacts",
+              "number": 11,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ContentDigest"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "resource_version",
+              "number": 12,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ResourceVersion"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "failure",
+              "number": 13,
+              "oneof": "_failure",
+              "proto3_optional": true,
+              "type": "mindclade.common.v1.ErrorDetail"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.orchestration.v1.StageAttempt": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "run_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "job_id",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "spec",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.orchestration.v1.StageSpec"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "attempt",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "fencing_token",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "execution_ticket_id",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.orchestration.v1.StageSpec": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "stage_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "kind",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.orchestration.v1.StageKind"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "operation",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "inputs",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "output_namespace",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "resolved_config_digest",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "reference_snapshot_digest",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "budget",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.ExecutionBudget"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "timeout_millis",
+              "number": 9,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "maximum_attempts",
+              "number": 10,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "dependency_stage_ids",
+              "number": 11,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.orchestration.v1.Workflow": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ResourceId"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "name",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "stages",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.orchestration.v1.StageSpec"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "definition_digest",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ContentDigest"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "schema_version",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.orchestration.v1.WorkloadEnvelope": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "workload_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "run_id",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "job_id",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "stage_id",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "attempt",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "tenant_id",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "workspace_id",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "execution_ticket",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.ExecutionTicket"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "inputs",
+              "number": 9,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "expected_outputs",
+              "number": 10,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "resolved_config_digest",
+              "number": 11,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "resource_class",
+              "number": 12,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "created_unix_millis",
+              "number": 13,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "deadline_unix_millis",
+              "number": 14,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "stage_kind",
+              "number": 15,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.orchestration.v1.StageKind"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "operation",
+              "number": 16,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        }
+      },
+      "services": {
+        "mindclade.orchestration.v1.RunService": {
+          "methods": [
+            {
+              "client_streaming": false,
+              "input": "mindclade.orchestration.v1.ListRunsRequest",
+              "name": "ListRuns",
+              "output": "mindclade.orchestration.v1.ListRunsResponse",
+              "server_streaming": false
+            },
+            {
+              "client_streaming": false,
+              "input": "mindclade.orchestration.v1.GetRunRequest",
+              "name": "GetRun",
+              "output": "mindclade.orchestration.v1.GetRunResponse",
+              "server_streaming": false
+            },
+            {
+              "client_streaming": false,
+              "input": "mindclade.orchestration.v1.CreateRunRequest",
+              "name": "CreateRun",
+              "output": "mindclade.orchestration.v1.CreateRunResponse",
+              "server_streaming": false
+            },
+            {
+              "client_streaming": false,
+              "input": "mindclade.orchestration.v1.CancelRunRequest",
+              "name": "CancelRun",
+              "output": "mindclade.orchestration.v1.CancelRunResponse",
+              "server_streaming": false
+            }
+          ]
+        }
+      }
+    },
+    "mindclade.registry.v1": {
+      "enums": {
+        "mindclade.registry.v1.CheckpointLifecycle": {
+          "reserved_names": [],
+          "reserved_ranges": [],
+          "values": [
+            {
+              "name": "CHECKPOINT_LIFECYCLE_UNSPECIFIED",
+              "number": 0
+            },
+            {
+              "name": "CHECKPOINT_LIFECYCLE_COMMITTED",
+              "number": 1
+            },
+            {
+              "name": "CHECKPOINT_LIFECYCLE_PROTECTED",
+              "number": 2
+            },
+            {
+              "name": "CHECKPOINT_LIFECYCLE_EXPIRED",
+              "number": 3
+            },
+            {
+              "name": "CHECKPOINT_LIFECYCLE_REVOKED",
+              "number": 4
+            }
+          ]
+        },
+        "mindclade.registry.v1.EvidenceKind": {
+          "reserved_names": [],
+          "reserved_ranges": [],
+          "values": [
+            {
+              "name": "EVIDENCE_KIND_UNSPECIFIED",
+              "number": 0
+            },
+            {
+              "name": "EVIDENCE_KIND_SOURCE_COMMIT",
+              "number": 1
+            },
+            {
+              "name": "EVIDENCE_KIND_RESOLVED_CONFIG",
+              "number": 2
+            },
+            {
+              "name": "EVIDENCE_KIND_DATASET",
+              "number": 3
+            },
+            {
+              "name": "EVIDENCE_KIND_REFERENCE_DATABASE",
+              "number": 4
+            },
+            {
+              "name": "EVIDENCE_KIND_TRAINING_RUN",
+              "number": 5
+            },
+            {
+              "name": "EVIDENCE_KIND_CHECKPOINT",
+              "number": 6
+            },
+            {
+              "name": "EVIDENCE_KIND_MODEL_BUNDLE",
+              "number": 7
+            },
+            {
+              "name": "EVIDENCE_KIND_RUNTIME_BUNDLE",
+              "number": 8
+            },
+            {
+              "name": "EVIDENCE_KIND_KERNEL_QUALIFICATION",
+              "number": 9
+            },
+            {
+              "name": "EVIDENCE_KIND_NUMERICAL_QUALIFICATION",
+              "number": 10
+            },
+            {
+              "name": "EVIDENCE_KIND_EVALUATION",
+              "number": 11
+            },
+            {
+              "name": "EVIDENCE_KIND_SAFETY",
+              "number": 12
+            },
+            {
+              "name": "EVIDENCE_KIND_SCALE",
+              "number": 13
+            },
+            {
+              "name": "EVIDENCE_KIND_SBOM",
+              "number": 14
+            },
+            {
+              "name": "EVIDENCE_KIND_PROVENANCE",
+              "number": 15
+            },
+            {
+              "name": "EVIDENCE_KIND_SIGNATURE",
+              "number": 16
+            },
+            {
+              "name": "EVIDENCE_KIND_TOOLCHAIN",
+              "number": 17
+            },
+            {
+              "name": "EVIDENCE_KIND_CHECKPOINT_RESUME",
+              "number": 18
+            },
+            {
+              "name": "EVIDENCE_KIND_PERFORMANCE",
+              "number": 19
+            },
+            {
+              "name": "EVIDENCE_KIND_RELIABILITY_QUALIFICATION",
+              "number": 20
+            },
+            {
+              "name": "EVIDENCE_KIND_SLO_APPROVAL",
+              "number": 21
+            },
+            {
+              "name": "EVIDENCE_KIND_ALERT_FIRE_RESOLVE",
+              "number": 22
+            },
+            {
+              "name": "EVIDENCE_KIND_COST_QUALIFICATION",
+              "number": 23
+            },
+            {
+              "name": "EVIDENCE_KIND_SECURITY_QUALIFICATION",
+              "number": 24
+            },
+            {
+              "name": "EVIDENCE_KIND_LINEAGE",
+              "number": 25
+            },
+            {
+              "name": "EVIDENCE_KIND_ROLLBACK_DRILL",
+              "number": 26
+            },
+            {
+              "name": "EVIDENCE_KIND_H100_1G_QUALIFICATION",
+              "number": 27
+            },
+            {
+              "name": "EVIDENCE_KIND_H100_8G_QUALIFICATION",
+              "number": 28
+            },
+            {
+              "name": "EVIDENCE_KIND_VULNERABILITY_SCAN",
+              "number": 29
+            }
+          ]
+        },
+        "mindclade.registry.v1.ModelStatus": {
+          "reserved_names": [],
+          "reserved_ranges": [],
+          "values": [
+            {
+              "name": "MODEL_STATUS_UNSPECIFIED",
+              "number": 0
+            },
+            {
+              "name": "MODEL_STATUS_CANDIDATE",
+              "number": 1
+            },
+            {
+              "name": "MODEL_STATUS_QUALIFIED",
+              "number": 2
+            },
+            {
+              "name": "MODEL_STATUS_DEPLOYED",
+              "number": 3
+            },
+            {
+              "name": "MODEL_STATUS_RETIRED",
+              "number": 4
+            },
+            {
+              "name": "MODEL_STATUS_REVOKED",
+              "number": 5
+            }
+          ]
+        },
+        "mindclade.registry.v1.ReferenceDatabaseKind": {
+          "reserved_names": [],
+          "reserved_ranges": [],
+          "values": [
+            {
+              "name": "REFERENCE_DATABASE_KIND_UNSPECIFIED",
+              "number": 0
+            },
+            {
+              "name": "REFERENCE_DATABASE_KIND_SEQUENCE",
+              "number": 1
+            },
+            {
+              "name": "REFERENCE_DATABASE_KIND_TEMPLATE",
+              "number": 2
+            },
+            {
+              "name": "REFERENCE_DATABASE_KIND_CHEMISTRY",
+              "number": 3
+            },
+            {
+              "name": "REFERENCE_DATABASE_KIND_NUCLEIC_ACID",
+              "number": 4
+            },
+            {
+              "name": "REFERENCE_DATABASE_KIND_COMPOSITE",
+              "number": 5
+            }
+          ]
+        }
+      },
+      "files": [
+        "mindclade/registry/v1/checkpoint.proto",
+        "mindclade/registry/v1/model_bundle.proto",
+        "mindclade/registry/v1/reference_database.proto",
+        "mindclade/registry/v1/release.proto",
+        "mindclade/registry/v1/service.proto"
+      ],
+      "messages": {
+        "mindclade.registry.v1.CheckpointRecord": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "schema_version",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "checkpoint_id",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "run_id",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "manifest",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "commit",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "optimizer_step",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "checkpoint_attempt",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "fencing_token",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "topology_fingerprint",
+              "number": 9,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "parent_manifest",
+              "number": 10,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "lifecycle",
+              "number": 11,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.registry.v1.CheckpointLifecycle"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "created_at",
+              "number": 12,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "google.protobuf.Timestamp"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "retain_until",
+              "number": 13,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "google.protobuf.Timestamp"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "policy_epoch",
+              "number": 14,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "resource_version",
+              "number": 15,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "record_digest",
+              "number": 16,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.registry.v1.EvidenceEdge": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "from_node_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "to_node_id",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "relation",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.registry.v1.EvidenceNode": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "node_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "kind",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.registry.v1.EvidenceKind"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "artifact",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "subject_digest",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "policy_digest",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "passed",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_BOOL"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "created_unix_millis",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.registry.v1.GetModelRequest": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "model_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ResourceId"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.registry.v1.GetModelResponse": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "model",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.registry.v1.ModelBundle"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.registry.v1.ListModelsRequest": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "page",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.PageRequest"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.registry.v1.ListModelsResponse": {
+          "fields": [
+            {
+              "label": "LABEL_REPEATED",
+              "name": "models",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.registry.v1.ModelBundle"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "page",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.PageResponse"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.registry.v1.ModelBundle": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ResourceId"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "name",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "version",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "family",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "bundle_digest",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ContentDigest"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "status",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.registry.v1.ModelStatus"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "created_at",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "google.protobuf.Timestamp"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "capabilities",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "parameter_count",
+              "number": 9,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.registry.v1.ReferenceDatabaseRelease": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "release_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "name",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "version",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "kind",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.registry.v1.ReferenceDatabaseKind"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "snapshot_digest",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "source_cutoff_unix_millis",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "shards",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "index_format",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "index_tool",
+              "number": 9,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "index_tool_version",
+              "number": 10,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "source_provenance_digest",
+              "number": 11,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "license_policy_digest",
+              "number": 12,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "compatible_search_tools",
+              "number": 13,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "status",
+              "number": 14,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "created_unix_millis",
+              "number": 15,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.registry.v1.Release": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "release_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "model_bundle_digest",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "evidence_graph_digest",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "channel",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "status",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "resource_version",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.registry.v1.ReleaseEvidenceGraph": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "release_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "subject_digest",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "nodes",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.registry.v1.EvidenceNode"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "edges",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.registry.v1.EvidenceEdge"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "policy_digest",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "policy_epoch",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        }
+      },
+      "services": {
+        "mindclade.registry.v1.ModelRegistryService": {
+          "methods": [
+            {
+              "client_streaming": false,
+              "input": "mindclade.registry.v1.ListModelsRequest",
+              "name": "ListModels",
+              "output": "mindclade.registry.v1.ListModelsResponse",
+              "server_streaming": false
+            },
+            {
+              "client_streaming": false,
+              "input": "mindclade.registry.v1.GetModelRequest",
+              "name": "GetModel",
+              "output": "mindclade.registry.v1.GetModelResponse",
+              "server_streaming": false
+            }
+          ]
+        }
+      }
+    },
+    "mindclade.runtime.v1": {
+      "enums": {
+        "mindclade.runtime.v1.WorkerState": {
+          "reserved_names": [],
+          "reserved_ranges": [],
+          "values": [
+            {
+              "name": "WORKER_STATE_UNSPECIFIED",
+              "number": 0
+            },
+            {
+              "name": "WORKER_STATE_CREATED",
+              "number": 1
+            },
+            {
+              "name": "WORKER_STATE_STARTING",
+              "number": 2
+            },
+            {
+              "name": "WORKER_STATE_READY",
+              "number": 3
+            },
+            {
+              "name": "WORKER_STATE_LEASED",
+              "number": 4
+            },
+            {
+              "name": "WORKER_STATE_RUNNING",
+              "number": 5
+            },
+            {
+              "name": "WORKER_STATE_DRAINING",
+              "number": 6
+            },
+            {
+              "name": "WORKER_STATE_COMMITTING",
+              "number": 7
+            },
+            {
+              "name": "WORKER_STATE_COMPLETED",
+              "number": 8
+            },
+            {
+              "name": "WORKER_STATE_RECOVERING",
+              "number": 9
+            },
+            {
+              "name": "WORKER_STATE_CANCELLING",
+              "number": 10
+            },
+            {
+              "name": "WORKER_STATE_CANCELLED",
+              "number": 11
+            },
+            {
+              "name": "WORKER_STATE_FAILED",
+              "number": 12
+            }
+          ]
+        }
+      },
+      "files": [
+        "mindclade/runtime/v1/artifact_grant.proto",
+        "mindclade/runtime/v1/buffer_descriptor.proto",
+        "mindclade/runtime/v1/execution_budget.proto",
+        "mindclade/runtime/v1/execution_service.proto",
+        "mindclade/runtime/v1/execution_ticket.proto",
+        "mindclade/runtime/v1/route_snapshot.proto",
+        "mindclade/runtime/v1/service.proto",
+        "mindclade/runtime/v1/worker_command.proto",
+        "mindclade/runtime/v1/worker_status.proto"
+      ],
+      "messages": {
+        "mindclade.runtime.v1.AdmissionGrant": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "claims",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.AdmissionGrantClaims"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "signature",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.DetachedSignature"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.runtime.v1.AdmissionGrantClaims": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "grant_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "tenant_id",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "principal_id",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "allowed_deployments",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "allowed_capabilities",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "region",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "maximum_concurrency",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "maximum_requests",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "maximum_input_units",
+              "number": 9,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "maximum_output_units",
+              "number": 10,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "not_before_unix_millis",
+              "number": 11,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "expires_unix_millis",
+              "number": 12,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "policy_epoch",
+              "number": 13,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "revocation_epoch",
+              "number": 14,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.runtime.v1.ArtifactGrant": {
+          "fields": [
+            {
+              "label": "LABEL_REPEATED",
+              "name": "readable_digests",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "writable_namespaces",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "maximum_read_bytes",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "maximum_write_bytes",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "allow_range_reads",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_BOOL"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "allow_multipart_writes",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_BOOL"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.runtime.v1.BufferDescriptor": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "segment_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "generation",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "offset_bytes",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "length_bytes",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "element_type",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "shape",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "content_digest",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "owner_process",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "lease_expires_unix_millis",
+              "number": 9,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "access_mode",
+              "number": 10,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.BufferDescriptor.AccessMode"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "transport",
+              "number": 11,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.BufferDescriptor.Transport"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "locator",
+              "number": 12,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.runtime.v1.CancelCommand": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "reason",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "deadline_unix_millis",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.runtime.v1.DeploymentRoute": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "deployment_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "model_bundle_digest",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "engine_bundle_digest",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "endpoint",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "region",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "weight",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "capabilities",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "lease_expires_unix_millis",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "safety_policy_digest",
+              "number": 9,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.runtime.v1.DetachedSignature": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "algorithm",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "key_id",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "value",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_BYTES"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.runtime.v1.DrainCommand": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "reason",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "deadline_unix_millis",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.runtime.v1.ExecutionBudget": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "cpu_millis",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "resident_memory_bytes",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "pinned_memory_bytes",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "shared_memory_bytes",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "local_disk_bytes",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "open_file_descriptors",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "object_store_requests",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "queued_operations",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "child_processes",
+              "number": 9,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "cpu_worker_threads",
+              "number": 10,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "gpu_memory_estimate_bytes",
+              "number": 11,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "checkpoint_staging_bytes",
+              "number": 12,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "telemetry_spool_bytes",
+              "number": 13,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "maximum_output_bytes",
+              "number": 14,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.runtime.v1.ExecutionTicket": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "claims",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.ExecutionTicketClaims"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "signature",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.DetachedSignature"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.runtime.v1.ExecutionTicketClaims": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "ticket_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "issuer",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "tenant_id",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "workspace_id",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "run_id",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "job_id",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "stage_id",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "request_id",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "attempt",
+              "number": 9,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "fencing_token",
+              "number": 10,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "model_bundle_digest",
+              "number": 11,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "engine_bundle_digest",
+              "number": 12,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "resolved_config_digest",
+              "number": 13,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "reference_snapshot_digest",
+              "number": 14,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "artifacts",
+              "number": 15,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.ArtifactGrant"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "budget",
+              "number": 16,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.ExecutionBudget"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "execution_class",
+              "number": 17,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "accelerator_capability",
+              "number": 18,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "not_before_unix_millis",
+              "number": 19,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "deadline_unix_millis",
+              "number": 20,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "expires_unix_millis",
+              "number": 21,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "policy_epoch",
+              "number": 22,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "route_snapshot_version",
+              "number": 23,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "revocation_epoch",
+              "number": 24,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "idempotency_key",
+              "number": 25,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.runtime.v1.GetRevocationsRequest": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "after_epoch",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.runtime.v1.GetRouteSnapshotRequest": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "region",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "minimum_version",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.runtime.v1.HeartbeatCommand": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "requested_at_unix_millis",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.runtime.v1.RevocationSnapshot": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "claims",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.RevocationSnapshotClaims"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "signature",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.DetachedSignature"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.runtime.v1.RevocationSnapshotClaims": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "epoch",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "created_unix_millis",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "expires_unix_millis",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "revoked_grant_ids",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "revoked_ticket_ids",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "revoked_deployment_ids",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "revoked_bundle_digests",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.runtime.v1.RouteSnapshot": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "claims",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.RouteSnapshotClaims"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "signature",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.DetachedSignature"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.runtime.v1.RouteSnapshotClaims": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "snapshot_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "snapshot_digest",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "version",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "policy_epoch",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "revocation_epoch",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "created_unix_millis",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "expires_unix_millis",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "routes",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.DeploymentRoute"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "minimum_runtime_version",
+              "number": 9,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.runtime.v1.RuntimeDispatchRequest": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "request_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "grant",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.AdmissionGrant"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "request_key",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_BYTES"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "deployment_hint",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "required_capabilities",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "input_units",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "output_units",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "payload_descriptor",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.runtime.v1.RuntimeDispatchResponse": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "request_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "deployment_id",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "endpoint",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.runtime.v1.RuntimeExecuteRequest": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "dispatch",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.RuntimeDispatchRequest"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "ticket",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.ExecutionTicket"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "inputs",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.BufferDescriptor"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "operation",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.runtime.v1.StartCommand": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "ticket",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.ExecutionTicket"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "inputs",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.BufferDescriptor"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "operation",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.runtime.v1.WorkerCommand": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "sequence",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "start",
+              "number": 2,
+              "oneof": "command",
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.StartCommand"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "cancel",
+              "number": 3,
+              "oneof": "command",
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.CancelCommand"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "drain",
+              "number": 4,
+              "oneof": "command",
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.DrainCommand"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "heartbeat",
+              "number": 5,
+              "oneof": "command",
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.HeartbeatCommand"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.runtime.v1.WorkerStatus": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "sequence",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "ticket_id",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "fencing_token",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "state",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.WorkerState"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "observed_unix_millis",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "message",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "outputs",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.runtime.v1.BufferDescriptor"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "diagnostic_artifact_digest",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        }
+      },
+      "services": {
+        "mindclade.runtime.v1.RuntimeExecution": {
+          "methods": [
+            {
+              "client_streaming": false,
+              "input": "mindclade.runtime.v1.RuntimeExecuteRequest",
+              "name": "Execute",
+              "output": "mindclade.runtime.v1.WorkerStatus",
+              "server_streaming": true
+            }
+          ]
+        },
+        "mindclade.runtime.v1.RuntimePolicyFeed": {
+          "methods": [
+            {
+              "client_streaming": false,
+              "input": "mindclade.runtime.v1.GetRouteSnapshotRequest",
+              "name": "GetRouteSnapshot",
+              "output": "mindclade.runtime.v1.RouteSnapshot",
+              "server_streaming": false
+            },
+            {
+              "client_streaming": false,
+              "input": "mindclade.runtime.v1.GetRevocationsRequest",
+              "name": "GetRevocations",
+              "output": "mindclade.runtime.v1.RevocationSnapshot",
+              "server_streaming": false
+            }
+          ]
+        },
+        "mindclade.runtime.v1.WorkerControl": {
+          "methods": [
+            {
+              "client_streaming": true,
+              "input": "mindclade.runtime.v1.WorkerCommand",
+              "name": "Execute",
+              "output": "mindclade.runtime.v1.WorkerStatus",
+              "server_streaming": true
+            }
+          ]
+        }
+      }
+    },
+    "mindclade.training.v1": {
+      "enums": {
+        "mindclade.training.v1.CheckpointComponentKind": {
+          "reserved_names": [],
+          "reserved_ranges": [],
+          "values": [
+            {
+              "name": "CHECKPOINT_COMPONENT_KIND_UNSPECIFIED",
+              "number": 0
+            },
+            {
+              "name": "CHECKPOINT_COMPONENT_KIND_MODEL",
+              "number": 1
+            },
+            {
+              "name": "CHECKPOINT_COMPONENT_KIND_OPTIMIZER",
+              "number": 2
+            },
+            {
+              "name": "CHECKPOINT_COMPONENT_KIND_RNG",
+              "number": 3
+            },
+            {
+              "name": "CHECKPOINT_COMPONENT_KIND_DATA",
+              "number": 4
+            },
+            {
+              "name": "CHECKPOINT_COMPONENT_KIND_TRAINER",
+              "number": 5
+            }
+          ]
+        },
+        "mindclade.training.v1.CheckpointTensorLayout": {
+          "reserved_names": [],
+          "reserved_ranges": [],
+          "values": [
+            {
+              "name": "CHECKPOINT_TENSOR_LAYOUT_UNSPECIFIED",
+              "number": 0
+            },
+            {
+              "name": "CHECKPOINT_TENSOR_LAYOUT_REPLICATED",
+              "number": 1
+            },
+            {
+              "name": "CHECKPOINT_TENSOR_LAYOUT_SHARDED",
+              "number": 2
+            }
+          ]
+        },
+        "mindclade.training.v1.CollectiveBackend": {
+          "reserved_names": [],
+          "reserved_ranges": [],
+          "values": [
+            {
+              "name": "COLLECTIVE_BACKEND_UNSPECIFIED",
+              "number": 0
+            },
+            {
+              "name": "COLLECTIVE_BACKEND_GLOO",
+              "number": 1
+            },
+            {
+              "name": "COLLECTIVE_BACKEND_NCCL",
+              "number": 2
+            }
+          ]
+        },
+        "mindclade.training.v1.TrainingDeviceType": {
+          "reserved_names": [],
+          "reserved_ranges": [],
+          "values": [
+            {
+              "name": "TRAINING_DEVICE_TYPE_UNSPECIFIED",
+              "number": 0
+            },
+            {
+              "name": "TRAINING_DEVICE_TYPE_CPU",
+              "number": 1
+            },
+            {
+              "name": "TRAINING_DEVICE_TYPE_CUDA",
+              "number": 2
+            }
+          ]
+        },
+        "mindclade.training.v1.TrainingRunState": {
+          "reserved_names": [],
+          "reserved_ranges": [],
+          "values": [
+            {
+              "name": "TRAINING_RUN_STATE_UNSPECIFIED",
+              "number": 0
+            },
+            {
+              "name": "TRAINING_RUN_STATE_PENDING",
+              "number": 1
+            },
+            {
+              "name": "TRAINING_RUN_STATE_RUNNING",
+              "number": 2
+            },
+            {
+              "name": "TRAINING_RUN_STATE_CHECKPOINTING",
+              "number": 3
+            },
+            {
+              "name": "TRAINING_RUN_STATE_SUCCEEDED",
+              "number": 4
+            },
+            {
+              "name": "TRAINING_RUN_STATE_FAILED",
+              "number": 5
+            },
+            {
+              "name": "TRAINING_RUN_STATE_CANCELED",
+              "number": 6
+            }
+          ]
+        }
+      },
+      "files": [
+        "mindclade/training/v1/checkpoint.proto",
+        "mindclade/training/v1/progress.proto",
+        "mindclade/training/v1/run.proto",
+        "mindclade/training/v1/topology.proto"
+      ],
+      "messages": {
+        "mindclade.training.v1.CheckpointComponent": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "name",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "kind",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.training.v1.CheckpointComponentKind"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "artifact",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "relative_path",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "rank",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "tensor_layout",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.training.v1.CheckpointTensorLayout"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "tensor_fqns",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.training.v1.CheckpointManifest": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "schema_version",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "checkpoint_id",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "run_id",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "attempt_id",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "checkpoint_attempt",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "counters",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.training.v1.TrainingCounters"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "data_position",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "resolved_config",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "dataset",
+              "number": 9,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "model",
+              "number": 10,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "source",
+              "number": 11,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "toolchain",
+              "number": 12,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "environment",
+              "number": 13,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "topology",
+              "number": 14,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.training.v1.TrainingTopology"
+            },
+            {
+              "label": "LABEL_REPEATED",
+              "name": "components",
+              "number": 15,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.training.v1.CheckpointComponent"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "parent_manifest",
+              "number": 16,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "compatibility_policy",
+              "number": 17,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "created_at",
+              "number": 18,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "google.protobuf.Timestamp"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.training.v1.TrainingCounters": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "microbatches",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "optimizer_steps",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "samples",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.training.v1.TrainingProgress": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "run_id",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "attempt_id",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "state",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.training.v1.TrainingRunState"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "counters",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.training.v1.TrainingCounters"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "data_position",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "latest_checkpoint_manifest",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "observed_at",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "google.protobuf.Timestamp"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.training.v1.TrainingRunResult": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "schema_version",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "run_id",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "attempt_id",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "state",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.training.v1.TrainingRunState"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "counters",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.training.v1.TrainingCounters"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "data_position",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "final_checkpoint_manifest",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "model_bundle",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "run_evidence",
+              "number": 9,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "started_at",
+              "number": 10,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "google.protobuf.Timestamp"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "completed_at",
+              "number": 11,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "google.protobuf.Timestamp"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.training.v1.TrainingRunSpecification": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "schema_version",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "run_id",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "engine",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "resolved_config",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "dataset",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "initial_model",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "resume_checkpoint_manifest",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.ArtifactRef"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "topology",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.training.v1.TrainingTopology"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "maximum_optimizer_steps",
+              "number": 9,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "checkpoint_interval_steps",
+              "number": 10,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.training.v1.TrainingTopology": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "world_size",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "local_world_size",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "node_count",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "data_parallel_size",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "tensor_parallel_size",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "pipeline_parallel_size",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "backend",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.training.v1.CollectiveBackend"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "device_type",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.training.v1.TrainingDeviceType"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "topology_fingerprint",
+              "number": 9,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        }
+      },
+      "services": {}
+    }
+  },
+  "schema_version": 2
+}

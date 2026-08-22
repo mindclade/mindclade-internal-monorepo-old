@@ -126,11 +126,11 @@ def load_catalog() -> dict[str, dict[str, Any]]:
         if target["rolloutClass"] not in ROLLOUT_CLASSES:
             raise ContractError(f"target {name} has an invalid rolloutClass")
         images = _mapping(target["images"], f"target {name} images")
-        # Shared workflow v5 has singular outputs. Keep the schema named now, but reject
-        # multiple images until a future immutable interface can carry the complete map.
+        # Shared workflow v4 has singular outputs. Keep the schema named now, but reject
+        # multiple images until the immutable v5 interface can carry the complete map.
         if set(images) != {"primary"}:
             raise ContractError(
-                f"target {name} images must contain exactly primary under workflow v5"
+                f"target {name} images must contain exactly primary until workflow v5"
             )
         image = _mapping(images["primary"], f"target {name} image primary")
         _exact_keys(
@@ -341,7 +341,42 @@ def build(request_path: str, source_sha: str, output: Path) -> None:
     provenance_path = output.parent / "provenance.json"
     vulnerability_path = output.parent / "vulnerability.json"
     rollback_path = output.parent / "rollback.json"
+    third_party_notices_path = output.parent / "THIRD_PARTY_NOTICES.md"
     _run(["syft", "scan", image_ref, "-o", f"spdx-json={sbom_path}"])
+    _run(
+        [
+            sys.executable,
+            "tools/release/sbom.py",
+            "enrich",
+            "--input",
+            str(sbom_path),
+            "--output",
+            str(sbom_path),
+            "--license",
+            "LICENSE",
+            "--policy-manifest",
+            "contracts/policy-bundle/manifest.json",
+            "--source-sha",
+            source_sha,
+            "--release-id",
+            str(contract["releaseId"]),
+        ]
+    )
+    _run(
+        [
+            sys.executable,
+            "scripts/generate-third-party-notices.py",
+            "--root",
+            str(ROOT),
+            "--manifest",
+            "contracts/third-party-materials.json",
+            "--output",
+            str(third_party_notices_path),
+            "--spdx",
+            str(sbom_path),
+            "--write",
+        ]
+    )
     _run(
         [
             "trivy",
@@ -423,7 +458,7 @@ def build(request_path: str, source_sha: str, output: Path) -> None:
         ]
     )
     candidate = {
-        "schemaVersion": 3,
+        "schemaVersion": 4,
         "releaseId": contract["releaseId"],
         "releaseKind": target["releaseKind"],
         "application": target["application"],
@@ -447,6 +482,10 @@ def build(request_path: str, source_sha: str, output: Path) -> None:
             "rollback": {
                 "path": rollback_path.name,
                 "sha256": _sha256(rollback_path),
+            },
+            "thirdPartyNotices": {
+                "path": third_party_notices_path.name,
+                "sha256": _sha256(third_party_notices_path),
             },
             "buildAttestor": f"projects/{attestor_project}/attestors/{attestor}",
         },
@@ -475,7 +514,7 @@ def validate_candidate(path: Path) -> dict[str, Any]:
         },
         "candidate",
     )
-    if candidate["schemaVersion"] != 3:
+    if candidate["schemaVersion"] != 4:
         raise ContractError("unsupported candidate schemaVersion")
     if not RELEASE_RE.fullmatch(str(candidate["releaseId"])):
         raise ContractError("candidate releaseId is malformed")
@@ -550,7 +589,14 @@ def validate_candidate(path: Path) -> dict[str, Any]:
     evidence = _mapping(candidate["evidence"], "candidate evidence")
     _exact_keys(
         evidence,
-        {"sbom", "provenance", "vulnerability", "rollback", "buildAttestor"},
+        {
+            "sbom",
+            "provenance",
+            "vulnerability",
+            "rollback",
+            "thirdPartyNotices",
+            "buildAttestor",
+        },
         "candidate evidence",
     )
     if not re.fullmatch(
@@ -558,7 +604,13 @@ def validate_candidate(path: Path) -> dict[str, Any]:
         str(evidence["buildAttestor"]),
     ):
         raise ContractError("candidate buildAttestor is malformed")
-    for label in ("sbom", "provenance", "vulnerability", "rollback"):
+    for label in (
+        "sbom",
+        "provenance",
+        "vulnerability",
+        "rollback",
+        "thirdPartyNotices",
+    ):
         record = _mapping(evidence[label], f"candidate {label}")
         _exact_keys(record, {"path", "sha256"}, f"candidate {label}")
         evidence_path = (path.parent / str(record["path"])).resolve()
@@ -568,6 +620,39 @@ def validate_candidate(path: Path) -> dict[str, Any]:
             raise ContractError(f"candidate {label} SHA-256 is malformed")
         if _sha256(evidence_path) != record["sha256"]:
             raise ContractError(f"candidate {label} content hash does not match")
+    sbom_path = (path.parent / str(evidence["sbom"]["path"])).resolve()
+    _run(
+        [
+            sys.executable,
+            "tools/release/sbom.py",
+            "validate",
+            "--input",
+            str(sbom_path),
+            "--license",
+            "LICENSE",
+            "--policy-manifest",
+            "contracts/policy-bundle/manifest.json",
+            "--source-sha",
+            str(candidate["sourceSha"]),
+            "--release-id",
+            str(candidate["releaseId"]),
+        ]
+    )
+    notices_path = (path.parent / str(evidence["thirdPartyNotices"]["path"])).resolve()
+    _run(
+        [
+            sys.executable,
+            "scripts/generate-third-party-notices.py",
+            "--root",
+            str(ROOT),
+            "--manifest",
+            "contracts/third-party-materials.json",
+            "--output",
+            str(notices_path),
+            "--spdx",
+            str(sbom_path),
+        ]
+    )
     return candidate
 
 
@@ -588,7 +673,7 @@ def qualify(candidate_path: Path, expected_image_ref: str, output: Path) -> None
     ]
     _run(command)
     result = {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "passed": True,
         "releaseId": candidate["releaseId"],
         "sourceSha": candidate["sourceSha"],
@@ -601,6 +686,7 @@ def qualify(candidate_path: Path, expected_image_ref: str, output: Path) -> None
             "provenance": candidate["evidence"]["provenance"],
             "vulnerability": candidate["evidence"]["vulnerability"],
             "rollback": candidate["evidence"]["rollback"],
+            "thirdPartyNotices": candidate["evidence"]["thirdPartyNotices"],
             "qualification": {
                 "result": "pass",
                 "mode": target["qualificationMode"],
@@ -629,8 +715,8 @@ def validate_qualification(path: Path, expected_image_ref: str) -> dict[str, Any
         },
         "qualification result",
     )
-    if result["schemaVersion"] != 2 or result["passed"] is not True:
-        raise ContractError("qualification result is not a passing version 2 result")
+    if result["schemaVersion"] != 3 or result["passed"] is not True:
+        raise ContractError("qualification result is not a passing version 3 result")
     if not RELEASE_RE.fullmatch(str(result["releaseId"])):
         raise ContractError("qualification releaseId is malformed")
     if not SHA_RE.fullmatch(str(result["sourceSha"])):
@@ -649,8 +735,15 @@ def validate_qualification(path: Path, expected_image_ref: str) -> dict[str, Any
     if not expected_image_ref.endswith("@" + artifact["digest"]):
         raise ContractError("qualification imageRef and digest disagree")
     evidence = _mapping(result["evidence"], "qualification evidence")
-    if set(evidence) != {"sbom", "provenance", "vulnerability", "rollback", "qualification"}:
-        raise ContractError("qualification must bind exactly five typed evidence records")
+    if set(evidence) != {
+        "sbom",
+        "provenance",
+        "vulnerability",
+        "rollback",
+        "thirdPartyNotices",
+        "qualification",
+    }:
+        raise ContractError("qualification must bind exactly six typed evidence records")
     qualification = _mapping(evidence["qualification"], "qualification evidence result")
     _exact_keys(qualification, {"result", "mode", "targets"}, "qualification evidence result")
     if qualification["result"] != "pass":

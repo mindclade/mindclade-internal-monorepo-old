@@ -429,6 +429,13 @@
           cc-toolchain-bundle = ccToolchain;
           toolchain-manifest = manifest.file;
         }
+        // nixpkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+          remote-execution-base =
+            (import ./tools/build/nix/images/default.nix {
+              inherit ccToolchain pkgs;
+              system = pkgs.system;
+            }).cpu;
+        }
       );
 
       # nixfmt-tree, not bare nixfmt, and not nixfmt-rfc-style.

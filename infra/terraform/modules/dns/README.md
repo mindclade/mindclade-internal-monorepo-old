@@ -2,10 +2,9 @@
 
 Cloud DNS managed zones, record sets, and the inbound server policy.
 
-Consumed in this repository by `environments/dns_hub`, the lifetime-scoped public
-delegation root. Additional environment-private DNS callers belong in the separately
-controlled live configuration and consume released module versions rather than a
-branch reference.
+Exercised in this repository by the non-deployable `tests/fixtures/dns_hub` composition.
+Public delegation and environment-private DNS callers belong in the separately controlled
+live configuration and consume released module versions rather than a branch reference.
 
 ## What it does not do
 
@@ -15,13 +14,10 @@ delegation as a side effect of a project refactor is not a failure worth leaving
 The project comes from `3-networks/dns-project`; the networks come from
 `3-networks/shared-vpc-host`.
 
-**It does not manage `_acme-challenge` TXT records.** cert-manager writes and removes those
-during each DNS-01 challenge. A Terraform-owned record at that name either fights the solver
-or blocks issuance outright.
-
-Related: do not create a Certificate Manager DNS authorization for any zone here. That
-mechanism uses a **CNAME** and requires it to be the only record at the name, so the two
-cannot share `_acme-challenge`.
+**It does not manage Certificate Manager authorization records.** The dedicated
+`certificate_manager` module owns only the generated CNAME returned by each regional
+`PER_PROJECT_RECORD` authorization. Keeping that dynamic record out of the general DNS
+record map prevents two Terraform states from claiming the same owner name.
 
 ## Interface
 

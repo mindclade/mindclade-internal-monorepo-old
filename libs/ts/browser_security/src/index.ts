@@ -1,6 +1,7 @@
 // Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 // Mindclade Proprietary and Confidential.
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
 
 export interface BrowserSecurityOptions {
   development?: boolean;
@@ -8,6 +9,7 @@ export interface BrowserSecurityOptions {
   cacheControl?: string;
   referrerPolicy?: "no-referrer" | "strict-origin-when-cross-origin";
   nonce?: string;
+  secureTransport?: boolean;
 }
 
 export interface SecurityHeader { key: string; value: string }
@@ -20,7 +22,7 @@ export function endpointOrigin(endpoint: string | undefined, development = false
   }
   if (url.username !== "" || url.password !== "") throw new TypeError("Public browser endpoint must not contain credentials");
   if (url.protocol !== "https:" && url.protocol !== "http:") throw new TypeError("Public browser endpoint must use http or https");
-  if (url.protocol === "http:" && !development && !isLoopback(url.hostname)) {
+  if (url.protocol === "http:" && !development && !isLoopbackHostname(url.hostname)) {
     throw new TypeError("Production browser endpoints must use https");
   }
   return url.origin;
@@ -35,6 +37,7 @@ export function resolveBrowserBaseUrl(configured: string | undefined, browserOri
 
 export function contentSecurityPolicy(options: BrowserSecurityOptions = {}): string {
   const development = options.development === true;
+  const secureTransport = options.secureTransport ?? !development;
   const nonce = options.nonce;
   if (nonce !== undefined && !/^[A-Za-z0-9+/_-]{16,128}={0,2}$/.test(nonce)) {
     throw new TypeError("CSP nonce must be a 16-128 character base64 value");
@@ -70,13 +73,14 @@ export function contentSecurityPolicy(options: BrowserSecurityOptions = {}): str
     "form-action 'self'",
     "frame-src 'none'",
     "frame-ancestors 'none'",
-    ...(development ? [] : ["upgrade-insecure-requests"]),
+    ...(secureTransport ? ["upgrade-insecure-requests"] : []),
   ];
   return `${directives.join("; ")};`;
 }
 
 export function browserSecurityHeaders(options: BrowserSecurityOptions = {}): readonly SecurityHeader[] {
   const development = options.development === true;
+  const secureTransport = options.secureTransport ?? !development;
   return [
     { key: "Content-Security-Policy", value: contentSecurityPolicy(options) },
     { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
@@ -87,10 +91,10 @@ export function browserSecurityHeaders(options: BrowserSecurityOptions = {}): re
     { key: "X-Content-Type-Options", value: "nosniff" },
     { key: "X-Frame-Options", value: "DENY" },
     ...(options.cacheControl === undefined ? [] : [{ key: "Cache-Control", value: options.cacheControl }]),
-    ...(development ? [] : [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" }]),
+    ...(secureTransport ? [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" }] : []),
   ];
 }
 
-function isLoopback(hostname: string): boolean {
+export function isLoopbackHostname(hostname: string): boolean {
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
 }

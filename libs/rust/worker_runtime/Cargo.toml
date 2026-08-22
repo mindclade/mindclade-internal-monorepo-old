@@ -8,6 +8,7 @@ name="mindclade_worker_runtime"
 version.workspace=true
 edition.workspace=true
 publish=false
+license.workspace=true
 [dependencies]
 mindclade_worker_protocol={path="../worker_protocol"}
 mindclade_faults={path="../faults"}

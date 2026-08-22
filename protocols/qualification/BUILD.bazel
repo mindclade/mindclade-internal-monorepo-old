@@ -1,0 +1,20 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+load("@rules_python//python:defs.bzl", "py_binary", "py_test")
+
+package(default_visibility = ["//visibility:private"])
+
+py_binary(
+    name = "canary",
+    srcs = ["canary.py"],
+    main = "canary.py",
+    visibility = ["//visibility:public"],
+)
+
+py_test(
+    name = "canary_test",
+    srcs = ["canary_test.py"],
+    deps = [":canary"],
+)

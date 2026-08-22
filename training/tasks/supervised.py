@@ -35,9 +35,9 @@ class SupervisedMSETask:
                 "supervised model must return a tensor",
                 reason="training_task_output",
             )
-        if prediction.device.type != "cpu" or prediction.dtype is not torch.float32:
+        if prediction.device != batch.device or prediction.dtype is not torch.float32:
             raise FailedPrecondition(
-                "supervised model output must be CPU float32",
+                "supervised model output must be float32 on the batch device",
                 reason="training_task_output_placement",
             )
         if prediction.shape != batch.targets.shape:

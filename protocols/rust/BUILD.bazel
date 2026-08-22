@@ -16,6 +16,7 @@ rust_library(
     deps = [
         ":build_script",
         "@crates//:prost",
+        "@crates//:prost-types",
         "@crates//:tonic",
         "@crates//:tonic-prost",
     ],
@@ -25,10 +26,18 @@ cargo_build_script(
     name = "build_script",
     srcs = ["build.rs"],
     build_script_env = {
+        "PROTOBUF_WELL_KNOWN_PROTOS": "$(execpaths @protobuf//:well_known_type_protos)",
         "PROTOC": "$(execpath @protobuf//:protoc)",
     },
     crate_root = "build.rs",
-    data = ["//protocols/proto/mindclade/runtime/v1:cargo_proto_sources"],
+    data = [
+        "//protocols/proto/mindclade/artifact/v1:cargo_checkpoint_proto_sources",
+        "//protocols/proto/mindclade/common/v1:cargo_checkpoint_proto_sources",
+        "//protocols/proto/mindclade/registry/v1:cargo_checkpoint_proto_sources",
+        "//protocols/proto/mindclade/runtime/v1:cargo_proto_sources",
+        "//protocols/proto/mindclade/training/v1:cargo_checkpoint_proto_sources",
+        "@protobuf//:well_known_type_protos",
+    ],
     edition = "2024",
     tools = ["@protobuf//:protoc"],
     deps = [
@@ -56,6 +65,18 @@ rust_test(
         ":mindclade_protocols",
         "@crates//:prost",
         "@crates//:tonic",
+    ],
+)
+
+rust_test(
+    name = "checkpoint_contract_roundtrip",
+    srcs = ["tests/checkpoint_contract_roundtrip.rs"],
+    compile_data = ["//tests/integration/cross_language:checkpoint_contract_v1_fixture"],
+    edition = "2024",
+    deps = [
+        ":mindclade_protocols",
+        "@crates//:prost",
+        "@crates//:serde_json",
     ],
 )
 

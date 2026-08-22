@@ -1,0 +1,341 @@
+{
+  "mindclade.training.v1.CheckpointComponent": {
+    "1": {
+      "label": "singular",
+      "name": "name",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "kind",
+      "type": "CheckpointComponentKind"
+    },
+    "3": {
+      "label": "singular",
+      "name": "artifact",
+      "type": "mindclade.common.v1.ArtifactRef"
+    },
+    "4": {
+      "label": "singular",
+      "name": "relative_path",
+      "type": "string"
+    },
+    "5": {
+      "label": "singular",
+      "name": "rank",
+      "type": "uint32"
+    },
+    "6": {
+      "label": "singular",
+      "name": "tensor_layout",
+      "type": "CheckpointTensorLayout"
+    },
+    "7": {
+      "label": "repeated",
+      "name": "tensor_fqns",
+      "type": "string"
+    }
+  },
+  "mindclade.training.v1.CheckpointManifest": {
+    "1": {
+      "label": "singular",
+      "name": "schema_version",
+      "type": "uint32"
+    },
+    "10": {
+      "label": "singular",
+      "name": "model",
+      "type": "mindclade.common.v1.ArtifactRef"
+    },
+    "11": {
+      "label": "singular",
+      "name": "source",
+      "type": "mindclade.common.v1.ArtifactRef"
+    },
+    "12": {
+      "label": "singular",
+      "name": "toolchain",
+      "type": "mindclade.common.v1.ArtifactRef"
+    },
+    "13": {
+      "label": "singular",
+      "name": "environment",
+      "type": "mindclade.common.v1.ArtifactRef"
+    },
+    "14": {
+      "label": "singular",
+      "name": "topology",
+      "type": "TrainingTopology"
+    },
+    "15": {
+      "label": "repeated",
+      "name": "components",
+      "type": "CheckpointComponent"
+    },
+    "16": {
+      "label": "singular",
+      "name": "parent_manifest",
+      "type": "mindclade.common.v1.ArtifactRef"
+    },
+    "17": {
+      "label": "singular",
+      "name": "compatibility_policy",
+      "type": "mindclade.common.v1.ArtifactRef"
+    },
+    "18": {
+      "label": "singular",
+      "name": "created_at",
+      "type": "google.protobuf.Timestamp"
+    },
+    "2": {
+      "label": "singular",
+      "name": "checkpoint_id",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "run_id",
+      "type": "string"
+    },
+    "4": {
+      "label": "singular",
+      "name": "attempt_id",
+      "type": "string"
+    },
+    "5": {
+      "label": "singular",
+      "name": "checkpoint_attempt",
+      "type": "uint64"
+    },
+    "6": {
+      "label": "singular",
+      "name": "counters",
+      "type": "TrainingCounters"
+    },
+    "7": {
+      "label": "singular",
+      "name": "data_position",
+      "type": "uint64"
+    },
+    "8": {
+      "label": "singular",
+      "name": "resolved_config",
+      "type": "mindclade.common.v1.ArtifactRef"
+    },
+    "9": {
+      "label": "singular",
+      "name": "dataset",
+      "type": "mindclade.common.v1.ArtifactRef"
+    }
+  },
+  "mindclade.training.v1.TrainingCounters": {
+    "1": {
+      "label": "singular",
+      "name": "microbatches",
+      "type": "uint64"
+    },
+    "2": {
+      "label": "singular",
+      "name": "optimizer_steps",
+      "type": "uint64"
+    },
+    "3": {
+      "label": "singular",
+      "name": "samples",
+      "type": "uint64"
+    }
+  },
+  "mindclade.training.v1.TrainingProgress": {
+    "1": {
+      "label": "singular",
+      "name": "run_id",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "attempt_id",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "state",
+      "type": "TrainingRunState"
+    },
+    "4": {
+      "label": "singular",
+      "name": "counters",
+      "type": "TrainingCounters"
+    },
+    "5": {
+      "label": "singular",
+      "name": "data_position",
+      "type": "uint64"
+    },
+    "6": {
+      "label": "singular",
+      "name": "latest_checkpoint_manifest",
+      "type": "mindclade.common.v1.ArtifactRef"
+    },
+    "7": {
+      "label": "singular",
+      "name": "observed_at",
+      "type": "google.protobuf.Timestamp"
+    }
+  },
+  "mindclade.training.v1.TrainingRunResult": {
+    "1": {
+      "label": "singular",
+      "name": "schema_version",
+      "type": "uint32"
+    },
+    "10": {
+      "label": "singular",
+      "name": "started_at",
+      "type": "google.protobuf.Timestamp"
+    },
+    "11": {
+      "label": "singular",
+      "name": "completed_at",
+      "type": "google.protobuf.Timestamp"
+    },
+    "2": {
+      "label": "singular",
+      "name": "run_id",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "attempt_id",
+      "type": "string"
+    },
+    "4": {
+      "label": "singular",
+      "name": "state",
+      "type": "TrainingRunState"
+    },
+    "5": {
+      "label": "singular",
+      "name": "counters",
+      "type": "TrainingCounters"
+    },
+    "6": {
+      "label": "singular",
+      "name": "data_position",
+      "type": "uint64"
+    },
+    "7": {
+      "label": "singular",
+      "name": "final_checkpoint_manifest",
+      "type": "mindclade.common.v1.ArtifactRef"
+    },
+    "8": {
+      "label": "singular",
+      "name": "model_bundle",
+      "type": "mindclade.common.v1.ArtifactRef"
+    },
+    "9": {
+      "label": "singular",
+      "name": "run_evidence",
+      "type": "mindclade.common.v1.ArtifactRef"
+    }
+  },
+  "mindclade.training.v1.TrainingRunSpecification": {
+    "1": {
+      "label": "singular",
+      "name": "schema_version",
+      "type": "uint32"
+    },
+    "10": {
+      "label": "singular",
+      "name": "checkpoint_interval_steps",
+      "type": "uint64"
+    },
+    "2": {
+      "label": "singular",
+      "name": "run_id",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "engine",
+      "type": "string"
+    },
+    "4": {
+      "label": "singular",
+      "name": "resolved_config",
+      "type": "mindclade.common.v1.ArtifactRef"
+    },
+    "5": {
+      "label": "singular",
+      "name": "dataset",
+      "type": "mindclade.common.v1.ArtifactRef"
+    },
+    "6": {
+      "label": "singular",
+      "name": "initial_model",
+      "type": "mindclade.common.v1.ArtifactRef"
+    },
+    "7": {
+      "label": "singular",
+      "name": "resume_checkpoint_manifest",
+      "type": "mindclade.common.v1.ArtifactRef"
+    },
+    "8": {
+      "label": "singular",
+      "name": "topology",
+      "type": "TrainingTopology"
+    },
+    "9": {
+      "label": "singular",
+      "name": "maximum_optimizer_steps",
+      "type": "uint64"
+    }
+  },
+  "mindclade.training.v1.TrainingTopology": {
+    "1": {
+      "label": "singular",
+      "name": "world_size",
+      "type": "uint32"
+    },
+    "2": {
+      "label": "singular",
+      "name": "local_world_size",
+      "type": "uint32"
+    },
+    "3": {
+      "label": "singular",
+      "name": "node_count",
+      "type": "uint32"
+    },
+    "4": {
+      "label": "singular",
+      "name": "data_parallel_size",
+      "type": "uint32"
+    },
+    "5": {
+      "label": "singular",
+      "name": "tensor_parallel_size",
+      "type": "uint32"
+    },
+    "6": {
+      "label": "singular",
+      "name": "pipeline_parallel_size",
+      "type": "uint32"
+    },
+    "7": {
+      "label": "singular",
+      "name": "backend",
+      "type": "CollectiveBackend"
+    },
+    "8": {
+      "label": "singular",
+      "name": "device_type",
+      "type": "TrainingDeviceType"
+    },
+    "9": {
+      "label": "singular",
+      "name": "topology_fingerprint",
+      "type": "string"
+    }
+  }
+}

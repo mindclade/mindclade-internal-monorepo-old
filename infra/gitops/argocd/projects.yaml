@@ -47,7 +47,7 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: mindclade-training-h100
       server: https://kubernetes.default.svc
-    - namespace: mindclade-training-h200
+    - namespace: mindclade-training-b200
       server: https://kubernetes.default.svc
   clusterResourceWhitelist:
     - group: ""
@@ -307,7 +307,7 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: mindclade-training-h100
       server: https://kubernetes.default.svc
-    - namespace: mindclade-training-h200
+    - namespace: mindclade-training-b200
       server: https://kubernetes.default.svc
   clusterResourceWhitelist:
     - group: kueue.x-k8s.io

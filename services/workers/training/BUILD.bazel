@@ -3,13 +3,72 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_python//python:defs.bzl", "py_library")
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
 
 package(default_visibility = ["//visibility:public"])
 
 py_library(
     name = "training",
-    srcs = glob(["*.py"]),
+    srcs = [
+        "__init__.py",
+        "artifacts.py",
+        "checkpoint_publication.py",
+        "config.py",
+        "executor.py",
+        "lifecycle.py",
+        "main.py",
+        "reference_affine.py",
+        "telemetry.py",
+    ],
     imports = ["../../.."],
-    deps = ["//libs/python/worker_runtime"],
+    deps = [
+        "//libs/python/artifacts",
+        "//libs/python/errors",
+        "//libs/python/identifiers",
+        "//libs/python/serialization",
+        "//libs/python/worker_runtime",
+        "//models/reference:affine",
+        "//protocols/proto/mindclade/artifact/v1:checkpoint_commit_py_pb2",
+        "//protocols/proto/mindclade/registry/v1:checkpoint_record_py_pb2",
+        "//protocols/proto/mindclade/training/v1:checkpoint_contract_py_pb2",
+        "//tools/release:build_model_bundle_lib",
+        "//training/checkpointing",
+        "//training/contracts",
+        "//training/core:trainer",
+        "//training/distributed:runtime",
+        "//training/distributed/communication:loss_reduction",
+        "//training/distributed/parallelism:ddp",
+        "//training/optim:factory",
+        "//training/runtime/telemetry:mlflow_exporter",
+        "//training/tasks:supervised",
+        "@pypi//numpy",
+        "@pypi//safetensors",
+        "@pypi//torch",
+    ],
+)
+
+py_library(
+    name = "qualification_lib",
+    srcs = ["qualification.py"],
+    imports = ["../../.."],
+    deps = [
+        ":training",
+        "//libs/python/artifacts",
+        "//libs/python/errors",
+        "//libs/python/identifiers",
+        "//libs/python/serialization",
+        "//libs/python/worker_runtime",
+        "//protocols/proto/mindclade/artifact/v1:checkpoint_commit_py_pb2",
+        "//protocols/proto/mindclade/registry/v1:checkpoint_record_py_pb2",
+        "@pypi//numpy",
+        "@pypi//safetensors",
+        "@pypi//torch",
+    ],
+)
+
+py_binary(
+    name = "training_qualification",
+    srcs = ["qualification_entry.py"],
+    main = "qualification_entry.py",
+    deps = [":qualification_lib"],
 )

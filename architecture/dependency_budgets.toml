@@ -53,6 +53,7 @@ language = "go"
 allowed_prefixes = [
     "go.mindclade.dev/libs/go/",
     "go.mindclade.dev/control/",
+    "go.mindclade.dev/protocols/servicepolicy",
     "go.mindclade.dev/services/control_plane/",
 ]
 forbidden_prefixes = ["go.mindclade.dev/services/studio/", "go.mindclade.dev/apps/"]

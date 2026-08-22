@@ -10,6 +10,7 @@ identity/service qualification.
 - [x] Client timeout, cancellation, stream-size, parser-size, and telemetry queue limits tested locally
 - [x] Session validation and fail-closed anonymous/error states tested locally
 - [x] Nonce-bound CSP, browser response headers, and production endpoint policy tested locally
+- [x] Automated WCAG 2.1 AA, keyboard, touch-target, mobile, and reflow browser checks pass locally
 - [x] Hermetic standalone build and deterministic Bazel release archive implemented
 - [ ] Readiness, liveness, drain, cancellation, and shutdown tested
 - [ ] Security, tenant isolation, and audit behavior tested
@@ -20,9 +21,10 @@ identity/service qualification.
 
 ## Current limitations
 
-- Session and CSP mechanisms are source-tested; IdP integration, ingress header
-  enforcement, tenant isolation, accessibility automation, and live API failure
-  injection still require a deployed qualification environment.
+- Session, CSP, and representative accessibility mechanisms are source-tested;
+  IdP integration, ingress header enforcement, tenant isolation, manual assistive
+  technology review, and live API failure injection still require a deployed
+  qualification environment.
 - Cluster, serving, rollout, checkpoint, kernel, experiment, preprocessing, and
   safety routes are honest contract-boundary states until their owning APIs land.
 - There is no signed OCI/web artifact, canary, SLO, alert, or production rollback

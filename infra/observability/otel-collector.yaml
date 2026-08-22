@@ -4,4 +4,17 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+{
+  "schemaVersion": "mindclade.dev/observability-backend-compatibility/v1",
+  "name": "otel-collector",
+  "owner": "platform-control",
+  "decision": "non-deployable",
+  "description": "A shared OpenTelemetry Collector is not deployed from this monorepo; an environment must own exporters, identities, endpoints, network policy, scaling, and connected qualification.",
+  "authoritativeServices": ["cloud-logging", "cloud-monitoring", "cloud-trace", "google-managed-prometheus"],
+  "replacementSources": [
+    "infra/kubernetes/platform/observability/pod-monitoring.yaml",
+    "infra/terraform/modules/observability/main.tf"
+  ],
+  "forbiddenResponsibilities": ["collector-deployment", "credential-distribution", "exporter-endpoints"],
+  "activationPolicy": {"enabledByDefault": false, "requiresConnectedQualification": true, "requiresEnvironmentComposition": true}
+}
