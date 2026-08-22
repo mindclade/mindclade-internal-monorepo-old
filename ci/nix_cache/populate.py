@@ -15,10 +15,10 @@ import re
 import subprocess
 import sys
 import tempfile
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any
 from urllib.parse import urlsplit
-
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONTRACT = Path(__file__).with_name("population.json")
@@ -87,8 +87,7 @@ def load_contract(path: Path) -> dict[str, Any]:
     if contract["attic_client_commit"] != EXPECTED_ATTIC_CLIENT_COMMIT:
         raise PopulationError("Attic client source identity drifted")
     if contract["caller_workflow_ref"] != (
-        "mindclade/mindclade-internal-monorepo/.github/workflows/"
-        "nix-cache.yml@refs/heads/main"
+        "mindclade/mindclade-internal-monorepo/.github/workflows/nix-cache.yml@refs/heads/main"
     ):
         raise PopulationError("trusted caller workflow identity drifted")
     return contract
@@ -116,11 +115,7 @@ def _required(environment: Mapping[str, str], name: str) -> str:
 
 
 def _sanitized_environment(environment: Mapping[str, str]) -> dict[str, str]:
-    return {
-        name: value
-        for name, value in environment.items()
-        if name not in SENSITIVE_RUNTIME_ENV
-    }
+    return {name: value for name, value in environment.items() if name not in SENSITIVE_RUNTIME_ENV}
 
 
 def _validate_endpoint(raw: str) -> None:
@@ -181,12 +176,15 @@ def authorize(
     if _required(environment, "GITHUB_SHA") != current_head:
         raise PopulationError("checked-out HEAD does not match GITHUB_SHA")
     for command in (["git", "diff", "--quiet"], ["git", "diff", "--cached", "--quiet"]):
-        if subprocess.run(
-            command,
-            cwd=repo,
-            check=False,
-            env=_sanitized_environment(environment),
-        ).returncode != 0:
+        if (
+            subprocess.run(
+                command,
+                cwd=repo,
+                check=False,
+                env=_sanitized_environment(environment),
+            ).returncode
+            != 0
+        ):
             raise PopulationError("publishing checkout must be clean")
     untracked = subprocess.run(
         ["git", "ls-files", "--others", "--exclude-standard"],
@@ -303,7 +301,7 @@ def publish(
         )
         with os.fdopen(config_descriptor, "w", encoding="utf-8") as config_file:
             config_file.write(
-                "default-server = \"mindclade\"\n"
+                'default-server = "mindclade"\n'
                 "[servers.mindclade]\n"
                 f"endpoint = {json.dumps(environment['ATTIC_SERVER_ENDPOINT'])}\n"
                 f"token-file = {json.dumps(str(token_path))}\n"
@@ -317,10 +315,7 @@ def publish(
         rendered_info = f"{info.stdout}\n{info.stderr}"
         if "Public: false" not in rendered_info:
             raise PopulationError("Attic cache must remain private")
-        if (
-            f"Public Key: {environment['NIX_CACHE_TRUSTED_PUBLIC_KEY']}"
-            not in rendered_info
-        ):
+        if f"Public Key: {environment['NIX_CACHE_TRUSTED_PUBLIC_KEY']}" not in rendered_info:
             raise PopulationError("Attic public key does not match the reviewed client key")
         _run(
             ["attic", "push", environment["ATTIC_CACHE_NAME"], *store_paths],

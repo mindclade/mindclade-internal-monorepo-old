@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import json
-import os
 import platform
 import subprocess
 import tempfile
@@ -50,9 +49,7 @@ class PopulationTests(unittest.TestCase):
         rendered = populate.plan(self.contract)
         self.assertFalse(rendered["activation"]["enabled"])
         self.assertFalse(rendered["client_signing_key_in_scope"])
-        self.assertEqual(
-            rendered["attic_client_commit"], populate.EXPECTED_ATTIC_CLIENT_COMMIT
-        )
+        self.assertEqual(rendered["attic_client_commit"], populate.EXPECTED_ATTIC_CLIENT_COMMIT)
         self.assertEqual(
             rendered["dev_shell_installables"],
             [f".#devShells.x86_64-linux.{name}" for name in populate.EXPECTED_SHELLS],
@@ -112,9 +109,7 @@ class PopulationTests(unittest.TestCase):
                 populate.load_contract(path)
 
     @mock.patch.object(populate, "_run")
-    def test_publish_uses_token_file_and_verifies_private_key(
-        self, run: mock.Mock
-    ) -> None:
+    def test_publish_uses_token_file_and_verifies_private_key(self, run: mock.Mock) -> None:
         environment = self.environment()
 
         def inspect(command: list[str], **kwargs):
