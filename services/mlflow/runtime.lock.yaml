@@ -15,7 +15,7 @@ spec:
   mlflow:
     version: 3.15.1
     requirementsLock: services/mlflow/requirements.lock.txt
-    requirementsDigest: sha256:501ee403b30c132e9a956147888b7146283cef28ae4ef3750d98e3d758f9dce1
+    requirementsDigest: sha256:d57d615664e9f82f0a9467bafbea38f06fac105eafc25ca7541debacd1d2f32a
   base:
     image: docker.io/library/python
     version: 3.12.12-slim-bookworm
