@@ -33,7 +33,7 @@ SLI, not a detail.
   **restart-only**. Any availability target must budget for whole-instance replacement, not
   in-place recovery.
 - **Range reads are not partial reads.** `read_range` calls the full `read` and then slices the
-  result (`services/artifact_proxy/src/transfer.rs:82-90`), so a small range of a large object costs
+  result (`services/artifact_proxy/src/transfer.rs:81-89`), so a small range of a large object costs
   the whole object in bytes and latency. Latency indicators must not assume range cost scales with
   range size.
 - **The cache has no invalidation API.** Digests are verified on insert

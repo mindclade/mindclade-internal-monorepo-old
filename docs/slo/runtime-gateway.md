@@ -15,13 +15,13 @@ because the target would be measured against traffic an orchestrator should neve
 self.accepting && self.policy_fresh && self.runtime_host_ready
 ```
 
-(`services/runtime_gateway/src/health.rs:22-24`). All three initialise to `false` (`:39-41`). The
+(`services/runtime_gateway/src/health.rs:23-25`). All three initialise to `false` (`:39-41`). The
 production start hook sets exactly two of them — `set_policy_fresh(true)` and
-`core.resume_admission()` (`services/runtime_gateway/src/lifecycle.rs:41-45`).
+`core.resume_admission()` (`services/runtime_gateway/src/lifecycle.rs:44-48`).
 `set_runtime_host_ready` is defined at `services/runtime_gateway/src/health.rs:50` and is called
-from exactly two places, **both of them tests**
+from exactly three places, **all of them tests**
 (`services/runtime_gateway/tests/integration.rs:147`,
-`services/runtime_gateway/tests/shutdown.rs:13`).
+`services/runtime_gateway/tests/shutdown.rs:41,82`).
 
 `runtime_host` does the equivalent correctly, asserting its readiness sub-flags during construction
 (`services/runtime_host/src/server.rs:81-82`), which confirms the gateway behaviour is a defect and
