@@ -216,10 +216,28 @@ def bazel_output_user_roots() -> list[Path]:
     expensive work this preflight is supposed to gate.
     """
     roots: list[Path] = []
+    seen: set[Path] = set()
 
     def add(path: Path | None) -> None:
-        if path is not None and path not in roots:
-            roots.append(path)
+        # Deduplicated by RESOLVED path, not by spelling. `/var/tmp` is a symlink to
+        # `/private/var/tmp` on macOS, so probing both spellings -- which this function does on
+        # purpose, since the symlink is a platform convention rather than a guarantee -- would
+        # otherwise count each root's shared `cache/` and `install/` twice and overstate the
+        # total by several gigabytes. Bases are deduplicated separately, in `bazel_output_bases`.
+        #
+        # The resolved form is the deduplication KEY only; the list keeps the spelling that was
+        # derived, because that is what the operator will type. Resolving for display is
+        # actively unhelpful on macOS, where `/home/x` resolves to `/System/Volumes/Data/home/x`.
+        if path is None:
+            return
+        try:
+            key = path.resolve()
+        except OSError:
+            key = path
+        if key in seen:
+            return
+        seen.add(key)
+        roots.append(path)
 
     # Bazel honours TEST_TMPDIR ahead of every default, so a nested Bazel invocation inside a
     # test writes here and nowhere else.

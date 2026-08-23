@@ -151,6 +151,28 @@ def test_test_tmpdir_is_probed_first(monkeypatch: pytest.MonkeyPatch, tmp_path: 
     assert disk_preflight.bazel_output_user_roots()[0] == tmp_path
 
 
+def test_symlinked_spellings_of_one_root_are_probed_once(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # `/var/tmp` is a symlink to `/private/var/tmp` on macOS. Probing both spellings is
+    # deliberate, but counting the root's shared cache/ and install/ twice overstated the
+    # measured total by several gigabytes before this was deduplicated by resolved path.
+    real = tmp_path / "real"
+    real.mkdir()
+    link = tmp_path / "link"
+    link.symlink_to(real)
+    monkeypatch.setattr(disk_preflight.sys, "platform", "linux")
+    monkeypatch.setenv("USER", "someone")
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    monkeypatch.setenv("XDG_CACHE_HOME", str(link))
+    monkeypatch.setenv("TEST_TMPDIR", str(real / "bazel" / "_bazel_someone"))
+    roots = disk_preflight.bazel_output_user_roots()
+    assert len(roots) == len(set(roots))
+    assert [root for root in roots if root.resolve() == (real / "bazel" / "_bazel_someone")] == [
+        real / "bazel" / "_bazel_someone"
+    ]
+
+
 # ---------------------------------------------------------------------------------------
 # Output-base enumeration and orphan classification
 # ---------------------------------------------------------------------------------------
