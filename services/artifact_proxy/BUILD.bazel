@@ -24,7 +24,9 @@ rust_library(
         "//libs/rust/servicekit:mindclade_servicekit",
         "//libs/rust/telemetry:mindclade_telemetry",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        "@crates//:axum",
         "@crates//:bytes",
+        "@crates//:tower",
     ],
 )
 
