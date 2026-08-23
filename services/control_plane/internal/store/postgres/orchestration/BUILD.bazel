@@ -40,18 +40,25 @@ go_library(
 
 go_test(
     name = "orchestration_test",
-    srcs = ["store_test.go"],
+    srcs = [
+        "live_postgres_test.go",
+        "store_test.go",
+    ],
     embed = [":orchestration"],
     deps = [
         "//control/orchestration",
         "//libs/go/audit",
+        "//libs/go/audit/postgres",
         "//libs/go/clock",
         "//libs/go/coordination/outbox",
         "//libs/go/coordination/outbox/memory",
+        "//libs/go/coordination/outbox/postgres",
         "//libs/go/faults",
+        "//libs/go/idempotency",
         "//libs/go/identifiers",
         "//libs/go/retry",
         "//libs/go/storage/sql/sqltest",
         "//libs/go/storage/sql/transaction",
+        "@com_github_lib_pq//:pq",
     ],
 )
