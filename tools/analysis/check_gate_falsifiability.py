@@ -370,6 +370,56 @@ FALSIFIERS: tuple[Falsifier, ...] = (
         expect="libs/go/utils: forbidden dumping-ground/domain name",
         inject=lambda tree: tree.write("libs/go/utils/util.go", "package utils\n"),
     ),
+    # The four shapes of PR #141's defect. Each one made `bazelw` exit 0 while its log said the
+    # build did not complete, so each one has to be watched failing somewhere that reads the
+    # evidence rather than the exit code.
+    Falsifier(
+        check="lockfile freshness",
+        defect="Cargo.lock is edited without regenerating MODULE.bazel.lock",
+        expect="Cargo.lock: changed since MODULE.bazel.lock was generated",
+        # Appending is enough and is the point: crate_universe records the file's SHA-256, so any
+        # byte of drift invalidates the extension and fails analysis for every Rust target.
+        inject=lambda tree: tree.append("Cargo.lock", "\n# injected by a falsifying fixture\n"),
+    ),
+    Falsifier(
+        check="lockfile freshness",
+        defect="a Cargo workspace member is added without regenerating MODULE.bazel.lock",
+        expect=(
+            "libs/rust/fixture_member/Cargo.toml: not recorded as a crate_universe input in "
+            "MODULE.bazel.lock"
+        ),
+        # The shape the digest comparison cannot catch on its own: a manifest that did not exist
+        # when the lock was written has no recorded digest to mismatch, so only the roster
+        # completeness check sees it.
+        inject=lambda tree: (
+            tree.replace(
+                "Cargo.toml",
+                '"tools/qualification/rust/perf_probe",',
+                '"tools/qualification/rust/perf_probe",\n    "libs/rust/fixture_member",',
+            ),
+            tree.write(
+                "libs/rust/fixture_member/Cargo.toml",
+                '[package]\nname = "mindclade_fixture_member"\nversion = "0.0.0"\n'
+                'edition = "2024"\n',
+            ),
+        )[-1],
+    ),
+    Falsifier(
+        check="lockfile freshness",
+        defect="a go.mod requirement is bumped without regenerating go.sum",
+        expect="go.sum does not authenticate connectrpc.com/connect v1.18.2",
+        inject=lambda tree: tree.replace(
+            "go.mod", "connectrpc.com/connect v1.18.1", "connectrpc.com/connect v1.18.2"
+        ),
+    ),
+    Falsifier(
+        check="lockfile freshness",
+        defect="the Bzlmod lockfile is absent, so nothing pins the dependency closure",
+        expect="MODULE.bazel.lock is missing",
+        # Guards the checker itself. An absent lockfile has no digests to compare, and the one
+        # outcome that must never follow from "there was nothing to compare" is a pass.
+        inject=lambda tree: tree.delete("MODULE.bazel.lock"),
+    ),
     Falsifier(
         check="protocol graph completeness",
         defect="a promoted protobuf source is added without any Bazel graph edges",
