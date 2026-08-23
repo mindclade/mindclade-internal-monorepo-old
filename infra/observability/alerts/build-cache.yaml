@@ -1,0 +1,26 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+{
+  "schemaVersion": "mindclade.dev/cloud-monitoring-alert-contract/v1alpha1",
+  "name": "build-cache",
+  "owner": "release-engineering",
+  "serviceClass": "release",
+  "availabilityProfile": "internal-interactive",
+  "deployment": {"provider": "google-cloud-monitoring", "terraformModule": "infra/terraform/modules/monitoring", "deployableKubernetesResource": false},
+  "requiredEnvironmentInputs": ["emailNotificationChannelResourceNames", "environment", "googleChatNotificationChannelResourceNames", "httpsRunbookUrl", "projectId", "qualificationEvidenceSha256"],
+  "signals": [
+    {"name": "build-cache-gateway-request-error-ratio", "description": "Bazel cache gateway requests failing for reasons other than a cache miss exceed the explicitly proposed, unapproved ratio. A gateway that errors instead of missing turns a performance optimization into a build failure, because Bazel cannot distinguish a broken cache from an absent action result.", "metric": "mindclade.bazel_cache.gateway_request_error_ratio", "condition": "above", "threshold": 0.05, "duration": "15m", "severity": "ticket", "missingData": "no-op", "minimumSamples": 50, "runbookAnchor": "build-cache-gateway-request-error-ratio", "thresholdStatus": "proposed"},
+    {"name": "build-cache-immutable-collision", "description": "A write presented a different payload at an existing content-addressed cache key and was rejected. The threshold is structural rather than a reviewed objective: identical duplicates are idempotent by design, so any collision at all means a digest no longer identifies one payload and the cache can no longer be trusted as content-addressed.", "metric": "mindclade.bazel_cache.immutable_collision_count", "condition": "above", "threshold": 0, "duration": "5m", "severity": "page", "missingData": "no-op", "minimumSamples": 1, "runbookAnchor": "build-cache-immutable-collision"},
+    {"name": "build-cache-reader-write-denied", "description": "A reader-role identity attempted to write the build cache and was denied. The deny already held, so this is an integrity-boundary probe requiring investigation rather than an outage requiring a page. Sustained attempts from the presubmit lane are the specific failure the runner-group split exists to prevent.", "metric": "mindclade.bazel_cache.reader_write_denied_count", "condition": "above", "threshold": 0, "duration": "15m", "severity": "ticket", "missingData": "no-op", "minimumSamples": 5, "runbookAnchor": "build-cache-reader-write-denied"}
+  ],
+  "observedSignals": [
+    {"name": "build-cache-action-hit-ratio", "description": "Action-result hit ratio baselines what a warm cache actually returns under real pull-request and merge-group load. It is deliberately not actionable: a cold cache after a toolchain fingerprint change is correct behavior, and no hit-rate threshold can be approved until a baseline separates cold-by-design from degraded.", "metric": "mindclade.bazel_cache.action_hit_ratio"},
+    {"name": "build-cache-staging-wait-ratio", "description": "Share of gateway requests that waited on the bounded concurrent-staging spool, which permits at most two combined GET and PUT staging files. Saturation of that bound is the designed backpressure, so it must be observed against real load before any saturation threshold could be reviewed.", "metric": "mindclade.bazel_cache.staging_wait_ratio"}
+  ],
+  "cardinality": {"permittedDimensions": ["cache", "environment", "location", "method", "result", "role"], "forbiddenDimensions": ["action-digest", "blob-key", "branch", "commit", "dataset", "digest", "feature", "job", "label", "model", "molecule", "principal", "prompt", "pull-request", "repository", "request-id", "run-id", "sequence", "target", "tenant", "user", "workflow"], "rawValuesInTelemetry": false},
+  "activationPolicy": {"enabledByDefault": false, "requiresSyntheticFireAndResolve": true, "requiresHealthyTelemetry": true, "requiresReviewedThresholds": true}
+}
