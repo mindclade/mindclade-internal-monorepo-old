@@ -688,16 +688,15 @@ def test_checkout_integrity_allows_only_canonical_generated_bazel_state(
     affected.assert_clean_checkout(head, **arguments)
 
 
-def test_checkout_integrity_allows_custom_output_base_bazel_symlinks(
+def test_checkout_integrity_rejects_custom_output_base_bazel_symlinks(
     tmp_path: Path,
 ) -> None:
-    """A runner with --output_base=/some/flat/path must not be rejected.
+    """A flat custom output base must not broaden the trusted symlink shape.
 
-    GitHub-hosted runners set --output_base=/home/runner/.bazel via the
-    runner's personal .bazelrc.  That path resolves to
-    .../.bazel/execroot/_main/... instead of the default
-    ..._bazel_<user>/<hash>/execroot/_main/... layout.  The symlink validator
-    must accept both forms.
+    Hosted CI removes Bazel convenience symlinks before checkout validation.
+    If one remains, the validator must continue to require Bazel's canonical
+    _bazel_<user>/<workspace-hash> layout rather than trust an arbitrary
+    external execroot.
     """
     root, head = _initialized_git_repo(tmp_path / "repo")
     arguments = _disk_checkout_arguments(root)
@@ -713,7 +712,8 @@ def test_checkout_integrity_allows_custom_output_base_bazel_symlinks(
         "bazel-testlogs": configuration / "testlogs",
     }.items():
         (root / name).symlink_to(target)
-    affected.assert_clean_checkout(head, **arguments)
+    with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-019\]"):
+        affected.assert_clean_checkout(head, **arguments)
 
 
 @pytest.mark.parametrize(
