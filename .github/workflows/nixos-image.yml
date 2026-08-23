@@ -1,0 +1,25 @@
+---
+name: Immutable NixOS workstation image
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualify:
+    permissions:
+      contents: read
+    uses: mindclade/.github/.github/workflows/reusable-nix-qualification.yml@v5.0.0
+    with:
+      reproducibility-targets: |-
+        .#packages.x86_64-linux.workstation-gce-image
+        .#packages.x86_64-linux.workstation-gce-image-contract
+
+  publish:
+    needs: qualify
+    permissions:
+      contents: read
+      id-token: write
+    uses: mindclade/.github/.github/workflows/reusable-nixos-gce-image-publish.yml@v5.0.0

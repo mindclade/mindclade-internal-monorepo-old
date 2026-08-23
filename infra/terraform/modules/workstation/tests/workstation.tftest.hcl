@@ -24,6 +24,8 @@ variables {
   kms_key_name            = "projects/mc-b-seed-fb7649/locations/us-central1/keyRings/dev/cryptoKeys/workstation"
   service_account_id      = "sa-workstation"
   operator_principals     = ["user:robpearc@mindclade.com"]
+  image                   = "projects/mindclade-development/global/images/mindclade-workstation-8a3c09fb"
+  image_contract_sha256   = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
   nix_cache_bucket_name   = "mc-nix-binary-cache"
   bazel_cache_bucket_name = "mc-bazel-remote-cache"
   environment             = "development"
@@ -105,9 +107,24 @@ run "persistent_data_disk_contract" {
   assert {
     condition = (
       google_compute_instance.workstation.attached_disk[0].device_name == "workstation-data" &&
-      contains(output.shutdown_policy.persistent_paths, "/nix")
+      contains(output.shutdown_policy.persistent_paths, "/mnt/workstation-data/workspace") &&
+      contains(output.shutdown_policy.image_defined_paths, "/nix")
     )
-    error_message = "The Nix store must live on the persistent data disk so it survives an instance stop."
+    error_message = "Workspaces must survive on the data disk while /nix remains image-defined."
+  }
+}
+
+run "immutable_image_contract" {
+  command = plan
+
+  assert {
+    condition = (
+      google_compute_instance.workstation.boot_disk[0].initialize_params[0].image == var.image &&
+      google_compute_instance.workstation.metadata["mindclade-image-contract-sha256"] == var.image_contract_sha256 &&
+      output.image_contract.mutable_family == false &&
+      output.image_contract.runtime_fetches == false
+    )
+    error_message = "The workstation must select one exact image and verify its baked contract digest."
   }
 }
 
@@ -169,17 +186,14 @@ run "bounded_shutdown_contract" {
     error_message = "The idle counter must be bounded and derived from the configured interval and threshold."
   }
 
-  # Regression guard for a real defect. The package and Nix steps need public egress, which the
-  # target environment denies by default. When those ran first, `set -e` aborted the script before
-  # the idle timer was installed, so the instance billed at full rate until the daily stop caught
-  # it — the cost control was the first casualty of the failure it exists to survive. Ordering,
-  # not presence, is what makes it work.
   assert {
-    condition = strcontains(
-      split("apt-get update", google_compute_instance.workstation.metadata["startup-script"])[0],
-      "systemctl enable --now mindclade-idle.timer"
+    condition = (
+      !strcontains(google_compute_instance.workstation.metadata["startup-script"], "apt-get") &&
+      !strcontains(google_compute_instance.workstation.metadata["startup-script"], "nixos.org") &&
+      !strcontains(google_compute_instance.workstation.metadata["startup-script"], "curl ") &&
+      strcontains(google_compute_instance.workstation.metadata["startup-script"], "image-defined-and-active")
     )
-    error_message = "The idle timer must be installed BEFORE any step requiring public egress, or a blocked fetch leaves the instance running with no cost control."
+    error_message = "Boot must use the image-defined idle timer and perform no runtime package or Nix download."
   }
 
   assert {
@@ -208,120 +222,6 @@ run "centralized_firewall_opt_out" {
   }
 }
 
-run "default_provisioning_sources_stay_public" {
-  command = plan
-
-  # The overrides are additive capability, not a behaviour change. With none of them set the
-  # rendered script must be the one that shipped: public installer, the image's own sources.list,
-  # and no substituter.
-  assert {
-    condition = (
-      strcontains(google_compute_instance.workstation.metadata["startup-script"], "https://nixos.org/nix/install") &&
-      strcontains(google_compute_instance.workstation.metadata["startup-script"], "record apt-source image-default-public-mirror") &&
-      strcontains(google_compute_instance.workstation.metadata["startup-script"], "record substituter not-configured-by-design") &&
-      !strcontains(google_compute_instance.workstation.metadata["startup-script"], "/etc/apt/sources.list.d/mindclade-internal.list") &&
-      !strcontains(google_compute_instance.workstation.metadata["startup-script"], "substituters = ")
-    )
-    error_message = "With no overrides set, the startup script must be byte-for-byte the public-source script it was before the overrides existed."
-  }
-}
-
-run "internal_provisioning_sources_replace_the_public_ones" {
-  command = plan
-
-  variables {
-    apt_mirror_url                     = "https://us-central1-apt.pkg.dev/projects/mindclade-development/debian-remote"
-    apt_mirror_components              = ["main", "contrib"]
-    nix_installer_url                  = "https://nix-installer.internal.mindclade.com/nix/install-2.24.9.sh"
-    nix_installer_sha256               = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-    nix_substituter_uri                = "https://nix-substituter.internal.mindclade.com"
-    nix_substituter_trusted_public_key = "mindclade-substituter-1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-  }
-
-  assert {
-    condition = (
-      strcontains(google_compute_instance.workstation.metadata["startup-script"], "deb https://us-central1-apt.pkg.dev/projects/mindclade-development/debian-remote %s main contrib") &&
-      strcontains(google_compute_instance.workstation.metadata["startup-script"], "NIX_INSTALLER_URL=\"https://nix-installer.internal.mindclade.com/nix/install-2.24.9.sh\"") &&
-      strcontains(google_compute_instance.workstation.metadata["startup-script"], "NIX_INSTALLER_SHA256=\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"") &&
-      strcontains(google_compute_instance.workstation.metadata["startup-script"], "'https://nix-substituter.internal.mindclade.com'")
-    )
-    error_message = "Each override must reach the rendered startup script: the mirror in sources.list, the installer URL and its pin, and the substituter."
-  }
-
-  # The point of the change. An override that leaves the public source in the script has not
-  # replaced anything — apt still stalls on deb.debian.org until it times out, and the next reader
-  # of the script still finds nixos.org sitting there to reach for.
-  assert {
-    condition = (
-      !strcontains(google_compute_instance.workstation.metadata["startup-script"], "https://nixos.org/nix/install") &&
-      !strcontains(google_compute_instance.workstation.metadata["startup-script"], "record apt-source image-default-public-mirror") &&
-      !strcontains(google_compute_instance.workstation.metadata["startup-script"], "record substituter not-configured-by-design")
-    )
-    error_message = "An override must REPLACE the public source rather than sit alongside it; the rendered script must not still name nixos.org or the image's default mirror."
-  }
-
-  # The ordering guard from bounded_shutdown_contract, restated with overrides set: the internal
-  # mirror still needs the network, so it must stay behind the idle timer like every other step
-  # that can fail.
-  assert {
-    condition = strcontains(
-      split("apt-get update", google_compute_instance.workstation.metadata["startup-script"])[0],
-      "systemctl enable --now mindclade-idle.timer"
-    )
-    error_message = "Internal sourcing must not move any network-dependent step ahead of the idle timer."
-  }
-}
-
-run "reject_plain_http_nix_installer_url" {
-  command = plan
-
-  variables {
-    nix_installer_url = "http://nix-installer.internal.mindclade.com/nix/install.sh"
-  }
-
-  expect_failures = [var.nix_installer_url]
-}
-
-run "reject_bare_ip_apt_mirror_url" {
-  command = plan
-
-  variables {
-    apt_mirror_url = "https://10.128.0.7/debian"
-  }
-
-  expect_failures = [var.apt_mirror_url]
-}
-
-run "reject_credential_bearing_apt_mirror_url" {
-  command = plan
-
-  variables {
-    apt_mirror_url = "https://mirror:hunter2@apt.internal.mindclade.com/debian"
-  }
-
-  expect_failures = [var.apt_mirror_url]
-}
-
-run "reject_substituter_without_trusted_key" {
-  command = plan
-
-  variables {
-    nix_substituter_uri = "https://nix-substituter.internal.mindclade.com"
-  }
-
-  expect_failures = [google_compute_instance.workstation]
-}
-
-run "reject_apt_components_without_mirror" {
-  command = plan
-
-  variables {
-    apt_mirror_components = ["main", "contrib"]
-  }
-
-  expect_failures = [google_compute_instance.workstation]
-}
-
 run "reject_arm_machine_type" {
   command = plan
 
@@ -330,6 +230,26 @@ run "reject_arm_machine_type" {
   }
 
   expect_failures = [var.machine_type]
+}
+
+run "reject_mutable_image_family" {
+  command = plan
+
+  variables {
+    image = "debian-cloud/debian-12"
+  }
+
+  expect_failures = [var.image]
+}
+
+run "reject_zero_image_contract_digest" {
+  command = plan
+
+  variables {
+    image_contract_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
+  }
+
+  expect_failures = [var.image_contract_sha256]
 }
 
 run "reject_c3d_without_quota" {

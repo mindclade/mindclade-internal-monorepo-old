@@ -38,53 +38,44 @@ locals {
 
   idle_cycles_before_poweroff = floor((var.idle_shutdown_minutes * 60) / var.idle_check_interval_seconds)
 
-  # Provisioning sources are resolved here, at plan time, rather than branched inside the guest.
-  # The script a reviewer reads in the plan is then the script that runs, and where an override is
-  # set the public endpoint does not appear in the rendered script at all — a guest-side `if` would
-  # leave the public URL sitting in the file on the box for someone to reach for.
-  #
-  # Each is rendered through an explicit null guard rather than interpolated raw. A null reaching a
-  # string template is a hard evaluation error inside this locals block, which fires before the
-  # instance precondition that exists to name the mistake — so a caller who set a substituter URI
-  # and forgot its key would get "cannot include a null value in a string template" pointing at a
-  # heredoc instead of the sentence explaining that the two go together.
-  apt_components             = join(" ", coalesce(var.apt_mirror_components, ["main"]))
-  nix_installer_url          = coalesce(var.nix_installer_url, "https://nixos.org/nix/install")
-  nix_installer_sha256       = var.nix_installer_sha256 == null ? "" : var.nix_installer_sha256
-  nix_substituter_public_key = var.nix_substituter_trusted_public_key == null ? "" : var.nix_substituter_trusted_public_key
-
   startup_script = <<-EOT
     #!/usr/bin/env bash
     set -euo pipefail
 
+    STATUS=/var/lib/mindclade-provisioning-status
     DEVICE="/dev/disk/by-id/google-${local.data_device_name}"
     MOUNT="${local.data_mount_point}"
+    CONTRACT=/etc/mindclade/image-contract.json
 
-    # Format only when the disk has no filesystem. This single condition is the difference
-    # between "survives a stop" and "silently ate the Nix store on reboot".
+    install -d -m 0755 /var/lib /run/mindclade
+    : > "$${STATUS}"
+    record() { printf '%s %s\n' "$1" "$2" >> "$${STATUS}"; }
+
+    # The selected image is immutable, and Terraform also carries the digest of the contract
+    # baked into it. A wrong image must remain reachable through IAP for diagnosis while refusing
+    # to become a development authority. The idle timer is already enabled in the image, before
+    # this script or any disk operation can fail.
+    if [ ! -f "$${CONTRACT}" ] || ! printf '%s  %s\n' \
+      '${var.image_contract_sha256}' "$${CONTRACT}" | sha256sum --check --status; then
+      record image-contract FAILED-missing-or-digest-mismatch
+      exit 1
+    fi
+    record image-contract ok
+
+    # Format only when the disk has no filesystem. The disk contains workspaces and regenerable
+    # build data, never the image-defined Nix store.
     if ! blkid "$${DEVICE}" >/dev/null 2>&1; then
       mkfs.ext4 -m 0 -E lazy_itable_init=0,lazy_journal_init=0 -F "$${DEVICE}"
     fi
 
     mkdir -p "$${MOUNT}"
-    DATA_UUID="$(blkid -s UUID -o value "$${DEVICE}")"
-
-    # nofail: serial console is disabled, so a boot that drops to emergency mode over a missing
-    # data disk would be unreachable and unrecoverable through the only access path we have.
-    if ! grep -q "$${DATA_UUID}" /etc/fstab; then
-      printf 'UUID=%s %s ext4 defaults,discard,nofail 0 2\n' "$${DATA_UUID}" "$${MOUNT}" >> /etc/fstab
+    if ! mountpoint -q "$${MOUNT}"; then
+      mount -o defaults,discard "$${DEVICE}" "$${MOUNT}"
     fi
-    mount -a
+    install -d -m 0750 "$${MOUNT}/workspace" "$${MOUNT}/bazel-cache"
+    record data-disk ok
 
-    mkdir -p "$${MOUNT}/nix" /nix
-    if ! grep -q '^\S\+ /nix ' /etc/fstab; then
-      printf '%s/nix /nix none bind,nofail,x-systemd.requires-mounts-for=%s 0 0\n' \
-        "$${MOUNT}" "$${MOUNT}" >> /etc/fstab
-    fi
-    mount -a
-
-    # Local SSD is ephemeral. It may hold the regenerable Bazel disk cache and nothing else;
-    # /nix on scratch means a full closure rebuild after every stop.
+    # Local SSD is ephemeral. It may hold the regenerable Bazel disk cache and nothing else.
     if [ "${var.local_ssd_count}" -gt 0 ] && [ -e /dev/nvme0n1 ]; then
       if ! blkid /dev/nvme0n1 >/dev/null 2>&1; then
         mkfs.ext4 -m 0 -F /dev/nvme0n1
@@ -94,192 +85,12 @@ locals {
       mkdir -p "${local.local_ssd_mount}/bazel-cache"
     fi
 
-    NIX_BACKING="$(findmnt -no SOURCE --target /nix || true)"
-    case "$${NIX_BACKING}" in
-      /dev/nvme*) echo "refusing to continue: /nix resolved to ephemeral scratch" >&2; exit 1 ;;
-    esac
-
-    # THE IDLE TIMER IS INSTALLED BEFORE ANYTHING THAT CAN FAIL, AND THE ORDERING IS THE POINT.
-    #
-    # Every step after this block needs the public internet, and this module is written for an
-    # environment whose firewall denies egress by default. An earlier ordering put the package
-    # work first, so under `set -e` the script aborted at `apt-get` and the instance came up
-    # reachable over IAP, disk intact, with NO idle timer — billing at full rate until the 03:00
-    # stop schedule caught it. The cost control was the first thing lost to the failure it exists
-    # to survive.
-    #
-    # This block needs only coreutils, systemd and procps from the base image, so it completes
-    # whether or not the machine can reach a package mirror.
-
-    cat > /usr/local/sbin/mindclade-idle-check <<'IDLE'
-    #!/usr/bin/env bash
-    set -euo pipefail
-    STATE=/run/mindclade-idle-cycles
-    THRESHOLD_CYCLES="__CYCLES__"
-    LOAD_LIMIT="__LOAD__"
-
-    sessions="$(loginctl list-sessions --no-legend 2>/dev/null | wc -l)"
-    load1="$(cut -d' ' -f1 /proc/loadavg)"
-    busy=0
-    if pgrep -f 'bazel|nix-daemon|nix-build|cargo|pytest|[[:space:]]go[[:space:]]' >/dev/null 2>&1; then
-      busy=1
-    fi
-
-    if [ "$${sessions}" -gt 0 ] || [ "$${busy}" -eq 1 ] || \
-       awk -v a="$${load1}" -v b="$${LOAD_LIMIT}" 'BEGIN{exit !(a>=b)}'; then
-      echo 0 > "$${STATE}"
-      exit 0
-    fi
-
-    count="$(cat "$${STATE}" 2>/dev/null || echo 0)"
-    count=$((count + 1))
-    if [ "$${count}" -ge "$${THRESHOLD_CYCLES}" ]; then
-      echo 0 > "$${STATE}"
-      systemctl poweroff
-      exit 0
-    fi
-    echo "$${count}" > "$${STATE}"
-    IDLE
-
-    sed -i "s/__CYCLES__/${local.idle_cycles_before_poweroff}/; s/__LOAD__/${var.idle_load_threshold}/" \
-      /usr/local/sbin/mindclade-idle-check
-    chmod 0755 /usr/local/sbin/mindclade-idle-check
-
-    cat > /etc/systemd/system/mindclade-idle.service <<'SVC'
-    [Unit]
-    Description=Mindclade workstation idle check
-    [Service]
-    Type=oneshot
-    ExecStart=/usr/local/sbin/mindclade-idle-check
-    SVC
-
-    cat > /etc/systemd/system/mindclade-idle.timer <<TMR
-    [Unit]
-    Description=Mindclade workstation idle check timer
-    [Timer]
-    OnBootSec=${var.idle_check_interval_seconds}
-    OnUnitActiveSec=${var.idle_check_interval_seconds}
-    AccuracySec=30
-    [Install]
-    WantedBy=timers.target
-    TMR
-
-    systemctl daemon-reload
-    systemctl enable --now mindclade-idle.timer
-
-    # PROVISIONING FROM HERE IS BEST-EFFORT AND DELIBERATELY NON-FATAL.
-    #
-    # Both fetches below leave the VPC. Where egress is denied by default they fail, and that must
-    # not take the instance down with them: the disk is already mounted, IAP SSH already works, and
-    # the idle timer above is already armed. A half-provisioned box an operator can reach and which
-    # stops billing on its own is strictly better than an aborted script.
-    #
-    # The status file is the contract with the operator. `gcloud compute ssh` then
-    # `cat /var/lib/mindclade-provisioning-status` says exactly which steps completed, so a missing
-    # `nix` is diagnosed in one command rather than mistaken for a broken image. The runbook reads
-    # this file.
-    STATUS=/var/lib/mindclade-provisioning-status
-    mkdir -p /var/lib
-    : > "$${STATUS}"
-
-    record() { printf '%s %s\n' "$1" "$2" >> "$${STATUS}"; }
-
-    set +e
-
-    export DEBIAN_FRONTEND=noninteractive
-    %{if var.apt_mirror_url != null}
-    # AN INTERNAL MIRROR IN PLACE OF THE PUBLIC ONE, NOT ALONGSIDE IT. The image ships sources
-    # pointing at deb.debian.org and packages.cloud.google.com. Both leave the VPC, and where
-    # egress is default-denied both stall until their timeout and then fail the whole `apt-get
-    # update` — including for the packages the internal mirror answered for. Leaving them enabled
-    # would make the override cosmetic. They are moved aside rather than deleted, so
-    # `ls /etc/apt/sources.list.d` still shows an operator exactly what was replaced.
-    #
-    # The suite is read from the running image instead of being an input. It has to match the image
-    # that actually booted; a caller pinning bookworm against a trixie image would write a
-    # sources.list that resolves to nothing and have it reported as a mirror failure.
-    SUITE="$(. /etc/os-release 2>/dev/null && printf '%s' "$${VERSION_CODENAME:-}")"
-    if [ -n "$${SUITE}" ]; then
-      mkdir -p /etc/apt/sources.list.d
-      for existing in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
-        # This script runs on every boot, so it must not disable the file it wrote last boot.
-        case "$${existing}" in
-          /etc/apt/sources.list.d/mindclade-internal.list) continue ;;
-        esac
-        [ -f "$${existing}" ] && mv -f "$${existing}" "$${existing}.disabled"
-      done
-      printf 'deb ${var.apt_mirror_url} %s ${local.apt_components}\n' "$${SUITE}" \
-        > /etc/apt/sources.list.d/mindclade-internal.list
-      record apt-source internal-mirror
-    else
-      record apt-source FAILED-no-version-codename
-    fi
-    %{else}
-    record apt-source image-default-public-mirror
-    %{endif}
-    if apt-get update -y && \
-       apt-get install -y --no-install-recommends tmux git curl ca-certificates xz-utils; then
-      record packages ok
-    else
-      record packages FAILED-egress-denied-or-mirror-unreachable
-    fi
-
-    # An empty pin means unpinned, which is the default and the prior behaviour. When a pin is set
-    # the installer is verified BEFORE it is executed, because it is executed as root: running an
-    # installer that failed its own digest check and merely noting it in the status file would make
-    # the pin decorative. Each outcome records a distinct reason so an operator is not sent to debug
-    # the firewall over a digest mismatch, or the digest over a blocked fetch.
-    NIX_INSTALLER_URL="${local.nix_installer_url}"
-    NIX_INSTALLER_SHA256="${local.nix_installer_sha256}"
-
-    if command -v nix >/dev/null 2>&1; then
-      record nix already-present
-    elif ! curl --retry 3 --retry-max-time 120 --max-time 600 -fsSL \
-           "$${NIX_INSTALLER_URL}" -o /tmp/nix-install.sh; then
-      record nix FAILED-installer-unreachable
-    elif [ -n "$${NIX_INSTALLER_SHA256}" ] && \
-         ! printf '%s  %s\n' "$${NIX_INSTALLER_SHA256}" /tmp/nix-install.sh | \
-           sha256sum -c - >/dev/null 2>&1; then
-      record nix FAILED-installer-digest-mismatch
-    elif sh /tmp/nix-install.sh --daemon --yes; then
-      record nix ok
-    else
-      record nix FAILED-installer-exited-nonzero
-    fi
-    rm -f /tmp/nix-install.sh
-
-    # Written unconditionally: it is inert without Nix and correct the moment Nix arrives, so a
-    # later manual install needs no second pass.
-    mkdir -p /etc/nix
-    if ! grep -q '^experimental-features' /etc/nix/nix.conf 2>/dev/null; then
-      printf 'experimental-features = nix-command flakes\ntrusted-users = root @google-sudoers\n' \
-        >> /etc/nix/nix.conf
-    fi
-    record nix-conf ok
-
-    %{if var.nix_substituter_uri != null}
-    # A caller-supplied substituter, which is the only sanctioned way this machine gets one. It is
-    # written as `substituters`, not `extra-substituters`: where egress is default-denied
-    # cache.nixos.org is unreachable, and leaving it in the list buys nothing but a per-path
-    # timeout before the local build that was going to happen anyway. require-sigs is left at its
-    # default, so the trusted key is what makes a served path acceptable — which is why the two
-    # inputs are refused unless they are set together.
-    if ! grep -q '^substituters' /etc/nix/nix.conf 2>/dev/null; then
-      printf 'substituters = %s\ntrusted-public-keys = %s\n' \
-        '${var.nix_substituter_uri}' '${local.nix_substituter_public_key}' \
-        >> /etc/nix/nix.conf
-    fi
-    record substituter configured
-    %{else}
-    # The Nix binary-cache bucket is deliberately NOT configured as a substituter here.
-    # nix_binary_cache exports substituter_uri = null and client_activation_contract.enabled =
-    # false with reason raw-private-gcs-is-not-a-nix-substituter. Wiring it anyway would
-    # contradict a module contract. nix_substituter_uri is the input a reviewed substituter
-    # service plugs into, and it stays null until one exists.
-    record substituter not-configured-by-design
-    %{endif}
-
-    set -e
+    printf 'IDLE_CYCLES=%s\nLOAD_LIMIT=%s\n' \
+      '${local.idle_cycles_before_poweroff}' '${var.idle_load_threshold}' \
+      > /run/mindclade/idle.env
+    systemctl start --no-block mindclade-idle.timer
+    record idle-timer image-defined-and-active
+    record runtime-fetches none-by-design
   EOT
 
   shutdown_script = <<-EOT
@@ -406,11 +217,13 @@ resource "google_compute_instance" "workstation" {
   }
 
   metadata = merge(var.metadata, {
-    "enable-oslogin"         = "TRUE"
-    "block-project-ssh-keys" = "TRUE"
-    "serial-port-enable"     = "FALSE"
-    "startup-script"         = local.startup_script
-    "shutdown-script"        = local.shutdown_script
+    "enable-oslogin"                     = "TRUE"
+    "block-project-ssh-keys"             = "TRUE"
+    "mindclade-image-contract-sha256"    = var.image_contract_sha256
+    "mindclade-image-provisioning-model" = "immutable-nixos-v1"
+    "serial-port-enable"                 = "FALSE"
+    "startup-script"                     = local.startup_script
+    "shutdown-script"                    = local.shutdown_script
   })
 
   resource_policies = var.daily_stop_schedule == null ? [] : [google_compute_resource_policy.daily_stop[0].self_link]
@@ -439,17 +252,6 @@ resource "google_compute_instance" "workstation" {
     precondition {
       condition     = var.create_iap_ssh_firewall_rule == false || var.network != null
       error_message = "network is required when this module creates the IAP ingress rule."
-    }
-
-    # Cross-input rules live here rather than in a variable validation, matching the rules above.
-    precondition {
-      condition     = (var.nix_substituter_uri == null) == (var.nix_substituter_trusted_public_key == null)
-      error_message = "nix_substituter_uri and nix_substituter_trusted_public_key must be set together. A substituter with no trusted key serves paths the guest cannot verify and this module never relaxes require-sigs; a key with no substituter is inert."
-    }
-
-    precondition {
-      condition     = var.apt_mirror_components == null || var.apt_mirror_url != null
-      error_message = "apt_mirror_components applies only when apt_mirror_url is set. Against the image's own sources.list it would be silently ignored, which reads as a mirror that dropped a component."
     }
   }
 

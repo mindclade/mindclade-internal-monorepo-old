@@ -1,8 +1,8 @@
 # Developer workstation module
 
 A single private developer workstation: an `x86_64-linux` machine reachable only through IAP TCP
-forwarding, carrying a persistent data disk for `/nix` and the Bazel disk cache, and powering
-itself off when idle.
+forwarding, booting an exact immutable NixOS image, carrying a persistent data disk for workspaces
+and the Bazel disk cache, and powering itself off when idle.
 
 It exists for two reasons. The first is operational — a long build or an agent session should
 survive a dropped local network link, which it does because `tmux` runs on the instance and the
@@ -39,19 +39,18 @@ exists to admit only IAP eventually admits `0.0.0.0/0`.
 The data disk is a separate `google_compute_disk`, not an inline boot disk, and
 `attached_disk` carries no `auto_delete` — so it survives both a stop and a destroy/recreate of the
 instance. The startup script formats it **only** when `blkid` reports no filesystem; that single
-condition is the difference between "survives a stop" and "silently ate the Nix store".
+condition is the difference between "survives a stop" and "silently ate the workspace".
 
-`/nix` is a bind mount from the data disk, ordered ahead of `nix-daemon.service`. The reference
-`/nix/store` measures 46 GB, which is why the disk defaults to 500 GB rather than something that
-looks generous until Bazel and `cargo` arrive.
+`/nix` belongs to the boot image. An OS or toolchain update publishes a replacement image instead
+of mutating the running generation or hiding it behind a data-disk bind mount. The persistent disk
+holds `/mnt/workstation-data/workspace` and `/mnt/workstation-data/bazel-cache`.
 
-Local SSD, when requested, holds the Bazel disk cache and nothing else. It is ephemeral; `/nix` on
-scratch means a full closure rebuild after every stop, and the startup script refuses to continue
-if `/nix` resolves to an NVMe device.
+Local SSD, when requested, holds the Bazel disk cache and nothing else. It is ephemeral and never
+holds a workspace or the image-defined Nix store.
 
 ## Idle shutdown
 
-A systemd timer polls a bounded counter. Idle means no `loginctl` sessions, a one-minute load
+A systemd timer baked into the NixOS image polls a bounded counter. Idle means no `loginctl` sessions, a one-minute load
 average under the threshold, and no process matching a bounded build pattern. The guest powers
 *itself* off, which requires no IAM at all — a `gcloud compute instances stop` loop would need
 `roles/compute.instanceAdmin.v1` on the instance's own identity, which is precisely the authority
@@ -75,77 +74,22 @@ as `required_cache_grants` rather than created here: the buckets belong to `nix_
 `bazel_remote_cache`, which already expose member inputs. Two Terraform states each believing they
 own the same binding is how removing one revokes access the other still claims.
 
-## Provisioning sources in a locked-down VPC
+## Immutable image contract
 
-The startup script needs two things from outside the instance: Debian packages and the Nix
-installer. Both defaults are public internet endpoints — Debian's mirrors and `nixos.org` — and the
-environment this module targets denies egress by default at firewall priority 65000, admitting only
-intra-VPC traffic, the restricted Google API VIP, and the metadata server. There the defaults are
-not slow, they are blocked, and the instance boots reachable-but-unprovisioned.
+The `image` input accepts only `projects/<project>/global/images/<name>`; public image families and
+other mutable aliases fail validation. Startup verifies the SHA-256 of
+`/etc/mindclade/image-contract.json`, whose external release manifest binds the source commit,
+flake lock, tool versions, raw-disk digest, and promoted GCS object generation.
 
-The idle timer is installed ahead of both fetches and both are non-fatal, so a blocked fetch costs a
-`nix` binary rather than an instance billing unwatched; `cat /var/lib/mindclade-provisioning-status`
-says which steps completed. That is damage control. These inputs are the repair:
+Boot performs no `apt-get`, package-mirror request, or Nix installer download. The data-mount and
+contract-check script can fail without disabling the already-active image-defined idle timer, so
+the cost-control invariant from the earlier bootstrap implementation remains fail-safe.
 
-| Input | Replaces | Default |
-|---|---|---|
-| `apt_mirror_url` | the image's entire `sources.list` | the image's own public mirrors |
-| `apt_mirror_components` | the components on the internal `deb` line | `main` |
-| `nix_installer_url` | `https://nixos.org/nix/install` | the public installer |
-| `nix_installer_sha256` | nothing — adds a pin | unpinned |
-| `nix_substituter_uri` | the substituter list, wholesale | unset; see below |
-| `nix_substituter_trusted_public_key` | the trusted-key list | unset |
-
-`var.metadata` refuses the `startup-script` key, so a caller cannot supply a script of its own.
-These inputs are the only place this can be fixed.
-
-An override **replaces** its public source rather than adding to it, and the branch is resolved at
-plan time rather than in the guest. With `apt_mirror_url` set, the image's source files are moved
-aside to `.disabled` and the rendered script does not name the public mirror at all — leaving both
-enabled would mean `apt-get update` still stalls on `deb.debian.org` until it times out and still
-reports failure, override or no override. The suite comes from the booted image's
-`VERSION_CODENAME` rather than an input, so a mirror line cannot disagree with the image it is for.
-
-Every URL is constrained to `https` with a dotted DNS host: no plain `http`, no bare IP literal, no
-embedded credential, no query string or fragment. These values are rendered into instance metadata,
-which any principal holding `compute.instances.get` can read, and what `nix_installer_url` serves is
-executed as root. `nix_installer_sha256` pins that payload; on a mismatch the installer is not run
-and the status file records `FAILED-installer-digest-mismatch` rather than a firewall-shaped error.
-
-### What this does not do
-
-It makes the module *capable* of internal sourcing. It creates no mirror. A locked-down deployment
-still needs all of the following, none of which is in this module's authority:
-
-- **An APT remote repository the subnet can reach** — an Artifact Registry APT remote repository or
-  an estate-run mirror. For Artifact Registry that means DNS for `*.pkg.dev` resolving to the
-  restricted VIP, `roles/artifactregistry.reader` for the workstation identity (add it through
-  `extra_project_roles`; the deny list covers `writer` and `repoAdmin`, not `reader`), and — for a
-  private repository — the `apt-transport-artifact-registry` transport, which cannot be installed
-  from the mirror it is needed to reach and so must be baked into `var.image`.
-- **A reviewed Nix installer source**, served over `https` from inside the estate with a recorded
-  digest, so `nix_installer_sha256` has something true to assert. Nothing here reviews, mirrors, or
-  republishes the upstream installer.
-- **Cloud NAT**, still, for whatever is left on a public source. With every override set the
-  instance needs no NAT to provision; with none set it needs NAT for both fetches.
-
-## The Nix cache is not a substituter
-
-The startup script installs Nix but does **not** point it at the Nix cache bucket.
+The image does **not** point Nix at the raw cache bucket.
 `nix_binary_cache` exports `substituter_uri = null` and `client_activation_contract.enabled =
 false` with reason `raw-private-gcs-is-not-a-nix-substituter`; raw private GCS does not speak the
 authenticated Nix cache protocol. The `objectViewer` grant is for tooling that reads objects.
 Until a reviewed substituter service exists, this machine builds its closure locally.
-
-`nix_substituter_uri` and `nix_substituter_trusted_public_key` are the hook such a service plugs
-into, which is why they default to unset. They are **not** where the estate's cache bucket goes:
-setting them to it would contradict the contract `nix_binary_cache` publishes and would point the
-guest at an endpoint that does not implement the protocol. The two are refused unless set together,
-because this module never relaxes `require-sigs` and a substituter with no trusted key serves paths
-the guest cannot verify.
-
-This module also exports no NixOS, nix-darwin, or Home Manager configuration, matching
-`tools/build/nix/README.md`: the repository owns toolchains, not workstation or server lifecycle.
 
 ## Machine types
 
@@ -165,10 +109,8 @@ later should be a reviewed decision that states that trade explicitly.
 
 ## Prerequisites this module does not create
 
-- Cloud NAT and Private Google Access. The instance has no external address, so package and
-  substituter egress depends on both — unless the provisioning sources are pointed at internal
-  ones, which this module can express but does not create. See "Provisioning sources in a
-  locked-down VPC".
+- Private Google Access for Google APIs. Boot requires neither Cloud NAT nor public package
+  egress; later source/cache access is a separately governed firewall decision.
 - `roles/cloudkms.cryptoKeyEncrypterDecrypter` for the Compute Engine service agent on the CMEK.
 - Cache bucket IAM, via `required_cache_grants`.
 - The firewall rule, if `create_iap_ssh_firewall_rule = false`; `required_firewall_rule` still
@@ -177,9 +119,9 @@ later should be a reviewed decision that states that trade explicitly.
 ## Qualification
 
 Mock tests prove configuration contracts and input rejection only. They do not prove tunnel
-reachability, disk persistence across a real stop, idle-timer behaviour under a detached build,
-NAT egress, or CMEK rotation safety. `qualification_requirements` enumerates what connected
-evidence must cover.
+reachability, image boot, contract parity, workspace persistence across a real replacement,
+idle-timer behaviour under a detached build, denied public boot egress, or CMEK rotation safety.
+`qualification_requirements` enumerates what connected evidence must cover.
 
 <!-- BEGIN_TF_DOCS -->
 ## Requirements
@@ -200,14 +142,12 @@ evidence must cover.
 | Name | Description | Type | Default | Required |
 | ---- | ----------- | ---- | ------- | :------: |
 | <a name="input_allow_stopping_for_update"></a> [allow\_stopping\_for\_update](#input\_allow\_stopping\_for\_update) | Permit Terraform to stop the instance when an update requires it | `bool` | `true` | no |
-| <a name="input_apt_mirror_components"></a> [apt\_mirror\_components](#input\_apt\_mirror\_components) | Debian components published by apt\_mirror\_url; null means main only | `list(string)` | `null` | no |
-| <a name="input_apt_mirror_url"></a> [apt\_mirror\_url](#input\_apt\_mirror\_url) | Internal Debian mirror base URL replacing the image's sources.list; null keeps the image default | `string` | `null` | no |
 | <a name="input_bazel_cache_bucket_name"></a> [bazel\_cache\_bucket\_name](#input\_bazel\_cache\_bucket\_name) | Bazel remote cache bucket the workstation identity may read and write | `string` | n/a | yes |
-| <a name="input_boot_disk_size_gb"></a> [boot\_disk\_size\_gb](#input\_boot\_disk\_size\_gb) | Boot disk size; the Nix store and Bazel cache live on the data disk, not here | `number` | `200` | no |
+| <a name="input_boot_disk_size_gb"></a> [boot\_disk\_size\_gb](#input\_boot\_disk\_size\_gb) | Boot disk size carrying the immutable NixOS generation and image-defined Nix store | `number` | `200` | no |
 | <a name="input_create_iap_ssh_firewall_rule"></a> [create\_iap\_ssh\_firewall\_rule](#input\_create\_iap\_ssh\_firewall\_rule) | Create the IAP ingress rule here; set false when firewall rules are centralized | `bool` | `true` | no |
 | <a name="input_daily_stop_schedule"></a> [daily\_stop\_schedule](#input\_daily\_stop\_schedule) | Optional cron stop schedule; there is deliberately no start schedule | `string` | `"0 3 * * *"` | no |
 | <a name="input_data_classification"></a> [data\_classification](#input\_data\_classification) | Governance classification; public is forbidden | `string` | `"internal"` | no |
-| <a name="input_data_disk_size_gb"></a> [data\_disk\_size\_gb](#input\_data\_disk\_size\_gb) | Persistent data disk carrying /nix and the Bazel disk cache | `number` | `500` | no |
+| <a name="input_data_disk_size_gb"></a> [data\_disk\_size\_gb](#input\_data\_disk\_size\_gb) | Persistent data disk carrying workspaces and the Bazel disk cache | `number` | `500` | no |
 | <a name="input_deletion_protection"></a> [deletion\_protection](#input\_deletion\_protection) | Guard against accidental instance deletion | `bool` | `true` | no |
 | <a name="input_disk_type"></a> [disk\_type](#input\_disk\_type) | Disk type for both the boot and data disks | `string` | `"pd-balanced"` | no |
 | <a name="input_environment"></a> [environment](#input\_environment) | Environment governance label | `string` | n/a | yes |
@@ -215,20 +155,17 @@ evidence must cover.
 | <a name="input_idle_check_interval_seconds"></a> [idle\_check\_interval\_seconds](#input\_idle\_check\_interval\_seconds) | Bounded polling interval for the idle check timer | `number` | `300` | no |
 | <a name="input_idle_load_threshold"></a> [idle\_load\_threshold](#input\_idle\_load\_threshold) | One-minute load average below which the workstation counts as idle | `number` | `0.5` | no |
 | <a name="input_idle_shutdown_minutes"></a> [idle\_shutdown\_minutes](#input\_idle\_shutdown\_minutes) | Bounded idle period after which the guest powers itself off | `number` | `60` | no |
-| <a name="input_image"></a> [image](#input\_image) | Boot image as project/family or a full image self-link | `string` | `"debian-cloud/debian-12"` | no |
+| <a name="input_image"></a> [image](#input\_image) | Immutable NixOS boot image as a full Compute Engine image self-link | `string` | n/a | yes |
+| <a name="input_image_contract_sha256"></a> [image\_contract\_sha256](#input\_image\_contract\_sha256) | Lowercase SHA-256 digest of /etc/mindclade/image-contract.json in the selected image | `string` | n/a | yes |
 | <a name="input_kms_key_name"></a> [kms\_key\_name](#input\_kms\_key\_name) | Required CMEK protecting both the boot disk and the persistent data disk | `string` | n/a | yes |
 | <a name="input_labels"></a> [labels](#input\_labels) | Additional resource labels merged under the module's baseline labels | `map(string)` | `{}` | no |
-| <a name="input_local_ssd_count"></a> [local\_ssd\_count](#input\_local\_ssd\_count) | Ephemeral NVMe scratch disks for the Bazel cache only; never for /nix | `number` | `0` | no |
+| <a name="input_local_ssd_count"></a> [local\_ssd\_count](#input\_local\_ssd\_count) | Ephemeral NVMe scratch disks for the Bazel cache only; never for workspaces or the image-defined Nix store | `number` | `0` | no |
 | <a name="input_machine_type"></a> [machine\_type](#input\_machine\_type) | x86\_64 machine type; Arm is forbidden by the repository's toolchain contract | `string` | `"c2d-standard-16"` | no |
 | <a name="input_metadata"></a> [metadata](#input\_metadata) | Additional instance metadata; module-owned keys are refused | `map(string)` | `{}` | no |
 | <a name="input_name"></a> [name](#input\_name) | Workstation instance name; derived resources append a suffix | `string` | n/a | yes |
 | <a name="input_network"></a> [network](#input\_network) | Network owning the IAP ingress rule; required when this module creates that rule | `string` | `null` | no |
 | <a name="input_network_tag"></a> [network\_tag](#input\_network\_tag) | Network tag binding the IAP ingress rule to this instance | `string` | `null` | no |
 | <a name="input_nix_cache_bucket_name"></a> [nix\_cache\_bucket\_name](#input\_nix\_cache\_bucket\_name) | Nix binary cache bucket the workstation identity may read | `string` | n/a | yes |
-| <a name="input_nix_installer_sha256"></a> [nix\_installer\_sha256](#input\_nix\_installer\_sha256) | SHA-256 pin for the fetched Nix installer; a mismatch refuses to run it | `string` | `null` | no |
-| <a name="input_nix_installer_url"></a> [nix\_installer\_url](#input\_nix\_installer\_url) | Internal Nix installer script URL replacing nixos.org; null keeps the public installer | `string` | `null` | no |
-| <a name="input_nix_substituter_trusted_public_key"></a> [nix\_substituter\_trusted\_public\_key](#input\_nix\_substituter\_trusted\_public\_key) | Ed25519 key trusted for nix\_substituter\_uri, as name:base64; required with it | `string` | `null` | no |
-| <a name="input_nix_substituter_uri"></a> [nix\_substituter\_uri](#input\_nix\_substituter\_uri) | Reviewed Nix substituter for the guest; null because no such service exists yet | `string` | `null` | no |
 | <a name="input_operator_principals"></a> [operator\_principals](#input\_operator\_principals) | Human principals permitted to open an IAP tunnel and log in | `set(string)` | n/a | yes |
 | <a name="input_os_login_role"></a> [os\_login\_role](#input\_os\_login\_role) | OS Login role granted to operators; osAdminLogin grants sudo | `string` | `"roles/compute.osLogin"` | no |
 | <a name="input_owner"></a> [owner](#input\_owner) | Accountable team governance label | `string` | n/a | yes |
@@ -245,8 +182,9 @@ evidence must cover.
 | ---- | ----------- |
 | <a name="output_builder_contract"></a> [builder\_contract](#output\_builder\_contract) | What this workstation can and cannot build for the remote-execution base |
 | <a name="output_cache_access_contract"></a> [cache\_access\_contract](#output\_cache\_access\_contract) | Cache authority this workstation is designed to hold, and what it must never hold |
-| <a name="output_data_disk"></a> [data\_disk](#output\_data\_disk) | The persistent disk carrying /nix and the Bazel disk cache |
+| <a name="output_data_disk"></a> [data\_disk](#output\_data\_disk) | The persistent disk carrying workspaces and the Bazel disk cache |
 | <a name="output_iap_access_contract"></a> [iap\_access\_contract](#output\_iap\_access\_contract) | The IAP TCP forwarding contract this module implements |
+| <a name="output_image_contract"></a> [image\_contract](#output\_image\_contract) | Immutable boot-image identity and the guest contract Terraform verifies at startup |
 | <a name="output_instance"></a> [instance](#output\_instance) | Identifying attributes of the workstation instance |
 | <a name="output_qualification_requirements"></a> [qualification\_requirements](#output\_qualification\_requirements) | Connected evidence this module's contracts require but cannot prove |
 | <a name="output_required_apis"></a> [required\_apis](#output\_required\_apis) | Services that must be enabled on the project |

@@ -157,8 +157,31 @@
               ;
           }
         );
+      flakeLock = builtins.fromJSON (builtins.readFile ./flake.lock);
+      flakeLockSha256 = builtins.hashFile "sha256" ./flake.lock;
+      sourceRevision =
+        if self ? rev then
+          self.rev
+        else if self ? dirtyRev then
+          self.dirtyRev
+        else
+          "unknown";
+      workstationSystem = nixpkgs.lib.nixosSystem {
+        modules = [
+          {
+            nixpkgs.hostPlatform = "x86_64-linux";
+            nixpkgs.overlays = [ goSecurityOverlay ];
+          }
+          (import ./infra/nixos/workstation {
+            inherit flakeLockSha256 sourceRevision;
+            nixpkgsRevision = flakeLock.nodes.nixpkgs.locked.rev;
+          })
+        ];
+      };
     in
     {
+      nixosConfigurations.mindclade-workstation = workstationSystem;
+
       devShells = forAllSystems (
         {
           pkgs,
@@ -458,6 +481,11 @@
               inherit ccToolchain pkgs;
               system = pkgs.system;
             }).cpu;
+        }
+        // nixpkgs.lib.optionalAttrs (pkgs.system == "x86_64-linux") {
+          workstation-gce-image = workstationSystem.config.system.build.googleComputeImage;
+          workstation-gce-image-contract =
+            workstationSystem.config.environment.etc."mindclade/image-contract.json".source;
         }
       );
 

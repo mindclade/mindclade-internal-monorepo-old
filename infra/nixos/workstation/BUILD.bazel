@@ -1,0 +1,20 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+package(default_visibility = ["//visibility:private"])
+
+filegroup(
+    name = "image_source",
+    srcs = [
+        "README.md",
+        "default.nix",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "scaffold_files",
+    srcs = [":image_source"],
+    visibility = ["//visibility:public"],
+)

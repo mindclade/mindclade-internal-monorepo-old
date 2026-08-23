@@ -26,7 +26,7 @@ output "service_account" {
 }
 
 output "data_disk" {
-  description = "The persistent disk carrying /nix and the Bazel disk cache"
+  description = "The persistent disk carrying workspaces and the Bazel disk cache"
   value = {
     id          = google_compute_disk.data.id
     name        = google_compute_disk.data.name
@@ -117,10 +117,22 @@ output "required_grants" {
 output "required_network_prerequisites" {
   description = "Network conditions this private instance depends on"
   value = {
-    private_google_access = true
-    cloud_nat_required    = true
-    external_ip           = false
-    note                  = "The instance has no external address. Package and Nix substituter egress requires Cloud NAT, and Private Google Access is required for Google APIs."
+    private_google_access       = true
+    boot_public_egress_required = false
+    cloud_nat_required_for_boot = false
+    external_ip                 = false
+    note                        = "The immutable NixOS image performs no package or Nix fetch during boot. Runtime source/cache egress remains a separately governed firewall decision."
+  }
+}
+
+output "image_contract" {
+  description = "Immutable boot-image identity and the guest contract Terraform verifies at startup"
+  value = {
+    image_self_link = var.image
+    contract_path   = "/etc/mindclade/image-contract.json"
+    contract_sha256 = var.image_contract_sha256
+    mutable_family  = false
+    runtime_fetches = false
   }
 }
 
@@ -134,7 +146,8 @@ output "shutdown_policy" {
     idle_cycles_before_poweroff = local.idle_cycles_before_poweroff
     daily_stop_schedule         = var.daily_stop_schedule
     vm_start_schedule           = null
-    persistent_paths            = ["/nix", local.data_mount_point]
+    persistent_paths            = ["${local.data_mount_point}/workspace", "${local.data_mount_point}/bazel-cache"]
+    image_defined_paths         = ["/nix", "/etc/mindclade"]
     ephemeral_paths             = var.local_ssd_count > 0 ? [local.local_ssd_mount] : []
   }
 }
@@ -161,10 +174,11 @@ output "qualification_requirements" {
   description = "Connected evidence this module's contracts require but cannot prove"
   value = [
     "An approved operator principal opens an IAP tunnel and an unapproved principal is denied.",
-    "The data disk survives a stop/start cycle with /nix intact and no reformat.",
+    "The selected image self-link and /etc/mindclade/image-contract.json digest match the promoted release manifest.",
+    "The data disk survives stop/start and instance replacement with workspaces intact and no reformat.",
     "The idle timer powers the instance off when idle and does NOT fire during a detached tmux build.",
     "nix build .#remote-execution-base succeeds and reproduces the expected x86_64-linux digest.",
-    "Cloud NAT egress reaches every required substituter and package source.",
+    "A cold boot completes with package mirrors and nixos.org denied, proving that runtime installation is absent.",
     "CMEK rotation does not orphan the persistent data disk.",
     "Observed cost per idle day matches the idle-shutdown design.",
   ]
