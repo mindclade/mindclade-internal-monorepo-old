@@ -82,13 +82,16 @@ def _read_text_bounded(path: Path, limit: int) -> str:
     the ceiling is distinguishable from one that overruns it.
     """
     try:
-        with path.open("r", encoding="utf-8") as stream:
-            text = stream.read(limit + 1)
+        with path.open("rb") as stream:
+            raw = stream.read(limit + 1)
     except OSError as exc:
         raise ContractError(f"cannot load {path}: {exc}") from exc
-    if len(text) > limit:
+    if len(raw) > limit:
         raise ContractError(f"{path} exceeds the {limit}-byte bound for a release document")
-    return text
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ContractError(f"cannot load {path}: {exc}") from exc
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:

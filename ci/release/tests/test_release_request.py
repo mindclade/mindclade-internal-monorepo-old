@@ -262,6 +262,12 @@ spec:
         with self.assertRaisesRegex(release_request.ContractError, "exceeds the .* bound"):
             release_request.validate_request("ci/release/requests/v0.2.0.yaml", "a" * 40)
 
+    def test_request_bound_counts_utf8_bytes_not_characters(self) -> None:
+        path = self.requests / "v0.2.0.yaml"
+        path.write_text("#" + "é" * release_request.MAX_YAML_BYTES, encoding="utf-8")
+        with self.assertRaisesRegex(release_request.ContractError, "exceeds the .* bound"):
+            release_request.validate_request("ci/release/requests/v0.2.0.yaml", "a" * 40)
+
     def test_zero_previous_subject_digest_is_rejected(self) -> None:
         self.write_request(previous_digest="sha256:" + "0" * 64)
         with self.assertRaisesRegex(release_request.ContractError, "zero digest"):
