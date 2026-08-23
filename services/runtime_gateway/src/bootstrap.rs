@@ -139,10 +139,11 @@ pub async fn run(config: BootstrapConfig) -> FaultResult<()> {
     service.start()?;
 
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
-    let signal = tokio::spawn(async move {
-        signals::termination_requested().await;
-        let _ = shutdown_tx.send(true);
-    });
+    let signal = tokio::spawn(drain_on_termination(
+        core.clone(),
+        shutdown_tx,
+        signals::termination_requested(),
+    ));
     let state = GatewayNetworkState::new(
         core.clone(),
         request_buffer_budget_bytes,
@@ -169,6 +170,34 @@ pub async fn run(config: BootstrapConfig) -> FaultResult<()> {
     // any, outranks a shutdown fault: it is the reason the process is ending.
     let shutdown = service.stop();
     result.and(shutdown)
+}
+
+/// Report unready and close admission the moment termination is requested,
+/// BEFORE the serve loops are told to unwind.
+///
+/// The prior defect was ordering, not absence. The only drain was the reverse
+/// pass inside `service.stop()`, which runs *after* `try_join!` returns -- that
+/// is, after both serve loops have finished their graceful close, up to
+/// `network::GATEWAY_DRAIN_TIMEOUT` (30s) later. For that entire window
+/// `/readyz` still answered 200, because it renders
+/// `GatewayHealthSnapshot::ready()` and `accepting` was still true. A load
+/// balancer or Kubernetes readiness probe therefore kept this pod in rotation
+/// and kept aiming new requests at a gateway that was already tearing down.
+/// `GatewayCore::admit_request` also still admitted, for the same reason.
+///
+/// `runtime_host` already drains at signal time; this is that same ordering.
+/// `Component::drain` and `GatewayCore::begin_drain` are both idempotent, so
+/// the reverse-order pass in `service.stop()` repeating this is harmless -- and
+/// keeping it there is what still covers a serve loop that fails on its own
+/// rather than on a signal.
+pub async fn drain_on_termination(
+    core: Arc<GatewayCore>,
+    shutdown: watch::Sender<bool>,
+    termination: impl Future<Output = ()> + Send,
+) {
+    termination.await;
+    core.begin_drain();
+    let _ = shutdown.send(true);
 }
 
 fn read_message<M: Message + Default>(path: &PathBuf) -> FaultResult<M> {
