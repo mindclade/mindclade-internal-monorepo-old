@@ -84,27 +84,17 @@ locals {
       /dev/nvme*) echo "refusing to continue: /nix resolved to ephemeral scratch" >&2; exit 1 ;;
     esac
 
-    export DEBIAN_FRONTEND=noninteractive
-    apt-get update -y
-    apt-get install -y --no-install-recommends tmux git curl ca-certificates xz-utils
-
-    if ! command -v nix >/dev/null 2>&1; then
-      curl --retry 3 --retry-max-time 120 --max-time 600 -fsSL \
-        https://nixos.org/nix/install -o /tmp/nix-install.sh
-      sh /tmp/nix-install.sh --daemon --yes
-      rm -f /tmp/nix-install.sh
-    fi
-
-    mkdir -p /etc/nix
-    if ! grep -q '^experimental-features' /etc/nix/nix.conf 2>/dev/null; then
-      printf 'experimental-features = nix-command flakes\ntrusted-users = root @google-sudoers\n' \
-        >> /etc/nix/nix.conf
-    fi
-
-    # The Nix binary-cache bucket is deliberately NOT configured as a substituter here.
-    # nix_binary_cache exports substituter_uri = null and client_activation_contract.enabled =
-    # false with reason raw-private-gcs-is-not-a-nix-substituter. Wiring it anyway would
-    # contradict a module contract; a reviewed substituter service activates that path.
+    # THE IDLE TIMER IS INSTALLED BEFORE ANYTHING THAT CAN FAIL, AND THE ORDERING IS THE POINT.
+    #
+    # Every step after this block needs the public internet, and this module is written for an
+    # environment whose firewall denies egress by default. An earlier ordering put the package
+    # work first, so under `set -e` the script aborted at `apt-get` and the instance came up
+    # reachable over IAP, disk intact, with NO idle timer — billing at full rate until the 03:00
+    # stop schedule caught it. The cost control was the first thing lost to the failure it exists
+    # to survive.
+    #
+    # This block needs only coreutils, systemd and procps from the base image, so it completes
+    # whether or not the machine can reach a package mirror.
 
     cat > /usr/local/sbin/mindclade-idle-check <<'IDLE'
     #!/usr/bin/env bash
@@ -161,6 +151,62 @@ locals {
 
     systemctl daemon-reload
     systemctl enable --now mindclade-idle.timer
+
+    # PROVISIONING FROM HERE IS BEST-EFFORT AND DELIBERATELY NON-FATAL.
+    #
+    # Both fetches below leave the VPC. Where egress is denied by default they fail, and that must
+    # not take the instance down with them: the disk is already mounted, IAP SSH already works, and
+    # the idle timer above is already armed. A half-provisioned box an operator can reach and which
+    # stops billing on its own is strictly better than an aborted script.
+    #
+    # The status file is the contract with the operator. `gcloud compute ssh` then
+    # `cat /var/lib/mindclade-provisioning-status` says exactly which steps completed, so a missing
+    # `nix` is diagnosed in one command rather than mistaken for a broken image. The runbook reads
+    # this file.
+    STATUS=/var/lib/mindclade-provisioning-status
+    mkdir -p /var/lib
+    : > "$${STATUS}"
+
+    record() { printf '%s %s\n' "$1" "$2" >> "$${STATUS}"; }
+
+    set +e
+
+    export DEBIAN_FRONTEND=noninteractive
+    if apt-get update -y && \
+       apt-get install -y --no-install-recommends tmux git curl ca-certificates xz-utils; then
+      record packages ok
+    else
+      record packages FAILED-egress-denied-or-mirror-unreachable
+    fi
+
+    if command -v nix >/dev/null 2>&1; then
+      record nix already-present
+    elif curl --retry 3 --retry-max-time 120 --max-time 600 -fsSL \
+           https://nixos.org/nix/install -o /tmp/nix-install.sh && \
+         sh /tmp/nix-install.sh --daemon --yes; then
+      rm -f /tmp/nix-install.sh
+      record nix ok
+    else
+      rm -f /tmp/nix-install.sh
+      record nix FAILED-installer-unreachable
+    fi
+
+    # Written unconditionally: it is inert without Nix and correct the moment Nix arrives, so a
+    # later manual install needs no second pass.
+    mkdir -p /etc/nix
+    if ! grep -q '^experimental-features' /etc/nix/nix.conf 2>/dev/null; then
+      printf 'experimental-features = nix-command flakes\ntrusted-users = root @google-sudoers\n' \
+        >> /etc/nix/nix.conf
+    fi
+    record nix-conf ok
+
+    # The Nix binary-cache bucket is deliberately NOT configured as a substituter here.
+    # nix_binary_cache exports substituter_uri = null and client_activation_contract.enabled =
+    # false with reason raw-private-gcs-is-not-a-nix-substituter. Wiring it anyway would
+    # contradict a module contract; a reviewed substituter service activates that path.
+    record substituter not-configured-by-design
+
+    set -e
   EOT
 
   shutdown_script = <<-EOT
