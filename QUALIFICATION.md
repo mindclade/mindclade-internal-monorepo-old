@@ -3,16 +3,26 @@
 This archive distinguishes implemented source, local/offline qualification,
 connected-provider qualification, and production promotion.
 
-## Current repository-only verification (2026-08-21)
+## Current repository-only verification (2026-08-23)
 
 The root repository-home/common-document gate, top-level link hierarchy,
 first-party proprietary header scan, and Cargo dependency-license scan pass.
-The static presubmit passes its first 20 architecture and implementation gates,
-then correctly blocks on an unapproved
+The static presubmit passes **all 23** architecture and implementation gates in
+the `CHECKS` list of `tools/analysis/run_architecture_checks.py`, and
+`ci/presubmit/pipeline.py --static-only` exits 0.
+
+An earlier revision of this section said the lane blocked on an unapproved
 `services/control_plane -> go.mindclade.dev/protocols/servicepolicy`
-dependency. Until that dependency budget is reconciled, the complete static
-lane is not qualified. These results are repository-only evidence and do not
-replace connected provider, GPU, deployment, or production-promotion evidence.
+dependency. That import still exists in `internal/providers/api`, but it now
+sits inside the declared budget:
+`tools/analysis/check_dependency_budgets.py` reports `dependency budget check
+passed`. The gate count also grew from 20 to 23.
+
+These results are repository-only evidence. They do not replace connected
+provider, GPU, deployment, or production-promotion evidence, and no component in
+`components.toml` holds `production` status — the census is 79 `implemented`,
+4 `experimental`, 4 `scaffolded`, 2 `qualified`, 0 `production` across 89
+components.
 
 Affected Bazel selection and the CPU nightly lane are implemented with
 versioned evidence, owning Bazel tests, a real-graph fixture, operational
@@ -34,7 +44,14 @@ latency objective require connected observation.
 - Bzlmod lock closure, full Bazel configured analysis, dependency-layer graph,
   and the complete non-manual Bazel test graph in the pinned local macOS/Nix environment.
 - Complete target-state path materialization, accepted decision register, Go module cookbook, security documentation, and operating runbooks.
-- Structured validation of 87 JSON, 185 TOML, 195 YAML/YML, 548 Markdown files, and internal relative links.
+- Markdown relative-link validation across the tree, and structured parsing of
+  the repository's tracked data files (190 JSON, 192 TOML, 321 YAML/YML, and 696
+  Markdown files are tracked). One caveat: `tools/dev/validate_repository.py`
+  passes its 23 architecture gates and its Markdown-link check, but its
+  structured-file scan currently reports 8 YAML parse failures on the
+  `infra/kubernetes/platform/mlflow` Helm chart templates, which are Go-template
+  sources rather than plain YAML. That scan is not one of the 23 static gates,
+  and the failures are pre-existing rather than introduced by this record.
 
 The exact local Go package set is stored in
 `qualification/go/offline-safe-packages.txt`; normal tests, vet, and
@@ -42,12 +59,14 @@ race-enabled tests passed for all 111 entries.
 
 ## Go module closure
 
-The root `go.sum` contains both module and `go.mod` checksums for all 18 direct public root
-requirements, and now carries the transitive graph as well — 438 lines, up from the 36 that
-covered only the direct set. The code/docs alignment gate checks the direct-requirement
-invariant against `go.mod`; it deliberately does not assert a line count, because that number
-moves with any dependency change and a gate that fails on it teaches people to edit the
-number rather than look at the diff. Full transitive closure verification remains a
+The root `go.sum` contains both module and `go.mod` checksums for all 21 direct public root
+requirements, and carries the transitive graph as well — 286 lines covering 134 distinct
+modules, alongside 76 indirect requirements in `go.mod`. (Earlier revisions of this document
+recorded 18 direct requirements and 438 `go.sum` lines; both have since changed.) The
+code/docs alignment gate checks the direct-requirement invariant against `go.mod`; it
+deliberately does not assert a line count, because that number moves with any dependency
+change and a gate that fails on it teaches people to edit the number rather than look at the
+diff. Full transitive closure verification remains a
 connected-lane gate (`go mod download all`, `go mod verify`, `go mod tidy -diff`) rather than
 something inferred from the file's size. Connected CI runs
 `go mod download all`, `go mod verify`, and `go mod tidy -diff` before provider
