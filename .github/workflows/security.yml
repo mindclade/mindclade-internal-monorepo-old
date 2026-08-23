@@ -16,6 +16,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  merge_group:
   schedule:
     # Weekly, Monday 04:17 UTC. Off the hour because scheduled runs cluster on :00 and get
     # queued behind everyone else's cron.
