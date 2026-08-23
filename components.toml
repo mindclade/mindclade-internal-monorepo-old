@@ -67,6 +67,27 @@ slo = "docs/slo/control-admission.md"
 runbook = "docs/runbooks/control-admission.md"
 
 [[component]]
+name = "control.orchestration"
+path = "control/orchestration"
+status = "implemented"
+owner = "platform-control"
+tests = [
+  "control/orchestration/state_machine_test.go",
+  "control/orchestration/dependency_test.go",
+  "control/orchestration/compiler_test.go",
+  "control/orchestration/attempt_test.go",
+]
+
+[[component]]
+name = "control.scheduling"
+path = "control/scheduling"
+status = "implemented"
+owner = "platform-control"
+# placement_test.go does not exist yet; only declared paths that exist may be listed here
+# because check_component_maturity.py fails on a missing declared test path.
+tests = ["control/scheduling/capacity_test.go"]
+
+[[component]]
 name = "control.reference_databases"
 path = "control/registry/reference_databases"
 status = "implemented"
