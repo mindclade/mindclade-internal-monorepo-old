@@ -9,7 +9,19 @@ from pathlib import Path
 
 import pytest
 
-from ci.presubmit import pipeline
+from ci.presubmit import disk_preflight, pipeline
+
+
+@pytest.fixture(autouse=True)
+def _satisfied_disk_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Hold the disk floor satisfied for the selection-governance tests.
+
+    These tests assert what the pipeline does with events, modes, and cache routes. Letting
+    them read the real filesystem would make their verdicts depend on how full the machine
+    happened to be, which is the class of non-determinism this whole change exists to remove.
+    `test_expensive_lanes_abort_when_the_disk_floor_is_unmet` covers the other direction.
+    """
+    monkeypatch.setattr(disk_preflight, "check", lambda *_args, **_kwargs: [])
 
 
 def test_static_only_runs_architecture_without_bazel(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -337,3 +349,40 @@ def test_pull_request_cannot_bypass_full_selector_with_shard_arguments(
     error = failures[0]["error"]
     assert isinstance(error, pipeline.affected.SelectionError)
     assert error.code == "AFFECTED-SELECT-010"
+
+
+def test_expensive_lanes_abort_when_the_disk_floor_is_unmet(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A shortfall must stop the run before Cargo and Bazel, with its own exit code.
+
+    Exit 3 is distinct from the selection-error exit 2 on purpose: an out-of-disk abort is an
+    infrastructure condition, not a governance rejection, and conflating them is how the
+    original outage read as thirteen unrelated regressions.
+    """
+    monkeypatch.setattr(disk_preflight, "check", lambda *_args, **_kwargs: ["no room"])
+    monkeypatch.setattr(pipeline, "run", lambda _command: 0)
+    monkeypatch.setattr(sys, "argv", ["pipeline.py", "--bazel-only"])
+    assert pipeline.main() == 3
+
+
+def test_the_disk_floor_is_checked_before_any_selection_work(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The preflight must precede selection, or it cannot prevent the expensive lanes."""
+    monkeypatch.setattr(disk_preflight, "check", lambda *_args, **_kwargs: ["no room"])
+
+    def _unreachable(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("selection ran despite an unmet disk floor")
+
+    monkeypatch.setattr(pipeline.affected, "resolve_selection_mode", _unreachable)
+    monkeypatch.setattr(sys, "argv", ["pipeline.py", "--bazel-only"])
+    assert pipeline.main() == 3
+
+
+def test_static_only_does_not_require_the_disk_floor(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`--static-only` writes nothing; gating it on 16 GiB would be a floor with no reason."""
+    monkeypatch.setattr(disk_preflight, "check", lambda *_args, **_kwargs: ["no room"])
+    monkeypatch.setattr(pipeline, "run", lambda _command: 0)
+    monkeypatch.setattr(sys, "argv", ["pipeline.py", "--static-only"])
+    assert pipeline.main() == 0

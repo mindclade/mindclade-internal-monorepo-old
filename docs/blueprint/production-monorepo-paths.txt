@@ -3832,14 +3832,9 @@ tools/build/nix/toolchains/tilelang.nix
 tools/build/nix/versions.nix
 tools/codegen/BUILD.bazel
 tools/codegen/README.md
-tools/codegen/generate_build_files.py
-tools/codegen/generate_config_schema.py
 tools/codegen/generate_event_catalog.py
-tools/codegen/generate_go_sdk.py
 tools/codegen/generate_jsonschema.py
-tools/codegen/generate_openapi_clients.py
 tools/codegen/generate_proto.sh
-tools/codegen/generate_python_sdk.py
 tools/codegen/generate_typescript_sdk.py
 tools/codegen/verify_generated.py
 tools/dev/BUILD.bazel

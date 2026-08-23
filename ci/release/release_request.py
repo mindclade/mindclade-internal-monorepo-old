@@ -162,6 +162,57 @@ def load_catalog() -> dict[str, dict[str, Any]]:
     return targets
 
 
+def _label_package(label: str) -> str:
+    """The repository-relative package path a catalog label names.
+
+    `//protocols:protobuf_contract_image` -> `protocols`
+    `//services/go_vanity/...`            -> `services/go_vanity`
+    """
+    package = label.removeprefix("//").removesuffix("/...").split(":", 1)[0]
+    return package.rstrip("/")
+
+
+def resolve_catalog_packages(targets: dict[str, dict[str, Any]]) -> None:
+    """Every catalog label must name a package directory that exists in the checked-out tree.
+
+    `load_catalog` checks label SYNTAX, and syntax is not existence: a renamed, moved, or
+    deleted package leaves a well-formed label behind in a file nobody re-reads. The first
+    thing that noticed was `tools/dev/bazelw build` inside `build()`, which runs *after* the
+    ARC canary and after WIF has issued credentials — so a stale catalog entry surfaced as a
+    half-authenticated release rather than as a red check. Resolving here moves that failure
+    into the credential-free `discover` job.
+
+    Target NAMES are deliberately not checked. `//models/reference/weights_fixture:fixture_image`
+    is produced by the `mindclade_model_bundle` macro from `name = "fixture"`, so no
+    `name = "fixture_image"` string exists for a matcher to find; a name check would reject a
+    target that builds. Package existence is the part that can be decided without loading the
+    Bazel graph, and it is the part that catches a moved directory.
+
+    Bounded by construction: the catalog is a reviewed closed file, so the label count is
+    fixed at review time and each label costs two stats.
+    """
+    for name, target in targets.items():
+        image = target["images"]["primary"]
+        for label in (image["buildTarget"], image["pushTarget"], *target["qualificationTargets"]):
+            package = _label_package(label)
+            parts = package.split("/")
+            # `..` would escape the repository and `...` would name a wildcard where a package
+            # is required; both are reachable from BAZEL_TARGET_RE's character class.
+            if not package or any(part in {"", ".", "..", "..."} for part in parts):
+                raise ContractError(f"target {name} label does not name a package: {label}")
+            directory = ROOT / package
+            if not directory.is_dir():
+                raise ContractError(
+                    f"target {name} label {label} names a missing package directory: {package}"
+                )
+            # A recursive pattern's root is allowed to be a plain directory; a specific label
+            # has to sit in a real package.
+            if not label.endswith("/...") and not (directory / "BUILD.bazel").is_file():
+                raise ContractError(
+                    f"target {name} label {label} names a directory with no BUILD.bazel"
+                )
+
+
 def validate_request(raw_path: str, source_sha: str) -> dict[str, Any]:
     if not SHA_RE.fullmatch(source_sha):
         raise ContractError("source-sha must be a lowercase 40-character commit SHA")
@@ -187,6 +238,7 @@ def validate_request(raw_path: str, source_sha: str) -> dict[str, Any]:
     spec = _mapping(request["spec"], "spec")
     _exact_keys(spec, {"target", "rollback"}, "spec")
     catalog = load_catalog()
+    resolve_catalog_packages(catalog)
     target_name = spec["target"]
     if not isinstance(target_name, str) or target_name not in catalog:
         raise ContractError(f"target is not in the closed catalog: {target_name!r}")
