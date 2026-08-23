@@ -178,6 +178,10 @@ PRESUBMIT_BAZEL_STEP_CONTRACT = (
         "c9ab1c7b5e17c4594d37e9aaa4348bf4c2d83bb0d994fbd022341069d81a2a70",
     ),
     (
+        "name:Remove ignored checkout byproducts",
+        "799d86234a1bf27e77569c23ef52802e80e03dc89e4f2c2a47630fef2f0caeae",
+    ),
+    (
         "name:Run event-governed Bazel validation",
         "c3f73f3be957151c5b1d2b7b5d108f00d382f62044913eedcf7d77733299d923",
     ),
@@ -262,6 +266,10 @@ NIGHTLY_BAZEL_STEP_CONTRACT = (
     (
         "name:Validate and resolve the registered C/C++ toolchain",
         "c9ab1c7b5e17c4594d37e9aaa4348bf4c2d83bb0d994fbd022341069d81a2a70",
+    ),
+    (
+        "name:Remove ignored checkout byproducts",
+        "799d86234a1bf27e77569c23ef52802e80e03dc89e4f2c2a47630fef2f0caeae",
     ),
     (
         "name:Analyze and test the complete configured graph",
