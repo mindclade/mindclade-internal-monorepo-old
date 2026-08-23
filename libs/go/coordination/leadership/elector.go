@@ -327,13 +327,21 @@ func (elector *Elector) acquire(ctx context.Context) (lease.Lease, error) {
 func (elector *Elector) hold(parent context.Context, session Session) (lease.Lease, error) {
 	leaderCtx, cancel := context.WithCancelCause(parent)
 	defer cancel(ErrLeadershipLost)
+	// Carry the live epoch alongside the frozen session the handler is about to
+	// receive. Renewals move Lease.Version, and this context value is the only
+	// path by which a handler can observe that movement; liveSessionKey and
+	// SessionView record why it travels beside the session rather than in it.
+	leaderCtx = context.WithValue(leaderCtx, liveSessionKey{}, sessionReader(elector))
 	handlerDone := make(chan error, 1)
 	if elector.handler != nil {
 		// Pass the acquired session by value. Closing over the local would
 		// share it with the renewal loop's session.Lease assignment below,
 		// which is a data race on the Session the handler is reading: the
 		// handler's epoch is fixed at the acquisition it was started for, and
-		// renewals extend that epoch without changing it.
+		// renewals extend that epoch without changing it. A handler that must
+		// see the renewed version reads it through a SessionView, which goes
+		// back to the elector's mutex-guarded current lease on every call
+		// instead of mutating this copy.
 		go func(acquired Session) { handlerDone <- elector.handler(leaderCtx, acquired) }(session)
 	}
 	for {
@@ -447,4 +455,168 @@ func nilValue(value any) bool {
 	default:
 		return false
 	}
+}
+
+// sessionReader is the elector's live leadership epoch, narrowed to what a
+// SessionView needs. *Elector satisfies it through Current.
+type sessionReader interface{ Current() (Session, bool) }
+
+// liveSessionKey scopes the live epoch on the leader context.
+//
+// The leader context is the only channel from an elector to its handler that is
+// not fixed at acquisition. Handler takes its Session by value and hold freezes
+// that copy deliberately, so that the renewal loop's own session variable is
+// not shared with a running handler. Widening Handler, or making Session
+// mutable, would change a contract five other roles already build on. The live
+// epoch therefore travels beside the frozen session, scoped to exactly the
+// epoch it describes and unreachable outside this package.
+type liveSessionKey struct{}
+
+// SessionView is a gated component's live window onto the leadership epoch its
+// process holds. Construct one before the component that reads it, hand the
+// same value to GateComponentWithSession, and read it on every use.
+//
+// It exists because a fence is not a constant. Session.Fence() is the durable
+// Lease.Version and the elector increments it on every renewal, so a component
+// that copies the number once -- at construction, or from a bind callback
+// invoked when leadership is acquired -- is quoting an epoch that expires one
+// RenewInterval later. That is not a cosmetic drift: a fence-monotonic store
+// refuses any write whose fence is below the highest it has accepted, which is
+// precisely how a deposed leader is stopped, and a live leader quoting a stale
+// fence is indistinguishable from one.
+//
+// It fails closed at both ends of an epoch. Fence() is 0, and Session() reports
+// false, before leadership is acquired and again as soon as the gated
+// component's run returns; a caller holding the view past its epoch is refused
+// a fence rather than handed the last number this process happened to see.
+// Consumers that require a fence -- scheduling.Service, for one -- treat zero
+// as "cannot prove leadership" and decline to write.
+//
+// The zero value is ready to use. Every method is safe for concurrent use and
+// safe on a nil receiver.
+type SessionView struct {
+	mu sync.RWMutex
+	// live reads the epoch the elector holds now. It is set for the duration of
+	// one gated run, and is nil when the handler was invoked outside an elector.
+	live sessionReader
+	// epoch is the session the handler was started with. It answers Session()
+	// only when live is nil, so a hand-driven handler still reports the fence it
+	// was actually given rather than nothing at all.
+	epoch Session
+	held  bool
+	// gated records that a gate has claimed this view, so a second gate cannot
+	// silently take it over.
+	gated bool
+}
+
+// Session returns the leadership epoch this process holds now, or false when it
+// holds none.
+func (view *SessionView) Session() (Session, bool) {
+	if view == nil {
+		return Session{}, false
+	}
+	view.mu.RLock()
+	live, epoch, held := view.live, view.epoch, view.held
+	view.mu.RUnlock()
+	if !held {
+		return Session{}, false
+	}
+	if live == nil {
+		return epoch, true
+	}
+	// Ask the elector rather than answering from the bind-time copy: that
+	// re-read is the entire reason this type exists. A false answer means
+	// leadership ended while something still held the view, and "no epoch" is
+	// the only safe reply.
+	return live.Current()
+}
+
+// Fence returns the live fencing token to carry on writes, or 0 when this
+// process holds no leadership.
+func (view *SessionView) Fence() uint64 {
+	session, ok := view.Session()
+	if !ok {
+		return 0
+	}
+	return session.Fence()
+}
+
+func (view *SessionView) bind(ctx context.Context, session Session) {
+	live, _ := ctx.Value(liveSessionKey{}).(sessionReader)
+	view.mu.Lock()
+	view.live, view.epoch, view.held = live, session, true
+	view.mu.Unlock()
+}
+
+func (view *SessionView) release() {
+	view.mu.Lock()
+	view.live, view.epoch, view.held = nil, Session{}, false
+	view.mu.Unlock()
+}
+
+// GateComponentWithSession is GateComponent for a component that writes under
+// the leadership fence. It moves Run under the elector identically, and
+// additionally binds view to the epoch being led for exactly as long as the
+// component runs.
+//
+// view is a live handle rather than a delivered value on purpose. The obvious
+// alternative -- passing the Session, or invoking a bind callback once when
+// leadership is acquired -- cannot express renewal at all, and renewal is the
+// only thing that moves a fence. The component reads the view on each use and
+// the elector answers with the version it holds at that moment.
+//
+// Construct the view first, wire it into the component under construction, then
+// gate the finished component:
+//
+//	view := &leadership.SessionView{}
+//	service := scheduling.Service{Repository: store} // Fence supplied per call
+//	worker, err := workqueue.NewWorker(queue, workqueue.HandlerFunc(
+//	    func(ctx context.Context, item workqueue.Item) (workqueue.Result, error) {
+//	        scoped := service
+//	        scoped.Fence = view.Fence()
+//	        return scoped.Handle(ctx, item)
+//	    }), config)
+//	handler, gated, err := leadership.GateComponentWithSession(worker.Component(name), view)
+//
+// GateComponent keeps its signature and its callers: a role that runs
+// leader-only work without writing under a fence gains nothing from a view it
+// would have to ignore.
+func GateComponentWithSession(component servicekit.Component, view *SessionView) (Handler, servicekit.Component, error) {
+	if view == nil {
+		return nil, servicekit.Component{}, invalid(
+			"nil_leadership_session_view",
+			"leader-managed component requires a session view",
+			"leadership.GateComponentWithSession",
+		)
+	}
+	gatedRun, gated, err := GateComponent(component)
+	if err != nil {
+		return nil, servicekit.Component{}, err
+	}
+	// One view, one component. Two gated components sharing a view overwrite
+	// each other's binding, and under two electors they would read an epoch
+	// belonging to a lease they do not hold. Reject that wiring here rather
+	// than let it surface as a fence that is merely wrong. Claimed only after
+	// the component itself validates, so a rejected component does not burn the
+	// caller's view.
+	view.mu.Lock()
+	reused := view.gated
+	view.gated = true
+	view.mu.Unlock()
+	if reused {
+		return nil, servicekit.Component{}, invalid(
+			"leadership_session_view_reused",
+			"session view is already bound to a leader-managed component",
+			"leadership.GateComponentWithSession",
+		)
+	}
+	handler := func(ctx context.Context, session Session) error {
+		view.bind(ctx, session)
+		// Released on every exit path, a panicking component included: an
+		// unwound handler no longer holds the epoch, and a view left published
+		// would keep quoting a fence for a lease nothing is renewing.
+		defer view.release()
+		return gatedRun(ctx, session)
+	}
+	return handler, gated, nil
 }
