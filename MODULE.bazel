@@ -178,6 +178,7 @@ use_repo(
     "org_golang_google_grpc",
     "org_golang_google_protobuf",
     "org_golang_x_crypto",
+    "org_golang_x_oauth2",
 )
 
 # Bazel compiles Go with the SAME version go.mod pins. This was previously impossible and the
