@@ -40,7 +40,11 @@ name = "control.artifacts"
 path = "control/artifacts"
 status = "implemented"
 owner = "platform-control"
-tests = ["control/artifacts/artifacts_test.go"]
+tests = [
+    "control/artifacts/artifacts_test.go",
+    "control/artifacts/catalog_test.go",
+    "control/artifacts/grant_test.go",
+]
 
 [[component]]
 name = "control.admission"

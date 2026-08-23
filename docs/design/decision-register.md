@@ -38,6 +38,7 @@ silently rewrites an earlier decision.
 | ADR-0025 | [Exact training-service composition layer](adr-0025-training-service-composition-layer.md) | Accepted |
 | ADR-0026 | [Workload identity and node placement stay distinct](adr-0026-workload-envelope-identity-and-placement.md) | Accepted |
 | ADR-0027 | [Kernel-enforced syscall confinement](adr-0027-kernel-enforced-syscall-confinement.md) | Accepted |
+| ADR-0028 | [Declared protobuf mirrors bound to the descriptor](adr-0028-declared-protobuf-mirrors.md) | Accepted |
 
 ## Operating policies derived from these decisions
 

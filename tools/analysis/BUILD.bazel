@@ -188,6 +188,16 @@ pytest_test(
     ],
 )
 
+# Only the harness is in data, deliberately. These cases drive it with synthetic registries so
+# that they stay hermetic; pulling run_architecture_checks in would drag the whole checker
+# closure — and its ci/, configs/ and infra/ deps — into a test about the harness itself. The
+# real registry's fixture coverage is enforced by the gate, in the static presubmit.
+pytest_test(
+    name = "gate_falsifiability_test",
+    srcs = ["tests/test_gate_falsifiability.py"],
+    data = ["check_gate_falsifiability.py"],
+)
+
 pytest_test(
     name = "worktree_exclusions_test",
     srcs = ["tests/test_worktree_exclusions.py"],

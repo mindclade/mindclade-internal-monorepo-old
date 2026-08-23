@@ -42,6 +42,17 @@ impl ProviderArtifacts {
         Ok(bytes)
     }
 
+    /// A range read that is verified before it is returned.
+    ///
+    /// The prior implementation called `get_range` directly. `get_range` takes
+    /// no digest and cannot take one — a partial read has no digest to check
+    /// against — so every byte it returned was unverified, from a public method
+    /// on a service whose stated invariant is that unverified bytes are never
+    /// accepted. It is fetched whole and verified, then sliced, which is the
+    /// same tradeoff `TransferEngine::read_range` already makes. Range reads
+    /// are therefore bounded by `maximum_read_bytes`, not by the range length;
+    /// serving a range of an object too large to verify whole needs a per-chunk
+    /// digest in the manifest, which the artifact contract does not carry yet.
     pub async fn read_digest_range(
         &self,
         grant: &ValidatedGrant,
@@ -51,9 +62,22 @@ impl ProviderArtifacts {
         now_unix_millis: u64,
     ) -> FaultResult<Bytes> {
         grant.require_range(digest, length, now_unix_millis)?;
-        self.provider
-            .get_range(&content_path(digest), start, length)
-            .await
+        let bytes = self.read_digest(grant, digest, now_unix_millis).await?;
+        let object_size = byte_len(bytes.len())?;
+        let end = start
+            .checked_add(length)
+            .ok_or_else(|| Fault::new(Code::OutOfRange, "artifact range overflow"))?;
+        if end > object_size {
+            return Err(Fault::new(
+                Code::OutOfRange,
+                "artifact range exceeds object bounds",
+            ));
+        }
+        let start = usize::try_from(start)
+            .map_err(|_| Fault::new(Code::OutOfRange, "range offset exceeds platform usize"))?;
+        let end = usize::try_from(end)
+            .map_err(|_| Fault::new(Code::OutOfRange, "range end exceeds platform usize"))?;
+        Ok(bytes.slice(start..end))
     }
 
     pub async fn publish_content(
