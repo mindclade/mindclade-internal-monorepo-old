@@ -1,5 +1,5 @@
 {
-  "$id": "https://schemas.mindclade.dev/events/v1/envelope.json",
+  "$id": "https://schemas.mindclade.dev/events/training/v1/event-envelope.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
@@ -14,6 +14,7 @@
       "type": "string"
     },
     "aggregate_version": {
+      "maximum": 9007199254740991,
       "minimum": 1,
       "type": "integer"
     },
@@ -26,10 +27,12 @@
       "type": "string"
     },
     "event_id": {
+      "maxLength": 36,
       "pattern": "^evt_[0-9a-f]{32}$",
       "type": "string"
     },
     "occurred_at_unix_millis": {
+      "maximum": 9007199254740991,
       "minimum": 1,
       "type": "integer"
     },
@@ -41,9 +44,11 @@
     "payload": {
       "contentEncoding": "base64",
       "maxLength": 1398104,
+      "pattern": "^[A-Za-z0-9+/]*={0,2}$",
       "type": "string"
     },
     "payload_digest": {
+      "maxLength": 71,
       "pattern": "^sha256:[0-9a-f]{64}$",
       "type": "string"
     },
@@ -58,10 +63,12 @@
       "type": "string"
     },
     "tenant_id": {
+      "maxLength": 39,
       "pattern": "^tenant_[0-9a-f]{32}$",
       "type": "string"
     },
     "workspace_id": {
+      "maxLength": 256,
       "type": "string"
     }
   },

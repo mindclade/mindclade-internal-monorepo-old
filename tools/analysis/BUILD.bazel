@@ -267,6 +267,11 @@ py_binary(
         "//ci/presubmit:pipeline_lib",
         "//configs:contract_validation",
         "//infra/observability:alert_contracts",
+        # The generated-artifact gate is the one checker that does not live in this directory,
+        # so the glob above cannot supply it. It is declared here for the same reason the glob
+        # replaced a hand-written srcs list: a checker this target imports but does not depend
+        # on fails analysis, and the failure names a file nobody touched.
+        "//tools/codegen:verify_generated_lib",
         "//tools/qualification:release_evidence",
     ],
 )

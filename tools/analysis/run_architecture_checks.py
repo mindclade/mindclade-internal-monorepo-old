@@ -17,6 +17,17 @@ sys.dont_write_bytecode = True
 HERE = Path(__file__).resolve().parent
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
+# The generated-artifact gate lives with the generators it verifies, in tools/codegen, rather
+# than being duplicated here: the disposition of each `linguist-generated` rule belongs next to
+# the code that regenerates it, or the two drift apart and the checker starts describing a
+# pipeline that no longer exists. Its static lane is stdlib-only like every checker in this list.
+#
+# Appended rather than prepended. This entry point already puts its own directory first because
+# the sibling checkers must resolve; a second tool directory in front of the standard library is
+# a shadowing hazard for no benefit, since the only name imported from it is unique in the tree.
+CODEGEN = HERE.parent / "codegen"
+if str(CODEGEN) not in sys.path:
+    sys.path.append(str(CODEGEN))
 import check_affected_presubmit
 import check_artifact_gc_contract
 import check_blueprint_scaffold
@@ -40,6 +51,7 @@ import check_mlops_contracts
 import check_rust_implementation
 import check_rust_package_manifest
 import check_rust_workspace
+import verify_generated
 
 
 def _go_layers(root: Path) -> list[str]:
@@ -108,6 +120,7 @@ CHECKS = [
     ("dependency budgets", check_dependency_budgets.check),
     ("dependency layers", check_dependency_layers.check),
     ("foundation consumption", check_foundation_consumption.check),
+    ("generated artifacts", verify_generated.check),
     ("control-plane commands", check_control_plane_commands.check),
     ("Go command composition", check_go_command_composition.check),
     ("Go layers and paved roads", _go_layers),

@@ -4,4 +4,150 @@
 #
 
 ---
-# Scaffold configuration; promotion requires schema validation.
+# Event <-> protobuf projection policy.
+#
+# tools/codegen/generate_jsonschema.py reads this file together with the governed descriptor
+# surface named below and writes every schema under protocols/events/generated/. Those files are
+# derived output: edit this policy or the .proto, never the generated JSON.
+#
+# The descriptor decides STRUCTURE — which fields exist, their protobuf types, their field
+# numbers. This file may only REFINE what the descriptor already says (tighten a range, add a
+# pattern, declare which fields are required on the wire). It cannot add a property the message
+# does not have, contradict a projected JSON type, or widen a protobuf range; the generator
+# rejects all three. That asymmetry is what makes a dropped or retyped proto field a build
+# failure instead of a silent producer/consumer disagreement.
+#
+# Every refinement below is a bound the protobuf type does not carry. The generator REQUIRES a
+# bound for each unbounded projection — `maxLength` for string and bytes, `maxItems` for
+# repeated, and both `minimum` and `maximum` for 64-bit integers, which JSON numbers cannot
+# represent past 2^53-1. An unbounded wire field is a parser with no limit.
+{
+  "schema_version": 1,
+  "descriptor_surface": "protocols/compatibility/protobuf-v1-descriptor.json",
+  "output_root": "protocols/events/generated",
+  "id_prefix": "https://schemas.mindclade.dev/events/",
+  "messages": {
+    "mindclade.events.v1.EventEnvelope": {
+      "title": "Mindclade durable event envelope",
+      "required": [
+        "event_id",
+        "schema",
+        "tenant_id",
+        "aggregate_kind",
+        "aggregate_id",
+        "aggregate_version",
+        "ordering_key",
+        "occurred_at_unix_millis",
+        "payload_type",
+        "payload",
+        "payload_digest"
+      ],
+      "fields": {
+        "aggregate_id": {"maxLength": 256, "minLength": 1},
+        "aggregate_kind": {"maxLength": 128, "minLength": 1},
+        "aggregate_version": {"maximum": 9007199254740991, "minimum": 1},
+        "causation_id": {"maxLength": 256},
+        "correlation_id": {"maxLength": 256},
+        "event_id": {"maxLength": 36, "pattern": "^evt_[0-9a-f]{32}$"},
+        "occurred_at_unix_millis": {"maximum": 9007199254740991, "minimum": 1},
+        "ordering_key": {"maxLength": 256, "minLength": 1},
+        "payload": {"maxLength": 1398104},
+        "payload_digest": {"maxLength": 71, "pattern": "^sha256:[0-9a-f]{64}$"},
+        "payload_type": {"maxLength": 256, "minLength": 1},
+        "schema": {"maxLength": 256, "minLength": 1},
+        "tenant_id": {"maxLength": 39, "pattern": "^tenant_[0-9a-f]{32}$"},
+        "workspace_id": {"maxLength": 256}
+      }
+    }
+  },
+  "projections": [
+    {
+      "kind": "message",
+      "message": "mindclade.events.v1.EventEnvelope",
+      "path": "artifact/v1/event-envelope.schema.json"
+    },
+    {
+      "kind": "message",
+      "message": "mindclade.events.v1.EventEnvelope",
+      "path": "data/v1/event-envelope.schema.json"
+    },
+    {
+      "kind": "message",
+      "message": "mindclade.events.v1.EventEnvelope",
+      "path": "evaluation/v1/event-envelope.schema.json"
+    },
+    {
+      "kind": "message",
+      "message": "mindclade.events.v1.EventEnvelope",
+      "path": "model/v1/event-envelope.schema.json"
+    },
+    {
+      "kind": "message",
+      "message": "mindclade.events.v1.EventEnvelope",
+      "path": "orchestration/v1/event-envelope.schema.json"
+    },
+    {
+      "kind": "message",
+      "message": "mindclade.events.v1.EventEnvelope",
+      "path": "runtime/v1/event-envelope.schema.json"
+    },
+    {
+      "kind": "message",
+      "message": "mindclade.events.v1.EventEnvelope",
+      "path": "security/v1/event-envelope.schema.json"
+    },
+    {
+      "kind": "message",
+      "message": "mindclade.events.v1.EventEnvelope",
+      "path": "training/v1/event-envelope.schema.json"
+    },
+    {
+      "kind": "payload_union",
+      "path": "artifact/v1/artifact-events.schema.json",
+      "payload_messages": [],
+      "title": "Mindclade artifact v1 domain event payloads"
+    },
+    {
+      "kind": "payload_union",
+      "path": "data/v1/data-events.schema.json",
+      "payload_messages": [],
+      "title": "Mindclade data v1 domain event payloads"
+    },
+    {
+      "kind": "payload_union",
+      "path": "evaluation/v1/evaluation-events.schema.json",
+      "payload_messages": [],
+      "title": "Mindclade evaluation v1 domain event payloads"
+    },
+    {
+      "kind": "payload_union",
+      "path": "model/v1/model-events.schema.json",
+      "payload_messages": [],
+      "title": "Mindclade model v1 domain event payloads"
+    },
+    {
+      "kind": "payload_union",
+      "path": "orchestration/v1/orchestration-events.schema.json",
+      "payload_messages": [],
+      "title": "Mindclade orchestration v1 domain event payloads"
+    },
+    {
+      "kind": "payload_union",
+      "path": "runtime/v1/runtime-events.schema.json",
+      "payload_messages": [],
+      "title": "Mindclade runtime v1 domain event payloads"
+    },
+    {
+      "kind": "payload_union",
+      "path": "security/v1/security-events.schema.json",
+      "payload_messages": [],
+      "title": "Mindclade security v1 domain event payloads"
+    },
+    {
+      "kind": "payload_union",
+      "path": "training/v1/training-events.schema.json",
+      "payload_messages": [],
+      "title": "Mindclade training v1 domain event payloads"
+    }
+  ]
+}
