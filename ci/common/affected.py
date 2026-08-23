@@ -596,16 +596,13 @@ def _safe_bazel_output_symlink(relative: str, *, root: Path) -> bool:
     if len(positions) != 1:
         return False
     index = positions[0]
-    if index < 2:
-        return False
-    output_user = parts[index - 2]
-    workspace_hash = parts[index - 1]
-    if (
-        not output_user.startswith("_bazel_")
-        or len(workspace_hash) != 32
-        or workspace_hash != workspace_hash.lower()
-        or any(character not in "0123456789abcdef" for character in workspace_hash)
-    ):
+    # Require at least one path component before execroot so the target cannot
+    # be something like /execroot/_main. A custom --output_base (e.g. the
+    # /home/runner/.bazel path set by the GitHub-hosted runner) produces a
+    # shorter prefix than the default _bazel_<user>/<hash> layout; the
+    # structural checks below (absolute, outside workspace, execroot suffix)
+    # are sufficient to establish legitimacy without hard-coding one layout.
+    if index < 1:
         return False
 
     suffix = parts[index:]

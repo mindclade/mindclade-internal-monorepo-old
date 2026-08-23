@@ -688,6 +688,34 @@ def test_checkout_integrity_allows_only_canonical_generated_bazel_state(
     affected.assert_clean_checkout(head, **arguments)
 
 
+def test_checkout_integrity_allows_custom_output_base_bazel_symlinks(
+    tmp_path: Path,
+) -> None:
+    """A runner with --output_base=/some/flat/path must not be rejected.
+
+    GitHub-hosted runners set --output_base=/home/runner/.bazel via the
+    runner's personal .bazelrc.  That path resolves to
+    .../.bazel/execroot/_main/... instead of the default
+    ..._bazel_<user>/<hash>/execroot/_main/... layout.  The symlink validator
+    must accept both forms.
+    """
+    root, head = _initialized_git_repo(tmp_path / "repo")
+    arguments = _disk_checkout_arguments(root)
+    # Simulate --output_base=/home/runner/.bazel: no _bazel_<user>/<hash> prefix.
+    execroot = tmp_path / ".bazel" / "execroot" / "_main"
+    configuration = execroot / "bazel-out" / "k8-fastbuild"
+    (configuration / "bin").mkdir(parents=True)
+    (configuration / "testlogs").mkdir()
+    for name, target in {
+        f"bazel-{root.name}": execroot,
+        "bazel-out": execroot / "bazel-out",
+        "bazel-bin": configuration / "bin",
+        "bazel-testlogs": configuration / "testlogs",
+    }.items():
+        (root / name).symlink_to(target)
+    affected.assert_clean_checkout(head, **arguments)
+
+
 @pytest.mark.parametrize(
     "relative",
     ["secret.auto.tfvars", ".venv/secret.py", ".ignored/secret.txt"],
