@@ -65,38 +65,30 @@ OPTIONAL_FIELDS = {"workspace_id", "correlation_id", "causation_id"}
 JSON_TYPE_FOR = {"string": "string", "uint64": "integer", "bytes": "string"}
 
 
-def _schema_canonical(path: Path) -> bytes:
-    """Return a canonical serialization of the schema with ``$id`` excluded.
-
-    Each domain copy carries a distinct ``$id`` (e.g.
-    ``https://schemas.mindclade.dev/events/runtime/v1/event-envelope.json``)
-    so that schema tooling can resolve it in a self-contained bundle.  That
-    field is intentionally per-domain and must not be treated as drift when
-    comparing whether all copies carry the same contract.
-    """
-    schema = json.loads(path.read_bytes())
-    schema.pop("$id", None)
-    return json.dumps(schema, sort_keys=True, indent=2).encode()
-
-
 def test_every_domain_publishes_the_identical_envelope_schema():
-    """One envelope contract, eight published copies; they must not diverge.
+    """One envelope contract, eight published copies; only their authority IDs differ.
 
     Each domain gets its own file so its generated bundle is self-contained. A
     consumer that validates against the artifact schema and a producer that
-    emits against the training schema have to agree, so the copies are compared
-    field for field (excluding the domain-specific ``$id``) rather than merely
-    being present.
+    emits against the training schema have to agree, so every keyword other
+    than the domain-specific ``$id`` is compared structurally.
     """
     domains = event_domains()
     assert domains, f"no event domains under {GENERATED}"
     missing = [name for name in domains if not (GENERATED / name / "v1" / SCHEMA_NAME).is_file()]
     assert not missing, f"event domains published with no envelope schema: {missing}"
     reference_path = GENERATED / domains[0] / "v1" / SCHEMA_NAME
-    reference = _schema_canonical(reference_path)
+    reference = json.loads(reference_path.read_text())
+    reference_id = reference.pop("$id")
+    assert (
+        reference_id == f"https://schemas.mindclade.dev/events/{domains[0]}/v1/event-envelope.json"
+    )
     for name in domains[1:]:
         path = GENERATED / name / "v1" / SCHEMA_NAME
-        assert _schema_canonical(path) == reference, (
+        candidate = json.loads(path.read_text())
+        schema_id = candidate.pop("$id")
+        assert schema_id == f"https://schemas.mindclade.dev/events/{name}/v1/event-envelope.json"
+        assert candidate == reference, (
             f"{path.relative_to(ROOT)} has drifted from {reference_path.relative_to(ROOT)}"
         )
 
@@ -136,10 +128,9 @@ def test_schema_types_match_the_declared_wire_types(envelope_schema, envelope_pr
             )
 
 
-# Ratchet, not an allowlist. Every string in the envelope must carry either a
-# maxLength or a length-fixing anchored pattern. The set is asserted exactly so
-# this can only shrink: a new unbounded field fails, and removing an entry once
-# the schema is fixed is required.
+# Ratchet, not an allowlist. Every string in the generated envelope schemas now
+# carries either a maxLength or a length-fixing anchored pattern. The set is
+# asserted exactly so a newly unbounded field fails closed.
 UNBOUNDED_ENVELOPE_STRINGS: set[str] = set()
 
 # `*`, `+`, and `{n,}` are open-ended, so `^workspace_.*$` is anchored and still
