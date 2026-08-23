@@ -122,9 +122,7 @@ def main() -> int:
     dispatch.mkdir(exist_ok=True)
     for format_name, selector in TEXT_DOCUMENT_SELECTOR.items():
         body = next(iter(SEEDS[format_name].values()))
-        (dispatch / f"{format_name}.bin").write_bytes(
-            HEADER + bytes([selector]) + body
-        )
+        (dispatch / f"{format_name}.bin").write_bytes(HEADER + bytes([selector]) + body)
         written += 1
 
     print(f"wrote {written} synthetic corpus seeds")
