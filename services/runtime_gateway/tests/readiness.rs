@@ -18,6 +18,7 @@
 use mindclade_content_digest::{Digest, hash_bytes};
 use mindclade_faults::FaultResult;
 use mindclade_identifiers::ResourceId;
+use mindclade_runtime_gateway::host_probe;
 use mindclade_runtime_gateway::network::{self, GatewayNetworkState};
 use mindclade_runtime_gateway::{
     GatewayComponent, GatewayConfig, GatewayCore, GatewayHealth, PolicyCache,
@@ -43,12 +44,10 @@ const PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 /// Bounds the response read; a status line plus axum's headers is far smaller.
 const MAX_RESPONSE_BYTES: usize = 4 * 1024;
 /// Bounds every readiness poll. The probe republishes every
-/// `PROBE_INTERVAL`, so this allows several full rounds and then fails rather
-/// than looping forever.
+/// `host_probe::PROBE_INTERVAL`, so this allows several full rounds and then
+/// fails rather than looping forever.
 const SETTLE_ATTEMPTS: u32 = 200;
 const SETTLE_INTERVAL: Duration = Duration::from_millis(50);
-/// Reachability-probe cadence.
-const PROBE_INTERVAL: Duration = Duration::from_secs(2);
 
 /// The full readiness transition a readiness probe would observe.
 ///
@@ -97,7 +96,7 @@ async fn readyz_stays_unready_while_the_runtime_host_is_absent() {
             503,
             "readiness must not be asserted against an absent runtime host"
         );
-        tokio::time::sleep(PROBE_INTERVAL / 4).await;
+        tokio::time::sleep(host_probe::PROBE_INTERVAL / 4).await;
     }
     assert!(!harness.core.health_snapshot().ready());
     // Liveness is unaffected: the gateway process itself is healthy.
@@ -119,7 +118,7 @@ async fn readyz_stays_unready_for_an_endpoint_dispatch_could_not_use() {
             503,
             "a non-unix route endpoint is unusable by dispatch and must not read as ready"
         );
-        tokio::time::sleep(PROBE_INTERVAL / 4).await;
+        tokio::time::sleep(host_probe::PROBE_INTERVAL / 4).await;
     }
 
     harness.shutdown().await;
@@ -131,6 +130,7 @@ struct Harness {
     address: SocketAddr,
     shutdown: watch::Sender<bool>,
     server: tokio::task::JoinHandle<Result<(), std::io::Error>>,
+    probe: tokio::task::JoinHandle<FaultResult<()>>,
 }
 
 impl core::fmt::Debug for Harness {
@@ -170,13 +170,16 @@ impl Harness {
         let state = GatewayNetworkState::new(core.clone(), 64 * 1024, 64 * 1024, false)
             .expect("gateway network state");
         let (shutdown, shutdown_rx) = watch::channel(false);
-        let server = tokio::spawn(network::serve(address, state, shutdown_rx));
+        // Exactly the arms `bootstrap::run` joins, on the same shutdown channel.
+        let server = tokio::spawn(network::serve(address, state, shutdown_rx.clone()));
+        let probe = tokio::spawn(host_probe::run(policy, health, shutdown_rx));
         wait_until_serving(address).await;
         Self {
             core,
             address,
             shutdown,
             server,
+            probe,
         }
     }
 
@@ -207,6 +210,13 @@ impl Harness {
             .await
             .expect("serve task")
             .expect("graceful gateway shutdown");
+        // The probe must exit on the same signal rather than outliving the
+        // process it reports for.
+        timeout(PROBE_TIMEOUT, self.probe)
+            .await
+            .expect("probe exits within its shutdown bound")
+            .expect("probe task")
+            .expect("probe exits cleanly");
     }
 }
 
