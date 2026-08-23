@@ -34,7 +34,6 @@ go_test(
     embed = [":postgres"],
     deps = [
         "//libs/go/faults",
-        "//libs/go/servicekit",
         "//libs/go/storage/sql/sqltest",
     ],
 )

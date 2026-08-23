@@ -60,3 +60,15 @@ go_test(
         "//libs/go/resourceversion",
     ],
 )
+
+go_test(
+    name = "cross_language_test",
+    srcs = ["golden_test.go"],
+    deps = [
+        "//control/artifacts",
+        "//control/registry/models",
+        "//control/runtime_authority",
+        "//libs/go/identifiers",
+        "//libs/go/resourceversion",
+    ],
+)

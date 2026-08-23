@@ -18,4 +18,5 @@ go_test(
     name = "metrics_test",
     srcs = ["metrics_test.go"],
     embed = [":metrics"],
+    deps = ["//libs/go/observability"],
 )

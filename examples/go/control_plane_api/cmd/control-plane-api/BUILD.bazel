@@ -3,14 +3,20 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_go//go:def.bzl", "go_binary")
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
 
 package(default_visibility = ["//visibility:private"])
 
 go_binary(
     name = "control-plane-api",
-    srcs = ["main.go"],
+    embed = [":control-plane-api_lib"],
     importpath = "go.mindclade.dev/examples/go/control_plane_api/cmd/control-plane-api",
     visibility = ["//visibility:public"],
+)
+
+go_library(
+    name = "control-plane-api_lib",
+    srcs = ["main.go"],
+    importpath = "go.mindclade.dev/examples/go/control_plane_api/cmd/control-plane-api",
     deps = ["//examples/go/control_plane_api"],
 )

@@ -25,9 +25,8 @@ go_library(
 go_test(
     name = "memory_test",
     srcs = ["store_test.go"],
-    embed = [":memory"],
     deps = [
+        ":memory",
         "//libs/go/coordination/cursor",
-        "//libs/go/coordination/cursor/cursortest",
     ],
 )

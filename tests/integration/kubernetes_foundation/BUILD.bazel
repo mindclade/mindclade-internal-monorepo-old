@@ -25,3 +25,19 @@ go_test(
         "@io_k8s_apimachinery//pkg/watch",
     ],
 )
+
+go_test(
+    name = "kubernetes_foundation_test",
+    srcs = ["reconcile_helpers_test.go"],
+    deps = [
+        "//libs/go/kubernetes/finalizers",
+        "//libs/go/kubernetes/ownerrefs",
+        "//libs/go/kubernetes/status",
+        "//libs/go/kubernetes/watch",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_apimachinery//pkg/runtime",
+        "@io_k8s_apimachinery//pkg/runtime/schema",
+        "@io_k8s_apimachinery//pkg/types",
+        "@io_k8s_apimachinery//pkg/watch",
+    ],
+)

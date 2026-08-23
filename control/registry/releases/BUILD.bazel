@@ -29,4 +29,8 @@ go_test(
     name = "releases_test",
     srcs = glob(["*_test.go"]),
     embed = [":releases"],
+    deps = [
+        "//control/artifacts",
+        "//libs/go/identifiers",
+    ],
 )

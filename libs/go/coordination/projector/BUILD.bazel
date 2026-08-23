@@ -32,8 +32,8 @@ go_library(
 go_test(
     name = "projector_test",
     srcs = ["projector_test.go"],
-    embed = [":projector"],
     deps = [
+        ":projector",
         "//libs/go/coordination/cursor",
         "//libs/go/coordination/cursor/memory",
         "//libs/go/coordination/inbox",

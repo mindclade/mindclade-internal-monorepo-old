@@ -27,3 +27,21 @@ go_test(
         "@org_golang_google_grpc//health/grpc_health_v1",
     ],
 )
+
+go_test(
+    name = "transport_foundation_test",
+    srcs = ["transport_harness_test.go"],
+    deps = [
+        "//libs/go/connectx/connecttest",
+        "//libs/go/connectx/health",
+        "//libs/go/faults",
+        "//libs/go/grpcx/grpctest",
+        "//libs/go/grpcx/health",
+        "//libs/go/httpx",
+        "//libs/go/httpx/httpxtest",
+        "//libs/go/servicekit",
+        "@com_connectrpc_connect//:connect",
+        "@org_golang_google_grpc//:grpc",
+        "@org_golang_google_grpc//health/grpc_health_v1",
+    ],
+)

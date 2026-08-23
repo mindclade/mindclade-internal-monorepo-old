@@ -8,13 +8,25 @@ load("//tools/build:pytest.bzl", "pytest_test")
 package(default_visibility = ["//visibility:private"])
 
 py_library(
+    name = "affected_contract",
+    srcs = ["affected_contract.py"],
+    data = ["affected_global_inputs.json"],
+    imports = ["../.."],
+    visibility = [
+        "//tools/analysis:__pkg__",
+    ],
+)
+
+py_library(
     name = "affected",
     srcs = ["affected.py"],
+    data = ["affected_global_inputs.json"],
     imports = ["../.."],
     visibility = [
         "//ci/nightly:__pkg__",
         "//ci/presubmit:__pkg__",
     ],
+    deps = [":affected_contract"],
 )
 
 py_library(
@@ -26,9 +38,11 @@ py_library(
 py_binary(
     name = "affected_cli",
     srcs = ["affected.py"],
+    data = ["affected_global_inputs.json"],
     imports = ["../.."],
     main = "affected.py",
     visibility = ["//visibility:public"],
+    deps = [":affected_contract"],
 )
 
 py_binary(

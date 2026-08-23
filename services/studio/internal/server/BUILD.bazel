@@ -39,6 +39,10 @@ go_test(
     embed = [":server"],
     deps = [
         "//libs/go/observability",
+        "//services/studio/internal/httpx",
+        "//services/studio/internal/iap",
+        "//services/studio/internal/metrics",
+        "//services/studio/internal/session",
         "@com_github_lib_pq//:pq",
     ],
 )

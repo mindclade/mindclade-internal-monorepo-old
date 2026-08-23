@@ -57,6 +57,42 @@ def test_global_changes_force_full_graph(tmp_path: Path, path: str, reason: str)
     assert selection.test_targets == ("//...",)
 
 
+def test_global_input_contract_covers_dependency_and_workspace_inputs() -> None:
+    contract = affected.load_global_input_contract()
+    assert {
+        ".bazelignore",
+        "MODULE.bazel.lock",
+        "nix.conf",
+        "requirements.darwin.lock.txt",
+        "requirements.lock.txt",
+        "rust-toolchain.toml",
+    } <= contract.exact_paths
+    assert "tools/build/" in contract.prefixes
+
+
+def test_global_input_contract_rejects_unordered_values(tmp_path: Path) -> None:
+    path = tmp_path / "affected_global_inputs.json"
+    path.write_text(
+        json.dumps(
+            {
+                "activation": {},
+                "schema_version": 1,
+                "exact_paths": ["z", "a"],
+                "prefixes": ["ci/"],
+                "review_boundaries": {"": ["ci"]},
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-GLOBAL-003\]"):
+        affected.load_global_input_contract(path)
+
+
+def test_missing_global_input_contract_fails_closed(tmp_path: Path) -> None:
+    with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-GLOBAL-001\]"):
+        affected.load_global_input_contract(tmp_path / "missing.json")
+
+
 @pytest.mark.parametrize("status", ["C", "D", "R", "T", "U", "X", "B"])
 def test_structural_changes_force_full_graph(tmp_path: Path, status: str) -> None:
     selection = _select(
@@ -110,7 +146,11 @@ def test_affected_selection_uses_bazel_rdeps_and_tests(tmp_path: Path) -> None:
     assert selection.reason == "bazel_reverse_dependencies"
     assert selection.seeds == ("//pkg:*",)
     assert selection.analysis_targets == ("//consumer:binary", "//pkg:library")
-    assert selection.test_targets == ("//consumer:library_test", "//pkg:library_test")
+    assert selection.test_targets == (
+        "//:gazelle_check",
+        "//consumer:library_test",
+        "//pkg:library_test",
+    )
     assert len(expressions) == 2
     assert all('rdeps(//..., set("//pkg:*"))' in expression for expression in expressions)
     assert all('attr("tags", "[\\\\[ ]manual[,\\\\]]"' in expression for expression in expressions)
