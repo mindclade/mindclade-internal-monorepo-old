@@ -16,6 +16,16 @@ single-purpose crates.
 Legacy crates remain for one compatibility epoch. New compatibility edges are
 rejected by `check_rust_workspace.py`.
 
+> **Epoch closed, 2026-08.** The decision above stands as recorded, but the
+> compatibility window it opened is shut. The seven legacy crates — `clock`,
+> `retry`, `resource_version`, `observability`, `artifact_manifest`, `byte_spec`,
+> and `python_bindings` — were **removed outright**, not retained as facades:
+> their directories, workspace members, and `Cargo.lock` entries are gone, so a
+> stale import is a compile error rather than a deprecation warning. `BASELINE`
+> in `tools/analysis/check_rust_workspace.py` is now empty, which means no
+> compatibility edge is grandfathered any more. See
+> `libs/rust/MIGRATION_2026_08.md`.
+
 ## Rationale
 
 Rust must be as deep operationally as Go while remaining complementary. The

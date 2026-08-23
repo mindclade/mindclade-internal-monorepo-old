@@ -30,14 +30,22 @@ execution concerns into cohesive production crates.
 - `python_bridge`: leaf in-process bridge primitives; long-lived workers stay
   process isolated.
 
-## Compatibility epoch
+## Compatibility epoch (closed)
 
 The uploaded library exposed earlier crates such as `clock`, `retry`,
 `resource_version`, `byte_spec`, `artifact_manifest`, `observability`, and
-`python_bindings`. They remain for one migration epoch so existing code is not
-needlessly broken. `check_rust_workspace.py` records the exact legacy
-compatibility edges and rejects **new** consumers. New source must use the
-canonical crates above.
+`python_bindings`. The migration epoch is **over**: all seven were removed
+outright, not kept as facades. They are gone from `libs/rust/`, from the
+workspace members, and from `Cargo.lock`, so a stale import of one is a compile
+error rather than a deprecation warning.
+
+`BASELINE` in `check_rust_workspace.py` is now empty — there are no legacy
+compatibility edges left to record, so *every* edge to a retired crate is
+rejected, not just new ones.
+`tools/analysis/check_code_docs_alignment.py` additionally fails if any
+`libs/rust/<name>` directory reappears or if any file under `libs/rust` names one
+of the retired crates. All source must use the canonical crates above; see
+`docs/migrations/rust-compatibility-crates.md` for the name-by-name mapping.
 
 ## Safety/dependencies
 
