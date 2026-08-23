@@ -6,6 +6,15 @@
 schema_version = 1
 statuses = ["planned", "scaffolded", "experimental", "implemented", "qualified", "production", "deprecated"]
 
+# `production_dependency = false` is a policy declaration with no enforcer. Nothing reads it:
+# components.toml records no dependency edges, so a static reader of these two files cannot
+# tell whether a production component depends on a scaffolded one. It is vacuously satisfied
+# today because no component is `production`, and it stays vacuous until either components.toml
+# carries edges or the rule is joined against an import graph. Do not read a passing
+# `check_component_maturity` run as evidence that this clause was checked: the wider invariant
+# is already breached, with `control/ingestion` (implemented) importing the undeclared
+# `control/orchestration` from production code. See
+# docs/qualification/component-maturity-gap-matrix.md.
 [rules.planned]
 production_dependency = false
 [rules.scaffolded]
