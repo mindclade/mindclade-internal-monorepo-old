@@ -47,6 +47,9 @@ base and falls back to the ordinary pull-request base for a direct pull request.
 Selection keeps the immediate parent SHA so stacked layers remain independently
 reviewable. If cache trust rejects an event, persistent-cache measurement is
 skipped and metrics record that skip without obscuring the primary rejection.
+Every repository Python launch through checkout-integrity validation disables
+bytecode writes; the lane cannot invalidate its own pristine-checkout assertion
+by creating an ignored `__pycache__` directory before the assertion runs.
 
 The selector still loads the full unconfigured Bazel universe. It reduces
 configured analysis, compilation, and test execution; it does not promise that

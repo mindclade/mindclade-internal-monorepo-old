@@ -82,6 +82,7 @@ def assert_remote_cache_command(
 ) -> None:
     assert python_invocation(step) == [
         "python3",
+        "-B",
         "ci/common/bazel_remote_cache.py",
         command,
         *arguments,

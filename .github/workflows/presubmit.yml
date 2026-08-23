@@ -455,7 +455,7 @@ jobs:
           REF_PROTECTED: ${{ github.ref_protected }}
         run: |
           set -euo pipefail
-          python3 ci/common/bazel_remote_cache.py select \
+          python3 -B ci/common/bazel_remote_cache.py select \
             --contract ci/bazel_cache/activation.json \
             --repository-state "${BAZEL_REMOTE_CACHE_STATE}" \
             --workflow presubmit \
@@ -485,7 +485,7 @@ jobs:
           RUNNER_ARCH: ${{ runner.arch }}
         run: |
           set -euo pipefail
-          python3 ci/common/bazel_disk_cache.py select-trust \
+          python3 -B ci/common/bazel_disk_cache.py select-trust \
             --workflow presubmit \
             --event "${GITHUB_EVENT_NAME}" \
             --ref "${GITHUB_REF}" \
@@ -522,7 +522,7 @@ jobs:
           BAZEL_CACHE_RESTORE_OUTCOME: ${{ steps.bazel-disk-cache.outcome }}
         run: |
           set -euo pipefail
-          python3 ci/common/bazel_disk_cache.py configure \
+          python3 -B ci/common/bazel_disk_cache.py configure \
             --cache-dir "${RUNNER_TEMP}/mindclade-bazel-disk-cache" \
             --workspace "${GITHUB_WORKSPACE}" \
             --bazelrc "${GITHUB_WORKSPACE}/user.bazelrc" \
@@ -588,7 +588,7 @@ jobs:
           WIF_PROVIDER_BAZEL_CACHE: ${{ vars.WIF_PROVIDER_BAZEL_CACHE }}
         run: |
           set -euo pipefail
-          python3 ci/common/bazel_remote_cache.py start \
+          python3 -B ci/common/bazel_remote_cache.py start \
             --binary "${CACHE_BINARY}" \
             --workspace "${GITHUB_WORKSPACE}" \
             --bazelrc "${GITHUB_WORKSPACE}/user.bazelrc" \
@@ -617,17 +617,17 @@ jobs:
       - name: Prove affected selection against the real Bazel graph
         run: >-
           nix develop .#ci-bazel --command
-          python3 ci/common/validate_affected_integration.py
+          python3 -B ci/common/validate_affected_integration.py
 
       - name: Enforce Bazel dependency layers
-        run: nix develop .#ci-bazel --command python3 tools/analysis/check_bazel_layers.py
+        run: nix develop .#ci-bazel --command python3 -B tools/analysis/check_bazel_layers.py
 
       - name: Validate and resolve the registered C/C++ toolchain
         run: |
-          nix develop .#ci-bazel --command python3 tools/analysis/validate_cc_toolchain_bundle.py
+          nix develop .#ci-bazel --command python3 -B tools/analysis/validate_cc_toolchain_bundle.py
           nix develop .#ci-bazel --command tools/dev/bazelw test \
             //tools/build/bazel/toolchains/cc:smoke_test --config=ci
-          nix develop .#ci-bazel --command python3 tools/analysis/verify_cc_toolchain_selection.py
+          nix develop .#ci-bazel --command python3 -B tools/analysis/verify_cc_toolchain_selection.py
 
       - name: Run event-governed Bazel validation
         env:
@@ -639,7 +639,7 @@ jobs:
         # retained for future activation, but every protected event currently resolves to full.
         run: >-
           /nix/var/nix/profiles/default/bin/nix develop .#ci-bazel
-          --command python3 -I ci/presubmit/pipeline.py
+          --command python3 -B -I ci/presubmit/pipeline.py
           --bazel-only
           --mode auto
           --base "${PR_BASE_SHA}"
@@ -661,7 +661,7 @@ jobs:
         continue-on-error: true
         run: |
           set -euo pipefail
-          nix develop .#ci-bazel --command python3 ci/common/bazel_disk_cache.py measure \
+          nix develop .#ci-bazel --command python3 -B ci/common/bazel_disk_cache.py measure \
             --cache-dir "${RUNNER_TEMP}/mindclade-bazel-disk-cache" \
             --workspace "${GITHUB_WORKSPACE}" \
             --bazel-wrapper "${GITHUB_WORKSPACE}/tools/dev/bazelw" \
@@ -703,7 +703,7 @@ jobs:
           CACHE_SAVE_OUTCOME: ${{ steps.bazel-cache-save.outcome }}
         run: |
           set -euo pipefail
-          python3 ci/common/bazel_disk_cache.py record-metrics \
+          python3 -B ci/common/bazel_disk_cache.py record-metrics \
             --evidence-dir "${RUNNER_TEMP}/bazel-evidence" \
             --summary "${GITHUB_STEP_SUMMARY}" \
             --role "${CACHE_ROLE}" \
@@ -727,7 +727,7 @@ jobs:
           CACHE_ROLE: ${{ steps.bazel-remote-cache.outputs.role }}
         run: |
           set -euo pipefail
-          python3 ci/common/bazel_remote_cache.py record-stop \
+          python3 -B ci/common/bazel_remote_cache.py record-stop \
             --runtime-dir "${RUNNER_TEMP}/mindclade-bazel-remote-cache" \
             --evidence-dir "${RUNNER_TEMP}/bazel-evidence" \
             --summary "${GITHUB_STEP_SUMMARY}" \

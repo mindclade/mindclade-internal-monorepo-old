@@ -76,6 +76,9 @@ For a native GitHub stack, cache trust and remote-cache routing use
 protected target; a direct pull request falls back to `pull_request.base`. The
 affected-selection input deliberately keeps the immediate `pull_request.base.sha`
 so a future activated selector compares only the current stack layer.
+Both the presubmit and nightly Bazel jobs launch repository Python with `-B`
+through checkout-integrity validation, preventing their own imports from creating
+ignored bytecode directories inside the governed checkout.
 
 ## Buildkite retirement status
 

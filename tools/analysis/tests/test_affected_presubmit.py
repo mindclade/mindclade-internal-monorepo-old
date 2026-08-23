@@ -239,6 +239,25 @@ def test_presubmit_skips_disk_cache_measurement_after_trust_rejection() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    "step_name",
+    [
+        "Select qualified Bazel remote-cache route",
+        "Prove affected selection against the real Bazel graph",
+        "Run event-governed Bazel validation",
+    ],
+)
+def test_presubmit_rejects_checkout_local_python_bytecode(step_name: str) -> None:
+    workflow = _presubmit_workflow()
+    step = next(
+        item for item in workflow["jobs"]["bazel"]["steps"] if item.get("name") == step_name
+    )
+    step["run"] = step["run"].replace("python3 -B", "python3", 1)
+    assert "[AFFECTED-WORKFLOW-012] presubmit Python launch is invalid" in (
+        check_affected_presubmit._presubmit_workflow_errors(workflow)
+    )
+
+
 def test_workflow_parser_rejects_duplicate_keys() -> None:
     with pytest.raises(workflow_yaml.WorkflowYamlError) as captured:
         workflow_yaml.parse_workflow_text("name: first\nname: second\n")
@@ -510,6 +529,25 @@ def test_nightly_requires_cache_route_arguments(flag: str) -> None:
     argument = "${BAZEL_CACHE_MODE}" if flag == "--cache-mode" else "${BAZEL_CACHE_ROLE}"
     step["run"] = step["run"].replace(f' {flag} "{argument}"', "")
     assert "[AFFECTED-WORKFLOW-005] nightly Bazel command is invalid" in (
+        check_affected_presubmit._nightly_workflow_errors(workflow)
+    )
+
+
+@pytest.mark.parametrize(
+    "step_name",
+    [
+        "Select qualified nightly Bazel remote-cache route",
+        "Validate complete loading, formatting, and layer policy",
+        "Analyze and test the complete configured graph",
+    ],
+)
+def test_nightly_rejects_checkout_local_python_bytecode(step_name: str) -> None:
+    workflow = _nightly_workflow()
+    step = next(
+        item for item in workflow["jobs"]["bazel-nightly"]["steps"] if item.get("name") == step_name
+    )
+    step["run"] = step["run"].replace("python3 -B", "python3", 1)
+    assert "[AFFECTED-WORKFLOW-012] nightly Python launch is invalid" in (
         check_affected_presubmit._nightly_workflow_errors(workflow)
     )
 

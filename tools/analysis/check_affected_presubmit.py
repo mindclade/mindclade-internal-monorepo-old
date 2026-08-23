@@ -51,6 +51,7 @@ PRESUBMIT_BAZEL_COMMAND = (
     ".#ci-bazel",
     "--command",
     "python3",
+    "-B",
     "-I",
     "ci/presubmit/pipeline.py",
     "--bazel-only",
@@ -81,6 +82,7 @@ NIGHTLY_BAZEL_COMMAND = (
     ".#ci-bazel",
     "--command",
     "python3",
+    "-B",
     "-I",
     "ci/nightly/pipeline.py",
     "--event",
@@ -125,11 +127,11 @@ PRESUBMIT_BAZEL_STEP_CONTRACT = (
     ),
     (
         "name:Select qualified Bazel remote-cache route",
-        "1344f49d2628187001fb0f216abc35266e45c2a7ab8e008e07adc10385237f9f",
+        "17f1e826fbd763e44b11c1d9b11e8f21b62c8fde215ec4e63810bc6ad168473c",
     ),
     (
         "name:Select trusted Bazel cache revision",
-        "6e67eaf195aed5c9466d155755f025351036252d6feeff6ad89d34f06b441a70",
+        "bea656ab62c9f9a001e3c1ad62af6470630387cdc39aa490946410a3d9d6ba8e",
     ),
     (
         "name:Restore trusted Bazel persistent action cache",
@@ -137,7 +139,7 @@ PRESUBMIT_BAZEL_STEP_CONTRACT = (
     ),
     (
         "name:Configure bounded Bazel persistent action cache",
-        "5a800a12d26226503fc54ccb5515ca1a4f537d1168a8f9759eab7411ac2c9925",
+        "f6ba8b633e0fd50ca9c98a0220064a0a071e0b4210ace41aa0b14e8c3307d25a",
     ),
     (
         "name:Build qualified Bazel GCS cache gateway",
@@ -153,7 +155,7 @@ PRESUBMIT_BAZEL_STEP_CONTRACT = (
     ),
     (
         "name:Start loopback Bazel GCS cache gateway",
-        "0f1dcb106b4b0887d800f717543601ab397cf95247785c98eb93221975dae56e",
+        "9c57f2444e9db26b2f8814163b2314a7bdc8c366b9c6711c9083e574254a26c4",
     ),
     (
         "name:buildifier",
@@ -165,23 +167,23 @@ PRESUBMIT_BAZEL_STEP_CONTRACT = (
     ),
     (
         "name:Prove affected selection against the real Bazel graph",
-        "dd7aa75569631162fbe616a72f544093cd46341c2bc1cd0269a5e94e4b1cd222",
+        "8716a67b6b12c8ac097dc79c44522c0381bca16125dd523b4bcccbf1559dd51d",
     ),
     (
         "name:Enforce Bazel dependency layers",
-        "e3692c38e0d68c64e90ac2f2736adbcccfa92facf1d63eb63042eccf15d3de08",
+        "ef215db3e1f7e9ec15044631aa83aa653631597805864debda741ff267f05792",
     ),
     (
         "name:Validate and resolve the registered C/C++ toolchain",
-        "32b66957e0535bb0ba2f7a3076d97e8dc7aab1a22d23be807e96255cbb42028b",
+        "c9ab1c7b5e17c4594d37e9aaa4348bf4c2d83bb0d994fbd022341069d81a2a70",
     ),
     (
         "name:Run event-governed Bazel validation",
-        "06640f4faa23fdb9a839cbf317e7e1de39d682a1ca53b17585b6f0181eb4e5ea",
+        "c3f73f3be957151c5b1d2b7b5d108f00d382f62044913eedcf7d77733299d923",
     ),
     (
         "name:Measure bounded Bazel persistent action cache",
-        "1bfc95fe2bf97385458b12519cf7718638e648c9e22df68a313bb5d1aca273f6",
+        "95b92bedabf6707c2764881bd036ab7fd73f3e26b4e6258de880830752acdfd5",
     ),
     (
         "name:Save trusted Bazel persistent action cache",
@@ -189,11 +191,11 @@ PRESUBMIT_BAZEL_STEP_CONTRACT = (
     ),
     (
         "name:Record Bazel persistent action cache metrics",
-        "82c5d7689d98d1426cfedcd3e7096e6a8cbddee555c24acc9ea19e268beb2b55",
+        "9b4261daaa5be664481d8a50a5c9875daf0d72f466c70b9f1d9244c91f4b1875",
     ),
     (
         "name:Record Bazel GCS remote-cache metrics and stop gateway",
-        "b60c609354c9bfa92e4793ab2cc8b149c4c904919706118962e7d512d32791af",
+        "48b22f3adde66695cd963bf0bb50b07f7f35e9beebef3562f6e330ba380abe63",
     ),
     (
         "name:Upload Bazel performance evidence",
@@ -227,11 +229,11 @@ NIGHTLY_BAZEL_STEP_CONTRACT = (
     ),
     (
         "name:Select qualified nightly Bazel remote-cache route",
-        "e9ed68f9e7b70a93d2682d463054715f817c483175d5c91817e77ba7c4349b8d",
+        "f946134ef78e00c5703c21fd217855b331e8d1c6a6ef166800cad24bbd95a21c",
     ),
     (
         "name:Select trusted nightly Bazel cache revision",
-        "bd9772938ffefad6dfc1779ded55675c9148dd81d2abd97a5bfd7bf8c04ed2a7",
+        "8a11170e45d5ba4e1ab10f13a6032f173057e060766aa8895f18b7f242514a7b",
     ),
     (
         "name:Restore trusted nightly Bazel persistent action cache",
@@ -239,7 +241,7 @@ NIGHTLY_BAZEL_STEP_CONTRACT = (
     ),
     (
         "name:Configure bounded nightly Bazel persistent action cache",
-        "c4f5b85a37f0408401350775feee92e6694f3f17c0aa1ebc6838b651c70db938",
+        "c307e45367643c715bd84ce724a8364413b4f9367948e1f2925bf23b2103066c",
     ),
     (
         "name:Build qualified nightly Bazel GCS cache gateway",
@@ -251,27 +253,27 @@ NIGHTLY_BAZEL_STEP_CONTRACT = (
     ),
     (
         "name:Start scheduled loopback Bazel GCS cache gateway",
-        "8a051e9011ca96d6c5e7f68fd8844a1723b4ae6d0eb7a56de8c79331a0728bff",
+        "5d87963363e71b5606287182b94caa97a9c4f41ff1a1db20066529df80a4e518",
     ),
     (
         "name:Validate complete loading, formatting, and layer policy",
-        "109754186aa21f7f2339b83fa8ea74622b42f92b25f03e2869345a42e3ee6b2b",
+        "ab588d08973519ca09fa2a82320527065ebff415a66539e61f41c0d33e0e59d6",
     ),
     (
         "name:Validate and resolve the registered C/C++ toolchain",
-        "32b66957e0535bb0ba2f7a3076d97e8dc7aab1a22d23be807e96255cbb42028b",
+        "c9ab1c7b5e17c4594d37e9aaa4348bf4c2d83bb0d994fbd022341069d81a2a70",
     ),
     (
         "name:Analyze and test the complete configured graph",
-        "15baedeede5575397a92e3df628ddb212f28a66cf8c98748833e65fe149a954d",
+        "a33877886c60363097f440573f52eb502fc01703bb02c750740893d3ea05ad48",
     ),
     (
         "name:Qualify the rolling affected-presubmit latency SLO",
-        "eedf4c01ce782c9ada03aa258781ebed51fc9835203bb485f647850c4d9a613f",
+        "ab6a33e357da78ffe4b4966ab7c3bad9eeec3b6f2e192d39c8f8a8374adb07fe",
     ),
     (
         "name:Measure bounded nightly Bazel persistent action cache",
-        "bce0199c50ce68ddfecb23a199f01556d25030adc1bd4cda32c63044ff6be29f",
+        "867a6253a4d0c3d2996066a6d842fae33252c4fdf4c4e8e2478d75ffd6ff9c17",
     ),
     (
         "name:Save trusted nightly Bazel persistent action cache",
@@ -279,11 +281,11 @@ NIGHTLY_BAZEL_STEP_CONTRACT = (
     ),
     (
         "name:Record nightly Bazel persistent action cache metrics",
-        "0082722aa9cba07592609b610adc1f4e84136fb7bcd7c10bda3f07dc2ff64942",
+        "d7997e4788ffd0e339395d1d154a5dfaca8cab0559f0c26ac234ea54944c3298",
     ),
     (
         "name:Record nightly Bazel GCS remote-cache metrics and stop gateway",
-        "5aac65f7346ee5feaa552246e59fa96dd11df754f066dc97aea0e977b0e7223a",
+        "f6f3004b9f1f49492a6bb1d030bc0d0518145a09709e3f4a3824dd465edd5112",
     ),
     (
         "name:Upload nightly Bazel evidence",
@@ -606,6 +608,33 @@ def _presubmit_cache_routing_is_governed(job: dict[str, Any]) -> bool:
     )
 
 
+def _checkout_python_bytecode_is_disabled(job: dict[str, Any], *, through_step: str) -> bool:
+    steps = job.get("steps")
+    if not isinstance(steps, list):
+        return False
+    boundaries = [
+        index
+        for index, step in enumerate(steps)
+        if isinstance(step, dict) and step.get("name") == through_step
+    ]
+    if len(boundaries) != 1:
+        return False
+    observed = False
+    for step in steps[: boundaries[0] + 1]:
+        if not isinstance(step, dict) or "run" not in step:
+            continue
+        command = _command(step.get("run"))
+        if command is None:
+            return False
+        for index, token in enumerate(command):
+            if token != "python3":
+                continue
+            observed = True
+            if index + 1 >= len(command) or command[index + 1] != "-B":
+                return False
+    return observed
+
+
 def _presubmit_workflow_errors(workflow: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     if set(workflow) != {"concurrency", "jobs", "name", "on", "permissions"}:
@@ -641,6 +670,11 @@ def _presubmit_workflow_errors(workflow: dict[str, Any]) -> list[str]:
         errors.append(_error("AFFECTED-WORKFLOW-009", "presubmit Bazel steps drifted"))
     if not _presubmit_cache_routing_is_governed(bazel_job):
         errors.append(_error("AFFECTED-WORKFLOW-011", "presubmit cache routing is invalid"))
+    if not _checkout_python_bytecode_is_disabled(
+        bazel_job,
+        through_step="Run event-governed Bazel validation",
+    ):
+        errors.append(_error("AFFECTED-WORKFLOW-012", "presubmit Python launch is invalid"))
     if not _checkout_is_complete(
         bazel_job,
         full_history=True,
@@ -763,6 +797,11 @@ def _nightly_workflow_errors(workflow: dict[str, Any]) -> list[str]:
         return [*errors, _error("AFFECTED-WORKFLOW-004", "nightly Bazel job is invalid")]
     if not _step_contract_is_exact(job, NIGHTLY_BAZEL_STEP_CONTRACT):
         errors.append(_error("AFFECTED-WORKFLOW-009", "nightly Bazel steps drifted"))
+    if not _checkout_python_bytecode_is_disabled(
+        job,
+        through_step="Analyze and test the complete configured graph",
+    ):
+        errors.append(_error("AFFECTED-WORKFLOW-012", "nightly Python launch is invalid"))
     if job.get("if") != "github.ref == 'refs/heads/main'" or not _checkout_is_complete(
         job,
         full_history=False,
