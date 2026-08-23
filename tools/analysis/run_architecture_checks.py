@@ -51,6 +51,7 @@ _BLUEPRINT_UNGATED = frozenset({"missing_paths"})
 
 _BLUEPRINT_DEFECT_MESSAGES = {
     "duplicate_paths": "is listed more than once in the blueprint manifest",
+    "noncanonical_paths": "does not use the canonical POSIX repository-relative spelling",
     "unexpected_empty_paths": "is materialized but unexpectedly empty",
     "unsafe_paths": "is absolute or escapes the repository root or contains a symbolic link",
 }

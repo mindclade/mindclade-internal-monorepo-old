@@ -16,7 +16,7 @@ import stat
 import sys
 from collections import Counter
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import cast
 
 MANIFEST_RELPATH = "docs/blueprint/production-monorepo-paths.txt"
@@ -24,7 +24,13 @@ MANIFEST_RELPATH = "docs/blueprint/production-monorepo-paths.txt"
 # Every result key whose value is a list of offending blueprint paths, in report order. Callers
 # subtract explicitly permitted non-gating findings from this tuple so a newly added invariant is
 # enforced by default instead of being silently omitted from a second allowlist.
-DEFECT_KEYS = ("duplicate_paths", "missing_paths", "unexpected_empty_paths", "unsafe_paths")
+DEFECT_KEYS = (
+    "duplicate_paths",
+    "missing_paths",
+    "unexpected_empty_paths",
+    "unsafe_paths",
+    "noncanonical_paths",
+)
 
 _ALLOWED_EMPTY = {"Cargo.lock", "flake.lock", "MODULE.bazel.lock"}
 _ALLOWED_EMPTY_PATHS = {"sdk/go/go.sum"}
@@ -44,6 +50,14 @@ class _DirectoryTraversal:
     error: str | None = None
 
 
+@dataclass(frozen=True)
+class _ManifestPath:
+    display: str
+    identity: str
+    relative: Path | None
+    defect_key: str | None = None
+
+
 def repository_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
@@ -57,6 +71,7 @@ def _result(
     missing: list[str] | None = None,
     unexpected_empty: list[str] | None = None,
     unsafe: list[str] | None = None,
+    noncanonical: list[str] | None = None,
     materialized: int = 0,
 ) -> dict[str, object]:
     listed_paths = paths or []
@@ -71,6 +86,7 @@ def _result(
         "missing_paths": missing or [],
         "unexpected_empty_paths": unexpected_empty or [],
         "unsafe_paths": unsafe or [],
+        "noncanonical_paths": noncanonical or [],
     }
 
 
@@ -120,6 +136,21 @@ def _lexical_error(relative: Path) -> str | None:
     except (OSError, TypeError, ValueError):
         return "path is not a valid repository-relative path"
     return None
+
+
+def _manifest_path(raw_path: str) -> _ManifestPath:
+    try:
+        if "\x00" in raw_path:
+            return _ManifestPath(raw_path, raw_path, None, "unsafe_paths")
+        pure_path = PurePosixPath(raw_path)
+        identity = pure_path.as_posix()
+        if pure_path.is_absolute() or ".." in pure_path.parts:
+            return _ManifestPath(raw_path, identity, None, "unsafe_paths")
+        if identity == "." or raw_path != identity:
+            return _ManifestPath(raw_path, identity, None, "noncanonical_paths")
+        return _ManifestPath(raw_path, identity, Path(*pure_path.parts))
+    except (OSError, TypeError, ValueError):
+        return _ManifestPath(raw_path, raw_path, None, "unsafe_paths")
 
 
 def _close_fd(file_descriptor: int) -> None:
@@ -389,34 +420,47 @@ def check(root: Path, manifest: Path) -> dict[str, object]:
                 manifest_errors=[f"blueprint manifest lists no paths: {manifest_display}"],
             )
 
-        # One pass. `paths.count(path)` inside the comprehension rescanned the whole list per entry,
-        # which is ~20M comparisons for a manifest this size.
-        duplicates = sorted(path for path, count in Counter(paths).items() if count > 1)
-        unsafe = sorted(path for path in paths if _lexical_error(Path(path)) is not None)
+        manifest_paths = [_manifest_path(path) for path in paths]
+        # Count canonical identities, not spellings, so aliases cannot inflate coverage or evade
+        # duplicate detection. Rejected aliases retain their original spelling in diagnostics.
+        duplicates = sorted(
+            identity
+            for identity, count in Counter(path.identity for path in manifest_paths).items()
+            if count > 1
+        )
+        unsafe = sorted(
+            path.display for path in manifest_paths if path.defect_key == "unsafe_paths"
+        )
+        noncanonical = sorted(
+            path.display for path in manifest_paths if path.defect_key == "noncanonical_paths"
+        )
 
         # Lexical rejection happens before any per-entry filesystem probe. In particular, pathlib
         # discards `root` when the right operand is absolute, so probing first can escape the checkout.
-        rejected = set(unsafe)
         missing: list[str] = []
         unexpected_empty: list[str] = []
         materialized = 0
-        for path in paths:
-            if path in rejected:
+        inspected_identities: set[str] = set()
+        for manifest_path in manifest_paths:
+            if manifest_path.defect_key is not None or manifest_path.relative is None:
                 continue
-            inspection = _strict_contained_path(canonical_root, root_fd, Path(path))
+            if manifest_path.identity in inspected_identities:
+                continue
+            inspected_identities.add(manifest_path.identity)
+            inspection = _strict_contained_path(canonical_root, root_fd, manifest_path.relative)
             if inspection.error is not None:
-                unsafe.append(path)
+                unsafe.append(manifest_path.display)
                 continue
             if inspection.file_stat is None or not stat.S_ISREG(inspection.file_stat.st_mode):
-                missing.append(path)
+                missing.append(manifest_path.display)
                 continue
             materialized += 1
             if (
                 inspection.file_stat.st_size == 0
-                and Path(path).name not in _ALLOWED_EMPTY
-                and path not in _ALLOWED_EMPTY_PATHS
+                and manifest_path.relative.name not in _ALLOWED_EMPTY
+                and manifest_path.identity not in _ALLOWED_EMPTY_PATHS
             ):
-                unexpected_empty.append(path)
+                unexpected_empty.append(manifest_path.display)
 
         return _result(
             manifest_sha256=manifest_sha256,
@@ -425,6 +469,7 @@ def check(root: Path, manifest: Path) -> dict[str, object]:
             missing=sorted(missing),
             unexpected_empty=sorted(unexpected_empty),
             unsafe=sorted(set(unsafe)),
+            noncanonical=noncanonical,
             materialized=materialized,
         )
     finally:

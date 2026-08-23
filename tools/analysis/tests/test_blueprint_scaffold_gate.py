@@ -104,6 +104,55 @@ def test_unsafe_paths_are_never_counted_as_materialized(tmp_path: Path) -> None:
     assert result["coverage_percent"] == 33.3333
 
 
+def test_noncanonical_aliases_fail_closed_on_canonical_identity(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = scaffold(
+        tmp_path / "repo",
+        [
+            "a.txt",
+            "./a.txt",
+            "a.txt/",
+            "nested//value.txt",
+            "nested/./value.txt",
+            "a.txt",
+        ],
+        {"a.txt": "safe\n", "nested/value.txt": "safe\n"},
+    )
+    original_inspection = checker._strict_contained_path
+    inspected: list[str] = []
+
+    def tracking_inspection(canonical_root, root_fd, relative):
+        inspected.append(relative.as_posix())
+        return original_inspection(canonical_root, root_fd, relative)
+
+    monkeypatch.setattr(checker, "_strict_contained_path", tracking_inspection)
+
+    result = checker.check(root, root / checker.MANIFEST_RELPATH)
+
+    assert result["duplicate_paths"] == ["a.txt", "nested/value.txt"]
+    assert result["noncanonical_paths"] == [
+        "./a.txt",
+        "a.txt/",
+        "nested/./value.txt",
+        "nested//value.txt",
+    ]
+    assert result["unsafe_paths"] == []
+    assert result["blueprint_path_count"] == 6
+    assert result["materialized_path_count"] == 1
+    assert result["coverage_percent"] == 16.6667
+    assert inspected == ["a.txt"]
+    assert checker.has_failures(result)
+    assert suite._blueprint_scaffold(root) == [
+        "a.txt is listed more than once in the blueprint manifest",
+        "nested/value.txt is listed more than once in the blueprint manifest",
+        "./a.txt does not use the canonical POSIX repository-relative spelling",
+        "a.txt/ does not use the canonical POSIX repository-relative spelling",
+        "nested/./value.txt does not use the canonical POSIX repository-relative spelling",
+        "nested//value.txt does not use the canonical POSIX repository-relative spelling",
+    ]
+
+
 def test_regular_manifest_and_nested_files_remain_safe(tmp_path: Path) -> None:
     root = scaffold(
         tmp_path / "repo",
