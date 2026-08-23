@@ -45,7 +45,7 @@ fn tight() -> Limits {
         maximum_tokens: 256,
         maximum_metadata_entries: 8,
         maximum_nesting: 8,
-        maximum_allocation_bytes: ByteSize::new(4096),
+        maximum_payload_bytes: ByteSize::new(4096),
     }
 }
 
@@ -164,16 +164,35 @@ fn mmcif_multiline_text_field_longer_than_one_line_still_parses() {
 }
 
 #[test]
-fn mmcif_text_field_is_bounded_by_the_allocation_ceiling() {
-    // 20 lines accumulate ~660 bytes into one retained token, well past a
-    // 512-byte retained-allocation ceiling.
+fn mmcif_text_field_is_bounded_by_the_payload_ceiling() {
+    // 40 lines accumulate ~1320 bytes into one retained token, past both the
+    // token ceiling and the 512-byte payload budget.
     let limits = Limits {
         maximum_input_bytes: ByteSize::new(2048),
         maximum_line_bytes: 64,
-        maximum_allocation_bytes: ByteSize::new(512),
+        maximum_payload_bytes: ByteSize::new(512),
         ..Limits::default()
     };
-    assert!(mmcif::parse(&mmcif_text_field(20), limits).is_err());
+    assert!(mmcif::parse(&mmcif_text_field(40), limits).is_err());
+}
+
+#[test]
+fn mmcif_text_field_is_charged_once_not_twice() {
+    // 12 lines accumulate ~404 bytes. That fits the 512-byte payload budget with
+    // room for the two surrounding tokens — but only if the field is charged
+    // once. Charging it during accumulation *and* again when the closing `;`
+    // arrives doubled it to ~808 and rejected a well-formed file at half the
+    // budget the caller configured, while an ordinary one-line token of the same
+    // size was charged once.
+    let limits = Limits {
+        maximum_input_bytes: ByteSize::new(2048),
+        maximum_line_bytes: 64,
+        maximum_payload_bytes: ByteSize::new(512),
+        ..Limits::default()
+    };
+    let input = mmcif_text_field(12);
+    let document = mmcif::parse(&input, limits).expect("a field inside the payload budget parses");
+    assert!(document.tokens.iter().any(|token| token.value.len() > 256));
 }
 
 // ---------------------------------------------------------------------------

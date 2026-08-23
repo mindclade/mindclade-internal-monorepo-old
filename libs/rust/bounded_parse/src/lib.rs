@@ -15,7 +15,7 @@ mod recovery;
 mod source;
 pub use budget::AllocationBudget;
 pub use cursor::Cursor;
-pub use diagnostic::Diagnostic;
+pub use diagnostic::{Diagnostic, MAXIMUM_CODE_BYTES, MAXIMUM_MESSAGE_BYTES};
 pub use limits::Limits;
 pub use location::Location;
 pub use mode::ParseMode;
