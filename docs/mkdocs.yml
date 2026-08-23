@@ -90,6 +90,7 @@ nav:
       - ADR-0023 Resolved config/dependency budgets: design/adr-0023-resolved-config-and-dependency-budgets.md
       - ADR-0024 Dependency layering over counts: design/adr-0024-dependency-layering-over-counts.md
       - ADR-0025 Training-service composition: design/adr-0025-training-service-composition-layer.md
+      - ADR-0026 Orchestration/scheduling boundaries: design/adr-0026-orchestration-and-scheduling-boundaries.md
   - Runbooks:
       - AI gateway provider edge: runbooks/ai-gateway-provider-edge.md
       - Control-plane outage: runbooks/control-plane-outage.md
@@ -109,10 +110,12 @@ nav:
       - Control admission: runbooks/control-admission.md
       - Control ingestion: runbooks/control-ingestion.md
       - Control model registry: runbooks/control-model-registry.md
+      - Control orchestration: runbooks/control-orchestration.md
       - Control reference databases: runbooks/control-reference-databases.md
       - Control release evidence: runbooks/control-release-evidence.md
       - Control routing: runbooks/control-routing.md
       - Control runtime authority: runbooks/control-runtime-authority.md
+      - Control scheduling: runbooks/control-scheduling.md
       - Go libraries: runbooks/libs-go.md
       - Rust libraries: runbooks/libs-rust.md
       - Runtime host degraded: runbooks/runtime-host-degraded.md
@@ -127,10 +130,12 @@ nav:
       - Control admission: slo/control-admission.md
       - Control ingestion: slo/control-ingestion.md
       - Control model registry: slo/control-model-registry.md
+      - Control orchestration: slo/control-orchestration.md
       - Control reference databases: slo/control-reference-databases.md
       - Control release evidence: slo/control-release-evidence.md
       - Control routing: slo/control-routing.md
       - Control runtime authority: slo/control-runtime-authority.md
+      - Control scheduling: slo/control-scheduling.md
       - Go libraries: slo/libs-go.md
       - Rust libraries: slo/libs-rust.md
       - Node agent: slo/node-agent.md

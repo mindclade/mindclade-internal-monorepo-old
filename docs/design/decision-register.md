@@ -36,6 +36,7 @@ silently rewrites an earlier decision.
 | ADR-0023 | [Resolved config and dependency budgets](adr-0023-resolved-config-and-dependency-budgets.md) | Superseded in part by ADR-0024 |
 | ADR-0024 | [Dependency layering over counts](adr-0024-dependency-layering-over-counts.md) | Accepted |
 | ADR-0025 | [Exact training-service composition layer](adr-0025-training-service-composition-layer.md) | Accepted |
+| ADR-0026 | [Orchestration and scheduling boundaries](adr-0026-orchestration-and-scheduling-boundaries.md) | Accepted |
 
 ## Operating policies derived from these decisions
 
