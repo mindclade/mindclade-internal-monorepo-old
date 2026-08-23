@@ -44,13 +44,23 @@ nix develop .#ci-bazel --command python3 tools/analysis/check_bazel_layers.py
 ```
 
 From the sibling live repository, validate the candidate source without weakening the
-released-ref gate:
+released-ref gate. `CANDIDATE_MODULE_REF` is not optional: `validate-source-integration`
+delegates to `validate-module-candidate`, whose first line exits 2 unless the variable is
+set. The gate takes a ref rather than a worktree path because it snapshots that exact
+commit and never reads dirty or uncommitted monorepo bytes — a run without it is a refusal,
+not a looser check. Pass the same `<source-sha>` asserted above:
 
 ```bash
-make validate-source-integration \
+nix develop .#ci --command make validate-source-integration \
   MONOREPO=../mindclade-internal-monorepo \
-  CANDIDATE_MODULE_VERSION=v0.4.0
+  CANDIDATE_MODULE_VERSION=v0.4.0 \
+  CANDIDATE_MODULE_REF=<40-character-lowercase-commit-sha>
 ```
+
+The live repository's `docs/module-interface-contract.md` documents this same invocation,
+and its `scripts/validate-production-contract.py` pins both the Makefile recipe and that
+literal placeholder. Keep the two documents identical; a divergence here is what let this
+procedure publish a command that could not run.
 
 Create two normalized source archives independently and require matching SHA-256
 digests. The archive is evidence; consumers continue to use the immutable Git tag.
@@ -75,7 +85,7 @@ After publication, rerun the live repository's released-ref contract before any 
 ```bash
 git fetch --tags --force origin
 test "$(git rev-list -n 1 v0.4.0)" = "<source-sha>"
-make validate-integration MONOREPO=../mindclade-internal-monorepo
+nix develop .#ci --command make validate-integration MONOREPO=../mindclade-internal-monorepo
 ```
 
 The release remains unusable for production until the live estate also retains a
