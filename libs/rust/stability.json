@@ -21,19 +21,13 @@
     "data_stream",
     "gpu_host",
     "ipc",
+    "ipc_os",
+    "process_os",
     "python_bridge",
     "servicekit",
     "telemetry_spool",
     "worker_protocol",
     "worker_runtime"
   ],
-  "compatibility": [
-    "clock",
-    "retry",
-    "resource_version",
-    "byte_spec",
-    "artifact_manifest",
-    "observability",
-    "python_bindings"
-  ]
+  "compatibility": []
 }
