@@ -90,14 +90,19 @@ use_repo(
 
 # Rust third-party dependencies are derived from the canonical Cargo workspace.
 #
-# EVERY MEMBER MANIFEST IS LISTED, not just the root. cargo-bazel splices the workspace from
-# the manifests it is given, and a member missing from this list makes the extension FAIL to
-# evaluate — "Some manifests are not being tracked" — which aborts analysis for the whole
-# repository rather than for the crate in question. The root manifest alone was what
-# `bazel build //... --nobuild` was failing on.
+# EVERY MEMBER MANIFEST IS LISTED, not just the root. This list and the `members` list in
+# //:Cargo.toml are one roster expressed twice, and the only thing holding them together is
+# tools/analysis/check_cargo_bazel_alignment.py, which compares them in both directions.
+# `libs/rust/process_os` was missing here for as long as that checker did nothing but grep for
+# the string `crate.from_cargo(` — a member Cargo built and Bazel's roster never named.
 #
-# Keep this in step with the `members` list in //:Cargo.toml. The two are one list expressed
-# twice, and cargo-bazel names the missing label when they diverge.
+# An earlier note here said an omission makes the extension fail to evaluate with "Some
+# manifests are not being tracked". That does not reproduce on rules_rust 0.73: it reports the
+# opposite ("Only the workspace's Cargo.toml is required in the `manifests` attribute ... the
+# rest can be removed"), and MODULE.bazel.lock records every member manifest as an extension
+# input either way, because `cargo metadata` reaches them through the root. The enumeration is
+# kept because it is the reviewable roster of the Rust workspace in the file a reader consults
+# to find one — not because a build currently depends on it.
 crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 crate.from_cargo(
     name = "crates",
@@ -119,6 +124,7 @@ crate.from_cargo(
         "//libs/rust/ipc_os:Cargo.toml",
         "//libs/rust/manifests:Cargo.toml",
         "//libs/rust/object_store:Cargo.toml",
+        "//libs/rust/process_os:Cargo.toml",
         "//libs/rust/python_bridge:Cargo.toml",
         "//libs/rust/record_io:Cargo.toml",
         "//libs/rust/runtime_core:Cargo.toml",
