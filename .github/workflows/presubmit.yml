@@ -40,29 +40,29 @@ jobs:
   # The repository's own architecture invariants — dependency budgets and layering, Go module
   # and admission rules, Rust workspace shape, Cargo/Bazel dep parity, component maturity.
   #
-  # tools/analysis/check_affected_presubmit.py asserts this job exists and that the checkout is
-  # unshallow, because ci/presubmit/pipeline.py derives the affected target set from git history.
-  #
   # `--static-only` stops after the architecture checks. The Bazel job invokes the same pipeline's
-  # evidence-producing affected path inside the pinned Bazel/Nix environment.
+  # evidence-producing affected or protected full-graph path.
   architecture:
     name: architecture
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          # Full history. affected.git_changed() diffs against a base ref; a shallow clone makes
-          # that diff either empty or an error, and an empty diff silently selects no targets.
+          # Retain full history so affected pull-request selection can prove canonical ancestry.
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
-        with:
-          python-version: "3.14.7"
+      - name: Prepare GitHub-hosted runner disk for Nix
+        run: ci/common/prepare_nix_runner.sh
 
-      # Stdlib only by design, so there is nothing to install first.
-      - run: python3 ci/presubmit/pipeline.py --static-only
+      - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = false
+
+      - run: nix develop .#ci --command python3 ci/presubmit/pipeline.py --static-only
 
   # Go — the fleet control plane and durable policy. ~59k LOC, the largest lane.
   #
@@ -404,8 +404,8 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          # Affected mode validates and diffs the exact pull-request base. Missing history is a
-          # hard selector error, never an empty target set.
+          # Full history is retained for the real-graph affected fixture and future activation;
+          # the event policy below still resolves every protected event to full mode.
           fetch-depth: 0
           persist-credentials: false
 
@@ -525,30 +525,24 @@ jobs:
             //tools/build/bazel/toolchains/cc:smoke_test --config=ci
           nix develop .#ci-bazel --command python3 tools/analysis/verify_cc_toolchain_selection.py
 
-      - name: Run affected or protected full-graph Bazel validation
+      - name: Run event-governed Bazel validation
         env:
+          BASH_ENV: ""
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: |
-          # The shared executor removes setup-bazel's short-lived download token from each
-          # evidence-producing subprocess so neither analysis nor test BEP can record it.
-          evidence="${RUNNER_TEMP}/bazel-evidence"
-          mode="full"
-          base_args=()
-          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
-            if [[ -z "${PR_BASE_SHA}" ]]; then
-              echo "pull_request event is missing github.event.pull_request.base.sha" >&2
-              exit 2
-            fi
-            mode="affected"
-            base_args=(--base "${PR_BASE_SHA}")
-          fi
-          nix develop .#ci-bazel --command python3 ci/presubmit/pipeline.py \
-            --bazel-only \
-            --mode "${mode}" \
-            "${base_args[@]}" \
-            --event "${GITHUB_EVENT_NAME}" \
-            --evidence-dir "${evidence}" \
-            --job-started-at-file "${RUNNER_TEMP}/bazel-job-started"
+        # Event-to-mode routing lives in the tested Python state machine. The pull-request base is
+        # retained for future activation, but every protected event currently resolves to full.
+        run: >-
+          /nix/var/nix/profiles/default/bin/nix develop .#ci-bazel
+          --command python3 -I ci/presubmit/pipeline.py
+          --bazel-only
+          --mode auto
+          --base "${PR_BASE_SHA}"
+          --event "${GITHUB_EVENT_NAME}"
+          --ref "${GITHUB_REF}"
+          --head "${GITHUB_SHA}"
+          --evidence-dir "${RUNNER_TEMP}/bazel-evidence"
+          --job-started-at-file "${RUNNER_TEMP}/bazel-job-started"
+          --runner-temp "${RUNNER_TEMP}"
 
       - name: Measure bounded Bazel persistent action cache
         id: bazel-cache-size

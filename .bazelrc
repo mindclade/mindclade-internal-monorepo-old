@@ -77,6 +77,7 @@ build:ci --keep_going
 common:ci --lockfile_mode=error
 test:ci --flaky_test_attempts=1
 test:ci --test_env=CI=true
+test:ci --test_env=MINDCLADE_GIT
 
 # Tests tagged `manual` are opt-in. A wildcard like `//...` already skips them, but a lane
 # that passes an explicit target list does not, and the Go test lane below builds exactly
