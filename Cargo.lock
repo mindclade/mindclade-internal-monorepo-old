@@ -1041,6 +1041,7 @@ dependencies = [
  "base64",
  "bytes",
  "futures-util",
+ "mindclade_config",
  "mindclade_content_digest",
  "mindclade_faults",
  "mindclade_telemetry",
@@ -1141,6 +1142,7 @@ dependencies = [
  "hyper-util",
  "mindclade-serving-runtime",
  "mindclade_bytes_io",
+ "mindclade_config",
  "mindclade_content_digest",
  "mindclade_faults",
  "mindclade_gpu_host",
@@ -1243,6 +1245,14 @@ dependencies = [
  "mindclade_object_store",
  "mindclade_record_io",
  "mindclade_runtime_core",
+]
+
+[[package]]
+name = "mindclade_config"
+version = "0.0.0"
+dependencies = [
+ "mindclade_content_digest",
+ "mindclade_faults",
 ]
 
 [[package]]

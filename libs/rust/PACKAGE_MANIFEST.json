@@ -197,6 +197,30 @@
       ]
     },
     {
+      "directory": "config",
+      "crate": "mindclade_config",
+      "layer": 1,
+      "stability": "evolving",
+      "production": true,
+      "dependencies": [
+        "content_digest",
+        "faults"
+      ],
+      "production_sources": [
+        "src/catalog.rs",
+        "src/error.rs",
+        "src/field.rs",
+        "src/lib.rs",
+        "src/reload.rs",
+        "src/secret.rs",
+        "src/snapshot.rs",
+        "src/source.rs"
+      ],
+      "test_sources": [
+        "tests/integration.rs"
+      ]
+    },
+    {
       "directory": "content_digest",
       "crate": "mindclade_content_digest",
       "layer": 0,

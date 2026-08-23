@@ -17,6 +17,7 @@ Compatibility crates: **0**
 | `sandbox_os` | 0 | evolving | `faults` |
 | `atomic_fs` | 1 | stable | `content_digest`, `faults`, `identifiers`, `runtime_core` |
 | `bounded_parse` | 1 | stable | `bytes_io`, `faults` |
+| `config` | 1 | evolving | `content_digest`, `faults` |
 | `identifiers` | 1 | stable | `content_digest`, `faults`, `runtime_core` |
 | `telemetry` | 1 | stable | `faults`, `identifiers`, `runtime_core` |
 | `bio_formats` | 2 | stable | `bounded_parse`, `faults` |

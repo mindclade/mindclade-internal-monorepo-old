@@ -12,6 +12,7 @@ members = [
     "libs/rust/bounded_parse",
     "libs/rust/bytes_io",
     "libs/rust/checkpoint_io",
+    "libs/rust/config",
     "libs/rust/content_digest",
     "libs/rust/data_stream",
     "libs/rust/faults",

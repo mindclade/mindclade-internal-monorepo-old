@@ -4,7 +4,7 @@
 
 ## Production-facing crates
 
-`runtime_core`, `bytes_io`, `content_digest`, `faults`, `identifiers`, `atomic_fs`, `process_os`, `sandbox_os`, `record_io`, `manifests`, `object_store`, `tokenizer_runtime`, `artifact_cas`, `checkpoint_io`, `data_stream`, `ipc`, `ipc_os`, `servicekit`, `telemetry`, `telemetry_spool`, `bounded_parse`, `bio_formats`, `worker_protocol`, `worker_runtime`, `gpu_host`, and `python_bridge`.
+`runtime_core`, `bytes_io`, `content_digest`, `faults`, `identifiers`, `atomic_fs`, `process_os`, `sandbox_os`, `record_io`, `manifests`, `object_store`, `tokenizer_runtime`, `artifact_cas`, `checkpoint_io`, `data_stream`, `ipc`, `ipc_os`, `servicekit`, `telemetry`, `telemetry_spool`, `bounded_parse`, `bio_formats`, `config`, `worker_protocol`, `worker_runtime`, `gpu_host`, and `python_bridge`.
 
 `PACKAGE_CATALOG.md` carries the same inventory with each crate's layer, stability, and exact
 internal dependency edges, derived from the Cargo manifests.
