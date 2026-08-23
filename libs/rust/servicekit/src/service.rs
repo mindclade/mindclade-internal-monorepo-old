@@ -146,7 +146,10 @@ impl Service {
             LifecycleState::Running => self.lifecycle.transition(LifecycleState::Draining)?,
             LifecycleState::Draining => {}
             LifecycleState::Stopped => return Ok(()),
-            other => {
+            other @ (LifecycleState::Created
+            | LifecycleState::Starting
+            | LifecycleState::Stopping
+            | LifecycleState::Failed) => {
                 return Err(Fault::new(
                     Code::FailedPrecondition,
                     "service cannot drain from its current lifecycle state",
@@ -195,7 +198,9 @@ impl Service {
                 self.started = 0;
                 return first_fault.map_or(Ok(()), Err);
             }
-            other => {
+            other @ (LifecycleState::Created
+            | LifecycleState::Starting
+            | LifecycleState::Running) => {
                 return Err(Fault::new(
                     Code::FailedPrecondition,
                     "service cannot stop from its current lifecycle state",

@@ -119,7 +119,15 @@ impl Attributes {
             // floats rather than inventing a spelling for them. Refusing at
             // insert keeps every downstream encoder total.
             AttributeValue::Float(number) if !number.is_finite() => return false,
-            _ => {}
+            // Every remaining shape is admissible as written. `Float` and
+            // `String` reappear because their arms above are guarded, and a
+            // guard cannot prove coverage.
+            AttributeValue::String(_)
+            | AttributeValue::Signed(_)
+            | AttributeValue::Unsigned(_)
+            | AttributeValue::Float(_)
+            | AttributeValue::Boolean(_)
+            | AttributeValue::Redacted => {}
         }
         self.0.insert(key, value);
         true
