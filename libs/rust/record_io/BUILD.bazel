@@ -31,6 +31,19 @@ rust_test(
     ],
 )
 
+# Bazel does not glob `tests/**`; a suite without a target here never runs in CI.
+rust_test(
+    name = "item_bounds",
+    srcs = ["tests/item_bounds.rs"],
+    edition = "2024",
+    deps = [
+        ":mindclade_record_io",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+    ],
+)
+
 rust_test(
     name = "integration",
     srcs = ["tests/integration.rs"],

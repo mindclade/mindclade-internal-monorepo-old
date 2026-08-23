@@ -40,6 +40,13 @@ const (
 	StatusRetired    Status = "retired"
 )
 
+// PromotableToProduction is the domain lifecycle rule, not a configurable one.
+// It is deliberately separate from PromotionPolicy, whose fields are
+// environment knobs: a zero-value policy permits everything, and a promotion
+// path that consulted only that could resurrect a retired release or ship a
+// draft that was never qualified.
+func (s Status) PromotableToProduction() bool { return s == StatusQualified }
+
 type Release struct {
 	ReleaseID              string
 	Name                   string

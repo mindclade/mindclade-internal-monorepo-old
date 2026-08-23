@@ -74,6 +74,7 @@ const (
 // exactly what keeps them separate singletons that an operator can tell apart.
 type Factory struct {
 	sources     []foundationconfig.Source
+	role        bootstrap.Role
 	leaseKey    string
 	eventSource string
 }
@@ -82,19 +83,19 @@ type Factory struct {
 // sources the process reads its configuration from the explicit environment
 // mapping; tests pass a MapSource instead.
 func NewControllerFactory(sources ...foundationconfig.Source) *Factory {
-	return newFactory(controllerLeaseKey, controllerEventSource, sources)
+	return newFactory(bootstrap.RoleController, controllerLeaseKey, controllerEventSource, sources)
 }
 
 // NewOperatorFactory returns the operator provider factory.
 func NewOperatorFactory(sources ...foundationconfig.Source) *Factory {
-	return newFactory(operatorLeaseKey, operatorEventSource, sources)
+	return newFactory(bootstrap.RoleOperator, operatorLeaseKey, operatorEventSource, sources)
 }
 
-func newFactory(leaseKey, eventSource string, sources []foundationconfig.Source) *Factory {
+func newFactory(role bootstrap.Role, leaseKey, eventSource string, sources []foundationconfig.Source) *Factory {
 	if len(sources) == 0 {
 		sources = []foundationconfig.Source{config.EnvironmentSource()}
 	}
-	return &Factory{sources: sources, leaseKey: leaseKey, eventSource: eventSource}
+	return &Factory{sources: sources, role: role, leaseKey: leaseKey, eventSource: eventSource}
 }
 
 // Create resolves configuration and constructs every provider the controller
@@ -108,6 +109,27 @@ func (factory *Factory) Create(ctx context.Context, profile bootstrap.Profile) (
 			"reconciling factory requires a context",
 			faults.WithReason("invalid_factory_request"),
 			faults.WithOperation("controlplane.controller.Factory.Create"),
+			faults.WithRetryPolicy(faults.NoRetry()),
+		)
+	}
+	if err := profile.Validate(); err != nil {
+		return bootstrap.Runtime{}, err
+	}
+	// The controller and operator profiles are capability-identical, so
+	// production.Builder cannot tell them apart: either composition satisfies
+	// either profile. This factory is the only object that knows which variant
+	// it is, and therefore the only place a command wired to the wrong one can
+	// be caught. Left unchecked, a process would run under one role's name
+	// while claiming the other's singleton lease -- two deployments contending
+	// for one lease, silently.
+	if profile.Role != factory.role {
+		return bootstrap.Runtime{}, faults.New(
+			faults.CodeInvalidArgument,
+			"reconciling factory role does not match the process profile",
+			faults.WithReason("factory_profile_role_mismatch"),
+			faults.WithOperation("controlplane.controller.Factory.Create"),
+			faults.WithField("factory_role", factory.role.String()),
+			faults.WithField("profile_role", profile.Role.String()),
 			faults.WithRetryPolicy(faults.NoRetry()),
 		)
 	}
@@ -219,6 +241,13 @@ func (factory *Factory) Create(ctx context.Context, profile bootstrap.Profile) (
 	}
 
 	return bootstrap.Runtime{
+		// The shutdown budgets belong to the deployment, not to a constant in
+		// this package. A role that does not pass them runs on the servicekit
+		// package defaults, and drain.timeout stops meaning anything.
+		Lifecycle: bootstrap.Lifecycle{
+			ShutdownTimeout: settings.ShutdownTimeout,
+			DrainTimeout:    settings.DrainTimeout,
+		},
 		// The aggregate list is the role's capability profile, written out.
 		// Anything absent here is a package this binary does not link.
 		Dependencies: []bootstrap.Aggregate{

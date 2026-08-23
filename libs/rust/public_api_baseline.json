@@ -40,15 +40,6 @@
       "verify",
       "write_shard"
     ],
-    "mindclade_common": [
-      "byte_spec",
-      "clock",
-      "content_digest",
-      "faults",
-      "identifiers",
-      "resource_version",
-      "retry"
-    ],
     "mindclade_content_digest": [
       "Algorithm",
       "Digest",

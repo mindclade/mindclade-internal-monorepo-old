@@ -4,6 +4,7 @@
 #
 
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@protobuf//bazel:py_proto_library.bzl", "py_proto_library")
 load("@rules_go//proto:def.bzl", "go_proto_library")
 
 package(default_visibility = ["//visibility:public"])
@@ -50,6 +51,22 @@ proto_library(
     srcs = ["service.proto"],
     strip_import_prefix = "/protocols/proto",
     deps = [
+        ":request_proto",
+        ":response_proto",
+        ":stream_proto",
+    ],
+)
+
+# serving/ is Python and speaks this contract end to end, including the stream
+# frames that carry common/v1 ErrorDetail and the responses that carry
+# artifact/v1 references. The aspect pulls those closures in transitively, but
+# only for the proto_library targets named here, so the whole package is listed
+# rather than the subset a current caller happens to touch.
+py_proto_library(
+    name = "inference_py_pb2",
+    deps = [
+        ":inference_service_proto",
+        ":model_proto",
         ":request_proto",
         ":response_proto",
         ":stream_proto",

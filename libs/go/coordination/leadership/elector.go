@@ -257,18 +257,25 @@ func (elector *Elector) Run(ctx context.Context) error {
 		session := Session{Lease: value}
 		elector.setLeadership(value)
 		elector.observe(Event{Kind: EventAcquired, Session: session, At: elector.clock.Now()})
-		err = elector.hold(ctx, session)
+		// Release must be given the lease as it stands now, not the one
+		// acquire returned. Every renewal bumps Lease.Version, and both lease
+		// adapters delete on an exact (token, version) match, so releasing the
+		// acquire-time value failed with ErrStale for any process that had led
+		// for longer than one RenewInterval -- an error release deliberately
+		// swallows. Graceful shutdown then freed nothing and every standby sat
+		// out the full TTL before a new leader could start.
+		held, err := elector.hold(ctx, session)
 		elector.clearLeadership(err)
 		if ctx.Err() != nil {
-			elector.release(value)
+			elector.release(held)
 			return nil
 		}
 		if err == nil {
-			elector.release(value)
+			elector.release(held)
 			return nil
 		}
 		if errors.Is(err, ErrLeadershipLost) || errors.Is(err, lease.ErrStale) || errors.Is(err, lease.ErrNotFound) {
-			elector.observe(Event{Kind: EventLost, Session: session, At: elector.clock.Now(), Err: err})
+			elector.observe(Event{Kind: EventLost, Session: Session{Lease: held}, At: elector.clock.Now(), Err: err})
 			if elector.config.ExitOnLeadershipLoss {
 				return err
 			}
@@ -277,7 +284,7 @@ func (elector *Elector) Run(ctx context.Context) error {
 			}
 			continue
 		}
-		elector.release(value)
+		elector.release(held)
 		return err
 	}
 }
@@ -315,12 +322,19 @@ func (elector *Elector) acquire(ctx context.Context) (lease.Lease, error) {
 	return value, err
 }
 
-func (elector *Elector) hold(parent context.Context, session Session) error {
+// hold returns the lease as it stands when leadership ends, so Run can release
+// the epoch it actually holds rather than the one it acquired.
+func (elector *Elector) hold(parent context.Context, session Session) (lease.Lease, error) {
 	leaderCtx, cancel := context.WithCancelCause(parent)
 	defer cancel(ErrLeadershipLost)
 	handlerDone := make(chan error, 1)
 	if elector.handler != nil {
-		go func() { handlerDone <- elector.handler(leaderCtx, session) }()
+		// Pass the acquired session by value. Closing over the local would
+		// share it with the renewal loop's session.Lease assignment below,
+		// which is a data race on the Session the handler is reading: the
+		// handler's epoch is fixed at the acquisition it was started for, and
+		// renewals extend that epoch without changing it.
+		go func(acquired Session) { handlerDone <- elector.handler(leaderCtx, acquired) }(session)
 	}
 	for {
 		waitCtx, waitCancel := context.WithCancel(leaderCtx)
@@ -331,11 +345,23 @@ func (elector *Elector) hold(parent context.Context, session Session) error {
 			waitCancel()
 			<-sleepDone
 			cancel(context.Cause(parent))
-			return nil
+			// Wait for the handler the same way the renewal-failure path
+			// below does. Returning here while the handler was still winding
+			// down let Run release the lease immediately, so a standby could
+			// acquire leadership and start the singleton work alongside the
+			// outgoing leader -- split brain on every graceful shutdown. The
+			// Handler contract already requires stopping when ctx is
+			// canceled; a handler that ignores it must block shutdown rather
+			// than hand its lease to a second process while it is still
+			// writing.
+			if elector.handler != nil {
+				<-handlerDone
+			}
+			return session.Lease, nil
 		case err := <-handlerDone:
 			waitCancel()
 			<-sleepDone
-			return err
+			return session.Lease, err
 		case <-sleepDone:
 			waitCancel()
 		}
@@ -352,7 +378,7 @@ func (elector *Elector) hold(parent context.Context, session Session) error {
 			if elector.handler != nil {
 				<-handlerDone
 			}
-			return faults.Wrap(errors.Join(ErrLeadershipLost, err), faults.CodeConflict, "leadership lease could not be renewed", faults.WithReason("leadership_lost"), faults.WithOperation("leadership.Elector.hold"), faults.WithRetryPolicy(faults.ImmediateRetry(0)))
+			return session.Lease, faults.Wrap(errors.Join(ErrLeadershipLost, err), faults.CodeConflict, "leadership lease could not be renewed", faults.WithReason("leadership_lost"), faults.WithOperation("leadership.Elector.hold"), faults.WithRetryPolicy(faults.ImmediateRetry(0)))
 		}
 		session.Lease = renewed
 		elector.setLeadership(renewed)

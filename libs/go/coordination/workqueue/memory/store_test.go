@@ -106,3 +106,66 @@ func completeItem(t *testing.T, store *memory.Store, queue string, completedAt t
 }
 
 func structZero() (v requestmeta.Metadata) { return }
+
+// TestExhaustedAttemptsCanStillReachATerminalState pins the failure mode a work
+// queue exists to avoid. A worker that dies without a terminal transition
+// leaves the item leased; the lease expires, the store grants a new lease, and
+// that spends another attempt. Once the spent attempts pass Item.MaxAttempts
+// the claim handed back must still be usable, because the only way the item
+// ever leaves the queue is a Complete or a Fail made against that claim. A
+// store that hands back a claim it will then reject has no dead-letter
+// transition at all: the item is re-leased and its handler re-executed forever.
+func TestExhaustedAttemptsCanStillReachATerminalState(t *testing.T) {
+	// Rounds that must expire get a short lease; the terminal round gets a
+	// generous one so a GC pause or a loaded runner cannot turn this into a
+	// misleading "the item can never be dead-lettered" failure.
+	const shortLease = 20 * time.Millisecond
+	const terminalLease = time.Minute
+	store := memory.New()
+	ctx := context.Background()
+	item, err := workqueue.NewItem("exhaustion", json.RawMessage(`{"poison":true}`), 0, time.Now(), 1, structZero())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = store.Enqueue(ctx, item); err != nil {
+		t.Fatal(err)
+	}
+
+	// Two lease expiries without a terminal transition: attempts now exceeds
+	// the item's budget of one.
+	var claim workqueue.Claim
+	for round := 1; round <= 3; round++ {
+		duration := shortLease
+		if round == 3 {
+			duration = terminalLease
+		}
+		claims, claimErr := store.Claim(ctx, workqueue.ClaimRequest{
+			Owner: "exhaustion-test", Queues: []string{"exhaustion"}, Limit: 1, LeaseDuration: duration,
+		})
+		if claimErr != nil || len(claims) != 1 {
+			t.Fatalf("round %d Claim() = %d claims, %v, want 1, nil", round, len(claims), claimErr)
+		}
+		claim = claims[0]
+		if err = claim.Validate(); err != nil {
+			t.Fatalf("round %d: store returned a claim it rejects: attempts=%d max_attempts=%d: %v",
+				round, claim.Record.Attempts, claim.Record.Item.MaxAttempts, err)
+		}
+		if round < 3 {
+			time.Sleep(2 * shortLease)
+		}
+	}
+	if claim.Record.Attempts <= claim.Record.Item.MaxAttempts {
+		t.Fatalf("attempts=%d did not exceed max_attempts=%d; the case under test was not reached",
+			claim.Record.Attempts, claim.Record.Item.MaxAttempts)
+	}
+	if err = store.Fail(ctx, claim, workqueue.Failure{Reason: "attempts_exhausted", Terminal: true}, time.Now().UTC()); err != nil {
+		t.Fatalf("Fail() on an over-budget claim = %v, want nil: the item can never be dead-lettered", err)
+	}
+	record, err := store.Lookup(ctx, item.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record.State != workqueue.StateFailed {
+		t.Fatalf("Lookup() state = %q, want %q", record.State, workqueue.StateFailed)
+	}
+}

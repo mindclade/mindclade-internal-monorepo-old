@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_python//python:defs.bzl", "py_binary", "py_test")
+load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -15,12 +15,49 @@ py_binary(
     deps = ["//protocols/events:contract_validation"],
 )
 
+# Writes protocols/events/generated/** from the governed protobuf descriptor surface. There is
+# deliberately no --check py_test beside it: that surface is a source of the //protocols package,
+# whose default visibility is private, so a sandboxed target cannot read it. The drift assertion
+# lives in tools/codegen/tests/test_generate_jsonschema.py, which the root pytest lane collects
+# because pyproject.toml lists tools/ in testpaths.
+py_binary(
+    name = "generate_jsonschema",
+    srcs = ["generate_jsonschema.py"],
+    main = "generate_jsonschema.py",
+    visibility = ["//visibility:public"],
+    deps = ["//protocols/events:contract_validation"],
+)
+
 py_test(
     name = "event_catalog_generated_test",
     srcs = ["generate_event_catalog.py"],
     args = ["--check"],
     main = "generate_event_catalog.py",
     deps = ["//protocols/events:contract_validation"],
+)
+
+# The static lane of the drift gate, as a library, because //tools/analysis:architecture_policy
+# imports it. That target globs tools/analysis/*.py and runs run_architecture_checks.py, which
+# resolves this module through `HERE.parent / "codegen"` — a path that exists in a checkout and
+# does not exist in the Bazel runfiles tree unless something puts it there. Without this dep the
+# target dies on ImportError, and the only alternative — catching the ImportError and skipping
+# the check — would make the gate a no-op under Bazel while still printing PASS.
+py_library(
+    name = "verify_generated_lib",
+    srcs = ["verify_generated.py"],
+    visibility = ["//visibility:public"],
+)
+
+# No `data`, matching the sibling checkers in //tools/analysis. This tool measures what a real
+# checkout contains — every `.proto`, every generated `_pb.ts`, `.gitattributes` — and under
+# `bazel run` its default --repo would resolve into the runfiles tree. Declaring that closure
+# would make it verify a tree containing only the declared files and report a confident pass.
+# Run it against a checkout, or pass --repo.
+py_binary(
+    name = "verify_generated",
+    srcs = ["verify_generated.py"],
+    main = "verify_generated.py",
+    visibility = ["//visibility:public"],
 )
 
 filegroup(

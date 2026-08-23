@@ -46,6 +46,7 @@ go_test(
         "//libs/go/config",
         "//libs/go/coordination/workqueue",
         "//libs/go/faults",
+        "//libs/go/servicekit",
         "//services/control_plane/internal/bootstrap",
         "@com_github_lib_pq//:pq",
     ],

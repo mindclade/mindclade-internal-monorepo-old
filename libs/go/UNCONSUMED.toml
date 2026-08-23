@@ -13,19 +13,36 @@
 #
 # A waiver is a debt record, not an exemption. Remove entries as the consuming
 # process is materialized; do not add entries to make a new package pass.
+#
+# The reason has to be checkable prose about the current tree, not a forecast.
+# Every reason below was rewritten in this form after an audit: four of the five
+# waived packages had shared one reason that blamed roles which were by then
+# materialized -- "waits on the operator and maintenance roles for a second
+# consumer of the work-queue suite" survived long after both roles shipped,
+# because only the package list is machine-checked and nothing re-reads the
+# prose. Each reason now names the file, symbol, or module that would clear it.
 
 schema_version = 1
 policy = "every libs/go package has an in-module importer or an explicit waiver"
 
 [[waiver]]
 reason = """
-No role's production profile requires HTTP OpenTelemetry instrumentation, and
-the httpx README actively steers callers away from it: Connect routes are
-instrumented through connectx/otel, so wrapping the API process's mux in
-otelhttp would emit a second span for every Connect request. The api factory
-mounts Connect and deliberately does not wrap -- see the comment in
-providers/api/serving.go. It is a supported option for a consumer outside this
-module, not a package awaiting an in-module importer.
+Four places in this module mount an httpx server, and three of them have a
+recorded reason not to wrap it. internal/transport/http.go serves the Connect
+and gRPC tree for the api and registry roles, which connectx/otel and
+grpcx/otel already instrument, so otelhttp would emit a second span for every
+Connect request; the comment at providers/api/serving.go:196 records that at
+the call site. providers/admissionmetrics/server.go and
+providers/maintenance/metrics.go are metrics scrape endpoints, where a span per
+scrape is noise.
+
+The fourth is not covered by either argument: services/studio/cmd/studio/main.go
+mounts a plain browser/streaming server with no tracing at all. That makes this
+the weakest waiver in this file -- httpx/otel has a plausible in-module consumer
+today, and this entry survives only because instrumenting studio is a decision
+in services/studio, not in libs/go. Resolve it by instrumenting studio, which
+deletes this waiver, or by recording in services/studio why a streaming role
+declines request spans.
 """
 packages = [
   "libs/go/httpx/otel",
@@ -33,15 +50,59 @@ packages = [
 
 [[waiver]]
 reason = """
-Conformance suites and adapters whose owning role is not yet materialized. The
-scheduler and controller claim the lease and work-queue adapters and the
-projector claims cursors, so what remains waits on the operator and maintenance
-roles for a second consumer of the work-queue suite, on every publishing role
-for Pub/Sub, and on a telemetry conformance test for obstest.
+Provider conformance suites that no adapter runs. libs/go has six such suites,
+each a single entry point an adapter's own test calls against its factory:
+blobtest.Run, cachetest.Run, cursortest.Conformance, leasetest.Run,
+outboxtest.Run, workqueuetest.Conformance. Four are consumed exactly that way --
+blobtest by storage/blob/memory, cachetest by storage/cache/memory, leasetest by
+storage/lease/memory, outboxtest by coordination/outbox and
+coordination/outbox/memory. These two are not, although both mechanisms already
+have two in-tree adapters that could call them today
+(coordination/cursor/{memory,postgres} and coordination/workqueue/
+{memory,postgres}). storage/lease/memory carries a conformance_test.go next to
+its store_test.go; cursor/memory and workqueue/memory carry only store_test.go,
+and that missing file is the whole waiver.
+
+So this is not a missing role. The scheduler, controller, operator,
+ingestion-controller, event-projector, and maintenance roles that claim these
+mechanisms are all materialized and all link them; the adapters simply do not
+exercise the shared suite. Clearing this waiver is a change in
+libs/go/coordination, not a wait.
 """
 packages = [
   "libs/go/coordination/cursor/cursortest",
   "libs/go/coordination/workqueue/workqueuetest",
+]
+
+[[waiver]]
+reason = """
+Blocked on a dependency, not on a role. Every role that publishes is
+materialized and links libs/go/messaging, but they resolve to messaging/memory:
+libs/go/messaging/pubsub is provider-neutral and needs a TopicResolver backed
+by a Pub/Sub SDK, and no such module is in go.mod. providers/broker
+NewPublisher fails closed with pubsub_provider_not_configured rather than
+degrading to a process-local broker, so the adapter is unreachable until that
+module is admitted.
+"""
+packages = [
   "libs/go/messaging/pubsub",
+]
+
+[[waiver]]
+reason = """
+A fixture package with no caller, not a conformance suite awaiting an adapter.
+obstest exposes in-memory observability recorders (ErrorRecorder and friends)
+for a caller to assert against; it has no suite entry point, so it belongs with
+connecttest.Server, grpctest.Start, httpxtest.Server, idempotencytest.
+NewMemoryStore, messagingtest.Message, and sqltest.Open rather than with
+blobtest.Run and its kin. Every one of those fixture packages has an importer.
+obstest has none: the only in-repo tests that reach libs/go/observability are
+three under services/studio, and they assert on real observability.Measurement
+values rather than on recorders. Waiting on "a telemetry conformance test" --
+the reason this waiver used to give -- describes a package that does not exist
+and a shape obstest does not have. This clears by a caller adopting these
+recorders or by deleting obstest, not by materializing a role.
+"""
+packages = [
   "libs/go/observability/obstest",
 ]

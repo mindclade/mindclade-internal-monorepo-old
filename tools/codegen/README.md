@@ -1,11 +1,117 @@
 # Tools / Codegen
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
+- **Status:** Partly materialized. Three tools are implemented; six remain target-state
+  scaffolds and no production capability is claimed for those.
 - **Primary implementation ownership:** Bazel/Nix/Python/Go/Rust development and qualification tooling
 
 ## Purpose
 
-Repository-owned code generation, analysis, developer, qualification, and release tools. Tools are invoked through Bazel targets in production/CI paths. This path specializes that domain for **codegen**.
+Repository-owned code generation and the gate that makes `protocols/` the wire authority rather
+than a claim. Tools are invoked through Bazel targets in production/CI paths.
+
+## What is here
+
+| Tool | State | What it does |
+| --- | --- | --- |
+| `verify_generated.py` | implemented | Fails when a committed generated artifact does not match what `protocols/` would produce today. |
+| `generate_typescript_sdk.py` | implemented | Regenerates the public TypeScript SDK in place; `--check` is `pnpm generate:check`. |
+| `generate_event_catalog.py` | implemented | Projects `protocols/events/catalog.yaml` to `asyncapi.yaml`; `--check` gates it. |
+| `generate_proto.sh` | scaffold | Bazel's `go_proto_library`/`py_proto_library` generate Go and Python bindings at build time; nothing is committed. |
+| `generate_go_sdk.py`, `generate_python_sdk.py`, `generate_openapi_clients.py`, `generate_jsonschema.py`, `generate_config_schema.py`, `generate_build_files.py` | scaffold | Reserved boundaries. They hold a `SCAFFOLD_PATH` constant and produce nothing. |
+
+## The drift gate
+
+`.gitattributes` marks generated artifacts `linguist-generated=true`, which collapses them in
+pull-request diffs. That makes them the files a reviewer is told not to read, so they are exactly
+the files that need a machine looking at them. `verify_generated.py` is that machine.
+
+```sh
+tools/dev/nixw develop .#ci --command python3 tools/codegen/verify_generated.py
+tools/dev/nixw develop .#ci --command python3 tools/codegen/verify_generated.py --mode static
+tools/dev/nixw develop .#ci --command python3 tools/codegen/verify_generated.py --repeat
+```
+
+Two lanes, with different costs and different authority.
+
+**`--mode regenerate`** is the authority. It runs the pinned generators into a temporary
+directory and byte-compares the result against what is committed, so nothing satisfies it except
+output a generator actually produced. It needs `node_modules`
+(`pnpm install --frozen-lockfile`), and it never writes to the working tree — unlike
+`generate_typescript_sdk.py --check`, which regenerates in place and compares digests around the
+call, leaving the tree rewritten whether it passed or failed.
+
+**`--mode static`** is hermetic: standard library only, no subprocess, no network, no
+`node_modules`. `run_architecture_checks.py` calls `verify_generated.check()`, so drift fails
+`ci/presubmit/pipeline.py --static-only` on every pull request without a Node toolchain in the
+lane. Byte comparison is unavailable there, so it cross-examines three independent witnesses to
+the same contract: the `.proto` source, the base64 `FileDescriptorProto` that protoc-gen-es bakes
+into every `_pb.ts`, and the emitted TypeScript. The descriptor is the load-bearing one — it is a
+compiled artifact of the `.proto` and not something anyone edits by hand to agree with a lie told
+in the source or in the code.
+
+`GENERATED_RULES` in that file claims every `linguist-generated=true` pattern in `.gitattributes`
+and records what happens to it: regenerated and compared, required to be absent because Bazel
+produces it at build time, or unverifiable with the gate that does own it named. A new rule that
+nothing claims is a failure, because a generated artifact no gate looks at is the defect this
+tool exists to prevent.
+
+Remediation is always `pnpm generate` (or `python3 tools/codegen/generate_event_catalog.py`), not
+an edit to the generated file.
+
+## Generators
+
+Most files here are still scaffold boundaries holding a `SCAFFOLD_PATH` constant. The ones with
+an implementation behind them are listed below; anything not listed generates nothing yet, and
+its absence is why the surface it would own is hand-maintained.
+
+| Tool | Reads | Writes | Drift gate |
+| --- | --- | --- | --- |
+| `generate_event_catalog.py` | `protocols/events/catalog.yaml` | `protocols/events/asyncapi.yaml` | `//tools/codegen:event_catalog_generated_test` |
+| `generate_jsonschema.py` | `protocols/compatibility/protobuf-v1-descriptor.json` + `protocols/mappings/event_proto.yaml` | `protocols/events/generated/**.schema.json` | `--check`, asserted by `tools/codegen/tests/test_generate_jsonschema.py` |
+| `generate_typescript_sdk.py` | `protocols/` through pinned `buf` and `openapi-typescript` | `sdk/typescript/src/generated/` | `--check`, run by `pnpm generate:check` |
+
+### `generate_jsonschema.py`
+
+```sh
+tools/dev/nixw develop .#ci --command python3 tools/codegen/generate_jsonschema.py
+tools/dev/nixw develop .#ci --command python3 tools/codegen/generate_jsonschema.py --check
+```
+
+The event schemas under `protocols/events/generated/` are derived output. The derivation chain
+is `protocols/proto/**.proto` → protoc (`//protocols:protobuf_descriptor_set`) →
+`protocols/compatibility/protobuf-v1-descriptor.json`, which
+`//protocols:protobuf_governance_test` compares byte-for-byte against the sources →
+`protocols/events/generated/**.schema.json`, which `--check` compares byte-for-byte against the
+projection. Both links fail closed, so a `.proto` change that has not reached the schemas is a
+build failure rather than a silent producer/consumer disagreement.
+
+Changing a schema means changing the `.proto` or `protocols/mappings/event_proto.yaml` and
+regenerating. The policy may only *refine* what the descriptor says — tighten a range, add a
+pattern, declare which fields are required — and the generator rejects a refinement that names a
+field the message no longer has, contradicts a projected JSON type, or widens a protobuf range.
+Every string, bytes, repeated, and 64-bit integer projection must declare a bound; 64-bit
+integers may not exceed 2^53-1, because these schemas project them as JSON numbers.
+
+The generator reads the descriptor surface rather than parsing `.proto` text, because parsing
+protobuf source would be a second, unreviewed implementation of what protoc already decides. The
+descriptor surface is protoc's own answer, and it is already gated against the sources.
+
+What it deliberately refuses, rather than guessing at:
+
+- **map fields.** protoc rewrites `map<K, V>` into a repeated synthesized `*Entry` message, and
+  the descriptor surface flattens that entry beside declared messages while dropping the
+  `map_entry` option and the key type. proto3 JSON writes a map as an object keyed by the map
+  key, which cannot be derived from what remains — and an array of `{key, value}` pairs would be
+  a schema no producer emits. It raises.
+- **groups and unmapped imports.** Same reason: no rule, no default.
+
+Payload unions use `anyOf`, never `oneOf`. Every proto3 field is optional, so payload schemas
+overlap by construction and `oneOf` — which requires *exactly* one branch to match — would
+reject the documents the union exists to accept.
+
+There is no Bazel test target for the drift check: the descriptor surface is a source of the
+`//protocols` package, whose default visibility is private, so a sandboxed target cannot read it.
+The check runs in the root pytest lane, which `pyproject.toml` points at `tools/`.
 
 ## Boundary
 
@@ -20,7 +126,7 @@ ground. It may depend only in the direction documented by
 
 ## Materialization requirements
 
-Before this scaffold boundary is treated as implemented, add:
+Before a remaining scaffold boundary is treated as implemented, add:
 
 - a named owner and reviewed stable contract;
 - implementation with bounded resources, cancellation, and deterministic or

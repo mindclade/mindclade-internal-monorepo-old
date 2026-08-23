@@ -116,11 +116,22 @@ type Record struct {
 	LastError   string    `json:"last_error,omitempty"`
 }
 
+// Validate deliberately does not require Attempts <= Item.MaxAttempts.
+// Stores increment Attempts when a lease is granted, and a lease that expires
+// without a terminal transition -- a crashed worker, a preempted pod, a
+// rolling restart -- legitimately consumes an attempt the worker never got to
+// report. Rejecting the over-budget record here made the item permanently
+// unusable: Claim.Validate failed, so Renew, Complete, and Fail all failed,
+// the record could never reach a terminal state, and it was re-leased and
+// re-executed forever with no dead-letter transition. The attempt budget is
+// therefore enforced where the transition is decided (Worker.process compares
+// Attempts against Item.MaxAttempts and fails the item terminally), not by
+// invalidating durable state that has already drifted past it.
 func (record Record) Validate() error {
 	if err := record.Item.Validate(); err != nil {
 		return err
 	}
-	if !record.State.Valid() || record.UpdatedAt.IsZero() || record.Attempts > record.Item.MaxAttempts || len(record.LastError) > MaximumReasonBytes {
+	if !record.State.Valid() || record.UpdatedAt.IsZero() || len(record.LastError) > MaximumReasonBytes {
 		return invalid("invalid_work_record", "invalid work record", "workqueue.Record.Validate")
 	}
 	if record.State == StateLeased && record.Fence == 0 {

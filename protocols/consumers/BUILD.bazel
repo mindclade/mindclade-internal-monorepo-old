@@ -8,3 +8,8 @@ test_suite(
     name = "generated_go_test",
     tests = ["//protocols/consumers/_bazel:generated_go_test"],
 )
+
+test_suite(
+    name = "generated_python_test",
+    tests = ["//protocols/consumers/_bazel:generated_python_test"],
+)
