@@ -33,10 +33,16 @@ type Service struct {
 	components     []Component
 	componentNames map[string]struct{}
 	runStarted     bool
-	cancel         context.CancelCauseFunc
-	shutdown       chan error
-	done           chan struct{}
-	result         error
+	// shutdownRequested records a Shutdown that arrived before Run. The
+	// buffered shutdown channel alone cannot serve that case: Run does not
+	// select on it until after startup, so a service asked to stop while its
+	// composition root was still wiring providers would start every component
+	// and announce readiness before noticing.
+	shutdownRequested bool
+	cancel            context.CancelCauseFunc
+	shutdown          chan error
+	done              chan struct{}
+	result            error
 
 	liveness  *ProbeSet
 	readiness *ProbeSet
@@ -180,6 +186,21 @@ func (service *Service) Wait(ctx context.Context) error {
 
 // Shutdown requests graceful drain and waits for Run to finish. It does not
 // cancel component Run contexts until every Drain hook has been attempted.
+//
+// A request that arrives before Run is latched rather than discarded, and
+// returns immediately because there is no Run to wait for. Discarding it lost
+// the request outright: a supervisor that stops a process while its composition
+// root is still constructing providers received a successful Shutdown, and the
+// Run that started a moment later then ran until it was killed. The Run that
+// follows a latched request starts its components and then drains without ever
+// announcing Running, so it never reports ready.
+//
+// The flag and the channel are both needed, and the flag is set under the same
+// lock Run takes to begin: a request that lands before Run reaches that lock is
+// seen by the flag, and one that lands after is seen by the channel Run is
+// already selecting on. Without the flag the two could interleave so that Run
+// began just after Shutdown sampled it, leaving Shutdown to report success for
+// a service that had not stopped.
 func (service *Service) Shutdown(ctx context.Context) error {
 	if ctx == nil {
 		return nilContextError(operationShutdown)
@@ -187,15 +208,16 @@ func (service *Service) Shutdown(ctx context.Context) error {
 	if service == nil {
 		return nilServiceError(operationShutdown)
 	}
-	service.mu.RLock()
+	service.mu.Lock()
+	service.shutdownRequested = true
 	started := service.runStarted
-	service.mu.RUnlock()
-	if !started {
-		return nil
-	}
+	service.mu.Unlock()
 	select {
 	case service.shutdown <- errShutdownRequested:
 	default:
+	}
+	if !started {
+		return nil
 	}
 	return service.Wait(ctx)
 }
@@ -241,7 +263,7 @@ func (service *Service) Run(parent context.Context) (result error) {
 	}
 
 	startupCtx := faults.ContextWithOperation(parent, operationRun)
-	runCtx, cancel, components, err := service.beginRun(parent)
+	runCtx, cancel, components, requested, err := service.beginRun(parent)
 	if err != nil {
 		return err
 	}
@@ -263,11 +285,20 @@ func (service *Service) Run(parent context.Context) (result error) {
 		return result
 	}
 
-	if parent.Err() != nil {
+	// Termination was requested before Running could be announced, either by
+	// the parent context or by a Shutdown that preceded Run. Draining straight
+	// from Starting is what keeps readiness false throughout: announcing
+	// Running first would publish a ready service that is already on its way
+	// out, and an orchestrator would route into it.
+	if parent.Err() != nil || requested {
+		terminationCause := context.Cause(parent)
+		if terminationCause == nil {
+			terminationCause = errShutdownRequested
+		}
 		shutdownCtx, shutdownCancel := service.newShutdownContext(parent)
 		service.transition(StateDraining, nil)
 		drainErr := service.drainComponents(shutdownCtx, started)
-		cancel(context.Cause(parent))
+		cancel(terminationCause)
 		service.transition(StateStopping, drainErr)
 		stopErr := service.stopComponents(shutdownCtx, started)
 		shutdownCancel()
@@ -317,18 +348,22 @@ func (service *Service) Run(parent context.Context) (result error) {
 	return result
 }
 
-func (service *Service) beginRun(parent context.Context) (context.Context, context.CancelCauseFunc, []Component, error) {
+// beginRun claims the single-use run and reports whether a shutdown was already
+// requested. Both are read under one lock so a Shutdown either happens-before
+// this claim and is reported here, or happens after it and is delivered on the
+// channel Run selects on.
+func (service *Service) beginRun(parent context.Context) (context.Context, context.CancelCauseFunc, []Component, bool, error) {
 	service.mu.Lock()
 	defer service.mu.Unlock()
 	if service.runStarted {
-		return nil, nil, nil, alreadyRunError(service.name)
+		return nil, nil, nil, false, alreadyRunError(service.name)
 	}
 	detached := context.WithoutCancel(parent)
 	operationCtx := faults.ContextWithOperation(detached, operationRun)
 	runCtx, cancel := context.WithCancelCause(operationCtx)
 	service.runStarted = true
 	service.cancel = cancel
-	return runCtx, cancel, append([]Component(nil), service.components...), nil
+	return runCtx, cancel, append([]Component(nil), service.components...), service.shutdownRequested, nil
 }
 
 func (service *Service) startComponents(ctx context.Context, components []Component) ([]Component, error) {
