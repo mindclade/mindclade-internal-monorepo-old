@@ -23,9 +23,25 @@ use mindclade_faults::{Code, Fault, FaultResult};
 /// could never survive to be returned anyway, so applying them here only moves
 /// the rejection earlier.
 fn token_ceiling(limits: Limits) -> usize {
-    usize::try_from(limits.maximum_allocation_bytes.get())
+    usize::try_from(limits.maximum_payload_bytes.get())
         .unwrap_or(MAXIMUM_TOKEN_BYTES)
         .min(MAXIMUM_TOKEN_BYTES)
+}
+
+/// Whether the bytes handed to `push_token` still owe the allocation budget.
+///
+/// A semicolon text field is charged line by line as it accumulates, so
+/// charging it again when the closing `;` arrives counted the same retained
+/// bytes twice. That rejected well-formed files at half the configured payload
+/// budget — a 600-byte `_struct.title` needed 1200 bytes of budget — while an
+/// ordinary token on one line was charged once. The retained cost is the same
+/// either way, so the accounting must be too.
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum Accounting {
+    /// The caller has not charged these bytes yet.
+    Owed,
+    /// `charge_text_field` already charged them during accumulation.
+    Settled,
 }
 
 fn charge_text_field(
@@ -65,7 +81,15 @@ pub fn lex(bytes: &[u8], limits: Limits) -> FaultResult<Vec<CifToken>> {
             // in the first column is what closes an mmCIF multi-line text field; the space was
             // never part of the delimiter.
             if line.first() == Some(&b';') {
-                push_token(&mut output, value, *offset, limits, &mut allocation)?;
+                // Already charged line by line by `charge_text_field`.
+                push_token(
+                    &mut output,
+                    value,
+                    *offset,
+                    limits,
+                    &mut allocation,
+                    Accounting::Settled,
+                )?;
                 text_field = None;
             } else {
                 charge_text_field(value, line, limits, &mut allocation)?;
@@ -141,7 +165,14 @@ fn lex_line(
         let absolute_offset = base_offset
             .checked_add(start)
             .ok_or_else(|| Fault::new(Code::OutOfRange, "mmCIF token offset overflow"))?;
-        push_token(output, token, absolute_offset, limits, allocation)?;
+        push_token(
+            output,
+            token,
+            absolute_offset,
+            limits,
+            allocation,
+            Accounting::Owed,
+        )?;
         if index < line.len() && line[index] == b'#' {
             break;
         }
@@ -155,6 +186,7 @@ fn push_token(
     offset: usize,
     limits: Limits,
     allocation: &mut AllocationBudget,
+    accounting: Accounting,
 ) -> FaultResult<()> {
     if output.len() >= limits.maximum_tokens {
         return Err(Fault::new(
@@ -179,7 +211,9 @@ fn push_token(
     if value.is_empty() {
         return Err(Fault::invalid_argument("mmCIF token is empty"));
     }
-    allocation.charge_usize(value.len())?;
+    if accounting == Accounting::Owed {
+        allocation.charge_usize(value.len())?;
+    }
     let token = CifToken {
         value: value.to_owned(),
         offset,

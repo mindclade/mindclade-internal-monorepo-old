@@ -14,8 +14,8 @@
 //! never called on anything.
 //!
 //! Retention is now hard-bounded at `Limits::maximum_metadata_entries`
-//! diagnostics of at most 4096 message bytes each, so the sink holds at most
-//! `maximum_metadata_entries * 4 KiB`.
+//! diagnostics, each clamped to `MAXIMUM_MESSAGE_BYTES`, so the sink holds at
+//! most `maximum_metadata_entries * 4 KiB` no matter what the input looks like.
 
 use crate::{Diagnostic, Limits, ParseMode};
 use mindclade_faults::FaultResult;
@@ -71,15 +71,22 @@ impl Recovery {
     /// that aborted on diagnostic 1025 would be strict mode with extra steps.
     /// The loss is never silent — it is counted in [`Self::suppressed`].
     ///
-    /// The returned error is not a data condition. It means the *parser* built a
-    /// diagnostic outside `Diagnostic::validate`'s bounds, which is a caller bug
-    /// worth surfacing rather than storing.
+    /// An oversized *message* is clamped for the same reason. A reporter
+    /// naturally quotes the construct it rejected, and a hostile line may run to
+    /// `maximum_line_bytes`; returning an error there would abort the parse
+    /// through the caller's `?` and degrade recovery into strict mode under
+    /// exactly the adversarial input recovery exists to survive.
+    ///
+    /// The remaining error is genuinely not a data condition: it means the
+    /// *parser* declared a `code` outside its bounds, which is a constant chosen
+    /// by the parser author and so a bug worth surfacing rather than storing.
     ///
     /// Strict mode discards diagnostics and always succeeds, as before.
     pub fn record(&mut self, diagnostic: Diagnostic) -> FaultResult<()> {
         if !self.mode.allows_recovery() {
             return Ok(());
         }
+        let diagnostic = diagnostic.truncated();
         diagnostic.validate()?;
         if self.diagnostics.len() >= self.maximum_diagnostics {
             // Written as `if let Some` rather than `saturating_add` (which

@@ -20,6 +20,9 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[3]
+ANALYSIS_ROOT = ROOT / "tools/analysis"
+if str(ANALYSIS_ROOT) not in sys.path:
+    sys.path.insert(0, str(ANALYSIS_ROOT))
 
 
 def load(name: str, path: Path):
