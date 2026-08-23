@@ -164,27 +164,49 @@ func liveStage(t *testing.T) orchestration.StageRecord {
 // The whole point of the single-transaction rule: the domain row, the audit
 // record, and the outbox message either all land or none do.
 func TestLivePostgresStageWriteIsAtomicWithAuditAndOutbox(t *testing.T) {
-	live := newLiveOrchestrationStore(t)
-	record := liveStage(t)
-	if _, replayed, err := live.store.PutStage(context.Background(), record); err != nil || replayed {
-		t.Fatalf("PutStage: err=%v replayed=%v", err, replayed)
-	}
-	if got := live.count(t, live.stageTable); got != 1 {
-		t.Fatalf("stages = %d, want 1", got)
-	}
-	if got := live.count(t, live.auditTable); got != 1 {
-		t.Fatalf("audit events = %d, want 1", got)
-	}
-	if got := live.count(t, live.outboxTable); got != 1 {
-		t.Fatalf("outbox messages = %d, want 1", got)
-	}
+	t.Run("commit", func(t *testing.T) {
+		live := newLiveOrchestrationStore(t)
+		record := liveStage(t)
+		if _, replayed, err := live.store.PutStage(context.Background(), record); err != nil || replayed {
+			t.Fatalf("PutStage: err=%v replayed=%v", err, replayed)
+		}
+		if got := live.count(t, live.stageTable); got != 1 {
+			t.Fatalf("stages = %d, want 1", got)
+		}
+		if got := live.count(t, live.auditTable); got != 1 {
+			t.Fatalf("audit events = %d, want 1", got)
+		}
+		if got := live.count(t, live.outboxTable); got != 1 {
+			t.Fatalf("outbox messages = %d, want 1", got)
+		}
+	})
+
+	t.Run("outbox failure rolls back domain and audit writes", func(t *testing.T) {
+		live := newLiveOrchestrationStore(t)
+		if _, err := live.db.ExecContext(context.Background(),
+			"ALTER TABLE "+live.outboxTable+" ADD CONSTRAINT reject_all_messages CHECK (false)"); err != nil {
+			t.Fatalf("install outbox failure: %v", err)
+		}
+		if _, _, err := live.store.PutStage(context.Background(), liveStage(t)); err == nil {
+			t.Fatal("PutStage must fail when its outbox append is rejected")
+		}
+		if got := live.count(t, live.stageTable); got != 0 {
+			t.Fatalf("stages = %d, want 0 after rollback", got)
+		}
+		if got := live.count(t, live.auditTable); got != 0 {
+			t.Fatalf("audit events = %d, want 0 after rollback", got)
+		}
+		if got := live.count(t, live.outboxTable); got != 0 {
+			t.Fatalf("outbox messages = %d, want 0 after rollback", got)
+		}
+	})
 }
 
 // A CHECK constraint that never fires is indistinguishable from one that is not
 // there. This proves the constraints tying each projected column to the stored
 // document are live, by writing a row whose projection disagrees with its
 // document and requiring the server to refuse it.
-func TestLivePostgresRejectsProjectionDriftFromTheDocument(t *testing.T) {
+func TestLivePostgresRejectsStageStateProjectionDriftFromTheDocument(t *testing.T) {
 	live := newLiveOrchestrationStore(t)
 	record := liveStage(t)
 	if _, _, err := live.store.PutStage(context.Background(), record); err != nil {
@@ -265,30 +287,48 @@ func TestLivePostgresConcurrentTransitionsProduceOneWinner(t *testing.T) {
 	}
 
 	const racers = 8
-	var applied atomic.Int64
-	var conflicts atomic.Int64
+	type transitionResult struct {
+		replayed bool
+		err      error
+	}
+	results := make(chan transitionResult, racers)
+	start := make(chan struct{})
+	var ready sync.WaitGroup
 	var group sync.WaitGroup
+	ready.Add(racers)
 	group.Add(racers)
 	for range racers {
 		go func() {
 			defer group.Done()
+			ready.Done()
+			<-start
 			_, replayed, err := live.store.TransitionStage(ctx,
 				stored.RunID, stored.StageID, orchestration.StageQueued, stored.Version, time.Now())
-			switch {
-			case err == nil && !replayed:
-				applied.Add(1)
-			case err == nil && replayed:
-				// Another racer already made this transition; absorbing it is
-				// correct, and is what makes redelivery safe.
-			default:
-				conflicts.Add(1)
-			}
+			results <- transitionResult{replayed: replayed, err: err}
 		}()
 	}
+	ready.Wait()
+	close(start)
 	group.Wait()
+	close(results)
 
-	if got := applied.Load(); got != 1 {
-		t.Fatalf("applied = %d, want exactly 1 winner among %d racers", got, racers)
+	applied, replayed := 0, 0
+	for result := range results {
+		if result.err != nil {
+			t.Errorf("racing transition returned an unexpected error: %v", result.err)
+			continue
+		}
+		if result.replayed {
+			replayed++
+		} else {
+			applied++
+		}
+	}
+	if applied != 1 {
+		t.Errorf("applied = %d, want exactly 1 winner among %d racers", applied, racers)
+	}
+	if replayed != racers-1 {
+		t.Errorf("replayed = %d, want %d successful losing replays", replayed, racers-1)
 	}
 	final, err := live.store.GetStage(ctx, stored.RunID, stored.StageID)
 	if err != nil {
@@ -407,7 +447,7 @@ func TestLivePostgresGetStagesReturnsOnlyMaterializedStages(t *testing.T) {
 	if _, _, err := live.store.PutStage(ctx, present); err != nil {
 		t.Fatalf("PutStage: %v", err)
 	}
-	absent := liveID(t, "stage")
+	absent := "stage_00000000000000000000000000000000') OR true --"
 	records, err := live.store.GetStages(ctx, present.RunID, []string{present.StageID, absent})
 	if err != nil {
 		t.Fatalf("GetStages: %v", err)
