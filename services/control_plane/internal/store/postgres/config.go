@@ -27,6 +27,7 @@ const (
 	DefaultEligibilityRevocationTable = "mindclade_eligibility_revocations"
 	DefaultArtifactIdentityTable      = "mindclade_artifact_identities"
 	DefaultArtifactLocationTable      = "mindclade_artifact_locations"
+	DefaultLineageGraphTable          = "mindclade_lineage_graphs"
 )
 
 // Option configures a Store.
@@ -112,6 +113,15 @@ func WithArtifactLocationTable(value string) Option {
 	return evidenceTableOption(value, "invalid_artifact_location_table", func(store *Store, table string) { store.artifactLocations = table })
 }
 
+// WithLineageGraphTable overrides the content-addressed lineage graph table
+// name. This is not the evidence graph table: that one is keyed by release_id
+// and holds the release-gating record, while this holds provenance keyed by the
+// graph's own digest. The two are separate concepts that both use the word
+// "graph", so they must never be pointed at one table.
+func WithLineageGraphTable(value string) Option {
+	return evidenceTableOption(value, "invalid_lineage_graph_table", func(store *Store, table string) { store.lineage = table })
+}
+
 func evidenceTableOption(value, reason string, assign func(*Store, string)) Option {
 	return func(store *Store) error {
 		value = strings.TrimSpace(value)
@@ -144,6 +154,7 @@ type Store struct {
 	revocations        string
 	artifactIdentities string
 	artifactLocations  string
+	lineage            string
 }
 
 // New constructs a Store over db.
@@ -163,6 +174,7 @@ func New(db *sql.DB, options ...Option) (*Store, error) {
 		revocations:        DefaultEligibilityRevocationTable,
 		artifactIdentities: DefaultArtifactIdentityTable,
 		artifactLocations:  DefaultArtifactLocationTable,
+		lineage:            DefaultLineageGraphTable,
 	}
 	for _, option := range options {
 		if option != nil {
@@ -177,6 +189,7 @@ func New(db *sql.DB, options ...Option) (*Store, error) {
 	for _, table := range []string{
 		store.descriptors, store.releases, store.graphs, store.claims, store.verifications,
 		store.decisions, store.revocations, store.artifactIdentities, store.artifactLocations,
+		store.lineage,
 	} {
 		if !validQualifiedIdentifier(table) {
 			return nil, invalidConfig("invalid registry PostgreSQL configuration", "invalid_configuration")
@@ -198,6 +211,7 @@ func (store *Store) EligibilityDecisionTable() string   { return store.decisions
 func (store *Store) EligibilityRevocationTable() string { return store.revocations }
 func (store *Store) ArtifactIdentityTable() string      { return store.artifactIdentities }
 func (store *Store) ArtifactLocationTable() string      { return store.artifactLocations }
+func (store *Store) LineageGraphTable() string          { return store.lineage }
 
 // validQualifiedIdentifier accepts a lowercase, optionally schema-qualified
 // PostgreSQL identifier. Table names reach string-formatted SQL, so this is

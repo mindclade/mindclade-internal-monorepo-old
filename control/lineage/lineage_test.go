@@ -132,7 +132,7 @@ func (repository *memoryRepository) Put(_ context.Context, digest identifiers.Di
 		existingDigest, _ := existing.Digest()
 		newDigest, _ := graph.Digest()
 		if !existingDigest.Equal(newDigest) {
-			return errors.New("digest collision")
+			return ErrGraphImmutable
 		}
 		return nil
 	}
@@ -143,7 +143,7 @@ func (repository *memoryRepository) Put(_ context.Context, digest identifiers.Di
 func (repository *memoryRepository) Get(_ context.Context, digest identifiers.Digest) (Graph, error) {
 	graph, ok := repository.graphs[digest.String()]
 	if !ok {
-		return Graph{}, errors.New("not found")
+		return Graph{}, ErrGraphNotFound
 	}
 	if repository.corrupt {
 		graph.PolicyDigest = identifiers.SHA256String("corrupt")
@@ -165,5 +165,33 @@ func TestServiceVerifiesStoredGraphDigest(t *testing.T) {
 	repository.corrupt = true
 	if _, err := service.Get(context.Background(), digest); faults.CodeOf(err) != faults.CodeDataLoss {
 		t.Fatalf("corrupt graph error = %v", err)
+	}
+}
+
+// The two rejections in the Repository contract are named by the domain so that
+// every implementation produces the same errors.Is target. A caller must not be
+// able to tell the durable store from this reference by what it gets back.
+func TestRepositoryRejectionsUseTheDomainSentinels(t *testing.T) {
+	t.Parallel()
+	repository := &memoryRepository{}
+	graph := testGraph()
+	digest, err := graph.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := repository.Put(context.Background(), digest, graph); err != nil {
+		t.Fatal(err)
+	}
+	if err := repository.Put(context.Background(), digest, graph); err != nil {
+		t.Fatalf("republishing an identical graph was rejected: %v", err)
+	}
+
+	different := testGraph()
+	different.PolicyDigest = identifiers.SHA256String("a-different-policy")
+	if err := repository.Put(context.Background(), digest, different); !errors.Is(err, ErrGraphImmutable) {
+		t.Fatalf("rebinding a digest returned %v", err)
+	}
+	if _, err := repository.Get(context.Background(), identifiers.SHA256String("never-published")); !errors.Is(err, ErrGraphNotFound) {
+		t.Fatalf("an absent digest returned %v", err)
 	}
 }

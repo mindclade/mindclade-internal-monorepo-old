@@ -17,6 +17,7 @@ go_library(
         "doc.go",
         "errors.go",
         "evidence.go",
+        "lineage.go",
         "releases.go",
         "store.go",
     ],
@@ -24,6 +25,7 @@ go_library(
     deps = [
         "//control/artifacts",
         "//control/evidence",
+        "//control/lineage",
         "//control/registry/models",
         "//control/registry/releases",
         "//libs/go/clock",
@@ -41,6 +43,7 @@ go_test(
         "ddl_test.go",
         "descriptors_test.go",
         "live_artifacts_test.go",
+        "live_lineage_test.go",
         "live_postgres_test.go",
         "releases_test.go",
     ],
@@ -48,6 +51,7 @@ go_test(
     deps = [
         "//control/artifacts",
         "//control/evidence",
+        "//control/lineage",
         "//control/registry/models",
         "//control/registry/releases",
         "//libs/go/clock",
