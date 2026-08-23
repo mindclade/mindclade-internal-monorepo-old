@@ -54,6 +54,12 @@ py_binary(
     visibility = ["//visibility:public"],
 )
 
+pytest_test(
+    name = "blueprint_scaffold_gate_test",
+    srcs = ["tests/test_blueprint_scaffold_gate.py"],
+    data = [":architecture_policy"],
+)
+
 py_binary(
     name = "check_go_layers",
     srcs = ["check_go_layers.py"],
