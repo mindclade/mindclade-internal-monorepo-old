@@ -50,7 +50,9 @@ func (store *Store) validate(ctx context.Context, operation string) error {
 		!validQualifiedIdentifier(store.claims) ||
 		!validQualifiedIdentifier(store.verifications) ||
 		!validQualifiedIdentifier(store.decisions) ||
-		!validQualifiedIdentifier(store.revocations) {
+		!validQualifiedIdentifier(store.revocations) ||
+		!validQualifiedIdentifier(store.artifactIdentities) ||
+		!validQualifiedIdentifier(store.artifactLocations) {
 		return faults.Wrap(ErrInvalidConfig, faults.CodeFailedPrecondition,
 			"registry PostgreSQL store is not configured",
 			faults.WithReason("registry_store_unconfigured"),
