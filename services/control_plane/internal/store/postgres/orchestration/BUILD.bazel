@@ -1,0 +1,58 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//services/control_plane:__subpackages__"])
+
+go_library(
+    name = "orchestration",
+    srcs = [
+        "attempts.go",
+        "config.go",
+        "ddl.go",
+        "doc.go",
+        "errors.go",
+        "events.go",
+        "stages.go",
+        "store.go",
+        "workflows.go",
+    ],
+    importpath = "go.mindclade.dev/services/control_plane/internal/store/postgres/orchestration",
+    deps = [
+        "//control/orchestration",
+        "//libs/go/audit",
+        "//libs/go/auth",
+        "//libs/go/clock",
+        "//libs/go/coordination/outbox",
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+        "//libs/go/requestmeta",
+        "//libs/go/resourceversion",
+        "//libs/go/retry",
+        "//libs/go/servicekit",
+        "//libs/go/storage/sql/postgres",
+        "//libs/go/storage/sql/transaction",
+    ],
+)
+
+go_test(
+    name = "orchestration_test",
+    srcs = ["store_test.go"],
+    embed = [":orchestration"],
+    deps = [
+        "//control/orchestration",
+        "//control/runtime_authority",
+        "//libs/go/audit",
+        "//libs/go/clock",
+        "//libs/go/coordination/outbox",
+        "//libs/go/coordination/outbox/memory",
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+        "//libs/go/retry",
+        "//libs/go/storage/sql/sqltest",
+        "//libs/go/storage/sql/transaction",
+    ],
+)

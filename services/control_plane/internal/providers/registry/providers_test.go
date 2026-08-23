@@ -114,14 +114,18 @@ func TestMigrationRunnerCarriesEveryAdapterSchema(t *testing.T) {
 	}
 }
 
-func TestMigrationManifestPreservesReleasedBytesAndAppendsEvidenceLedger(t *testing.T) {
+func TestMigrationManifestPreservesReleasedBytesWhenAppending(t *testing.T) {
 	manifest, err := newMigrationManifest()
 	if err != nil {
 		t.Fatal(err)
 	}
 	migrations := manifest.Migrations()
-	if len(migrations) != int(migrationEligibilityRevocations) {
-		t.Fatalf("migration count = %d, want %d", len(migrations), migrationEligibilityRevocations)
+	// Pinned to the LAST version constant, not to a literal. Appending a schema
+	// moves this line by construction; the assertion that matters is the one
+	// below, that every version 1..N appears exactly once and in order, because
+	// a gap or a reorder is what makes a runner skip a schema or replay one.
+	if len(migrations) != int(migrationOrchestrationCancellations) {
+		t.Fatalf("migration count = %d, want %d", len(migrations), migrationOrchestrationCancellations)
 	}
 	for index, migration := range migrations {
 		if migration.Version != uint64(index+1) {
