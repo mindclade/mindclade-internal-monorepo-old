@@ -104,6 +104,53 @@ reviewed source change and restores the source record to `blocked`. The disk cac
 on the next run. Do not delete cache objects as part of client rollback; lifecycle policy and a
 separate reviewed incident operation own deletion.
 
+## build-cache-immutable-collision
+
+A write presented a different payload at an existing content-addressed key and the gateway rejected
+it with a redacted `immutable_collision`. Identical duplicate uploads are idempotent by design, so a
+collision is never a benign retry: it means a digest has stopped identifying exactly one payload.
+Until the cause is understood the cache is no longer content-addressed, and every hit served from it
+is a claim nobody can check.
+
+Treat it as a supply-chain event rather than a cache fault. Preserve `cache-metrics.json` and
+`cache-gateway.log` from the affected run — the log carries stable error codes and methods only, so
+it is safe to attach — and identify the writing role before anything else. Do not delete the object
+to "clear" the collision: lifecycle policy and a separate reviewed incident operation own deletion,
+and removing the evidence removes the only record of which payload arrived first.
+
+## build-cache-reader-write-denied
+
+A reader-role identity attempted a write and was denied. The deny held, which is why this is a
+ticket and not a page — nothing is broken, and the fail-closed path did its job.
+
+The benign explanation is a misconfigured client: `--remote_upload_local_results` left on in a lane
+that is supposed to be read-only, or a `user.bazelrc` pointed at the gateway on a machine that has
+no business writing it. Confirm that first, because it is the common case and the fix is a one-line
+configuration change.
+
+The explanation that matters is the presubmit lane. Untrusted pull-request code attempting cache
+writes is exactly the boundary the ARC runner-group split exists to hold; see
+[`arc-runners.md`](arc-runners.md). If the attempts originate there, treat it as a stop condition on
+presubmit activation rather than as a client bug, and do not widen the write grant to make the
+signal stop.
+
+## build-cache-gateway-request-error-ratio
+
+Gateway requests are failing for reasons other than a cache miss. The threshold is proposed, not
+approved, and needs a real load baseline behind it before anyone commits to it.
+
+A miss is normal and cheap; an error is neither. Bazel cannot distinguish a broken cache from an
+absent action result, so a gateway erroring at a sustained rate converts a performance optimization
+into build failures and latency that look like a compiler problem. Read the stable error codes in
+`cache-gateway.log` first: staging-wait cancellations point at the bounded spool and concurrency,
+digest-verification failures point at object integrity, and authentication failures point at the
+external-account file rather than at the cache.
+
+The rollback is the one already documented above — return the governed repository variable to
+`blocked`, then remove job OIDC and restore the source record. The disk cache becomes active on the
+next run, and a cold build is the correct outcome. Never weaken digest verification or raise the
+one-GiB object limit to make errors go away.
+
 ## Failure triage
 
 1. Read `selection.json` first. Confirm event, base/head, effective mode,

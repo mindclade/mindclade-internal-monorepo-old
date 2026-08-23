@@ -1,0 +1,375 @@
+{
+  "mindclade.orchestration.v1.CancelRunRequest": {
+    "1": {
+      "label": "singular",
+      "name": "run_id",
+      "type": "mindclade.common.v1.ResourceId"
+    },
+    "2": {
+      "label": "singular",
+      "name": "idempotency_key",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "reason",
+      "type": "string"
+    }
+  },
+  "mindclade.orchestration.v1.CancelRunResponse": {
+    "1": {
+      "label": "singular",
+      "name": "run",
+      "type": "Run"
+    }
+  },
+  "mindclade.orchestration.v1.CreateRunRequest": {
+    "1": {
+      "label": "singular",
+      "name": "run",
+      "type": "CreateRunSpec"
+    },
+    "2": {
+      "label": "singular",
+      "name": "idempotency_key",
+      "type": "string"
+    }
+  },
+  "mindclade.orchestration.v1.CreateRunResponse": {
+    "1": {
+      "label": "singular",
+      "name": "run",
+      "type": "Run"
+    }
+  },
+  "mindclade.orchestration.v1.CreateRunSpec": {
+    "1": {
+      "label": "singular",
+      "name": "name",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "kind",
+      "type": "RunKind"
+    },
+    "3": {
+      "label": "singular",
+      "name": "configuration_digest",
+      "type": "mindclade.common.v1.ContentDigest"
+    },
+    "4": {
+      "label": "optional",
+      "name": "model_id",
+      "type": "mindclade.common.v1.ResourceId"
+    },
+    "5": {
+      "label": "optional",
+      "name": "dataset_id",
+      "type": "mindclade.common.v1.ResourceId"
+    }
+  },
+  "mindclade.orchestration.v1.GetRunRequest": {
+    "1": {
+      "label": "singular",
+      "name": "run_id",
+      "type": "mindclade.common.v1.ResourceId"
+    }
+  },
+  "mindclade.orchestration.v1.GetRunResponse": {
+    "1": {
+      "label": "singular",
+      "name": "run",
+      "type": "Run"
+    }
+  },
+  "mindclade.orchestration.v1.ListRunsRequest": {
+    "1": {
+      "label": "singular",
+      "name": "page",
+      "type": "mindclade.common.v1.PageRequest"
+    },
+    "2": {
+      "label": "optional",
+      "name": "state",
+      "type": "RunState"
+    }
+  },
+  "mindclade.orchestration.v1.ListRunsResponse": {
+    "1": {
+      "label": "repeated",
+      "name": "runs",
+      "type": "Run"
+    },
+    "2": {
+      "label": "singular",
+      "name": "page",
+      "type": "mindclade.common.v1.PageResponse"
+    }
+  },
+  "mindclade.orchestration.v1.Run": {
+    "1": {
+      "label": "singular",
+      "name": "id",
+      "type": "mindclade.common.v1.ResourceId"
+    },
+    "10": {
+      "label": "optional",
+      "name": "model_id",
+      "type": "mindclade.common.v1.ResourceId"
+    },
+    "11": {
+      "label": "repeated",
+      "name": "output_artifacts",
+      "type": "mindclade.common.v1.ContentDigest"
+    },
+    "12": {
+      "label": "singular",
+      "name": "resource_version",
+      "type": "mindclade.common.v1.ResourceVersion"
+    },
+    "13": {
+      "label": "optional",
+      "name": "failure",
+      "type": "mindclade.common.v1.ErrorDetail"
+    },
+    "2": {
+      "label": "singular",
+      "name": "name",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "kind",
+      "type": "RunKind"
+    },
+    "4": {
+      "label": "singular",
+      "name": "state",
+      "type": "RunState"
+    },
+    "5": {
+      "label": "singular",
+      "name": "created_at",
+      "type": "google.protobuf.Timestamp"
+    },
+    "6": {
+      "label": "singular",
+      "name": "updated_at",
+      "type": "google.protobuf.Timestamp"
+    },
+    "7": {
+      "label": "singular",
+      "name": "progress",
+      "type": "double"
+    },
+    "8": {
+      "label": "singular",
+      "name": "current_stage",
+      "type": "string"
+    },
+    "9": {
+      "label": "singular",
+      "name": "owner",
+      "type": "string"
+    }
+  },
+  "mindclade.orchestration.v1.StageAttempt": {
+    "1": {
+      "label": "singular",
+      "name": "run_id",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "job_id",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "spec",
+      "type": "StageSpec"
+    },
+    "4": {
+      "label": "singular",
+      "name": "attempt",
+      "type": "uint32"
+    },
+    "5": {
+      "label": "singular",
+      "name": "fencing_token",
+      "type": "uint64"
+    },
+    "6": {
+      "label": "singular",
+      "name": "execution_ticket_id",
+      "type": "string"
+    }
+  },
+  "mindclade.orchestration.v1.StageSpec": {
+    "1": {
+      "label": "singular",
+      "name": "stage_id",
+      "type": "string"
+    },
+    "10": {
+      "label": "singular",
+      "name": "maximum_attempts",
+      "type": "uint32"
+    },
+    "11": {
+      "label": "repeated",
+      "name": "dependency_stage_ids",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "kind",
+      "type": "StageKind"
+    },
+    "3": {
+      "label": "singular",
+      "name": "operation",
+      "type": "string"
+    },
+    "4": {
+      "label": "repeated",
+      "name": "inputs",
+      "type": "mindclade.common.v1.ArtifactRef"
+    },
+    "5": {
+      "label": "singular",
+      "name": "output_namespace",
+      "type": "string"
+    },
+    "6": {
+      "label": "singular",
+      "name": "resolved_config_digest",
+      "type": "string"
+    },
+    "7": {
+      "label": "singular",
+      "name": "reference_snapshot_digest",
+      "type": "string"
+    },
+    "8": {
+      "label": "singular",
+      "name": "budget",
+      "type": "mindclade.runtime.v1.ExecutionBudget"
+    },
+    "9": {
+      "label": "singular",
+      "name": "timeout_millis",
+      "type": "uint64"
+    }
+  },
+  "mindclade.orchestration.v1.Workflow": {
+    "1": {
+      "label": "singular",
+      "name": "id",
+      "type": "mindclade.common.v1.ResourceId"
+    },
+    "2": {
+      "label": "singular",
+      "name": "name",
+      "type": "string"
+    },
+    "3": {
+      "label": "repeated",
+      "name": "stages",
+      "type": "StageSpec"
+    },
+    "4": {
+      "label": "singular",
+      "name": "definition_digest",
+      "type": "mindclade.common.v1.ContentDigest"
+    },
+    "5": {
+      "label": "singular",
+      "name": "schema_version",
+      "type": "uint32"
+    }
+  },
+  "mindclade.orchestration.v1.WorkloadEnvelope": {
+    "1": {
+      "label": "singular",
+      "name": "workload_id",
+      "type": "string"
+    },
+    "10": {
+      "label": "repeated",
+      "name": "expected_outputs",
+      "type": "mindclade.common.v1.ArtifactRef"
+    },
+    "11": {
+      "label": "singular",
+      "name": "resolved_config_digest",
+      "type": "string"
+    },
+    "12": {
+      "label": "singular",
+      "name": "resource_class",
+      "type": "string"
+    },
+    "13": {
+      "label": "singular",
+      "name": "created_unix_millis",
+      "type": "uint64"
+    },
+    "14": {
+      "label": "singular",
+      "name": "deadline_unix_millis",
+      "type": "uint64"
+    },
+    "15": {
+      "label": "singular",
+      "name": "stage_kind",
+      "type": "StageKind"
+    },
+    "16": {
+      "label": "singular",
+      "name": "operation",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "run_id",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "job_id",
+      "type": "string"
+    },
+    "4": {
+      "label": "singular",
+      "name": "stage_id",
+      "type": "string"
+    },
+    "5": {
+      "label": "singular",
+      "name": "attempt",
+      "type": "uint32"
+    },
+    "6": {
+      "label": "singular",
+      "name": "tenant_id",
+      "type": "string"
+    },
+    "7": {
+      "label": "singular",
+      "name": "workspace_id",
+      "type": "string"
+    },
+    "8": {
+      "label": "singular",
+      "name": "execution_ticket",
+      "type": "mindclade.runtime.v1.ExecutionTicket"
+    },
+    "9": {
+      "label": "repeated",
+      "name": "inputs",
+      "type": "mindclade.common.v1.ArtifactRef"
+    }
+  }
+}

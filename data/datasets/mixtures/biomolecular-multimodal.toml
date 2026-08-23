@@ -10,13 +10,13 @@ seed = 11
 [[components]]
 dataset_id = "biomolecular-complexes"
 version = "0.0.0"
-manifest_digest = "sha256:4eaf2bd7560869ab6a811240354b7045b98335736762d74ca1e03a726f3ee482"
+manifest_digest = "sha256:b8f72a1fcaa13b3f0b64abeeea29a0aa1a809e9b69acf54d9160f92bf5f0e2ba"
 split = "train"
 weight = 0.5
 
 [[components]]
 dataset_id = "sequence-pretraining"
 version = "0.0.0"
-manifest_digest = "sha256:4ed80c47048200ad43123f267ed600a196b770750c93aa3417c40c13a6ae86b9"
+manifest_digest = "sha256:96c121f706d60550489eea9e471e89f1d8753636f71dd4000117c6f55ce589c4"
 split = "train"
 weight = 0.5
