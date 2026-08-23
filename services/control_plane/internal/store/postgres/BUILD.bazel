@@ -10,6 +10,7 @@ package(default_visibility = ["//services/control_plane:__subpackages__"])
 go_library(
     name = "postgres",
     srcs = [
+        "artifacts.go",
         "config.go",
         "ddl.go",
         "descriptors.go",
@@ -21,6 +22,7 @@ go_library(
     ],
     importpath = "go.mindclade.dev/services/control_plane/internal/store/postgres",
     deps = [
+        "//control/artifacts",
         "//control/evidence",
         "//control/registry/models",
         "//control/registry/releases",
@@ -35,8 +37,10 @@ go_library(
 go_test(
     name = "postgres_test",
     srcs = [
+        "artifacts_test.go",
         "ddl_test.go",
         "descriptors_test.go",
+        "live_artifacts_test.go",
         "live_postgres_test.go",
         "releases_test.go",
     ],

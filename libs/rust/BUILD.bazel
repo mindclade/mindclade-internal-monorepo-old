@@ -55,6 +55,7 @@ filegroup(
         "//libs/rust/python_bridge:package_sources",
         "//libs/rust/record_io:package_sources",
         "//libs/rust/runtime_core:package_sources",
+        "//libs/rust/sandbox_os:package_sources",
         "//libs/rust/servicekit:package_sources",
         "//libs/rust/telemetry:package_sources",
         "//libs/rust/telemetry_spool:package_sources",

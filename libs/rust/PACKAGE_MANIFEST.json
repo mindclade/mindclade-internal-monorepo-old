@@ -2,8 +2,8 @@
   "schema_version": 2,
   "rust_version": "1.97.1",
   "edition": "2024",
-  "package_count": 25,
-  "production_package_count": 25,
+  "package_count": 26,
+  "production_package_count": 26,
   "packages": [
     {
       "directory": "artifact_cas",
@@ -562,6 +562,28 @@
       ]
     },
     {
+      "directory": "sandbox_os",
+      "crate": "mindclade_sandbox_os",
+      "layer": 0,
+      "stability": "evolving",
+      "production": true,
+      "dependencies": [
+        "faults"
+      ],
+      "production_sources": [
+        "src/allowlist.rs",
+        "src/lib.rs",
+        "src/linux.rs",
+        "src/policy.rs",
+        "src/profiles.rs",
+        "src/report.rs"
+      ],
+      "test_sources": [
+        "tests/enforcement.rs",
+        "tests/policy.rs"
+      ]
+    },
+    {
       "directory": "servicekit",
       "crate": "mindclade_servicekit",
       "layer": 3,
@@ -711,10 +733,12 @@
       "dependencies": [
         "faults",
         "runtime_core",
+        "sandbox_os",
         "worker_protocol"
       ],
       "production_sources": [
         "src/commit.rs",
+        "src/confinement.rs",
         "src/diagnostics.rs",
         "src/drain.rs",
         "src/heartbeat.rs",
@@ -726,6 +750,7 @@
         "src/supervisor.rs"
       ],
       "test_sources": [
+        "tests/confinement.rs",
         "tests/failure_injection.rs",
         "tests/fencing.rs",
         "tests/heartbeat.rs",

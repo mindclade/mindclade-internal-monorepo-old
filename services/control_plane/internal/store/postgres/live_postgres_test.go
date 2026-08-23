@@ -78,6 +78,8 @@ func livePostgresStore(t *testing.T) (*Store, *sql.DB) {
 	verificationTable := schema + ".verifications"
 	decisionTable := schema + ".decisions"
 	revocationTable := schema + ".revocations"
+	artifactIdentityTable := schema + ".artifact_identities"
+	artifactLocationTable := schema + ".artifact_locations"
 	statements, err := DDL(descriptorTable, releaseTable, graphTable)
 	if err != nil {
 		t.Fatal(err)
@@ -96,8 +98,19 @@ func livePostgresStore(t *testing.T) (*Store, *sql.DB) {
 			t.Fatalf("apply evidence ledger DDL: %v", err)
 		}
 	}
+	artifactStatements, err := ArtifactCatalogDDL(artifactIdentityTable, artifactLocationTable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, statement := range artifactStatements {
+		if _, err := db.ExecContext(ctx, statement); err != nil {
+			t.Fatalf("apply artifact catalog DDL: %v", err)
+		}
+	}
 	store, err := New(db,
 		WithClock(clock.RealClock{}),
+		WithArtifactIdentityTable(artifactIdentityTable),
+		WithArtifactLocationTable(artifactLocationTable),
 		WithDescriptorTable(descriptorTable),
 		WithReleaseTable(releaseTable),
 		WithEvidenceGraphTable(graphTable),

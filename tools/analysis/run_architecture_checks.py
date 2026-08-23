@@ -50,6 +50,7 @@ import check_go_test_signal
 import check_libs_go_admission
 import check_mlops_contracts
 import check_production_dependencies
+import check_protocol_graph
 import check_rust_implementation
 import check_rust_package_manifest
 import check_rust_workspace
@@ -131,6 +132,7 @@ CHECKS = [
     ("libs/go admission", check_libs_go_admission.check),
     ("MLOps static contracts", check_mlops_contracts.check),
     ("production dependencies", check_production_dependencies.check),
+    ("protocol graph completeness", check_protocol_graph.check),
     ("Rust workspace", check_rust_workspace.check),
     ("Rust package manifest", check_rust_package_manifest.check),
     ("Rust implementation", check_rust_implementation.check),
