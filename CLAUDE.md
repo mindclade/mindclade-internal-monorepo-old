@@ -2,118 +2,151 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-`AGENTS.md` is the operating guide and binds here — read it. This file adds the commands and the
-enforcement mechanisms it does not carry.
+`AGENTS.md` is the binding operating guide — read it first. This file adds commands and repository
+mechanics; it is not an alternate source of policy.
 
 ## Environment
 
-Never install tools into the host to make a command work, and never duplicate a language
-dependency graph in Nix. Two wrappers are the entry points — call these, not bare `nix` or
-`bazel`:
+Nix owns host toolchains. Never install a host tool to make a repository command work, and never
+duplicate a language dependency graph in Nix. Use the repository wrappers rather than bare `nix`,
+`bazel`, or ambient language tools:
 
 ```sh
-tools/dev/nixw develop .#default          # dev shell (also via `direnv allow`)
-tools/dev/bazelw <bazel args>             # verifies the launcher against .bazelversion
+tools/dev/nixw develop .#default
+tools/dev/nixw develop .#ci-bazel --command tools/dev/bazelw <bazel args>
 ```
 
 Shells: `.#default` (day-to-day; already has buildifier and mkdocs), `.#go-tools` (adds the
-`golang.org/x/tools` suite), `.#ci` (umbrella), the narrow lanes `.#ci-lint`, `.#ci-bazel`,
+`golang.org/x/tools` suite), `.#ci` (umbrella), and the narrow lanes `.#ci-lint`, `.#ci-bazel`,
 `.#ci-terraform`, `.#ci-infra`, and `.#gpu` — x86_64-linux only, for *compiling* TileLang
 kernels; it is not what runs torch. `flake.nix` owns the contents; check there before assuming
 a tool is absent and reaching for a heavier shell.
+
+An interactive shell affects only that terminal. For agents and one-shot commands, keep the Nix
+wrapper and `--command` in the same invocation. Exact tool versions come from
+`tools/build/nix/versions.nix` and `tools/build/nix/toolchain-manifest.json`; language manifests
+and lockfiles are compatibility mirrors and dependency authorities, respectively.
 
 ## Commands
 
 ### Start here for any change
 
 ```sh
-python3 tools/analysis/run_architecture_checks.py                  # fastest inner loop
 tools/dev/nixw develop .#ci --command python3 ci/presubmit/pipeline.py --static-only
 tools/dev/nixw flake check --no-update-lock-file
 ```
 
 `--static-only` runs every checker in the `CHECKS` list of
-`tools/analysis/run_architecture_checks.py` and returns before any Bazel work. Those checkers are
-stdlib-only, so the bare `python3` form above needs no Nix and no installed deps.
+`tools/analysis/run_architecture_checks.py` and returns before any Bazel work. The checkers have no
+third-party Python dependencies, but they still require the repository's supported Python runtime;
+do not substitute the host's `python3`.
 
-Then run the affected graph rather than `//...`:
+For local developer latency on an ordinary source change, run the affected lane explicitly:
 
 ```sh
 tools/dev/nixw develop .#ci-bazel --command python3 ci/presubmit/pipeline.py \
   --bazel-only --mode affected --base <base-sha>
 ```
 
-`ci/common/affected.py` computes the owning package plus reverse dependencies from Bazel's
-post-loading graph, and forces full-graph mode itself for CI, toolchain, dependency-lock,
-Starlark, protocol, architecture, component, and maturity-policy inputs — don't re-derive that
-rule, and don't reach for `//...` by hand.
+`ci/common/affected.py` computes owning packages and reverse dependencies from Bazel's
+post-loading graph. Affected mode is a pull-request latency optimization, not a smaller repository
+universe: its `rdeps(//..., ...)` queries still load the full unconfigured graph and may resolve
+external repositories. Global CI, toolchain, dependency-lock, Starlark, protocol, architecture,
+component, and maturity-policy inputs force the full configured graph.
+`GRAPH_NATIVE_AFFECTED_ACTIVE` is currently `False`, and the activation payload is
+`state: blocked`. Governed pull-request `auto` mode must therefore resolve to full, and explicit
+governed `affected` mode must be rejected until activation evidence is complete. An affected result
+while that state is blocked is a contract failure, not merge evidence. Protected-main,
+merge-group, nightly, and other governed events also require full mode. Follow the selector for
+evidence; use explicit `//...` when full validation or a deliberate diagnostic requires it.
 
 ### Bazel
 
 ```sh
-tools/dev/bazelw test //libs/go/retry:retry_test --config=ci   # one target
-tools/dev/bazelw test //kernels/... --config=ci                # one subtree
-tools/dev/bazelw build //... --nobuild --config=ci             # configured analysis only
-tools/dev/bazelw query '//...' --config=ci --output=label      # every BUILD loads
+tools/dev/nixw develop .#ci-bazel --command tools/dev/bazelw test //libs/go/retry:retry_test --config=ci
+tools/dev/nixw develop .#ci-bazel --command tools/dev/bazelw test //kernels/... --config=ci
+tools/dev/nixw develop .#ci-bazel --command tools/dev/bazelw build //... --nobuild --config=ci
+tools/dev/nixw develop .#ci-bazel --command tools/dev/bazelw query '//...' --config=ci --output=label
 ```
 
 `--config=ci` adds `--lockfile_mode=error`, `--test_tag_filters=-manual`, and scaled timeouts.
-`--config=hermetic` restricts fetches to `bazel_downloader.cfg`. `user.bazelrc` is gitignored and
-try-imported for local overrides.
+The current manifest resolves Bazel 9.1.1 and buildifier 8.5.1. `--config=hermetic` restricts
+fetches to `bazel_downloader.cfg`. The tracked `.bazelrc` must keep its single
+`try-import %workspace%/user.bazelrc` as the final import. `user.bazelrc` is gitignored;
+developers may use it for machine-local options, while governed CI generates and validates it as
+the sole runtime cache authority. Do not commit it, put credentials in it, or add independent CLI
+cache flags. Remote caching is fail-closed: unless a reviewed `ci/bazel_cache/activation.json`
+exists with `state: qualified-v1` and complete qualification evidence, treat it as
+`state: blocked`. Current CI therefore uses the credential-free bounded disk-cache fallback and
+must not request remote-cache credentials.
 
 ### Go
 
 ```sh
-go test -race -count=1 ./libs/go/... ./control/... ./services/control_plane/... ./examples/go/...
-go test -race -count=1 ./control/routing                            # one package
-go test -race -run TestSnapshotPublicationMonotonic ./control/routing
-go vet ./libs/go/...
-tools/qualification/go/validate.sh offline
+tools/dev/nixw develop .#default --command go test -race -count=1 ./control/routing
+tools/dev/nixw develop .#default --command go test -race -run TestSnapshotPublicationMonotonic ./control/routing
+tools/dev/nixw develop .#default --command go vet ./libs/go/...
+tools/dev/nixw develop .#default --command tools/qualification/go/validate.sh offline
+```
+
+For explicitly required module-wide Go evidence, run both modules; this is substantially more
+expensive than the focused or governed affected lanes:
+
+```sh
+tools/dev/nixw develop .#default --command go test ./...
+tools/dev/nixw develop .#default --command sh -c 'cd sdk/go && go test ./...'
 ```
 
 `-run` with a name that matches nothing exits **0** and prints `[no tests to run]` — it does not
 fail. Read the output, not the exit code. PostgreSQL-backed suites skip without
-`MINDCLADE_TEST_POSTGRES_DSN`. Go is pinned to 1.26.6 in `flake.nix`; CI runs `GOTOOLCHAIN=local`.
+`MINDCLADE_TEST_POSTGRES_DSN`. The Nix contract is Go 1.26 and the current resolved tool is
+Go 1.26.6. Root `go test ./...` does not cover `sdk/go`. CI runs `GOTOOLCHAIN=local`.
 
 ### Rust
 
 ```sh
-cargo test --workspace --all-targets --all-features --locked
-cargo test -p mindclade_runtime_core budget                    # crates are all mindclade_*
-cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo fmt --all -- --check
-cargo deny check
-python3 tools/qualification/rust/qualify.py --mode presubmit    # canonical Rust presubmit
+tools/dev/nixw develop .#ci --command cargo test --workspace --all-targets --all-features --locked
+tools/dev/nixw develop .#ci --command cargo test -p mindclade_runtime_core budget
+tools/dev/nixw develop .#ci --command cargo clippy --workspace --all-targets --all-features -- -D warnings
+tools/dev/nixw develop .#ci --command cargo fmt --all -- --check
+tools/dev/nixw develop .#ci --command cargo deny check
+tools/dev/nixw develop .#ci --command python3 tools/qualification/rust/qualify.py --mode presubmit
 ```
 
-`Cargo.toml`'s `workspace.package.rust-version` (1.97.1) is the authority, and
-`tools/analysis/check_build_toolchain_contract.py` enforces that `rust-toolchain.toml`,
-`tools/build/nix/versions.nix`, `MODULE.bazel`'s `rules_rust` versions, and
-`tools/qualification/rust/common.py` all agree. Bumping Rust means editing all of them together.
+Nix is the host-toolchain authority and currently pins Rust 1.97.1.
+`tools/analysis/check_build_toolchain_contract.py` enforces that pin against `Cargo.toml`,
+`rust-toolchain.toml`, `MODULE.bazel`'s `rules_rust` versions, and
+`tools/qualification/rust/common.py`. Bumping Rust means updating every enforced mirror together.
+Use the package name declared by the member `Cargo.toml`; package names are not uniformly
+underscore-separated.
 
 ### Python
 
 ```sh
-uv run --frozen pytest                                        # default run excludes `nightly`
-uv run --frozen pytest libs/python tests/integration/cross_language
-uv run --frozen pytest models/families/llm/tests/test_llm.py::test_causal_prefix_is_invariant_to_future_tokens
-uv run --frozen pytest -m nightly                             # target-state progress tests
-uv run --frozen ruff check . && uv run --frozen ruff format --check .
-uv run --frozen --only-group typecheck mypy libs/python       # strict mypy, the repo's checker
+tools/dev/nixw develop .#default --command uv run --frozen pytest
+tools/dev/nixw develop .#default --command uv run --frozen pytest libs/python tests/integration/cross_language
+tools/dev/nixw develop .#default --command uv run --frozen pytest models/families/llm/tests/test_llm.py::test_causal_prefix_is_invariant_to_future_tokens
+tools/dev/nixw develop .#default --command uv run --frozen pytest -m nightly
+tools/dev/nixw develop .#default --command uv run --frozen ruff check .
+tools/dev/nixw develop .#default --command uv run --frozen ruff format --check .
+tools/dev/nixw develop .#default --command uv run --frozen --only-group typecheck mypy libs/python
 ```
 
-Python 3.14; ruff `target-version = py313` because presubmit checkers are imported by the
-bootstrap host before Nix establishes the 3.14 runtime. pytest uses `--import-mode=importlib` and
-`--strict-markers` — only `nightly` and `scaffold` are declared.
+The pinned runtime is Python 3.14.7 and the current uv is 0.12.3. Ruff's
+`target-version = py313` is the repository source-syntax baseline. Pytest uses
+`--import-mode=importlib` and `--strict-markers`; only `nightly` and `scaffold` are declared.
+`uv run` may create or update the gitignored `.venv`.
 
 ### TypeScript
 
 ```sh
-pnpm lint          # check_typescript.py, then builds sdk + libs/ts, then per-package lint
-pnpm typecheck
-pnpm test
-pnpm generate:check
+tools/dev/nixw develop .#default --command pnpm lint
+tools/dev/nixw develop .#default --command pnpm typecheck
+tools/dev/nixw develop .#default --command pnpm test
+tools/dev/nixw develop .#default --command pnpm generate:check
 ```
+
+The current manifest resolves Node.js 22.23.2 and pnpm 11.21.0.
 
 ### Lint, docs, infra
 
@@ -124,7 +157,7 @@ tools/dev/nixw develop .#ci-lint  --command actionlint -color
 tools/dev/nixw develop .#ci-lint  --command mkdocs build -f docs/mkdocs.yml --strict
 tools/dev/nixw develop .#ci-bazel --command buildifier --mode=check -r .
 tools/dev/nixw develop .#ci-terraform --command ci/terraform/check.sh all
-python3 tools/dev/validate_repository.py
+tools/dev/nixw develop .#ci --command python3 tools/dev/validate_repository.py
 ```
 
 `ci/terraform/check.sh` dispatches on `$1` only — pass `all`, or one of
@@ -156,9 +189,11 @@ foundation  offline  training  training_service  runtime  services  apps  resear
 platform  build_support  release_support  test_support  root_support
 ```
 
-The last five matter more than they look: `tools/`, `ci/`, `tests/`, `docs/`, and `infra/` — the
-directories you will touch most — are classified there, not unclassified. A new top-level code
-package needs an entry here plus `OWNERS.toml` and `.github/CODEOWNERS`.
+The support mappings are not one directory per domain. `platform` includes `architecture/`,
+`ci/`, `docs/`, `examples/`, `infra/`, `qualification/`, `security/`, and general `tools/` paths;
+`build_support` owns `tools/build/`, `release_support` owns `tools/release/`, `test_support` owns
+`tests/`, and `root_support` owns the repository root. A new top-level code package needs a matrix
+entry plus `OWNERS.toml` and `.github/CODEOWNERS`.
 
 Flow: `protocols -> generated bindings/libs -> data/preprocessing/kernels/models ->
 training/serving/evaluation -> services -> apps (through SDKs and contracts only)`. Production
@@ -192,9 +227,9 @@ editing: **lower never imports higher**, and `libs/go` never imports `control/`,
   `helpers`, `utils`, `platform`, `workflow`, `repository`, `state_machine`, `queue`, `tenant`,
   `quota`, `runs`, `jobs`. Admission also requires two independent consumers
   (`libs/go/ADMISSION.md`).
-- Two Go modules exist and both are legitimate: root `go.mod` (`go.mindclade.dev`) and the public
-  `sdk/go/go.mod`. `check_go_modules.py` allows exactly those two — nested modules under
-  `libs/go` are rejected, and root `go test ./...` does not cover `sdk/go`.
+- The admitted Go module locations are root `go.mod` (`go.mindclade.dev`) and the public
+  `sdk/go/go.mod`. `check_go_modules.py` rejects nested modules under `libs/go`, and root
+  `go test ./...` does not cover `sdk/go`.
 
 ### Rust crate consolidation
 
@@ -241,7 +276,8 @@ and security qualification.
 - Commits: Conventional Commits with a scope — `fix(ci): restore main formatting gates (#60)`.
   Work happens on branches; `main` takes pull requests only.
 - Every source file opens with the three-line proprietary header;
-  `python3 tools/analysis/check_license_headers.py --fix` inserts it.
+  `tools/dev/nixw develop .#ci --command python3 tools/analysis/check_license_headers.py --fix`
+  inserts it.
   `COMMENT_PREFIX` in that file is the authoritative extension list.
 - **Never weaken, skip, or allowlist a gate to make a change pass.** The `manual` test tag and
   the `scaffold` marker are *not* escape hatches — reaching for either to get green is precisely

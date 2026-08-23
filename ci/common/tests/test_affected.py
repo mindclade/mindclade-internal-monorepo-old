@@ -161,7 +161,7 @@ def test_global_input_contract_rejects_removed_review_boundary(
 
 @pytest.mark.parametrize(
     "boundary,entry",
-    [("", "services"), ("tools", "analysis")],
+    [("", "CLAUDE.md"), ("", "services"), ("tools", "analysis")],
 )
 def test_global_input_contract_rejects_removed_review_boundary_anchor(
     tmp_path: Path, boundary: str, entry: str
