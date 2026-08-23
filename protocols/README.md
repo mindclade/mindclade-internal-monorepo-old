@@ -47,6 +47,40 @@ presubmit or by developer commands.
 - Field renames, removals, reuse, and semantic changes require compatibility
   review and evidence.
 
+## Generated language bindings
+
+Bazel is the generation authority. There is no committed `protocols/gen/` tree: every
+binding is an action output, so the only way to consume a contract is to depend on the
+target that generates it. That is deliberate — a checked-in binding can be edited, and an
+edited binding is a fork of the wire.
+
+| Language | Rule | Target naming |
+| --- | --- | --- |
+| Go | `go_proto_library` | `<package>_go_proto`, one per proto package |
+| Python | `py_proto_library` | `<subject>_py_pb2` |
+| Rust | [`rust/`](rust/) | compatibility crate over `filegroup` proto sources |
+| TypeScript | `buf.gen.yaml` | checked-in projection under `sdk/typescript` |
+
+Go and Python differ in a way that matters when adding a contract. `protoc` emits one Go
+package per proto package, so a `go_proto_library` that names the package covers it. It
+emits one Python *module per `.proto` file*, and the generating aspect only reaches what is
+listed in `deps` — so a `py_proto_library` naming a subset of its package's
+`proto_library` targets builds green and fails later, at import, in a Python caller. List
+every `proto_library` in the package.
+
+Both halves are pinned by conformance tests in [`consumers/`](consumers/):
+
+```bash
+nix develop .#ci-bazel --command tools/dev/bazelw test //protocols/consumers/... --config=ci
+```
+
+`generated_go_test.go` imports all ten generated Go packages and asserts each registers a
+canonical message name. `generated_python_test.py` does the same for Python, then
+partitions every promoted `.proto` into modules a `py_proto_library` reaches and modules no
+Python caller can import, asserting that partition by set equality in both directions. A
+new `.proto` with no Python binding fails it; so does closing one of the pinned gaps
+without shrinking the constant that records them.
+
 ## Start here
 
 - [`events/README.md`](events/README.md) for event authority and generation
