@@ -85,7 +85,7 @@ pub static PROCESS_BASICS: &[Syscall] = &allow_list![
 /// Architecture-specific calls the C runtime needs and that do not exist
 /// everywhere.
 ///
-/// `arch_prctl` is how glibc installs the thread pointer on x86_64; a filter
+/// `arch_prctl` is how glibc installs the thread pointer on `x86_64`; a filter
 /// that omits it kills the process at the first `std::thread::spawn`. aarch64
 /// sets the TLS register in `clone` and has no such syscall, so the set is
 /// empty there and the resolver never sees the name.
