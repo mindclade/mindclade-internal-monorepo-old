@@ -55,15 +55,22 @@ REQUIRED_SOURCE = (
     "components.toml",
     "maturity.toml",
 )
-REMOVED_COMPAT = {
-    "clock",
-    "retry",
-    "resource_version",
-    "observability",
-    "artifact_manifest",
-    "byte_spec",
-    "python_bindings",
-}
+# The canonical list of crates retired by the 2026-08 consolidation epoch. `check_rust_workspace`
+# and `check_rust_package_manifest` import this set rather than restating it: the same seven names
+# previously appeared in three spellings across three modules, so retiring or reinstating a crate
+# meant finding every copy, and a missed copy fails open.
+REMOVED_COMPAT = frozenset(
+    {
+        "clock",
+        "retry",
+        "resource_version",
+        "observability",
+        "artifact_manifest",
+        "byte_spec",
+        "python_bindings",
+    }
+)
+REMOVED_COMPAT_CRATE_NAMES = frozenset(f"mindclade_{name}" for name in REMOVED_COMPAT)
 
 
 def _requirements(go_mod: str) -> list[tuple[str, str]]:
@@ -131,18 +138,34 @@ def check(root: Path) -> list[str]:
     for crate in REMOVED_COMPAT:
         if (rust / crate).exists():
             errors.append(f"libs/rust/{crate}: retired compatibility crate must remain removed")
-    legacy_pattern = re.compile(
-        r"mindclade_(clock|retry|resource_version|observability|artifact_manifest|byte_spec|python_bindings)"
+    legacy_pattern = re.compile("|".join(sorted(REMOVED_COMPAT_CRATE_NAMES)))
+    # Documentation and the JSON package manifests are scanned alongside source. Restricting this
+    # sweep to *.rs and Cargo.toml let `PACKAGE_MANIFEST.json` keep advertising all seven retired
+    # crates as live layer-5 packages long after they were deleted, and a manifest that still
+    # names one is precisely where the next stale import gets copied from. Catching it in the
+    # declaration is cheaper than catching it after it reaches a crate.
+    source_suffixes = {".rs"}
+    legacy_sources = (
+        list(rust.rglob("*.rs"))
+        + list(rust.rglob("Cargo.toml"))
+        + list(rust.rglob("*.md"))
+        + list(rust.rglob("*.json"))
     )
-    for path in list(rust.rglob("*.rs")) + list(rust.rglob("Cargo.toml")):
+    for path in sorted(set(legacy_sources)):
         try:
             text = path.read_text()
         except UnicodeDecodeError:
             continue
-        if legacy_pattern.search(text):
-            errors.append(
-                f"active Rust code still depends on retired compatibility crate: {path.relative_to(root)}"
-            )
+        if not legacy_pattern.search(text):
+            continue
+        # A doc or manifest hit is a stale *declaration*, not a build edge. Saying "active Rust
+        # code" would send the reader grepping their crates for an import that is not there.
+        kind = (
+            "active Rust code still depends on"
+            if path.suffix in source_suffixes or path.name == "Cargo.toml"
+            else "declaration still advertises"
+        )
+        errors.append(f"{kind} retired compatibility crate: {path.relative_to(root)}")
 
     # Root go.sum must at least authenticate every direct public requirement and its go.mod.
     go_mod = (root / "go.mod").read_text()
