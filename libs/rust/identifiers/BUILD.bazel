@@ -19,6 +19,18 @@ rust_library(
     ],
 )
 
+# Its own target, not a case inside `goldens`: the predictor in this test is
+# only exact for the first mint in a process, so it may not share a binary.
+rust_test(
+    name = "entropy",
+    srcs = ["tests/entropy.rs"],
+    edition = "2024",
+    deps = [
+        ":mindclade_identifiers",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+    ],
+)
+
 rust_test(
     name = "goldens",
     srcs = ["tests/goldens.rs"],

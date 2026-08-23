@@ -13,4 +13,7 @@ mod resource_id;
 pub mod resource_version;
 pub use kind::ResourceKind;
 pub use name::{Name, NameError};
-pub use resource_id::{ResourceId, ResourceIdError};
+pub use resource_id::{
+    ID_BODY_LENGTH, ID_SEPARATOR, MAXIMUM_KIND_LENGTH, MINIMUM_KIND_LENGTH, ResourceId,
+    ResourceIdError,
+};
