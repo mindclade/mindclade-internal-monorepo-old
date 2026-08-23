@@ -561,6 +561,13 @@ def _verify(
         falsifier.inject(tree)
     except FixtureError as exc:
         return [f"{label}: fixture could not inject its defect: {exc}"]
+    except Exception as exc:  # noqa: BLE001 - reported, never swallowed
+        # A broken fixture body must surface as a meta-gate failure naming the fixture, not as a
+        # traceback out of the whole suite. The partial edit is still reverted by the caller,
+        # because every write is journalled before it happens.
+        return [
+            f"{label}: fixture raised {type(exc).__name__} while injecting its defect ({exc})"
+        ]
 
     try:
         observed = _run(fn, tree.root)
@@ -655,7 +662,22 @@ def _registered_checks() -> CheckRegistry:
     return run_architecture_checks.CHECKS
 
 
-def check(root: Path, report: Callable[[str], None] | None = None) -> list[str]:
+def _print(message: str) -> None:
+    print(message, flush=True)
+
+
+def _silent(_message: str) -> None:
+    return
+
+
+def check(root: Path, report: Callable[[str], None] = _print) -> list[str]:
+    """Entry point used by run_architecture_checks, which calls every checker as `fn(root)`.
+
+    The reporter therefore defaults to printing rather than to silence. The evidence -- which
+    defect was injected into which gate, and what it reported -- is the product of this check;
+    a run that emitted only "PASS gate falsifiability" would be a claim without its receipt,
+    which is the shape of the problem this module exists to fix.
+    """
     checks = _registered_checks()
     errors = _self_falsification_evidence(report)
     if SELF_CHECK_NAME not in {name for name, _ in checks}:
