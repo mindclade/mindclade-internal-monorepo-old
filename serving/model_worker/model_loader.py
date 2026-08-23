@@ -82,6 +82,19 @@ class ModelRegistry:
             # unlocked. The first publication wins and the loser's copy is
             # dropped here rather than displacing a bundle that live batches are
             # already holding.
+            #
+            # A third case is possible: a caller publishes the digest, capacity
+            # pressure evicts it before a second cold-loader acquires the lock,
+            # and the second loader re-inserts a fresh copy. Both the original
+            # caller (still holding its reference) and the second loader's caller
+            # then hold distinct live objects for the same weights simultaneously.
+            # The transient duplicate is bounded to at most one extra copy per
+            # concurrent cold load on the same digest and is released as soon as
+            # the original caller's batch completes. Closing this window without
+            # holding the lock across the load would require a separate
+            # per-digest in-progress latch, which adds complexity not justified
+            # here; the bounded count and the refcount-drop guarantee are the
+            # intended contract.
             published = self._models.get(bundle_digest)
             if published is not None:
                 self._models.move_to_end(bundle_digest)
