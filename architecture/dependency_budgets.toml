@@ -181,9 +181,23 @@ language = "rust"
 allowed_prefixes = ["mindclade_faults", "mindclade_content_digest"]
 
 [[budget]]
+path = "libs/rust/sandbox_os"
+language = "rust"
+# A kernel-confinement leaf. Its whole value is that it is reachable from any
+# layer without dragging anything behind it, so the allowlist is the taxonomy
+# crate and nothing else. Widening this is the signal that policy construction
+# has started living here instead of at the composition root that owns it.
+allowed_prefixes = ["mindclade_faults"]
+
+[[budget]]
 path = "libs/rust/worker_runtime"
 language = "rust"
-allowed_prefixes = ["mindclade_faults", "mindclade_runtime_core", "mindclade_worker_protocol"]
+allowed_prefixes = [
+    "mindclade_faults",
+    "mindclade_runtime_core",
+    "mindclade_sandbox_os",
+    "mindclade_worker_protocol",
+]
 
 [[budget]]
 path = "services/runtime_gateway"

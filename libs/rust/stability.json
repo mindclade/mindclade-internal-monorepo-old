@@ -24,6 +24,7 @@
     "ipc_os",
     "process_os",
     "python_bridge",
+    "sandbox_os",
     "servicekit",
     "telemetry_spool",
     "worker_protocol",
