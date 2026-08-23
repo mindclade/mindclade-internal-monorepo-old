@@ -67,13 +67,21 @@ _PRODUCTION_RULES = (
 # production-eligibility policy under exactly that hole, and `control/lineage` another 455.
 # Declaration was a convention someone had to remember; below it is an invariant.
 #
-# `services/` is deliberately NOT governed yet, and that is a gap rather than an exemption.
-# services/control_plane, services/studio, and services/go_vanity carry ~17.5k lines of
-# undeclared production Go across 59 packages, and declaring them means deciding owner,
-# criticality, and tier for each — owner work, not a sweep. Adding "services" to this tuple
-# is the check that proves it was done. What is not acceptable is listing those 59 paths as
-# exempt inside a check that claims to cover them.
-_GO_DECLARATION_GOVERNED_ROOTS = ("control", "libs")
+# Entries are path prefixes, not top-level directories, so a root can be narrower than a
+# directory when only part of it has an owner's decision behind it. That is what the two
+# `services/` entries are: `services/studio` and `services/go_vanity` are declared and reach
+# zero undeclared packages, so they are governed and can never silently regress.
+#
+# `services/control_plane` is NOT here, and the distinction matters. This is an allowlist of
+# what is governed, not a denylist of paths exempted from a check that claims to cover them —
+# nothing below asserts control_plane is fine, and no path anywhere is skipped by name inside
+# a governed root. Its 45 packages and 13,732 production lines are undeclared because
+# `check_component_ownership.py` requires an SLO and a runbook for any tier-0/tier-1 component
+# at `implemented` or above; `docs/runbooks/control-plane-outage.md` exists and no SLO page
+# does. Recording it tier-2 would clear that gate by mis-describing the deployable that hosts
+# six tier-1 control domains. When `docs/slo/` gains the control plane, these two entries
+# collapse to a single "services" and this comment goes with them.
+_GO_DECLARATION_GOVERNED_ROOTS = ("control", "libs", "services/go_vanity", "services/studio")
 
 # A scaffold placeholder as this tree writes them: a licence header, a package clause, and one
 # `const scaffold_<file> = "<path>"`. Reserved space is not a component, so a directory holding

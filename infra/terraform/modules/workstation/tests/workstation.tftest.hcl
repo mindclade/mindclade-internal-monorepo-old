@@ -208,6 +208,120 @@ run "centralized_firewall_opt_out" {
   }
 }
 
+run "default_provisioning_sources_stay_public" {
+  command = plan
+
+  # The overrides are additive capability, not a behaviour change. With none of them set the
+  # rendered script must be the one that shipped: public installer, the image's own sources.list,
+  # and no substituter.
+  assert {
+    condition = (
+      strcontains(google_compute_instance.workstation.metadata["startup-script"], "https://nixos.org/nix/install") &&
+      strcontains(google_compute_instance.workstation.metadata["startup-script"], "record apt-source image-default-public-mirror") &&
+      strcontains(google_compute_instance.workstation.metadata["startup-script"], "record substituter not-configured-by-design") &&
+      !strcontains(google_compute_instance.workstation.metadata["startup-script"], "/etc/apt/sources.list.d/mindclade-internal.list") &&
+      !strcontains(google_compute_instance.workstation.metadata["startup-script"], "substituters = ")
+    )
+    error_message = "With no overrides set, the startup script must be byte-for-byte the public-source script it was before the overrides existed."
+  }
+}
+
+run "internal_provisioning_sources_replace_the_public_ones" {
+  command = plan
+
+  variables {
+    apt_mirror_url                     = "https://us-central1-apt.pkg.dev/projects/mindclade-development/debian-remote"
+    apt_mirror_components              = ["main", "contrib"]
+    nix_installer_url                  = "https://nix-installer.internal.mindclade.com/nix/install-2.24.9.sh"
+    nix_installer_sha256               = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    nix_substituter_uri                = "https://nix-substituter.internal.mindclade.com"
+    nix_substituter_trusted_public_key = "mindclade-substituter-1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+  }
+
+  assert {
+    condition = (
+      strcontains(google_compute_instance.workstation.metadata["startup-script"], "deb https://us-central1-apt.pkg.dev/projects/mindclade-development/debian-remote %s main contrib") &&
+      strcontains(google_compute_instance.workstation.metadata["startup-script"], "NIX_INSTALLER_URL=\"https://nix-installer.internal.mindclade.com/nix/install-2.24.9.sh\"") &&
+      strcontains(google_compute_instance.workstation.metadata["startup-script"], "NIX_INSTALLER_SHA256=\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"") &&
+      strcontains(google_compute_instance.workstation.metadata["startup-script"], "'https://nix-substituter.internal.mindclade.com'")
+    )
+    error_message = "Each override must reach the rendered startup script: the mirror in sources.list, the installer URL and its pin, and the substituter."
+  }
+
+  # The point of the change. An override that leaves the public source in the script has not
+  # replaced anything — apt still stalls on deb.debian.org until it times out, and the next reader
+  # of the script still finds nixos.org sitting there to reach for.
+  assert {
+    condition = (
+      !strcontains(google_compute_instance.workstation.metadata["startup-script"], "https://nixos.org/nix/install") &&
+      !strcontains(google_compute_instance.workstation.metadata["startup-script"], "record apt-source image-default-public-mirror") &&
+      !strcontains(google_compute_instance.workstation.metadata["startup-script"], "record substituter not-configured-by-design")
+    )
+    error_message = "An override must REPLACE the public source rather than sit alongside it; the rendered script must not still name nixos.org or the image's default mirror."
+  }
+
+  # The ordering guard from bounded_shutdown_contract, restated with overrides set: the internal
+  # mirror still needs the network, so it must stay behind the idle timer like every other step
+  # that can fail.
+  assert {
+    condition = strcontains(
+      split("apt-get update", google_compute_instance.workstation.metadata["startup-script"])[0],
+      "systemctl enable --now mindclade-idle.timer"
+    )
+    error_message = "Internal sourcing must not move any network-dependent step ahead of the idle timer."
+  }
+}
+
+run "reject_plain_http_nix_installer_url" {
+  command = plan
+
+  variables {
+    nix_installer_url = "http://nix-installer.internal.mindclade.com/nix/install.sh"
+  }
+
+  expect_failures = [var.nix_installer_url]
+}
+
+run "reject_bare_ip_apt_mirror_url" {
+  command = plan
+
+  variables {
+    apt_mirror_url = "https://10.128.0.7/debian"
+  }
+
+  expect_failures = [var.apt_mirror_url]
+}
+
+run "reject_credential_bearing_apt_mirror_url" {
+  command = plan
+
+  variables {
+    apt_mirror_url = "https://mirror:hunter2@apt.internal.mindclade.com/debian"
+  }
+
+  expect_failures = [var.apt_mirror_url]
+}
+
+run "reject_substituter_without_trusted_key" {
+  command = plan
+
+  variables {
+    nix_substituter_uri = "https://nix-substituter.internal.mindclade.com"
+  }
+
+  expect_failures = [google_compute_instance.workstation]
+}
+
+run "reject_apt_components_without_mirror" {
+  command = plan
+
+  variables {
+    apt_mirror_components = ["main", "contrib"]
+  }
+
+  expect_failures = [google_compute_instance.workstation]
+}
+
 run "reject_arm_machine_type" {
   command = plan
 

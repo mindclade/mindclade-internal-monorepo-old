@@ -133,10 +133,12 @@ tests = ["control/lineage/lineage_test.go"]
 # `tests` names workflow_test.go only. workload_test.go asserts that a zero value is zero and
 # exercises nothing; listing it would inflate the evidence this entry claims.
 #
-# Note for whoever enforces maturity.toml's `production_dependency = false`: control/ingestion
-# is `implemented` and imports this package. The imported surface is the implemented half
-# (StageSpec, StageKind), but the edge is real and needs an answer before that rule is turned
-# on — see the PR that added the declaration-coverage gate.
+# maturity.toml's `production_dependency = false` IS enforced, by
+# tools/analysis/check_production_dependencies.py, and control/ingestion — `implemented` — does
+# import this package. That edge is a live violation carrying a dated, ADR-backed exception in
+# PRODUCTION_DEPENDENCY_EXCEPTIONS, expiring 2026-11-14, not a status edited until the check
+# passes. The imported surface is the implemented half (StageSpec, StageKind, StageAttempt,
+# Workflow, WorkloadEnvelope); the exception expires whether or not this entry advances.
 [[component]]
 name = "control.orchestration"
 path = "control/orchestration"
@@ -892,3 +894,97 @@ status = "implemented"
 owner = "release-engineering"
 tests = ["ci/nightly/test_pipeline.py"]
 qualification = "ci/nightly/QUALIFICATION.md"
+
+# ---------------------------------------------------------------------------------------
+# services/ deployables that held production Go while unregistered
+# ---------------------------------------------------------------------------------------
+# `services/` carried 17,721 lines of non-scaffold production Go across 58 packages with no
+# entry here — 13,340 of them once blank and comment lines are dropped, and the largest
+# remaining instance of the hole the control/ block above describes.
+# Two of the three Go deployables are registered below; `services/control_plane` is not, and
+# the reason is recorded rather than worked around: see the note after these entries.
+#
+# The granularity is the DEPLOYABLE, not the package. Go's `internal/` is a compiler-enforced
+# boundary — nothing outside `services/studio` can import `services/studio/internal/session`,
+# so those packages have no consumers for a status to gate and declaring each of them would
+# publish 58 statuses describing one shipping decision each for two artifacts. Coverage in
+# `check_component_maturity.py` is by path prefix precisely so an owner can declare at the
+# granularity they actually ship at.
+
+# The browser plane: one image, four roles, four Services (IAP-authenticated console, session,
+# run-log and stream surfaces). `implemented`, not `qualified` — it has go_library/go_test
+# targets in all ten packages and no qualification evidence document.
+#
+# tier-2 matches the record's existing line for browser surfaces: `apps.console` and
+# `apps.admin`, the TypeScript clients this service serves, are both tier-2, and the runbook
+# for the Go control plane states that plane is not a synchronous dependency of the online
+# request path. Studio is further from that path, not closer.
+#
+# `tests` names the eight packages whose tests execute unconditionally. It deliberately omits
+# `internal/runlog`: runlog_test.go is the one studio test file that is entirely gated on
+# STUDIO_TEST_DATABASE_URL and reports 0.0% statement coverage without it, so listing it would
+# claim evidence CI does not produce. `internal/handoff` IS listed because contention_test.go
+# runs with no database (35.6% covered); handoff_test.go beside it is DSN-gated.
+[[component]]
+name = "services.studio"
+path = "services/studio"
+status = "implemented"
+owner = "platform-control"
+tests = [
+    "services/studio/cmd/studio/lifecycle_test.go",
+    "services/studio/cmd/studio/settings_test.go",
+    "services/studio/internal/authz/policy_test.go",
+    "services/studio/internal/handoff/contention_test.go",
+    "services/studio/internal/httpx/security_test.go",
+    "services/studio/internal/iap/iap_test.go",
+    "services/studio/internal/metrics/metrics_test.go",
+    "services/studio/internal/server/server_test.go",
+    "services/studio/internal/session/session_test.go",
+    "services/studio/internal/stream/stream_test.go",
+]
+
+# The vanity import-metadata surface for `go.mindclade.dev`. 523 production lines over three
+# packages (355 excluding blanks and comments), every one with an owning go_test that executes
+# unconditionally, and the repository's first Bazel-built container (oci_image/oci_push at
+# //services/go_vanity:image).
+#
+# `release_target` is the first one declared in this file, and it is a statement of fact the
+# checker verifies rather than a readiness claim: `ci/release/targets.yaml` holds a `go-vanity`
+# entry, and `check_component_maturity.py` fails the field unless it names a member of that
+# closed catalog. The field is only REQUIRED at `production`; recording it at `implemented`
+# says the catalog entry exists, not that anything has shipped. `ci/release/requests/` still
+# contains only its README — no release request has ever been merged.
+#
+# tier-2: the service holds no credential, database, writable volume or egress, and an outage
+# breaks `go get` against the vanity path, not any serving or control path.
+[[component]]
+name = "services.go_vanity"
+path = "services/go_vanity"
+status = "implemented"
+owner = "platform-control"
+tests = [
+    "services/go_vanity/cmd/go_vanity/main_test.go",
+    "services/go_vanity/internal/service/service_test.go",
+    "services/go_vanity/internal/vanity/vanity_test.go",
+]
+release_target = "go-vanity"
+
+# `services/control_plane` is NOT declared here, and that is a blocker being reported rather
+# than an omission. Its evidence supports `implemented` — 45 packages, 13,732 production
+# lines, 24 packages with executing tests (bootstrap 58.8%, config 77.8%, providers/api 62.3%,
+# store/postgres/admission 40.8%, and so on), and go_library/go_test targets throughout — and
+# its owner is unambiguous: OWNERS.toml claims `services/control_plane/**` for platform-control
+# explicitly. The tier is unambiguous too: it composes control.runtime_authority,
+# control.admission, control.artifacts, control.ingestion, control.model_registry and
+# control.release_evidence, every one of which is tier-1, so the deployable that hosts them
+# cannot honestly be recorded below tier-1.
+#
+# That is exactly what blocks it. check_component_ownership.py requires BOTH an `slo` and a
+# `runbook` for any tier-0/tier-1 component at `implemented` or above.
+# `docs/runbooks/control-plane-outage.md` exists; `docs/slo/` has nineteen pages and none of
+# them is the control plane's. The two ways to make the declaration land today are to write
+# that SLO — owned by platform-control, and outside this change's lane — or to record the
+# component as tier-2, which would be choosing a criticality to clear a gate rather than to
+# describe the service. `_GO_DECLARATION_GOVERNED_ROOTS` therefore governs
+# `services/go_vanity` and `services/studio` and not `services/control_plane`; when the SLO
+# exists, replacing those two roots with plain `services` is the change that proves it.

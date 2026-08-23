@@ -46,6 +46,15 @@ filegroup(
     visibility = ["//visibility:public"],
 )
 
+# The live-datastore suite contract is data for ci/presubmit/live_datastore_gate.py and its
+# tests. Exported as its own filegroup rather than through :scaffold_files so a consumer depends
+# on the one policy file it reads.
+filegroup(
+    name = "live_datastore_suites",
+    srcs = ["qualification/live_datastore_suites.toml"],
+    visibility = ["//visibility:public"],
+)
+
 filegroup(
     name = "scaffold_files",
     srcs = glob(
