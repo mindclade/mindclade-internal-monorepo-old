@@ -64,6 +64,27 @@ def write_contract(tmp_path: Path, payload: dict[str, object]) -> Path:
     return path
 
 
+def credentials_payload() -> dict[str, object]:
+    return {
+        "type": "external_account",
+        "audience": f"//iam.googleapis.com/{PROVIDER}",
+        "subject_token_type": "urn:ietf:params:oauth:token-type:jwt",
+        "token_url": "https://sts.googleapis.com/v1/token",
+        "credential_source": {
+            "url": "https://vstoken.actions.githubusercontent.com/path?audience=test",
+            "headers": {"Authorization": "Bearer request-token"},
+            "format": {
+                "type": "json",
+                "subject_token_field_name": "value",
+            },
+        },
+        "service_account_impersonation_url": (
+            "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/"
+            "bazel-cache-reader@mc-common-ci.iam.gserviceaccount.com:generateAccessToken"
+        ),
+    }
+
+
 def test_committed_contract_is_blocked_and_valid() -> None:
     value = remote.load_contract(ROOT / "ci/bazel_cache/activation.json")
     assert value["state"] == "blocked"
@@ -201,6 +222,76 @@ def test_blocked_contract_cannot_claim_evidence(tmp_path: Path) -> None:
     value["qualification"]["cold_rebuild"] = True
     with pytest.raises(remote.RemoteCacheContractError, match="must not claim"):
         remote.load_contract(write_contract(tmp_path, value))
+
+
+@pytest.mark.parametrize(
+    ("needle", "replacement"),
+    [
+        (
+            '"state": "blocked"',
+            '"state": "blocked", "state": "qualified-v1"',
+        ),
+        (
+            '"cold_rebuild": false',
+            '"cold_rebuild": false, "cold_rebuild": true',
+        ),
+    ],
+)
+def test_activation_duplicate_json_keys_fail_with_redacted_error(
+    tmp_path: Path, needle: str, replacement: str
+) -> None:
+    contents = json.dumps(blocked())
+    assert needle in contents
+    path = tmp_path / "activation.json"
+    path.write_text(contents.replace(needle, replacement, 1), encoding="utf-8")
+
+    with pytest.raises(remote.RemoteCacheContractError) as raised:
+        remote.load_contract(path)
+
+    assert str(raised.value) == "remote-cache activation contract contains duplicate JSON keys"
+    assert "cold_rebuild" not in str(raised.value)
+    assert "qualified-v1" not in str(raised.value)
+
+
+@pytest.mark.parametrize(
+    ("needle", "replacement"),
+    [
+        (
+            '"type": "external_account"',
+            '"type": "external_account", "type": "service_account"',
+        ),
+        (
+            '"subject_token_field_name": "value"',
+            '"subject_token_field_name": "value", "subject_token_field_name": "token"',
+        ),
+    ],
+)
+def test_staged_credentials_duplicate_json_keys_fail_with_redacted_error(
+    tmp_path: Path, needle: str, replacement: str
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    source = workspace / "gha-creds-0123456789abcdef.json"
+    contents = json.dumps(credentials_payload())
+    assert needle in contents
+    source.write_text(contents.replace(needle, replacement, 1), encoding="utf-8")
+    source.chmod(0o600)
+
+    with pytest.raises(remote.RemoteCacheContractError) as raised:
+        remote.stage_credentials(
+            source=source,
+            destination=tmp_path / "staged.json",
+            workspace=workspace.resolve(),
+            provider=PROVIDER,
+            service_account="bazel-cache-reader@mc-common-ci.iam.gserviceaccount.com",
+        )
+
+    assert str(raised.value) == "Google auth credentials contain duplicate JSON keys"
+    assert "subject_token_field_name" not in str(raised.value)
+    assert "service_account" not in str(raised.value)
+    assert "request-token" not in str(raised.value)
+    assert source.is_file()
+    assert not (tmp_path / "staged.json").exists()
 
 
 def test_start_configuration_is_loopback_and_create_only(tmp_path: Path, monkeypatch) -> None:

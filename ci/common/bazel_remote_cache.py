@@ -71,6 +71,10 @@ class RemoteCacheContractError(ValueError):
     pass
 
 
+class _DuplicateJSONKeyError(ValueError):
+    pass
+
+
 def _fail(message: str) -> NoReturn:
     raise RemoteCacheContractError(message)
 
@@ -81,13 +85,35 @@ def _single_line(label: str, value: str) -> str:
     return value
 
 
+def _load_json_document(path: Path, *, unreadable_error: str, duplicate_error: str) -> object:
+    def reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        result: dict[str, object] = {}
+        for key, value in pairs:
+            if key in result:
+                raise _DuplicateJSONKeyError
+            result[key] = value
+        return result
+
+    try:
+        contents = path.read_text(encoding="utf-8")
+    except OSError as error:
+        raise RemoteCacheContractError(unreadable_error) from error
+    try:
+        return json.loads(contents, object_pairs_hook=reject_duplicate_keys)
+    except _DuplicateJSONKeyError as error:
+        raise RemoteCacheContractError(duplicate_error) from error
+    except json.JSONDecodeError as error:
+        raise RemoteCacheContractError(unreadable_error) from error
+
+
 def load_contract(path: Path) -> dict[str, object]:
     if path.is_symlink() or not path.is_file():
         _fail("remote-cache activation contract must be a regular non-symlink file")
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
-        raise RemoteCacheContractError("remote-cache activation contract is unreadable") from error
+    payload = _load_json_document(
+        path,
+        unreadable_error="remote-cache activation contract is unreadable",
+        duplicate_error="remote-cache activation contract contains duplicate JSON keys",
+    )
     expected = {
         "backend",
         "bucket",
@@ -444,10 +470,11 @@ def stage_credentials(
         _fail("Google auth credentials must be a bounded regular file")
     if metadata.st_mode & 0o077:
         _fail("Google auth credentials must be private to the runner account")
-    try:
-        payload = json.loads(resolved.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
-        raise RemoteCacheContractError("Google auth credentials are unreadable") from error
+    payload = _load_json_document(
+        resolved,
+        unreadable_error="Google auth credentials are unreadable",
+        duplicate_error="Google auth credentials contain duplicate JSON keys",
+    )
     expected_fields = {
         "audience",
         "credential_source",

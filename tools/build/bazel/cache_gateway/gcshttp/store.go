@@ -45,6 +45,12 @@ type Store struct {
 	endpoint           *url.URL
 }
 
+type readSeekAt interface {
+	io.Reader
+	io.ReaderAt
+	io.Seeker
+}
+
 func New(client *http.Client, bucket, prefix string, maximumObjectBytes int64) (*Store, error) {
 	endpoint, err := url.Parse(defaultEndpoint)
 	if err != nil {
@@ -95,9 +101,9 @@ func (store *Store) Put(ctx context.Context, key blob.Key, reader io.Reader, opt
 			return blob.Attributes{}, invalidRequest(operation, "reserved_cache_metadata")
 		}
 	}
-	seeker, ok := reader.(io.ReadSeeker)
+	seeker, ok := reader.(readSeekAt)
 	if !ok {
-		return blob.Attributes{}, invalidRequest(operation, "seekable_cache_body_required")
+		return blob.Attributes{}, invalidRequest(operation, "random_access_cache_body_required")
 	}
 	offset, size, checksum, digest, err := inspectBody(seeker, store.maximumObjectBytes)
 	if err != nil {
@@ -118,10 +124,7 @@ func (store *Store) Put(ctx context.Context, key blob.Key, reader io.Reader, opt
 	}
 
 	response, err := store.do(ctx, http.MethodPut, store.objectURL(key, 0), headers, func() (io.ReadCloser, error) {
-		if _, seekErr := seeker.Seek(offset, io.SeekStart); seekErr != nil {
-			return nil, seekErr
-		}
-		return io.NopCloser(io.LimitReader(seeker, size)), nil
+		return io.NopCloser(io.NewSectionReader(seeker, offset, size)), nil
 	}, size, true)
 	if err != nil {
 		return blob.Attributes{}, err
