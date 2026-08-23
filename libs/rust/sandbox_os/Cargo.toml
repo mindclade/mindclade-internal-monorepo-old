@@ -1,0 +1,33 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+[package]
+name = "mindclade_sandbox_os"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+mindclade_faults = { path = "../faults" }
+
+# seccomp-BPF exists only on Linux, and `seccompiler` does not compile anywhere
+# else, so the backing crate is a target dependency rather than an optional
+# feature. aarch64-darwin developers and the aarch64-darwin qualification lane
+# never resolve it; they compile the portable half and get a typed
+# `Unimplemented` fault from `install`.
+[target.'cfg(target_os = "linux")'.dependencies]
+libc.workspace = true
+seccompiler.workspace = true
+
+# Deliberately inherits the workspace `unsafe_code = "deny"`. This crate installs
+# a kernel filter without becoming a third FFI exception under
+# `libs/rust/UNSAFE_POLICY.md`: the syscall/prctl calls live behind
+# `seccompiler`'s safe API, on the far side of the dependency edge.
+[lints]
+workspace = true

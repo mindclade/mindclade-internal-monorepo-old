@@ -152,10 +152,18 @@ impl NodeAgentCore {
 
     /// Execute a canonical workload envelope through the same signed-ticket,
     /// fencing, budget, drain, and commit lifecycle used by direct stages.
+    ///
+    /// `materialized` is the node-local placement for the artifacts the envelope authorized by
+    /// identity. The two are separate concepts and the wire models them as siblings
+    /// (`mindclade.runtime.v1.RuntimeExecuteRequest`), so they arrive here as siblings too.
+    /// `bind_materialized` refuses a buffer the envelope never listed: before ADR-0026 the
+    /// envelope carried the descriptors directly, so there was no authorized set to check a
+    /// materialized buffer against.
     #[allow(clippy::too_many_arguments)]
     pub async fn execute_workload<V: SignatureVerifier + ?Sized, E: StageExecutor + ?Sized>(
         &self,
         workload: &WorkloadEnvelope,
+        materialized: &[BufferDescriptor],
         minimum_policy_epoch: u64,
         minimum_route_version: u64,
         revocations: &RevocationSnapshot,
@@ -164,10 +172,11 @@ impl NodeAgentCore {
     ) -> FaultResult<StageResult> {
         let now = unix_millis(self.clock.as_ref())?;
         workload.validate(now)?;
+        workload.bind_materialized(materialized, now)?;
         self.execute(
-            &workload.ticket,
+            &workload.execution_ticket,
             &workload.operation,
-            &workload.inputs,
+            materialized,
             minimum_policy_epoch,
             minimum_route_version,
             revocations,

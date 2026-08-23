@@ -188,6 +188,16 @@ pytest_test(
     ],
 )
 
+# Only the harness is in data, deliberately. These cases drive it with synthetic registries so
+# that they stay hermetic; pulling run_architecture_checks in would drag the whole checker
+# closure — and its ci/, configs/ and infra/ deps — into a test about the harness itself. The
+# real registry's fixture coverage is enforced by the gate, in the static presubmit.
+pytest_test(
+    name = "gate_falsifiability_test",
+    srcs = ["tests/test_gate_falsifiability.py"],
+    data = ["check_gate_falsifiability.py"],
+)
+
 pytest_test(
     name = "worktree_exclusions_test",
     srcs = ["tests/test_worktree_exclusions.py"],
@@ -220,6 +230,18 @@ py_binary(
     visibility = ["//visibility:public"],
 )
 
+# `imports`, not a wider `srcs`, is what this target needs.
+#
+# The test loads check_rust_package_manifest.py by absolute path through importlib, which `data`
+# already satisfies. But that module then does a bare `import check_code_docs_alignment`, and a
+# runfile is not an importable module: nothing put tools/analysis on sys.path, so the TRANSITIVE
+# import failed with ModuleNotFoundError and the test never ran a single assertion — a red that
+# said nothing about the manifest contract it exists to check.
+#
+# Moving the two checkers into `srcs` looks like the fix the py_binary targets above use, and it
+# is wrong here: pytest_test passes every src to pytest as a collection path
+# (tools/build/pytest.bzl: args = ["$(location %s)" % src for src in srcs]), so the checkers get
+# collected as if they were test modules and fail at import during collection instead.
 pytest_test(
     name = "rust_package_manifest_test",
     srcs = ["tests/test_rust_package_manifest.py"],
@@ -227,6 +249,7 @@ pytest_test(
         "check_code_docs_alignment.py",
         "check_rust_package_manifest.py",
     ],
+    imports = ["."],
 )
 
 py_binary(

@@ -33,7 +33,7 @@ pub use mindclade_identifiers::ResourceId;
 pub use signing::{Ed25519KeySet, Ed25519VerificationKey};
 
 use std::collections::{BTreeMap, BTreeSet};
-pub use workload::{WorkloadEnvelope, WorkloadKind};
+pub use workload::{ArtifactRef, WorkloadEnvelope, WorkloadKind};
 
 const MAX_CANONICAL_BYTES: usize = 16 * 1024 * 1024;
 const MAX_SET_ENTRIES: usize = 65_536;

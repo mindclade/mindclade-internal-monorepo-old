@@ -15,6 +15,20 @@ rust_library(
     deps = [
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/sandbox_os:mindclade_sandbox_os",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+    ],
+)
+
+rust_test(
+    name = "confinement",
+    srcs = ["tests/confinement.rs"],
+    edition = "2024",
+    deps = [
+        ":mindclade_worker_runtime",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/sandbox_os:mindclade_sandbox_os",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
     ],
 )
@@ -27,6 +41,7 @@ rust_test(
         ":mindclade_worker_runtime",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/sandbox_os:mindclade_sandbox_os",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
     ],
 )
@@ -39,6 +54,7 @@ rust_test(
         ":mindclade_worker_runtime",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/sandbox_os:mindclade_sandbox_os",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
     ],
 )
@@ -51,6 +67,7 @@ rust_test(
         ":mindclade_worker_runtime",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/sandbox_os:mindclade_sandbox_os",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
     ],
 )
@@ -63,6 +80,7 @@ rust_test(
         ":mindclade_worker_runtime",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/sandbox_os:mindclade_sandbox_os",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
     ],
 )
@@ -75,6 +93,7 @@ rust_test(
         ":mindclade_worker_runtime",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/sandbox_os:mindclade_sandbox_os",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
     ],
 )
@@ -87,6 +106,7 @@ rust_test(
         ":mindclade_worker_runtime",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/sandbox_os:mindclade_sandbox_os",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
     ],
 )

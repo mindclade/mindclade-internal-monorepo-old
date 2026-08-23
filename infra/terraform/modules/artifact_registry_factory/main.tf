@@ -11,7 +11,7 @@ resource "google_artifact_registry_repository" "this" {
   repository_id = each.key
   description   = each.value.description
   format        = each.value.format
-  mode          = "STANDARD_REPOSITORY"
+  mode          = each.value.mode
   kms_key_name  = var.encryption_key
   labels        = merge(var.labels, { managed-by = "terraform" })
 
@@ -29,6 +29,59 @@ resource "google_artifact_registry_repository" "this" {
     for_each = each.value.format == "DOCKER" && var.enable_vulnerability_scanning ? [1] : []
     content {
       enablement_config = "INHERITED"
+    }
+  }
+
+  # The repository format selects the upstream block, so an upstream can never be attached to
+  # a format that would ignore it. disable_upstream_validation is deliberately never set: the
+  # provider default (false) makes Google prove the upstream resolves at create time, which is
+  # the only cheap check that a typo in upstream_path did not produce a repository that exists,
+  # plans clean, and returns 404 to every client on the first fetch.
+  dynamic "remote_repository_config" {
+    for_each = each.value.remote_repository_config == null ? [] : [each.value.remote_repository_config]
+    content {
+      description = remote_repository_config.value.description
+
+      dynamic "apt_repository" {
+        for_each = each.value.format == "APT" ? [remote_repository_config.value] : []
+        content {
+          public_repository {
+            repository_base = apt_repository.value.public_upstream
+            repository_path = apt_repository.value.upstream_path
+          }
+        }
+      }
+
+      dynamic "yum_repository" {
+        for_each = each.value.format == "YUM" ? [remote_repository_config.value] : []
+        content {
+          public_repository {
+            repository_base = yum_repository.value.public_upstream
+            repository_path = yum_repository.value.upstream_path
+          }
+        }
+      }
+
+      dynamic "maven_repository" {
+        for_each = each.value.format == "MAVEN" ? [remote_repository_config.value] : []
+        content {
+          public_repository = maven_repository.value.public_upstream
+        }
+      }
+
+      dynamic "npm_repository" {
+        for_each = each.value.format == "NPM" ? [remote_repository_config.value] : []
+        content {
+          public_repository = npm_repository.value.public_upstream
+        }
+      }
+
+      dynamic "python_repository" {
+        for_each = each.value.format == "PYTHON" ? [remote_repository_config.value] : []
+        content {
+          public_repository = python_repository.value.public_upstream
+        }
+      }
     }
   }
 
@@ -60,6 +113,15 @@ resource "google_artifact_registry_repository" "this" {
     precondition {
       condition     = split("/", var.encryption_key)[3] == var.location
       error_message = "encryption_key location must match the Artifact Registry location."
+    }
+    # Declaring a proxy is a supply-chain decision, not a repository-shape detail: Google
+    # begins fetching from a public upstream on its own network and republishes the result
+    # under a pkg.dev name that clients and reviewers read as first-party. The acknowledgement
+    # is collection-wide and defaults to false so a remote repository can never arrive as an
+    # incidental line in a repositories map that nobody read as an egress change.
+    precondition {
+      condition     = each.value.mode != "REMOTE_REPOSITORY" || var.remote_upstream_egress_approved
+      error_message = "Proxying a public upstream requires remote_upstream_egress_approved=true in the same reviewed change."
     }
   }
 }

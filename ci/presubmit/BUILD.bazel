@@ -8,8 +8,17 @@ load("//tools/build:pytest.bzl", "pytest_test")
 package(default_visibility = ["//visibility:public"])
 
 py_library(
+    name = "disk_preflight",
+    srcs = ["disk_preflight.py"],
+    imports = ["../.."],
+)
+
+py_library(
     name = "pipeline_lib",
-    srcs = ["pipeline.py"],
+    srcs = [
+        "disk_preflight.py",
+        "pipeline.py",
+    ],
     data = [
         "targets.yaml",
         "//ci/bazel:full_graph_shards.toml",
@@ -23,7 +32,10 @@ py_library(
 
 py_binary(
     name = "pipeline",
-    srcs = ["pipeline.py"],
+    srcs = [
+        "disk_preflight.py",
+        "pipeline.py",
+    ],
     data = [
         "targets.yaml",
         "//ci/bazel:full_graph_shards.toml",
@@ -37,8 +49,18 @@ py_binary(
 )
 
 pytest_test(
+    name = "test_disk_preflight",
+    srcs = [
+        "disk_preflight.py",
+        "test_disk_preflight.py",
+    ],
+    imports = ["../.."],
+)
+
+pytest_test(
     name = "test_pipeline",
     srcs = [
+        "disk_preflight.py",
         "pipeline.py",
         "test_pipeline.py",
     ],
