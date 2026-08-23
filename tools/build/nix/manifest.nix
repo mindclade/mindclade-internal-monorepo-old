@@ -75,10 +75,12 @@ let
     actionlint = pkgs.actionlint.version;
     cargo-deny = pkgs.cargo-deny.version;
     conftest = pkgs.conftest.version;
+    git = pkgs.git.version;
     helm = pkgs.kubernetes-helm.version;
     kubeconform = pkgs.kubeconform.version;
     kustomize = pkgs.kustomize.version;
     promtool = pkgs.prometheus.version;
+    pyyaml = pkgs.python314Packages.pyyaml.version;
     shellcheck = pkgs.shellcheck.version;
     terraform = pkgs.terraform.version;
     terraform-docs = pkgs.terraform-docs.version;

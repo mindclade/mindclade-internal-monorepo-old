@@ -14,7 +14,7 @@
 
 | Workflow | Gates |
 |---|---|
-| `presubmit.yml` | The PR gate: architecture invariants, Go, Rust, Python, actionlint/yamllint, Terraform, affected Bazel configured analysis/tests, pnpm workspace integrity |
+| `presubmit.yml` | The PR gate: architecture invariants, Go, Rust, Python, actionlint/yamllint, Terraform, affected Bazel configured analysis/tests with fail-closed full fallback and mandatory Gazelle qualification, pnpm workspace integrity |
 | `nightly.yml` | Daily/manual CPU qualification of the complete configured Bazel graph and all non-manual tests |
 | `release.yml` | Image build, sign, and attest. The filename is load-bearing — bootstrap binds the attestor identity to this exact path |
 | `security.yml` | CodeQL and the security lane. Holds the only `security-events: write` in the repository |
@@ -66,9 +66,10 @@ selection is reviewable and runnable locally rather than embedded in YAML. The
 architecture lane is `python3 ci/presubmit/pipeline.py --static-only`.
 
 Bazel is the test execution authority. CI selects targets; it does not duplicate
-build logic. Ordinary pull requests select owning packages and their Bazel
-reverse dependencies; merge groups, main pushes, nightly, and global build or
-architecture changes execute `//...`.
+build logic. Pull requests use owning-package reverse-dependency selection;
+global or structurally unsafe changes, merge groups, main pushes, and nightly
+runs execute `//...`. The separate graph-native target-determinator migration
+remains blocked on remote-cache and external required-workflow evidence.
 
 ## Buildkite retirement status
 

@@ -213,6 +213,9 @@
             + nixpkgs.lib.optionalString pkgs.stdenv.hostPlatform.isDarwin ''
               export PATH="${xcodeSelectCompat}/bin:$PATH"
             '';
+          trustedGitShellHook = standardShellHook + ''
+            export MINDCLADE_GIT="${pkgs.git}/bin/git"
+          '';
           atticClient =
             assert pkgs.attic-client.src.rev == "7a19204df10d606c5070e6bb72615c3461900c05";
             pkgs.attic-client;
@@ -227,6 +230,7 @@
               protobuf
               python314
               python314Packages.mkdocs
+              python314Packages.pyyaml
               ruff
               uv
             ])
@@ -300,6 +304,7 @@
               (with pkgs; [
                 bazel_9
                 buildifier
+                git
                 python314
                 # The full graph executes the DNS module's sandboxed Terraform test. Keep
                 # Terraform in this lane only; Kubernetes/GitOps static validation does not
@@ -307,7 +312,7 @@
                 terraform
               ])
               ++ infraValidationPackages;
-            shellHook = standardShellHook;
+            shellHook = trustedGitShellHook;
           };
           nix-cache-publisher = pkgs.mkShell {
             packages = [
@@ -334,6 +339,7 @@
                 buf
                 cargo-deny
                 conftest
+                git
                 go
                 go-containerregistry
                 kubeconform
@@ -345,6 +351,7 @@
                 promtoolBinary
                 python314
                 python314Packages.mkdocs
+                python314Packages.pyyaml
                 ruff
                 shellcheck
                 syft
@@ -357,7 +364,7 @@
                 yq-go
               ]
               ++ rust.packages;
-            shellHook = standardShellHook;
+            shellHook = trustedGitShellHook;
           };
         }
         // nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
