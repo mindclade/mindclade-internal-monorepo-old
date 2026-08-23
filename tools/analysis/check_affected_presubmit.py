@@ -34,6 +34,17 @@ from ci.presubmit import pipeline as presubmit_pipeline  # noqa: E402
 
 PRESUBMIT_EVENTS = frozenset({"merge_group", "pull_request", "push"})
 NIGHTLY_EVENTS = frozenset({"schedule", "workflow_dispatch"})
+PULL_REQUEST_CACHE_BASE_REF = (
+    "${{ github.event.pull_request.stack.base.ref || github.event.pull_request.base.ref }}"
+)
+PULL_REQUEST_CACHE_BASE_SHA = (
+    "${{ github.event.pull_request.stack.base.sha || github.event.pull_request.base.sha }}"
+)
+PULL_REQUEST_SELECTION_BASE_SHA = "${{ github.event.pull_request.base.sha }}"
+PERSISTENT_CACHE_MEASURE_IF = (
+    "always() && steps.bazel-remote-cache.outputs.enabled != 'true' "
+    "&& steps.bazel-cache-trust.outcome == 'success'"
+)
 PRESUBMIT_BAZEL_COMMAND = (
     "/nix/var/nix/profiles/default/bin/nix",
     "develop",
@@ -114,11 +125,11 @@ PRESUBMIT_BAZEL_STEP_CONTRACT = (
     ),
     (
         "name:Select qualified Bazel remote-cache route",
-        "e9857e10b7b5a13a3dc13a653574f5a6b2aabf3305f8502a823a34a773f4d972",
+        "1344f49d2628187001fb0f216abc35266e45c2a7ab8e008e07adc10385237f9f",
     ),
     (
         "name:Select trusted Bazel cache revision",
-        "ee5076cc24fd3eec9405c0d067025536c0fa6f486c4d9e5f0d31bceff134e40f",
+        "6e67eaf195aed5c9466d155755f025351036252d6feeff6ad89d34f06b441a70",
     ),
     (
         "name:Restore trusted Bazel persistent action cache",
@@ -170,7 +181,7 @@ PRESUBMIT_BAZEL_STEP_CONTRACT = (
     ),
     (
         "name:Measure bounded Bazel persistent action cache",
-        "f5883ffd0675c8bade7c4d0abe80743f426aefbdd366e7ecc50f195c9d51487c",
+        "1bfc95fe2bf97385458b12519cf7718638e648c9e22df68a313bb5d1aca273f6",
     ),
     (
         "name:Save trusted Bazel persistent action cache",
@@ -574,6 +585,27 @@ def _uploads_are_governed(job: dict[str, Any], expected: dict[str, dict[str, Any
     return True
 
 
+def _presubmit_cache_routing_is_governed(job: dict[str, Any]) -> bool:
+    remote_route = _named_step(job, "Select qualified Bazel remote-cache route")
+    disk_route = _named_step(job, "Select trusted Bazel cache revision")
+    governed_run = _named_step(job, "Run event-governed Bazel validation")
+    cache_measure = _named_step(job, "Measure bounded Bazel persistent action cache")
+    remote_env = _mapping(remote_route.get("env")) if remote_route is not None else None
+    disk_env = _mapping(disk_route.get("env")) if disk_route is not None else None
+    governed_env = _mapping(governed_run.get("env")) if governed_run is not None else None
+    return (
+        remote_env is not None
+        and remote_env.get("PR_BASE_REF") == PULL_REQUEST_CACHE_BASE_REF
+        and disk_env is not None
+        and disk_env.get("PR_BASE_REF") == PULL_REQUEST_CACHE_BASE_REF
+        and disk_env.get("PR_BASE_SHA") == PULL_REQUEST_CACHE_BASE_SHA
+        and governed_env is not None
+        and governed_env.get("PR_BASE_SHA") == PULL_REQUEST_SELECTION_BASE_SHA
+        and cache_measure is not None
+        and cache_measure.get("if") == PERSISTENT_CACHE_MEASURE_IF
+    )
+
+
 def _presubmit_workflow_errors(workflow: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     if set(workflow) != {"concurrency", "jobs", "name", "on", "permissions"}:
@@ -607,6 +639,8 @@ def _presubmit_workflow_errors(workflow: dict[str, Any]) -> list[str]:
         return [*errors, _error("AFFECTED-WORKFLOW-004", "presubmit Bazel job is invalid")]
     if not _step_contract_is_exact(bazel_job, PRESUBMIT_BAZEL_STEP_CONTRACT):
         errors.append(_error("AFFECTED-WORKFLOW-009", "presubmit Bazel steps drifted"))
+    if not _presubmit_cache_routing_is_governed(bazel_job):
+        errors.append(_error("AFFECTED-WORKFLOW-011", "presubmit cache routing is invalid"))
     if not _checkout_is_complete(
         bazel_job,
         full_history=True,
@@ -629,7 +663,7 @@ def _presubmit_workflow_errors(workflow: dict[str, Any]) -> list[str]:
                 "&& steps.bazel-remote-cache.outputs.role "
                 "|| steps.bazel-cache-trust.outputs.role }}"
             ),
-            "PR_BASE_SHA": "${{ github.event.pull_request.base.sha }}",
+            "PR_BASE_SHA": PULL_REQUEST_SELECTION_BASE_SHA,
         }
         or _command(step.get("run")) != PRESUBMIT_BAZEL_COMMAND
     ):

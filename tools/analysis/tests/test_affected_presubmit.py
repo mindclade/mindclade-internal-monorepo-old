@@ -157,6 +157,88 @@ def test_presubmit_requires_cache_route_arguments(flag: str) -> None:
     )
 
 
+def test_presubmit_separates_native_stack_cache_and_selection_bases() -> None:
+    workflow = _presubmit_workflow()
+    steps = workflow["jobs"]["bazel"]["steps"]
+    remote_route = next(
+        item for item in steps if item.get("name") == "Select qualified Bazel remote-cache route"
+    )
+    disk_route = next(
+        item for item in steps if item.get("name") == "Select trusted Bazel cache revision"
+    )
+    governed_run = next(
+        item for item in steps if item.get("name") == "Run event-governed Bazel validation"
+    )
+
+    assert remote_route["env"]["PR_BASE_REF"] == (
+        check_affected_presubmit.PULL_REQUEST_CACHE_BASE_REF
+    )
+    assert disk_route["env"]["PR_BASE_REF"] == (
+        check_affected_presubmit.PULL_REQUEST_CACHE_BASE_REF
+    )
+    assert disk_route["env"]["PR_BASE_SHA"] == (
+        check_affected_presubmit.PULL_REQUEST_CACHE_BASE_SHA
+    )
+    assert governed_run["env"]["PR_BASE_SHA"] == (
+        check_affected_presubmit.PULL_REQUEST_SELECTION_BASE_SHA
+    )
+
+
+@pytest.mark.parametrize(
+    ("step_name", "field", "mutated_value"),
+    [
+        (
+            "Select qualified Bazel remote-cache route",
+            "PR_BASE_REF",
+            "${{ github.event.pull_request.base.ref }}",
+        ),
+        (
+            "Select trusted Bazel cache revision",
+            "PR_BASE_REF",
+            "${{ github.event.pull_request.stack.base.ref }}",
+        ),
+        (
+            "Select trusted Bazel cache revision",
+            "PR_BASE_SHA",
+            "${{ github.event.pull_request.base.sha }}",
+        ),
+        (
+            "Run event-governed Bazel validation",
+            "PR_BASE_SHA",
+            check_affected_presubmit.PULL_REQUEST_CACHE_BASE_SHA,
+        ),
+    ],
+)
+def test_presubmit_rejects_cache_or_selection_base_drift(
+    step_name: str,
+    field: str,
+    mutated_value: str,
+) -> None:
+    workflow = _presubmit_workflow()
+    step = next(
+        item for item in workflow["jobs"]["bazel"]["steps"] if item.get("name") == step_name
+    )
+    step["env"][field] = mutated_value
+    assert "[AFFECTED-WORKFLOW-011] presubmit cache routing is invalid" in (
+        check_affected_presubmit._presubmit_workflow_errors(workflow)
+    )
+
+
+def test_presubmit_skips_disk_cache_measurement_after_trust_rejection() -> None:
+    workflow = _presubmit_workflow()
+    step = next(
+        item
+        for item in workflow["jobs"]["bazel"]["steps"]
+        if item.get("name") == "Measure bounded Bazel persistent action cache"
+    )
+    assert step["if"] == check_affected_presubmit.PERSISTENT_CACHE_MEASURE_IF
+
+    step["if"] = "always() && steps.bazel-remote-cache.outputs.enabled != 'true'"
+    assert "[AFFECTED-WORKFLOW-011] presubmit cache routing is invalid" in (
+        check_affected_presubmit._presubmit_workflow_errors(workflow)
+    )
+
+
 def test_workflow_parser_rejects_duplicate_keys() -> None:
     with pytest.raises(workflow_yaml.WorkflowYamlError) as captured:
         workflow_yaml.parse_workflow_text("name: first\nname: second\n")

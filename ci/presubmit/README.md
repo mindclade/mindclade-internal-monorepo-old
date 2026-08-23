@@ -42,6 +42,12 @@ must be outside the checkout and must not be symbolic links. Raw Bazel evidence
 is produced only after removing the setup action's short-lived launcher token
 from the subprocess environment.
 
+Cache trust treats a native stack's ultimate protected target as its security
+base and falls back to the ordinary pull-request base for a direct pull request.
+Selection keeps the immediate parent SHA so stacked layers remain independently
+reviewable. If cache trust rejects an event, persistent-cache measurement is
+skipped and metrics record that skip without obscuring the primary rejection.
+
 The selector still loads the full unconfigured Bazel universe. It reduces
 configured analysis, compilation, and test execution; it does not promise that
 loading or external-repository resolution is free. GPU, provider,

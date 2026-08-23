@@ -442,15 +442,16 @@ jobs:
             accept-flake-config = false
 
       # Source and server-side governance must independently agree before this job requests
-      # the dedicated cache identity. A missing variable is blocked. Manual and non-main routes
-      # are rejected by the selector and independently absent from the WIF attribute mapping.
+      # the dedicated cache identity. Native stacks route cache trust through their ultimate
+      # protected target; direct pull requests fall back to their ordinary base. Manual and
+      # non-main routes are rejected by the selector and absent from the WIF attribute mapping.
       - name: Select qualified Bazel remote-cache route
         id: bazel-remote-cache
         env:
           BAZEL_REMOTE_CACHE_STATE: ${{ vars.BAZEL_REMOTE_CACHE_STATE }}
           CI_PROJECT_ID: ${{ vars.CI_PROJECT_ID }}
           MERGE_GROUP_BASE_REF: ${{ github.event.merge_group.base_ref }}
-          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_BASE_REF: ${{ github.event.pull_request.stack.base.ref || github.event.pull_request.base.ref }}
           REF_PROTECTED: ${{ github.ref_protected }}
         run: |
           set -euo pipefail
@@ -466,17 +467,17 @@ jobs:
             --merge-group-base-ref "${MERGE_GROUP_BASE_REF}" \
             --github-output "${GITHUB_OUTPUT}"
 
-      # Cache keys contain only committed toolchain/lock evidence and a trusted revision. Pull
-      # requests use their protected base; merge groups use the queue's protected base; only a
-      # protected-main push is a writer. The prefix fallback remains inside the exact toolchain
-      # fingerprint, and GitHub's cache service resolves it from the default-branch scope.
+      # Cache keys contain only committed toolchain/lock evidence and a trusted revision. Direct
+      # pull requests use their protected base; native stacks use their ultimate protected target;
+      # merge groups use the queue's protected base; only a protected-main push is a writer. The
+      # prefix fallback stays inside the exact toolchain fingerprint and default-branch scope.
       - name: Select trusted Bazel cache revision
         id: bazel-cache-trust
         if: steps.bazel-remote-cache.outputs.enabled != 'true'
         env:
           CACHE_FINGERPRINT: ${{ hashFiles('.bazelversion', 'MODULE.bazel', 'MODULE.bazel.lock', 'REPO.bazel', 'flake.lock', 'tools/build/nix/toolchain-manifest.json') }}
-          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_BASE_SHA: ${{ github.event.pull_request.stack.base.sha || github.event.pull_request.base.sha }}
+          PR_BASE_REF: ${{ github.event.pull_request.stack.base.ref || github.event.pull_request.base.ref }}
           MERGE_GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}
           MERGE_GROUP_BASE_REF: ${{ github.event.merge_group.base_ref }}
           REF_PROTECTED: ${{ github.ref_protected }}
@@ -653,7 +654,10 @@ jobs:
 
       - name: Measure bounded Bazel persistent action cache
         id: bazel-cache-size
-        if: always() && steps.bazel-remote-cache.outputs.enabled != 'true'
+        if: >-
+          always() &&
+          steps.bazel-remote-cache.outputs.enabled != 'true' &&
+          steps.bazel-cache-trust.outcome == 'success'
         continue-on-error: true
         run: |
           set -euo pipefail

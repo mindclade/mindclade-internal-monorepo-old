@@ -61,5 +61,11 @@ an external trust boundary. Phase 5 also remains incomplete until the pinned
 organization required workflow is active and observed blocking both pull requests
 and merge groups from a protected ref.
 
+Native-stack qualification preserves two distinct bases: cache authorization is
+anchored to `pull_request.stack.base` (with the direct pull-request base as the
+fallback), while affected selection receives the immediate parent SHA. Semantic
+workflow mutation tests pin that separation and require cache measurement to skip
+after a cache-trust rejection, leaving the rejection as the authoritative failure.
+
 Ruleset evaluation and activation evidence belongs to `github-config`. A local
 test pass is not evidence that GitHub is enforcing the context.

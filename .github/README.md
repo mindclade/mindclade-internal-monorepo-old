@@ -71,6 +71,12 @@ execute `//...`. Owning-package reverse-dependency selection and the separate
 graph-native target-determinator migration remain blocked on connected cache and
 external required-workflow evidence.
 
+For a native GitHub stack, cache trust and remote-cache routing use
+`pull_request.stack.base` so every layer remains anchored to the stack's ultimate
+protected target; a direct pull request falls back to `pull_request.base`. The
+affected-selection input deliberately keeps the immediate `pull_request.base.sha`
+so a future activated selector compares only the current stack layer.
+
 ## Buildkite retirement status
 
 The `.buildkite/` source remains temporarily for audit and rollback comparison, but bootstrap
