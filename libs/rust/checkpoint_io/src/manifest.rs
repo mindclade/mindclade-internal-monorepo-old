@@ -13,6 +13,12 @@ use std::collections::{BTreeMap, BTreeSet};
 
 pub const CHECKPOINT_SCHEMA: u16 = 1;
 const MAX_MANIFEST_BYTES: usize = 64 * 1024 * 1024;
+/// Declared-count ceilings, checked during decode before anything is allocated
+/// for them and re-asserted by [`CheckpointManifest::validate`] afterwards.
+/// These were previously bare literals inside `validate()` only, which is too
+/// late to stop a hostile declaration from driving a reservation.
+pub const MAX_SHARDS: usize = 1_000_000;
+pub const MAX_COMPONENTS: usize = 4096;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CheckpointShard {
@@ -40,7 +46,7 @@ impl CheckpointManifest {
                 "checkpoint or run ID kind is invalid",
             ));
         }
-        if self.world_size == 0 || self.shards.is_empty() || self.shards.len() > 1_000_000 {
+        if self.world_size == 0 || self.shards.is_empty() || self.shards.len() > MAX_SHARDS {
             return Err(Fault::invalid_argument(
                 "checkpoint world size or shard count is invalid",
             ));
@@ -66,7 +72,7 @@ impl CheckpointManifest {
                 ));
             }
         }
-        if self.components.len() > 4096 {
+        if self.components.len() > MAX_COMPONENTS {
             return Err(Fault::new(
                 Code::ResourceExhausted,
                 "checkpoint component count exceeds limit",
@@ -139,6 +145,14 @@ impl CheckpointManifest {
         let plan = <[u8; 32]>::try_from(decoder.bytes()?)
             .map_err(|_| Fault::data_loss("parallel-plan digest length is invalid"))?;
         let shard_count = decoder.item_count()?;
+        // `validate()` already rejects a decoded manifest above these counts,
+        // but it runs after the whole message has been decoded and reserved for.
+        // Checking the declared count here — the way `ipc` and `manifests`
+        // already do — rejects a hostile declaration before anything is
+        // allocated for it, rather than after.
+        if shard_count == 0 || shard_count > MAX_SHARDS {
+            return Err(Fault::data_loss("checkpoint shard count is invalid"));
+        }
         let mut shards = Vec::with_capacity(shard_count);
         for _ in 0..shard_count {
             let name = decoder.string()?.to_owned();
@@ -156,6 +170,9 @@ impl CheckpointManifest {
             });
         }
         let component_count = decoder.item_count()?;
+        if component_count > MAX_COMPONENTS {
+            return Err(Fault::data_loss("checkpoint component count is invalid"));
+        }
         let mut components = BTreeMap::new();
         for _ in 0..component_count {
             let name = decoder.string()?.to_owned();
