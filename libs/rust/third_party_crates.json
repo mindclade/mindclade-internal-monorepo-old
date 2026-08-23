@@ -5,6 +5,7 @@
     "ed25519-dalek",
     "libc",
     "object_store",
+    "seccompiler",
     "sha2",
     "tokio"
   ],
