@@ -240,13 +240,10 @@ fn an_outage_surfaces_through_the_transfer_engine_and_leaves_no_stale_entry() {
     let payload = b"artifact-under-outage";
     let digest = hash_bytes(payload);
     let store = Arc::new(OutageStore::new());
-    let cas = ArtifactCas::new(
-        store.clone(),
-        Arc::new(clock()),
-        CasConfig::default(),
-    )
-    .expect("cas");
-    cas.put_blob(payload).expect("seed the blob before the outage");
+    let cas =
+        ArtifactCas::new(store.clone(), Arc::new(clock()), CasConfig::default()).expect("cas");
+    cas.put_blob(payload)
+        .expect("seed the blob before the outage");
 
     let cache = Arc::new(LocalCache::new(1 << 20, 16).expect("cache"));
     let engine = TransferEngine::new(cas, cache, ProxyMetrics::default(), 1 << 20);
