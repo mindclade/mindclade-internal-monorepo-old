@@ -75,8 +75,12 @@ pytest_test(
 
 go_test(
     name = "_bazel_test",
-    srcs = ["generated_go_test.go"],
+    srcs = [
+        "faults_conformance_test.go",
+        "generated_go_test.go",
+    ],
     deps = [
+        "//libs/go/faults",
         "//protocols/proto/mindclade/artifact/v1:artifact_go_proto",
         "//protocols/proto/mindclade/common/v1:common_go_proto",
         "//protocols/proto/mindclade/data/v1:data_go_proto",
@@ -88,5 +92,6 @@ go_test(
         "//protocols/proto/mindclade/runtime/v1:runtime_go_proto",
         "//protocols/proto/mindclade/training/v1:training_go_proto",
         "@org_golang_google_protobuf//proto",
+        "@org_golang_google_protobuf//reflect/protoreflect",
     ],
 )
