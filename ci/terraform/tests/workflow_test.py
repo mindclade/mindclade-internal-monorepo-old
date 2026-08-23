@@ -193,11 +193,16 @@ assert "@v1.1.0" not in SECURITY
 
 python_audit_job = SECURITY.split("\n  python-dependency-audit:\n", maxsplit=1)[1]
 python_audit_job = python_audit_job.split("\n  go-vulnerability:\n", maxsplit=1)[0]
-assert python_audit_job.count("pip-audit==2.10.1") == 2
-assert python_audit_job.count("--require-hashes") == 2
+assert python_audit_job.count("pip-audit==2.10.1") == 3
+assert python_audit_job.count("--require-hashes") == 3
 assert python_audit_job.count("--requirement requirements.lock.txt") == 2
 assert python_audit_job.count("--vulnerability-service osv") == 1
 assert "torch's Linux +cpu wheel" in python_audit_job
+assert "--requirement services/mlflow/requirements.lock.txt" in python_audit_job
+assert "services/mlflow/validate_dependency_gate.py" in python_audit_job
+assert "--scanner-exit-code" in python_audit_job
+assert "--ignore-vuln" not in python_audit_job
+assert "continue-on-error" not in python_audit_job
 
 bazel_plan = job_block(PRESUBMIT, "bazel-worker-plan")
 bazel_job = job_block(PRESUBMIT, "bazel-workers")
