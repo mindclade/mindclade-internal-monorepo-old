@@ -36,6 +36,7 @@ go_test(
         "//control/artifacts",
         "//control/orchestration",
         "//control/runtime_authority",
+        "//libs/go/faults",
         "//libs/go/identifiers",
     ],
 )
