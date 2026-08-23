@@ -199,6 +199,7 @@ type Component struct {
     Name      string
     Start     servicekit.Hook
     Run       servicekit.Hook
+    Drain     servicekit.Hook
     Stop      servicekit.Hook
     Liveness  servicekit.Probe
     Readiness servicekit.Probe
@@ -214,16 +215,44 @@ Lifecycle rules:
 5. The first `Run` function to return initiates shutdown.
 6. A nil `Run` result is a graceful component completion.
 7. A non-nil `Run` result fails the service unless it is the expected result of service cancellation.
-8. `Stop` functions run sequentially in reverse registration order.
-9. Every hook and probe must honor context cancellation.
-10. A hook that ignores cancellation may continue in a leaked goroutine after its budget expires; servicekit cannot forcibly terminate Go code.
+8. `Drain` functions run sequentially in reverse registration order, before any `Run` context is canceled, so listeners and claim loops can stop admitting new work while established work finishes.
+9. `Stop` functions run sequentially in reverse registration order.
+10. Every hook and probe must honor context cancellation.
+11. A hook that ignores cancellation may continue in a leaked goroutine after its budget expires; servicekit cannot forcibly terminate Go code.
+12. A `Shutdown` that arrives before `Run` is latched rather than discarded, so the `Run` that follows stops instead of running unsupervised.
 
 ## Liveness and readiness
 
 The service contributes a lifecycle probe automatically:
 
-- liveness passes in `starting`, `running`, and `stopping` states;
+- liveness passes in `starting`, `running`, `draining`, and `stopping` states;
 - readiness passes only in the `running` state.
+
+Draining is live and not ready on purpose. Failing liveness during a drain gets
+the process killed mid-request, which is the opposite of what the drain is for;
+reporting ready during a drain keeps the orchestrator routing new traffic into a
+process that is on its way out. `libs/rust/servicekit` answers both probes from
+the same table (`LifecycleState::is_live`, `LifecycleState::admits_traffic`), so
+a Go process and a Rust node are routed the same way.
+
+## Phase graph
+
+The seven phases and the transitions between them are a cross-language
+contract, not a Go implementation detail. `State.CanTransitionTo` is the table,
+`libs/rust/servicekit/src/lifecycle.rs` enforces the identical one on every Rust
+transition, and both suites pin it edge by edge:
+
+```text
+new -> starting -> running -> draining -> stopping -> stopped
+        │            │           │            │
+        │            └───────────┴────────────┴──> failed
+        ├──> draining   (termination requested before running is announced)
+        └──> stopping   (startup failure)
+```
+
+The two extra edges out of `starting` exist so a process that never served can
+still end: neither passes through `running`, which is what keeps readiness false
+for a process that never admitted traffic.
 
 Component probes are registered automatically under names such as:
 
