@@ -118,6 +118,10 @@ filegroup(
         "//protocols/proto/mindclade/training/v1:run.proto",
         "//protocols/proto/mindclade/training/v1:topology.proto",
     ],
+    # The generated-Python conformance test partitions this enumeration into modules that
+    # a py_proto_library reaches and modules that no Python caller can import. It is the
+    # only consumer outside this package, so the grant stays package-scoped.
+    visibility = ["//protocols/consumers/_bazel:__pkg__"],
 )
 
 genrule(
