@@ -30,6 +30,8 @@ import http
 import re
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[3]
 
 RUST_CODE = ROOT / "libs/rust/faults/src/code.rs"
@@ -96,15 +98,47 @@ def _rust_declared_all() -> list[str]:
     return [_fault_key(name) for name in re.findall(r"Code::(\w+)", body)]
 
 
+def _parse_rust_arm(line: str) -> tuple[list[str], str] | None:
+    """Parses one rustfmt-formatted, single-line `Code` match arm."""
+    line = line.strip()
+    if "=>" not in line:
+        assert "Code::" not in line, "Rust Code match arm has no => separator"
+        return None
+
+    choices, _, rendered = line.partition("=>")
+    assert "=>" not in rendered, "Rust Code match arm has more than one => separator"
+    value, comma, trailing = rendered.partition(",")
+    assert comma and not trailing.strip(), "Rust Code match arm must end with one comma"
+    value = value.strip()
+    assert value.isdecimal() or value.isidentifier(), (
+        f"Rust Code match arm has invalid rendered token {value!r}"
+    )
+
+    names: list[str] = []
+    for choice in choices.split("|"):
+        choice = choice.strip()
+        assert choice.startswith("Code::"), f"Rust match choice is not a Code variant: {choice!r}"
+        name = choice.removeprefix("Code::")
+        assert name.isidentifier(), f"Rust Code variant is not an identifier: {name!r}"
+        names.append(name)
+    return names, value
+
+
 def _rust_arms(function: str) -> dict[str, str]:
     """Returns {fault key: rendered token} for one wildcard-free Rust match."""
     text = RUST_STATUS.read_text(encoding="utf-8")
     body = _body(text, f"pub const fn {function}(code: Code)")
     body = re.sub(r"//.*", "", body)
     rendered: dict[str, str] = {}
-    for arm, value in re.findall(r"((?:\s*Code::\w+\s*\|?)+)=>\s*([\w]+),", body):
-        for name in re.findall(r"Code::(\w+)", arm):
-            rendered[_fault_key(name)] = value
+    for line in body.splitlines():
+        parsed = _parse_rust_arm(line)
+        if parsed is None:
+            continue
+        names, value = parsed
+        for name in names:
+            key = _fault_key(name)
+            assert key not in rendered, f"{function} repeats Code::{name}"
+            rendered[key] = value
     return rendered
 
 
@@ -178,6 +212,13 @@ def test_the_parsers_see_the_whole_taxonomy() -> None:
         assert set(parsed) == codes, f"{label} does not name every code"
     for parsed, label in ((_go_http(), "httpx"), (_go_grpc(), "grpcx")):
         assert set(parsed) == codes, f"{label} does not resolve every code"
+
+
+def test_rust_arm_parser_rejects_a_long_unterminated_alternative_list() -> None:
+    """An adversarial prefix must not trigger regex-style retry backtracking."""
+    malformed = " | ".join("Code::0" for _ in range(4096))
+    with pytest.raises(AssertionError, match="no => separator"):
+        _parse_rust_arm(malformed)
 
 
 def test_rust_and_go_render_the_same_http_status_for_every_fault_code() -> None:
