@@ -25,8 +25,8 @@ use mindclade_runtime_gateway::{
 };
 use mindclade_servicekit::Service;
 use mindclade_worker_protocol::{
-    DeploymentRoute, DetachedSignature, RevocationSnapshot, RevocationSnapshotClaims, RouteSnapshot,
-    RouteSnapshotClaims, SignatureVerifier,
+    DeploymentRoute, DetachedSignature, RevocationSnapshot, RevocationSnapshotClaims,
+    RouteSnapshot, RouteSnapshotClaims, SignatureVerifier,
 };
 use std::collections::BTreeSet;
 use std::net::SocketAddr;
