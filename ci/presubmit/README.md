@@ -42,6 +42,19 @@ must be outside the checkout and must not be symbolic links. Raw Bazel evidence
 is produced only after removing the setup action's short-lived launcher token
 from the subprocess environment.
 
+Each successful worker also uploads only its normalized summary and run-metric JSON to the
+verdict job. `ci/common/ci_health.py` validates the exact worker set and identity, then emits a
+static JSON and HTML dashboard with BEP action-cache hit rate, test critical-path duration,
+worker elapsed p50/p95, shard imbalance, and non-passing or flaky target labels. Raw BEP,
+profiles, logs, command lines, and cache credentials never enter the dashboard artifact.
+
+The elapsed interval begins in the worker's first step and ends when selection evidence is
+complete, so verdict and artifact-upload time are excluded. GitHub does not expose an exact
+runner queue-start timestamp inside the job. Workflow creation time would also include plan and
+dependency time, so the dashboard reports queue time as unavailable rather than publishing a
+misleading proxy. BEP exposes critical-path duration but not the action-level path; action
+identity remains available only in the separately retained Bazel profile.
+
 Cache trust treats a native stack's ultimate protected target as its security
 base and falls back to the ordinary pull-request base for a direct pull request.
 Selection keeps the immediate parent SHA so stacked layers remain independently

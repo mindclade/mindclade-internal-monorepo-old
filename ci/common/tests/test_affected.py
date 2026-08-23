@@ -517,6 +517,37 @@ def test_pull_request_affected_mode_requires_explicit_activation(
         )
 
 
+def test_pull_request_latency_optimization_cannot_weaken_merge_group(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(affected, "GRAPH_NATIVE_AFFECTED_ACTIVE", True)
+    assert (
+        affected.resolve_selection_mode(
+            "auto",
+            event="pull_request",
+            ref="refs/pull/1/merge",
+            base_sha="0" * 40,
+        )
+        == "affected"
+    )
+    assert (
+        affected.resolve_selection_mode(
+            "auto",
+            event="merge_group",
+            ref="refs/heads/gh-readonly-queue/main/pr-1",
+            base_sha=None,
+        )
+        == "full"
+    )
+    with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-010\]"):
+        affected.resolve_selection_mode(
+            "affected",
+            event="merge_group",
+            ref="refs/heads/gh-readonly-queue/main/pr-1",
+            base_sha="0" * 40,
+        )
+
+
 def test_protected_event_rejects_wrong_ref_and_local_affected_requires_base() -> None:
     with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-009\]"):
         affected.resolve_selection_mode(
