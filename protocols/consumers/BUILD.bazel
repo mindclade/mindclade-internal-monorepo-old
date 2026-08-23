@@ -4,9 +4,17 @@
 
 package(default_visibility = ["//visibility:private"])
 
+# The label a release request qualifies against: ci/release/targets.yaml lists
+# `//protocols/consumers:generated_go_test` among the protobuf-contracts
+# qualification targets. Every Go claim made about the generated bindings belongs
+# in this suite, because a conformance test the release gate does not run is a
+# test that stops mattering the first time it is inconvenient.
 test_suite(
     name = "generated_go_test",
-    tests = ["//protocols/consumers/_bazel:generated_go_test"],
+    tests = [
+        "//protocols/consumers/_bazel:faults_conformance_test",
+        "//protocols/consumers/_bazel:generated_go_test",
+    ],
 )
 
 test_suite(

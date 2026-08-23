@@ -749,7 +749,7 @@
     "@@rules_rust+//crate_universe:extensions.bzl%crate": {
       "general": {
         "bzlTransitiveDigest": "Y2mud6v/TjXgYLP/q+hB5QJtrN5JXTuesMiQ32a/c74=",
-        "usagesDigest": "cxrciWtcvztFqUXwlp+kfTEgBOLSSuM/hAlBwIiJtlM=",
+        "usagesDigest": "u+90sRpb4dT8CJEK1yEWgR2bi/wjz4MgiBEWwGssMpY=",
         "recordedInputs": [
           "ENV:CARGO_BAZEL_DEBUG \\0",
           "ENV:CARGO_BAZEL_GENERATOR_SHA256 \\0",
@@ -771,7 +771,7 @@
           "REPO_MAPPING:rules_rust+,bazel_skylib bazel_skylib+",
           "REPO_MAPPING:rules_rust+,bazel_tools bazel_tools",
           "REPO_MAPPING:rules_rust+,rules_cc rules_cc+",
-          "FILE:@@//Cargo.lock e5b74b95149432103be47b90d8162670b0cc159d6680028dc452202ab03befa7",
+          "FILE:@@//Cargo.lock 570d2140c382bae3b70dca343a962f188f2db67c0fca6a051a8694a2aa9021cd",
           "FILE:@@//Cargo.toml 90bf951c04ba60358c03be9636beb8671d8e3f28d53dd3f9e7cb6f48ea10fa42",
           "FILE:@@//libs/rust/artifact_cas/Cargo.toml 739fd806cdfedbea93de4d6b615ea95dd05d7c06b8121b377f98e098eed4d040",
           "FILE:@@//libs/rust/atomic_fs/Cargo.toml 5317f19beb4cbef89f776e7d80e2c959942d99c461d3a0c5cdcbb8dbf3fd83a1",
@@ -788,12 +788,13 @@
           "FILE:@@//libs/rust/ipc_os/Cargo.toml 0f63055bac8450962f2ffab4fc2ab3a993950f0a32c7e0a8895798ecb17ea2ef",
           "FILE:@@//libs/rust/manifests/Cargo.toml c887a021433acc14a666766e376c11060959e67f277b15e3e5032879e93a39a5",
           "FILE:@@//libs/rust/object_store/Cargo.toml 18bdecebf3c5cdfa8220cf1e13c6e179635e715fbf480fa303a2c63be611e2ac",
+          "FILE:@@//libs/rust/process_os/Cargo.toml b7e850317c1754c2226b9b3649b19c9e72148bd3a2f45b7ba100190e9cc3716a",
           "FILE:@@//libs/rust/python_bridge/Cargo.toml 27ce154a71162608738f7568c38393111b54df51a9940663ee9307c7a4d1f4ee",
           "FILE:@@//libs/rust/record_io/Cargo.toml 4e71469d123f183f0147b224ad28ece3287784e9c5b03d0f8075f2e5d72dab80",
           "FILE:@@//libs/rust/runtime_core/Cargo.toml 78f8c2a61069df7a0b27731cfaaf3f5a9660dc7f6e00385bd59917ad53612618",
           "FILE:@@//libs/rust/servicekit/Cargo.toml 8e26fd8203ddeced39768e0b42ee4f096c9abd463c5153864a9cfc8a79dd0bb9",
           "FILE:@@//libs/rust/telemetry/Cargo.toml 8f54da5fd913ea0bb7e67845be255e246ad718d9ef0b734580197c81438dd73c",
-          "FILE:@@//libs/rust/telemetry_spool/Cargo.toml 794afb81f7d33b9dec2c66b08c4a5448a543685d5d66cc70cd287288e483b09f",
+          "FILE:@@//libs/rust/telemetry_spool/Cargo.toml b1dbc53c989d659dd18bcaf74930a08ecf7bffa17ca70f5a0252398f0c21c46a",
           "FILE:@@//libs/rust/tokenizer_runtime/Cargo.toml b696abc36aa414127b78c6d25b756e66ac479a704ba8db3f57c48c50b4dbbe54",
           "FILE:@@//libs/rust/worker_protocol/Cargo.toml 0687a87aa5adc5aa4a449a2c87620529cbce8f348cb245957571e1692e865486",
           "FILE:@@//libs/rust/worker_runtime/Cargo.toml 930801438c5434b9c535e1181281201b69285a54b7d1470b0362f8d3b673ef13",
@@ -805,8 +806,7 @@
           "FILE:@@//services/runtime_host/Cargo.toml 5741b3071d31b7d35242a094fc2519c7d65da589794f215e534024b2298293c9",
           "FILE:@@//services/workers/ingestion/Cargo.toml 41a8ef6551863728e154d46e45029042bdbdd6511d42d7aa7df021cc409e32ee",
           "FILE:@@//protocols/rust/Cargo.toml 9bc457d8d40a1b81b750e312ee3a8fd1c5e8b822255f4378f6110ab70dc5f21f",
-          "FILE:@@//tools/qualification/rust/perf_probe/Cargo.toml 5551cf36298db8dc7a451221665529896ac586aaa1ed656bd1050fde80901126",
-          "FILE:@@//libs/rust/process_os/Cargo.toml b7e850317c1754c2226b9b3649b19c9e72148bd3a2f45b7ba100190e9cc3716a"
+          "FILE:@@//tools/qualification/rust/perf_probe/Cargo.toml 5551cf36298db8dc7a451221665529896ac586aaa1ed656bd1050fde80901126"
         ],
         "generatedRepoSpecs": {
           "crates": {

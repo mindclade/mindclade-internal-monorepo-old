@@ -286,8 +286,14 @@ func newEgressClient(settings config.Settings) (*outbound.Client, error) {
 
 // refuseDelivery is the default delivery handler. Webhook payload and target
 // selection are domain policy, so until a handler is injected the worker fails
-// items closed: the queue retries and eventually dead-letters them, which
-// leaves the undelivered webhook visible.
+// items closed, which leaves the undelivered webhook visible.
+//
+// The fault carries NoRetry deliberately, and that is not the same thing as
+// letting the item exhaust its attempts. The worker treats a non-retryable
+// handler error as terminal on the spot, so the item is dead-lettered on its
+// first attempt rather than re-leased until its budget is spent: retrying a
+// delivery policy that is absent cannot make it present, and every retry
+// would be another outbound attempt charged against a third-party endpoint.
 func refuseDelivery(context.Context, workqueue.Item) (workqueue.Result, error) {
 	return workqueue.Result{}, faults.New(
 		faults.CodeNotImplemented,

@@ -6,6 +6,21 @@
 schema_version = 1
 statuses = ["planned", "scaffolded", "experimental", "implemented", "qualified", "production", "deprecated"]
 
+# `production_dependency = false` is enforced by tools/analysis/check_production_dependencies.py,
+# which takes the second of the two routes the previous note here described: components.toml
+# still records no dependency edges, so the rule is joined against the real Go import graph
+# (tools/analysis/go_import_graph.py) instead. Until that checker existed this clause was read
+# by no code at all — a repository-wide grep for `production_dependency` across tools/ and ci/
+# returned zero hits — so a passing `check_component_maturity` run was never evidence that it
+# held. It is not vacuous either: the prohibition binds every status that does NOT carry this
+# flag, which today means implemented, qualified, production and deprecated, and not merely the
+# `production` status. The one live breach it found, `control/ingestion` (implemented) importing
+# `control/orchestration` (experimental) from pipeline.go and stage.go, is covered by a dated
+# exception in that checker rather than by an edit to either component's status.
+#
+# Two consequences for editing this block. Removing the flag from a status does not relax a
+# rule, it enlarges the set of consumers the rule binds; and deleting it from every status is
+# reported as a policy regression rather than silently producing a passing gate.
 [rules.planned]
 production_dependency = false
 [rules.scaffolded]

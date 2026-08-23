@@ -605,6 +605,7 @@
       "production_sources": [
         "src/attributes.rs",
         "src/event.rs",
+        "src/json.rs",
         "src/lib.rs",
         "src/logging.rs",
         "src/metrics.rs",
@@ -614,7 +615,9 @@
       ],
       "test_sources": [
         "tests/integration.rs",
-        "tests/redaction.rs"
+        "tests/metrics.rs",
+        "tests/redaction.rs",
+        "tests/writer_sink.rs"
       ]
     },
     {
@@ -629,17 +632,21 @@
         "faults",
         "identifiers",
         "record_io",
-        "runtime_core"
+        "runtime_core",
+        "telemetry"
       ],
       "production_sources": [
         "src/batch.rs",
         "src/delivery.rs",
         "src/envelope.rs",
+        "src/event_codec.rs",
+        "src/event_sink.rs",
         "src/journal.rs",
         "src/lib.rs",
         "src/spool.rs"
       ],
       "test_sources": [
+        "tests/event_sink.rs",
         "tests/integration.rs",
         "tests/limits.rs",
         "tests/recovery.rs"

@@ -19,7 +19,7 @@ impl AllocationBudget {
     #[must_use]
     pub fn from_limits(limits: Limits) -> Self {
         Self {
-            limit: limits.maximum_allocation_bytes.get(),
+            limit: limits.maximum_payload_bytes.get(),
             used: 0,
         }
     }

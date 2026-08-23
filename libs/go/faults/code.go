@@ -41,24 +41,57 @@ const (
 	CodeDataLoss           Code = "data_loss"
 )
 
-var validCodes = map[Code]struct{}{
-	CodeUnknown:            {},
-	CodeCanceled:           {},
-	CodeInvalidArgument:    {},
-	CodeDeadlineExceeded:   {},
-	CodeNotFound:           {},
-	CodeAlreadyExists:      {},
-	CodePermissionDenied:   {},
-	CodeUnauthenticated:    {},
-	CodeResourceExhausted:  {},
-	CodeFailedPrecondition: {},
-	CodeConflict:           {},
-	CodeAborted:            {},
-	CodeOutOfRange:         {},
-	CodeNotImplemented:     {},
-	CodeInternal:           {},
-	CodeUnavailable:        {},
-	CodeDataLoss:           {},
+// canonicalCodes is the taxonomy itself, ordered by the tag its counterpart
+// carries in mindclade.common.v1.ErrorCode. The order is part of what Codes
+// documents, so the two files can be read side by side and a reordering shows
+// up as a reviewable diff instead of disappearing into map iteration.
+//
+// This slice, not the const block above, is what makes a code canonical.
+// validCodes used to be a second hand-maintained literal naming the same
+// seventeen codes, so declaring a constant and forgetting its map entry left a
+// code that every constructor silently rewrote to CodeUnknown — a spelling the
+// compiler accepted and no test could see. Deriving the set removes that second
+// place to be wrong.
+var canonicalCodes = []Code{
+	CodeInvalidArgument,
+	CodeUnauthenticated,
+	CodePermissionDenied,
+	CodeNotFound,
+	CodeConflict,
+	CodeResourceExhausted,
+	CodeDeadlineExceeded,
+	CodeUnavailable,
+	CodeInternal,
+	CodeCanceled,
+	CodeAlreadyExists,
+	CodeFailedPrecondition,
+	CodeAborted,
+	CodeOutOfRange,
+	CodeNotImplemented,
+	CodeDataLoss,
+	CodeUnknown,
+}
+
+var validCodes = func() map[Code]struct{} {
+	set := make(map[Code]struct{}, len(canonicalCodes))
+	for _, code := range canonicalCodes {
+		set[code] = struct{}{}
+	}
+	return set
+}()
+
+// Codes returns the canonical taxonomy in the tag order of
+// mindclade.common.v1.ErrorCode, excluding that enum's UNSPECIFIED value, which
+// this package represents as the absence of a code rather than as a constant.
+//
+// It exists so the taxonomy can be compared against the generated protobuf
+// descriptor by a program rather than by a regular expression over this file:
+// protocols/consumers/_bazel/faults_conformance_test.go is that comparison, and
+// it can only enumerate what this package exports. The returned slice is a
+// fresh copy, so a caller cannot shorten the set a conformance check is about
+// to read.
+func Codes() []Code {
+	return append([]Code(nil), canonicalCodes...)
 }
 
 // codeAliases are non-canonical spellings that must still resolve on ingestion.
@@ -72,6 +105,22 @@ var validCodes = map[Code]struct{}{
 var codeAliases = map[string]Code{
 	"cancelled":     CodeCanceled,
 	"unimplemented": CodeNotImplemented,
+}
+
+// CodeAliases returns the accepted non-canonical spellings and the code each
+// resolves to, as a fresh map.
+//
+// Exported for the same reason as Codes: a conformance check has to be able to
+// assert that no alias has become a spelling the wire authority also declares.
+// If that ever happened, one concept would parse to two different codes
+// depending on which side wrote the message, which is the exact failure the
+// canceled/cancelled split already caused once.
+func CodeAliases() map[string]Code {
+	aliases := make(map[string]Code, len(codeAliases))
+	for spelling, code := range codeAliases {
+		aliases[spelling] = code
+	}
+	return aliases
 }
 
 // String returns the wire representation of the code.

@@ -146,6 +146,15 @@ pytest_test(
     data = ["check_go_test_signal.py"],
 )
 
+# Hermetic by construction: every case builds its own components.toml, maturity.toml,
+# ownership record, and release catalog under tmp_path, so the maturity gate's own evidence
+# rules are tested without depending on the repository's current component inventory.
+pytest_test(
+    name = "component_maturity_test",
+    srcs = ["tests/test_component_maturity.py"],
+    data = ["check_component_maturity.py"],
+)
+
 pytest_test(
     name = "control_plane_commands_test",
     srcs = [
@@ -153,6 +162,12 @@ pytest_test(
         "go_import_graph.py",
         "tests/test_control_plane_commands.py",
     ],
+)
+
+pytest_test(
+    name = "go_command_composition_test",
+    srcs = ["tests/test_go_command_composition.py"],
+    data = ["check_go_command_composition.py"],
 )
 
 pytest_test(
@@ -205,6 +220,18 @@ py_binary(
     visibility = ["//visibility:public"],
 )
 
+# `imports`, not a wider `srcs`, is what this target needs.
+#
+# The test loads check_rust_package_manifest.py by absolute path through importlib, which `data`
+# already satisfies. But that module then does a bare `import check_code_docs_alignment`, and a
+# runfile is not an importable module: nothing put tools/analysis on sys.path, so the TRANSITIVE
+# import failed with ModuleNotFoundError and the test never ran a single assertion — a red that
+# said nothing about the manifest contract it exists to check.
+#
+# Moving the two checkers into `srcs` looks like the fix the py_binary targets above use, and it
+# is wrong here: pytest_test passes every src to pytest as a collection path
+# (tools/build/pytest.bzl: args = ["$(location %s)" % src for src in srcs]), so the checkers get
+# collected as if they were test modules and fail at import during collection instead.
 pytest_test(
     name = "rust_package_manifest_test",
     srcs = ["tests/test_rust_package_manifest.py"],
@@ -212,6 +239,7 @@ pytest_test(
         "check_code_docs_alignment.py",
         "check_rust_package_manifest.py",
     ],
+    imports = ["."],
 )
 
 py_binary(
@@ -229,6 +257,28 @@ py_binary(
     ],
     main = "check_foundation_consumption.py",
     visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "check_production_dependencies",
+    srcs = [
+        "check_production_dependencies.py",
+        "go_import_graph.py",
+    ],
+    main = "check_production_dependencies.py",
+    visibility = ["//visibility:public"],
+)
+
+# go_import_graph.py is in srcs rather than data for the same reason it is in the
+# control_plane_commands_test above: the checker imports it as a module off its own directory,
+# and a data dependency lands in the runfiles tree without joining the import path.
+pytest_test(
+    name = "production_dependencies_test",
+    srcs = [
+        "check_production_dependencies.py",
+        "go_import_graph.py",
+        "tests/test_production_dependencies.py",
+    ],
 )
 
 filegroup(

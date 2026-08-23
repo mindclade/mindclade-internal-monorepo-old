@@ -42,11 +42,13 @@ import check_dependency_layers
 import check_enforced_decisions
 import check_foundation_consumption
 import check_foundation_hardening
+import check_go_command_composition
 import check_go_layers
 import check_go_modules
 import check_go_test_signal
 import check_libs_go_admission
 import check_mlops_contracts
+import check_production_dependencies
 import check_rust_implementation
 import check_rust_package_manifest
 import check_rust_workspace
@@ -121,11 +123,13 @@ CHECKS = [
     ("foundation consumption", check_foundation_consumption.check),
     ("generated artifacts", verify_generated.check),
     ("control-plane commands", check_control_plane_commands.check),
+    ("Go command composition", check_go_command_composition.check),
     ("Go layers and paved roads", _go_layers),
     ("Go modules", check_go_modules.check),
     ("Go test signals", check_go_test_signal.check),
     ("libs/go admission", check_libs_go_admission.check),
     ("MLOps static contracts", check_mlops_contracts.check),
+    ("production dependencies", check_production_dependencies.check),
     ("Rust workspace", check_rust_workspace.check),
     ("Rust package manifest", check_rust_package_manifest.check),
     ("Rust implementation", check_rust_implementation.check),

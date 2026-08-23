@@ -99,6 +99,68 @@ status = "implemented"
 owner = "data-platform"
 tests = ["control/ingestion/pipeline_test.go", "control/ingestion/state_test.go"]
 
+# ---------------------------------------------------------------------------------------
+# control/ domains that held production Go while unregistered
+# ---------------------------------------------------------------------------------------
+# These three carried 1,562 lines of non-scaffold Go with no entry here, which is the one
+# state the maturity model has no answer for: every rule in maturity.toml is a rule about a
+# DECLARED component, so "production may not depend on planned/scaffolded/experimental" simply
+# did not apply to them. Registering them changes no code and advances nothing; the statuses
+# below are what the tree already proves and no more. `check_component_maturity.py` now fails
+# when a control/ or libs/ package with non-scaffold production Go has no entry, so the same
+# omission cannot recur silently.
+#
+# The other sixteen undeclared control/ directories — audit, evaluations, events, metadata,
+# registry (root), registry/datasets, registry/deployments, runs, scheduling, tenancy, usage,
+# webhooks, weights, and the ingestion/orchestration/scheduling adapter leaves — hold zero
+# non-scaffold production lines between them. They stay undeclared on purpose: a file whose
+# whole body is `const scaffold_<name> = "<path>"` is reserved space, not a component, and
+# declaring it would put a status on something that has nothing to have a status about.
+
+# Signed production-eligibility decisions: sealed control policy, claim/verification history
+# with digest and policy-epoch binding, and revocation. `implemented` and not `qualified` —
+# it has owning tests and a real go_library, but no qualification evidence document. Its six
+# tests are substantive, including canonical golden digests for policy, claim, verification
+# and decision, which is what makes the GitOps projection's vectors falsifiable.
+[[component]]
+name = "control.evidence"
+path = "control/evidence"
+status = "implemented"
+owner = "platform-control"
+tests = ["control/evidence/service_test.go"]
+
+# Release-lineage graphs: order-independent digests, cycle rejection, connected-evidence
+# requirements, and classification-aware projection that withholds restricted nodes and the
+# edges touching them. `implemented` on the same footing as control.reference_databases —
+# one owning test file, four tests, all exercising real behaviour rather than construction.
+[[component]]
+name = "control.lineage"
+path = "control/lineage"
+status = "implemented"
+owner = "platform-control"
+tests = ["control/lineage/lineage_test.go"]
+
+# `experimental`, deliberately, and this is the entry most likely to be argued with. Four of
+# its fourteen non-test files are real — the stage, workflow and workload specs and their
+# validation — and ten are scaffold placeholders, including service, executor, state_machine,
+# lease, compiler, repository and all three launcher adapters. That is the same shape as
+# control.routing, which is already recorded experimental, so recording it as `implemented`
+# would make this file's `implemented` mean two different things.
+#
+# `tests` names workflow_test.go only. workload_test.go asserts that a zero value is zero and
+# exercises nothing; listing it would inflate the evidence this entry claims.
+#
+# Note for whoever enforces maturity.toml's `production_dependency = false`: control/ingestion
+# is `implemented` and imports this package. The imported surface is the implemented half
+# (StageSpec, StageKind), but the edge is real and needs an answer before that rule is turned
+# on — see the PR that added the declaration-coverage gate.
+[[component]]
+name = "control.orchestration"
+path = "control/orchestration"
+status = "experimental"
+owner = "platform-control"
+tests = ["control/orchestration/workflow_test.go"]
+
 [[component]]
 name = "preprocessing.core"
 path = "preprocessing"

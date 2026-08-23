@@ -6,12 +6,32 @@
 //! Bounded counters exported by the artifact proxy core.
 use mindclade_telemetry::CounterRegistry;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct ProxyMetrics {
     counters: CounterRegistry,
 }
 
+impl Default for ProxyMetrics {
+    fn default() -> Self {
+        let counters = CounterRegistry::default();
+        // Publish every series at zero before any traffic, so a scrape can
+        // tell "no reads yet" from "the proxy is not instrumented".
+        for name in Self::NAMES {
+            let _ = counters.register(name);
+        }
+        Self { counters }
+    }
+}
+
 impl ProxyMetrics {
+    const NAMES: [&'static str; 6] = [
+        "artifact_proxy.read_requests",
+        "artifact_proxy.read_bytes",
+        "artifact_proxy.write_requests",
+        "artifact_proxy.write_bytes",
+        "artifact_proxy.cache_hits",
+        "artifact_proxy.rejected",
+    ];
     pub fn read(&self, bytes: u64) {
         let _ = self.counters.add("artifact_proxy.read_requests", 1);
         let _ = self.counters.add("artifact_proxy.read_bytes", bytes);
@@ -29,5 +49,15 @@ impl ProxyMetrics {
     #[must_use]
     pub fn snapshot(&self) -> std::collections::BTreeMap<String, u64> {
         self.counters.snapshot()
+    }
+
+    /// Prometheus text exposition of every counter above.
+    ///
+    /// The proxy has always kept these counters and has never had a way to
+    /// export them: `/metrics` existed on exactly one Rust service. The body
+    /// is available here now; serving it is a route this crate's server owns.
+    #[must_use]
+    pub fn prometheus(&self) -> String {
+        self.counters.prometheus_text()
     }
 }
