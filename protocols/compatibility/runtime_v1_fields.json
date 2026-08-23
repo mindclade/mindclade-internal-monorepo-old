@@ -669,6 +669,28 @@
       "type": "string"
     }
   },
+  "mindclade.runtime.v1.RuntimeExecuteRequest": {
+    "1": {
+      "label": "singular",
+      "name": "dispatch",
+      "type": "RuntimeDispatchRequest"
+    },
+    "2": {
+      "label": "singular",
+      "name": "ticket",
+      "type": "ExecutionTicket"
+    },
+    "3": {
+      "label": "repeated",
+      "name": "inputs",
+      "type": "BufferDescriptor"
+    },
+    "4": {
+      "label": "singular",
+      "name": "operation",
+      "type": "string"
+    }
+  },
   "mindclade.runtime.v1.StartCommand": {
     "1": {
       "label": "singular",

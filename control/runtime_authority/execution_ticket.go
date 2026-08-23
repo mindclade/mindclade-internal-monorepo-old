@@ -150,8 +150,14 @@ func (c ExecutionTicketClaims) ValidateStatic() error {
 	if err := validateCanonicalID(c.TicketID, "ticket"); err != nil {
 		return err
 	}
-	if c.Issuer == "" {
-		return invalid("ticket_issuer_required", "ticket issuer is required", nil)
+	// Every bound below is the Rust verifier's own (libs/rust/worker_protocol
+	// ExecutionTicketClaims::validate_static). The issuer used to state none of them, so it
+	// could sign a ticket with a megabyte issuer or idempotency key that the node then refused
+	// -- fail-closed, but the rejection surfaced at lease time with nothing pointing back at
+	// the mint. tests/integration/cross_language/test_ticket_issuer_verifier_parity.py derives
+	// this list from the verifier, so a new bound there fails until it is mirrored here.
+	if c.Issuer == "" || len(c.Issuer) > 256 {
+		return invalid("ticket_issuer_required", "ticket issuer is required and bounded", nil)
 	}
 	if err := validateCanonicalID(c.TenantID, "tenant"); err != nil {
 		return err
@@ -159,12 +165,20 @@ func (c ExecutionTicketClaims) ValidateStatic() error {
 	if err := validateCanonicalID(c.WorkspaceID, "workspace"); err != nil {
 		return err
 	}
+	// ParseID alone accepted any canonical identifier in any of these slots, so a `tenant_...`
+	// could be signed into RunID and the verifier -- which checks the kind -- would reject the
+	// ticket at the node. validateCanonicalID checks the kind, exactly as Rust does.
 	for name, value := range map[string]string{"run": c.RunID, "job": c.JobID, "stage": c.StageID, "request": c.RequestID} {
 		if value != "" {
-			if _, err := identifiers.ParseID(value); err != nil {
-				return invalid("invalid_"+name+"_id", name+" id must be a canonical Mindclade identifier", err)
+			if err := validateCanonicalID(value, name); err != nil {
+				return err
 			}
 		}
+	}
+	// All four empty means the ticket authorizes no unit of work. Rust refuses to lease it, so
+	// signing one only defers the failure to the node.
+	if c.RunID == "" && c.JobID == "" && c.StageID == "" && c.RequestID == "" {
+		return invalid("ticket_work_identity_required", "ticket must identify a run, job, stage, or request", nil)
 	}
 	if c.Attempt == 0 || c.FencingToken == 0 {
 		return invalid("ticket_attempt_fencing_required", "ticket attempt and fencing token must be non-zero", nil)
@@ -172,14 +186,19 @@ func (c ExecutionTicketClaims) ValidateStatic() error {
 	if !c.ResolvedConfigDigest.Valid() {
 		return invalid("ticket_config_digest_required", "resolved configuration digest is required", nil)
 	}
-	if c.ExecutionClass == "" {
-		return invalid("execution_class_required", "execution class is required", nil)
+	if c.ExecutionClass == "" || len(c.ExecutionClass) > 128 {
+		return invalid("execution_class_required", "execution class is required and bounded", nil)
+	}
+	if len(c.AcceleratorCapability) > 256 || len(c.IdempotencyKey) > 1024 {
+		return invalid("ticket_text_bounds_exceeded", "ticket capability or idempotency key exceeds bounds", nil)
 	}
 	if c.NotBefore.IsZero() || c.Deadline.IsZero() || c.Expires.IsZero() || !c.Deadline.After(c.NotBefore) || !c.Expires.After(c.NotBefore) || c.Expires.After(c.Deadline) {
 		return invalid("ticket_time_window_invalid", "ticket time window is invalid", nil)
 	}
-	if c.PolicyEpoch == 0 || c.RevocationEpoch == 0 {
-		return invalid("ticket_policy_epoch_required", "policy and revocation epochs must be non-zero", nil)
+	// RouteSnapshotVersion was absent here while the verifier required it non-zero, so a ticket
+	// minted without a route snapshot was signed, delivered, and refused by every node.
+	if c.PolicyEpoch == 0 || c.RouteSnapshotVersion == 0 || c.RevocationEpoch == 0 {
+		return invalid("ticket_policy_epoch_required", "policy, route-snapshot, and revocation epochs must be non-zero", nil)
 	}
 	if err := c.Artifacts.Validate(); err != nil {
 		return err

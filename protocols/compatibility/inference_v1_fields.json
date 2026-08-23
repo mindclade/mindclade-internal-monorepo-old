@@ -41,6 +41,103 @@
       "type": "uint64"
     }
   },
+  "mindclade.inference.v1.InferenceAccepted": {
+    "1": {
+      "label": "singular",
+      "name": "request_id",
+      "type": "string"
+    }
+  },
+  "mindclade.inference.v1.InferenceInput": {},
+  "mindclade.inference.v1.InferenceProgress": {
+    "1": {
+      "label": "singular",
+      "name": "progress",
+      "type": "double"
+    },
+    "2": {
+      "label": "singular",
+      "name": "stage",
+      "type": "string"
+    }
+  },
+  "mindclade.inference.v1.InferenceRequest": {
+    "1": {
+      "label": "singular",
+      "name": "model",
+      "type": "ModelSelection"
+    },
+    "2": {
+      "label": "singular",
+      "name": "input",
+      "type": "InferenceInput"
+    },
+    "3": {
+      "label": "singular",
+      "name": "deadline_millis",
+      "type": "uint64"
+    },
+    "4": {
+      "label": "optional",
+      "name": "seed",
+      "type": "uint64"
+    },
+    "6": {
+      "label": "singular",
+      "name": "idempotency_key",
+      "type": "string"
+    }
+  },
+  "mindclade.inference.v1.InferenceResponse": {
+    "1": {
+      "label": "singular",
+      "name": "request_id",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "model_id",
+      "type": "mindclade.common.v1.ResourceId"
+    },
+    "3": {
+      "label": "singular",
+      "name": "model_version",
+      "type": "string"
+    },
+    "4": {
+      "label": "repeated",
+      "name": "artifacts",
+      "type": "mindclade.artifact.v1.ArtifactRef"
+    },
+    "5": {
+      "label": "optional",
+      "name": "confidence",
+      "type": "double"
+    },
+    "6": {
+      "label": "singular",
+      "name": "usage",
+      "type": "InferenceUsage"
+    }
+  },
+  "mindclade.inference.v1.InferenceStreamEvent": {},
+  "mindclade.inference.v1.InferenceUsage": {
+    "1": {
+      "label": "singular",
+      "name": "input_units",
+      "type": "uint64"
+    },
+    "2": {
+      "label": "singular",
+      "name": "output_units",
+      "type": "uint64"
+    },
+    "3": {
+      "label": "singular",
+      "name": "wall_time_millis",
+      "type": "uint64"
+    }
+  },
   "mindclade.inference.v1.ModelDescriptor": {
     "1": {
       "label": "singular",
@@ -173,6 +270,46 @@
       "label": "singular",
       "name": "drain_deadline_millis",
       "type": "uint32"
+    }
+  },
+  "mindclade.inference.v1.ModelSelection": {
+    "1": {
+      "label": "singular",
+      "name": "model_id",
+      "type": "mindclade.common.v1.ResourceId"
+    },
+    "2": {
+      "label": "optional",
+      "name": "version",
+      "type": "string"
+    }
+  },
+  "mindclade.inference.v1.PredictRequest": {
+    "1": {
+      "label": "singular",
+      "name": "request",
+      "type": "InferenceRequest"
+    }
+  },
+  "mindclade.inference.v1.PredictResponse": {
+    "1": {
+      "label": "singular",
+      "name": "response",
+      "type": "InferenceResponse"
+    }
+  },
+  "mindclade.inference.v1.StreamPredictRequest": {
+    "1": {
+      "label": "singular",
+      "name": "request",
+      "type": "InferenceRequest"
+    }
+  },
+  "mindclade.inference.v1.StreamPredictResponse": {
+    "1": {
+      "label": "singular",
+      "name": "event",
+      "type": "InferenceStreamEvent"
     }
   }
 }

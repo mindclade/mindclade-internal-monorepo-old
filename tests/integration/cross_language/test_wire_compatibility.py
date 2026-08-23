@@ -49,7 +49,34 @@ PACKAGES = {
         ROOT / "protocols/proto/mindclade/registry/v1",
         ROOT / "protocols/compatibility/registry_v1_fields.json",
     ),
+    "common": (
+        ROOT / "protocols/proto/mindclade/common/v1",
+        ROOT / "protocols/compatibility/common_v1_fields.json",
+    ),
+    "events": (
+        ROOT / "protocols/proto/mindclade/events/v1",
+        ROOT / "protocols/compatibility/events_v1_fields.json",
+    ),
+    "orchestration": (
+        ROOT / "protocols/proto/mindclade/orchestration/v1",
+        ROOT / "protocols/compatibility/orchestration_v1_fields.json",
+    ),
+    "data": (
+        ROOT / "protocols/proto/mindclade/data/v1",
+        ROOT / "protocols/compatibility/data_v1_fields.json",
+    ),
+    "evaluation": (
+        ROOT / "protocols/proto/mindclade/evaluation/v1",
+        ROOT / "protocols/compatibility/evaluation_v1_fields.json",
+    ),
 }
+
+# Every `mindclade.*.v1` protobuf package must carry a frozen field map. Five of them did not,
+# so a rename or a retype in `common`, `events`, `orchestration`, `data`, or `evaluation` --
+# including `ArtifactRef.schema_version`, the single field four languages disagreed about --
+# passed every gate in the repository. Discovering the packages from the tree rather than
+# trusting the table above is what makes adding a sixth uncovered package impossible.
+PROTO_ROOT = ROOT / "protocols/proto/mindclade"
 
 MESSAGE_START = re.compile(r"\bmessage\s+(\w+)\s*\{")
 FIELD = re.compile(r"^\s*(?:(repeated|optional)\s+)?([.\w<>]+)\s+(\w+)\s*=\s*(\d+)\s*$")
@@ -125,6 +152,33 @@ def current_fields(proto_root: Path) -> dict[str, dict[str, dict[str, str]]]:
                 }
             messages[f"{package.group(1)}.{name}"] = fields
     return messages
+
+
+def test_every_published_package_has_a_frozen_field_map() -> None:
+    published = {
+        directory.parent.name
+        for directory in sorted(PROTO_ROOT.glob("*/v1"))
+        if any(directory.glob("*.proto"))
+    }
+    assert published, f"no protobuf packages were discovered under {PROTO_ROOT}"
+    missing = sorted(published - set(PACKAGES))
+    assert not missing, (
+        "protobuf packages published without a frozen field map, so a rename or retype in "
+        f"them breaks no gate: {missing}. Generate each with "
+        "`python3 tests/integration/cross_language/test_wire_compatibility.py <pkg>`."
+    )
+
+
+@pytest.mark.parametrize("package", sorted(PACKAGES))
+def test_baseline_covers_every_message_in_the_package(package: str) -> None:
+    proto_root, baseline_path = PACKAGES[package]
+    baseline = json.loads(baseline_path.read_text())
+    # A baseline that simply omits a message protects nothing about it. Freezing on
+    # regeneration only is what stops a new message being added and then silently retyped.
+    unfrozen = sorted(set(current_fields(proto_root)) - set(baseline))
+    assert not unfrozen, (
+        f"{package}: messages present in the proto but absent from {baseline_path.name}: {unfrozen}"
+    )
 
 
 @pytest.mark.parametrize("package", sorted(PACKAGES))
