@@ -91,6 +91,16 @@ missing_debug_implementations = "warn"
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }
 pedantic = { level = "warn", priority = -1 }
+# A `_ =>` arm over an enum is fail-open by construction: a variant added later
+# silently inherits whatever the catch-all does. That defect shipped once —
+# `bio_formats::parse_text_document` ended in `_ => vec![bytes.to_vec()]`, so
+# four of eight formats bypassed every input ceiling and allocation bound and a
+# hostile blob was copied whole and returned as a successful parse. Requiring
+# exhaustive arms turns "a reviewer must notice the fail-open arm" into a
+# compile error. Grouped arms (`A | B | C => ...`) express shared behaviour and
+# still break when a variant appears; a genuine catch-all over a foreign
+# `#[non_exhaustive]` enum needs a local `#[allow]` that says why.
+wildcard_enum_match_arm = "warn"
 # Public fallible APIs share the workspace `Fault` taxonomy and are documented
 # at module/contract level. Repeating a boilerplate `# Errors` section on every
 # adapter method obscures the stable error model without improving safety.

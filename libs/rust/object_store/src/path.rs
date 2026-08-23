@@ -41,7 +41,10 @@ impl ObjectPath {
         for component in path.components() {
             match component {
                 Component::Normal(_) => {}
-                _ => {
+                Component::Prefix(_)
+                | Component::RootDir
+                | Component::CurDir
+                | Component::ParentDir => {
                     return Err(ObjectPathError(
                         "object path contains traversal or platform prefixes",
                     ));

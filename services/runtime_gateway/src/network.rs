@@ -308,7 +308,28 @@ fn fault_response(error: &Fault) -> Response {
         Code::ResourceExhausted => StatusCode::TOO_MANY_REQUESTS,
         Code::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
         Code::DeadlineExceeded => StatusCode::GATEWAY_TIMEOUT,
-        _ => StatusCode::INTERNAL_SERVER_ERROR,
+        // `Code` is `#[non_exhaustive]`, so rustc compels a trailing wildcard
+        // outside `libs/rust/faults` and no local change can remove it. Every
+        // code this build knows is still named, so the wildcard covers only a
+        // future variant and the fallback below is a decision, not a default.
+        //
+        // Naming them exposes a divergence this arm used to hide:
+        // `services/ai_gateway_proxy` renders `NotFound` as 404,
+        // `Conflict`/`Aborted`/`FailedPrecondition` as 409 and `Unimplemented`
+        // as 501, while this gateway renders all four as 500. The behaviour is
+        // left as it was rather than changed under a lint commit; reconciling
+        // the two renderers is tracked separately.
+        Code::Unknown
+        | Code::NotFound
+        | Code::AlreadyExists
+        | Code::FailedPrecondition
+        | Code::Aborted
+        | Code::Unimplemented
+        | Code::Internal
+        | Code::DataLoss
+        | Code::Cancelled
+        | Code::Conflict
+        | _ => StatusCode::INTERNAL_SERVER_ERROR,
     };
     let body = format!("{}: {}", error.code().as_str(), error.message());
     (status, body).into_response()

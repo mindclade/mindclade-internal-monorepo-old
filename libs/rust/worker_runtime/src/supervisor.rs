@@ -34,7 +34,19 @@ impl WorkerSupervisor {
             WorkerState::Running => self.runtime.drain(reason),
             WorkerState::Draining | WorkerState::Cancelling => Ok(()),
             phase if state::is_terminal(phase) => Ok(()),
-            _ => self.runtime.cancel(reason),
+            // A match guard cannot prove coverage, so the terminal phases are
+            // named again here even though the arm above already claims them.
+            // Naming every phase is the point: a new `WorkerState` variant has
+            // to be classified deliberately instead of inheriting `cancel`.
+            WorkerState::Created
+            | WorkerState::Starting
+            | WorkerState::Ready
+            | WorkerState::Leased
+            | WorkerState::Committing
+            | WorkerState::Completed
+            | WorkerState::Recovering
+            | WorkerState::Cancelled
+            | WorkerState::Failed => self.runtime.cancel(reason),
         }
     }
     /// Enter graceful drain for an externally announced preemption deadline.
@@ -44,7 +56,20 @@ impl WorkerSupervisor {
             WorkerState::Running => self.runtime.drain(notice.reason.clone()),
             WorkerState::Draining => Ok(()),
             phase if state::is_terminal(phase) => Ok(()),
-            _ => self.runtime.cancel(notice.reason.clone()),
+            // A match guard cannot prove coverage, so the terminal phases are
+            // named again here even though the arm above already claims them.
+            // Naming every phase is the point: a new `WorkerState` variant has
+            // to be classified deliberately instead of inheriting `cancel`.
+            WorkerState::Created
+            | WorkerState::Starting
+            | WorkerState::Ready
+            | WorkerState::Leased
+            | WorkerState::Committing
+            | WorkerState::Completed
+            | WorkerState::Recovering
+            | WorkerState::Cancelling
+            | WorkerState::Cancelled
+            | WorkerState::Failed => self.runtime.cancel(notice.reason.clone()),
         }
     }
     /// Forced shutdown used after the drain deadline expires.
