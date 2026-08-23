@@ -88,23 +88,21 @@ func TestCanonicalDeploymentsRejectsADuplicateDeployment(t *testing.T) {
 	}
 }
 
-func TestCanonicalDeploymentsSortsTheCallersCapabilities(t *testing.T) {
-	// Documents an aliasing side effect rather than endorsing it. CanonicalDeployments copies
-	// the slice of structs -- append([]Deployment(nil), in...) -- so the caller's slice is
-	// safe, but a struct copy shares the Capabilities slice HEADER, and sort.Strings orders it
-	// in place. The caller's own Capabilities are reordered as a result.
-	//
-	// Harmless today: sorting is idempotent and the canonical order is the one a caller wants.
-	// Worth pinning anyway, because the day a caller holds Capabilities in a meaningful order
-	// for its own reasons, this silently reorders it, and nothing else would catch that.
+func TestCanonicalDeploymentsDoesNotMutateTheCallersCapabilities(t *testing.T) {
+	// CanonicalDeployments owns a deep copy of the nested capability slice. Sorting the
+	// canonical result must not mutate caller-owned policy or make behavior depend on reuse.
 	input := []routing.Deployment{
 		deployment(t, alphaDeploymentID, "us-central1", "chat", "biology"),
 	}
-	if _, err := routing.CanonicalDeployments(input); err != nil {
+	canonical, err := routing.CanonicalDeployments(input)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if got := input[0].Capabilities; !reflect.DeepEqual(got, []string{"biology", "chat"}) {
-		t.Fatalf("caller capabilities = %v; the aliasing this pins has changed", got)
+	if got := input[0].Capabilities; !reflect.DeepEqual(got, []string{"chat", "biology"}) {
+		t.Fatalf("caller capabilities mutated: got %v", got)
+	}
+	if got := canonical[0].Capabilities; !reflect.DeepEqual(got, []string{"biology", "chat"}) {
+		t.Fatalf("canonical capabilities = %v; want sorted independent copy", got)
 	}
 }
 
