@@ -97,8 +97,7 @@ func (store *Store) Preempt(
 			if writeErr := store.updateReservation(txContext, reservation, transactionTime, operation); writeErr != nil {
 				return preemptionResult{}, writeErr
 			}
-			if emitErr := store.emitReservation(txContext,
-				"scheduling.reservation.preempt", reservation); emitErr != nil {
+			if emitErr := store.emitReservation(txContext, callerAuthored, reservation); emitErr != nil {
 				return preemptionResult{}, emitErr
 			}
 		}

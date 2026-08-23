@@ -32,6 +32,7 @@ import (
 	"go.mindclade.dev/control/orchestration"
 	"go.mindclade.dev/control/scheduling"
 	auditpostgres "go.mindclade.dev/libs/go/audit/postgres"
+	"go.mindclade.dev/libs/go/auth"
 	"go.mindclade.dev/libs/go/clock"
 	outboxpostgres "go.mindclade.dev/libs/go/coordination/outbox/postgres"
 	"go.mindclade.dev/libs/go/faults"
@@ -651,6 +652,134 @@ func TestLivePostgresExpirySweepReturnsCapacity(t *testing.T) {
 	if _, err := live.store.Held(ctx, liveBatchDomain(t), after); err != nil {
 		t.Fatalf("Held: %v", err)
 	}
+}
+
+// Important 1 against a real audit table: a swept expiry is attributed to the
+// system, not to whoever happened to call Snapshot.
+//
+// The fake-driver suite pins the actor the store hands to the recorder; this
+// pins what actually lands in the audit table's actor_kind and actor_subject
+// columns, which is what an operator reading the log would see. Both halves are
+// exercised in one schema so the test cannot pass by attributing everything to
+// the system: the caller-authored transition in the same run must still carry
+// the caller.
+func TestLivePostgresSweptExpiriesAreAuditedAsTheSystemActor(t *testing.T) {
+	live := newLiveSchedulingStore(t)
+	live.seed(t, "research")
+	principal, err := auth.NewPrincipal(auth.PrincipalKindUser, "operator", auth.WithIssuer("mindclade"))
+	if err != nil {
+		t.Fatalf("new principal: %v", err)
+	}
+	ctx, err := auth.WithPrincipal(context.Background(), principal)
+	if err != nil {
+		t.Fatalf("context with principal: %v", err)
+	}
+
+	at := liveNow()
+	lapsing := live.reserve(t, "research", scheduling.PriorityBatch,
+		cpuDemand(2_000, 4*gibibyte, 8*gibibyte, 1), at, scheduling.MinimumReservationTTL, 7)
+	surviving := live.reserve(t, "research", scheduling.PriorityBatch,
+		cpuDemand(2_000, 4*gibibyte, 8*gibibyte, 1), at, time.Hour, 7)
+
+	// An operator reads the fleet after the first hold has lapsed. The read
+	// sweeps it; the operator did not cause it.
+	after := at.Add(scheduling.MinimumReservationTTL)
+	if _, err := live.store.Snapshot(ctx, after); err != nil {
+		t.Fatalf("Snapshot: %v", err)
+	}
+	kind, subject := live.auditActor(t, lapsing.ID)
+	if kind != string(auth.PrincipalKindSystem) || subject != "scheduling-service" {
+		t.Fatalf("swept expiry audited as %s/%s, want system/scheduling-service", kind, subject)
+	}
+	if subject == principal.Subject() {
+		t.Fatalf("the calling operator %q was recorded as the author of a deadline-authored expiry", subject)
+	}
+
+	// The same operator binds the other reservation. That one they did cause,
+	// and forcing the system actor everywhere would erase them from the log.
+	if _, _, err := live.store.Bind(ctx, surviving.ID, surviving.Version,
+		scheduling.TopologyAssignment{}, 7, after); err != nil {
+		t.Fatalf("Bind: %v", err)
+	}
+	kind, subject = live.auditActor(t, surviving.ID)
+	if kind != string(auth.PrincipalKindUser) || subject != principal.Subject() {
+		t.Fatalf("caller-authored bind audited as %s/%s, want user/%s", kind, subject, principal.Subject())
+	}
+}
+
+// auditActor reads the actor of the most recent audit event naming one
+// reservation as its target.
+func (live liveSchedulingStore) auditActor(t *testing.T, id identifiers.ID) (string, string) {
+	t.Helper()
+	var kind, subject string
+	err := live.db.QueryRowContext(context.Background(),
+		"SELECT actor_kind, actor_subject FROM "+live.auditTable+
+			" WHERE target_type=$1 AND target_id=$2 ORDER BY occurred_at DESC, inserted_at DESC LIMIT 1",
+		ReservationTargetType, id.String()).Scan(&kind, &subject)
+	if err != nil {
+		t.Fatalf("read audit actor for %s: %v", id, err)
+	}
+	return kind, subject
+}
+
+// The bounded sweep drains a backlog across successive mutations rather than
+// clearing it in one long transaction, and each pass releases the ledger row
+// that every other mutation must acquire first.
+//
+// MaximumExpirySweep + 1 lapsed holds means the first pass cannot finish the
+// job. Nothing wedges: the store keeps answering, and the next read completes
+// the drain. This is the property that makes a small batch safe.
+func TestLivePostgresExpirySweepDrainsABacklogAcrossMutations(t *testing.T) {
+	live := newLiveSchedulingStore(t)
+	live.seed(t, "research")
+	ctx := context.Background()
+	at := liveNow()
+
+	total := MaximumExpirySweep + 1
+	for range total {
+		live.reserve(t, "research", scheduling.PriorityBatch,
+			cpuDemand(1, 1, 1, 1), at, scheduling.MinimumReservationTTL, 7)
+	}
+	after := at.Add(scheduling.MinimumReservationTTL)
+
+	// One pass sweeps at most MaximumExpirySweep, so the ledger is still
+	// carrying the remainder -- over-reporting occupied capacity, which refuses
+	// an admission rather than over-committing one.
+	if _, err := live.store.Snapshot(ctx, after); err != nil {
+		t.Fatalf("first Snapshot: %v", err)
+	}
+	remaining := live.countHeld(t)
+	if remaining != total-MaximumExpirySweep {
+		t.Fatalf("held after one pass = %d, want %d; the sweep is not bounded at %d",
+			remaining, total-MaximumExpirySweep, MaximumExpirySweep)
+	}
+
+	// The next mutation finishes it. Every mutation sweeps, so the backlog
+	// drains at the rate the control plane is doing anything at all.
+	snapshot, err := live.store.Snapshot(ctx, after)
+	if err != nil {
+		t.Fatalf("second Snapshot: %v", err)
+	}
+	if got := live.countHeld(t); got != 0 {
+		t.Fatalf("held after two passes = %d, want 0", got)
+	}
+	allocatable, err := snapshot.Allocatable(liveBatchDomain(t))
+	if err != nil {
+		t.Fatalf("Allocatable: %v", err)
+	}
+	if !allocatable.Reserved.IsZero() {
+		t.Fatalf("reserved = %v, want empty once the backlog drained", allocatable.Reserved)
+	}
+}
+
+func (live liveSchedulingStore) countHeld(t *testing.T) int {
+	t.Helper()
+	var total int
+	if err := live.db.QueryRowContext(context.Background(),
+		"SELECT count(*) FROM "+live.reservationTable+" WHERE state='held'").Scan(&total); err != nil {
+		t.Fatalf("count held: %v", err)
+	}
+	return total
 }
 
 // Preemption is all-or-nothing and multi-victim. Both victims move in one

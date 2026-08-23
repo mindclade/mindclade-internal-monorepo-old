@@ -18,6 +18,7 @@ import (
 	"go.mindclade.dev/control/orchestration"
 	"go.mindclade.dev/control/scheduling"
 	"go.mindclade.dev/libs/go/audit"
+	"go.mindclade.dev/libs/go/auth"
 	"go.mindclade.dev/libs/go/clock"
 	"go.mindclade.dev/libs/go/coordination/outbox"
 	outboxmemory "go.mindclade.dev/libs/go/coordination/outbox/memory"
@@ -40,25 +41,58 @@ const (
 // check a CHECK constraint, a FOR UPDATE, or an aggregate, which is what
 // live_postgres_test.go is for. What it proves here is the part a real server
 // would happily let through -- whether a mutation opens one transaction,
-// commits once, refuses to nest, and takes the singleton ledger lock as its
-// first statement.
+// commits once, refuses to nest, takes the singleton ledger lock as its first
+// statement, and writes back exactly what the domain sealed.
+//
+// It records the ordered statement stream WITH its bound arguments, and it
+// captures every audit event, so a test can assert on what the store actually
+// sent rather than only on what it returned.
 type harness struct {
 	store  *Store
 	state  *sqltest.State
 	mutex  sync.Mutex
-	script []string
+	script []statement
+	audits []audit.Event
+	// reservation is the document the scripted reservation lock and expiry
+	// sweep return. Nil means "no such row". A reservation UPDATE the store
+	// issues replaces it, so a read after a write sees what was written -- the
+	// driver cannot execute SQL, but it must not answer with a row the store
+	// just overwrote.
+	reservation []byte
+	// suppressSweep makes the expiry sweep find nothing even for an eligible
+	// row. That is not a lie about SQL: the sweep is bounded at
+	// MaximumExpirySweep and ordered by deadline, so a lapsed hold outside the
+	// oldest batch is exactly this state, and it is the only way the explicit
+	// Expire transition is reachable rather than replaying the sweep's work.
+	suppressSweep bool
+}
+
+type statement struct {
+	query string
+	args  []driver.NamedValue
+}
+
+// recordingRecorder captures the audit events the store emits so a test can
+// assert who was recorded as their author.
+type recordingRecorder struct{ rig *harness }
+
+func (recorder recordingRecorder) Record(_ context.Context, event audit.Event) error {
+	recorder.rig.mutex.Lock()
+	defer recorder.rig.mutex.Unlock()
+	recorder.rig.audits = append(recorder.rig.audits, event)
+	return nil
 }
 
 func newHarness(t *testing.T) *harness {
 	t.Helper()
 	rig := &harness{state: &sqltest.State{}}
-	rig.state.Exec = func(_ context.Context, query string, _ []driver.NamedValue) (driver.Result, error) {
-		rig.record(query)
+	rig.state.Exec = func(_ context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
+		rig.record(query, args)
 		return driver.RowsAffected(1), nil
 	}
-	rig.state.Query = func(_ context.Context, query string, _ []driver.NamedValue) (driver.Rows, error) {
-		rig.record(query)
-		return scriptedRows(query), nil
+	rig.state.Query = func(_ context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+		rig.record(query, args)
+		return rig.rows(query, args), nil
 	}
 	database, err := sqltest.Open(rig.state)
 	if err != nil {
@@ -87,7 +121,7 @@ func newHarness(t *testing.T) *harness {
 	if err != nil {
 		t.Fatalf("retry executor: %v", err)
 	}
-	store, err := New(database, audit.NopRecorder{}, messages,
+	store, err := New(database, recordingRecorder{rig: rig}, messages,
 		WithClock(clock.RealClock{}), WithRetry(retries))
 	if err != nil {
 		t.Fatalf("new store: %v", err)
@@ -96,22 +130,62 @@ func newHarness(t *testing.T) *harness {
 	return rig
 }
 
-func (rig *harness) record(query string) {
+func (rig *harness) record(query string, args []driver.NamedValue) {
 	rig.mutex.Lock()
 	defer rig.mutex.Unlock()
-	rig.script = append(rig.script, query)
+	rig.script = append(rig.script, statement{query: query, args: append([]driver.NamedValue(nil), args...)})
+	// Reflect a reservation write back into the scripted row. Without this the
+	// harness would keep serving the pre-transition document, and every
+	// read-after-write assertion -- including the replay path, which is how a
+	// re-driven mutation is supposed to behave -- would be tested against a
+	// state the store had already replaced.
+	if !strings.HasPrefix(query, "UPDATE "+DefaultReservationTable+" SET") {
+		return
+	}
+	for _, arg := range args {
+		if arg.Ordinal != reservationDocumentOrdinal {
+			continue
+		}
+		if document, ok := arg.Value.([]byte); ok {
+			rig.reservation = append([]byte(nil), document...)
+		}
+	}
 }
 
-func (rig *harness) statements() []string {
+// reservationDocumentOrdinal is the document parameter of updateReservation's
+// UPDATE. It is named once so the harness and the column assertions below
+// cannot disagree about which placeholder carries the record.
+const reservationDocumentOrdinal = 10
+
+func (rig *harness) statements() []statement {
 	rig.mutex.Lock()
 	defer rig.mutex.Unlock()
-	return append([]string(nil), rig.script...)
+	return append([]statement(nil), rig.script...)
+}
+
+func (rig *harness) recordedAudits() []audit.Event {
+	rig.mutex.Lock()
+	defer rig.mutex.Unlock()
+	return append([]audit.Event(nil), rig.audits...)
+}
+
+// store scripts the document the reservation lock and the expiry sweep return.
+func (rig *harness) storeReservation(t *testing.T, reservation scheduling.Reservation) {
+	t.Helper()
+	document, err := json.Marshal(reservation)
+	if err != nil {
+		t.Fatalf("marshal reservation: %v", err)
+	}
+	rig.mutex.Lock()
+	defer rig.mutex.Unlock()
+	rig.reservation = document
 }
 
 func (rig *harness) reset() {
 	rig.mutex.Lock()
 	defer rig.mutex.Unlock()
 	rig.script = nil
+	rig.audits = nil
 	rig.state.Begins.Store(0)
 	rig.state.Commits.Store(0)
 	rig.state.Rollbacks.Store(0)
@@ -119,19 +193,105 @@ func (rig *harness) reset() {
 	rig.state.Executions.Store(0)
 }
 
-// scriptedRows answers the handful of shapes the transaction-shape tests need.
-// The ledger row is the only one that must exist: every mutation locks it
-// first, so a store that could not read it would fail before reaching anything
-// this file is trying to observe.
-func scriptedRows(query string) driver.Rows {
+// rows answers the handful of shapes the transaction-shape tests need.
+//
+// The ledger row is the only one that must always exist: every mutation locks
+// it first, so a store that could not read it would fail before reaching
+// anything these tests are trying to observe. The reservation lock and the
+// expiry sweep are matched on fragments unique to each -- `WHERE
+// reservation_id=` and `ORDER BY expires_at` -- so a test can put a document in
+// front of one without also feeding it to the other.
+func (rig *harness) rows(query string, args []driver.NamedValue) driver.Rows {
+	rig.mutex.Lock()
+	document, suppressed := rig.reservation, rig.suppressSweep
+	rig.mutex.Unlock()
 	switch {
 	case strings.Contains(query, "FROM "+DefaultLedgerTable):
 		return sqltest.NewRows([]string{"fence", "epoch"}, []driver.Value{int64(0), int64(1)})
 	case strings.Contains(query, "count(*)"):
 		return sqltest.NewRows([]string{"total"}, []driver.Value{int64(0)})
+	case document != nil && strings.Contains(query, "WHERE reservation_id="):
+		return sqltest.NewRows([]string{"document"}, []driver.Value{document})
+	case document != nil && strings.Contains(query, "ORDER BY expires_at"):
+		// The sweep's own predicate, honoured. Handing it a row that
+		// `state='held' AND expires_at <= $2` would not have selected makes the
+		// store attempt a transition the domain refuses, so the harness would
+		// be manufacturing a failure a real server cannot produce.
+		if suppressed || !sweptByDeadline(document, args) {
+			return sqltest.NewRows([]string{"document"})
+		}
+		return sqltest.NewRows([]string{"document"}, []driver.Value{document})
 	default:
 		return sqltest.NewRows([]string{"document"})
 	}
+}
+
+// sweptByDeadline evaluates `state='held' AND expires_at <= $2` against the
+// scripted document.
+func sweptByDeadline(document []byte, args []driver.NamedValue) bool {
+	var record scheduling.Reservation
+	if err := json.Unmarshal(document, &record); err != nil {
+		return false
+	}
+	if record.State != scheduling.ReservationHeld {
+		return false
+	}
+	for _, arg := range args {
+		if arg.Ordinal != 2 {
+			continue
+		}
+		deadline, ok := arg.Value.(time.Time)
+		return ok && !deadline.Before(record.ExpiresAt)
+	}
+	return false
+}
+
+// reservationUpdate returns the single UPDATE this mutation issued against the
+// reservation table, so a test can read the columns the store actually wrote
+// rather than trusting the value it handed back.
+func (rig *harness) reservationUpdate(t *testing.T) statement {
+	t.Helper()
+	found := make([]statement, 0, 1)
+	for _, entry := range rig.statements() {
+		if strings.HasPrefix(entry.query, "UPDATE "+DefaultReservationTable+" SET") {
+			found = append(found, entry)
+		}
+	}
+	if len(found) != 1 {
+		t.Fatalf("expected exactly one reservation UPDATE, found %d", len(found))
+	}
+	return found[0]
+}
+
+func (entry statement) argument(t *testing.T, ordinal int) driver.Value {
+	t.Helper()
+	for _, arg := range entry.args {
+		if int(arg.Ordinal) == ordinal {
+			return arg.Value
+		}
+	}
+	t.Fatalf("statement has no argument $%d: %s", ordinal, entry.query)
+	return nil
+}
+
+// testPrincipal is an authenticated caller for the authorship tests.
+func testPrincipal(t *testing.T) auth.Principal {
+	t.Helper()
+	principal, err := auth.NewPrincipal(auth.PrincipalKindUser, "operator",
+		auth.WithIssuer("mindclade"))
+	if err != nil {
+		t.Fatalf("new principal: %v", err)
+	}
+	return principal
+}
+
+func testPrincipalContext(t *testing.T) context.Context {
+	t.Helper()
+	ctx, err := auth.WithPrincipal(context.Background(), testPrincipal(t))
+	if err != nil {
+		t.Fatalf("context with principal: %v", err)
+	}
+	return ctx
 }
 
 func testID(t *testing.T, kind string) string {
@@ -407,7 +567,7 @@ func TestEveryMutationLocksTheLedgerRowFirst(t *testing.T) {
 			if len(statements) == 0 {
 				t.Fatal("the mutation never reached the database")
 			}
-			first := statements[0]
+			first := statements[0].query
 			if !strings.Contains(first, DefaultLedgerTable) || !strings.Contains(first, "FOR UPDATE") {
 				t.Fatalf("first statement was not the ledger lock:\n%s", first)
 			}
@@ -452,8 +612,8 @@ func (err sqlStateError) SQLState() string { return err.state }
 // mutation and is where the loser usually learns it lost.
 func TestSerializationFailureIsRetried(t *testing.T) {
 	rig := newHarness(t)
-	rig.state.Query = func(_ context.Context, query string, _ []driver.NamedValue) (driver.Rows, error) {
-		rig.record(query)
+	rig.state.Query = func(_ context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+		rig.record(query, args)
 		return nil, sqlStateError{state: "40001", message: "could not serialize access"}
 	}
 	if err := rig.store.PutWeight(context.Background(), "research", 1); err == nil {
@@ -470,8 +630,8 @@ func TestSerializationFailureIsRetried(t *testing.T) {
 // Retrying it would turn a permanent write rejection into a stall.
 func TestConstraintViolationIsNotRetried(t *testing.T) {
 	rig := newHarness(t)
-	rig.state.Exec = func(_ context.Context, query string, _ []driver.NamedValue) (driver.Result, error) {
-		rig.record(query)
+	rig.state.Exec = func(_ context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
+		rig.record(query, args)
 		return nil, sqlStateError{state: "23514", message: "check constraint violated"}
 	}
 	if err := rig.store.PutWeight(context.Background(), "research", 1); err == nil {
@@ -559,6 +719,16 @@ func TestDDLProducesTheFourSchemas(t *testing.T) {
 	if _, err := DDL("res", "quo", "wei", "not a table"); err == nil {
 		t.Fatal("an invalid table name must be refused")
 	}
+	// DDL and WithTables must apply the same rule to the same bytes. DDL used
+	// to validate the trimmed name while interpolating the untrimmed one, which
+	// made this pair disagree: a schema you could create and then not point the
+	// store at.
+	padded := " res "
+	_, ddlErr := DDL(padded, "quo", "wei", "led")
+	optionErr := WithTables(padded, "quo", "wei", "led")(&Store{})
+	if (ddlErr == nil) != (optionErr == nil) {
+		t.Fatalf("DDL and WithTables disagree on %q: DDL=%v WithTables=%v", padded, ddlErr, optionErr)
+	}
 }
 
 // The projection has to cover the whole ResourceGroup. A resource the domain
@@ -582,27 +752,171 @@ func TestDemandProjectionCoversTheWholeResourceGroup(t *testing.T) {
 	}
 }
 
-// The version the domain reads back is the version the domain sealed. This is
-// the whole of divergence two: there is no restated digest in this package, so
-// the property to pin is that a transition applied through the store is the one
-// the reference adapter would have produced.
+// Divergence two, pinned against THIS package rather than against the domain.
+//
+// The property is not "Reservation.Bind seals correctly" -- that is the domain's
+// own test -- it is that the store persists the generation the domain sealed and
+// restates nothing. So this drives store.Bind through the fake driver and reads
+// the UPDATE the store actually issued: the returned value, the projected
+// version and generation columns, and the stored document must all carry the
+// version the domain produced for the identical transition. A store-side
+// re-seal, a write-back of the pre-transition version, or a transition applied
+// by anything other than Reservation.Bind fails here.
 func TestTransitionsAreSealedByTheDomainNotByThisPackage(t *testing.T) {
-	reservation := testReservation(t)
-	bound, err := reservation.Bind(testStart.Add(time.Minute), scheduling.TopologyAssignment{}, testFence)
+	rig := newHarness(t)
+	held := testReservation(t)
+	rig.storeReservation(t, held)
+	at := testStart.Add(time.Minute)
+
+	// What the reference transition produces, computed independently of the
+	// store from the same inputs the store is about to be handed.
+	expected, err := held.Bind(at, scheduling.TopologyAssignment{}, testFence)
+	if err != nil {
+		t.Fatalf("domain Bind: %v", err)
+	}
+	if expected.Version.String() == held.Version.String() {
+		t.Fatal("the fixture transition did not advance the version")
+	}
+
+	stored, replayed, err := rig.store.Bind(context.Background(), held.ID, held.Version,
+		scheduling.TopologyAssignment{}, testFence, at)
 	if err != nil {
 		t.Fatalf("Bind: %v", err)
 	}
-	if bound.Version.String() == reservation.Version.String() {
-		t.Fatal("a transition must advance the resource version")
+	if replayed {
+		t.Fatal("a first transition must not replay")
 	}
-	if bound.Version.Generation() != uint64(bound.Sequence)+1 {
-		t.Fatalf("generation %d does not match sequence %d", bound.Version.Generation(), bound.Sequence)
+	if stored.Version.String() != expected.Version.String() {
+		t.Fatalf("returned version %s, want the domain's %s", stored.Version, expected.Version)
 	}
-	// resource_generation is a projected column with a CHECK against this
-	// relationship, so the two have to agree or no bound reservation is
-	// storable at all.
-	if err := bound.Validate(); err != nil {
-		t.Fatalf("a domain-sealed transition must validate: %v", err)
+
+	// The columns the store wrote, in the order updateReservation binds them:
+	// $2 state, $4 sequence, $8 resource_version, $9 resource_generation,
+	// $10 document.
+	update := rig.reservationUpdate(t)
+	if state := update.argument(t, 2); state != string(scheduling.ReservationBound) {
+		t.Fatalf("state column = %v, want bound", state)
+	}
+	if sequence := update.argument(t, 4); sequence != int64(expected.Sequence) {
+		t.Fatalf("sequence column = %v, want %d", sequence, expected.Sequence)
+	}
+	if version := update.argument(t, 8); version != expected.Version.String() {
+		t.Fatalf("resource_version column = %v, want %s", version, expected.Version)
+	}
+	if generation := update.argument(t, 9); generation != int64(expected.Version.Generation()) {
+		t.Fatalf("resource_generation column = %v, want %d", generation, expected.Version.Generation())
+	}
+	document, ok := update.argument(t, reservationDocumentOrdinal).([]byte)
+	if !ok {
+		t.Fatalf("document column is %T, want []byte", update.argument(t, reservationDocumentOrdinal))
+	}
+	written, err := decodeDocument[reservationDocument](context.Background(), document, "test")
+	if err != nil {
+		t.Fatalf("the stored document must revalidate: %v", err)
+	}
+	if scheduling.Reservation(written).Version.String() != expected.Version.String() {
+		t.Fatalf("stored document version %s, want %s",
+			scheduling.Reservation(written).Version, expected.Version)
+	}
+}
+
+// Divergence one's audit consequence: the mutation that happens to run the
+// expiry sweep is not the author of what it swept.
+//
+// An operator calling Snapshot with their principal on the context would
+// otherwise be recorded as the author of every hold that lapsed while they were
+// reading, which is the one way an audit log must not be wrong.
+func TestSweptExpiriesAreAuthoredByTheSystemNotTheCaller(t *testing.T) {
+	rig := newHarness(t)
+	held := testReservation(t)
+	rig.storeReservation(t, held)
+	ctx := testPrincipalContext(t)
+
+	// Past the hold's deadline, so the sweep re-seals it.
+	if _, err := rig.store.Snapshot(ctx, held.ExpiresAt.Add(time.Second)); err != nil {
+		t.Fatalf("Snapshot: %v", err)
+	}
+	events := rig.recordedAudits()
+	if len(events) != 1 {
+		t.Fatalf("audit events = %d, want exactly 1 for one swept expiry", len(events))
+	}
+	actor := events[0].Actor()
+	if actor.Kind() != auth.PrincipalKindSystem {
+		t.Fatalf("actor kind = %s, want system; the caller did not cause this expiry", actor.Kind())
+	}
+	if actor.Subject() != "scheduling-service" {
+		t.Fatalf("actor subject = %q, want the store's system actor", actor.Subject())
+	}
+	if subject := testPrincipal(t).Subject(); actor.Subject() == subject {
+		t.Fatalf("the ambient principal %q was recorded as the author of a deadline-authored expiry", subject)
+	}
+}
+
+// The other half of the same rule: a transition the caller actually asked for
+// keeps the caller's principal. Forcing the system actor everywhere would erase
+// who bound a reservation, which is exactly what the audit log is for.
+func TestCallerAuthoredTransitionsKeepTheCallerPrincipal(t *testing.T) {
+	rig := newHarness(t)
+	held := testReservation(t)
+	rig.storeReservation(t, held)
+	ctx := testPrincipalContext(t)
+
+	if _, _, err := rig.store.Bind(ctx, held.ID, held.Version,
+		scheduling.TopologyAssignment{}, testFence, testStart.Add(time.Minute)); err != nil {
+		t.Fatalf("Bind: %v", err)
+	}
+	events := rig.recordedAudits()
+	if len(events) != 1 {
+		t.Fatalf("audit events = %d, want exactly 1", len(events))
+	}
+	actor := events[0].Actor()
+	if actor.Kind() != auth.PrincipalKindUser || actor.Subject() != testPrincipal(t).Subject() {
+		t.Fatalf("actor = %s/%s, want the calling principal", actor.Kind(), actor.Subject())
+	}
+}
+
+// One logical event, one action name. The sweep and the explicit Expire both
+// produce an expired reservation, and a consumer filtering on the action would
+// have seen half the expiries when the two call sites named it differently.
+// The action is now derived from the sealed record, so this compares the two
+// paths rather than trusting that two string literals were kept in step.
+func TestTheSweepAndTheExplicitExpireEmitOneActionName(t *testing.T) {
+	held := testReservation(t)
+	after := held.ExpiresAt.Add(time.Second)
+
+	sweep := newHarness(t)
+	sweep.storeReservation(t, held)
+	if _, err := sweep.store.Snapshot(context.Background(), after); err != nil {
+		t.Fatalf("Snapshot: %v", err)
+	}
+	swept := sweep.recordedAudits()
+	if len(swept) != 1 {
+		t.Fatalf("sweep audit events = %d, want 1", len(swept))
+	}
+
+	// The sweep is suppressed so the explicit transition is the emitter. With a
+	// small backlog the sweep in the same transaction reaches the row first and
+	// the explicit call correctly replays, which would make this comparison
+	// tautological; a lapsed hold outside the bounded batch is the real state
+	// in which Expire does the work itself.
+	explicit := newHarness(t)
+	explicit.storeReservation(t, held)
+	explicit.suppressSweep = true
+	if _, _, err := explicit.store.Expire(context.Background(), held.ID, held.Version,
+		testFence, after); err != nil {
+		t.Fatalf("Expire: %v", err)
+	}
+	called := explicit.recordedAudits()
+	if len(called) != 1 {
+		t.Fatalf("explicit audit events = %d, want 1", len(called))
+	}
+
+	if swept[0].Action() != called[0].Action() {
+		t.Fatalf("the sweep emits %q and the explicit transition emits %q; a consumer filtering on the action sees half the expiries",
+			swept[0].Action(), called[0].Action())
+	}
+	if want := ReservationActionPrefix + string(scheduling.ReservationExpired); swept[0].Action().String() != want {
+		t.Fatalf("action = %q, want %q derived from the sealed state", swept[0].Action(), want)
 	}
 }
 

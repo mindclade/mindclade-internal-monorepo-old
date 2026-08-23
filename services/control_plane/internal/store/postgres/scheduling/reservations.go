@@ -279,7 +279,7 @@ func (store *Store) Reserve(
 		if insertErr := store.insertReservation(txContext, candidate, key, transactionTime, operation); insertErr != nil {
 			return transitionResult{}, insertErr
 		}
-		if emitErr := store.emitReservation(txContext, "scheduling.reservation.reserve", candidate); emitErr != nil {
+		if emitErr := store.emitReservation(txContext, callerAuthored, candidate); emitErr != nil {
 			return transitionResult{}, emitErr
 		}
 		if ledgerErr := store.advanceLedger(txContext, candidate.LeaseFence, transactionTime, operation); ledgerErr != nil {
@@ -419,8 +419,7 @@ func (store *Store) transition(
 		if writeErr := store.updateReservation(txContext, updated, transactionTime, operation); writeErr != nil {
 			return transitionResult{}, writeErr
 		}
-		if emitErr := store.emitReservation(txContext,
-			"scheduling.reservation."+string(target), updated); emitErr != nil {
+		if emitErr := store.emitReservation(txContext, callerAuthored, updated); emitErr != nil {
 			return transitionResult{}, emitErr
 		}
 		if ledgerErr := store.advanceLedger(txContext, fence, transactionTime, operation); ledgerErr != nil {

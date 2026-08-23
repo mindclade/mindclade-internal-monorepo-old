@@ -50,6 +50,7 @@ go_test(
         "//control/scheduling",
         "//libs/go/audit",
         "//libs/go/audit/postgres",
+        "//libs/go/auth",
         "//libs/go/clock",
         "//libs/go/coordination/outbox",
         "//libs/go/coordination/outbox/memory",

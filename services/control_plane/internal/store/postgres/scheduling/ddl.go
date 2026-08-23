@@ -317,8 +317,14 @@ func quoteLiteral(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
 }
 
+// checkTable validates exactly the string DDL will interpolate.
+//
+// It used to validate strings.TrimSpace(table) while interpolating the
+// untrimmed name, which made DDL(" res ", ...) succeed where
+// WithTables(" res ", ...) fails -- a schema you could create and then not
+// point the store at. The two now apply the same rule to the same bytes.
 func checkTable(table, operation string) error {
-	if !sqlpostgres.ValidQualifiedIdentifier(strings.TrimSpace(table)) {
+	if !sqlpostgres.ValidQualifiedIdentifier(table) {
 		return faults.New(faults.CodeInvalidArgument, "scheduling table name is invalid",
 			faults.WithReason("scheduling_invalid_table"), faults.WithOperation(operation),
 			faults.WithRetryPolicy(faults.NoRetry()))

@@ -28,12 +28,28 @@ const (
 	// could drain the backlog is itself a mutation. So the sweep takes the
 	// oldest batch and returns.
 	//
+	// The number is small because of what the batch costs and where it is held.
+	// Each expiry is a reservation UPDATE plus an audit row plus an outbox row,
+	// and the whole batch runs while this transaction holds the singleton
+	// ledger row that every other mutation must acquire first. Measured on a
+	// loopback server with nothing else running, 256 expiries in one Snapshot
+	// took 103ms; 64 is roughly a quarter of that. The failure that sizing
+	// avoids is a control plane returning from a longer-than-TTL outage with
+	// thousands of lapsed holds: mutations queue on the ledger row, and with a
+	// 512-sized batch a concurrent Reserve could burn schedulingRetryMaxElapsed
+	// waiting out a handful of sweeps and surface an aborted fault during
+	// recovery, which is precisely when the sweep is supposed to be helping.
+	//
+	// A small batch does not slow the drain. Draining is proportional to how
+	// often a mutation runs, and releasing the ledger row four times as often
+	// lets four times as many mutations run -- each of which sweeps. What the
+	// small batch buys is tail latency on the lock, not throughput.
+	//
 	// Being behind is safe in the only direction that matters. An expired hold
 	// this sweep did not reach is still counted as occupied, so the ledger
 	// reports less free capacity than there is: it refuses an admission rather
-	// than over-committing one. Every mutation sweeps, so the backlog drains at
-	// the rate the control plane is doing anything at all.
-	MaximumExpirySweep = 512
+	// than over-committing one.
+	MaximumExpirySweep = 64
 
 	// MaximumLedgerGroups bounds the fair-share aggregate. It is the domain's
 	// own ceiling -- three capacity domains times the fair-share claim bound --
@@ -150,7 +166,12 @@ WHERE state=$1 AND expires_at <= $2 ORDER BY expires_at LIMIT %d FOR UPDATE`,
 		// published like any other transition. A silently expired reservation
 		// is exactly the unaccounted-for capacity the sweep exists to prevent,
 		// and a consumer that never hears about it keeps a phantom hold.
-		if emitErr := store.emitReservation(ctx, "scheduling.reservation.expire", sealed); emitErr != nil {
+		//
+		// deadlineAuthored, not the caller. The mutation that happens to run
+		// the sweep did not cause these expiries, and recording an operator who
+		// called Snapshot as the author of every hold that lapsed while they
+		// were reading would make the audit log say something false.
+		if emitErr := store.emitReservation(ctx, deadlineAuthored, sealed); emitErr != nil {
 			return emitErr
 		}
 	}
