@@ -36,6 +36,38 @@ py_library(
     imports = ["../.."],
 )
 
+py_library(
+    name = "bazel_verdict_lib",
+    srcs = ["bazel_verdict.py"],
+    imports = ["../.."],
+)
+
+py_library(
+    name = "bazel_worker_matrix_lib",
+    srcs = ["bazel_worker_matrix.py"],
+    data = ["//ci/bazel:full_graph_shards.toml"],
+    imports = ["../.."],
+    deps = [":full_graph_shards"],
+)
+
+py_library(
+    name = "ci_health_lib",
+    srcs = ["ci_health.py"],
+    imports = ["../.."],
+)
+
+py_library(
+    name = "full_graph_shards",
+    srcs = ["full_graph_shards.py"],
+    data = ["//ci/bazel:full_graph_shards.toml"],
+    imports = ["../.."],
+    visibility = [
+        "//ci/nightly:__pkg__",
+        "//ci/presubmit:__pkg__",
+    ],
+    deps = [":affected"],
+)
+
 py_binary(
     name = "affected_cli",
     srcs = ["affected.py"],
@@ -54,11 +86,42 @@ py_binary(
 )
 
 py_binary(
+    name = "bazel_verdict",
+    srcs = ["bazel_verdict.py"],
+    imports = ["../.."],
+    visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "bazel_worker_matrix",
+    srcs = ["bazel_worker_matrix.py"],
+    data = ["//ci/bazel:full_graph_shards.toml"],
+    imports = ["../.."],
+    visibility = ["//visibility:public"],
+    deps = [":full_graph_shards"],
+)
+
+py_binary(
+    name = "ci_health",
+    srcs = ["ci_health.py"],
+    imports = ["../.."],
+    visibility = ["//visibility:public"],
+)
+
+py_binary(
     name = "validate_affected_integration",
     srcs = ["validate_affected_integration.py"],
     imports = ["../.."],
     visibility = ["//visibility:public"],
     deps = [":affected"],
+)
+
+py_binary(
+    name = "bazel_remote_cache",
+    srcs = ["bazel_remote_cache.py"],
+    data = ["//ci/bazel_cache:activation.json"],
+    main = "bazel_remote_cache.py",
+    visibility = ["//visibility:public"],
 )
 
 pytest_test(
@@ -70,8 +133,56 @@ pytest_test(
 )
 
 pytest_test(
+    name = "bazel_remote_cache_test",
+    srcs = [
+        "bazel_remote_cache.py",
+        "tests/test_bazel_remote_cache.py",
+    ],
+    data = ["//ci/bazel_cache:activation.json"],
+)
+
+pytest_test(
     name = "bazel_disk_cache_test",
     srcs = ["tests/test_bazel_disk_cache.py"],
     imports = ["../.."],
     deps = [":bazel_disk_cache_lib"],
+)
+
+pytest_test(
+    name = "bazel_verdict_test",
+    srcs = ["tests/test_bazel_verdict.py"],
+    imports = ["../.."],
+    deps = [":bazel_verdict_lib"],
+)
+
+pytest_test(
+    name = "bazel_worker_matrix_test",
+    srcs = ["tests/test_bazel_worker_matrix.py"],
+    data = ["//ci/bazel:full_graph_shards.toml"],
+    imports = ["../.."],
+    deps = [":bazel_worker_matrix_lib"],
+)
+
+pytest_test(
+    name = "full_graph_shards_test",
+    srcs = ["tests/test_full_graph_shards.py"],
+    data = ["//ci/bazel:full_graph_shards.toml"],
+    imports = ["../.."],
+    deps = [
+        ":affected",
+        ":full_graph_shards",
+    ],
+)
+
+pytest_test(
+    name = "ci_health_test",
+    srcs = ["tests/test_ci_health.py"],
+    imports = ["../.."],
+    deps = [":ci_health_lib"],
+)
+
+pytest_test(
+    name = "prepare_nix_runner_test",
+    srcs = ["tests/test_prepare_nix_runner.py"],
+    data = ["prepare_nix_runner.sh"],
 )

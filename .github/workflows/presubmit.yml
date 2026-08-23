@@ -387,10 +387,68 @@ jobs:
   # Every Bazel command runs inside .#ci-bazel. The shell exports the immutable C/C++ bundle and
   # repository wrapper owns only launcher selection/root normalization. CI's lockfile_mode=error
   # makes committed Bzlmod extension state immutable during every configured phase.
-  bazel:
-    # Governance requires this exact stable context. Do not rename it without an evaluate-mode
-    # ruleset migration and connected pull-request plus merge-group evidence.
-    name: bazel / verdict
+  # The plan is credential-free. It enables parallel shards only when the independently
+  # fail-closed remote-cache selector is connected; otherwise protected events retain one
+  # complete //... worker rather than multiplying four cold hosted-runner builds.
+  bazel-worker-plan:
+    name: bazel / worker plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      workers: ${{ steps.worker-matrix.outputs.workers }}
+      remote_cache_enabled: ${{ steps.bazel-remote-cache.outcome == 'success' && steps.bazel-remote-cache.outputs.enabled || 'false' }}
+      shard_count: ${{ steps.worker-matrix.outputs.shard_count }}
+      topology_mode: ${{ steps.worker-matrix.outputs.mode }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
+        with:
+          python-version: "3.14.7"
+
+      - name: Select qualified Bazel remote-cache route for topology
+        id: bazel-remote-cache
+        env:
+          BAZEL_REMOTE_CACHE_STATE: ${{ vars.BAZEL_REMOTE_CACHE_STATE }}
+          CI_PROJECT_ID: ${{ vars.CI_PROJECT_ID }}
+          MERGE_GROUP_BASE_REF: ${{ github.event.merge_group.base_ref }}
+          PR_BASE_REF: ${{ github.event.pull_request.stack.base.ref || github.event.pull_request.base.ref }}
+          REF_PROTECTED: ${{ github.ref_protected }}
+        run: |
+          set -euo pipefail
+          python3 -B -I ci/common/bazel_remote_cache.py select \
+            --contract ci/bazel_cache/activation.json \
+            --repository-state "${BAZEL_REMOTE_CACHE_STATE}" \
+            --workflow presubmit \
+            --event "${GITHUB_EVENT_NAME}" \
+            --ref "${GITHUB_REF}" \
+            --ref-protected "${REF_PROTECTED}" \
+            --project-id "${CI_PROJECT_ID}" \
+            --pull-request-base-ref "${PR_BASE_REF}" \
+            --merge-group-base-ref "${MERGE_GROUP_BASE_REF}" \
+            --github-output "${GITHUB_OUTPUT}"
+
+      - name: Select presubmit, fallback, or complete shard workers
+        id: worker-matrix
+        env:
+          REMOTE_CACHE_ENABLED: ${{ steps.bazel-remote-cache.outcome == 'success' && steps.bazel-remote-cache.outputs.enabled || 'false' }}
+        run: >-
+          python3 -B -I ci/common/bazel_worker_matrix.py
+          --lane presubmit
+          --event "${GITHUB_EVENT_NAME}"
+          --remote-cache-enabled "${REMOTE_CACHE_ENABLED}"
+          --github-output "${GITHUB_OUTPUT}"
+
+  bazel-workers:
+    name: bazel / worker ${{ matrix.worker }}
+    needs: [bazel-worker-plan]
+    if: needs.bazel-worker-plan.result == 'success'
+    strategy:
+      fail-fast: false
+      matrix:
+        worker: ${{ fromJSON(needs.bazel-worker-plan.outputs.workers) }}
     runs-on: ubuntu-24.04
     # A cold hosted runner compiles the complete C++/protobuf tool graph before running tests.
     # Exact-head qualification reaches hundreds of tests and can spend most of a cold run
@@ -398,14 +456,18 @@ jobs:
     # for a cold cache; the BEP/profile artifact makes regressions diagnosable without a count
     # that drifts every time a test target is added.
     timeout-minutes: 90
+    # Deliberately no id-token permission while ci/bazel_cache/activation.json is blocked.
+    # The reviewed qualification change must add it together with the connected evidence.
+    permissions:
+      contents: read
     steps:
-      - name: Record Bazel verdict start
+      - name: Record Bazel worker start
         run: date +%s > "${RUNNER_TEMP}/bazel-job-started"
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           # Full history is retained for the real-graph affected fixture and future activation;
-          # the event policy below still resolves every protected event to full mode.
+          # the event policy still keeps pull requests full until activation is reviewed.
           fetch-depth: 0
           persist-credentials: false
 
@@ -437,16 +499,54 @@ jobs:
             experimental-features = nix-command flakes
             accept-flake-config = false
 
-      # Cache keys contain only committed toolchain/lock evidence and a trusted revision. Pull
-      # requests use their protected base; merge groups use the queue's protected base; only a
-      # protected-main push is a writer. The prefix fallback remains inside the exact toolchain
-      # fingerprint, and GitHub's cache service resolves it from the default-branch scope.
+      # Source and server-side governance must independently agree before this job requests
+      # the dedicated cache identity. Native stacks route cache trust through their ultimate
+      # protected target; direct pull requests fall back to their ordinary base. Manual and
+      # non-main routes are rejected by the selector and absent from the WIF attribute mapping.
+      - name: Select qualified Bazel remote-cache route
+        id: bazel-remote-cache
+        env:
+          BAZEL_REMOTE_CACHE_STATE: ${{ vars.BAZEL_REMOTE_CACHE_STATE }}
+          CI_PROJECT_ID: ${{ vars.CI_PROJECT_ID }}
+          MERGE_GROUP_BASE_REF: ${{ github.event.merge_group.base_ref }}
+          PR_BASE_REF: ${{ github.event.pull_request.stack.base.ref || github.event.pull_request.base.ref }}
+          REF_PROTECTED: ${{ github.ref_protected }}
+        run: |
+          set -euo pipefail
+          python3 -B ci/common/bazel_remote_cache.py select \
+            --contract ci/bazel_cache/activation.json \
+            --repository-state "${BAZEL_REMOTE_CACHE_STATE}" \
+            --workflow presubmit \
+            --event "${GITHUB_EVENT_NAME}" \
+            --ref "${GITHUB_REF}" \
+            --ref-protected "${REF_PROTECTED}" \
+            --project-id "${CI_PROJECT_ID}" \
+            --pull-request-base-ref "${PR_BASE_REF}" \
+            --merge-group-base-ref "${MERGE_GROUP_BASE_REF}" \
+            --github-output "${GITHUB_OUTPUT}"
+
+      - name: Verify worker topology still matches cache qualification
+        env:
+          ACTUAL_REMOTE_CACHE_ENABLED: ${{ steps.bazel-remote-cache.outcome == 'success' && steps.bazel-remote-cache.outputs.enabled || 'false' }}
+          EXPECTED_REMOTE_CACHE_ENABLED: ${{ needs.bazel-worker-plan.outputs.remote_cache_enabled }}
+        run: |
+          set -euo pipefail
+          if [[ "${ACTUAL_REMOTE_CACHE_ENABLED}" != "${EXPECTED_REMOTE_CACHE_ENABLED}" ]]; then
+            echo "BAZEL_MATRIX_CACHE_STATE_DRIFT: worker cache qualification changed after planning" >&2
+            exit 2
+          fi
+
+      # Cache keys contain only committed toolchain/lock evidence and a trusted revision. Direct
+      # pull requests use their protected base; native stacks use their ultimate protected target;
+      # merge groups use the queue's protected base; only a protected-main push is a writer. The
+      # prefix fallback stays inside the exact toolchain fingerprint and default-branch scope.
       - name: Select trusted Bazel cache revision
         id: bazel-cache-trust
+        if: steps.bazel-remote-cache.outputs.enabled != 'true'
         env:
           CACHE_FINGERPRINT: ${{ hashFiles('.bazelversion', 'MODULE.bazel', 'MODULE.bazel.lock', 'REPO.bazel', 'flake.lock', 'tools/build/nix/toolchain-manifest.json') }}
-          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_BASE_SHA: ${{ github.event.pull_request.stack.base.sha || github.event.pull_request.base.sha }}
+          PR_BASE_REF: ${{ github.event.pull_request.stack.base.ref || github.event.pull_request.base.ref }}
           MERGE_GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}
           MERGE_GROUP_BASE_REF: ${{ github.event.merge_group.base_ref }}
           REF_PROTECTED: ${{ github.ref_protected }}
@@ -454,7 +554,7 @@ jobs:
           RUNNER_ARCH: ${{ runner.arch }}
         run: |
           set -euo pipefail
-          python3 ci/common/bazel_disk_cache.py select-trust \
+          python3 -B ci/common/bazel_disk_cache.py select-trust \
             --workflow presubmit \
             --event "${GITHUB_EVENT_NAME}" \
             --ref "${GITHUB_REF}" \
@@ -471,6 +571,9 @@ jobs:
 
       - name: Restore trusted Bazel persistent action cache
         id: bazel-disk-cache
+        if: >-
+          steps.bazel-remote-cache.outputs.enabled != 'true' &&
+          steps.bazel-cache-trust.outcome == 'success'
         continue-on-error: true
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
@@ -481,15 +584,16 @@ jobs:
 
       # user.bazelrc is already gitignored and try-imported by .bazelrc. This makes every Bazel
       # build/test invocation use the same cache contract without embedding runner paths in source.
-      # Reader events never upload local results. The 4 GiB GC ceiling and one-second idle delay
-      # bound the prior duplicate-output failure mode; zstd reduces the persisted archive further.
+      # Reader events never upload local results. The 1 GiB GC ceiling and one-second idle delay
+      # reserve hosted-runner capacity for the Bazel output tree; zstd reduces persistence cost.
       - name: Configure bounded Bazel persistent action cache
+        if: steps.bazel-remote-cache.outputs.enabled != 'true'
         env:
-          BAZEL_CACHE_ROLE: ${{ steps.bazel-cache-trust.outputs.role }}
+          BAZEL_CACHE_ROLE: ${{ steps.bazel-cache-trust.outcome == 'success' && steps.bazel-cache-trust.outputs.role || 'reader' }}
           BAZEL_CACHE_RESTORE_OUTCOME: ${{ steps.bazel-disk-cache.outcome }}
         run: |
           set -euo pipefail
-          python3 ci/common/bazel_disk_cache.py configure \
+          python3 -B ci/common/bazel_disk_cache.py configure \
             --cache-dir "${RUNNER_TEMP}/mindclade-bazel-disk-cache" \
             --workspace "${GITHUB_WORKSPACE}" \
             --bazelrc "${GITHUB_WORKSPACE}/user.bazelrc" \
@@ -497,60 +601,209 @@ jobs:
             --github-env "${GITHUB_ENV}" \
             --restore-outcome "${BAZEL_CACHE_RESTORE_OUTCOME}"
 
+      # Build the loopback protocol boundary before minting credentials. Bazel itself receives
+      # neither an ADC path nor a bearer token; only this process inherits the private credentials
+      # copy, and the WIF principal plus process mode independently constrain writes.
+      - name: Build qualified Bazel GCS cache gateway
+        id: bazel-remote-cache-binary
+        if: steps.bazel-remote-cache.outputs.enabled == 'true'
+        run: |
+          set -euo pipefail
+          target='//tools/build/bazel/cache_gateway/cmd:cache_gateway'
+          nix develop .#ci-bazel --command tools/dev/bazelw build "${target}" --config=ci
+          binary="$({
+            nix develop .#ci-bazel --command tools/dev/bazelw cquery \
+              "${target}" --config=ci --output=files
+          })"
+          [[ -n "${binary}" && "${binary}" != *$'\n'* && -x "${binary}" ]]
+          printf 'path=%s\n' "$(realpath "${binary}")" >> "${GITHUB_OUTPUT}"
+
+      - name: Authenticate read-only Bazel cache route
+        id: bazel-cache-reader-auth
+        if: >-
+          steps.bazel-remote-cache.outputs.enabled == 'true' &&
+          steps.bazel-remote-cache.outputs.role == 'reader'
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3.0.0
+        with:
+          cleanup_credentials: true
+          create_credentials_file: true
+          export_environment_variables: false
+          project_id: ${{ vars.CI_PROJECT_ID }}
+          service_account: ${{ vars.SA_BAZEL_CACHE_READER }}
+          workload_identity_provider: ${{ vars.WIF_PROVIDER_BAZEL_CACHE }}
+
+      - name: Authenticate trusted Bazel cache writer route
+        id: bazel-cache-writer-auth
+        if: >-
+          steps.bazel-remote-cache.outputs.enabled == 'true' &&
+          steps.bazel-remote-cache.outputs.role == 'writer'
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3.0.0
+        with:
+          cleanup_credentials: true
+          create_credentials_file: true
+          export_environment_variables: false
+          project_id: ${{ vars.CI_PROJECT_ID }}
+          service_account: ${{ vars.SA_BAZEL_CACHE_WRITER }}
+          workload_identity_provider: ${{ vars.WIF_PROVIDER_BAZEL_CACHE }}
+
+      - name: Start loopback Bazel GCS cache gateway
+        id: bazel-remote-cache-start
+        if: steps.bazel-remote-cache.outputs.enabled == 'true'
+        env:
+          CACHE_BINARY: ${{ steps.bazel-remote-cache-binary.outputs.path }}
+          CACHE_BUCKET: ${{ steps.bazel-remote-cache.outputs.bucket }}
+          CACHE_CREDENTIALS_FILE: ${{ steps.bazel-cache-reader-auth.outputs.credentials_file_path || steps.bazel-cache-writer-auth.outputs.credentials_file_path }}
+          CACHE_ROLE: ${{ steps.bazel-remote-cache.outputs.role }}
+          CACHE_SERVICE_ACCOUNT: ${{ steps.bazel-remote-cache.outputs.role == 'reader' && vars.SA_BAZEL_CACHE_READER || vars.SA_BAZEL_CACHE_WRITER }}
+          CI_PROJECT_ID: ${{ vars.CI_PROJECT_ID }}
+          WIF_PROVIDER_BAZEL_CACHE: ${{ vars.WIF_PROVIDER_BAZEL_CACHE }}
+        run: |
+          set -euo pipefail
+          python3 -B ci/common/bazel_remote_cache.py start \
+            --binary "${CACHE_BINARY}" \
+            --workspace "${GITHUB_WORKSPACE}" \
+            --bazelrc "${GITHUB_WORKSPACE}/user.bazelrc" \
+            --runtime-dir "${RUNNER_TEMP}/mindclade-bazel-remote-cache" \
+            --github-env "${GITHUB_ENV}" \
+            --bucket "${CACHE_BUCKET}" \
+            --role "${CACHE_ROLE}" \
+            --project-id "${CI_PROJECT_ID}" \
+            --provider "${WIF_PROVIDER_BAZEL_CACHE}" \
+            --service-account "${CACHE_SERVICE_ACCOUNT}" \
+            --credentials-file "${CACHE_CREDENTIALS_FILE}"
+
       # Reads .buildifier.json: format plus a 39-warning lint set, narrower than buildifier's
       # default `all`. Every name in that file has to be one this buildifier knows — an
       # unrecognised name makes it exit 1 before reading a single file, with a message about
       # configuration rather than about code.
       - name: buildifier
+        if: matrix.worker == -1 || matrix.worker == -2 || matrix.worker == 0
         run: nix develop .#ci-bazel --command buildifier --mode=check -r .
 
       - name: Every BUILD file loads and every label resolves
+        if: matrix.worker == -1 || matrix.worker == -2 || matrix.worker == 0
         run: >-
           nix develop .#ci-bazel --command
           tools/dev/bazelw query '//...' --config=ci --output=label
           > /dev/null
 
       - name: Prove affected selection against the real Bazel graph
+        if: matrix.worker == -1 || matrix.worker == -2 || matrix.worker == 0
         run: >-
           nix develop .#ci-bazel --command
-          python3 ci/common/validate_affected_integration.py
+          python3 -B ci/common/validate_affected_integration.py
 
       - name: Enforce Bazel dependency layers
-        run: nix develop .#ci-bazel --command python3 tools/analysis/check_bazel_layers.py
+        if: matrix.worker == -1 || matrix.worker == -2 || matrix.worker == 0
+        run: nix develop .#ci-bazel --command python3 -B tools/analysis/check_bazel_layers.py
 
       - name: Validate and resolve the registered C/C++ toolchain
+        if: matrix.worker == -1 || matrix.worker == -2 || matrix.worker == 0
         run: |
-          nix develop .#ci-bazel --command python3 tools/analysis/validate_cc_toolchain_bundle.py
+          nix develop .#ci-bazel --command python3 -B tools/analysis/validate_cc_toolchain_bundle.py
           nix develop .#ci-bazel --command tools/dev/bazelw test \
             //tools/build/bazel/toolchains/cc:smoke_test --config=ci
-          nix develop .#ci-bazel --command python3 tools/analysis/verify_cc_toolchain_selection.py
+          nix develop .#ci-bazel --command python3 -B tools/analysis/verify_cc_toolchain_selection.py
+
+      # Trusted setup and analysis steps can create ignored caches and Bazel convenience
+      # symlinks. Remove every ignored byproduct before the selector's fail-closed checkout
+      # proof while preserving only its reviewed generated Bazel authority.
+      - name: Remove ignored checkout byproducts
+        run: |
+          set -euo pipefail
+          git clean -ffdX \
+            -e '!user.bazelrc'
 
       - name: Run event-governed Bazel validation
+        id: bazel-validation
         env:
           BASH_ENV: ""
+          BAZEL_CACHE_MODE: ${{ steps.bazel-remote-cache.outputs.enabled == 'true' && 'remote' || 'disk' }}
+          BAZEL_CACHE_ROLE: ${{ steps.bazel-remote-cache.outputs.enabled == 'true' && steps.bazel-remote-cache.outputs.role || steps.bazel-cache-trust.outcome == 'success' && steps.bazel-cache-trust.outputs.role || 'reader' }}
+          REMOTE_CACHE_ENABLED: ${{ steps.bazel-remote-cache.outcome == 'success' && steps.bazel-remote-cache.outputs.enabled || 'false' }}
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        # Event-to-mode routing lives in the tested Python state machine. The pull-request base is
-        # retained for future activation, but every protected event currently resolves to full.
-        run: >-
-          /nix/var/nix/profiles/default/bin/nix develop .#ci-bazel
-          --command python3 -I ci/presubmit/pipeline.py
-          --bazel-only
-          --mode auto
-          --base "${PR_BASE_SHA}"
-          --event "${GITHUB_EVENT_NAME}"
-          --ref "${GITHUB_REF}"
-          --head "${GITHUB_SHA}"
-          --evidence-dir "${RUNNER_TEMP}/bazel-evidence"
-          --job-started-at-file "${RUNNER_TEMP}/bazel-job-started"
-          --runner-temp "${RUNNER_TEMP}"
+          SHARD_COUNT: ${{ needs.bazel-worker-plan.outputs.shard_count }}
+          WORKER: ${{ matrix.worker }}
+        run: |
+          set -euo pipefail
+          # The shared executor removes setup-bazel's short-lived download token from each
+          # evidence-producing subprocess so neither analysis nor test BEP can record it.
+          evidence="${RUNNER_TEMP}/bazel-evidence"
+          base_args=()
+          shard_args=()
+          if [[ "${WORKER}" == "-1" ]]; then
+            if [[ "${GITHUB_EVENT_NAME}" != "pull_request" ]]; then
+              echo "BAZEL_MATRIX_PRESUBMIT_EVENT_MISMATCH: presubmit worker requires pull_request" >&2
+              exit 2
+            fi
+            if [[ -z "${PR_BASE_SHA}" ]]; then
+              echo "pull_request event is missing github.event.pull_request.base.sha" >&2
+              exit 2
+            fi
+            base_args=(--base "${PR_BASE_SHA}")
+          elif [[ "${WORKER}" == "-2" ]]; then
+            if [[ "${REMOTE_CACHE_ENABLED}" != "false" || \
+                  ! "${GITHUB_EVENT_NAME}" =~ ^(merge_group|push)$ ]]; then
+              echo "BAZEL_MATRIX_FALLBACK_ROUTE_MISMATCH: full fallback route is invalid" >&2
+              exit 2
+            fi
+          elif [[ "${WORKER}" =~ ^[0-9]+$ ]]; then
+            if [[ "${REMOTE_CACHE_ENABLED}" != "true" || \
+                  ! "${GITHUB_EVENT_NAME}" =~ ^(merge_group|push)$ || \
+                  "${WORKER}" -ge "${SHARD_COUNT}" ]]; then
+              echo "BAZEL_MATRIX_SHARD_ROUTE_MISMATCH: shard route is invalid" >&2
+              exit 2
+            fi
+            shard_args=(--shard-index "${WORKER}" --shard-count "${SHARD_COUNT}")
+          else
+            echo "BAZEL_MATRIX_UNKNOWN_WORKER: worker index is outside the reviewed topology" >&2
+            exit 2
+          fi
+          /nix/var/nix/profiles/default/bin/nix develop .#ci-bazel \
+            --command python3 -B -I ci/presubmit/pipeline.py \
+            --bazel-only \
+            --mode auto \
+            "${base_args[@]}" \
+            "${shard_args[@]}" \
+            --event "${GITHUB_EVENT_NAME}" \
+            --ref "${GITHUB_REF}" \
+            --head "${GITHUB_SHA}" \
+            --evidence-dir "${evidence}" \
+            --job-started-at-file "${RUNNER_TEMP}/bazel-job-started" \
+            --runner-temp "${RUNNER_TEMP}" \
+            --cache-mode "${BAZEL_CACHE_MODE}" \
+            --cache-role "${BAZEL_CACHE_ROLE}"
+
+      - name: Redact completed Bazel worker selection
+        id: bazel-selection-redact
+        if: steps.bazel-validation.outcome == 'success'
+        env:
+          SHARD_COUNT: ${{ needs.bazel-worker-plan.outputs.shard_count }}
+          TOPOLOGY_MODE: ${{ needs.bazel-worker-plan.outputs.topology_mode }}
+          WORKER: ${{ matrix.worker }}
+        run: |
+          set -euo pipefail
+          /nix/var/nix/profiles/default/bin/nix develop .#ci-bazel \
+            --command python3 -B -I ci/common/bazel_verdict.py redact-selection \
+            --source "${RUNNER_TEMP}/bazel-evidence/selection.json" \
+            --output "${RUNNER_TEMP}/bazel-worker-selection/worker-selection.json" \
+            --runner-temp "${RUNNER_TEMP}" \
+            --worker "${WORKER}" \
+            --topology-mode "${TOPOLOGY_MODE}" \
+            --event "${GITHUB_EVENT_NAME}" \
+            --head-sha "${GITHUB_SHA}" \
+            --shard-count "${SHARD_COUNT}"
 
       - name: Measure bounded Bazel persistent action cache
         id: bazel-cache-size
-        if: always()
+        if: >-
+          always() &&
+          steps.bazel-remote-cache.outputs.enabled != 'true' &&
+          steps.bazel-cache-trust.outcome == 'success'
         continue-on-error: true
         run: |
           set -euo pipefail
-          nix develop .#ci-bazel --command python3 ci/common/bazel_disk_cache.py measure \
+          nix develop .#ci-bazel --command python3 -B ci/common/bazel_disk_cache.py measure \
             --cache-dir "${RUNNER_TEMP}/mindclade-bazel-disk-cache" \
             --workspace "${GITHUB_WORKSPACE}" \
             --bazel-wrapper "${GITHUB_WORKSPACE}/tools/dev/bazelw" \
@@ -563,6 +816,7 @@ jobs:
         id: bazel-cache-save
         if: >-
           success() &&
+          steps.bazel-remote-cache.outputs.enabled != 'true' &&
           github.event_name == 'push' &&
           github.ref == 'refs/heads/main' &&
           github.ref_protected == true &&
@@ -576,7 +830,7 @@ jobs:
           key: ${{ steps.bazel-cache-trust.outputs.primary-key }}
 
       - name: Record Bazel persistent action cache metrics
-        if: always()
+        if: always() && steps.bazel-remote-cache.outputs.enabled != 'true'
         env:
           CACHE_ROLE: ${{ steps.bazel-cache-trust.outputs.role }}
           CACHE_REVISION: ${{ steps.bazel-cache-trust.outputs.revision }}
@@ -591,7 +845,7 @@ jobs:
           CACHE_SAVE_OUTCOME: ${{ steps.bazel-cache-save.outcome }}
         run: |
           set -euo pipefail
-          python3 ci/common/bazel_disk_cache.py record-metrics \
+          python3 -B ci/common/bazel_disk_cache.py record-metrics \
             --evidence-dir "${RUNNER_TEMP}/bazel-evidence" \
             --summary "${GITHUB_STEP_SUMMARY}" \
             --role "${CACHE_ROLE}" \
@@ -606,23 +860,152 @@ jobs:
             --restore-outcome "${CACHE_RESTORE_OUTCOME}" \
             --measure-outcome "${CACHE_MEASURE_OUTCOME}"
 
+      - name: Record Bazel GCS remote-cache metrics and stop gateway
+        if: >-
+          always() &&
+          steps.bazel-remote-cache.outputs.enabled == 'true' &&
+          steps.bazel-remote-cache-start.outcome == 'success'
+        env:
+          CACHE_ROLE: ${{ steps.bazel-remote-cache.outputs.role }}
+        run: |
+          set -euo pipefail
+          python3 -B ci/common/bazel_remote_cache.py record-stop \
+            --runtime-dir "${RUNNER_TEMP}/mindclade-bazel-remote-cache" \
+            --evidence-dir "${RUNNER_TEMP}/bazel-evidence" \
+            --summary "${GITHUB_STEP_SUMMARY}" \
+            --role "${CACHE_ROLE}"
+
       - name: Upload Bazel performance evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
-          name: bazel-performance-${{ github.run_id }}-${{ github.run_attempt }}
+          name: bazel-performance-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.worker }}
           path: ${{ runner.temp }}/bazel-evidence/*
           if-no-files-found: warn
           retention-days: 35
 
-      - name: Upload Bazel latency metric
-        if: always()
+      # Keep verdict aggregation bounded: profiles and raw BEP remain in the performance artifact,
+      # while this artifact contains only normalized JSON with no logs or action command lines.
+      - name: Upload redacted Bazel health metrics
+        if: steps.bazel-validation.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
-          name: bazel-metrics-${{ github.run_id }}-${{ github.run_attempt }}
+          name: bazel-health-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.worker }}
+          path: |
+            ${{ runner.temp }}/bazel-evidence/run-metrics.json
+            ${{ runner.temp }}/bazel-evidence/analysis.summary.json
+            ${{ runner.temp }}/bazel-evidence/test.summary.json
+          if-no-files-found: error
+          retention-days: 35
+
+      - name: Upload redacted Bazel worker selection
+        if: steps.bazel-selection-redact.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: bazel-selection-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.worker }}
+          path: ${{ runner.temp }}/bazel-worker-selection/worker-selection.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload Bazel latency metric
+        if: always() && matrix.worker == -1
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: bazel-metrics-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.worker }}
           path: ${{ runner.temp }}/bazel-evidence/run-metrics.json
           if-no-files-found: ignore
           retention-days: 35
+
+  bazel:
+    # Governance requires this exact stable context. Matrix worker names are deliberately not
+    # required checks; this always-reported verdict fails unless both planning and every selected
+    # worker succeed.
+    name: bazel / verdict
+    needs: [bazel-worker-plan, bazel-workers]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
+        with:
+          python-version: "3.14.7"
+
+      - name: Download redacted Bazel worker selections
+        id: worker-selections
+        continue-on-error: true
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0  # v5.0.0
+        with:
+          pattern: bazel-selection-${{ github.run_id }}-${{ github.run_attempt }}-*
+          path: ${{ runner.temp }}/bazel-worker-selections
+
+      - name: Download redacted Bazel health metrics
+        if: >-
+          needs.bazel-worker-plan.result == 'success' &&
+          needs.bazel-workers.result == 'success'
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0  # v5.0.0
+        with:
+          pattern: bazel-health-${{ github.run_id }}-${{ github.run_attempt }}-*
+          path: ${{ runner.temp }}/bazel-health-evidence
+
+      - name: Generate the Bazel CI health dashboard
+        if: >-
+          needs.bazel-worker-plan.result == 'success' &&
+          needs.bazel-workers.result == 'success'
+        env:
+          EXPECTED_WORKERS: ${{ needs.bazel-worker-plan.outputs.workers }}
+          SHARD_COUNT: ${{ needs.bazel-worker-plan.outputs.shard_count }}
+          TOPOLOGY_MODE: ${{ needs.bazel-worker-plan.outputs.topology_mode }}
+        run: |
+          set -euo pipefail
+          python3 -B ci/common/ci_health.py \
+            --evidence-root "${RUNNER_TEMP}/bazel-health-evidence" \
+            --artifact-prefix "bazel-health-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-" \
+            --expected-workers "${EXPECTED_WORKERS}" \
+            --lane presubmit \
+            --event "${GITHUB_EVENT_NAME}" \
+            --head-sha "${GITHUB_SHA}" \
+            --topology-mode "${TOPOLOGY_MODE}" \
+            --shard-count "${SHARD_COUNT}" \
+            --json-output "${RUNNER_TEMP}/ci-health/ci-health.json" \
+            --html-output "${RUNNER_TEMP}/ci-health/ci-health.html" \
+            --summary-output "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload the Bazel CI health dashboard
+        if: >-
+          needs.bazel-worker-plan.result == 'success' &&
+          needs.bazel-workers.result == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: ci-health-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ci-health/*
+          if-no-files-found: error
+          retention-days: 35
+
+      - name: Aggregate the complete Bazel verdict
+        if: always()
+        env:
+          EXPECTED_WORKERS: ${{ needs.bazel-worker-plan.outputs.workers }}
+          PLAN_RESULT: ${{ needs.bazel-worker-plan.result }}
+          SHARD_COUNT: ${{ needs.bazel-worker-plan.outputs.shard_count }}
+          TOPOLOGY_MODE: ${{ needs.bazel-worker-plan.outputs.topology_mode }}
+          WORKERS_RESULT: ${{ needs.bazel-workers.result }}
+        run: |
+          set -euo pipefail
+          python3 -B ci/common/bazel_verdict.py verify \
+            --lane presubmit \
+            --event "${GITHUB_EVENT_NAME}" \
+            --head-sha "${GITHUB_SHA}" \
+            --plan-result "${PLAN_RESULT}" \
+            --workers-result "${WORKERS_RESULT}" \
+            --topology-mode "${TOPOLOGY_MODE}" \
+            --expected-workers "${EXPECTED_WORKERS}" \
+            --shard-count "${SHARD_COUNT}" \
+            --selection-root "${RUNNER_TEMP}/bazel-worker-selections" \
+            --artifact-prefix "bazel-selection-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-"
 
   # Stable, always-reported infrastructure context. Do not add path filters or rename the job:
   # branch protection can require `infra-static` without creating a check that disappears on

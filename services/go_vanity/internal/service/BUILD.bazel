@@ -1,0 +1,21 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+package(default_visibility = ["//visibility:private"])
+
+go_library(
+    name = "service",
+    srcs = ["service.go"],
+    importpath = "go.mindclade.dev/services/go_vanity/internal/service",
+    visibility = ["//services/go_vanity:__subpackages__"],
+    deps = ["//services/go_vanity/internal/vanity"],
+)
+
+go_test(
+    name = "service_test",
+    srcs = ["service_test.go"],
+    embed = [":service"],
+)

@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_python//python:defs.bzl", "py_binary")
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
+load("//tools/build:pytest.bzl", "pytest_test")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -12,6 +13,27 @@ py_binary(
     srcs = ["validate_repository.py"],
     main = "validate_repository.py",
     visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "git_hygiene_report",
+    srcs = ["git_hygiene_report.py"],
+    main = "git_hygiene_report.py",
+    visibility = ["//visibility:public"],
+)
+
+py_library(
+    name = "git_hygiene_report_lib",
+    srcs = ["git_hygiene_report.py"],
+    imports = ["../.."],
+)
+
+pytest_test(
+    name = "git_hygiene_report_test",
+    srcs = ["tests/test_git_hygiene_report.py"],
+    env_inherit = ["MINDCLADE_GIT"],
+    imports = ["../.."],
+    deps = [":git_hygiene_report_lib"],
 )
 
 filegroup(

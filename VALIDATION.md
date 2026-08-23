@@ -60,9 +60,9 @@ A materialized scaffold path is not a production release claim.
 The presubmit implementation now uses Bazel's post-loading reverse-dependency
 graph, separate analysis/test target files, rename-aware Git input, fail-closed
 query behavior, versioned BEP/profile/selection evidence, and a stable
-`bazel / verdict` context. Pull requests use affected selection and always
-include `//:gazelle_check`; global or structurally unsafe changes, merge groups,
-main pushes, and the CPU nightly retain full `//...` execution.
+`bazel / verdict` context. Pull requests, merge groups, main pushes, and the CPU
+nightly currently retain full `//...` execution. The affected selector remains
+available for explicit local qualification but is not active on protected events.
 
 Repository-wide fallback inputs now live in one strict, versioned contract.
 Static presubmit inventories every root entry and every `tools/` authority, so a
@@ -73,12 +73,13 @@ Linux full-graph evidence, checkout restoration behavior under interruption, and
 Bazel 9 version-string fallback.
 Artifact-plan Phase 5 is explicitly incomplete; this source does not activate or
 claim graph-native selection. Immutable fallback anchors and event-policy tests
-preserve affected pull-request behavior with full fallback, plus full
-merge-group, protected-main, and nightly correctness gates meanwhile.
-Protected execution also rejects Git files, worktrees, symlinked checkout roots,
+preserve full pull-request, merge-group, protected-main, and nightly correctness
+gates until connected affected-mode activation is separately reviewed.
+Protected execution also rejects redirected Git files, invalid linked worktrees,
+symlinked checkout roots,
 YAML aliases/tags/duplicate keys, and block-scalar normalization drift. The exact
-validated disk-cache role is repeated after `--config=ci` so later rc expansion
-cannot change its effective write policy.
+validated disk or loopback-remote cache role is encoded only in generated
+`user.bazelrc`; tracked `.bazelrc` is rejected if it can override that authority.
 
 Connected pull-request, merge-group, scheduled-run, required-check, and 28-day
 latency evidence is pending, as is activation of the pinned organization required
