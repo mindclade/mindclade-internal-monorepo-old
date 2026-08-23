@@ -57,6 +57,7 @@ go_library(
         "//services/control_plane/internal/store/postgres",
         "//services/control_plane/internal/store/postgres/admission",
         "//services/control_plane/internal/store/postgres/orchestration",
+        "//services/control_plane/internal/store/postgres/scheduling",
         "//services/control_plane/internal/transport",
     ],
 )

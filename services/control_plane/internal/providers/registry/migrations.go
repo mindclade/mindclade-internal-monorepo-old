@@ -25,6 +25,7 @@ import (
 	registrystore "go.mindclade.dev/services/control_plane/internal/store/postgres"
 	admissionstore "go.mindclade.dev/services/control_plane/internal/store/postgres/admission"
 	orchestrationstore "go.mindclade.dev/services/control_plane/internal/store/postgres/orchestration"
+	schedulingstore "go.mindclade.dev/services/control_plane/internal/store/postgres/scheduling"
 )
 
 // Migration versions are owned by the role that owns the schema, because one
@@ -59,6 +60,10 @@ const (
 	migrationOrchestrationStages
 	migrationOrchestrationAttempts
 	migrationOrchestrationCancellations
+	migrationSchedulingReservations
+	migrationSchedulingQuotas
+	migrationSchedulingWeights
+	migrationSchedulingLedger
 )
 
 // newMigrationManifest orders the schemas the shared adapters declare for the
@@ -148,6 +153,15 @@ func newMigrationManifest() (*migrate.Manifest, error) {
 	if err != nil {
 		return nil, err
 	}
+	schedulingDDL, err := schedulingstore.DDL(
+		schedulingstore.DefaultReservationTable,
+		schedulingstore.DefaultQuotaTable,
+		schedulingstore.DefaultWeightTable,
+		schedulingstore.DefaultLedgerTable,
+	)
+	if err != nil {
+		return nil, err
+	}
 	manifest, err := migrate.NewManifest(
 		migrate.Migration{Version: migrationAudit, Name: "audit_events", Up: auditDDL},
 		migrate.Migration{Version: migrationIdempotency, Name: "idempotency_records", Up: idempotencyDDL},
@@ -173,6 +187,10 @@ func newMigrationManifest() (*migrate.Manifest, error) {
 		migrate.Migration{Version: migrationOrchestrationStages, Name: "orchestration_stages", Up: orchestrationDDL[1]},
 		migrate.Migration{Version: migrationOrchestrationAttempts, Name: "orchestration_attempts", Up: orchestrationDDL[2]},
 		migrate.Migration{Version: migrationOrchestrationCancellations, Name: "orchestration_cancellations", Up: orchestrationDDL[3]},
+		migrate.Migration{Version: migrationSchedulingReservations, Name: "scheduling_reservations", Up: schedulingDDL[0]},
+		migrate.Migration{Version: migrationSchedulingQuotas, Name: "scheduling_quotas", Up: schedulingDDL[1]},
+		migrate.Migration{Version: migrationSchedulingWeights, Name: "scheduling_weights", Up: schedulingDDL[2]},
+		migrate.Migration{Version: migrationSchedulingLedger, Name: "scheduling_ledger", Up: schedulingDDL[3]},
 	)
 	if err != nil {
 		return nil, err
