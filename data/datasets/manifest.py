@@ -85,7 +85,9 @@ def parse_dataset_manifest(
                 _integer(artifact["size_bytes"], "artifact size"),
                 _string(artifact["media_type"], "artifact media type"),
                 _string(artifact["logical_kind"], "artifact logical kind"),
-                _string(artifact["schema_version"], "artifact schema version"),
+                # uint32 on the wire (mindclade.common.v1.ArtifactRef.schema_version). Parsing
+                # it as a string accepted documents that could never be encoded.
+                _integer(artifact["schema_version"], "artifact schema version"),
             )
         )
 

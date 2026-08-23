@@ -909,8 +909,10 @@ COLLECTION_BOUNDS = {
         "self.revoked_bundle_digests.len()>MAX_REVOCATIONS_PER_CLASS"
     ),
     ("WorkerCommand", "inputs"): "inputs.len()>maximum_inputs",
-    ("WorkloadEnvelope", "inputs"): "self.inputs.len()>4_096",
-    ("WorkloadEnvelope", "expected_output_digests"): ("self.expected_output_digests.len()>4_096"),
+    # ADR-0026 renamed `expected_output_digests` to the wire's `expected_outputs` and retyped
+    # both collections from placement to identity; the bound moved to a named constant with them.
+    ("WorkloadEnvelope", "inputs"): "self.inputs.len()>MAX_ARTIFACTS",
+    ("WorkloadEnvelope", "expected_outputs"): "self.expected_outputs.len()>MAX_ARTIFACTS",
 }
 
 

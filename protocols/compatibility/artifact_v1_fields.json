@@ -31,6 +31,43 @@
       "type": "string"
     }
   },
+  "mindclade.artifact.v1.ArtifactManifest": {
+    "1": {
+      "label": "singular",
+      "name": "schema_version",
+      "type": "uint32"
+    },
+    "2": {
+      "label": "singular",
+      "name": "manifest_id",
+      "type": "string"
+    },
+    "3": {
+      "label": "repeated",
+      "name": "artifacts",
+      "type": "mindclade.common.v1.ArtifactRef"
+    },
+    "4": {
+      "label": "singular",
+      "name": "owner",
+      "type": "string"
+    },
+    "5": {
+      "label": "singular",
+      "name": "created_at",
+      "type": "google.protobuf.Timestamp"
+    },
+    "6": {
+      "label": "singular",
+      "name": "manifest_digest",
+      "type": "string"
+    },
+    "7": {
+      "label": "optional",
+      "name": "supersedes_manifest_digest",
+      "type": "string"
+    }
+  },
   "mindclade.artifact.v1.ArtifactRef": {
     "1": {
       "label": "singular",
