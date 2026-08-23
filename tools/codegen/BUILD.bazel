@@ -15,6 +15,19 @@ py_binary(
     deps = ["//protocols/events:contract_validation"],
 )
 
+# Writes protocols/events/generated/** from the governed protobuf descriptor surface. There is
+# deliberately no --check py_test beside it: that surface is a source of the //protocols package,
+# whose default visibility is private, so a sandboxed target cannot read it. The drift assertion
+# lives in tools/codegen/tests/test_generate_jsonschema.py, which the root pytest lane collects
+# because pyproject.toml lists tools/ in testpaths.
+py_binary(
+    name = "generate_jsonschema",
+    srcs = ["generate_jsonschema.py"],
+    main = "generate_jsonschema.py",
+    visibility = ["//visibility:public"],
+    deps = ["//protocols/events:contract_validation"],
+)
+
 py_test(
     name = "event_catalog_generated_test",
     srcs = ["generate_event_catalog.py"],
