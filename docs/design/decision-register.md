@@ -37,6 +37,7 @@ silently rewrites an earlier decision.
 | ADR-0024 | [Dependency layering over counts](adr-0024-dependency-layering-over-counts.md) | Accepted |
 | ADR-0025 | [Exact training-service composition layer](adr-0025-training-service-composition-layer.md) | Accepted |
 | ADR-0026 | [Workload identity and node placement stay distinct](adr-0026-workload-envelope-identity-and-placement.md) | Accepted |
+| ADR-0027 | [Kernel-enforced syscall confinement](adr-0027-kernel-enforced-syscall-confinement.md) | Accepted |
 
 ## Operating policies derived from these decisions
 
@@ -52,3 +53,5 @@ silently rewrites an earlier decision.
 - runtime behavior under control-plane outage is bounded and fail-closed;
 - service decomposition requires measured triggers rather than directory
   symmetry.
+- processes that handle untrusted input install kernel-enforced syscall
+  confinement at process entry, or refuse to start.

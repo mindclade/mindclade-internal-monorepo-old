@@ -63,3 +63,11 @@ checker = "tools/analysis/check_foundation_hardening.py"
 id = "canonical-workload-and-golden-verticals"
 document = "docs/architecture/workload-envelope.md"
 checker = "tools/analysis/check_foundation_hardening.py"
+
+[[decision]]
+# The ADR turns on one mechanical claim: the confinement crate carries no first-party FFI,
+# so it is not a third entry in security/rust-supply-chain.toml's unsafe allowlist. That is
+# what supply_chain.py measures, along with the exact pin and license of the backing crate.
+id = "kernel-enforced-syscall-confinement"
+document = "docs/design/adr-0027-kernel-enforced-syscall-confinement.md"
+checker = "tools/qualification/rust/supply_chain.py"
