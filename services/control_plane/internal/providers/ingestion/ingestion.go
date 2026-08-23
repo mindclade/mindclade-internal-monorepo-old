@@ -69,6 +69,12 @@ const (
 	stagingFailureDelay      = 30 * time.Second
 )
 
+// clusterComponent is the lifecycle name the coordinator's API-server
+// reachability probe is registered under. It matches the name the scheduler
+// uses for the same probe, because an operator reading two roles' component
+// lists should not have to learn two names for one check.
+const clusterComponent = "kubernetes"
+
 // IngestionFactory assembles the ingestion coordinator: the durable PostgreSQL
 // mechanisms, the artifact store and read cache, the per-source cursor, the
 // singleton elector, the leased staging queue, and the cluster client it
@@ -253,6 +259,13 @@ func (factory *IngestionFactory) Create(ctx context.Context, profile bootstrap.P
 	}
 
 	return bootstrap.Runtime{
+		// The shutdown budgets belong to the deployment, not to a constant in
+		// this package. A role that does not pass them runs on the servicekit
+		// package defaults, and drain.timeout stops meaning anything.
+		Lifecycle: bootstrap.Lifecycle{
+			ShutdownTimeout: settings.ShutdownTimeout,
+			DrainTimeout:    settings.DrainTimeout,
+		},
 		// The aggregate list is the role's capability profile, written out.
 		// Anything absent here is a package this binary does not link.
 		Dependencies: []bootstrap.Aggregate{
@@ -310,6 +323,13 @@ func (factory *IngestionFactory) Create(ctx context.Context, profile bootstrap.P
 			Auxiliary: []bootstrap.StagedComponent{
 				{Stage: servicekit.StageInfrastructure, Component: blobLifecycle},
 				{Stage: servicekit.StageInfrastructure, Component: cacheLifecycle},
+				// CapabilityKubernetes owns no component of its own and this
+				// role runs no manager, so this probe is the only thing that
+				// answers for API-server reachability. Without it a coordinator
+				// whose cluster is unreachable reports ready and stages
+				// nothing. The scheduler already carries the same probe for the
+				// same reason; this role was the one that did not.
+				{Stage: servicekit.StageInfrastructure, Component: kubernetes.Component(clusterComponent)},
 				{Stage: servicekit.StageInfrastructure, Component: brokerLifecycle},
 			},
 		},

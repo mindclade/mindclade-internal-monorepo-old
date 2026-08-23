@@ -108,6 +108,13 @@ func (factory *EventDispatcherFactory) Create(ctx context.Context, profile boots
 	}
 
 	return bootstrap.Runtime{
+		// The shutdown budgets belong to the deployment, not to a constant in
+		// this package. A role that does not pass them runs on the servicekit
+		// package defaults, and drain.timeout stops meaning anything.
+		Lifecycle: bootstrap.Lifecycle{
+			ShutdownTimeout: settings.ShutdownTimeout,
+			DrainTimeout:    settings.DrainTimeout,
+		},
 		Dependencies: []bootstrap.Aggregate{
 			foundation.Core{
 				Clock:         shared.Clock,

@@ -241,6 +241,13 @@ func (factory *SchedulerFactory) Create(ctx context.Context, profile bootstrap.P
 	release = append(release, func() { _ = eventStream.Stop(ctx) })
 
 	return bootstrap.Runtime{
+		// The shutdown budgets belong to the deployment, not to a constant in
+		// this package. A role that does not pass them runs on the servicekit
+		// package defaults, and drain.timeout stops meaning anything.
+		Lifecycle: bootstrap.Lifecycle{
+			ShutdownTimeout: settings.ShutdownTimeout,
+			DrainTimeout:    settings.DrainTimeout,
+		},
 		// The aggregate list is the role's capability profile, written out.
 		// Anything absent here is a package this binary does not link.
 		Dependencies: []bootstrap.Aggregate{

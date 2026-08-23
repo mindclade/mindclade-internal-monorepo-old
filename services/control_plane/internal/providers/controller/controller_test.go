@@ -228,3 +228,36 @@ func TestControllerAndOperatorAreDistinctSingletons(t *testing.T) {
 		t.Fatalf("controller and operator share event source %q", controller.eventSource)
 	}
 }
+
+// The controller and operator have identical capability profiles, so nothing
+// downstream can tell them apart: production.Builder validates capabilities,
+// and both compositions satisfy both profiles. A command wired to the wrong
+// variant would run under one role's process name while claiming the other's
+// singleton lease and reporting events under the other's source -- two
+// deployments contending for one lease, with no error anywhere. The factory is
+// the only place that knows which variant it is, so it is the only place that
+// can refuse.
+func TestControllerFactoryRefusesTheOperatorProfile(t *testing.T) {
+	for name, factory := range map[string]*Factory{
+		"controller factory, operator profile": NewControllerFactory(controllerSettings(t)),
+		"operator factory, controller profile": NewOperatorFactory(controllerSettings(t)),
+	} {
+		t.Run(name, func(t *testing.T) {
+			role := bootstrap.RoleOperator
+			if factory.leaseKey == operatorLeaseKey {
+				role = bootstrap.RoleController
+			}
+			profile, err := bootstrap.ProfileFor(role)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = factory.Create(context.Background(), profile)
+			if err == nil {
+				t.Fatal("factory accepted a profile for the role it does not implement")
+			}
+			if reason := faults.ReasonOf(err); reason != "factory_profile_role_mismatch" {
+				t.Fatalf("reason=%s", reason)
+			}
+		})
+	}
+}
