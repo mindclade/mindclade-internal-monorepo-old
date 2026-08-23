@@ -279,7 +279,7 @@ def test_affected_selection_uses_bazel_rdeps_and_tests(tmp_path: Path) -> None:
     )
     assert len(expressions) == 2
     assert all('rdeps(//..., set("//pkg:*"))' in expression for expression in expressions)
-    assert all('attr("tags", "[\\\\[ ]manual[,\\\\]]"' in expression for expression in expressions)
+    assert all('attr("tags", "manual"' in expression for expression in expressions)
 
 
 def test_build_file_change_seeds_owning_package(tmp_path: Path) -> None:

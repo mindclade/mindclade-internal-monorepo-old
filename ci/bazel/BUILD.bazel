@@ -2,10 +2,9 @@
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 
----
-{
-  "schema_version": 2,
-  "mode": "full",
-  "shard_count": 4,
-  "partition_contract": "ci/bazel/full_graph_shards.toml"
-}
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "README.md",
+    "full_graph_shards.toml",
+])
