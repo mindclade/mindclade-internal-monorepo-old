@@ -53,6 +53,7 @@ def main() -> int:
     base_sha: str | None = None
     resolved_mode = args.mode
     job_started_epoch: int | None = None
+    bazelrc_authority: affected.BazelrcAuthority | None = None
     try:
         resolved_mode = affected.resolve_selection_mode(
             args.mode,
@@ -77,7 +78,7 @@ def main() -> int:
                 raise affected.SelectionError(
                     "AFFECTED-SELECT-014", "job-start timestamp is invalid"
                 )
-            affected.assert_clean_checkout(
+            bazelrc_authority = affected.assert_clean_checkout(
                 args.head,
                 event=args.event,
                 runner_temp=args.runner_temp,
@@ -125,9 +126,16 @@ def main() -> int:
             f"Bazel selection: mode={selection.mode} reason={selection.reason} "
             f"analysis={len(selection.analysis_targets)} tests={len(selection.test_targets)}"
         )
+        if bazelrc_authority is None:
+            return affected.execute_selection(
+                selection,
+                evidence_dir,
+                job_started_epoch=job_started_epoch,
+            )
         return affected.execute_selection(
             selection,
             evidence_dir,
+            bazelrc_authority=bazelrc_authority,
             job_started_epoch=job_started_epoch,
         )
     except affected.SelectionError as error:

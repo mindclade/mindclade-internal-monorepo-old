@@ -438,10 +438,10 @@ def test_evidence_phases_do_not_inherit_bazelisk_token(
     assert all("BAZELISK_GITHUB_TOKEN" not in environment for environment in environments)
     assert [command[2] for command in commands] == ["build", "test"]
     assert all(command[1] == "--nohome_rc" for command in commands)
-    assert all(
-        command[command.index("--config=ci") + 1].startswith("--target_pattern_file=")
-        for command in commands
-    )
+    for command in commands:
+        config_index = command.index("--config=ci")
+        assert command[config_index + 1] == "--skip_incompatible_explicit_targets"
+        assert command[config_index + 2].startswith("--target_pattern_file=")
     assert all(
         not any(
             argument.startswith(
@@ -790,6 +790,59 @@ def test_git_context_supports_a_valid_linked_worktree(tmp_path: Path) -> None:
     assert affected.git_revision("HEAD", root=linked) == head
 
 
+def test_governed_checkout_rejects_an_otherwise_valid_linked_worktree(tmp_path: Path) -> None:
+    root, head = _initialized_git_repo(tmp_path / "repo")
+    linked = tmp_path / "linked"
+    assert (
+        affected.run_git(
+            ["worktree", "add", "-b", "linked-fixture", str(linked), head],
+            root=root,
+        ).returncode
+        == 0
+    )
+    arguments = _disk_checkout_arguments(linked)
+
+    with pytest.raises(affected.SelectionError) as captured:
+        affected.assert_clean_checkout(head, **arguments)
+    assert captured.value.code == "AFFECTED-SELECT-019"
+    assert str(linked) not in str(captured.value)
+
+
+def test_git_context_rejects_symlinked_linked_worktree_registry(tmp_path: Path) -> None:
+    root, head = _initialized_git_repo(tmp_path / "repo")
+    linked = tmp_path / "linked"
+    assert (
+        affected.run_git(
+            ["worktree", "add", "-b", "linked-fixture", str(linked), head],
+            root=root,
+        ).returncode
+        == 0
+    )
+    dot_git = linked / ".git"
+    git_dir = Path(dot_git.read_text(encoding="utf-8").strip().removeprefix("gitdir: "))
+    alias = tmp_path / "gitdir-alias"
+    alias.symlink_to(git_dir, target_is_directory=True)
+    dot_git.write_text(f"gitdir: {alias}\n", encoding="utf-8")
+
+    with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-003\]"):
+        affected._canonical_git_context(linked)
+
+
+def test_git_context_rejects_forged_reciprocal_metadata_pair(tmp_path: Path) -> None:
+    root, _head = _initialized_git_repo(tmp_path / "repo")
+    common_dir = tmp_path / "forged" / ".git"
+    git_dir = common_dir / "registrations" / "linked"
+    git_dir.mkdir(parents=True)
+    dot_git = root / ".git"
+    shutil.rmtree(dot_git)
+    dot_git.write_text(f"gitdir: {git_dir}\n", encoding="utf-8")
+    (git_dir / "gitdir").write_text(f"{dot_git}\n", encoding="utf-8")
+    (git_dir / "commondir").write_text("../..\n", encoding="utf-8")
+
+    with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-003\]"):
+        affected._canonical_git_context(root)
+
+
 @pytest.mark.parametrize(
     "payload",
     [
@@ -984,6 +1037,79 @@ def test_bazelrc_runtime_contract_rejects_tracked_authority_drift(
         )
     assert captured.value.code == "AFFECTED-SELECT-020"
     assert "untrusted" not in str(captured.value)
+
+
+@pytest.mark.parametrize("relative", [".bazelrc", "user.bazelrc"])
+def test_bazel_execution_rejects_bazelrc_mutation_after_checkout_validation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    relative: str,
+) -> None:
+    root, head = _initialized_git_repo(tmp_path / "repo")
+    arguments = _disk_checkout_arguments(root)
+    authority = affected.assert_clean_checkout(head, **arguments)
+    evidence = tmp_path / "evidence"
+    evidence.mkdir()
+    candidate = root / relative
+    candidate.write_text(candidate.read_text(encoding="utf-8") + "# mutated\n", encoding="utf-8")
+    if relative == "user.bazelrc":
+        candidate.chmod(0o600)
+    launched = False
+
+    def fake_run(*_args, **_kwargs):
+        nonlocal launched
+        launched = True
+        return subprocess.CompletedProcess([], 0)
+
+    monkeypatch.setattr(affected.subprocess, "run", fake_run)
+    with pytest.raises(affected.SelectionError) as captured:
+        affected._run_phase(
+            "analysis",
+            ("//pkg:library",),
+            evidence_dir=evidence,
+            bazelrc_authority=authority,
+            root=root,
+        )
+    assert captured.value.code == "AFFECTED-SELECT-020"
+    assert not launched
+
+
+@pytest.mark.parametrize("replacement", ["deleted", "symlink"])
+def test_bazel_execution_redacts_bazelrc_replacement_after_validation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    replacement: str,
+) -> None:
+    root, head = _initialized_git_repo(tmp_path / "repo")
+    arguments = _disk_checkout_arguments(root)
+    authority = affected.assert_clean_checkout(head, **arguments)
+    evidence = tmp_path / "evidence"
+    evidence.mkdir()
+    candidate = root / "user.bazelrc"
+    candidate.unlink()
+    if replacement == "symlink":
+        secret = tmp_path / "secret-bazelrc"
+        secret.write_text("secret runtime configuration\n", encoding="utf-8")
+        candidate.symlink_to(secret)
+    launched = False
+
+    def fake_run(*_args, **_kwargs):
+        nonlocal launched
+        launched = True
+        return subprocess.CompletedProcess([], 0)
+
+    monkeypatch.setattr(affected.subprocess, "run", fake_run)
+    with pytest.raises(affected.SelectionError) as captured:
+        affected._run_phase(
+            "analysis",
+            ("//pkg:library",),
+            evidence_dir=evidence,
+            bazelrc_authority=authority,
+            root=root,
+        )
+    assert captured.value.code == "AFFECTED-SELECT-020"
+    assert "secret" not in str(captured.value)
+    assert not launched
 
 
 def test_job_started_epoch_is_exact_positive_integer_seconds(tmp_path: Path) -> None:

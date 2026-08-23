@@ -849,7 +849,8 @@ def _presubmit_orchestration_errors() -> list[str]:
                 test_targets=(),
             )
             resolver = mock.Mock(return_value=expected_mode)
-            clean_checkout = mock.Mock()
+            bazelrc_authority = object()
+            clean_checkout = mock.Mock(return_value=bazelrc_authority)
             started_loader = mock.Mock(return_value=started_epoch)
             revision = mock.Mock(return_value=canonical_base)
             changed = mock.Mock(return_value=changes)
@@ -939,6 +940,7 @@ def _presubmit_orchestration_errors() -> list[str]:
             executor.assert_called_once_with(
                 selection,
                 evidence,
+                bazelrc_authority=bazelrc_authority,
                 job_started_epoch=started_epoch,
             )
             failure_writer.assert_not_called()
@@ -1007,7 +1009,8 @@ def _nightly_orchestration_errors() -> list[str]:
             )
             loader = mock.Mock(return_value=contract)
             resolver = mock.Mock(return_value="full")
-            clean_checkout = mock.Mock()
+            bazelrc_authority = object()
+            clean_checkout = mock.Mock(return_value=bazelrc_authority)
             started_loader = mock.Mock(return_value=started_epoch)
             selector = mock.Mock(return_value=selection)
             executor = mock.Mock(return_value=0)
@@ -1080,6 +1083,7 @@ def _nightly_orchestration_errors() -> list[str]:
             executor.assert_called_once_with(
                 selection,
                 evidence,
+                bazelrc_authority=bazelrc_authority,
                 job_started_epoch=started_epoch,
             )
             failure_writer.assert_not_called()

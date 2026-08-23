@@ -132,7 +132,7 @@ def main() -> int:
             )
         if args.job_started_at_file is None:
             raise affected.SelectionError("AFFECTED-SELECT-014", "job-start timestamp is invalid")
-        affected.assert_clean_checkout(
+        bazelrc_authority = affected.assert_clean_checkout(
             args.head,
             event=args.event,
             runner_temp=args.runner_temp,
@@ -151,6 +151,7 @@ def main() -> int:
         return affected.execute_selection(
             selection,
             evidence_dir,
+            bazelrc_authority=bazelrc_authority,
             job_started_epoch=affected.load_job_started_epoch(
                 args.job_started_at_file,
                 runner_temp=args.runner_temp,

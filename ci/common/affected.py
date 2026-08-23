@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import hashlib
 import json
 import os
 import shlex
@@ -168,6 +169,87 @@ class Change:
 
 
 @dataclass(frozen=True)
+class _FileAuthority:
+    path: Path
+    identity: tuple[int, int, int, int, int]
+    sha256: str
+
+
+@dataclass(frozen=True)
+class BazelrcAuthority:
+    """Validated identities and contents for Bazel's two workspace rc files."""
+
+    root: Path
+    workspace: _FileAuthority
+    generated: _FileAuthority
+
+    def assert_unchanged(self, *, root: Path) -> None:
+        if root != self.root:
+            raise SelectionError("AFFECTED-SELECT-020", "Bazel runtime contract is invalid")
+        try:
+            current_workspace, _ = _read_authority_file(self.workspace.path)
+            current_generated, _ = _read_authority_file(self.generated.path)
+        except OSError as error:
+            raise SelectionError(
+                "AFFECTED-SELECT-020", "Bazel runtime contract is invalid"
+            ) from error
+        if current_workspace != self.workspace or current_generated != self.generated:
+            raise SelectionError("AFFECTED-SELECT-020", "Bazel runtime contract is invalid")
+
+
+def _read_authority_file(path: Path) -> tuple[_FileAuthority, bytes]:
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = -1
+    try:
+        descriptor = os.open(path, flags)
+        with os.fdopen(descriptor, "rb") as stream:
+            descriptor = -1
+            before = os.fstat(stream.fileno())
+            if not stat.S_ISREG(before.st_mode) or before.st_mode & 0o022:
+                raise OSError("invalid authority file")
+            payload = stream.read(1024 * 1024 + 1)
+            after = os.fstat(stream.fileno())
+        current = path.lstat()
+    except OSError:
+        if descriptor >= 0:
+            os.close(descriptor)
+        raise
+    if len(payload) > 1024 * 1024:
+        raise OSError("authority file is too large")
+    before_identity = (
+        before.st_dev,
+        before.st_ino,
+        before.st_mode,
+        before.st_size,
+        before.st_mtime_ns,
+    )
+    after_identity = (
+        after.st_dev,
+        after.st_ino,
+        after.st_mode,
+        after.st_size,
+        after.st_mtime_ns,
+    )
+    path_identity = (
+        current.st_dev,
+        current.st_ino,
+        current.st_mode,
+        current.st_size,
+        current.st_mtime_ns,
+    )
+    if before_identity != after_identity or before_identity != path_identity:
+        raise OSError("authority file changed while reading")
+    return (
+        _FileAuthority(
+            path=path,
+            identity=before_identity,
+            sha256=hashlib.sha256(payload).hexdigest(),
+        ),
+        payload,
+    )
+
+
+@dataclass(frozen=True)
 class Selection:
     mode: str
     reason: str
@@ -293,6 +375,35 @@ def _git_environment() -> dict[str, str]:
     }
 
 
+def _assert_no_symlink_components(path: Path) -> None:
+    if not path.is_absolute():
+        raise OSError("noncanonical path")
+    current = Path(path.anchor)
+    for part in path.parts[1:]:
+        current /= part
+        if current.is_symlink():
+            raise OSError("symlinked path")
+
+
+def _read_strict_git_path(path: Path) -> Path:
+    if path.is_symlink() or not path.is_file():
+        raise OSError("invalid Git path file")
+    payload = path.read_bytes()
+    if len(payload) > 4096 or b"\0" in payload:
+        raise OSError("invalid Git path file")
+    decoded = payload.decode("utf-8", errors="strict").removesuffix("\n")
+    if not decoded or "\n" in decoded:
+        raise OSError("invalid Git path file")
+    candidate = Path(decoded)
+    if not candidate.is_absolute():
+        candidate = path.parent / candidate
+    canonical = Path(os.path.abspath(candidate))
+    _assert_no_symlink_components(canonical)
+    if canonical.resolve(strict=True) != canonical:
+        raise OSError("noncanonical Git path")
+    return canonical
+
+
 def _canonical_git_context(root: Path) -> tuple[Path, Path]:
     """Resolve one explicit work tree and its non-symlink Git metadata directory."""
 
@@ -317,14 +428,19 @@ def _canonical_git_context(root: Path) -> tuple[Path, Path]:
             pointer = Path(line.removeprefix("gitdir: "))
             if not pointer.is_absolute():
                 pointer = dot_git.parent / pointer
+            pointer = Path(os.path.abspath(pointer))
+            _assert_no_symlink_components(pointer)
             git_dir = pointer.resolve(strict=True)
-            back_pointer = git_dir / "gitdir"
-            if back_pointer.is_symlink() or not back_pointer.is_file():
+            common_dir = _read_strict_git_path(git_dir / "commondir")
+            if (
+                common_dir.name != ".git"
+                or git_dir.parent.name != "worktrees"
+                or git_dir.parent.parent != common_dir
+            ):
                 raise OSError("invalid linked work tree")
-            linked_dot_git = Path(back_pointer.read_text(encoding="utf-8").removesuffix("\n"))
-            if not linked_dot_git.is_absolute():
-                linked_dot_git = back_pointer.parent / linked_dot_git
-            if linked_dot_git.resolve(strict=True) != dot_git:
+            back_pointer = git_dir / "gitdir"
+            linked_dot_git = _read_strict_git_path(back_pointer)
+            if linked_dot_git != dot_git:
                 raise OSError("invalid linked work tree")
         else:
             raise OSError("invalid Git metadata")
@@ -405,6 +521,14 @@ def git_revision(revision: str, *, root: Path = ROOT) -> str:
 
 
 def _assert_canonical_checkout_metadata(root: Path) -> None:
+    try:
+        metadata = (root / ".git").lstat()
+        if not stat.S_ISDIR(metadata.st_mode):
+            raise OSError("governed checkout uses external Git metadata")
+    except OSError as error:
+        raise SelectionError(
+            "AFFECTED-SELECT-019", "checkout integrity validation failed"
+        ) from error
     try:
         checkout, git_dir = _canonical_git_context(root)
     except (OSError, RuntimeError, SelectionError, ValueError) as error:
@@ -538,10 +662,10 @@ def assert_clean_checkout(
     cache_mode: str,
     cache_role: str,
     root: Path = ROOT,
-) -> None:
+) -> BazelrcAuthority:
     """Require the governed invocation to run from the exact pristine event revision."""
 
-    assert_bazelrc_contract(
+    bazelrc_authority = assert_bazelrc_contract(
         event,
         runner_temp,
         cache_mode=cache_mode,
@@ -593,6 +717,7 @@ def assert_clean_checkout(
             continue
         raise SelectionError("AFFECTED-SELECT-019", "checkout integrity validation failed")
     _assert_no_untracked_directories(tracked, root=root)
+    return bazelrc_authority
 
 
 def load_job_started_epoch(
@@ -634,7 +759,7 @@ def assert_bazelrc_contract(
     cache_mode: str,
     cache_role: str,
     root: Path = ROOT,
-) -> None:
+) -> BazelrcAuthority:
     """Accept only one exact, route-bound CI cache configuration."""
 
     expected_cache = runner_temp / "mindclade-bazel-disk-cache"
@@ -644,21 +769,12 @@ def assert_bazelrc_contract(
     path = root / "user.bazelrc"
     workspace_bazelrc = root / ".bazelrc"
     try:
-        metadata = path.lstat()
-        if path.is_symlink() or not stat.S_ISREG(metadata.st_mode) or metadata.st_mode & 0o022:
-            raise OSError("invalid generated Bazel configuration")
-        lines = tuple(path.read_text(encoding="utf-8").splitlines())
-
-        workspace_metadata = workspace_bazelrc.lstat()
-        if (
-            workspace_bazelrc.is_symlink()
-            or not stat.S_ISREG(workspace_metadata.st_mode)
-            or workspace_metadata.st_mode & 0o022
-        ):
-            raise OSError("invalid workspace Bazel configuration")
+        generated_authority, generated_payload = _read_authority_file(path)
+        workspace_authority, workspace_payload = _read_authority_file(workspace_bazelrc)
+        lines = tuple(generated_payload.decode("utf-8", errors="strict").splitlines())
         workspace_commands = tuple(
             tokens
-            for raw_line in workspace_bazelrc.read_text(encoding="utf-8").splitlines()
+            for raw_line in workspace_payload.decode("utf-8", errors="strict").splitlines()
             if (tokens := tuple(shlex.split(raw_line, comments=True, posix=True)))
         )
     except (OSError, UnicodeError, ValueError) as error:
@@ -738,6 +854,11 @@ def assert_bazelrc_contract(
         )
     if lines != expected_lines:
         raise SelectionError("AFFECTED-SELECT-020", "Bazel runtime contract is invalid")
+    return BazelrcAuthority(
+        root=resolved_root,
+        workspace=workspace_authority,
+        generated=generated_authority,
+    )
 
 
 def git_changed(base: str, *, root: Path = ROOT) -> tuple[Change, ...]:
@@ -1028,6 +1149,7 @@ def _run_phase(
     targets: Sequence[str],
     *,
     evidence_dir: Path,
+    bazelrc_authority: BazelrcAuthority | None = None,
     root: Path = ROOT,
 ) -> dict[str, Any]:
     started_at = utc_now()
@@ -1052,6 +1174,7 @@ def _run_phase(
         "--nohome_rc",
         verb,
         "--config=ci",
+        "--skip_incompatible_explicit_targets",
         f"--target_pattern_file={target_file}",
         f"--build_event_json_file={bep}",
         f"--profile={profile}",
@@ -1061,6 +1184,8 @@ def _run_phase(
     environment = os.environ.copy()
     for variable in SANITIZED_BUILD_ENVIRONMENT:
         environment.pop(variable, None)
+    if bazelrc_authority is not None:
+        bazelrc_authority.assert_unchanged(root=root)
     result = subprocess.run(command, cwd=root, env=environment, check=False)
 
     summary_status = 0
@@ -1137,6 +1262,7 @@ def _execute_selection(
     selection: Selection,
     evidence_dir: Path,
     *,
+    bazelrc_authority: BazelrcAuthority | None = None,
     job_started_epoch: int | None = None,
     root: Path = ROOT,
 ) -> int:
@@ -1149,6 +1275,7 @@ def _execute_selection(
         "analysis",
         selection.analysis_targets,
         evidence_dir=directory,
+        bazelrc_authority=bazelrc_authority,
         root=root,
     )
     execution.append(analysis)
@@ -1158,6 +1285,7 @@ def _execute_selection(
                 "test",
                 selection.test_targets,
                 evidence_dir=directory,
+                bazelrc_authority=bazelrc_authority,
                 root=root,
             )
         )
@@ -1209,6 +1337,7 @@ def execute_selection(
     selection: Selection,
     evidence_dir: Path,
     *,
+    bazelrc_authority: BazelrcAuthority | None = None,
     job_started_epoch: int | None = None,
     root: Path = ROOT,
 ) -> int:
@@ -1218,6 +1347,7 @@ def execute_selection(
         return _execute_selection(
             selection,
             evidence_dir,
+            bazelrc_authority=bazelrc_authority,
             job_started_epoch=job_started_epoch,
             root=root,
         )

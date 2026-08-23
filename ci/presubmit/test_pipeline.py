@@ -141,10 +141,11 @@ def test_governed_cache_route_is_verified_but_not_injected_into_executor(
     )
     checkout_calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
     execution_calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
+    authority = object()
     monkeypatch.setattr(
         pipeline.affected,
         "assert_clean_checkout",
-        lambda *args, **kwargs: checkout_calls.append((args, kwargs)),
+        lambda *args, **kwargs: (checkout_calls.append((args, kwargs)), authority)[1],
     )
     monkeypatch.setattr(pipeline.affected, "load_job_started_epoch", lambda *args, **kwargs: 123)
     monkeypatch.setattr(pipeline.affected, "select", lambda *args, **kwargs: selection)
@@ -197,6 +198,6 @@ def test_governed_cache_route_is_verified_but_not_injected_into_executor(
     assert execution_calls == [
         (
             (selection, tmp_path / "evidence"),
-            {"job_started_epoch": 123},
+            {"bazelrc_authority": authority, "job_started_epoch": 123},
         )
     ]
