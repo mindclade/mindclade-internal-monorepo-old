@@ -13,6 +13,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -292,7 +293,7 @@ def main() -> int:
     try:
         payload = build_report(args.root, baseline=args.baseline)
     except HygieneReportError as error:
-        print(f"GIT_HYGIENE_REPORT_FAILED: {error}", file=os.sys.stderr)
+        print(f"GIT_HYGIENE_REPORT_FAILED: {error}", file=sys.stderr)
         return 2
     _write(args.json_output, json.dumps(payload, indent=2, sort_keys=True) + "\n")
     _write(args.html_output, render_html(payload))

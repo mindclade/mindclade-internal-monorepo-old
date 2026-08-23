@@ -14,6 +14,7 @@ import math
 import os
 import re
 import stat
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -308,7 +309,7 @@ def build_dashboard(
         raise HealthContractError("CI health identity is invalid")
     if ARTIFACT_PREFIX_PATTERN.fullmatch(artifact_prefix) is None:
         raise HealthContractError("CI health artifact prefix is invalid")
-    if topology_mode not in TOPOLOGY_WORKERS or shard_count < 2:
+    if topology_mode not in TOPOLOGY_WORKERS or (topology_mode == "full-sharded" and shard_count < 2):
         raise HealthContractError("CI health topology is invalid")
     if expected_workers != TOPOLOGY_WORKERS[topology_mode](shard_count):
         raise HealthContractError("CI health worker topology disagrees")
@@ -515,7 +516,7 @@ def main() -> int:
             shard_count=args.shard_count,
         )
     except HealthContractError as error:
-        print(f"CI_HEALTH_EVIDENCE_INVALID: {error}", file=os.sys.stderr)
+        print(f"CI_HEALTH_EVIDENCE_INVALID: {error}", file=sys.stderr)
         return 2
     _write(args.json_output, json.dumps(payload, indent=2, sort_keys=True) + "\n")
     _write(args.html_output, render_html(payload))
