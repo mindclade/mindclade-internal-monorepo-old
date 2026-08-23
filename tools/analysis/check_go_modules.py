@@ -12,9 +12,16 @@ def check(root: Path):
     modules = sorted(
         # Agent worktrees are full copies of this repository, so rglob otherwise finds a second
         # go.mod for every real one and reports each as an unexpected module boundary.
-        p.relative_to(root).as_posix()
-        for p in root.rglob("go.mod")
-        if not {".git", ".claude", ".codex-worktrees"} & set(p.parts)
+        #
+        # Match on the path *relative to root*. Matching the absolute path also tested the
+        # repository's own location, so a checkout that itself lived under a directory named
+        # .claude -- which is exactly where agent worktrees are created -- excluded every go.mod
+        # in the tree including the root one, and this check reported "missing root go.mod"
+        # against a tree that had not been touched. The sibling walkers in
+        # check_license_headers.py and validate_repository.py already relativize first.
+        relative.as_posix()
+        for relative in (p.relative_to(root) for p in root.rglob("go.mod"))
+        if not {".git", ".claude", ".codex-worktrees"} & set(relative.parts)
     )
     allowed = {"go.mod", "sdk/go/go.mod"}
     return [f"unexpected Go module boundary: {m}" for m in modules if m not in allowed] + (

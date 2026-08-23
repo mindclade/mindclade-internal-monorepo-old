@@ -6,6 +6,13 @@
 //! Bounded lexical representation used by the conservative mmCIF parser.
 use mindclade_faults::{Fault, FaultResult};
 
+/// Largest single token this crate will materialise, as a type invariant.
+///
+/// The lexer checks this ceiling *before* copying, so a hostile semicolon text
+/// field is rejected at the ceiling instead of after the whole field has been
+/// buffered and cloned into a `String`.
+pub(crate) const MAXIMUM_TOKEN_BYTES: usize = 1_048_576;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CifToken {
     pub value: String,
@@ -14,7 +21,7 @@ pub struct CifToken {
 
 impl CifToken {
     pub fn validate(&self) -> FaultResult<()> {
-        if self.value.is_empty() || self.value.len() > 1_048_576 {
+        if self.value.is_empty() || self.value.len() > MAXIMUM_TOKEN_BYTES {
             return Err(Fault::invalid_argument("mmCIF token is empty or too large"));
         }
         Ok(())

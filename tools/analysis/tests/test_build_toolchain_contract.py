@@ -167,9 +167,15 @@ def contract_fixture(root: Path) -> None:
     )
 
 
-def run(files: dict[str, str]) -> list[str]:
+def run(files: dict[str, str], *, root_suffix: str = "") -> list[str]:
+    """Build a fixture tree and scan it.
+
+    root_suffix places the fixture root *below* the temporary directory, which is how a test
+    reaches a repository whose own address contains an excluded component.
+    """
     with tempfile.TemporaryDirectory() as directory:
-        root = Path(directory)
+        root = Path(directory, root_suffix) if root_suffix else Path(directory)
+        root.mkdir(parents=True, exist_ok=True)
         contract_fixture(root)
         for relative, text in files.items():
             write(root, relative, text)
@@ -222,6 +228,21 @@ def test_the_exemption_does_not_extend_to_the_rest_of_the_scan() -> None:
 def test_codex_worktrees_are_not_scanned() -> None:
     nested = f".codex-worktrees/agent/{SIBLING}"
     assert run({nested: mirror_text()}) == []
+
+
+def test_the_scan_still_sees_a_repository_checked_out_under_an_excluded_name() -> None:
+    """The exclusion list names directories *inside* a repository, not its address.
+
+    Agent worktrees are created at <repo>/.claude/worktrees/<id>, so such a checkout's own
+    absolute path contains ".claude". While the filter matched absolute parts, every file in
+    the tree was excluded and this whole-tree scan inspected nothing at all -- returning no
+    findings because it had seen no files, which is indistinguishable from a clean tree. The
+    case above cannot catch that: its root is a bare temporary directory, so only the nested
+    copy was ever filtered.
+    """
+    errors = run({SIBLING: mirror_text()}, root_suffix=".claude/worktrees/agent-1")
+    assert errors, "a host-tool literal must still be reported from a checkout under .claude"
+    assert all(error.startswith(f"{SIBLING}:") for error in errors), errors
 
 
 def test_the_exemption_is_still_earned() -> None:
