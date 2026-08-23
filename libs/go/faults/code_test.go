@@ -62,6 +62,42 @@ func TestParseCodeNormalizesCase(t *testing.T) {
 	}
 }
 
+// TestParseCodeAcceptsLegacySpellings pins the ingestion half of the
+// cross-language code contract. libs/rust/faults emitted "cancelled" and
+// "unimplemented" before the taxonomy was reconciled, so those spellings are
+// already in peer responses and stored diagnostics. Rejecting them would
+// reclassify a canceled or unimplemented operation as CodeUnknown and discard
+// the retry behavior the sender chose.
+func TestParseCodeAcceptsLegacySpellings(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]Code{
+		"cancelled":     CodeCanceled,
+		"unimplemented": CodeNotImplemented,
+		"CANCELLED":     CodeCanceled,
+		"  cancelled  ": CodeCanceled,
+	}
+
+	for value, want := range tests {
+		t.Run(value, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := ParseCode(value)
+			if err != nil {
+				t.Fatalf("ParseCode(%q) error = %v", value, err)
+			}
+			if got != want {
+				t.Fatalf("ParseCode(%q) = %q, want %q", value, got, want)
+			}
+			// An alias resolves but is not itself canonical: this package
+			// accepts both spellings and emits exactly one.
+			if Code(value).Valid() {
+				t.Fatalf("%q must not be a canonical code", value)
+			}
+		})
+	}
+}
+
 func TestParseCodeRejectsUnknownValue(t *testing.T) {
 	t.Parallel()
 
