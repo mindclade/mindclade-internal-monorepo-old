@@ -3,13 +3,27 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+# The test target lives here rather than in //preprocessing/cache because this directory
+# carries its own BUILD.bazel and is therefore its own Bazel package — the parent cannot claim
+# `tests/*.py` as srcs across that boundary. This file replaced a `filegroup(name =
+# "scaffold_files")`, which check_component_maturity.py reads as "reserved, builds nothing";
+# a real pytest_test is what moves the package out of that state.
+load("//tools/build:pytest.bzl", "pytest_test")
+
 package(default_visibility = ["//visibility:private"])
 
-filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
-    visibility = ["//visibility:public"],
+pytest_test(
+    name = "test_keys",
+    srcs = ["test_keys.py"],
+    # Three levels up from preprocessing/cache/tests is the repository root, which is what
+    # makes `import preprocessing.cache` in the test resolve to the shipped package rather
+    # than to a runfiles-local shadow.
+    imports = ["../../.."],
+    # //preprocessing/contracts is declared even though //preprocessing/cache already pulls it
+    # in: the test imports ArtifactRef by name, and a direct import that relies on a transitive
+    # dep breaks silently the day the intermediate dep is dropped.
+    deps = [
+        "//preprocessing/cache",
+        "//preprocessing/contracts",
+    ],
 )
