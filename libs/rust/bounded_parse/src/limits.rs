@@ -36,9 +36,17 @@ pub struct Limits {
     /// `bio_formats` today is recursive, so nothing consumes this yet; it exists
     /// so that a nested format cannot be added without an explicit depth budget.
     pub maximum_nesting: usize,
-    /// Retained heap bytes a parse may charge to its `AllocationBudget`.
-    /// Accounts for payload bytes the parse holds, not container overhead.
-    pub maximum_allocation_bytes: ByteSize,
+    /// Payload bytes a parse may charge to its `AllocationBudget`.
+    ///
+    /// Named for what it counts, not for what it sounds like it counts. This
+    /// is *not* a memory ceiling: it accounts for the payload a parse retains
+    /// — sequence residues, ids, record bodies — and not for the `Vec` slots,
+    /// `String`/`Vec` headers, or allocator block overhead that hold them. A
+    /// 64 MiB FASTA of five-byte records charges roughly 2 MiB here while
+    /// retaining well over 100 MiB. Memory stays hard-bounded by
+    /// `maximum_records`; this ceiling is the payload budget, and an operator
+    /// tuning it should know which of the two they are setting.
+    pub maximum_payload_bytes: ByteSize,
 }
 
 impl Default for Limits {
@@ -50,7 +58,7 @@ impl Default for Limits {
             maximum_tokens: 10_000_000,
             maximum_metadata_entries: 1024,
             maximum_nesting: 64,
-            maximum_allocation_bytes: ByteSize::new(256 * 1024 * 1024),
+            maximum_payload_bytes: ByteSize::new(256 * 1024 * 1024),
         }
     }
 }
@@ -63,20 +71,17 @@ impl Limits {
             || self.maximum_tokens == 0
             || self.maximum_metadata_entries == 0
             || self.maximum_nesting == 0
-            || self.maximum_allocation_bytes.get() == 0
+            || self.maximum_payload_bytes.get() == 0
         {
             return Err(Fault::invalid_argument("parse limits must be positive"));
         }
-        let maximum_reasonable_input = self
-            .maximum_allocation_bytes
-            .get()
-            .checked_mul(4)
-            .ok_or_else(|| {
-                Fault::new(
-                    Code::OutOfRange,
-                    "parse allocation/input ratio overflows u64",
-                )
-            })?;
+        let maximum_reasonable_input =
+            self.maximum_payload_bytes
+                .get()
+                .checked_mul(4)
+                .ok_or_else(|| {
+                    Fault::new(Code::OutOfRange, "parse payload/input ratio overflows u64")
+                })?;
         if self.maximum_input_bytes.get() > maximum_reasonable_input {
             return Err(Fault::new(
                 Code::FailedPrecondition,

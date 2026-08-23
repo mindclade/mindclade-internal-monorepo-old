@@ -121,6 +121,11 @@ nav:
       - Runtime serving core: runbooks/runtime-serving-core.md
       - CI Bazel validation: runbooks/ci-bazel-validation.md
       - Developer workstation: runbooks/workstation.md
+      - Control artifacts: runbooks/control-artifacts.md
+      - Control evidence: runbooks/control-evidence.md
+      - Control lineage: runbooks/control-lineage.md
+      - Artifact proxy: runbooks/artifact-proxy.md
+      - Node agent: runbooks/node-agent.md
   - Service objectives:
       - AI gateway provider edge: slo/ai-gateway-provider-edge.md
       - Artifact control: slo/artifact-control.md

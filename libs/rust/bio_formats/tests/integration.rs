@@ -94,7 +94,7 @@ fn retained_allocation_budget_is_enforced() {
         maximum_tokens: 64,
         maximum_metadata_entries: 8,
         maximum_nesting: 8,
-        maximum_allocation_bytes: ByteSize::new(16),
+        maximum_payload_bytes: ByteSize::new(16),
     };
     let input = b">identifier-long\nACGTACGTACGT\n";
     assert!(parse_fasta(input, limits, ParseMode::Strict).is_err());
