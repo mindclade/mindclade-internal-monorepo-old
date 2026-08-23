@@ -719,6 +719,34 @@ def test_checkout_integrity_allows_only_canonical_generated_bazel_state(
     affected.assert_clean_checkout(head, **arguments)
 
 
+def test_checkout_integrity_rejects_custom_output_base_bazel_symlinks(
+    tmp_path: Path,
+) -> None:
+    """A flat custom output base must not broaden the trusted symlink shape.
+
+    Hosted CI removes Bazel convenience symlinks before checkout validation.
+    If one remains, the validator must continue to require Bazel's canonical
+    _bazel_<user>/<workspace-hash> layout rather than trust an arbitrary
+    external execroot.
+    """
+    root, head = _initialized_git_repo(tmp_path / "repo")
+    arguments = _disk_checkout_arguments(root)
+    # Simulate --output_base=/home/runner/.bazel: no _bazel_<user>/<hash> prefix.
+    execroot = tmp_path / ".bazel" / "execroot" / "_main"
+    configuration = execroot / "bazel-out" / "k8-fastbuild"
+    (configuration / "bin").mkdir(parents=True)
+    (configuration / "testlogs").mkdir()
+    for name, target in {
+        f"bazel-{root.name}": execroot,
+        "bazel-out": execroot / "bazel-out",
+        "bazel-bin": configuration / "bin",
+        "bazel-testlogs": configuration / "testlogs",
+    }.items():
+        (root / name).symlink_to(target)
+    with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-019\]"):
+        affected.assert_clean_checkout(head, **arguments)
+
+
 @pytest.mark.parametrize(
     "relative",
     ["secret.auto.tfvars", ".venv/secret.py", ".ignored/secret.txt"],
