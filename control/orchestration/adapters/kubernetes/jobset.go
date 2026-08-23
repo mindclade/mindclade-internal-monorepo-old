@@ -6,6 +6,7 @@
 package kubernetes
 
 import (
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -95,6 +96,17 @@ const (
 	// ContainerName is the single container name.
 	ContainerName = "worker"
 )
+
+// imageDigestPattern and PlaceholderDigest mirror the cluster's own admission
+// expression. The restricted-pods policy requires an immutable sha256 digest
+// AND separately denies the all-zero placeholder that scaffolded manifests
+// carry, so both halves are re-checked here: a floating tag would let two
+// attempts of one stage run different code under the same resolved-config
+// digest, and the placeholder is a manifest nobody has finished writing.
+var imageDigestPattern = regexp.MustCompile(`^[^@]+@sha256:[0-9a-f]{64}$`)
+
+// PlaceholderDigest is the scaffold digest the cluster denies by name.
+const PlaceholderDigest = "@sha256:0000000000000000000000000000000000000000000000000000000000000000"
 
 // MaximumParsedEntries bounds every list this adapter walks out of an
 // unstructured object. A cluster object is untrusted input to a control-plane
@@ -270,6 +282,12 @@ func podTemplate(envelope orchestration.WorkloadEnvelope, spec PodSpec, domain s
 	if strings.TrimSpace(spec.ServiceAccountName) == "" || spec.ServiceAccountName == "default" {
 		return corev1.PodTemplateSpec{}, denied("service_account_invalid", "workloads must use a dedicated, non-default ServiceAccount")
 	}
+	if !imageDigestPattern.MatchString(spec.Image) {
+		return corev1.PodTemplateSpec{}, denied("image_not_digest_pinned", "container image must use an immutable sha256 digest")
+	}
+	if strings.HasSuffix(spec.Image, PlaceholderDigest) {
+		return corev1.PodTemplateSpec{}, denied("image_placeholder_digest", "container image uses the scaffold placeholder digest")
+	}
 	labels, err := ObjectLabels(domain)
 	if err != nil {
 		return corev1.PodTemplateSpec{}, err
@@ -378,6 +396,18 @@ func Verify(object *unstructured.Unstructured) error {
 	}
 	if _, err := strconv.ParseUint(annotations[FencingTokenAnnotation], 10, 64); err != nil {
 		return invalid("fencing_token_invalid", "the jobset records an unparseable fencing token", err)
+	}
+	// The delegated pod verification checks digest pinning but not the
+	// placeholder, which the cluster denies separately and by name. Indexing is
+	// safe here: VerifyJobSet already established exactly one replicated job
+	// with exactly one container.
+	decoded, err := schedulingjobset.FromUnstructured(object)
+	if err != nil {
+		return err
+	}
+	image := decoded.Spec.ReplicatedJobs[0].Template.Spec.Template.Spec.Containers[0].Image
+	if strings.HasSuffix(image, PlaceholderDigest) {
+		return denied("image_placeholder_digest", "container image uses the scaffold placeholder digest")
 	}
 	return nil
 }
