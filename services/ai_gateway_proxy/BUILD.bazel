@@ -57,6 +57,22 @@ rust_test(
     ],
 )
 
+rust_test(
+    name = "metrics",
+    srcs = ["tests/metrics.rs"],
+    edition = "2024",
+    deps = [
+        ":mindclade_ai_gateway_proxy",
+        "//libs/rust/faults:mindclade_faults",
+        "@crates//:axum",
+        "@crates//:bytes",
+        "@crates//:reqwest",
+        "@crates//:serde_json",
+        "@crates//:tokio",
+        "@crates//:tower",
+    ],
+)
+
 filegroup(
     name = "package_sources",
     srcs = glob(

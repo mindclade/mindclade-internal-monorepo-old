@@ -7,19 +7,36 @@
 
 use mindclade_telemetry::CounterRegistry;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct GatewayMetrics {
     counters: CounterRegistry,
 }
 
+impl Default for GatewayMetrics {
+    fn default() -> Self {
+        let counters = CounterRegistry::default();
+        // Publish every series at zero before any traffic. A counter absent
+        // from a scrape is indistinguishable from missing instrumentation, and
+        // the first `rate()` across a series that appears mid-window is wrong.
+        // The previous hand-rolled renderer got this by iterating a fixed name
+        // list at render time; registering does it once, at construction, and
+        // leaves the renderer generic. `tests/metrics.rs` asserts every name
+        // reaches the exposition, so a failed registration fails a test.
+        for name in Self::NAMES {
+            let _ = counters.register(name);
+        }
+        Self { counters }
+    }
+}
+
 impl GatewayMetrics {
     const NAMES: [&'static str; 6] = [
-        "accepted",
-        "rejected",
-        "dispatched",
-        "committed",
-        "reconciliation_pending",
-        "reconciled",
+        "ai_gateway.accepted",
+        "ai_gateway.rejected",
+        "ai_gateway.dispatched",
+        "ai_gateway.committed",
+        "ai_gateway.reconciliation_pending",
+        "ai_gateway.reconciled",
     ];
     pub fn accepted(&self) {
         let _ = self.counters.add("ai_gateway.accepted", 1);
@@ -44,22 +61,15 @@ impl GatewayMetrics {
         self.counters.snapshot()
     }
 
+    /// Prometheus text exposition, served from `/metrics`.
+    ///
+    /// This used to be fifteen hand-rolled lines here, and it was the only
+    /// Prometheus-shaped output anywhere in the Rust tree. It now delegates to
+    /// `CounterRegistry`, which the artifact proxy and node agent render from
+    /// as well, so the four services that had no exposition at all share one
+    /// implementation with the one that did.
     #[must_use]
     pub fn prometheus(&self) -> String {
-        let snapshot = self.snapshot();
-        let mut output = String::new();
-        for name in Self::NAMES {
-            let key = format!("ai_gateway.{name}");
-            let value = snapshot.get(&key).copied().unwrap_or_default();
-            output.push_str("# TYPE mindclade_ai_gateway_");
-            output.push_str(name);
-            output.push_str("_total counter\n");
-            output.push_str("mindclade_ai_gateway_");
-            output.push_str(name);
-            output.push_str("_total ");
-            output.push_str(&value.to_string());
-            output.push('\n');
-        }
-        output
+        self.counters.prometheus_text()
     }
 }

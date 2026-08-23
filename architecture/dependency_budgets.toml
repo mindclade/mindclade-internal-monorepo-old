@@ -185,6 +185,34 @@ path = "libs/rust/worker_runtime"
 language = "rust"
 allowed_prefixes = ["mindclade_faults", "mindclade_runtime_core", "mindclade_worker_protocol"]
 
+# The telemetry pair is budgeted as a pair, because the edge between them only
+# holds in one direction. `telemetry` is Layer 1 and `telemetry_spool` is Layer
+# 3; `libs/rust/LAYERS.md` makes production dependencies downward-only, so the
+# spool may name the contracts crate and the contracts crate may never name the
+# spool. Writing the allowlist for `telemetry` is what makes the inverted edge
+# fail here rather than being caught only by review: the obvious way to give
+# `telemetry` a durable sink is to add the spool to its dependencies, and that
+# is exactly the change this rejects.
+
+[[budget]]
+path = "libs/rust/telemetry"
+language = "rust"
+allowed_prefixes = ["mindclade_faults", "mindclade_identifiers", "mindclade_runtime_core"]
+forbidden_prefixes = ["mindclade_telemetry_spool"]
+
+[[budget]]
+path = "libs/rust/telemetry_spool"
+language = "rust"
+allowed_prefixes = [
+    "mindclade_atomic_fs",
+    "mindclade_bytes_io",
+    "mindclade_faults",
+    "mindclade_identifiers",
+    "mindclade_record_io",
+    "mindclade_runtime_core",
+    "mindclade_telemetry",
+]
+
 [[budget]]
 path = "services/runtime_gateway"
 language = "rust"
