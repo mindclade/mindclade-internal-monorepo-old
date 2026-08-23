@@ -198,6 +198,25 @@ func (h *Handler) pump(ctx context.Context, w http.ResponseWriter, flusher http.
 
 		// More waiting: drain before idling.
 		if len(events) == BatchLimit {
+			// CANCELLATION IS CHECKED HERE, not only in the select below.
+			//
+			// The select is the IDLE path. A client that goes away while a
+			// backlog is still draining never reaches it, so before this check
+			// the loop's only exit on disconnect was the Reader itself
+			// returning a context error — which makes termination a property of
+			// whichever Reader is wired in rather than of this loop. Reader is
+			// an interface and its contract says nothing about honoring ctx, so
+			// that is not a property this package can assert.
+			//
+			// A write to a severed connection does not reliably fail either:
+			// the kernel accepts into the send buffer long after the peer is
+			// gone, so writeEvent returning nil is no evidence anyone is
+			// listening. The result was an unbounded drain — one handler
+			// goroutine, one database round trip per lap, holding a pool
+			// connection for a reader that left.
+			if ctx.Err() != nil {
+				return
+			}
 			continue
 		}
 
