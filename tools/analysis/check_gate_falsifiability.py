@@ -365,6 +365,15 @@ FALSIFIERS: tuple[Falsifier, ...] = (
         inject=lambda tree: tree.write("libs/go/utils/util.go", "package utils\n"),
     ),
     Falsifier(
+        check="protocol graph completeness",
+        defect="a promoted protobuf source is added without any Bazel graph edges",
+        expect=("protocols/proto/mindclade/common/v1/falsifier_orphan.proto has no proto_library"),
+        inject=lambda tree: tree.write(
+            "protocols/proto/mindclade/common/v1/falsifier_orphan.proto",
+            'syntax = "proto3";\npackage mindclade.common.v1;\n',
+        ),
+    ),
+    Falsifier(
         check="Rust workspace",
         defect="the forbidden libs/rust/common catch-all crate reappears",
         expect="libs/rust/common is forbidden",
