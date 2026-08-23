@@ -25,6 +25,8 @@ const (
 	DefaultEvidenceVerificationTable  = "mindclade_evidence_verifications"
 	DefaultEligibilityDecisionTable   = "mindclade_eligibility_decisions"
 	DefaultEligibilityRevocationTable = "mindclade_eligibility_revocations"
+	DefaultArtifactIdentityTable      = "mindclade_artifact_identities"
+	DefaultArtifactLocationTable      = "mindclade_artifact_locations"
 )
 
 // Option configures a Store.
@@ -100,6 +102,16 @@ func WithEligibilityRevocationTable(value string) Option {
 	return evidenceTableOption(value, "invalid_revocation_table", func(store *Store, table string) { store.revocations = table })
 }
 
+// WithArtifactIdentityTable overrides the artifact identity table name.
+func WithArtifactIdentityTable(value string) Option {
+	return evidenceTableOption(value, "invalid_artifact_identity_table", func(store *Store, table string) { store.artifactIdentities = table })
+}
+
+// WithArtifactLocationTable overrides the artifact location table name.
+func WithArtifactLocationTable(value string) Option {
+	return evidenceTableOption(value, "invalid_artifact_location_table", func(store *Store, table string) { store.artifactLocations = table })
+}
+
 func evidenceTableOption(value, reason string, assign func(*Store, string)) Option {
 	return func(store *Store) error {
 		value = strings.TrimSpace(value)
@@ -121,15 +133,17 @@ func evidenceTableOption(value, reason string, assign func(*Store, string)) Opti
 // over the same *sql.DB would still work, but would make it easy to construct
 // them against different handles and lose that guarantee silently.
 type Store struct {
-	db            *sql.DB
-	clock         clock.Clock
-	descriptors   string
-	releases      string
-	graphs        string
-	claims        string
-	verifications string
-	decisions     string
-	revocations   string
+	db                 *sql.DB
+	clock              clock.Clock
+	descriptors        string
+	releases           string
+	graphs             string
+	claims             string
+	verifications      string
+	decisions          string
+	revocations        string
+	artifactIdentities string
+	artifactLocations  string
 }
 
 // New constructs a Store over db.
@@ -138,15 +152,17 @@ func New(db *sql.DB, options ...Option) (*Store, error) {
 		return nil, invalidConfig("database must not be nil", "nil_database")
 	}
 	store := &Store{
-		db:            db,
-		clock:         clock.RealClock{},
-		descriptors:   DefaultDescriptorTable,
-		releases:      DefaultReleaseTable,
-		graphs:        DefaultEvidenceGraphTable,
-		claims:        DefaultEvidenceClaimTable,
-		verifications: DefaultEvidenceVerificationTable,
-		decisions:     DefaultEligibilityDecisionTable,
-		revocations:   DefaultEligibilityRevocationTable,
+		db:                 db,
+		clock:              clock.RealClock{},
+		descriptors:        DefaultDescriptorTable,
+		releases:           DefaultReleaseTable,
+		graphs:             DefaultEvidenceGraphTable,
+		claims:             DefaultEvidenceClaimTable,
+		verifications:      DefaultEvidenceVerificationTable,
+		decisions:          DefaultEligibilityDecisionTable,
+		revocations:        DefaultEligibilityRevocationTable,
+		artifactIdentities: DefaultArtifactIdentityTable,
+		artifactLocations:  DefaultArtifactLocationTable,
 	}
 	for _, option := range options {
 		if option != nil {
@@ -158,7 +174,10 @@ func New(db *sql.DB, options ...Option) (*Store, error) {
 	if nilInterface(store.clock) {
 		return nil, invalidConfig("invalid registry PostgreSQL configuration", "invalid_configuration")
 	}
-	for _, table := range []string{store.descriptors, store.releases, store.graphs, store.claims, store.verifications, store.decisions, store.revocations} {
+	for _, table := range []string{
+		store.descriptors, store.releases, store.graphs, store.claims, store.verifications,
+		store.decisions, store.revocations, store.artifactIdentities, store.artifactLocations,
+	} {
 		if !validQualifiedIdentifier(table) {
 			return nil, invalidConfig("invalid registry PostgreSQL configuration", "invalid_configuration")
 		}
@@ -177,6 +196,8 @@ func (store *Store) EvidenceClaimTable() string         { return store.claims }
 func (store *Store) EvidenceVerificationTable() string  { return store.verifications }
 func (store *Store) EligibilityDecisionTable() string   { return store.decisions }
 func (store *Store) EligibilityRevocationTable() string { return store.revocations }
+func (store *Store) ArtifactIdentityTable() string      { return store.artifactIdentities }
+func (store *Store) ArtifactLocationTable() string      { return store.artifactLocations }
 
 // validQualifiedIdentifier accepts a lowercase, optionally schema-qualified
 // PostgreSQL identifier. Table names reach string-formatted SQL, so this is
