@@ -170,3 +170,54 @@ func Classify(err error) Disposition {
 		return DispositionTerminal
 	}
 }
+
+// ClassificationEvent reports one retry decision.
+//
+// It carries the disposition and the fault code and deliberately not the fault
+// reason. Disposition has three values and Code has seventeen, so the pair is a
+// bounded label set; reason is domain-authored free text with no ceiling, and a
+// metric keyed on it would grow a new series for every failure mode anyone ever
+// adds. The SLO contract for the sibling domains names tenant, workspace, run and
+// request identifiers as forbidden labels for the same reason -- this keeps that
+// discipline at the point the label is chosen rather than at the exporter.
+type ClassificationEvent struct {
+	Disposition Disposition
+	Code        faults.Code
+}
+
+// Observer receives classification decisions. The domain defines the contract and
+// the composition root adapts it to telemetry, matching workqueue.Observer and
+// leadership.Observer; a domain package that imported an exporter would make its
+// own tests need one.
+//
+// Implementations must not block: this runs on the path that decides whether a
+// claimed work item retries.
+type Observer interface {
+	ObserveClassification(ClassificationEvent)
+}
+
+// ObserverFunc adapts a function to Observer.
+type ObserverFunc func(ClassificationEvent)
+
+func (function ObserverFunc) ObserveClassification(event ClassificationEvent) {
+	if function != nil {
+		function(event)
+	}
+}
+
+// ClassifyObserved classifies a failure and reports the decision.
+//
+// The question this answers operationally is "are we retrying things we should
+// not, or giving up on things we should retry" -- which is invisible without a
+// signal at the moment of the decision, because both outcomes look like an
+// ordinary stage failure downstream.
+func ClassifyObserved(err error, observer Observer) Disposition {
+	disposition := Classify(err)
+	if observer != nil && !nilInterface(observer) {
+		observer.ObserveClassification(ClassificationEvent{
+			Disposition: disposition,
+			Code:        faults.CodeOf(err),
+		})
+	}
+	return disposition
+}
