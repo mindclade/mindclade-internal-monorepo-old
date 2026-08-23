@@ -282,6 +282,7 @@ def test_start_configuration_is_loopback_and_create_only(tmp_path: Path, monkeyp
     assert captured[captured.index("--mode") + 1] == "read"
     assert captured[captured.index("--prefix") + 1] == "bazel-http-cache/v1"
     assert captured[captured.index("--maximum-body-bytes") + 1] == str(1024**3)
+    assert captured[captured.index("--maximum-concurrent-staging") + 1] == "2"
     assert not credentials.exists()
     private_credentials = tmp_path / "runtime/google-credentials.json"
     assert private_credentials.is_file()
@@ -413,6 +414,7 @@ def test_metrics_record_binary_identity_and_redacted_gateway_log(
         "head_hit": 1,
         "head_miss": 0,
         "immutable_collision": 0,
+        "maximum_concurrent_staging": 2,
         "mode": "read",
         "protocol": "bazel-http-cache-v1",
         "put_created": 0,
@@ -420,7 +422,11 @@ def test_metrics_record_binary_identity_and_redacted_gateway_log(
         "put_rejected": 1,
         "read_bytes": 1024,
         "request_error": 0,
-        "schema_version": 1,
+        "schema_version": 2,
+        "staging_active": 0,
+        "staging_peak": 2,
+        "staging_wait": 4,
+        "staging_wait_canceled": 0,
         "written_bytes": 0,
     }
 
@@ -451,6 +457,7 @@ def test_metrics_record_binary_identity_and_redacted_gateway_log(
     assert stopped == [runtime]
     assert payload["gateway_binary_sha256"] == "sha256:" + "b" * 64
     assert payload["transport"] == "loopback-gateway"
+    assert payload["staging_peak"] == 2
     assert (evidence / "cache-gateway.log").read_text(encoding="utf-8") == (
         '{"msg":"cache gateway ready","mode":"read"}\n'
     )

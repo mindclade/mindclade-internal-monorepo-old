@@ -9,6 +9,7 @@
   "protocol": "bazel-http-cache-v1",
   "qualification": {
     "access_logging": false,
+    "bounded_staging_load": false,
     "bucket_retention": false,
     "cache_loss_rebuild": false,
     "cas_integrity": false,

@@ -41,10 +41,10 @@ ceilings.
 
 After connected activation, the same file changes to the GCS transport schema and records the
 gateway binary SHA-256, reader/writer role, remote hits and misses, immutable creates, idempotent
-duplicates, rejected writes and collisions, request errors, and transferred bytes. Segment the
-latency series by transport and role. The BEP summary remains the source for action-cache hit rate
-and execution critical path; gateway counters are an independent backend cross-check, not a build
-verdict.
+duplicates, rejected writes and collisions, request errors, transferred bytes, configured staging
+concurrency, staging peak, waits, and canceled waits. Segment the latency series by transport and
+role. The BEP summary remains the source for action-cache hit rate and execution critical path;
+gateway counters are an independent backend cross-check, not a build verdict.
 
 ## Promotion gate
 
@@ -56,4 +56,5 @@ trusted save originating outside protected main or main-only nightly.
 Remote-cache promotion additionally requires the full activation matrix in
 `ci/bazel_cache/activation.json`, exact retained evidence generation and SHA-256, and intentional
 negative evidence for feature branches, tags, manual dispatch, altered workflows, wrong
-repository IDs, wrong audience, and cross-role impersonation.
+repository IDs, wrong audience, and cross-role impersonation. A connected load run must also prove
+the two-slot staging bound prevents temp-disk exhaustion without violating the latency objective.
