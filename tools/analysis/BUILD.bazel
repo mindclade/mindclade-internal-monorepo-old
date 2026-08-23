@@ -165,6 +165,12 @@ pytest_test(
 )
 
 pytest_test(
+    name = "go_command_composition_test",
+    srcs = ["tests/test_go_command_composition.py"],
+    data = ["check_go_command_composition.py"],
+)
+
+pytest_test(
     name = "foundation_consumption_test",
     srcs = ["tests/test_foundation_consumption.py"],
     data = [
