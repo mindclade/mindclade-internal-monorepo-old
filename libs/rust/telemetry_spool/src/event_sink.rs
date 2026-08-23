@@ -98,12 +98,13 @@ impl Sink for SpoolSink {
             Err(fault) if fault.code() == Code::ResourceExhausted => {
                 // Relaxed is sufficient: this counter is read for reporting,
                 // never to order anything against the append itself.
-                // Saturating rather than wrapping: a drop counter that rolls
-                // over to zero reads as a healthy sink.
+                // `checked_add` rather than `fetch_add`, because a drop counter
+                // that wrapped back to zero would read as a sink losing
+                // nothing; `None` at the ceiling leaves it pinned at u64::MAX.
                 let _ =
                     self.dropped
                         .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
-                            Some(current.saturating_add(1))
+                            current.checked_add(1)
                         });
                 Ok(())
             }

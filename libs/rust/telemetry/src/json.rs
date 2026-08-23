@@ -42,6 +42,16 @@ pub const MAX_RECORD_BYTES: usize = 6
     * (Attributes::MAX_ATTRIBUTES * (Attributes::MAX_KEY_LEN + Attributes::MAX_STRING_LEN + 8))
     + 1024;
 
+// The bound has to dominate the unescaped payload, or `WriterSink`'s minimum
+// staging budget would not in fact admit every maximal record and the sink
+// would drop the largest events while reporting itself healthy. Checked at
+// compile time so a later edit to either attribute bound cannot quietly
+// invalidate it.
+const _: () = assert!(
+    MAX_RECORD_BYTES
+        > Attributes::MAX_ATTRIBUTES * (Attributes::MAX_KEY_LEN + Attributes::MAX_STRING_LEN)
+);
+
 /// Encodes one event as a single JSON object, without a trailing newline.
 pub fn encode_event(event: &Event) -> FaultResult<String> {
     if event.name.is_empty() || event.name.len() > Event::MAX_NAME_LEN {
@@ -141,7 +151,7 @@ fn write_string(output: &mut String, value: &str) {
 /// Formats a wall-clock instant as RFC 3339 UTC with fixed millisecond
 /// precision.
 ///
-/// Fixed width rather than `slog`'s trailing-zero-trimming RFC3339Nano so that
+/// Fixed width rather than `slog`'s trailing-zero-trimming `RFC3339Nano` so that
 /// two renderings of one instant are byte-identical, which is what makes the
 /// encoder testable against an expected line. Millisecond resolution is also
 /// the resolution the durable spool envelope stores, so the two paths cannot

@@ -133,6 +133,18 @@ struct Staging<W: Write + Send> {
     staged: Vec<u8>,
 }
 
+/// Increments a drop counter without ever wrapping.
+///
+/// `fetch_add` would roll a saturated counter back to zero, and a drop counter
+/// reading zero is indistinguishable from a sink that is losing nothing.
+/// `checked_add` yields `None` at the ceiling, which leaves `fetch_update` a
+/// no-op and pins the counter at `u64::MAX`.
+fn count_drop(counter: &AtomicU64) {
+    let _ = counter.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
+        current.checked_add(1)
+    });
+}
+
 impl<W: Write + Send> WriterSink<W> {
     /// Default staging budget for [`Self::deferred`].
     pub const DEFAULT_STAGING_BYTES: usize = 1 << 20;
@@ -230,19 +242,17 @@ impl<W: Write + Send> Sink for WriterSink<W> {
                 })
             }
             FlushPolicy::Deferred { staging_bytes } => {
-                // Saturating rather than checked: an overflowing sum is by
-                // definition past the budget, and the branch it selects is the
-                // same one a checked overflow would have to take.
-                if staging.staged.len().saturating_add(line.len()) > staging_bytes {
-                    // Saturating rather than wrapping: a drop counter that rolls
-                    // over to zero reads as a healthy sink.
-                    let _ = self.dropped.fetch_update(
-                        Ordering::Relaxed,
-                        Ordering::Relaxed,
-                        |current| Some(current.saturating_add(1)),
-                    );
-                } else {
+                // A sum that would overflow `usize` is by definition past the
+                // budget, so `None` and "too large" take the same branch.
+                let admissible = staging
+                    .staged
+                    .len()
+                    .checked_add(line.len())
+                    .is_some_and(|projected| projected <= staging_bytes);
+                if admissible {
                     staging.staged.extend_from_slice(line.as_bytes());
+                } else {
+                    count_drop(&self.dropped);
                 }
                 Ok(())
             }

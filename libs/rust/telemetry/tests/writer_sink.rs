@@ -152,7 +152,6 @@ fn a_staging_budget_below_one_maximal_record_is_refused() {
     let too_small = WriterSink::<SharedBuffer>::MINIMUM_STAGING_BYTES - 1;
     let sink = WriterSink::deferred(SharedBuffer(Arc::new(Mutex::new(Vec::new()))), too_small);
     assert!(sink.is_err());
-    assert!(json::MAX_RECORD_BYTES > Attributes::MAX_ATTRIBUTES * Attributes::MAX_STRING_LEN);
 }
 
 /// A writer shared with the test so the destination can be inspected while the
