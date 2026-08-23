@@ -42,6 +42,14 @@ KEY_VERSION_RE = re.compile(
     r"keyRings/[A-Za-z0-9_-]+/cryptoKeys/[A-Za-z0-9_-]+/cryptoKeyVersions/[1-9][0-9]*$"
 )
 
+# Bounds on the documents this module parses. Nothing here is a stream: each is a small,
+# fixed-shape record, so an unbounded `read_text` is the whole file's size in memory before
+# a single field has been checked. The catalog is ~1.7 KiB over three entries and a request
+# is ~400 bytes, so these ceilings are two to three orders of magnitude of headroom -- they
+# exist to refuse a pathological input, not to constrain a growing catalog.
+MAX_YAML_BYTES = 256 * 1024
+MAX_JSON_BYTES = 4 * 1024 * 1024
+
 
 class ContractError(ValueError):
     """A reviewed request or generated evidence object violated its contract."""
@@ -65,24 +73,69 @@ def _semver_tuple(value: str) -> tuple[int, int, int]:
     return int(major), int(minor), int(patch)
 
 
-def _load_yaml(path: Path) -> dict[str, Any]:
+def _read_text_bounded(path: Path, limit: int) -> str:
+    """Read a document, refusing anything past `limit` before it reaches the parser.
+
+    The size is checked against the open handle rather than `path.stat()` so the bound
+    applies to the bytes actually parsed: a stat-then-read pair can disagree if the file is
+    replaced between the two calls. One extra byte is requested so a file sitting exactly on
+    the ceiling is distinguishable from one that overruns it.
+    """
     try:
-        parsed = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except (OSError, yaml.YAMLError) as exc:
+        with path.open("rb") as stream:
+            raw = stream.read(limit + 1)
+    except OSError as exc:
+        raise ContractError(f"cannot load {path}: {exc}") from exc
+    if len(raw) > limit:
+        raise ContractError(f"{path} exceeds the {limit}-byte bound for a release document")
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ContractError(f"cannot load {path}: {exc}") from exc
+
+
+def _load_yaml(path: Path) -> dict[str, Any]:
+    text = _read_text_bounded(path, MAX_YAML_BYTES)
+    try:
+        parsed = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
         raise ContractError(f"cannot load {path}: {exc}") from exc
     return _mapping(parsed, str(path))
 
 
 def _load_json(path: Path) -> dict[str, Any]:
+    text = _read_text_bounded(path, MAX_JSON_BYTES)
     try:
-        parsed = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+        parsed = json.loads(text)
+    except json.JSONDecodeError as exc:
         raise ContractError(f"cannot load {path}: {exc}") from exc
     return _mapping(parsed, str(path))
 
 
-def _resolve_request(raw_path: str) -> Path:
+def _resolve_request(raw_path: str, *, rehearsal: bool = False) -> Path:
+    """Locate a request, normally insisting it sit in the armed directory.
+
+    `ci/release/requests/` is not a staging area: `.github/workflows/release.yml` fires on a
+    push to protected `main` that adds a `*.yaml` there, so the merge IS the release. That
+    left no way to check a request before arming one -- the only path this function accepted
+    was the trigger path, so "validate first" and "do not arm it yet" could not both hold.
+
+    `rehearsal` accepts a request from anywhere so an author can validate the exact bytes
+    they intend to commit while those bytes are still outside the trigger. It relaxes only
+    the DIRECTORY: every content rule -- catalog membership, rollback lineage, label
+    resolution, and the filename/metadata.name agreement below -- is applied unchanged, so a
+    request that passes a rehearsal passes for the same reasons it will once committed.
+
+    It deliberately does not reach `inspect` or `build`. Those two are what the workflow
+    calls, and they are the authority path; widening them would let a release act on a file
+    that never went through the reviewed directory. Rehearsal grants no authority at all --
+    it returns an exit status and writes nothing.
+    """
     path = (ROOT / raw_path).resolve()
+    if rehearsal:
+        if path.suffix != ".yaml":
+            raise ContractError("request must be a vX.Y.Z.yaml file")
+        return path
     try:
         path.relative_to(REQUEST_ROOT)
     except ValueError as exc:
@@ -213,10 +266,10 @@ def resolve_catalog_packages(targets: dict[str, dict[str, Any]]) -> None:
                 )
 
 
-def validate_request(raw_path: str, source_sha: str) -> dict[str, Any]:
+def validate_request(raw_path: str, source_sha: str, *, rehearsal: bool = False) -> dict[str, Any]:
     if not SHA_RE.fullmatch(source_sha):
         raise ContractError("source-sha must be a lowercase 40-character commit SHA")
-    path = _resolve_request(raw_path)
+    path = _resolve_request(raw_path, rehearsal=rehearsal)
     request = _load_yaml(path)
     _exact_keys(request, {"apiVersion", "kind", "metadata", "spec"}, "request")
     if request["apiVersion"] != "release.mindclade.dev/v1beta2":
@@ -273,9 +326,20 @@ def validate_request(raw_path: str, source_sha: str) -> dict[str, Any]:
         if previous_subject_digest == "sha256:" + "0" * 64:
             raise ContractError("previousRelease.subjectDigest cannot be the zero digest")
 
+    # A rehearsed request may sit anywhere, including outside the repository, so this cannot
+    # assume a relative form exists. `pathRelative` is what `inspect` exports to the workflow
+    # as `request-path`, and `inspect` never rehearses -- on the authority path the request is
+    # under REQUEST_ROOT and this is exactly the repository-relative path it always was.
+    try:
+        path_relative = path.relative_to(ROOT).as_posix()
+    except ValueError:
+        if not rehearsal:
+            raise
+        path_relative = path.as_posix()
+
     return {
         "path": path,
-        "pathRelative": path.relative_to(ROOT).as_posix(),
+        "pathRelative": path_relative,
         "releaseId": release_id,
         "changeTicket": ticket,
         "sourceSha": source_sha,
@@ -828,6 +892,15 @@ def parser() -> argparse.ArgumentParser:
     validate = commands.add_parser("validate")
     validate.add_argument("--request", required=True)
     validate.add_argument("--source-sha", required=True)
+    validate.add_argument(
+        "--rehearsal",
+        action="store_true",
+        help=(
+            "validate a request that is not yet in ci/release/requests/. Every content rule "
+            "still applies; only the directory requirement is relaxed, so a request can be "
+            "checked before adding it to the directory whose merge starts the release."
+        ),
+    )
     inspect = commands.add_parser("inspect")
     inspect.add_argument("--request", required=True)
     inspect.add_argument("--source-sha", required=True)
@@ -852,7 +925,15 @@ def main() -> int:
     arguments = parser().parse_args()
     try:
         if arguments.command == "validate":
-            validate_request(arguments.request, arguments.source_sha)
+            validate_request(arguments.request, arguments.source_sha, rehearsal=arguments.rehearsal)
+            if arguments.rehearsal:
+                # Said on success, because success is the misreadable outcome: a green
+                # rehearsal says the request is well formed, not that anything is released.
+                print(
+                    "rehearsal only: this request is not in ci/release/requests/ and no "
+                    "release has been requested",
+                    file=sys.stderr,
+                )
         elif arguments.command == "inspect":
             inspect_request(arguments.request, arguments.source_sha, arguments.github_output)
         elif arguments.command == "build":
