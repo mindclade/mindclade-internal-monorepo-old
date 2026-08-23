@@ -890,6 +890,20 @@ jobs:
           if-no-files-found: warn
           retention-days: 35
 
+      # Keep verdict aggregation bounded: profiles and raw BEP remain in the performance artifact,
+      # while this artifact contains only normalized JSON with no logs or action command lines.
+      - name: Upload redacted Bazel health metrics
+        if: steps.bazel-validation.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: bazel-health-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.worker }}
+          path: |
+            ${{ runner.temp }}/bazel-evidence/run-metrics.json
+            ${{ runner.temp }}/bazel-evidence/analysis.summary.json
+            ${{ runner.temp }}/bazel-evidence/test.summary.json
+          if-no-files-found: error
+          retention-days: 35
+
       - name: Upload redacted Bazel worker selection
         if: steps.bazel-selection-redact.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
@@ -934,7 +948,51 @@ jobs:
           pattern: bazel-selection-${{ github.run_id }}-${{ github.run_attempt }}-*
           path: ${{ runner.temp }}/bazel-worker-selections
 
+      - name: Download redacted Bazel health metrics
+        if: >-
+          needs.bazel-worker-plan.result == 'success' &&
+          needs.bazel-workers.result == 'success'
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0  # v5.0.0
+        with:
+          pattern: bazel-health-${{ github.run_id }}-${{ github.run_attempt }}-*
+          path: ${{ runner.temp }}/bazel-health-evidence
+
+      - name: Generate the Bazel CI health dashboard
+        if: >-
+          needs.bazel-worker-plan.result == 'success' &&
+          needs.bazel-workers.result == 'success'
+        env:
+          EXPECTED_WORKERS: ${{ needs.bazel-worker-plan.outputs.workers }}
+          SHARD_COUNT: ${{ needs.bazel-worker-plan.outputs.shard_count }}
+          TOPOLOGY_MODE: ${{ needs.bazel-worker-plan.outputs.topology_mode }}
+        run: |
+          set -euo pipefail
+          python3 -B ci/common/ci_health.py \
+            --evidence-root "${RUNNER_TEMP}/bazel-health-evidence" \
+            --artifact-prefix "bazel-health-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-" \
+            --expected-workers "${EXPECTED_WORKERS}" \
+            --lane presubmit \
+            --event "${GITHUB_EVENT_NAME}" \
+            --head-sha "${GITHUB_SHA}" \
+            --topology-mode "${TOPOLOGY_MODE}" \
+            --shard-count "${SHARD_COUNT}" \
+            --json-output "${RUNNER_TEMP}/ci-health/ci-health.json" \
+            --html-output "${RUNNER_TEMP}/ci-health/ci-health.html" \
+            --summary-output "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload the Bazel CI health dashboard
+        if: >-
+          needs.bazel-worker-plan.result == 'success' &&
+          needs.bazel-workers.result == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: ci-health-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ci-health/*
+          if-no-files-found: error
+          retention-days: 35
+
       - name: Aggregate the complete Bazel verdict
+        if: always()
         env:
           EXPECTED_WORKERS: ${{ needs.bazel-worker-plan.outputs.workers }}
           PLAN_RESULT: ${{ needs.bazel-worker-plan.result }}

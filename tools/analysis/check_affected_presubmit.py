@@ -160,6 +160,7 @@ PRESUBMIT_BAZEL_STEP_CONTRACT = (
     ("name:Record Bazel persistent action cache metrics", "9b4261daaa5be664481d8a50a5c9875daf0d72f466c70b9f1d9244c91f4b1875"),
     ("name:Record Bazel GCS remote-cache metrics and stop gateway", "48b22f3adde66695cd963bf0bb50b07f7f35e9beebef3562f6e330ba380abe63"),
     ("name:Upload Bazel performance evidence", "1e9b7293ed88d18c63aad10fbee4b3b44ce0cdbca5c43e031f2e3df58ca72f01"),
+    ("name:Upload redacted Bazel health metrics", "7e26a049271357069db9313b7347a99a61730a9ec657402d7ccc57a6ce124384"),
     ("name:Upload redacted Bazel worker selection", "142b944b484fa14736495f4444875651ddadd286651de3df1e32a2f177ddc8e7"),
     ("name:Upload Bazel latency metric", "6a9fe809a0489b2829fe0d1f78fe9f4066b965132c5fa115af5909c23eda3c42"),
 )
@@ -168,7 +169,10 @@ PRESUBMIT_VERDICT_STEP_CONTRACT = (
     ("uses:actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "69983d424f70d56e16aca2c5bc441464578ac832b548ce342069dd3e5a1ca9e1"),
     ("uses:actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1", "be44ea9b59f4d2b9ef17fc2526f2d1b8607bfcba533e0e8c81636aa6cbbb1f7d"),
     ("name:Download redacted Bazel worker selections", "8fc21eab2b1421a5b96400bcfd153794ba1afd6def1f5175a2190c0a42bb5d57"),
-    ("name:Aggregate the complete Bazel verdict", "695006f5b961e445ab082d3637ed1c4877ba147d1989221c7bf37ace27081fcc"),
+    ("name:Download redacted Bazel health metrics", "52a2d9b8546342c62236670763a3ed2db1b5fb6e6dd0b744eae8fb2551b6d829"),
+    ("name:Generate the Bazel CI health dashboard", "38e0d50135f9546cf13839bc3e79bacfdbdfc57a39cdfb3804ee16ed29368780"),
+    ("name:Upload the Bazel CI health dashboard", "8fda1f70474bc51466fa9d052fd9dd7dfbfb2268aa5b51dc32f725e5ffffe310"),
+    ("name:Aggregate the complete Bazel verdict", "57e3e5c8c8699391f59817c0726e66f25068bce0353f71a259b41e3d45c3c8b7"),
 )
 
 NIGHTLY_PLAN_STEP_CONTRACT = (
@@ -203,6 +207,7 @@ NIGHTLY_BAZEL_STEP_CONTRACT = (
     ("name:Record nightly Bazel persistent action cache metrics", "d7997e4788ffd0e339395d1d154a5dfaca8cab0559f0c26ac234ea54944c3298"),
     ("name:Record nightly Bazel GCS remote-cache metrics and stop gateway", "f6f3004b9f1f49492a6bb1d030bc0d0518145a09709e3f4a3824dd465edd5112"),
     ("name:Upload nightly Bazel evidence", "5338817a03fb411508e4d256a6e4ec0e2c719269c9dd0dbd127774ffee55c809"),
+    ("name:Upload redacted nightly Bazel health metrics", "c43b26fde631a7cf48f85661f128a7ff6cd4ee346c0dba95e5d1036e11a1ee4c"),
     ("name:Upload redacted nightly Bazel worker selection", "a4d65697706ff3d752142ef0027ff2ee4a950938918bdec75e56366a0895358e"),
 )
 
@@ -210,7 +215,10 @@ NIGHTLY_VERDICT_STEP_CONTRACT = (
     ("uses:actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "69983d424f70d56e16aca2c5bc441464578ac832b548ce342069dd3e5a1ca9e1"),
     ("uses:actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1", "be44ea9b59f4d2b9ef17fc2526f2d1b8607bfcba533e0e8c81636aa6cbbb1f7d"),
     ("name:Download redacted nightly Bazel worker selections", "e8e24cd90169ec82cd0d22bca18d370fa199fef64addde9bda2e4a3aa65808e2"),
-    ("name:Aggregate the complete nightly Bazel verdict", "cf518d016ba216975c860f3f63ed5f9f50eab415e62a8682d87a46fede39ec99"),
+    ("name:Download redacted nightly Bazel health metrics", "5cc1530adeb58f98710fac6b9757f58eb964486b64b5f1e5d464a7835e66b602"),
+    ("name:Generate the nightly Bazel CI health dashboard", "1463857245703eb56f2717bc1a1e96b84cb8409a51adbe44af45ef4c3ee11838"),
+    ("name:Upload the nightly Bazel CI health dashboard", "d91598640a677c0f1ee643b70c473d7ee4ad25fdd3dc8a1e5152c373cc6c3721"),
+    ("name:Aggregate the complete nightly Bazel verdict", "05af79101cc7b2d765f961a68aa6da62472930d9c0e119470385a179dcda8ac3"),
 )
 # fmt: on
 
@@ -782,6 +790,20 @@ def _presubmit_workflow_errors(workflow: dict[str, Any]) -> list[str]:
                 "if-no-files-found": "warn",
                 "retention-days": 35,
             },
+            "Upload redacted Bazel health metrics": {
+                "__if__": "steps.bazel-validation.outcome == 'success'",
+                "name": (
+                    "bazel-health-${{ github.run_id }}-"
+                    "${{ github.run_attempt }}-${{ matrix.worker }}"
+                ),
+                "path": (
+                    "${{ runner.temp }}/bazel-evidence/run-metrics.json\n"
+                    "${{ runner.temp }}/bazel-evidence/analysis.summary.json\n"
+                    "${{ runner.temp }}/bazel-evidence/test.summary.json\n"
+                ),
+                "if-no-files-found": "error",
+                "retention-days": 35,
+            },
             "Upload redacted Bazel worker selection": {
                 "__if__": "steps.bazel-selection-redact.outcome == 'success'",
                 "name": (
@@ -824,6 +846,9 @@ def _presubmit_workflow_errors(workflow: dict[str, Any]) -> list[str]:
         errors.append(_error("AFFECTED-WORKFLOW-012", "presubmit Python launch is invalid"))
     if verdict is not None:
         download = _named_step(verdict, "Download redacted Bazel worker selections")
+        health_download = _named_step(verdict, "Download redacted Bazel health metrics")
+        health_generate = _named_step(verdict, "Generate the Bazel CI health dashboard")
+        health_upload = _named_step(verdict, "Upload the Bazel CI health dashboard")
         aggregate = _named_step(verdict, "Aggregate the complete Bazel verdict")
         if (
             download is None
@@ -835,7 +860,53 @@ def _presubmit_workflow_errors(workflow: dict[str, Any]) -> list[str]:
                 "pattern": ("bazel-selection-${{ github.run_id }}-${{ github.run_attempt }}-*"),
                 "path": "${{ runner.temp }}/bazel-worker-selections",
             }
+            or health_download is None
+            or set(health_download) != {"if", "name", "uses", "with"}
+            or health_download.get("if")
+            != (
+                "needs.bazel-worker-plan.result == 'success' && "
+                "needs.bazel-workers.result == 'success'"
+            )
+            or health_download.get("uses") != DOWNLOAD_ARTIFACT_ACTION
+            or health_download.get("with")
+            != {
+                "pattern": "bazel-health-${{ github.run_id }}-${{ github.run_attempt }}-*",
+                "path": "${{ runner.temp }}/bazel-health-evidence",
+            }
+            or health_generate is None
+            or health_generate.get("env")
+            != {
+                "EXPECTED_WORKERS": "${{ needs.bazel-worker-plan.outputs.workers }}",
+                "SHARD_COUNT": "${{ needs.bazel-worker-plan.outputs.shard_count }}",
+                "TOPOLOGY_MODE": "${{ needs.bazel-worker-plan.outputs.topology_mode }}",
+            }
+            or health_generate.get("if")
+            != (
+                "needs.bazel-worker-plan.result == 'success' && "
+                "needs.bazel-workers.result == 'success'"
+            )
+            or not isinstance(health_generate.get("run"), str)
+            or "ci/common/ci_health.py" not in health_generate["run"]
+            or "--lane presubmit" not in health_generate["run"]
+            or '--event "${GITHUB_EVENT_NAME}"' not in health_generate["run"]
+            or '--head-sha "${GITHUB_SHA}"' not in health_generate["run"]
+            or '--expected-workers "${EXPECTED_WORKERS}"' not in health_generate["run"]
+            or health_upload is None
+            or health_upload.get("uses") != UPLOAD_ARTIFACT_ACTION
+            or health_upload.get("if")
+            != (
+                "needs.bazel-worker-plan.result == 'success' && "
+                "needs.bazel-workers.result == 'success'"
+            )
+            or health_upload.get("with")
+            != {
+                "name": "ci-health-${{ github.run_id }}-${{ github.run_attempt }}",
+                "path": "${{ runner.temp }}/ci-health/*",
+                "if-no-files-found": "error",
+                "retention-days": 35,
+            }
             or aggregate is None
+            or aggregate.get("if") != "always()"
             or aggregate.get("env")
             != {
                 "EXPECTED_WORKERS": "${{ needs.bazel-worker-plan.outputs.workers }}",
@@ -1036,6 +1107,20 @@ def _nightly_workflow_errors(workflow: dict[str, Any]) -> list[str]:
                 "if-no-files-found": "warn",
                 "retention-days": 35,
             },
+            "Upload redacted nightly Bazel health metrics": {
+                "__if__": "always()",
+                "name": (
+                    "bazel-nightly-health-${{ github.run_id }}-"
+                    "${{ github.run_attempt }}-${{ matrix.worker }}"
+                ),
+                "path": (
+                    "${{ runner.temp }}/bazel-evidence/run-metrics.json\n"
+                    "${{ runner.temp }}/bazel-evidence/analysis.summary.json\n"
+                    "${{ runner.temp }}/bazel-evidence/test.summary.json\n"
+                ),
+                "if-no-files-found": "error",
+                "retention-days": 35,
+            },
             "Upload redacted nightly Bazel worker selection": {
                 "name": (
                     "bazel-selection-${{ github.run_id }}-"
@@ -1067,6 +1152,9 @@ def _nightly_workflow_errors(workflow: dict[str, Any]) -> list[str]:
         errors.append(_error("AFFECTED-WORKFLOW-012", "nightly Python launch is invalid"))
     if verdict is not None:
         download = _named_step(verdict, "Download redacted nightly Bazel worker selections")
+        health_download = _named_step(verdict, "Download redacted nightly Bazel health metrics")
+        health_generate = _named_step(verdict, "Generate the nightly Bazel CI health dashboard")
+        health_upload = _named_step(verdict, "Upload the nightly Bazel CI health dashboard")
         aggregate = _named_step(verdict, "Aggregate the complete nightly Bazel verdict")
         if (
             download is None
@@ -1078,7 +1166,55 @@ def _nightly_workflow_errors(workflow: dict[str, Any]) -> list[str]:
                 "pattern": ("bazel-selection-${{ github.run_id }}-${{ github.run_attempt }}-*"),
                 "path": "${{ runner.temp }}/bazel-worker-selections",
             }
+            or health_download is None
+            or set(health_download) != {"if", "name", "uses", "with"}
+            or health_download.get("if")
+            != (
+                "needs.bazel-nightly-plan.result == 'success' && "
+                "needs.bazel-nightly-workers.result == 'success'"
+            )
+            or health_download.get("uses") != DOWNLOAD_ARTIFACT_ACTION
+            or health_download.get("with")
+            != {
+                "pattern": (
+                    "bazel-nightly-health-${{ github.run_id }}-${{ github.run_attempt }}-*"
+                ),
+                "path": "${{ runner.temp }}/bazel-health-evidence",
+            }
+            or health_generate is None
+            or health_generate.get("env")
+            != {
+                "EXPECTED_WORKERS": "${{ needs.bazel-nightly-plan.outputs.workers }}",
+                "SHARD_COUNT": "${{ needs.bazel-nightly-plan.outputs.shard_count }}",
+                "TOPOLOGY_MODE": "${{ needs.bazel-nightly-plan.outputs.topology_mode }}",
+            }
+            or health_generate.get("if")
+            != (
+                "needs.bazel-nightly-plan.result == 'success' && "
+                "needs.bazel-nightly-workers.result == 'success'"
+            )
+            or not isinstance(health_generate.get("run"), str)
+            or "ci/common/ci_health.py" not in health_generate["run"]
+            or "--lane nightly" not in health_generate["run"]
+            or '--event "${GITHUB_EVENT_NAME}"' not in health_generate["run"]
+            or '--head-sha "${GITHUB_SHA}"' not in health_generate["run"]
+            or '--expected-workers "${EXPECTED_WORKERS}"' not in health_generate["run"]
+            or health_upload is None
+            or health_upload.get("uses") != UPLOAD_ARTIFACT_ACTION
+            or health_upload.get("if")
+            != (
+                "needs.bazel-nightly-plan.result == 'success' && "
+                "needs.bazel-nightly-workers.result == 'success'"
+            )
+            or health_upload.get("with")
+            != {
+                "name": "ci-health-nightly-${{ github.run_id }}-${{ github.run_attempt }}",
+                "path": "${{ runner.temp }}/ci-health/*",
+                "if-no-files-found": "error",
+                "retention-days": 35,
+            }
             or aggregate is None
+            or aggregate.get("if") != "always()"
             or aggregate.get("env")
             != {
                 "EXPECTED_WORKERS": "${{ needs.bazel-nightly-plan.outputs.workers }}",

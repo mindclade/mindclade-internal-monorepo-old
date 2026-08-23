@@ -95,6 +95,7 @@ def test_summarizes_plain_and_compressed_bep(tmp_path: Path, suffix: str) -> Non
     assert summary["actions"]["runners"] == {"internal": 2, "linux-sandbox": 9}
     assert summary["tests"]["outcomes"] == {"FLAKY": 1, "PASSED": 1}
     assert summary["tests"]["attempts"] == 3
+    assert summary["tests"]["non_passing_labels"] == {"FLAKY": ["//pkg:two"]}
     assert "Bazel full test performance" in summarizer.markdown(summary)
 
 
