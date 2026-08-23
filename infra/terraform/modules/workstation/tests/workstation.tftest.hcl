@@ -168,6 +168,27 @@ run "bounded_shutdown_contract" {
     condition     = output.shutdown_policy.idle_cycles_before_poweroff == 12
     error_message = "The idle counter must be bounded and derived from the configured interval and threshold."
   }
+
+  # Regression guard for a real defect. The package and Nix steps need public egress, which the
+  # target environment denies by default. When those ran first, `set -e` aborted the script before
+  # the idle timer was installed, so the instance billed at full rate until the daily stop caught
+  # it — the cost control was the first casualty of the failure it exists to survive. Ordering,
+  # not presence, is what makes it work.
+  assert {
+    condition = strcontains(
+      split("apt-get update", google_compute_instance.workstation.metadata["startup-script"])[0],
+      "systemctl enable --now mindclade-idle.timer"
+    )
+    error_message = "The idle timer must be installed BEFORE any step requiring public egress, or a blocked fetch leaves the instance running with no cost control."
+  }
+
+  assert {
+    condition = strcontains(
+      google_compute_instance.workstation.metadata["startup-script"],
+      "/var/lib/mindclade-provisioning-status"
+    )
+    error_message = "Best-effort provisioning must record per-step status, so a missing nix is diagnosed in one command rather than mistaken for a broken image."
+  }
 }
 
 run "centralized_firewall_opt_out" {

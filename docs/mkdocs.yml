@@ -121,6 +121,7 @@ nav:
       - Runtime model worker: runbooks/runtime-model-worker.md
       - Runtime serving core: runbooks/runtime-serving-core.md
       - CI Bazel validation: runbooks/ci-bazel-validation.md
+      - ARC self-hosted runners: runbooks/arc-runners.md
       - Developer workstation: runbooks/workstation.md
       - Control artifacts: runbooks/control-artifacts.md
       - Control evidence: runbooks/control-evidence.md
