@@ -42,9 +42,15 @@ Four further properties keep the meta-gate itself from becoming the eleventh ins
     accept it. A meta-gate nobody has watched fail is the defect this module exists to prevent,
     so it demonstrates its own failure on every run.
 
+Checkers that do not have a fixture yet are recorded in `UNFALSIFIED_BASELINE` with the reason.
+That is a ratchet, not an allowlist: it lets no violation through -- every checker still runs and
+still fails the build -- and it is asserted as an exact set, so a checker that acquires a fixture
+must be removed from it. It shrinks or it breaks.
+
 `tools/analysis/tests/test_gate_falsifiability.py` exercises the remaining directions: a stale
-fixture, a missing fixture, a mutation whose anchor has drifted, a fixture that trips an
-unrelated error, a checker that crashes, and a fixture that leaks state past its revert.
+fixture, a missing fixture, a stale baseline entry, a mutation whose anchor has drifted, a
+fixture body that raises, a fixture that trips an unrelated error, a checker that crashes, a
+checker that cannot read a fixture root, and a fixture that leaks state past its revert.
 """
 
 from __future__ import annotations

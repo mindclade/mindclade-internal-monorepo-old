@@ -35,6 +35,16 @@ invariant = "bounded_retry"
 owner = "runtime-platform"
 command = ["cargo", "test", "-p", "mindclade-artifact-proxy", "--test", "failure_injection", "object_store_outage_is_bounded", "--locked", "--", "--exact"]
 
+# The scenario above bounds the retry policy. This one drives the outage through the proxy's
+# real read path -- TransferEngine -> LocalCache -> ArtifactCas -> ObjectStore -- and asserts the
+# outage reaches the caller without leaving a cache entry a later reader would serve as the
+# artifact. Both are gated: a bounded retry that poisoned the cache would satisfy the first alone.
+[[scenario]]
+name = "object_store_unavailable_through_proxy"
+invariant = "outage_surfaces_and_leaves_no_stale_cache_entry"
+owner = "runtime-platform"
+command = ["cargo", "test", "-p", "mindclade-artifact-proxy", "--test", "failure_injection", "an_outage_surfaces_through_the_transfer_engine_and_leaves_no_stale_entry", "--locked", "--", "--exact"]
+
 [[scenario]]
 name = "control_plane_unavailable_after_admission"
 invariant = "admitted_work_continues"
