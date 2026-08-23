@@ -11,3 +11,9 @@ plus reorder-buffered shards never exceeds configured capacity. Explicit
 shutdown is deadline-bounded; `Drop` cancels/aborts without joining potentially
 blocking provider I/O. The legacy synchronous `Prefetcher` remains for callers
 that cannot run Tokio and should not be used on async request paths.
+
+A provider-supplied `RetryHint::After` is untrusted input — for a network object
+store it is a remote `Retry-After` — so both retry loops clamp it to the
+policy's `maximum_delay`. Retry is therefore bounded in total duration as well
+as in attempts, and a peer cannot decide how long a node stalls with a shard
+occupying its in-order reorder buffer.
