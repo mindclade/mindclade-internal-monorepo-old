@@ -8,8 +8,27 @@ Materialized source and production readiness are deliberately separate. Use:
 planned -> scaffolded -> experimental -> implemented -> qualified -> production
 ```
 
+`maturity.toml` declares seven statuses: the six above plus `deprecated`, which
+is retirement rather than a rung on the ladder.
+
 The authoritative machine-readable state is in `components.toml` and
 `maturity.toml`; this page summarizes the important repository-wide boundaries.
+
+## Census (2026-08-23)
+
+`components.toml` declares 89 components:
+
+```text
+implemented   79
+experimental   4   control.routing, preprocessing.core, apps.console, apps.admin
+scaffolded     4   models, training, evaluation, kernels
+qualified      2   libs.go, control.model_registry
+production     0
+```
+
+Nothing in this repository is `production`. Blueprint path materialization is
+complete — 4,494 of 4,494 manifest paths, 100.0% — and that is a statement about
+files existing, not about any of them being release-ready.
 
 ## Implemented substantive areas
 
@@ -26,8 +45,10 @@ empty target-state placeholders:
   deepened with consolidated runtime/node primitives, bounded resource/fencing
   contracts, storage/manifest/worker foundations, and related tests/contracts;
 - Rust runtime gateway/host core paths: substantive local validation,
-  admission/resource/supervision boundaries, pending pinned-toolchain and
-  network/provider qualification;
+  admission/resource/supervision boundaries. The pinned Rust 1.97.1 toolchain now
+  resolves in the Nix shell, and the canonical Cargo presubmit passed in the
+  2026-08-20 run recorded in `VALIDATION.md`; network/provider qualification
+  remains outstanding;
 - deterministic Python configuration resolution and preprocessing
   contract/DAG/cache/provenance foundations;
 - package-tested PyTorch attention, normalization, neural-network primitives,
@@ -51,11 +72,14 @@ empty target-state placeholders:
 
 A substantive source implementation may still be blocked from `qualified` or
 `production` by unavailable toolchains/providers or missing performance,
-security, or failure evidence. In particular, Rust compilation/fuzz/Miri,
+security, or failure evidence. In particular, Rust fuzz/Miri/sanitizers,
 Tokio/Tonic network leaves, KMS-backed production signing, real cloud provider
 integration (including Terraform connected plans/applies, drift, restore, and
 environment roots), OS-specific optimized bulk IPC, and scale qualification remain
-explicit promotion work where noted.
+explicit promotion work where noted. Toolchain *availability* is no longer among
+them — `rustc 1.97.1` resolves in the pinned Nix shell — but that is availability,
+not a standing build claim: this document does not assert a green Cargo run at any
+date other than the one `VALIDATION.md` records.
 
 ## Scaffolded/partial target-state areas
 

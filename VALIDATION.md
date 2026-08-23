@@ -2,31 +2,38 @@
 
 **Baseline validated:** 2026-08-13
 
-**Latest focused validation:** 2026-08-22
+**Latest focused validation:** 2026-08-23
 
 **Scope:** complete target-state monorepo scaffold, fully implemented reusable Go
 foundation, modular control-plane composition path, three runnable Go vertical
 slices, architecture/decision/module documentation, and blueprint coverage.
 
-## Documentation and licensing validation (2026-08-21)
+## Documentation and licensing validation (2026-08-23)
 
 ```text
 repository-home@2 and common-document@1                    PASS
 top-level Markdown links and heading hierarchy             PASS
 canonical LICENSE and CODE_OF_CONDUCT digests (7 repos)    PASS
-first-party proprietary header coverage                    PASS (320 repaired)
+first-party proprietary header coverage                    PASS
 cargo deny check licenses                                  PASS
-static presubmit architecture and implementation gates     PASS through 20 gates
-dependency budget                                          BLOCKED (pre-existing servicepolicy allowlist drift)
+static presubmit architecture and implementation gates     PASS (23 of 23 gates)
+dependency budget                                          PASS
 ```
 
 The header gate excludes independently licensed agent skills, vendored and
 generated files, Next.js machine-owned references, and lockfiles; their own
-license and provenance records remain authoritative. The static presubmit
-currently stops because `services/control_plane` imports
-`go.mindclade.dev/protocols/servicepolicy` outside its dependency allowlist.
-This is a source-architecture blocker, not a documentation or license failure,
-and no production qualification is inferred from the passing focused checks.
+license and provenance records remain authoritative.
+
+The dependency-budget row previously read `BLOCKED`, on the grounds that
+`services/control_plane` imported `go.mindclade.dev/protocols/servicepolicy`
+outside its allowlist. That import still exists in `internal/providers/api`, but
+the budget now covers it and
+`tools/analysis/check_dependency_budgets.py` reports `dependency budget check
+passed`. The gate count also moved: the `CHECKS` list in
+`tools/analysis/run_architecture_checks.py` now holds 23 entries, not 20.
+
+No production qualification is inferred from any of these passing checks. They
+are repository-only static evidence.
 
 ## Materialization statement
 
@@ -48,8 +55,12 @@ boundaries:
 - `services/control_plane/internal/{bootstrap,config,foundation,transport}`
   implements the canonical Go process composition path.
 - `libs/rust/` contains the audited user-supplied Rust foundation plus the
-  consolidated runtime/node implementation; deprecated crate names are facades
-  over canonical crates rather than parallel implementations.
+  consolidated runtime/node implementation, in 25 workspace crates. The seven
+  crates retired in the 2026-08 consolidation — `clock`, `retry`,
+  `resource_version`, `observability`, `artifact_manifest`, `byte_spec`, and
+  `python_bindings` — were **removed**, not left as facades: they are gone from
+  `libs/rust/`, from the workspace members, and from `Cargo.lock`, and
+  `tools/analysis/check_code_docs_alignment.py` fails if any of them reappears.
 - `services/runtime_gateway` and `services/runtime_host` contain implemented,
   model-independent Rust cores and are explicitly not production-qualified yet.
 - `preprocessing/` contains implemented Python contracts, deterministic DAG,
@@ -125,55 +136,59 @@ promotion blockers.
 
 ## Current inventory
 
-Recounted 2026-08-19 against the working tree. The previous table was the 2026-08-13 snapshot
+Recounted 2026-08-23 against the working tree. The previous table was the 2026-08-13 snapshot
 and every row in it had drifted; the two rows that had drifted *misleadingly* are called out
 below the table, because a reader checking whether this document is current would have taken
 either as evidence that it was.
 
 | Metric | Count |
 |---|---:|
-| Repository files (tracked) | 5,331 |
-| Blueprint paths materialized | 4,361 / 4,475 (97.5%) |
-| Files under `libs/go` | 767 |
-| Go source files under `libs/go` | 573 |
-| Go test files under `libs/go` | 169 |
+| Repository files (tracked) | 6,285 |
+| Blueprint paths materialized | 4,494 / 4,494 (100.0%) |
+| Files under `libs/go` | 768 |
+| Go source files under `libs/go` (incl. tests) | 574 |
+| Go test files under `libs/go` | 170 |
 | `BUILD.bazel` files under `libs/go` | 89 |
 | Package READMEs under `libs/go` | 89 |
 | Go package directories under `libs/go` | 86 |
-| Files under `libs/rust` | 407 |
-| Rust source files under `libs/rust` | 294 |
-| Rust crates under `libs/rust` | 24 |
-| Root `go.mod` direct requirements | 18 |
-| Root `go.sum` checksum lines | 438 |
-| Markdown files under `docs/` | 122 |
-| Markdown files, repository-wide | 586 |
+| Files under `libs/rust` | 420 |
+| Rust source files under `libs/rust` | 304 |
+| Rust crates under `libs/rust` | 25 |
+| Root `go.mod` direct requirements | 21 |
+| Root `go.mod` indirect requirements | 76 |
+| Root `go.sum` checksum lines | 286 |
+| Root `go.sum` distinct modules | 134 |
+| Markdown files under `docs/` | 141 |
+| Markdown files, repository-wide | 696 |
 
-Two rows changed meaning rather than magnitude:
+Rows worth a note, because earlier revisions of this table were wrong about them:
 
-- **Blueprint coverage was recorded as 4,475 / 4,475 (100%) and was never true after the Rust
-  consolidation.** It is 97.5%, and `tests/integration/test_blueprint_scaffold.py` has measured
-  the real number all along — the 100% claim came from `BLUEPRINT_COVERAGE.json`, a root
-  snapshot with no generator behind it, which is why that file has been deleted rather than
-  refreshed. Those 114 have since been reconciled in `1a3b46c`: the manifest now names the
-  layout that shipped, so the two in-flight migrations (`training/distributed`,
-  `libs/go/storage/outbox`) and the `.buildkite/` tree this estate does not use are no longer
-  counted as unwritten work. Coverage is above 99%, and what remains is genuinely unwritten --
-  `.github` templates and metadata, plus paths moving under the live `libs/python`
-  restructuring. The per-path breakdown is in that test's baseline comment.
-- **`libs/rust` crate count fell from 30 to 24, which is the consolidation succeeding, not
-  regression.** The seven retired compatibility crates listed in
-  `tools/analysis/check_code_docs_alignment.py` are gone, and that check now fails if any of
-  them reappears.
+- **Blueprint coverage is 100.0%: 4,494 of 4,494 manifest paths materialized, zero missing.**
+  `tools/analysis/check_blueprint_scaffold.py` reports `coverage_percent 100.0` and
+  `missing_paths 0`, and `MATERIALIZATION_BASELINE` in
+  `tests/integration/test_blueprint_scaffold.py` is asserted `== 0`. Both halves of the older
+  `4,361 / 4,475 (97.5%)` figure have moved — the manifest
+  `docs/blueprint/production-monorepo-paths.txt` now carries 4,494 path lines, and nothing in
+  it is unwritten. The revision before that recorded `4,475 / 4,475` from
+  `BLUEPRINT_COVERAGE.json`, a root snapshot with no generator behind it, since deleted. The
+  number here is now read from the checker rather than from a snapshot.
+- **`libs/rust` holds 25 crates.** The seven crates retired in the 2026-08 consolidation are
+  listed in `tools/analysis/check_code_docs_alignment.py`, they are gone from `libs/rust/`, the
+  workspace members, and `Cargo.lock`, and that check fails if any of them reappears. An
+  earlier revision of this table said 24; the count moves as crates are added, and it is not a
+  consolidation regression.
 
-The `libs/go` counts are lower for a different reason: the outbox package moved to
-`libs/go/coordination/outbox`, which is where `libs/go/LAYERS.md` places it -- Layer 2, beside
-`inbox`, `leadership` and `workqueue`. It imports `retry`, `servicekit` and `storage/lease`, and
-a Layer-1 `storage/` contract root may not, so the manifest had been naming a location the
-layering forbids. The manifest now agrees with the tree.
+The outbox package lives at `libs/go/coordination/outbox`, which is where `libs/go/LAYERS.md`
+places it -- Layer 2, beside `inbox`, `leadership` and `workqueue`. It imports `retry`,
+`servicekit` and `storage/lease`, and a Layer-1 `storage/` contract root may not, so an earlier
+manifest had been naming a location the layering forbids. The manifest agrees with the tree.
 
-Root `go.sum` has gone from 36 lines to 438: the transitive graph is now populated rather than
-just the 18 direct requirements. All 18 still carry both their module and `go.mod` checksums,
-which is the invariant `check_code_docs_alignment.py` enforces.
+Root `go.mod` declares 21 direct requirements and 76 indirect ones; `go.sum` carries 286 lines
+covering 134 distinct modules. Every direct requirement carries both its module and its
+`go.mod` checksum, which is the invariant `check_code_docs_alignment.py` enforces, and that gate
+passes. No gate asserts the line count itself: it moves with every dependency change, and a gate
+on it would teach people to edit the number rather than read the diff. Earlier revisions of this
+document recorded 18 direct requirements and 438 `go.sum` lines; both have since changed.
 
 The supplied Go archive was used as the base implementation. The expanded
 foundation adds strict configuration, signed keyset pagination, resource
@@ -183,12 +198,15 @@ leadership, outbox, projector, and work-queue mechanisms.
 
 ## Qualification completed in this environment
 
-The following completed successfully:
+Rows carrying a date were re-measured on that date. The rest were executed in the
+earlier pass this document records and have not been re-run since -- they are
+dated evidence, not a statement about the tree as it stands today.
 
 ```text
 Go formatting over libs/go, control, control-plane service, and examples       PASS
 Go dependency-layer and paved-road checks                                      PASS
-Blueprint materialization: 4,475 / 4,475                                      PASS
+Blueprint materialization: 4,494 / 4,494 (100.0%)                              PASS  2026-08-23
+Static presubmit architecture gates: 23 of 23                                  PASS  2026-08-23
 Normal Go tests over 111 offline-safe package targets                          PASS
 Go vet over the same 111 package targets                                       PASS
 Race-enabled Go tests over the same 111 package targets, in bounded batches    PASS
@@ -196,11 +214,17 @@ Focused production-foundation qualification script                             P
 Runnable outbox-to-broker event dispatcher                                     PASS
 Runnable ingestion leadership/workqueue/cursor/outbox slice                    PASS
 Representative control-plane role manifests                                    PASS
-Bazel loading and language-independent layer graph                              PASS
-Bzlmod lock closure and full configured analysis (1,246 top-level targets)      PASS
-Bazel //... test suite (351 non-manual tests, pinned macOS/Nix shell)            PASS
-MkDocs strict site build (pinned Nix toolchain)                                 PASS
+Bazel loading and language-independent layer graph                             PASS
+Bzlmod lock closure and full configured analysis                               PASS
+MkDocs strict site build (pinned Nix toolchain)                                PASS  2026-08-23
 ```
+
+The Bazel graph resolves 2,334 rule targets under `//...`, of which 439 are
+non-manual test targets (`bazelw query`, 2026-08-23). Earlier revisions of this
+document recorded 1,246 top-level targets and a passing `//...` run over 351
+non-manual tests. That execution has **not** been repeated at the current target
+count, so no passing run over all 439 is claimed here; the two numbers above are
+graph measurements, not test results.
 
 The 111-package inventory is committed at
 `qualification/go/offline-safe-packages.txt`. It covers the complete
@@ -245,7 +269,7 @@ claims from drifting away from the code.
 
 The archive includes:
 
-- an architecture decision register and twenty-three detailed ADRs;
+- an architecture decision register and twenty-five detailed ADRs;
 - system, language, dependency, control-plane, data, preprocessing, serving,
   training, checkpoint, evaluation, artifact, and release architecture;
 - a package-by-package `libs/go` module reference with canonical recipes;
