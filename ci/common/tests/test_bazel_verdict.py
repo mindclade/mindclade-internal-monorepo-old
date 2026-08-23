@@ -101,6 +101,19 @@ def _sharded_evidence(worker: int) -> WorkerSelectionEvidence:
     )
 
 
+def _unsharded_evidence(*, worker: int, topology_mode: str, event: str) -> WorkerSelectionEvidence:
+    selection = _unsharded_selection()
+    selection["event"] = event
+    return redact_selection(
+        selection,
+        worker=worker,
+        topology_mode=topology_mode,
+        event=event,
+        head_sha=HEAD_SHA,
+        shard_count=4,
+    )
+
+
 def _write_artifacts(root: Path, evidence: tuple[WorkerSelectionEvidence, ...]) -> None:
     root.mkdir()
     for item in evidence:
@@ -277,6 +290,80 @@ def test_complete_sharded_worker_artifacts_pass_central_verification(tmp_path: P
         head_sha=HEAD_SHA,
         shard_count=4,
     )
+
+
+@pytest.mark.parametrize(
+    ("worker", "topology_mode", "event"),
+    [
+        (-1, "presubmit-auto", "pull_request"),
+        (-2, "full-unsharded", "push"),
+    ],
+)
+def test_single_worker_flat_artifact_passes_central_verification(
+    tmp_path: Path, worker: int, topology_mode: str, event: str
+) -> None:
+    root = tmp_path / "selections"
+    root.mkdir()
+    evidence = _unsharded_evidence(
+        worker=worker,
+        topology_mode=topology_mode,
+        event=event,
+    )
+    (root / "worker-selection.json").write_text(json.dumps(evidence.as_dict()), encoding="utf-8")
+
+    verify_worker_selections(
+        root,
+        artifact_prefix=ARTIFACT_PREFIX,
+        expected_workers=(worker,),
+        topology_mode=topology_mode,
+        event=event,
+        head_sha=HEAD_SHA,
+        shard_count=4,
+    )
+
+
+def test_single_worker_flat_artifact_rejects_extra_entry(tmp_path: Path) -> None:
+    root = tmp_path / "selections"
+    root.mkdir()
+    evidence = _unsharded_evidence(
+        worker=-1,
+        topology_mode="presubmit-auto",
+        event="pull_request",
+    )
+    (root / "worker-selection.json").write_text(json.dumps(evidence.as_dict()), encoding="utf-8")
+    (root / "unexpected").write_text("unexpected\n", encoding="utf-8")
+
+    with pytest.raises(VerdictContractError) as captured:
+        verify_worker_selections(
+            root,
+            artifact_prefix=ARTIFACT_PREFIX,
+            expected_workers=(-1,),
+            topology_mode="presubmit-auto",
+            event="pull_request",
+            head_sha=HEAD_SHA,
+            shard_count=4,
+        )
+    assert captured.value.code == "BAZEL_VERDICT_ARTIFACT_SET_INVALID"
+
+
+def test_multi_worker_flat_artifact_fails_closed(tmp_path: Path) -> None:
+    root = tmp_path / "selections"
+    root.mkdir()
+    (root / "worker-selection.json").write_text(
+        json.dumps(_sharded_evidence(0).as_dict()), encoding="utf-8"
+    )
+
+    with pytest.raises(VerdictContractError) as captured:
+        verify_worker_selections(
+            root,
+            artifact_prefix=ARTIFACT_PREFIX,
+            expected_workers=(0, 1, 2, 3),
+            topology_mode="full-sharded",
+            event="merge_group",
+            head_sha=HEAD_SHA,
+            shard_count=4,
+        )
+    assert captured.value.code == "BAZEL_VERDICT_ARTIFACT_SET_INVALID"
 
 
 def test_verify_cli_requires_and_accepts_complete_current_attempt(
