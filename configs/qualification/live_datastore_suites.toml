@@ -61,6 +61,18 @@ rejected; concurrent pressure never overspends capacity and replays exactly one 
 """
 
 [[suite]]
+id = "control_plane_orchestration"
+directory = "services/control_plane/internal/store/postgres/orchestration"
+requires_environment = ["MINDCLADE_TEST_POSTGRES_DSN"]
+minimum_tests = 8
+proves = """
+Orchestration domain, audit, and outbox writes commit atomically; projected columns remain tied
+to their stored documents by live CHECK constraints; published workflows are immutable; racing
+reconcilers produce one durable transition; stale versions and attempt generations lose; and
+cancellation replay and stage lookup preserve their idempotency and materialization contracts.
+"""
+
+[[suite]]
 id = "control_plane_maintenance"
 directory = "services/control_plane/internal/providers/maintenance"
 requires_environment = ["MINDCLADE_TEST_POSTGRES_DSN"]
