@@ -387,6 +387,19 @@ FALSIFIERS: tuple[Falsifier, ...] = (
         ),
     ),
     Falsifier(
+        check="protocol graph completeness",
+        defect="a promoted .proto is added without a proto_library to own it",
+        expect="fixture_orphan.proto has no proto_library in",
+        # The exact shape the checker was written for: buf still lints and projects the file,
+        # so the omission is invisible everywhere except a walk of the real tree.
+        inject=lambda tree: tree.write(
+            "protocols/proto/mindclade/common/v1/fixture_orphan.proto",
+            'syntax = "proto3";\n\n'
+            "package mindclade.common.v1;\n\n"
+            "message FixtureOrphan {\n  string value = 1;\n}\n",
+        ),
+    ),
+    Falsifier(
         check="blueprint scaffold consistency",
         defect="a blueprint path is listed twice in the manifest",
         expect="Cargo.toml is listed more than once in the blueprint manifest",
