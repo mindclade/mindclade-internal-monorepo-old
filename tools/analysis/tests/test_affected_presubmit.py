@@ -122,6 +122,142 @@ def test_workflow_rejects_alternate_selection_mode() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("BAZEL_CACHE_MODE", "disk"),
+        ("BAZEL_CACHE_ROLE", "${{ steps.bazel-remote-cache.outputs.role }}"),
+    ],
+)
+def test_presubmit_rejects_ungoverned_cache_route(field: str, value: str) -> None:
+    workflow = _presubmit_workflow()
+    step = next(
+        item
+        for item in workflow["jobs"]["bazel"]["steps"]
+        if item.get("name") == "Run event-governed Bazel validation"
+    )
+    step["env"][field] = value
+    assert "[AFFECTED-WORKFLOW-005] governed Bazel command is invalid" in (
+        check_affected_presubmit._presubmit_workflow_errors(workflow)
+    )
+
+
+@pytest.mark.parametrize("flag", ["--cache-mode", "--cache-role"])
+def test_presubmit_requires_cache_route_arguments(flag: str) -> None:
+    workflow = _presubmit_workflow()
+    step = next(
+        item
+        for item in workflow["jobs"]["bazel"]["steps"]
+        if item.get("name") == "Run event-governed Bazel validation"
+    )
+    argument = "${BAZEL_CACHE_MODE}" if flag == "--cache-mode" else "${BAZEL_CACHE_ROLE}"
+    step["run"] = step["run"].replace(f' {flag} "{argument}"', "")
+    assert "[AFFECTED-WORKFLOW-005] governed Bazel command is invalid" in (
+        check_affected_presubmit._presubmit_workflow_errors(workflow)
+    )
+
+
+def test_presubmit_separates_native_stack_cache_and_selection_bases() -> None:
+    workflow = _presubmit_workflow()
+    steps = workflow["jobs"]["bazel"]["steps"]
+    remote_route = next(
+        item for item in steps if item.get("name") == "Select qualified Bazel remote-cache route"
+    )
+    disk_route = next(
+        item for item in steps if item.get("name") == "Select trusted Bazel cache revision"
+    )
+    governed_run = next(
+        item for item in steps if item.get("name") == "Run event-governed Bazel validation"
+    )
+
+    assert remote_route["env"]["PR_BASE_REF"] == (
+        check_affected_presubmit.PULL_REQUEST_CACHE_BASE_REF
+    )
+    assert disk_route["env"]["PR_BASE_REF"] == (
+        check_affected_presubmit.PULL_REQUEST_CACHE_BASE_REF
+    )
+    assert disk_route["env"]["PR_BASE_SHA"] == (
+        check_affected_presubmit.PULL_REQUEST_CACHE_BASE_SHA
+    )
+    assert governed_run["env"]["PR_BASE_SHA"] == (
+        check_affected_presubmit.PULL_REQUEST_SELECTION_BASE_SHA
+    )
+
+
+@pytest.mark.parametrize(
+    ("step_name", "field", "mutated_value"),
+    [
+        (
+            "Select qualified Bazel remote-cache route",
+            "PR_BASE_REF",
+            "${{ github.event.pull_request.base.ref }}",
+        ),
+        (
+            "Select trusted Bazel cache revision",
+            "PR_BASE_REF",
+            "${{ github.event.pull_request.stack.base.ref }}",
+        ),
+        (
+            "Select trusted Bazel cache revision",
+            "PR_BASE_SHA",
+            "${{ github.event.pull_request.base.sha }}",
+        ),
+        (
+            "Run event-governed Bazel validation",
+            "PR_BASE_SHA",
+            check_affected_presubmit.PULL_REQUEST_CACHE_BASE_SHA,
+        ),
+    ],
+)
+def test_presubmit_rejects_cache_or_selection_base_drift(
+    step_name: str,
+    field: str,
+    mutated_value: str,
+) -> None:
+    workflow = _presubmit_workflow()
+    step = next(
+        item for item in workflow["jobs"]["bazel"]["steps"] if item.get("name") == step_name
+    )
+    step["env"][field] = mutated_value
+    assert "[AFFECTED-WORKFLOW-011] presubmit cache routing is invalid" in (
+        check_affected_presubmit._presubmit_workflow_errors(workflow)
+    )
+
+
+def test_presubmit_skips_disk_cache_measurement_after_trust_rejection() -> None:
+    workflow = _presubmit_workflow()
+    step = next(
+        item
+        for item in workflow["jobs"]["bazel"]["steps"]
+        if item.get("name") == "Measure bounded Bazel persistent action cache"
+    )
+    assert step["if"] == check_affected_presubmit.PERSISTENT_CACHE_MEASURE_IF
+
+    step["if"] = "always() && steps.bazel-remote-cache.outputs.enabled != 'true'"
+    assert "[AFFECTED-WORKFLOW-011] presubmit cache routing is invalid" in (
+        check_affected_presubmit._presubmit_workflow_errors(workflow)
+    )
+
+
+@pytest.mark.parametrize(
+    "step_name",
+    [
+        "Select qualified Bazel remote-cache route",
+        "Prove affected selection against the real Bazel graph",
+        "Run event-governed Bazel validation",
+    ],
+)
+def test_presubmit_rejects_checkout_local_python_bytecode(step_name: str) -> None:
+    workflow = _presubmit_workflow()
+    step = next(
+        item for item in workflow["jobs"]["bazel"]["steps"] if item.get("name") == step_name
+    )
+    step["run"] = step["run"].replace("python3 -B", "python3", 1)
+    assert "[AFFECTED-WORKFLOW-012] presubmit Python launch is invalid" in (
+        check_affected_presubmit._presubmit_workflow_errors(workflow)
+    )
+
+
 def test_workflow_parser_rejects_duplicate_keys() -> None:
     with pytest.raises(workflow_yaml.WorkflowYamlError) as captured:
         workflow_yaml.parse_workflow_text("name: first\nname: second\n")
@@ -333,11 +469,13 @@ def test_selection_policy_behavior_rejects_mutated_resolver(
     ]
 
 
-def test_selection_policy_is_independent_of_graph_native_activation(
+def test_selection_policy_rejects_unauthorized_graph_native_activation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(check_affected_presubmit.affected, "GRAPH_NATIVE_AFFECTED_ACTIVE", True)
-    assert check_affected_presubmit._selection_policy_errors() == []
+    assert check_affected_presubmit._selection_policy_errors() == [
+        "[AFFECTED-WORKFLOW-008] selection event policy is invalid"
+    ]
 
 
 def test_nightly_target_contract_rejects_duplicate_keys(tmp_path: Path) -> None:
@@ -358,6 +496,60 @@ def _nightly_workflow() -> dict[str, object]:
 
 def test_nightly_workflow_contract_is_full_and_non_bypassable() -> None:
     assert check_affected_presubmit._nightly_workflow_errors(_nightly_workflow()) == []
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("BAZEL_CACHE_MODE", "disk"),
+        ("BAZEL_CACHE_ROLE", "${{ steps.bazel-remote-cache.outputs.role }}"),
+    ],
+)
+def test_nightly_rejects_ungoverned_cache_route(field: str, value: str) -> None:
+    workflow = _nightly_workflow()
+    step = next(
+        item
+        for item in workflow["jobs"]["bazel-nightly"]["steps"]
+        if item.get("name") == "Analyze and test the complete configured graph"
+    )
+    step["env"][field] = value
+    assert "[AFFECTED-WORKFLOW-005] nightly Bazel command is invalid" in (
+        check_affected_presubmit._nightly_workflow_errors(workflow)
+    )
+
+
+@pytest.mark.parametrize("flag", ["--cache-mode", "--cache-role"])
+def test_nightly_requires_cache_route_arguments(flag: str) -> None:
+    workflow = _nightly_workflow()
+    step = next(
+        item
+        for item in workflow["jobs"]["bazel-nightly"]["steps"]
+        if item.get("name") == "Analyze and test the complete configured graph"
+    )
+    argument = "${BAZEL_CACHE_MODE}" if flag == "--cache-mode" else "${BAZEL_CACHE_ROLE}"
+    step["run"] = step["run"].replace(f' {flag} "{argument}"', "")
+    assert "[AFFECTED-WORKFLOW-005] nightly Bazel command is invalid" in (
+        check_affected_presubmit._nightly_workflow_errors(workflow)
+    )
+
+
+@pytest.mark.parametrize(
+    "step_name",
+    [
+        "Select qualified nightly Bazel remote-cache route",
+        "Validate complete loading, formatting, and layer policy",
+        "Analyze and test the complete configured graph",
+    ],
+)
+def test_nightly_rejects_checkout_local_python_bytecode(step_name: str) -> None:
+    workflow = _nightly_workflow()
+    step = next(
+        item for item in workflow["jobs"]["bazel-nightly"]["steps"] if item.get("name") == step_name
+    )
+    step["run"] = step["run"].replace("python3 -B", "python3", 1)
+    assert "[AFFECTED-WORKFLOW-012] nightly Python launch is invalid" in (
+        check_affected_presubmit._nightly_workflow_errors(workflow)
+    )
 
 
 def test_nightly_rejects_expression_continue_on_error() -> None:
