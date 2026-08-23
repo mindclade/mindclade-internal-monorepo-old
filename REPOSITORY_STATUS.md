@@ -40,10 +40,10 @@ provider, GPU, deployment, or production-promotion evidence.
 
 ### Component census
 
-`components.toml` declares 89 components:
+`components.toml` declares 93 components:
 
 ```text
-implemented   79
+implemented   83
 experimental   4   control.routing, preprocessing.core, apps.console, apps.admin
 scaffolded     4   models, training, evaluation, kernels
 qualified      2   libs.go, control.model_registry
@@ -60,11 +60,14 @@ bounded by that fact.
 - typed Go control-plane domains under `control/`, including runtime authority,
   artifacts, reference releases, ingestion, release lineage, canonical evidence,
   append-only evidence-ledger storage, and signed production-eligibility decisions.
-  `control/routing` and `control/orchestration` appear in this tree for the domain
-  shape they establish rather than as implemented capability: both are
-  `experimental` in `components.toml`, and ten of `control/orchestration`'s
-  fourteen non-test files — service, executor, state machine, lease, compiler,
-  repository, and the three launcher adapters — are still scaffold placeholders;
+  `control/orchestration` and `control/scheduling` advanced to `implemented` on
+  2026-08-23: the ten `control/orchestration` files that were `const scaffold_*`
+  placeholders — service, executor, state machine, lease, compiler, repository,
+  and the three launcher adapters — now carry implementations, and a shared
+  `launchertest` conformance suite is run by all three launchers. `implemented`
+  is not `qualified`; neither component has connected-provider or cluster
+  evidence. `control/routing` remains `experimental` and appears in this tree
+  for the domain shape it establishes rather than as implemented capability;
 - Go architecture, dependency, root-module, and library-admission enforcement;
 - runnable Go control-plane, event-dispatcher, and ingestion integrations;
 - the user-supplied Rust foundation adopted as the literal starting point and
