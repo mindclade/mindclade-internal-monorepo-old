@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import json
 import pathlib
 import re
 
@@ -14,6 +15,11 @@ NIGHTLY = (ROOT / ".github/workflows/nightly.yml").read_text(encoding="utf-8")
 SECURITY = (ROOT / ".github/workflows/security.yml").read_text(encoding="utf-8")
 CACHE_SHA = "55cc8345863c7cc4c66a329aec7e433d2d1c52a9"
 REUSABLE_SHA = "7e4b7a873fc9312c2985ed262b251455c71756fe"
+AUTH_SHA = "7c6bc770dae815cd3e89ee6cdf493a5fab2cc093"
+REMOTE_CACHE = (ROOT / "ci/common/bazel_remote_cache.py").read_text(encoding="utf-8")
+REMOTE_CACHE_ACTIVATION = json.loads(
+    (ROOT / "ci/bazel_cache/activation.json").read_text(encoding="utf-8")
+)
 
 
 for job in ("architecture", "lint", "terraform"):
@@ -116,7 +122,21 @@ assert "steps.bazel-cache-size.outputs.within-limit == 'true'" in bazel_job
 assert "steps.bazel-disk-cache.outcome" in bazel_job
 assert "steps.bazel-cache-size.outcome" in bazel_job
 assert "--bazel-wrapper" in bazel_job
-assert "--remote_cache=" not in bazel_job
+assert REMOTE_CACHE_ACTIVATION["state"] == "blocked"
+assert "id-token: write" not in bazel_job
+assert bazel_job.count(f"google-github-actions/auth@{AUTH_SHA}") == 2
+assert bazel_job.count("export_environment_variables: false") == 2
+assert "vars.BAZEL_REMOTE_CACHE_STATE" in bazel_job
+assert "vars.WIF_PROVIDER_BAZEL_CACHE" in bazel_job
+assert "vars.SA_BAZEL_CACHE_READER" in bazel_job
+assert "vars.SA_BAZEL_CACHE_WRITER" in bazel_job
+for command in ("select", "start", "record-stop"):
+    assert f"ci/common/bazel_remote_cache.py {command}" in bazel_job
+assert bazel_job.count("steps.bazel-remote-cache.outputs.enabled != 'true'") >= 6
+assert bazel_job.count("steps.bazel-remote-cache.outputs.enabled == 'true'") >= 5
+assert 'LOOPBACK_ENDPOINT = "http://127.0.0.1:8085"' in REMOTE_CACHE
+assert "build --remote_cache={LOOPBACK_ENDPOINT}" in REMOTE_CACHE
+assert "https://storage.googleapis.com" not in bazel_job
 assert "user.bazelrc" in (ROOT / ".gitignore").read_text(encoding="utf-8")
 
 nightly_job = NIGHTLY.split("\n  bazel-nightly:\n", maxsplit=1)[1]
@@ -150,5 +170,15 @@ for command in ("select-trust", "configure", "measure", "record-metrics"):
     assert f"ci/common/bazel_disk_cache.py {command}" in nightly_job
 assert "ci/nightly/pipeline.py" in nightly_job
 assert "--mode affected" not in nightly_job
+assert "id-token: write" not in nightly_job
+assert nightly_job.count(f"google-github-actions/auth@{AUTH_SHA}") == 1
+assert "export_environment_variables: false" in nightly_job
+assert "vars.BAZEL_REMOTE_CACHE_STATE" in nightly_job
+assert "vars.WIF_PROVIDER_BAZEL_CACHE" in nightly_job
+assert "vars.SA_BAZEL_CACHE_WRITER" in nightly_job
+for command in ("select", "start", "record-stop"):
+    assert f"ci/common/bazel_remote_cache.py {command}" in nightly_job
+assert nightly_job.count("steps.bazel-remote-cache.outputs.enabled != 'true'") >= 6
+assert nightly_job.count("steps.bazel-remote-cache.outputs.enabled == 'true'") >= 4
 
 print("Terraform and Bazel workflow trust-boundary assertions passed.")

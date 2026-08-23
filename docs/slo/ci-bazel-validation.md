@@ -20,7 +20,8 @@ temporary-ref cache scope cannot publish an entry consumed by protected main.
 Cache loss, eviction, restore failure, or a changed toolchain fingerprint must
 produce a cold local build, never a skipped analysis/test verdict. Cache hits
 are not provenance or release evidence. The authenticated remote-cache gateway
-remains activation blocked and is outside this SLO.
+remains activation blocked and is outside this SLO. While blocked, the Bazel jobs have no OIDC
+permission, so repository-variable drift cannot silently make the gateway load-bearing.
 
 ## Measurement
 
@@ -38,6 +39,13 @@ improvement may reduce the measured percentile but may not change the target
 selection, full-graph merge-group/nightly contract, or 75/90-minute correctness
 ceilings.
 
+After connected activation, the same file changes to the GCS transport schema and records the
+gateway binary SHA-256, reader/writer role, remote hits and misses, immutable creates, idempotent
+duplicates, rejected writes and collisions, request errors, and transferred bytes. Segment the
+latency series by transport and role. The BEP summary remains the source for action-cache hit rate
+and execution critical path; gateway counters are an independent backend cross-check, not a build
+verdict.
+
 ## Promotion gate
 
 The components remain `implemented` until the connected canary matrix passes,
@@ -45,3 +53,7 @@ the exact required context is observed on pull requests and merge groups, and
 the 28-day p95 objective is calculated from retained evidence. Promotion also
 requires a green cold-cache control run, bounded-cache size evidence, and no
 trusted save originating outside protected main or main-only nightly.
+Remote-cache promotion additionally requires the full activation matrix in
+`ci/bazel_cache/activation.json`, exact retained evidence generation and SHA-256, and intentional
+negative evidence for feature branches, tags, manual dispatch, altered workflows, wrong
+repository IDs, wrong audience, and cross-role impersonation.
