@@ -3,13 +3,15 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("//tools/build:pytest.bzl", "pytest_test")
+
 package(default_visibility = ["//visibility:private"])
 
-filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
-    visibility = ["//visibility:public"],
+# `preprocessing.contracts` is imported by its dotted path, so the sys.path root is the
+# repository root — three levels up from this package.
+pytest_test(
+    name = "test_contracts",
+    srcs = ["test_contracts.py"],
+    imports = ["../../.."],
+    deps = ["//preprocessing/contracts"],
 )

@@ -119,7 +119,12 @@ import pytest
 # LOWERED 153 -> 148 by replacing the export, attention, neural-network primitive,
 # normalization, and decoder-only LLM placeholders with package-level behavioral,
 # numerical, state, failure, and artifact-integrity coverage.
-SCAFFOLD_BASELINE = 148
+# LOWERED 148 -> 143 by replacing the preprocessing cache-key, provenance-manifest,
+# contract, pipeline-planner and pipeline-resume placeholders with real coverage. Those five
+# packages already had implementations; the placeholders claimed otherwise, so the skip reason
+# was stale rather than honest. The seven biology and chemistry packages beside them are still
+# docstring-only scaffold boundaries and their placeholders correctly remain.
+SCAFFOLD_BASELINE = 143
 
 # Gitignored tool directories. Every entry is something that can hold a copy of the tree
 # without being part of it, which this scan would otherwise count.
