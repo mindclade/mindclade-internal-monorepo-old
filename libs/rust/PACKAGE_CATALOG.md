@@ -30,7 +30,7 @@ Compatibility crates: **0**
 | `ipc` | 3 | evolving | `bytes_io`, `content_digest`, `faults`, `identifiers`, `record_io`, `worker_protocol` |
 | `ipc_os` | 3 | evolving | `bytes_io`, `content_digest`, `faults`, `worker_protocol` |
 | `servicekit` | 3 | evolving | `faults`, `identifiers`, `runtime_core`, `telemetry` |
-| `telemetry_spool` | 3 | evolving | `atomic_fs`, `bytes_io`, `faults`, `identifiers`, `record_io`, `runtime_core` |
+| `telemetry_spool` | 3 | evolving | `atomic_fs`, `bytes_io`, `faults`, `identifiers`, `record_io`, `runtime_core`, `telemetry` |
 | `worker_protocol` | 3 | evolving | `bytes_io`, `content_digest`, `faults`, `identifiers`, `runtime_core` |
 | `python_bridge` | 4 | evolving | `artifact_cas`, `bio_formats`, `bounded_parse`, `bytes_io`, `content_digest`, `data_stream`, `faults`, `ipc`, `manifests`, `tokenizer_runtime`, `worker_protocol` |
 | `worker_runtime` | 4 | evolving | `faults`, `runtime_core`, `worker_protocol` |
