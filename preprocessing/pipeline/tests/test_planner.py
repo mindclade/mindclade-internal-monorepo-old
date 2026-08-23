@@ -236,16 +236,23 @@ def test_validate_plan_raises_on_an_invalid_plan() -> None:
         validate_plan(duplicated)
 
 
-def test_planner_does_not_validate_its_prefix_or_its_digests() -> None:
-    """CURRENT BEHAVIOUR. `preprocessing.contracts.validation.require_sha256` exists and the
-    planner does not call it, so a junk config digest is threaded into every descriptor and an
-    empty prefix produces stage ids that begin with a bare colon. Both plans validate. Recorded
-    rather than fixed: this change may not touch source under `preprocessing/`."""
-    plan = plan_structure_pipeline(
-        prefix="",
-        input_artifact=_INPUT,
-        config_digest="not-a-digest",
-        reference_snapshot_digest="",
-    )
-    assert plan.stages[0].spec.stage_id == ":canonicalize"
-    assert all(d["config_digest"] == "not-a-digest" for d in compile_plan(plan))
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"prefix": ""},
+        {"prefix": "../escape"},
+        {"config_digest": "not-a-digest"},
+        {"reference_snapshot_digest": ""},
+        {"include_msa": "true"},
+    ],
+)
+def test_planner_rejects_unsafe_identity_inputs(overrides: dict[str, object]) -> None:
+    arguments: dict[str, object] = {
+        "prefix": "job",
+        "input_artifact": _INPUT,
+        "config_digest": _CONFIG,
+        "reference_snapshot_digest": _SNAPSHOT,
+    }
+    arguments.update(overrides)
+    with pytest.raises(ValueError):
+        plan_structure_pipeline(**arguments)  # type: ignore[arg-type]

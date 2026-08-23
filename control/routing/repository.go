@@ -19,6 +19,19 @@ type MemoryRepository struct {
 func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{values: map[string]runtime_authority.RouteSnapshot{}}
 }
+
+func cloneSnapshot(value runtime_authority.RouteSnapshot) runtime_authority.RouteSnapshot {
+	clone := value
+	clone.Claims.Routes = append([]runtime_authority.DeploymentRoute(nil), value.Claims.Routes...)
+	for index := range clone.Claims.Routes {
+		clone.Claims.Routes[index].Capabilities = append(
+			[]string(nil), value.Claims.Routes[index].Capabilities...,
+		)
+	}
+	clone.Signature = value.Signature.Clone()
+	return clone
+}
+
 func (r *MemoryRepository) Current(_ context.Context, region string) (runtime_authority.RouteSnapshot, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -26,14 +39,17 @@ func (r *MemoryRepository) Current(_ context.Context, region string) (runtime_au
 	if !ok {
 		return runtime_authority.RouteSnapshot{}, invalid("route_snapshot_not_found", "route snapshot is not published", nil)
 	}
-	return v, nil
+	return cloneSnapshot(v), nil
 }
 func (r *MemoryRepository) Put(_ context.Context, region string, v runtime_authority.RouteSnapshot) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.values == nil {
+		r.values = map[string]runtime_authority.RouteSnapshot{}
+	}
 	if old, ok := r.values[region]; ok && v.Claims.Version <= old.Claims.Version {
 		return invalid("route_snapshot_version_not_monotonic", "route snapshot version must increase", nil)
 	}
-	r.values[region] = v
+	r.values[region] = cloneSnapshot(v)
 	return nil
 }

@@ -1,0 +1,84 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# This workflow consumes an already-created signed annotated tag. It never creates, moves, or
+# publishes a tag, and planned interface contracts fail closed before artifacts are produced.
+name: Terraform module release source
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-module-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-source:
+    environment: terraform-module-release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      artifact-metadata: write
+      attestations: write
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve immutable release source
+        id: source
+        run: |
+          set -euo pipefail
+          source_sha="$(git rev-parse --verify 'HEAD^{commit}')"
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$source_sha" origin/main
+          printf 'sha=%s\n' "$source_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Require released source contract
+        run: >-
+          python3 -B ci/terraform/module_release.py validate-source
+          --tag '${{ github.ref_name }}'
+          --source-sha '${{ steps.source.outputs.sha }}'
+
+      - name: Verify signed annotated tag through GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          python3 -B ci/terraform/module_release.py verify-connected
+          --repository '${{ github.repository }}'
+          --tag '${{ github.ref_name }}'
+          --source-sha '${{ steps.source.outputs.sha }}'
+
+      - name: Qualify exact Terraform module source
+        run: nix develop .#ci-terraform --command ci/terraform/check.sh all
+
+      - name: Build deterministic module release manifest
+        run: >-
+          python3 -B ci/terraform/module_release.py manifest
+          --tag '${{ github.ref_name }}'
+          --source-sha '${{ steps.source.outputs.sha }}'
+          --output terraform-module-release.json
+
+      - name: Attest module release manifest
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32  # v4.1.0
+        with:
+          subject-path: terraform-module-release.json
+
+      - name: Retain module release manifest
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          if-no-files-found: error
+          name: terraform-modules-${{ github.ref_name }}
+          path: terraform-module-release.json
+          retention-days: 90

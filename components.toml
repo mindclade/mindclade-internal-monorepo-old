@@ -37,7 +37,7 @@ runbook = "docs/runbooks/control-runtime-authority.md"
 [[component]]
 name = "control.routing"
 path = "control/routing"
-status = "experimental"
+status = "implemented"
 owner = "platform-control"
 tests = ["control/routing/policy_test.go"]
 slo = "docs/slo/control-routing.md"
@@ -723,18 +723,18 @@ qualification = "libs/ts/README.md"
 [[component]]
 name = "apps.console"
 path = "apps/console"
-status = "experimental"
+status = "implemented"
 owner = "product-engineering"
-tests = ["apps/console/tests/format.test.tsx"]
+tests = ["apps/console/tests/format.test.tsx", "apps/console/tests/security.test.ts"]
 qualification = "apps/console/PRODUCTION_READINESS.md"
 runbook = "docs/runbooks/typescript-applications.md"
 
 [[component]]
 name = "apps.admin"
 path = "apps/admin"
-status = "experimental"
+status = "implemented"
 owner = "security-platform"
-tests = ["apps/admin/tests/format.test.tsx"]
+tests = ["apps/admin/tests/format.test.tsx", "apps/admin/tests/boundaries.test.ts"]
 qualification = "apps/admin/PRODUCTION_READINESS.md"
 runbook = "docs/runbooks/typescript-applications.md"
 
@@ -1038,25 +1038,12 @@ tests = [
 ]
 release_target = "go-vanity"
 
-# `services/control_plane` is NOT declared here, and that is a blocker being reported rather
-# than an omission. Its evidence supports `implemented` — 45 packages, 13,732 production
-# lines, 24 packages with executing tests (bootstrap 58.8%, config 77.8%, providers/api 62.3%,
-# store/postgres/admission 40.8%, and so on), and go_library/go_test targets throughout — and
-# its owner is unambiguous: OWNERS.toml claims `services/control_plane/**` for platform-control
-# explicitly. The tier is unambiguous too: it composes control.runtime_authority,
-# control.admission, control.artifacts, control.ingestion, control.model_registry and
-# control.release_evidence, every one of which is tier-1, so the deployable that hosts them
-# cannot honestly be recorded below tier-1.
-#
-# That is exactly what blocks it. check_component_ownership.py requires BOTH an `slo` and a
-# `runbook` for any tier-0/tier-1 component at `implemented` or above.
-# `docs/runbooks/control-plane-outage.md` exists; `docs/slo/` has nineteen pages and none of
-# them is the control plane's. The two ways to make the declaration land today are to write
-# that SLO — owned by platform-control, and outside this change's lane — or to record the
-# component as tier-2, which would be choosing a criticality to clear a gate rather than to
-# describe the service. `_GO_DECLARATION_GOVERNED_ROOTS` therefore governs
-# `services/go_vanity` and `services/studio` and not `services/control_plane`; when the SLO
-# exists, replacing those two roots with plain `services` is the change that proves it.
+# The eleven control-plane commands are separately shipped roles and therefore receive separate
+# component records below. Their owning provider/foundation tests are referenced even though
+# those tests live under `internal/`. The shared internal tree is not itself a twelfth deployable,
+# but its paths remain outside `_GO_DECLARATION_GOVERNED_ROOTS`; a future path-ownership rule must
+# associate each internal package with its shipping roles before the whole `services` root can be
+# claimed governed.
 
 [[component]]
 name = "services.control_plane.registry"
