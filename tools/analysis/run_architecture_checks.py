@@ -68,9 +68,9 @@ def _blueprint_scaffold(root: Path) -> list[str]:
     against its MATERIALIZATION_BASELINE. That constant is not shared with this module, on
     purpose:
 
-      * it would invert the dependency. tools/analysis/ is a stdlib-only presubmit binary; that
-        module imports pytest at top level, so sharing the constant would make the architecture
-        suite refuse to start wherever pytest is not installed.
+      * it would invert the dependency. The architecture suite owns one pinned PyYAML dependency
+        for exact workflow semantics; that module imports pytest at top level, so sharing the
+        constant would expand the production checker into a test-runner dependency.
       * two baselines drift. The first change to lower only one of them leaves the other quietly
         permitting the regression it was written to catch.
 

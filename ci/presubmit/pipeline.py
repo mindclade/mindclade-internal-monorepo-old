@@ -51,6 +51,7 @@ def main() -> int:
     base_sha: str | None = None
     resolved_mode = args.mode
     job_started_epoch: int | None = None
+    runtime_contract: affected.BazelRuntimeContract | None = None
     try:
         resolved_mode = affected.resolve_selection_mode(
             args.mode,
@@ -72,7 +73,7 @@ def main() -> int:
                     "AFFECTED-SELECT-014", "job-start timestamp is invalid"
                 )
             affected.assert_clean_checkout(args.head)
-            affected.assert_bazelrc_contract(args.event, args.runner_temp)
+            runtime_contract = affected.assert_bazelrc_contract(args.event, args.runner_temp)
             job_started_epoch = affected.load_job_started_epoch(
                 args.job_started_at_file,
                 runner_temp=args.runner_temp,
@@ -118,6 +119,7 @@ def main() -> int:
             selection,
             evidence_dir,
             job_started_epoch=job_started_epoch,
+            runtime_contract=runtime_contract,
         )
     except affected.SelectionError as error:
         print(f"affected Bazel selection failed: {error}", file=sys.stderr)

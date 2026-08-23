@@ -106,7 +106,7 @@ PRESUBMIT_BAZEL_STEP_CONTRACT = (
     ),
     (
         "name:Select trusted Bazel cache revision",
-        "e84ca64d59dc97b3de06ff2907d30588350cd1b68ca742c22b29867e6b8a4af8",
+        "3d521ffc2acfa1c39f7a088087af7ef2e5c1f703b44d2521a04b71e401054774",
     ),
     (
         "name:Restore trusted Bazel persistent action cache",
@@ -114,7 +114,7 @@ PRESUBMIT_BAZEL_STEP_CONTRACT = (
     ),
     (
         "name:Configure bounded Bazel persistent action cache",
-        "7a45185d1b3bb8c4f87ec9421b70cc9137b056ae3b8dd4c592249168ccf54edf",
+        "7f0ba186b0d4be7f54e1228a24e01a27021a045e6209a42ccd06dde751f847db",
     ),
     (
         "name:buildifier",
@@ -134,7 +134,7 @@ PRESUBMIT_BAZEL_STEP_CONTRACT = (
     ),
     (
         "name:Validate and resolve the registered C/C++ toolchain",
-        "ed81800157483a4860c7647f6f40f22f8738f284ddfd226b72349e78f5ba8c5d",
+        "32b66957e0535bb0ba2f7a3076d97e8dc7aab1a22d23be807e96255cbb42028b",
     ),
     (
         "name:Run event-governed Bazel validation",
@@ -142,7 +142,7 @@ PRESUBMIT_BAZEL_STEP_CONTRACT = (
     ),
     (
         "name:Measure bounded Bazel persistent action cache",
-        "61af76a99d6c701a0ee2fa70927ff598d5f3827fb6366b0e02dcb94bb3fc826b",
+        "d78717735c38ee3b264a8eabd30f320fcce1acb62bf88d6e5f6d0bc4d02e54ab",
     ),
     (
         "name:Save trusted Bazel persistent action cache",
@@ -150,7 +150,7 @@ PRESUBMIT_BAZEL_STEP_CONTRACT = (
     ),
     (
         "name:Record Bazel persistent action cache metrics",
-        "63f6edae325f1adbe85c893672d0e481dcfb9a138c8c8cafd709d5f1d8915a00",
+        "597e3fd3eec0d351853272ce410f71e50880b3750e45dd54a0b63aea36245c47",
     ),
     (
         "name:Upload Bazel performance evidence",
@@ -184,7 +184,7 @@ NIGHTLY_BAZEL_STEP_CONTRACT = (
     ),
     (
         "name:Select trusted nightly Bazel cache revision",
-        "13510717b2e803778f97f88b15315187a28be698a8e374c01a9d10986a7ffddf",
+        "725e3b66b3e931380dc1725b76b3b572c3c3cff6264c875c76fb5372a4f46a6f",
     ),
     (
         "name:Restore trusted nightly Bazel persistent action cache",
@@ -192,15 +192,15 @@ NIGHTLY_BAZEL_STEP_CONTRACT = (
     ),
     (
         "name:Configure bounded nightly Bazel persistent action cache",
-        "8f7a93f965579c4d66a20a712a1bd21414eb2c1e288f35332d3949f4e96b2769",
+        "6b777772303b943876ae184ad8e1976bf25086fb42036d63e0970491ff1498f4",
     ),
     (
         "name:Validate complete loading, formatting, and layer policy",
-        "a2258a5d7e13686cbfd1f4af7ef4545f6ce5e3ce88748a2d2c19464363463ba3",
+        "109754186aa21f7f2339b83fa8ea74622b42f92b25f03e2869345a42e3ee6b2b",
     ),
     (
         "name:Validate and resolve the registered C/C++ toolchain",
-        "ed81800157483a4860c7647f6f40f22f8738f284ddfd226b72349e78f5ba8c5d",
+        "32b66957e0535bb0ba2f7a3076d97e8dc7aab1a22d23be807e96255cbb42028b",
     ),
     (
         "name:Analyze and test the complete configured graph",
@@ -208,11 +208,11 @@ NIGHTLY_BAZEL_STEP_CONTRACT = (
     ),
     (
         "name:Qualify the rolling affected-presubmit latency SLO",
-        "1e68221f9ab488d2b702d63c1e5c4f3ad58afa1b5b37a1dc666c810de7417bf9",
+        "eedf4c01ce782c9ada03aa258781ebed51fc9835203bb485f647850c4d9a613f",
     ),
     (
         "name:Measure bounded nightly Bazel persistent action cache",
-        "4fd292ae1b8887a1fd20db9581890f0418ac2e44df042b6efedbf43e6e1292dd",
+        "8ded4c5c6f73bae12e26d9a1e3d6ef083142780697c07120ea34593d02aa4a6b",
     ),
     (
         "name:Save trusted nightly Bazel persistent action cache",
@@ -220,7 +220,7 @@ NIGHTLY_BAZEL_STEP_CONTRACT = (
     ),
     (
         "name:Record nightly Bazel persistent action cache metrics",
-        "3b5540a7f40b53ec68457adcecb39fcf445c76626b502fb2d72e1fc763c21da1",
+        "836f793db0d80c0ed9fe76faa0993f1a7c84c3299aaa022021fabdb13c80709a",
     ),
     (
         "name:Upload nightly Bazel evidence",
@@ -752,7 +752,8 @@ def _presubmit_orchestration_errors() -> list[str]:
             )
             resolver = mock.Mock(return_value=expected_mode)
             clean_checkout = mock.Mock()
-            bazelrc_contract = mock.Mock()
+            runtime_contract = mock.sentinel.runtime_contract
+            bazelrc_contract = mock.Mock(return_value=runtime_contract)
             started_loader = mock.Mock(return_value=started_epoch)
             revision = mock.Mock(return_value=canonical_base)
             changed = mock.Mock(return_value=changes)
@@ -839,6 +840,7 @@ def _presubmit_orchestration_errors() -> list[str]:
                 selection,
                 evidence,
                 job_started_epoch=started_epoch,
+                runtime_contract=runtime_contract,
             )
             failure_writer.assert_not_called()
 
@@ -903,7 +905,8 @@ def _nightly_orchestration_errors() -> list[str]:
             loader = mock.Mock(return_value=contract)
             resolver = mock.Mock(return_value="full")
             clean_checkout = mock.Mock()
-            bazelrc_contract = mock.Mock()
+            runtime_contract = mock.sentinel.runtime_contract
+            bazelrc_contract = mock.Mock(return_value=runtime_contract)
             started_loader = mock.Mock(return_value=started_epoch)
             selector = mock.Mock(return_value=selection)
             executor = mock.Mock(return_value=0)
@@ -973,6 +976,7 @@ def _nightly_orchestration_errors() -> list[str]:
                 selection,
                 evidence,
                 job_started_epoch=started_epoch,
+                runtime_contract=runtime_contract,
             )
             failure_writer.assert_not_called()
     except Exception:
@@ -992,6 +996,7 @@ def check(root: Path) -> list[str]:
     except (OSError, UnicodeError, SyntaxError):
         return [_error("AFFECTED-CODE-001", "affected-selection source is unreadable")]
     for symbol in (
+        "BazelRuntimeContract",
         "Change",
         "Selection",
         "SelectionError",

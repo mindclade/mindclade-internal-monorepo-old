@@ -388,7 +388,7 @@ def test_selection_evidence_is_versioned_and_outside_checkout(tmp_path: Path) ->
         test_targets=(),
         base_sha="0" * 40,
         head_sha="1" * 40,
-        event="pull_request",
+        event="local",
     )
     assert affected.execute_selection(selection, evidence, root=root, job_started_epoch=0) == 0
     payload = json.loads((evidence / "selection.json").read_text(encoding="utf-8"))
@@ -408,6 +408,10 @@ def test_evidence_phases_do_not_inherit_bazelisk_token(
     evidence.mkdir()
     commands: list[list[str]] = []
     environments: list[dict[str, str]] = []
+    runtime_contract = affected.BazelRuntimeContract(
+        disk_cache=tmp_path / "runner-cache",
+        remote_upload_local_results=False,
+    )
 
     def fake_run(command, **kwargs):
         if command[0] == str(root / "tools/dev/bazelw"):
@@ -423,6 +427,7 @@ def test_evidence_phases_do_not_inherit_bazelisk_token(
             phase,
             ("//pkg:library",),
             evidence_dir=evidence,
+            runtime_contract=runtime_contract,
             root=root,
         )
         assert result["status"] == "passed"
@@ -431,6 +436,14 @@ def test_evidence_phases_do_not_inherit_bazelisk_token(
     assert all("BAZELISK_GITHUB_TOKEN" not in environment for environment in environments)
     assert [command[2] for command in commands] == ["build", "test"]
     assert all(command[1] == "--nohome_rc" for command in commands)
+    assert all(
+        command[command.index("--config=ci") + 1 : command.index("--config=ci") + 3]
+        == [
+            f"--disk_cache={runtime_contract.disk_cache}",
+            "--remote_upload_local_results=false",
+        ]
+        for command in commands
+    )
     assert all(
         any(argument.startswith("--build_event_json_file=") for argument in command)
         for command in commands
@@ -558,6 +571,30 @@ def test_checkout_integrity_compares_head_index_and_worktree(tmp_path: Path) -> 
         affected.assert_clean_checkout(head, root=root)
 
 
+@pytest.mark.parametrize("metadata_kind", ["gitfile", "symlink"])
+def test_checkout_integrity_rejects_redirected_git_metadata(
+    tmp_path: Path, metadata_kind: str
+) -> None:
+    root, head = _initialized_git_repo(tmp_path / "repo")
+    metadata = root / ".git"
+    external = tmp_path / "external-git"
+    metadata.rename(external)
+    if metadata_kind == "gitfile":
+        metadata.write_text(f"gitdir: {external}\n", encoding="utf-8")
+    else:
+        metadata.symlink_to(external, target_is_directory=True)
+    with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-019\]"):
+        affected.assert_clean_checkout(head, root=root)
+
+
+def test_checkout_integrity_rejects_symlinked_worktree_root(tmp_path: Path) -> None:
+    root, head = _initialized_git_repo(tmp_path / "repo")
+    alias = tmp_path / "repo-alias"
+    alias.symlink_to(root, target_is_directory=True)
+    with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-019\]"):
+        affected.assert_clean_checkout(head, root=alias)
+
+
 @pytest.mark.parametrize("flag", ["--assume-unchanged", "--skip-worktree"])
 def test_checkout_integrity_rejects_hidden_index_flags(tmp_path: Path, flag: str) -> None:
     root, head = _initialized_git_repo(tmp_path / "repo")
@@ -634,7 +671,15 @@ def test_bazelrc_runtime_contract_is_exact(tmp_path: Path, event: str, upload: s
         *affected.BAZELRC_FIXED_LINES[1:],
     )
     (root / "user.bazelrc").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    affected.assert_bazelrc_contract(event, runner_temp, root=root)
+    runtime_contract = affected.assert_bazelrc_contract(event, runner_temp, root=root)
+    assert runtime_contract == affected.BazelRuntimeContract(
+        disk_cache=cache,
+        remote_upload_local_results=upload == "true",
+    )
+    assert runtime_contract.command_options()[:2] == (
+        f"--disk_cache={cache}",
+        f"--remote_upload_local_results={upload}",
+    )
 
     (root / "user.bazelrc").write_text(
         "\n".join((*lines, "build --nobuild secret-option")) + "\n",
@@ -740,8 +785,17 @@ def test_execution_oserror_is_redacted_and_evidenced(
             OSError("secret-launcher-path secret-stdout secret-stderr")
         ),
     )
+    runtime_contract = affected.BazelRuntimeContract(
+        disk_cache=tmp_path / "cache",
+        remote_upload_local_results=True,
+    )
     with pytest.raises(affected.SelectionError) as captured:
-        affected.execute_selection(selection, evidence, root=root)
+        affected.execute_selection(
+            selection,
+            evidence,
+            runtime_contract=runtime_contract,
+            root=root,
+        )
     assert captured.value.code == "AFFECTED-SELECT-021"
     assert "secret" not in str(captured.value)
 
@@ -759,6 +813,23 @@ def test_execution_oserror_is_redacted_and_evidenced(
         "message": "Bazel execution failed",
     }
     assert "secret" not in json.dumps(payload)
+
+
+def test_protected_execution_requires_runtime_contract(tmp_path: Path) -> None:
+    selection = affected.Selection(
+        mode="full",
+        reason="explicit_full",
+        changes=(),
+        seeds=("//...",),
+        analysis_targets=("//...",),
+        test_targets=("//...",),
+        base_sha=None,
+        head_sha="1" * 40,
+        event="push",
+    )
+    with pytest.raises(affected.SelectionError) as captured:
+        affected.execute_selection(selection, tmp_path / "evidence", root=tmp_path)
+    assert captured.value.code == "AFFECTED-SELECT-020"
 
 
 def test_bazel_query_unicode_failure_is_redacted(

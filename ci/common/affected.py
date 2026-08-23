@@ -82,6 +82,20 @@ class SelectionError(ContractError):
     """The affected set could not be established authoritatively."""
 
 
+@dataclass(frozen=True)
+class BazelRuntimeContract:
+    disk_cache: Path
+    remote_upload_local_results: bool
+
+    def command_options(self) -> tuple[str, ...]:
+        upload = "true" if self.remote_upload_local_results else "false"
+        return (
+            f"--disk_cache={self.disk_cache}",
+            f"--remote_upload_local_results={upload}",
+            *(line.removeprefix("build ") for line in BAZELRC_FIXED_LINES[1:]),
+        )
+
+
 def load_global_input_contract(path: Path = GLOBAL_INPUT_CONTRACT_PATH) -> GlobalInputContract:
     """Load the shared contract while preserving the selector's public error type."""
     try:
@@ -303,9 +317,48 @@ def git_revision(revision: str, *, root: Path = ROOT) -> str:
         raise SelectionError("AFFECTED-SELECT-003", "Git revision is unavailable") from error
 
 
+def _assert_canonical_checkout_metadata(root: Path) -> None:
+    try:
+        checkout = Path(os.path.abspath(root))
+        metadata = checkout / ".git"
+        if (
+            not root.is_absolute()
+            or checkout.resolve(strict=True) != checkout
+            or not checkout.is_dir()
+            or metadata.is_symlink()
+            or not metadata.is_dir()
+            or metadata.resolve(strict=True) != metadata
+        ):
+            raise OSError("noncanonical checkout")
+    except (OSError, RuntimeError, ValueError) as error:
+        raise SelectionError(
+            "AFFECTED-SELECT-019", "checkout integrity validation failed"
+        ) from error
+    result = run_git(
+        [
+            "rev-parse",
+            "--path-format=absolute",
+            "--show-toplevel",
+            "--absolute-git-dir",
+            "--git-common-dir",
+            "--is-bare-repository",
+        ],
+        root=checkout,
+    )
+    try:
+        values = result.stdout.decode("utf-8", errors="strict").splitlines()
+    except UnicodeError as error:
+        raise SelectionError(
+            "AFFECTED-SELECT-019", "checkout integrity validation failed"
+        ) from error
+    if result.returncode or values != [str(checkout), str(metadata), str(metadata), "false"]:
+        raise SelectionError("AFFECTED-SELECT-019", "checkout integrity validation failed")
+
+
 def assert_clean_checkout(expected_head: str, *, root: Path = ROOT) -> None:
     """Require the governed invocation to run from the exact pristine event revision."""
 
+    _assert_canonical_checkout_metadata(root)
     if git_revision("HEAD", root=root) != git_revision(expected_head, root=root):
         raise SelectionError("AFFECTED-SELECT-019", "checkout integrity validation failed")
     flags = run_git(["ls-files", "-v", "-z"], root=root)
@@ -360,7 +413,9 @@ def load_job_started_epoch(
     return epoch
 
 
-def assert_bazelrc_contract(event: str, runner_temp: Path, *, root: Path = ROOT) -> None:
+def assert_bazelrc_contract(
+    event: str, runner_temp: Path, *, root: Path = ROOT
+) -> BazelRuntimeContract:
     """Reject ignored Bazel options outside the exact bounded CI cache contract."""
 
     expected_cache = runner_temp / "mindclade-bazel-disk-cache"
@@ -417,6 +472,10 @@ def assert_bazelrc_contract(event: str, runner_temp: Path, *, root: Path = ROOT)
     )
     if lines != expected_lines:
         raise SelectionError("AFFECTED-SELECT-020", "Bazel runtime contract is invalid")
+    return BazelRuntimeContract(
+        disk_cache=resolved_cache,
+        remote_upload_local_results=expected_upload == "true",
+    )
 
 
 def git_changed(base: str, *, root: Path = ROOT) -> tuple[Change, ...]:
@@ -699,6 +758,7 @@ def _run_phase(
     targets: Sequence[str],
     *,
     evidence_dir: Path,
+    runtime_contract: BazelRuntimeContract | None = None,
     root: Path = ROOT,
 ) -> dict[str, Any]:
     started_at = utc_now()
@@ -723,6 +783,7 @@ def _run_phase(
         "--nohome_rc",
         verb,
         "--config=ci",
+        *(runtime_contract.command_options() if runtime_contract is not None else ()),
         f"--target_pattern_file={target_file}",
         f"--build_event_json_file={bep}",
         f"--profile={profile}",
@@ -809,18 +870,33 @@ def _execute_selection(
     evidence_dir: Path,
     *,
     job_started_epoch: int | None = None,
+    runtime_contract: BazelRuntimeContract | None = None,
     root: Path = ROOT,
 ) -> int:
+    if selection.event != "local" and runtime_contract is None:
+        raise SelectionError("AFFECTED-SELECT-020", "Bazel runtime contract is invalid")
     directory = _safe_evidence_dir(evidence_dir, root=root)
     payload = selection.as_dict()
     _write_json(directory / "selection.json", payload)
 
     execution: list[dict[str, Any]] = []
-    analysis = _run_phase("analysis", selection.analysis_targets, evidence_dir=directory, root=root)
+    analysis = _run_phase(
+        "analysis",
+        selection.analysis_targets,
+        evidence_dir=directory,
+        runtime_contract=runtime_contract,
+        root=root,
+    )
     execution.append(analysis)
     if analysis["exit_code"] == 0:
         execution.append(
-            _run_phase("test", selection.test_targets, evidence_dir=directory, root=root)
+            _run_phase(
+                "test",
+                selection.test_targets,
+                evidence_dir=directory,
+                runtime_contract=runtime_contract,
+                root=root,
+            )
         )
     else:
         execution.append(
@@ -871,6 +947,7 @@ def execute_selection(
     evidence_dir: Path,
     *,
     job_started_epoch: int | None = None,
+    runtime_contract: BazelRuntimeContract | None = None,
     root: Path = ROOT,
 ) -> int:
     """Execute a selection behind a stable, redacted infrastructure-error boundary."""
@@ -880,6 +957,7 @@ def execute_selection(
             selection,
             evidence_dir,
             job_started_epoch=job_started_epoch,
+            runtime_contract=runtime_contract,
             root=root,
         )
     except SelectionError:

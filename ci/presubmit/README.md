@@ -55,12 +55,14 @@ inactive; the repository-owned Bazel-query selector continues serving pull reque
 
 Artifact-plan Phase 5 is therefore **incomplete**. The live pull-request path uses
 the conservative Bazel-query implementation; graph-native migration remains blocked.
-Workflow YAML is parsed structurally, the complete ordered Bazel step sequence is
-digest-pinned, and a tested event state machine permits affected mode only for pull
-requests. The governed step invokes the root-owned Nix
-installation by absolute path, uses a read-only Nix-store Git, requires the exact event
-`GITHUB_SHA` in a clean checkout, accepts only the exact `$RUNNER_TEMP` cache contract,
-and parses a canonical non-future integer job-start epoch. These repository-local
+Workflow YAML is parsed with pinned PyYAML semantics while rejecting aliases, tags,
+duplicate keys, and semantic block-scalar drift. The complete ordered Bazel step
+sequence is digest-pinned, and a tested event state machine permits affected mode only
+for pull requests. The governed step invokes the root-owned Nix installation by absolute
+path, uses a read-only Nix-store Git, requires the exact event `GITHUB_SHA` in a canonical
+non-worktree checkout, accepts only the exact `$RUNNER_TEMP` cache contract, repeats that
+role after `--config=ci`, and parses a canonical non-future integer job-start epoch. These
+repository-local
 controls do not replace the pinned organization required workflow that must ultimately
 enforce the gate from outside a pull request's mutable trust boundary.
 

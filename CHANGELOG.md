@@ -14,10 +14,12 @@ releases also carry immutable release manifests and evidence bundles.
   that reject weakened review boundaries or alternate protected-gate modes;
 - expanded full-graph fallback to omitted Bazel, Nix, Python, Rust, launcher, and package-boundary
   inputs;
-- pinned Git to the read-only Nix closure, reject hidden index flags and host Git overrides,
-  bind the disk cache to exact runner temporary storage, and validate canonical start epochs;
-- digest-pinned each parsed Bazel workflow step in order and reject extra, reordered, duplicated,
-  repinned, or spoofed verdict paths; and
+- pinned Git to the read-only Nix closure, require canonical non-worktree repository metadata,
+  reject hidden index flags and host Git overrides, bind the disk cache to exact runner temporary
+  storage, pass its role as command-line-final Bazel options, and validate canonical start epochs;
+- parse workflow YAML with pinned PyYAML semantics, reject aliases, tags, and duplicate keys, and
+  digest-pin each Bazel step in order so block-scalar, reordered, repinned, or spoofed verdict
+  paths fail closed; and
 - recorded the checksum-pinned target-determinator candidate plus the measured blockers that keep
   graph-native pull-request selection dormant.
 

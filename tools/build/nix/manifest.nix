@@ -80,6 +80,7 @@ let
     kubeconform = pkgs.kubeconform.version;
     kustomize = pkgs.kustomize.version;
     promtool = pkgs.prometheus.version;
+    pyyaml = pkgs.python314Packages.pyyaml.version;
     shellcheck = pkgs.shellcheck.version;
     terraform = pkgs.terraform.version;
     terraform-docs = pkgs.terraform-docs.version;

@@ -75,6 +75,10 @@ Artifact-plan Phase 5 is explicitly incomplete; this source does not activate or
 claim graph-native selection. Immutable fallback anchors and event-policy tests
 preserve affected pull-request behavior with full fallback, plus full
 merge-group, protected-main, and nightly correctness gates meanwhile.
+Protected execution also rejects Git files, worktrees, symlinked checkout roots,
+YAML aliases/tags/duplicate keys, and block-scalar normalization drift. The exact
+validated disk-cache role is repeated after `--config=ci` so later rc expansion
+cannot change its effective write policy.
 
 Connected pull-request, merge-group, scheduled-run, required-check, and 28-day
 latency evidence is pending, as is activation of the pinned organization required

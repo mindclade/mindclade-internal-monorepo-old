@@ -127,7 +127,7 @@ def main() -> int:
         if args.job_started_at_file is None:
             raise affected.SelectionError("AFFECTED-SELECT-014", "job-start timestamp is invalid")
         affected.assert_clean_checkout(args.head)
-        affected.assert_bazelrc_contract(args.event, args.runner_temp)
+        runtime_contract = affected.assert_bazelrc_contract(args.event, args.runner_temp)
         selection = affected.select([], mode=mode, event=args.event)
         if selection.analysis_targets != contract.analysis_targets:
             raise affected.SelectionError(
@@ -144,6 +144,7 @@ def main() -> int:
                 args.job_started_at_file,
                 runner_temp=args.runner_temp,
             ),
+            runtime_contract=runtime_contract,
         )
     except affected.SelectionError as error:
         print(f"nightly Bazel qualification failed: {error}", file=sys.stderr)

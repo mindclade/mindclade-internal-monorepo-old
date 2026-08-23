@@ -230,6 +230,7 @@
               protobuf
               python314
               python314Packages.mkdocs
+              python314Packages.pyyaml
               ruff
               uv
             ])
@@ -350,6 +351,7 @@
                 promtoolBinary
                 python314
                 python314Packages.mkdocs
+                python314Packages.pyyaml
                 ruff
                 shellcheck
                 syft

@@ -131,6 +131,34 @@ def test_workflow_parser_rejects_duplicate_keys() -> None:
 def test_workflow_parser_rejects_quoted_key_alias() -> None:
     with pytest.raises(workflow_yaml.WorkflowYamlError) as captured:
         workflow_yaml.parse_workflow_text('permissions:\n  contents: read\n"permissions": {}\n')
+    assert captured.value.code == "AFFECTED-WORKFLOW-002"
+
+
+def test_workflow_parser_preserves_block_scalar_indentation_and_content() -> None:
+    shallow = workflow_yaml.parse_workflow_text(
+        "jobs:\n  check:\n    steps:\n      - run: |\n          if true; then\n          echo unsafe # shell content\n\n"
+    )
+    nested = workflow_yaml.parse_workflow_text(
+        "jobs:\n  check:\n    steps:\n      - run: |\n          if true; then\n            echo unsafe # shell content\n\n"
+    )
+    assert shallow["jobs"]["check"]["steps"][0]["run"] == (
+        "if true; then\necho unsafe # shell content\n"
+    )
+    assert nested["jobs"]["check"]["steps"][0]["run"] == (
+        "if true; then\n  echo unsafe # shell content\n"
+    )
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "defaults: &defaults\n  shell: bash\njob: *defaults\n",
+        "name: !!str governed\n",
+    ],
+)
+def test_workflow_parser_rejects_yaml_indirection(source: str) -> None:
+    with pytest.raises(workflow_yaml.WorkflowYamlError) as captured:
+        workflow_yaml.parse_workflow_text(source)
     assert captured.value.code == "AFFECTED-WORKFLOW-001"
 
 
