@@ -19,6 +19,29 @@ const (
 	RetryKindAfter       RetryKind = "after"
 )
 
+// retryKinds is the taxonomy in the tag order of mindclade.common.v1.RetryKind,
+// index i holding the kind that enum carries at tag i. RetryKindUnspecified is
+// first because RETRY_KIND_UNSPECIFIED is tag 0; this package spells it as the
+// empty string rather than "unspecified", which is the one place the two
+// vocabularies deliberately differ and therefore the one place a conformance
+// check has to be told about explicitly rather than derive.
+var retryKinds = []RetryKind{
+	RetryKindUnspecified,
+	RetryKindNever,
+	RetryKindImmediate,
+	RetryKindBackoff,
+	RetryKindAfter,
+}
+
+// RetryKinds returns the taxonomy in the tag order of
+// mindclade.common.v1.RetryKind, including RetryKindUnspecified at index 0.
+//
+// Like Codes, this exists so the generated protobuf descriptor can be compared
+// against this package by a program. The returned slice is a fresh copy.
+func RetryKinds() []RetryKind {
+	return append([]RetryKind(nil), retryKinds...)
+}
+
 // RetryPolicy communicates retry intent to a caller.
 //
 // MaxAttempts is the maximum total number of attempts, including the initial
