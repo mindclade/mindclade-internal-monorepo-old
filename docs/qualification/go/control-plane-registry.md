@@ -40,5 +40,8 @@ python3 tools/qualification/failure_injection.py --execute --owner control-plane
 ```
 
 This evidence qualifies the materialized model/release registry boundary. It
-does not qualify still-scaffolded scheduling, webhook, ingestion, projection,
-or housekeeping domain policies, and it is not a production release signature.
+does not qualify the webhook, projection, or housekeeping domain policies, and
+it does not qualify `control/scheduling` or `control/ingestion`, which are
+`implemented` in `components.toml` and carry no qualification evidence of their
+own — unqualified for want of evidence, not for want of an implementation. It is
+not a production release signature.
