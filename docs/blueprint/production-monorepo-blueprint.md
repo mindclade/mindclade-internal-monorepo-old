@@ -4806,14 +4806,9 @@ The supplied `libs/go` tree is already implemented and is adopted immediately. T
 │   │       └── versions.nix
 │   ├── codegen/
 │   │   ├── BUILD.bazel
-│   │   ├── generate_build_files.py
-│   │   ├── generate_config_schema.py
 │   │   ├── generate_event_catalog.py
-│   │   ├── generate_go_sdk.py
 │   │   ├── generate_jsonschema.py
-│   │   ├── generate_openapi_clients.py
 │   │   ├── generate_proto.sh
-│   │   ├── generate_python_sdk.py
 │   │   ├── generate_typescript_sdk.py
 │   │   ├── README.md
 │   │   └── verify_generated.py
