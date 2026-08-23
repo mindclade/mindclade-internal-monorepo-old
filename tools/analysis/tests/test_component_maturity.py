@@ -1,43 +1,19 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
-
-"""Declaration coverage: production Go that components.toml has never heard of.
-
-The gate these cover exists because an undeclared package was neither pass nor fail. Every
-rule in maturity.toml is a rule about a component that is declared, so a directory with no
-entry inherited no status, and the model's central prohibition — production may not depend on
-planned/scaffolded/experimental — had nothing to attach to. `control/evidence` sat in that
-hole with 890 lines of signed production-eligibility policy.
-
-The scaffold cases matter as much as the undeclared ones. If a `const scaffold_<name>`
-placeholder counted as production Go, the gate would demand a status for sixteen reserved
-control/ directories that have nothing to have a status about, and the pressure would be to
-declare ten placeholders rather than to fix the one real omission.
-"""
 
 from __future__ import annotations
 
 import importlib.util
 import sys
+import textwrap
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 
-LICENCE = (
-    "// Copyright © 2026 Mindclade, LLC. All Rights Reserved.\n"
-    "// Mindclade Proprietary and Confidential.\n"
-    "// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary\n"
-    "//\n"
-)
-
 
 def load(name: str, path: Path):
     spec = importlib.util.spec_from_file_location(name, path)
-    # None means the path is not importable, which is how a drifting ROOT (parents[3]) goes
-    # wrong. Raised rather than asserted: `python -O` drops asserts, and this runs at import
-    # time where the message is all anyone gets.
     if spec is None or spec.loader is None:
         raise RuntimeError(f"unable to load {path}")
     module = importlib.util.module_from_spec(spec)
@@ -47,6 +23,221 @@ def load(name: str, path: Path):
 
 
 maturity = load("check_component_maturity", ROOT / "tools/analysis/check_component_maturity.py")
+
+_MATURITY = """
+schema_version = 1
+statuses = ["scaffolded", "implemented", "qualified", "production"]
+[rules.scaffolded]
+production_dependency = false
+[rules.implemented]
+requires_tests = true
+requires_build_target = true
+[rules.qualified]
+requires_tests = true
+requires_qualification = true
+requires_build_target = true
+[rules.production]
+requires_tests = true
+requires_qualification = true
+requires_slo = true
+requires_runbook = true
+requires_release_target = true
+requires_build_target = true
+"""
+
+_CATALOG = """\
+---
+schemaVersion: 2
+targets:
+  go-vanity:
+    releaseKind: application
+    images:
+      primary:
+        buildTarget: //services/go_vanity:image
+  protobuf-contracts:
+    releaseKind: bundle
+    qualificationTargets:
+      - //protocols:protobuf_governance_test
+"""
+
+
+def build(tmp_path: Path, component: str, *, catalog: str = _CATALOG, ownership: str = "") -> Path:
+    (tmp_path / "maturity.toml").write_text(_MATURITY, encoding="utf-8")
+    (tmp_path / "components.toml").write_text(
+        "schema_version = 1\n\n" + textwrap.dedent(component), encoding="utf-8"
+    )
+    (tmp_path / "architecture").mkdir(exist_ok=True)
+    (tmp_path / "architecture/component_ownership.toml").write_text(
+        "schema_version = 1\n" + textwrap.dedent(ownership), encoding="utf-8"
+    )
+    if catalog is not None:
+        (tmp_path / "ci/release").mkdir(parents=True, exist_ok=True)
+        (tmp_path / "ci/release/targets.yaml").write_text(catalog, encoding="utf-8")
+    package = tmp_path / "svc"
+    package.mkdir(exist_ok=True)
+    (package / "BUILD.bazel").write_text('go_library(name = "svc")\n', encoding="utf-8")
+    (package / "svc_test.go").write_text("package svc\n", encoding="utf-8")
+    (tmp_path / "docs").mkdir(exist_ok=True)
+    (tmp_path / "docs/slo.md").write_text("slo\n", encoding="utf-8")
+    (tmp_path / "docs/runbook.md").write_text("runbook\n", encoding="utf-8")
+    (tmp_path / "docs/qual.md").write_text("qualification\n", encoding="utf-8")
+    return tmp_path
+
+
+_PRODUCTION = """
+    [[component]]
+    name = "svc"
+    path = "svc"
+    status = "production"
+    owner = "platform-control"
+    tests = ["svc/svc_test.go"]
+    qualification = "docs/qual.md"
+    slo = "docs/slo.md"
+    runbook = "docs/runbook.md"
+    release_target = "go-vanity"
+"""
+
+_OWNERSHIP = """
+    [component."svc"]
+    owner = "platform-control"
+    slo = "docs/slo.md"
+    runbook = "docs/runbook.md"
+"""
+
+
+def test_fully_evidenced_production_component_passes(tmp_path: Path) -> None:
+    root = build(tmp_path, _PRODUCTION, ownership=_OWNERSHIP)
+    assert maturity.check(root) == []
+
+
+def test_slo_must_name_an_existing_document(tmp_path: Path) -> None:
+    root = build(
+        tmp_path,
+        _PRODUCTION.replace('slo = "docs/slo.md"', 'slo = "yes"'),
+        ownership=_OWNERSHIP.replace('slo = "docs/slo.md"', 'slo = "yes"'),
+    )
+    assert "svc: slo file does not exist: yes" in maturity.check(root)
+
+
+def test_runbook_must_name_an_existing_document(tmp_path: Path) -> None:
+    root = build(
+        tmp_path,
+        _PRODUCTION.replace('runbook = "docs/runbook.md"', 'runbook = "docs/absent.md"'),
+        ownership=_OWNERSHIP.replace('runbook = "docs/runbook.md"', 'runbook = "docs/absent.md"'),
+    )
+    assert "svc: runbook file does not exist: docs/absent.md" in maturity.check(root)
+
+
+def test_release_target_must_be_in_the_closed_catalog(tmp_path: Path) -> None:
+    root = build(
+        tmp_path,
+        _PRODUCTION.replace('release_target = "go-vanity"', 'release_target = "shipped"'),
+        ownership=_OWNERSHIP,
+    )
+    errors = maturity.check(root)
+    assert any("release target 'shipped' is not in the closed catalog" in e for e in errors)
+
+
+def test_release_target_fails_closed_when_the_catalog_is_unreadable(tmp_path: Path) -> None:
+    root = build(tmp_path, _PRODUCTION, catalog="schemaVersion: 2\n", ownership=_OWNERSHIP)
+    errors = maturity.check(root)
+    assert any("declares no targets" in e for e in errors)
+
+
+def test_slo_must_agree_with_the_ownership_registry(tmp_path: Path) -> None:
+    root = build(
+        tmp_path,
+        _PRODUCTION,
+        ownership=_OWNERSHIP.replace('slo = "docs/slo.md"', 'slo = "docs/other.md"'),
+    )
+    errors = maturity.check(root)
+    assert any("slo disagrees with architecture/component_ownership.toml" in e for e in errors)
+
+
+def test_missing_ownership_record_blocks_a_declared_slo(tmp_path: Path) -> None:
+    root = build(tmp_path, _PRODUCTION, ownership="")
+    errors = maturity.check(root)
+    assert any("slo disagrees with architecture/component_ownership.toml" in e for e in errors)
+    assert any("runbook disagrees with architecture/component_ownership.toml" in e for e in errors)
+
+
+def test_production_still_reports_each_missing_gate(tmp_path: Path) -> None:
+    root = build(
+        tmp_path,
+        """
+        [[component]]
+        name = "svc"
+        path = "svc"
+        status = "production"
+        owner = "platform-control"
+        tests = ["svc/svc_test.go"]
+        """,
+    )
+    errors = maturity.check(root)
+    assert "svc: qualification evidence path missing" in errors
+    assert "svc: production component requires slo" in errors
+    assert "svc: production component requires runbook" in errors
+    assert "svc: production component requires release_target" in errors
+
+
+def test_matrix_reports_unreferenced_registry_evidence(tmp_path: Path) -> None:
+    root = build(
+        tmp_path,
+        """
+        [[component]]
+        name = "svc"
+        path = "svc"
+        status = "implemented"
+        owner = "platform-control"
+        tests = ["svc/svc_test.go"]
+        """,
+        ownership=_OWNERSHIP,
+    )
+    (row,) = maturity.matrix(root)
+    assert row["gates"]["slo"] == "registry"
+    assert row["gates"]["runbook"] == "registry"
+    assert row["gates"]["qualification"] == "absent"
+    assert row["gates"]["release_target"] == "absent"
+    assert row["satisfies"] == ["implemented"]
+    assert row["production_blockers"] == ["qualification", "release_target", "runbook", "slo"]
+
+
+def test_matrix_marks_catalog_coverage_in_both_directions(tmp_path: Path) -> None:
+    root = build(
+        tmp_path,
+        """
+        [[component]]
+        name = "inside"
+        path = "protocols/proto/mindclade/artifact/v1"
+        status = "scaffolded"
+        owner = "platform-control"
+
+        [[component]]
+        name = "outside"
+        path = "svc"
+        status = "scaffolded"
+        owner = "platform-control"
+        """,
+    )
+    gates = {row["name"]: row["gates"]["release_target"] for row in maturity.matrix(root)}
+    assert gates == {"inside": "registry", "outside": "absent"}
+
+
+def test_render_counts_every_production_rule(tmp_path: Path) -> None:
+    root = build(tmp_path, _PRODUCTION, ownership=_OWNERSHIP)
+    rendered = maturity._render(maturity.matrix(root))
+    assert "components: 1" in rendered
+    for gate in ("tests", "qualification", "slo", "runbook", "release_target", "build_target"):
+        assert f"{gate:<16} met   1/1" in rendered
+    assert "satisfies production     1/1" in rendered
+
+
+LICENCE = (
+    "// Copyright © 2026 Mindclade, LLC. All Rights Reserved.\n"
+    "// Mindclade Proprietary and Confidential.\n"
+    "// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary\n"
+    "//\n"
+)
 
 
 def _repository(tmp_path: Path, *, declared: str = "") -> Path:
