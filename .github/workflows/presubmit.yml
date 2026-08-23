@@ -481,8 +481,8 @@ jobs:
 
       # user.bazelrc is already gitignored and try-imported by .bazelrc. This makes every Bazel
       # build/test invocation use the same cache contract without embedding runner paths in source.
-      # Reader events never upload local results. The 4 GiB GC ceiling and one-second idle delay
-      # bound the prior duplicate-output failure mode; zstd reduces the persisted archive further.
+      # Reader events never upload local results. The 1 GiB GC ceiling and one-second idle delay
+      # reserve hosted-runner capacity for the Bazel output tree; zstd reduces persistence cost.
       - name: Configure bounded Bazel persistent action cache
         env:
           BAZEL_CACHE_ROLE: ${{ steps.bazel-cache-trust.outputs.role }}

@@ -51,8 +51,8 @@ def test_presubmit_untrusted_events_are_read_only(
         "revision": BASE_SHA,
         "role": "reader",
         "fingerprint": FINGERPRINT,
-        "primary-key": f"bazel-disk-v1-Linux-X64-{FINGERPRINT}-{BASE_SHA}",
-        "restore-prefix": f"bazel-disk-v1-Linux-X64-{FINGERPRINT}-",
+        "primary-key": f"bazel-disk-v2-Linux-X64-{FINGERPRINT}-{BASE_SHA}",
+        "restore-prefix": f"bazel-disk-v2-Linux-X64-{FINGERPRINT}-",
     }
 
 
@@ -168,7 +168,7 @@ def test_configure_writes_bounded_secret_free_user_bazelrc(tmp_path: Path, role:
     assert "build --noremote_cache_async" in contents
     assert "build --remote_verify_downloads" in contents
     assert "build --remote_cache_compression" in contents
-    assert "build --experimental_disk_cache_gc_max_size=4G" in contents
+    assert "build --experimental_disk_cache_gc_max_size=1G" in contents
     assert "build --experimental_disk_cache_gc_idle_delay=1s" in contents
     assert "token" not in contents.lower()
     assert stat.S_IMODE(cache_dir.stat().st_mode) == 0o700
@@ -391,13 +391,13 @@ def test_record_metrics_writes_redacted_evidence_and_summary(tmp_path: Path) -> 
         summary=summary,
         role="reader",
         trusted_revision=BASE_SHA,
-        primary_key=f"bazel-disk-v1-Linux-ARM64-{FINGERPRINT}-{BASE_SHA}",
-        matched_key=f"bazel-disk-v1-Linux-ARM64-{FINGERPRINT}-{SHA}",
+        primary_key=f"bazel-disk-v2-Linux-ARM64-{FINGERPRINT}-{BASE_SHA}",
+        matched_key=f"bazel-disk-v2-Linux-ARM64-{FINGERPRINT}-{SHA}",
         exact_hit="false",
         save_outcome="skipped",
         size_bytes=1024,
         within_limit="true",
-        restore_prefix=f"bazel-disk-v1-Linux-ARM64-{FINGERPRINT}-",
+        restore_prefix=f"bazel-disk-v2-Linux-ARM64-{FINGERPRINT}-",
         restore_outcome="success",
         measure_outcome="success",
     )
@@ -420,13 +420,13 @@ def test_record_metrics_rejects_cross_namespace_match(tmp_path: Path) -> None:
             summary=tmp_path / "summary.md",
             role="writer",
             trusted_revision=SHA,
-            primary_key=f"bazel-disk-v1-Linux-X64-{FINGERPRINT}-{SHA}",
-            matched_key=f"bazel-disk-v1-Linux-X64-other-{BASE_SHA}",
+            primary_key=f"bazel-disk-v2-Linux-X64-{FINGERPRINT}-{SHA}",
+            matched_key=f"bazel-disk-v2-Linux-X64-other-{BASE_SHA}",
             exact_hit="false",
             save_outcome="skipped",
             size_bytes=0,
             within_limit="true",
-            restore_prefix=f"bazel-disk-v1-Linux-X64-{FINGERPRINT}-",
+            restore_prefix=f"bazel-disk-v2-Linux-X64-{FINGERPRINT}-",
             restore_outcome="success",
             measure_outcome="success",
         )
@@ -438,13 +438,13 @@ def test_record_metrics_distinguishes_restore_failure_from_not_restored(tmp_path
         summary=tmp_path / "summary.md",
         role="writer",
         trusted_revision=SHA,
-        primary_key=f"bazel-disk-v1-Linux-X64-{FINGERPRINT}-{SHA}",
+        primary_key=f"bazel-disk-v2-Linux-X64-{FINGERPRINT}-{SHA}",
         matched_key="",
         exact_hit="",
         save_outcome="skipped",
         size_bytes=0,
         within_limit="true",
-        restore_prefix=f"bazel-disk-v1-Linux-X64-{FINGERPRINT}-",
+        restore_prefix=f"bazel-disk-v2-Linux-X64-{FINGERPRINT}-",
         restore_outcome="failure",
         measure_outcome="success",
     )
@@ -458,13 +458,13 @@ def test_record_metrics_marks_successful_save_step_unverified(tmp_path: Path) ->
         summary=tmp_path / "summary.md",
         role="writer",
         trusted_revision=SHA,
-        primary_key=f"bazel-disk-v1-Linux-X64-{FINGERPRINT}-{SHA}",
+        primary_key=f"bazel-disk-v2-Linux-X64-{FINGERPRINT}-{SHA}",
         matched_key="",
         exact_hit="false",
         save_outcome="success",
         size_bytes=0,
         within_limit="true",
-        restore_prefix=f"bazel-disk-v1-Linux-X64-{FINGERPRINT}-",
+        restore_prefix=f"bazel-disk-v2-Linux-X64-{FINGERPRINT}-",
         restore_outcome="success",
         measure_outcome="success",
     )
@@ -482,13 +482,13 @@ def test_record_metrics_marks_failed_measurement_unavailable(tmp_path: Path) -> 
         summary=summary,
         role="writer",
         trusted_revision=SHA,
-        primary_key=f"bazel-disk-v1-Linux-X64-{FINGERPRINT}-{SHA}",
+        primary_key=f"bazel-disk-v2-Linux-X64-{FINGERPRINT}-{SHA}",
         matched_key="",
         exact_hit="false",
         save_outcome="skipped",
         size_bytes=0,
         within_limit="",
-        restore_prefix=f"bazel-disk-v1-Linux-X64-{FINGERPRINT}-",
+        restore_prefix=f"bazel-disk-v2-Linux-X64-{FINGERPRINT}-",
         restore_outcome="success",
         measure_outcome="failure",
     )

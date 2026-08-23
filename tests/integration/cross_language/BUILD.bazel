@@ -64,6 +64,7 @@ go_test(
 go_test(
     name = "cross_language_test",
     srcs = ["golden_test.go"],
+    data = [":golden_fixtures"],
     deps = [
         "//control/artifacts",
         "//control/registry/models",
