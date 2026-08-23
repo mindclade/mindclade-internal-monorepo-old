@@ -417,6 +417,16 @@ FALSIFIERS: tuple[Falsifier, ...] = (
         ),
     ),
     Falsifier(
+        check="blueprint authority",
+        defect="the blueprint reserves a generator whose entire output surface must be absent",
+        expect="reserved generator claims go output",
+        inject=lambda tree: tree.replace(
+            "docs/blueprint/production-monorepo-paths.txt",
+            "tools/codegen/generate_event_catalog.py\n",
+            "tools/codegen/generate_event_catalog.py\ntools/codegen/generate_go_sdk.py\n",
+        ),
+    ),
+    Falsifier(
         check="protocol graph completeness",
         defect=(
             "a .proto reaches the tree with no proto_library, so it is absent from the "
