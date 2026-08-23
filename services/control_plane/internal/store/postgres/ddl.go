@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 
+	"go.mindclade.dev/control/lineage"
 	"go.mindclade.dev/libs/go/faults"
 )
 
@@ -120,6 +121,56 @@ CREATE INDEX IF NOT EXISTS %s
 `,
 		table,
 		indexName(table, "subject_idx"), table,
+	), nil
+}
+
+// LineageGraphDDL returns the forward-only schema for the content-addressed
+// lineage graph table.
+//
+// This is not EvidenceGraphDDL's table. That one is keyed by release_id and
+// records the gating decision for one promotion; this one is keyed by the
+// graph's own digest and records provenance that many releases may cite. Two
+// concepts, both spelled "graph", so they get two tables and two names.
+//
+// graph_digest is the primary key because the digest is the identity: the
+// domain computes it over the whole canonical document, so a second row under
+// one digest is a rebinding rather than a duplicate.
+//
+// The document is the authority and the other columns are projected from it on
+// write. They are never read back into a domain value -- Get reconstructs the
+// graph from `document` alone -- so a drifted projection can skew a query but
+// cannot corrupt a returned graph.
+//
+// The count CHECKs quote the domain's own maxima rather than repeating the
+// numbers, because a bound written twice is a bound that drifts. The store
+// already rejects an over-sized graph before the insert; this is the copy that
+// survives a writer that forgets to.
+func LineageGraphDDL(table string) (string, error) {
+	if err := checkTable(table, "invalid_lineage_graph_table", "registry.postgres.LineageGraphDDL"); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (
+    graph_digest   text PRIMARY KEY,
+    graph_id       text NOT NULL,
+    subject_digest text NOT NULL,
+    policy_digest  text NOT NULL,
+    schema_version bigint NOT NULL CHECK (schema_version = %d),
+    node_count     bigint NOT NULL CHECK (node_count > 0 AND node_count <= %d),
+    edge_count     bigint NOT NULL CHECK (edge_count >= 0 AND edge_count <= %d),
+    document       jsonb NOT NULL,
+    written_at     timestamptz NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS %s
+    ON %s (subject_digest);
+
+CREATE INDEX IF NOT EXISTS %s
+    ON %s (graph_id);
+`,
+		table,
+		lineage.SchemaVersion, lineage.MaximumNodes, lineage.MaximumEdges,
+		indexName(table, "lineage_subject_idx"), table,
+		indexName(table, "lineage_graph_idx"), table,
 	), nil
 }
 
