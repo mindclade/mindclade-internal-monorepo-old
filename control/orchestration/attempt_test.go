@@ -231,11 +231,10 @@ func TestRetryableRespectsTheStageBudget(t *testing.T) {
 
 func runToCompletion(t *testing.T, record AttemptRecord) (AttemptRecord, error) {
 	t.Helper()
-	at := testStart
 	for index, state := range []AttemptState{
 		AttemptStarting, AttemptReady, AttemptLeased, AttemptRunning, AttemptCommitting, AttemptCompleted,
 	} {
-		at = testStart.Add(time.Duration(index+1) * time.Second)
+		at := testStart.Add(time.Duration(index+1) * time.Second)
 		next, err := record.Transition(state, at)
 		if err != nil {
 			return AttemptRecord{}, err

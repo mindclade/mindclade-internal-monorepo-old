@@ -179,15 +179,17 @@ func TestProviderRenameIsRefused(t *testing.T) {
 
 func TestJobNameAndCommentCarryAttemptIdentity(t *testing.T) {
 	envelope := launchertest.Envelope(t, time.Now())
-	if JobName(envelope) != JobName(envelope) {
+	first := JobName(envelope)
+	second := JobName(envelope)
+	if first != second {
 		t.Fatal("job name is not deterministic")
 	}
-	if !strings.HasPrefix(JobName(envelope), JobNamePrefix) {
-		t.Fatalf("job name %q lacks the ownership prefix", JobName(envelope))
+	if !strings.HasPrefix(first, JobNamePrefix) {
+		t.Fatalf("job name %q lacks the ownership prefix", first)
 	}
 	retry := envelope
 	retry.Attempt = 2
-	if JobName(retry) == JobName(envelope) {
+	if JobName(retry) == first {
 		t.Fatal("two attempts share one job name")
 	}
 	comment := Comment(envelope)

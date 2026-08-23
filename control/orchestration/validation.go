@@ -39,11 +39,6 @@ const (
 // pattern excludes by construction.
 var operationPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._\-/:]*$`)
 
-// namePattern bounds the identifiers this package coins itself, as distinct
-// from canonical resource IDs. It matches control/admission's spelling so the
-// two domains reject the same strings.
-var namePattern = regexp.MustCompile(`^[a-z][a-z0-9._-]{0,127}$`)
-
 func invalid(reason, message string, cause error) error {
 	options := []faults.Option{
 		faults.WithReason(reason),
@@ -54,16 +49,6 @@ func invalid(reason, message string, cause error) error {
 		return faults.New(faults.CodeInvalidArgument, message, options...)
 	}
 	return faults.Wrap(cause, faults.CodeInvalidArgument, message, options...)
-}
-
-// denied carries authority failures. Rust answers a workload that does not match
-// its execution ticket with PermissionDenied, not InvalidArgument
-// (worker_protocol/src/workload.rs), and a Go producer that disagreed would
-// classify the same rejection two ways across the boundary.
-func denied(reason, message string) error {
-	return faults.New(faults.CodePermissionDenied, message,
-		faults.WithReason(reason), faults.WithOperation(operation),
-		faults.WithRetryPolicy(faults.NoRetry()))
 }
 
 func exhausted(reason, message string) error {

@@ -232,20 +232,22 @@ func TestTrackedWorkloadBoundIsRefusedNotEvicted(t *testing.T) {
 
 func TestExternalIDIsDeterministicAndDistinct(t *testing.T) {
 	envelope := launchertest.Envelope(t, time.Now())
-	if ExternalID(envelope) != ExternalID(envelope) {
+	first := ExternalID(envelope)
+	second := ExternalID(envelope)
+	if first != second {
 		t.Fatal("external id is not deterministic")
 	}
-	if !strings.HasPrefix(ExternalID(envelope), ExternalIDPrefix) {
-		t.Fatalf("external id %q lacks the launcher prefix", ExternalID(envelope))
+	if !strings.HasPrefix(first, ExternalIDPrefix) {
+		t.Fatalf("external id %q lacks the launcher prefix", first)
 	}
 	// The attempt is part of the identity: a retry is a different workload with
 	// a different handle, even though everything else about it matches.
 	retry := envelope
 	retry.Attempt = 2
-	if ExternalID(retry) == ExternalID(envelope) {
+	if ExternalID(retry) == first {
 		t.Fatal("two attempts share one external id")
 	}
-	if err := (orchestration.LaunchOutcome{ExternalID: ExternalID(envelope), State: orchestration.AttemptCreated}).Validate(); err != nil {
+	if err := (orchestration.LaunchOutcome{ExternalID: first, State: orchestration.AttemptCreated}).Validate(); err != nil {
 		t.Fatalf("external id is not a valid launch handle: %v", err)
 	}
 }
