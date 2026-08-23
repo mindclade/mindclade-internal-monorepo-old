@@ -1,0 +1,92 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# Go packages whose tests MUST execute against a real datastore, never against a fake.
+#
+# WHY THIS FILE EXISTS
+# ====================
+# Every suite listed here guards durability: transaction rollback, SQLSTATE classification,
+# lease fencing, atomic audit/outbox composition, idempotent replay under real conflict
+# semantics. Each one calls `t.Skip` when its DSN is unset, and Go reports a package whose
+# tests all skipped as `ok`. So the entire durability layer could stop being exercised and the
+# summary would look exactly the same as the day it was fully green.
+#
+# That is not hypothetical. `services/studio/internal/{handoff,runlog}` gate on
+# STUDIO_TEST_DATABASE_URL, which was never set anywhere in CI -- so eighteen and eight tests
+# respectively had never run in CI at all. `services/studio/internal/handoff/contention_test.go`
+# says so in its own header: the redemption loop "shipped with no bound at all" precisely
+# because everything that touched it skipped.
+#
+# `ci/presubmit/live_datastore_gate.py` reads this file, runs these packages, and treats a skip
+# as an error. A package listed here has no way to pass by not running.
+#
+# FIELDS
+# ======
+#   id                    Stable identifier used in failure messages.
+#   directory             Repository-relative package directory. The import path is derived
+#                         from the root go.mod module path, so this stays greppable.
+#   requires_environment  Variables that must be set and non-empty BEFORE the run. Checked
+#                         first so a missing DSN reports as one line rather than as a wall of
+#                         individually skipped tests.
+#   minimum_tests         Floor on top-level tests observed. Guards the other direction: a
+#                         suite that is deleted or renamed out of existence would otherwise
+#                         satisfy "nothing skipped" trivially. Adding tests never trips it.
+#   proves                What is actually unverifiable without a live server. If you cannot
+#                         write this sentence, the suite does not belong here.
+
+schema_version = 1
+
+[[suite]]
+id = "control_plane_registry"
+directory = "services/control_plane/internal/store/postgres"
+requires_environment = ["MINDCLADE_TEST_POSTGRES_DSN"]
+minimum_tests = 33
+proves = """
+Registry and evidence-ledger DDL applies to a real server; insert-if-absent is idempotent
+against PostgreSQL's own conflict and RowsAffected behavior rather than the sqltest driver's;
+a serializable transaction that fails leaves no partial evidence rows; database loss maps to a
+retryable Unavailable fault; a lost lease rejects its stale owner.
+"""
+
+[[suite]]
+id = "control_plane_admission"
+directory = "services/control_plane/internal/store/postgres/admission"
+requires_environment = ["MINDCLADE_TEST_POSTGRES_DSN"]
+minimum_tests = 28
+proves = """
+The admission mutation and its audit/outbox write commit or roll back together, so no partial
+commit is observable; serialization failures retry within a bound; normalized-document drift is
+rejected; concurrent pressure never overspends capacity and replays exactly one reservation.
+"""
+
+[[suite]]
+id = "control_plane_maintenance"
+directory = "services/control_plane/internal/providers/maintenance"
+requires_environment = ["MINDCLADE_TEST_POSTGRES_DSN"]
+minimum_tests = 24
+proves = """
+Recurring schedules survive a JSONB round trip and replay; maintenance snapshots detect
+representative drift against real server statistics rather than a modelled table.
+"""
+
+[[suite]]
+id = "studio_handoff"
+directory = "services/studio/internal/handoff"
+requires_environment = ["STUDIO_TEST_DATABASE_URL"]
+minimum_tests = 18
+proves = """
+Handle redemption binds exactly once under a genuine double-click, which is a property of one
+SQL statement under concurrency and cannot be observed through a fake; unauthorized redemption
+materializes nothing; the outstanding-handle cap holds against real row visibility.
+"""
+
+[[suite]]
+id = "studio_runlog"
+directory = "services/studio/internal/runlog"
+requires_environment = ["STUDIO_TEST_DATABASE_URL"]
+minimum_tests = 8
+proves = """
+Event sequence allocation stays dense under concurrent appenders -- a property of three SQL
+statements interacting, not of Go logic.
+"""
