@@ -3,13 +3,21 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+# The test target lives here rather than in //preprocessing/provenance because this directory
+# carries its own BUILD.bazel and is therefore its own Bazel package — the parent cannot claim
+# `tests/*.py` as srcs across that boundary. This file replaced a `filegroup(name =
+# "scaffold_files")`, which check_component_maturity.py reads as "reserved, builds nothing";
+# a real pytest_test is what moves the package out of that state.
+load("//tools/build:pytest.bzl", "pytest_test")
+
 package(default_visibility = ["//visibility:private"])
 
-filegroup(
-    name = "scaffold_files",
-    srcs = glob(
-        ["**"],
-        exclude = ["BUILD.bazel"],
-    ),
-    visibility = ["//visibility:public"],
+pytest_test(
+    name = "test_manifest",
+    srcs = ["test_manifest.py"],
+    # Three levels up from preprocessing/provenance/tests is the repository root, which is what
+    # makes `import preprocessing.provenance` in the test resolve to the shipped package rather
+    # than to a runfiles-local shadow.
+    imports = ["../../.."],
+    deps = ["//preprocessing/provenance"],
 )
