@@ -484,12 +484,9 @@
         }
         // nixpkgs.lib.optionalAttrs (pkgs.system == "x86_64-linux") {
           workstation-gce-image = workstationSystem.config.system.build.googleComputeImage;
-          workstation-gce-image-contract = pkgs.runCommand
-            "mindclade-workstation-image-contract.json"
-            { }
-            ''
-              cp ${workstationSystem.config.environment.etc."mindclade/image-contract.json".source} "$out"
-            '';
+          workstation-gce-image-contract = pkgs.runCommand "mindclade-workstation-image-contract.json" { } ''
+            cp ${workstationSystem.config.environment.etc."mindclade/image-contract.json".source} "$out"
+          '';
         }
       );
 
