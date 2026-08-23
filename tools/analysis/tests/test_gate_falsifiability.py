@@ -120,6 +120,18 @@ def test_a_drifted_anchor_fails_loudly(source: Path) -> None:
     assert any("fixture anchor occurs 0 times" in error for error in errors), errors
 
 
+def test_a_broken_fixture_body_is_reported_not_raised(source: Path) -> None:
+    """A typo in a fixture must name the fixture, not blow up the whole suite."""
+
+    def broken(tree) -> None:
+        tree.no_such_method("subject.txt")
+
+    errors = harness.audit(
+        source, [("content", content_checker)], [falsifier("content", inject=broken)]
+    )
+    assert any("raised AttributeError while injecting" in error for error in errors), errors
+
+
 def test_a_failure_for_an_unrelated_reason_is_not_coverage(source: Path) -> None:
     """The mutated run must fail *for the injected reason*, not merely fail."""
     errors = harness.audit(
