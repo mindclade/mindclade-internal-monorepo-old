@@ -3,4 +3,7 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-pub use crate::resource_id::{ResourceId, ResourceIdError};
+pub use crate::resource_id::{
+    ID_BODY_LENGTH, ID_SEPARATOR, MAXIMUM_KIND_LENGTH, MINIMUM_KIND_LENGTH, ResourceId,
+    ResourceIdError,
+};

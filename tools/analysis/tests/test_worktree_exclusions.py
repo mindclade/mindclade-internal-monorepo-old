@@ -35,6 +35,25 @@ def test_go_module_check_ignores_nested_codex_checkout(tmp_path: Path) -> None:
     assert go_modules.check(tmp_path) == []
 
 
+def test_go_module_check_survives_repository_checked_out_under_an_excluded_name(
+    tmp_path: Path,
+) -> None:
+    """The exclusion list names directories *inside* a repository, not its address.
+
+    Agent worktrees are created at <repo>/.claude/worktrees/<id>, so a worktree's own absolute
+    path contains ".claude". While the filter matched absolute parts, every go.mod in such a
+    checkout was excluded -- the root one included -- and the check reported "missing root
+    go.mod" against a tree containing no Go changes at all. The cases above cannot catch that:
+    tmp_path never contains an excluded component, so only the nested copy was ever filtered.
+    """
+    root = tmp_path / ".claude" / "worktrees" / "agent-1"
+    (root / "sdk/go").mkdir(parents=True)
+    (root / "go.mod").write_text("module example.invalid/root\n", encoding="utf-8")
+    (root / "sdk/go/go.mod").write_text("module example.invalid/sdk\n", encoding="utf-8")
+
+    assert go_modules.check(root) == []
+
+
 def test_license_scan_ignores_nested_codex_checkout(tmp_path: Path) -> None:
     source = tmp_path / "source.py"
     source.write_text("print('source')\n", encoding="utf-8")

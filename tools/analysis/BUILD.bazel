@@ -183,11 +183,35 @@ pytest_test(
     ],
 )
 
+# check_code_docs_alignment.py is in srcs, not data: it owns the canonical set of crates retired
+# by the 2026-08 epoch, and both of these import it rather than restating the seven names.
 py_binary(
     name = "check_rust_workspace",
-    srcs = ["check_rust_workspace.py"],
+    srcs = [
+        "check_code_docs_alignment.py",
+        "check_rust_workspace.py",
+    ],
     main = "check_rust_workspace.py",
     visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "check_rust_package_manifest",
+    srcs = [
+        "check_code_docs_alignment.py",
+        "check_rust_package_manifest.py",
+    ],
+    main = "check_rust_package_manifest.py",
+    visibility = ["//visibility:public"],
+)
+
+pytest_test(
+    name = "rust_package_manifest_test",
+    srcs = ["tests/test_rust_package_manifest.py"],
+    data = [
+        "check_code_docs_alignment.py",
+        "check_rust_package_manifest.py",
+    ],
 )
 
 py_binary(
