@@ -246,6 +246,28 @@ py_binary(
     visibility = ["//visibility:public"],
 )
 
+py_binary(
+    name = "check_production_dependencies",
+    srcs = [
+        "check_production_dependencies.py",
+        "go_import_graph.py",
+    ],
+    main = "check_production_dependencies.py",
+    visibility = ["//visibility:public"],
+)
+
+# go_import_graph.py is in srcs rather than data for the same reason it is in the
+# control_plane_commands_test above: the checker imports it as a module off its own directory,
+# and a data dependency lands in the runfiles tree without joining the import path.
+pytest_test(
+    name = "production_dependencies_test",
+    srcs = [
+        "check_production_dependencies.py",
+        "go_import_graph.py",
+        "tests/test_production_dependencies.py",
+    ],
+)
+
 filegroup(
     name = "analysis_sources",
     srcs = glob(
