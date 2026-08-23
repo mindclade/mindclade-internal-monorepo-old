@@ -25,6 +25,15 @@ id = "scaffold-maturity-gating"
 document = "docs/architecture/system-design-reference.md"
 checker = "tools/analysis/check_component_maturity.py"
 
+# ADR-0021's other clause. check_component_maturity.py enforces the evidence each status must
+# carry; this enforces the prohibition those statuses exist to express — production may not
+# depend on planned/scaffolded/experimental. `production_dependency` in maturity.toml had no
+# reader in tools/ or ci/ at all until this entry's checker was written.
+[[decision]]
+id = "maturity-production-dependency"
+document = "docs/design/adr-0021-component-maturity-policy.md"
+checker = "tools/analysis/check_production_dependencies.py"
+
 [[decision]]
 id = "cargo-bazel-alignment"
 document = "docs/architecture/system-design-reference.md"

@@ -19,6 +19,7 @@ rust_library(
         "//libs/rust/identifiers:mindclade_identifiers",
         "//libs/rust/record_io:mindclade_record_io",
         "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/telemetry:mindclade_telemetry",
     ],
 )
 
@@ -34,6 +35,7 @@ rust_test(
         "//libs/rust/identifiers:mindclade_identifiers",
         "//libs/rust/record_io:mindclade_record_io",
         "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/telemetry:mindclade_telemetry",
     ],
 )
 
@@ -49,6 +51,7 @@ rust_test(
         "//libs/rust/identifiers:mindclade_identifiers",
         "//libs/rust/record_io:mindclade_record_io",
         "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/telemetry:mindclade_telemetry",
     ],
 )
 
@@ -64,6 +67,23 @@ rust_test(
         "//libs/rust/identifiers:mindclade_identifiers",
         "//libs/rust/record_io:mindclade_record_io",
         "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/telemetry:mindclade_telemetry",
+    ],
+)
+
+rust_test(
+    name = "event_sink",
+    srcs = ["tests/event_sink.rs"],
+    edition = "2024",
+    deps = [
+        ":mindclade_telemetry_spool",
+        "//libs/rust/atomic_fs:mindclade_atomic_fs",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/record_io:mindclade_record_io",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/telemetry:mindclade_telemetry",
     ],
 )
 
