@@ -21,6 +21,7 @@ filegroup(
         "//infra/terraform/modules/bazel_remote_cache:scaffold_files",
         "//infra/terraform/modules/bazel_remote_execution:scaffold_files",
         "//infra/terraform/modules/binauthz:scaffold_files",
+        "//infra/terraform/modules/certificate_manager:scaffold_files",
         "//infra/terraform/modules/cloud_nat:scaffold_files",
         "//infra/terraform/modules/cpu_node_pool:scaffold_files",
         "//infra/terraform/modules/dns:scaffold_files",
@@ -57,6 +58,7 @@ filegroup(
         "//infra/terraform/modules/storage:scaffold_files",
         "//infra/terraform/modules/storage_collection:scaffold_files",
         "//infra/terraform/modules/workload_identity:scaffold_files",
+        "//infra/terraform/modules/workstation:scaffold_files",
     ],
     visibility = ["//infra/security:__pkg__"],
 )
