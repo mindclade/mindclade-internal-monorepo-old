@@ -55,7 +55,7 @@ func NewMechanisms(settings config.Settings) (Mechanisms, error) {
 	if err != nil {
 		return Mechanisms{}, err
 	}
-	codec, err := pagination.NewCodec(signer, verifier, value, settings.PaginationTTL)
+	codec, err := pagination.NewCodec(signer, verifier, pagination.CursorDomain, value, settings.PaginationTTL)
 	if err != nil {
 		return Mechanisms{}, err
 	}
@@ -73,6 +73,13 @@ func NewMechanisms(settings config.Settings) (Mechanisms, error) {
 // newSigning builds the symmetric signer and the single-key verification set
 // used for pagination cursors and internal tickets. Key rotation adds entries
 // to the verification set; the signer always uses the active key.
+//
+// One key deliberately serves several purposes, so nothing here keeps a
+// signature minted for one of them from being replayed as another. That
+// separation lives in the signed bytes instead: every claim document commits to
+// its type through the canonical encoders in control/, and page tokens commit
+// to pagination.CursorDomain. Any future consumer of this signer must commit to
+// its own domain the same way before it signs anything.
 func newSigning(settings config.Settings, value mcclock.Clock) (signing.Signer, signing.Verifier, error) {
 	keyID, err := signing.ParseKeyID(settings.SigningKeyID)
 	if err != nil {
