@@ -141,6 +141,7 @@ nav:
       - Control ingestion: slo/control-ingestion.md
       - Control model registry: slo/control-model-registry.md
       - Control orchestration: slo/control-orchestration.md
+      - Control plane: slo/control-plane.md
       - Control reference databases: slo/control-reference-databases.md
       - Control release evidence: slo/control-release-evidence.md
       - Control routing: slo/control-routing.md

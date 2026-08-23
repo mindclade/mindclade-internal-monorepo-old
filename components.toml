@@ -1057,3 +1057,136 @@ release_target = "go-vanity"
 # describe the service. `_GO_DECLARATION_GOVERNED_ROOTS` therefore governs
 # `services/go_vanity` and `services/studio` and not `services/control_plane`; when the SLO
 # exists, replacing those two roots with plain `services` is the change that proves it.
+
+[[component]]
+name = "services.control_plane.registry"
+path = "services/control_plane/cmd/registry"
+status = "qualified"
+owner = "platform-control"
+tests = [
+  "services/control_plane/internal/providers/registry/domain_test.go",
+  "services/control_plane/internal/providers/registry/handler_test.go",
+  "services/control_plane/internal/providers/registry/providers_test.go",
+]
+qualification = "docs/qualification/go/control-plane-registry.md"
+slo = "docs/slo/control-model-registry.md"
+runbook = "docs/runbooks/control-model-registry.md"
+
+[[component]]
+name = "services.control_plane.api"
+path = "services/control_plane/cmd/api"
+status = "implemented"
+owner = "platform-control"
+tests = [
+  "services/control_plane/internal/providers/api/admission_test.go",
+  "services/control_plane/internal/providers/api/api_test.go",
+  "services/control_plane/internal/providers/api/eligibility_test.go",
+  "services/control_plane/internal/providers/api/policies_test.go",
+  "services/control_plane/internal/providers/api/serving_policy_test.go",
+]
+slo = "docs/slo/control-admission.md"
+runbook = "docs/runbooks/control-admission.md"
+
+[[component]]
+name = "services.control_plane.maintenance"
+path = "services/control_plane/cmd/maintenance"
+status = "implemented"
+owner = "platform-control"
+tests = [
+  "services/control_plane/internal/providers/maintenance/maintenance_test.go",
+  "services/control_plane/internal/providers/maintenance/metrics_test.go",
+]
+slo = "docs/slo/control-plane.md"
+runbook = "docs/runbooks/control-plane-outage.md"
+
+[[component]]
+name = "services.control_plane.admin"
+path = "services/control_plane/cmd/admin"
+status = "experimental"
+owner = "platform-control"
+tests = [
+  "services/control_plane/internal/providers/api/admission_test.go",
+  "services/control_plane/internal/providers/api/api_test.go",
+  "services/control_plane/internal/providers/api/eligibility_test.go",
+  "services/control_plane/internal/providers/api/policies_test.go",
+  "services/control_plane/internal/providers/api/serving_policy_test.go",
+]
+slo = "docs/slo/control-admission.md"
+runbook = "docs/runbooks/control-admission.md"
+
+[[component]]
+name = "services.control_plane.scheduler"
+path = "services/control_plane/cmd/scheduler"
+status = "experimental"
+owner = "platform-control"
+tests = [
+  "services/control_plane/internal/providers/scheduler/scheduler_test.go",
+]
+slo = "docs/slo/control-scheduling.md"
+runbook = "docs/runbooks/control-scheduling.md"
+
+[[component]]
+name = "services.control_plane.controller"
+path = "services/control_plane/cmd/controller"
+status = "experimental"
+owner = "platform-control"
+tests = [
+  "services/control_plane/internal/providers/controller/controller_test.go",
+]
+slo = "docs/slo/control-orchestration.md"
+runbook = "docs/runbooks/control-orchestration.md"
+
+[[component]]
+name = "services.control_plane.operator"
+path = "services/control_plane/cmd/operator"
+status = "experimental"
+owner = "platform-control"
+tests = [
+  "services/control_plane/internal/providers/controller/controller_test.go",
+]
+slo = "docs/slo/control-orchestration.md"
+runbook = "docs/runbooks/control-orchestration.md"
+
+[[component]]
+name = "services.control_plane.event_projector"
+path = "services/control_plane/cmd/event_projector"
+status = "experimental"
+owner = "platform-control"
+tests = [
+  "services/control_plane/internal/providers/projector/projector_test.go",
+]
+slo = "docs/slo/control-orchestration.md"
+runbook = "docs/runbooks/control-orchestration.md"
+
+[[component]]
+name = "services.control_plane.event_dispatcher"
+path = "services/control_plane/cmd/event_dispatcher"
+status = "experimental"
+owner = "platform-control"
+tests = [
+  "services/control_plane/internal/providers/dispatcher/dispatcher_test.go",
+]
+slo = "docs/slo/control-orchestration.md"
+runbook = "docs/runbooks/control-orchestration.md"
+
+[[component]]
+name = "services.control_plane.webhook_dispatcher"
+path = "services/control_plane/cmd/webhook_dispatcher"
+status = "experimental"
+owner = "platform-control"
+tests = [
+  "services/control_plane/internal/providers/webhook/webhook_test.go",
+]
+slo = "docs/slo/control-orchestration.md"
+runbook = "docs/runbooks/control-orchestration.md"
+
+[[component]]
+name = "services.control_plane.ingestion_controller"
+path = "services/control_plane/cmd/ingestion_controller"
+status = "experimental"
+owner = "platform-control"
+tests = [
+  "services/control_plane/internal/providers/ingestion/ingestion_test.go",
+]
+slo = "docs/slo/control-ingestion.md"
+runbook = "docs/runbooks/control-ingestion.md"
