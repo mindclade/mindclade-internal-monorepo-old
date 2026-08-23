@@ -9,6 +9,21 @@ load("//tools/build:pytest.bzl", "pytest_test")
 package(default_visibility = ["//visibility:private"])
 
 py_library(
+    name = "performance_lib",
+    srcs = ["performance.py"],
+    data = ["//configs:rust_performance_policy"],
+    imports = ["../../.."],
+)
+
+pytest_test(
+    name = "test_performance",
+    srcs = ["tests/test_performance.py"],
+    data = ["//configs:rust_performance_policy"],
+    imports = ["../../.."],
+    deps = [":performance_lib"],
+)
+
+py_library(
     name = "release_performance_lib",
     srcs = ["release_performance.py"],
     imports = ["../../.."],

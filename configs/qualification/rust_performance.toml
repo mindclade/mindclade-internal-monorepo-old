@@ -2,37 +2,122 @@
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
+# NOT ONE THRESHOLD IN THIS FILE HAS BEEN LOWERED.
+#
+# `unix_ipc_mib_per_s` failed three separate agents against its 500 MiB/s floor -- 476.6, then
+# 299.6 -- and each of them A/B'd the failure against a pristine tree on the same machine and
+# watched the pristine tree fail identically. Measured here, eight consecutive runs of a
+# byte-identical binary spread 86.7% at a load of 1.65 per CPU, and 153.8% at 3.4.
+#
+# The fastest way to make that red go green is to move the number. That would delete the gate:
+# a floor low enough to survive a contended host cannot detect the regression it exists for. So
+# the fix is entirely in how the number is measured -- see `[measurement]` below and the module
+# docstring in tools/qualification/rust/performance.py.
 
 schema_version = 1
+
+# HOW A NUMBER BECOMES EVIDENCE
+# =============================
+# samples / warmup_runs
+#   Whole probe processes. The first is discarded because it pays for page faults, the dynamic
+#   loader, and a cold file cache, none of which any budget here is about. The rest are reduced
+#   by median, which is robust to the single interfered-with sample that a mean would absorb.
+#
+# There is deliberately NO dispersion threshold. Scatter only matters when it reaches the
+# budget: `runtime_host_invocation_overhead_us` measures a sub-microsecond operation against a
+# 750 us ceiling, so its samples vary by a factor of ten and every one of them passes by three
+# orders of magnitude. A percentage rule would condemn that perfectly good measurement. What is
+# checked instead is whether the samples AGREE ON THE VERDICT -- if some meet the budget and
+# others do not, this run cannot say which side of the line the code is on, and the honest
+# answer is INCONCLUSIVE rather than whichever way the median happened to fall.
+#
+# max_host_load_per_cpu
+#   One-minute load average per CPU, read BEFORE measurement begins so it reflects other
+#   people's work rather than the probe's own. 1.0 is the line where the host stops having a
+#   core for every runnable thread and the probe starts timing scheduler queueing. Every
+#   observed flake sat between 1.65 and 4.17. A dedicated CI runner idles far below 1.0, so
+#   this does not fire there -- and if it ever does, that is an infrastructure defect worth
+#   seeing rather than absorbing.
+#
+# Sustained contention defeats a median on its own: every sample is equally depressed, the
+# spread stays small, and the metric simply reads low. That is why both checks exist. In the
+# interleaved A/B above, sampling took the spread from 153.8% to 111.1% and neither number was
+# usable -- the honest verdict on that host is "not measured", which is what this policy now
+# produces.
+[measurement]
+samples = 5
+warmup_runs = 1
+max_host_load_per_cpu = 1.0
+
+# `load_sensitive` is MANDATORY on every budget and has no default. It says whether a busy host
+# can move this number. Timing and throughput: yes. Byte counts, allocation ratios, and file
+# descriptor counts: no -- those are deterministic, so they gate unconditionally and are never
+# downgraded to advisory. Making it explicit forces the question to be answered by a reviewer
+# instead of inherited from whichever default happened to be permissive.
+
 [budget.runtime_gateway_request_overhead_us]
 maximum = 500
+load_sensitive = true
+
 [budget.runtime_gateway_cancellation_ms]
 maximum = 50
+load_sensitive = true
+
 [budget.runtime_gateway_latency_p95_ms]
 maximum = 2
+load_sensitive = true
+
 [budget.runtime_gateway_latency_p99_ms]
 maximum = 5
+load_sensitive = true
+
 [budget.runtime_gateway_connection_churn_p99_ms]
 maximum = 20
+load_sensitive = true
+
+# Resident set size is a property of the allocation pattern, not of who else is on the box.
 [budget.runtime_gateway_rss_bytes]
 maximum = 805306368
+load_sensitive = false
+
 [budget.runtime_gateway_fd_count]
 maximum = 4096
+load_sensitive = false
+
 [budget.runtime_host_invocation_overhead_us]
 maximum = 750
+load_sensitive = true
+
 [budget.artifact_verify_mib_per_s]
 minimum = 500
+load_sensitive = true
+
 [budget.unix_ipc_mib_per_s]
 minimum = 500
+load_sensitive = true
+
 [budget.verified_range_4k_ops_per_s]
 minimum = 50
+load_sensitive = true
+
 [budget.local_store_contended_4k_ops_per_s]
 minimum = 100
+load_sensitive = true
+
 [budget.checkpoint_staging_mib_per_s]
 minimum = 1000
+load_sensitive = true
+
+# A copy ratio counts bytes moved per byte of input. Contention changes how long that takes,
+# never how many copies happen.
 [budget.data_stream_copy_bytes_per_byte]
 maximum = 2.0
+load_sensitive = false
+
 [budget.parser_allocated_bytes_per_input_byte]
 maximum = 4.0
+load_sensitive = false
+
 [budget.node_stage_start_ms]
 maximum = 100
+load_sensitive = true

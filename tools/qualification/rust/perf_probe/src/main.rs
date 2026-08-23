@@ -112,7 +112,31 @@ fn main() {
     );
 }
 
+/// Median of several sampled transfers, after a discarded warmup.
+///
+/// WAS a single cold sample, and it was the flakiest number this probe produced: three separate
+/// agents saw `unix_ipc_mib_per_s` fail its 500 MiB/s floor at 476.6 and then 299.6, each A/B'd
+/// it against a pristine tree on the same machine, and the pristine tree failed identically. On
+/// a loaded host eight consecutive runs of an unchanged binary spread 86.7% -- 827 to 2120
+/// MiB/s -- so the gate was reporting scheduler luck, not throughput.
+///
+/// `artifact_verify_mib_per_s` above already takes a median for exactly this reason and says so
+/// in its own comment. This is that decision applied to the measurement that needed it most.
+/// The warmup matters independently: the first transfer through a fresh socket pair pays for
+/// the consumer thread's first schedule and for faulting in a 32 MiB payload that has only just
+/// been written.
 fn measure_ipc_throughput() -> f64 {
+    // Discarded. Its cost is real but it is not what the budget is about.
+    black_box(sample_ipc_throughput());
+    let mut samples = [0.0_f64; 5];
+    for sample in &mut samples {
+        *sample = sample_ipc_throughput();
+    }
+    samples.sort_by(f64::total_cmp);
+    samples[samples.len() / 2]
+}
+
+fn sample_ipc_throughput() -> f64 {
     let (mut writer, mut reader) = UnixStream::pair().expect("Unix socket pair");
     let repetitions = 4_usize;
     let consumer = thread::spawn(move || {
@@ -133,9 +157,16 @@ fn measure_ipc_throughput() -> f64 {
             .write_all(black_box(&payload))
             .expect("write IPC probe");
     }
-    writer
-        .shutdown(std::net::Shutdown::Write)
-        .expect("close IPC probe");
+    // NotConnected here means the consumer already read every expected byte and dropped its
+    // half before this call landed -- which is the success path, not a failure. Treating it as
+    // fatal made the probe panic roughly one run in seven once the transfer was sampled six
+    // times instead of once, so the qualification tool itself became a source of red unrelated
+    // to throughput. Any other errno is still fatal.
+    match writer.shutdown(std::net::Shutdown::Write) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotConnected => {}
+        Err(error) => panic!("close IPC probe: {error:?}"),
+    }
     consumer.join().expect("IPC reader");
     let mib = usize_as_f64(PROBE_BYTES * repetitions) / (1024.0 * 1024.0);
     mib / started.elapsed().as_secs_f64()

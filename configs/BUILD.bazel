@@ -50,6 +50,12 @@ filegroup(
 # tests. Exported as its own filegroup rather than through :scaffold_files so a consumer depends
 # on the one policy file it reads.
 filegroup(
+    name = "rust_performance_policy",
+    srcs = ["qualification/rust_performance.toml"],
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
     name = "live_datastore_suites",
     srcs = ["qualification/live_datastore_suites.toml"],
     visibility = ["//visibility:public"],
