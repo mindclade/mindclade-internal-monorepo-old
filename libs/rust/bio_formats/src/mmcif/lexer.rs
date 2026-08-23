@@ -9,9 +9,50 @@
 //! text fields beginning in column one. It deliberately does not assign
 //! scientific meaning to categories/loops; Python remains authoritative for
 //! model-domain semantics.
-use super::record::CifToken;
+use super::record::{CifToken, MAXIMUM_TOKEN_BYTES};
 use mindclade_bounded_parse::{AllocationBudget, Cursor, Limits};
 use mindclade_faults::{Code, Fault, FaultResult};
+
+/// Largest number of bytes any single token may retain.
+///
+/// Deliberately *not* `maximum_line_bytes`: a semicolon text field exists to
+/// carry content longer than one line, so charging it the per-line ceiling would
+/// reject well-formed mmCIF (`_struct.title` and friends) from any caller who
+/// tightened that ceiling. The two real bounds are the format's own token
+/// invariant and the parse's retained-allocation budget — a token above either
+/// could never survive to be returned anyway, so applying them here only moves
+/// the rejection earlier.
+fn token_ceiling(limits: Limits) -> usize {
+    usize::try_from(limits.maximum_allocation_bytes.get())
+        .unwrap_or(MAXIMUM_TOKEN_BYTES)
+        .min(MAXIMUM_TOKEN_BYTES)
+}
+
+fn charge_text_field(
+    value: &mut Vec<u8>,
+    line: &[u8],
+    limits: Limits,
+    allocation: &mut AllocationBudget,
+) -> FaultResult<()> {
+    let growth = line
+        .len()
+        .checked_add(1)
+        .ok_or_else(|| Fault::new(Code::OutOfRange, "retained line allocation overflow"))?;
+    let next = value
+        .len()
+        .checked_add(growth)
+        .ok_or_else(|| Fault::new(Code::OutOfRange, "mmCIF text field accounting overflow"))?;
+    if next > token_ceiling(limits) {
+        return Err(Fault::new(
+            Code::ResourceExhausted,
+            "mmCIF text field exceeds parse limit",
+        ));
+    }
+    allocation.charge_usize(growth)?;
+    value.extend_from_slice(line);
+    value.push(b'\n');
+    Ok(())
+}
 
 pub fn lex(bytes: &[u8], limits: Limits) -> FaultResult<Vec<CifToken>> {
     let mut cursor = Cursor::new(bytes, limits)?;
@@ -27,11 +68,7 @@ pub fn lex(bytes: &[u8], limits: Limits) -> FaultResult<Vec<CifToken>> {
                 push_token(&mut output, value, *offset, limits, &mut allocation)?;
                 text_field = None;
             } else {
-                allocation.charge_usize(line.len().checked_add(1).ok_or_else(|| {
-                    Fault::new(Code::OutOfRange, "retained line allocation overflow")
-                })?)?;
-                value.extend_from_slice(line);
-                value.push(b'\n');
+                charge_text_field(value, line, limits, &mut allocation)?;
             }
             continue;
         }
@@ -39,12 +76,8 @@ pub fn lex(bytes: &[u8], limits: Limits) -> FaultResult<Vec<CifToken>> {
         // `&line[1..]` already assumes a one-byte delimiter, which is the other half of the
         // evidence that the space was a typo rather than intent.
         if line.first() == Some(&b';') {
-            let initial = &line[1..];
-            allocation.charge_usize(initial.len().checked_add(1).ok_or_else(|| {
-                Fault::new(Code::OutOfRange, "retained text allocation overflow")
-            })?)?;
-            let mut value = initial.to_vec();
-            value.push(b'\n');
+            let mut value = Vec::new();
+            charge_text_field(&mut value, &line[1..], limits, &mut allocation)?;
             text_field = Some((location.offset, value));
             continue;
         }
@@ -128,6 +161,18 @@ fn push_token(
             Code::ResourceExhausted,
             "mmCIF token limit exceeded",
         ));
+    }
+    // Checked before the copy below, not after: `CifToken::validate` used to be
+    // the only size gate, which meant an oversized token was fully materialised
+    // into a `String` before being rejected.
+    if bytes.len() > token_ceiling(limits) {
+        return Err(
+            Fault::new(Code::ResourceExhausted, "mmCIF token exceeds parse limit").with_context(
+                "offset",
+                u64::try_from(offset)
+                    .map_err(|_| Fault::new(Code::OutOfRange, "mmCIF offset exceeds u64"))?,
+            ),
+        );
     }
     let value = std::str::from_utf8(bytes)
         .map_err(|error| Fault::invalid_argument("mmCIF token is not UTF-8").with_source(error))?;

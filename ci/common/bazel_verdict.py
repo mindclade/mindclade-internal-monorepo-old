@@ -533,22 +533,34 @@ def verify_worker_selections(
         raise _error(
             "BAZEL_VERDICT_ARTIFACT_SET_INVALID", "worker artifact set is unavailable"
         ) from error
-    if {entry.name for entry in entries} != set(expected_names):
-        raise _error("BAZEL_VERDICT_ARTIFACT_SET_INVALID", "worker artifact set is incomplete")
+    if (
+        len(expected_workers) == 1
+        and len(entries) == 1
+        and entries[0].name == WORKER_SELECTION_FILENAME
+        and not entries[0].is_symlink()
+        and entries[0].is_file()
+    ):
+        selection_paths = ((entries[0], expected_workers[0]),)
+    else:
+        if {entry.name for entry in entries} != set(expected_names):
+            raise _error("BAZEL_VERDICT_ARTIFACT_SET_INVALID", "worker artifact set is incomplete")
+        selections = []
+        for entry in entries:
+            if entry.is_symlink() or not entry.is_dir():
+                raise _error("BAZEL_VERDICT_ARTIFACT_SET_INVALID", "worker artifact set is invalid")
+            try:
+                children = tuple(entry.iterdir())
+            except OSError as error:
+                raise _error(
+                    "BAZEL_VERDICT_ARTIFACT_SET_INVALID", "worker artifact set is invalid"
+                ) from error
+            if len(children) != 1 or children[0].name != WORKER_SELECTION_FILENAME:
+                raise _error("BAZEL_VERDICT_ARTIFACT_SET_INVALID", "worker artifact set is invalid")
+            selections.append((children[0], expected_names[entry.name]))
+        selection_paths = tuple(selections)
     evidence = []
-    for entry in entries:
-        if entry.is_symlink() or not entry.is_dir():
-            raise _error("BAZEL_VERDICT_ARTIFACT_SET_INVALID", "worker artifact set is invalid")
-        try:
-            children = tuple(entry.iterdir())
-        except OSError as error:
-            raise _error(
-                "BAZEL_VERDICT_ARTIFACT_SET_INVALID", "worker artifact set is invalid"
-            ) from error
-        if len(children) != 1 or children[0].name != WORKER_SELECTION_FILENAME:
-            raise _error("BAZEL_VERDICT_ARTIFACT_SET_INVALID", "worker artifact set is invalid")
-        item = _load_worker_evidence(children[0])
-        expected_worker = expected_names[entry.name]
+    for selection_path, expected_worker in selection_paths:
+        item = _load_worker_evidence(selection_path)
         if (
             item.worker != expected_worker
             or item.topology_mode != topology_mode
