@@ -258,20 +258,14 @@ jobs:
             //tools/build/bazel/toolchains/cc:smoke_test --config=ci
           nix develop .#ci-bazel --command python3 -B tools/analysis/verify_cc_toolchain_selection.py
 
-      # Keep the exact nightly checkout proof independent of ignored caches produced by trusted
-      # setup and analysis steps. The exclusions are the only generated workspace paths accepted
-      # by the selector's fail-closed integrity contract.
+      # Keep the exact nightly checkout proof independent of ignored caches and Bazel convenience
+      # symlinks produced by trusted setup and analysis steps. Preserve only the reviewed generated
+      # Bazel authority; Bazel recreates its convenience symlinks for the governed run.
       - name: Remove ignored checkout byproducts
-        env:
-          WORKSPACE_NAME: ${{ github.event.repository.name }}
         run: |
           set -euo pipefail
           git clean -ffdX \
-            -e '!user.bazelrc' \
-            -e '!bazel-bin' \
-            -e '!bazel-out' \
-            -e '!bazel-testlogs' \
-            -e "!bazel-${WORKSPACE_NAME}"
+            -e '!user.bazelrc'
 
       - name: Analyze and test the selected repository-graph workload
         env:
