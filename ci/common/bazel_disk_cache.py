@@ -18,8 +18,9 @@ import time
 from pathlib import Path
 from typing import NoReturn
 
-MAX_SIZE_BYTES = 4 * 1024**3
-MAX_SIZE_FLAG = "4G"
+MAX_SIZE_BYTES = 1024**3
+MAX_SIZE_FLAG = "1G"
+MAX_SIZE_MIB = MAX_SIZE_BYTES // 1024**2
 GC_IDLE_DELAY = "1s"
 SHUTDOWN_TIMEOUT_SECONDS = 120
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
@@ -27,7 +28,7 @@ FINGERPRINT = re.compile(r"^[0-9a-f]{64}$")
 KEY_COMPONENT_PATTERN = r"[A-Za-z0-9][A-Za-z0-9._-]{0,31}"
 KEY_COMPONENT = re.compile(rf"^{KEY_COMPONENT_PATTERN}$")
 PULL_REQUEST_REF = re.compile(r"^refs/pull/[1-9][0-9]*/merge$")
-CACHE_NAMESPACE = "bazel-disk-v1"
+CACHE_NAMESPACE = "bazel-disk-v2"
 CACHE_RESTORE_PREFIX = re.compile(
     rf"^{CACHE_NAMESPACE}-{KEY_COMPONENT_PATTERN}-{KEY_COMPONENT_PATTERN}-[0-9a-f]{{64}}-$"
 )
@@ -157,7 +158,7 @@ def configure(
         _fail(f"invalid Bazel cache role: {role}")
     if not cache_dir.is_absolute() or any(character.isspace() for character in str(cache_dir)):
         _fail("Bazel disk cache must be an absolute whitespace-free path")
-    if restore_outcome not in {"success", "failure", "cancelled"}:
+    if restore_outcome not in {"success", "failure", "cancelled", "skipped"}:
         _fail("configure requires a completed cache-restore outcome")
 
     if cache_dir.is_symlink():
@@ -183,7 +184,7 @@ def configure(
 
     if restore_outcome != "success" and cache_dir.exists():
         shutil.rmtree(cache_dir)
-        print("::warning::Bazel cache restore failed; continuing with an empty cold cache")
+        print("::warning::Bazel cache restore unavailable; continuing with an empty cold cache")
     cache_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     cache_dir.chmod(0o700)
     upload = "true" if role == "writer" else "false"
@@ -271,7 +272,7 @@ def measure(*, cache_dir: Path) -> dict[str, str]:
     if not within_limit:
         print(
             "::warning::Bazel disk cache is "
-            f"{size_bytes} bytes; skipping persistence above the 4 GiB ceiling"
+            f"{size_bytes} bytes; skipping persistence above the {MAX_SIZE_MIB} MiB ceiling"
         )
     return {
         "size-bytes": str(size_bytes),
@@ -432,7 +433,7 @@ def record_metrics(
         stream.write(f"| Save attempt | `{save_state}` (step: `{normalized_save_outcome}`) |\n")
         stream.write(f"| Measurement | `{measure_state}` |\n")
         if measure_state == "measured":
-            stream.write(f"| Size | `{size_bytes / 1024**2:.1f} MiB` / `4096 MiB` |\n")
+            stream.write(f"| Size | `{size_bytes / 1024**2:.1f} MiB` / `{MAX_SIZE_MIB} MiB` |\n")
         else:
             stream.write("| Size | `unavailable` |\n")
     return payload

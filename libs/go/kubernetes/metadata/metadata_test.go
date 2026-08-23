@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"go.mindclade.dev/libs/go/faults"
 )
 
 func TestSetAndRemoveLabel(t *testing.T) {
@@ -107,5 +109,77 @@ func TestManagedLabels(t *testing.T) {
 	}
 	if labels, err := ManagedLabels("", "", "", ""); err != nil || labels != nil {
 		t.Fatalf("empty labels = (%#v, %v)", labels, err)
+	}
+}
+
+// An empty key is not a "no-op key": it is an invalid key. Merge used to drop
+// it silently, so these mutators reported (false, nil) — indistinguishable
+// from "the label was already present" — and the caller's write vanished.
+func TestSetLabelRejectsEmptyKey(t *testing.T) {
+	object := &metav1.PartialObjectMetadata{}
+	changed, err := SetLabel(object, "", "control-plane")
+	if !faults.IsCode(err, faults.CodeInvalidArgument) || changed {
+		t.Fatalf("SetLabel(empty key) = (%v, %v)", changed, err)
+	}
+	if object.GetLabels() != nil {
+		t.Fatalf("labels = %#v", object.GetLabels())
+	}
+}
+
+func TestSetAnnotationRejectsEmptyKey(t *testing.T) {
+	object := &metav1.PartialObjectMetadata{}
+	changed, err := SetAnnotation(object, "", "control-plane")
+	if !faults.IsCode(err, faults.CodeInvalidArgument) || changed {
+		t.Fatalf("SetAnnotation(empty key) = (%v, %v)", changed, err)
+	}
+	if object.GetAnnotations() != nil {
+		t.Fatalf("annotations = %#v", object.GetAnnotations())
+	}
+}
+
+func TestApplyRejectsEmptyKey(t *testing.T) {
+	object := &metav1.PartialObjectMetadata{}
+	if changed, err := Apply(object, map[string]string{"": "value"}, nil); !faults.IsCode(err, faults.CodeInvalidArgument) || changed {
+		t.Fatalf("Apply(empty label key) = (%v, %v)", changed, err)
+	}
+	if changed, err := Apply(object, nil, map[string]string{"": "value"}); !faults.IsCode(err, faults.CodeInvalidArgument) || changed {
+		t.Fatalf("Apply(empty annotation key) = (%v, %v)", changed, err)
+	}
+	if object.GetLabels() != nil || object.GetAnnotations() != nil {
+		t.Fatalf("rejected Apply mutated object: labels=%#v annotations=%#v", object.GetLabels(), object.GetAnnotations())
+	}
+}
+
+func TestRemoveRejectsEmptyKey(t *testing.T) {
+	object := &metav1.PartialObjectMetadata{}
+	changed, err := RemoveLabel(object, "")
+	if !faults.IsCode(err, faults.CodeInvalidArgument) || changed {
+		t.Fatalf("RemoveLabel(empty key) = (%v, %v)", changed, err)
+	}
+	changed, err = RemoveAnnotation(object, "")
+	if !faults.IsCode(err, faults.CodeInvalidArgument) || changed {
+		t.Fatalf("RemoveAnnotation(empty key) = (%v, %v)", changed, err)
+	}
+}
+
+func TestRemoveAcceptsKeysThatAreNoLongerWritable(t *testing.T) {
+	object := &metav1.PartialObjectMetadata{}
+	object.SetLabels(map[string]string{"legacy key": "value"})
+	changed, err := RemoveLabel(object, "legacy key")
+	if err != nil || !changed || object.GetLabels() != nil {
+		t.Fatalf("RemoveLabel(legacy key) = (%v, %v), labels=%#v", changed, err, object.GetLabels())
+	}
+}
+
+func TestMergePreservesEmptyKeysForValidation(t *testing.T) {
+	merged := Merge(nil, map[string]string{"": "value"})
+	if _, ok := merged[""]; !ok {
+		t.Fatalf("Merge() dropped the empty key: %#v", merged)
+	}
+	if err := ValidateLabels(merged); err == nil {
+		t.Fatal("ValidateLabels() accepted an empty key")
+	}
+	if err := ValidateAnnotations(merged); err == nil {
+		t.Fatal("ValidateAnnotations() accepted an empty key")
 	}
 }

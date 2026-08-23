@@ -66,10 +66,19 @@ selection is reviewable and runnable locally rather than embedded in YAML. The
 architecture lane is `python3 ci/presubmit/pipeline.py --static-only`.
 
 Bazel is the test execution authority. CI selects targets; it does not duplicate
-build logic. Pull requests use owning-package reverse-dependency selection;
-global or structurally unsafe changes, merge groups, main pushes, and nightly
-runs execute `//...`. The separate graph-native target-determinator migration
-remains blocked on remote-cache and external required-workflow evidence.
+build logic. Pull requests, merge groups, main pushes, and nightly runs currently
+execute `//...`. Owning-package reverse-dependency selection and the separate
+graph-native target-determinator migration remain blocked on connected cache and
+external required-workflow evidence.
+
+For a native GitHub stack, cache trust and remote-cache routing use
+`pull_request.stack.base` so every layer remains anchored to the stack's ultimate
+protected target; a direct pull request falls back to `pull_request.base`. The
+affected-selection input deliberately keeps the immediate `pull_request.base.sha`
+so a future activated selector compares only the current stack layer.
+Both the presubmit and nightly Bazel jobs launch repository Python with `-B`
+through checkout-integrity validation, preventing their own imports from creating
+ignored bytecode directories inside the governed checkout.
 
 ## Buildkite retirement status
 

@@ -32,6 +32,13 @@ class ModelWorker:
         cancellation_probe: Callable[[str], bool] | None = None,
     ) -> None:
         limits.validate()
+        # The registry is injected by the composition root, so its residency
+        # bound and the worker's declared ceiling are set in two places. Without
+        # this check a node configured for two resident bundles would silently
+        # keep whatever the registry was built with - the exact over-retention
+        # the limit exists to prevent.
+        if registry.capacity > limits.maximum_loaded_models:
+            raise ValueError("model registry capacity exceeds the worker loaded-model limit")
         self._limits = limits
         self._registry = registry
         self._engine = engine

@@ -16,16 +16,17 @@ releases also carry immutable release manifests and evidence bundles.
   inputs;
 - pinned Git to the read-only Nix closure, require canonical non-worktree repository metadata,
   reject hidden index flags and host Git overrides, bind the disk cache to exact runner temporary
-  storage, pass its role as command-line-final Bazel options, and validate canonical start epochs;
+  storage, make the validated generated Bazel rc the sole cache-option authority, and validate
+  canonical start epochs;
 - parse workflow YAML with pinned PyYAML semantics, reject aliases, tags, and duplicate keys, and
   digest-pin each Bazel step in order so block-scalar, reordered, repinned, or spoofed verdict
   paths fail closed; and
 - recorded the checksum-pinned target-determinator candidate plus the measured blockers that keep
   graph-native pull-request selection dormant.
 
-Pull requests retain the existing Bazel-query affected selector with mandatory
-`//:gazelle_check` and fail-closed full fallback. Merge groups, main pushes, and
-nightly runs retain full `//...` execution. No graph-native selector,
+Pull requests, merge groups, main pushes, and nightly runs retain full `//...`
+execution. The Bazel-query selector remains source-qualified but inactive until
+connected activation evidence exists. No graph-native selector,
 authenticated remote cache, workflow gate, release, or deployment is activated
 by this source change.
 Artifact-plan Phase 5 remains incomplete pending the retained evidence above and activation of

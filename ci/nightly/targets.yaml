@@ -4,8 +4,8 @@
 
 ---
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "mode": "full",
-  "analysis_targets": ["//..."],
-  "test_targets": ["//..."]
+  "shard_count": 4,
+  "partition_contract": "ci/bazel/full_graph_shards.toml"
 }

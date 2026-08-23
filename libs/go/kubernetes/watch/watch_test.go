@@ -51,3 +51,43 @@ func TestConsumeContainsHandlerPanic(t *testing.T) {
 		t.Fatalf("Consume() = %v, stopped=%v", err, watcher.stopped)
 	}
 }
+
+// AllowCleanClosure lets Consume treat a closed result channel as success.
+// Until used to forward that nil straight to the caller together with a zero
+// Event, which is indistinguishable from a genuine match on a zero-valued
+// event — a silent false success on every "wait until" call site.
+func TestUntilRejectsCleanClosureWithoutMatch(t *testing.T) {
+	watcher := &fakeWatcher{channel: make(chan k8swatch.Event)}
+	close(watcher.channel)
+	event, err := Until(context.Background(), watcher, Options{AllowCleanClosure: true},
+		func(k8swatch.Event) (bool, error) { return false, nil })
+	if err == nil {
+		t.Fatalf("Until() = (%#v, nil): a closed watch with no match must not report success", event)
+	}
+	if !faults.IsCode(err, faults.CodeUnavailable) || faults.ReasonOf(err) != "watch_ended_without_match" {
+		t.Fatalf("Until() = %v", err)
+	}
+	if !watcher.stopped {
+		t.Fatal("Until() did not stop the watcher")
+	}
+}
+
+// The stream ending before a match is one outcome, so it must carry one reason.
+// AllowCleanClosure only decides whether Consume calls a closed channel a
+// success; letting it also decide which of two fault reasons Until reports
+// would make a caller that buckets watch failures by faults.ReasonOf split one
+// condition across two buckets.
+func TestUntilReportsOneReasonForEveryClosure(t *testing.T) {
+	for _, allowCleanClosure := range []bool{false, true} {
+		watcher := &fakeWatcher{channel: make(chan k8swatch.Event)}
+		close(watcher.channel)
+		_, err := Until(context.Background(), watcher, Options{AllowCleanClosure: allowCleanClosure},
+			func(k8swatch.Event) (bool, error) { return false, nil })
+		if faults.ReasonOf(err) != "watch_ended_without_match" {
+			t.Fatalf("Until(AllowCleanClosure=%v) reason = %q (%v)", allowCleanClosure, faults.ReasonOf(err), err)
+		}
+		if !errors.Is(err, ErrClosed) {
+			t.Fatalf("Until(AllowCleanClosure=%v) = %v, want an ErrClosed cause", allowCleanClosure, err)
+		}
+	}
+}
