@@ -11,7 +11,7 @@ from __future__ import annotations
 import argparse
 import gzip
 import json
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import TextIO
 
@@ -52,6 +52,7 @@ def summarize(path: Path, label: str) -> dict[str, object]:
     build_metrics: dict[str, object] | None = None
     command = "unknown"
     test_statuses: Counter[str] = Counter()
+    non_passing_labels: dict[str, set[str]] = defaultdict(set)
     test_attempts = 0
     test_duration_ms = 0
 
@@ -75,7 +76,15 @@ def summarize(path: Path, label: str) -> dict[str, object]:
                 test_summary = event.get("testSummary")
                 if isinstance(test_summary, dict):
                     status = test_summary.get("overallStatus", "UNKNOWN")
-                    test_statuses[str(status)] += 1
+                    normalized_status = str(status)
+                    test_statuses[normalized_status] += 1
+                    event_id = event.get("id")
+                    if normalized_status != "PASSED" and isinstance(event_id, dict):
+                        summary_id = event_id.get("testSummary")
+                        if isinstance(summary_id, dict):
+                            test_label = summary_id.get("label")
+                            if isinstance(test_label, str) and test_label.startswith("//"):
+                                non_passing_labels[normalized_status].add(test_label)
                     attempts = test_summary.get("attemptCount", 0)
                     duration = test_summary.get("totalRunDurationMillis", 0)
                     test_attempts += _integer(attempts)
@@ -113,7 +122,7 @@ def summarize(path: Path, label: str) -> dict[str, object]:
         critical_path = _integer(critical_path)
 
     return {
-        "schema": 1,
+        "schema": 2,
         "label": label,
         "command": command,
         "source": path.name,
@@ -139,6 +148,9 @@ def summarize(path: Path, label: str) -> dict[str, object]:
             "outcomes": dict(sorted(test_statuses.items())),
             "attempts": test_attempts,
             "total_run_duration_ms": test_duration_ms,
+            "non_passing_labels": {
+                status: sorted(labels) for status, labels in sorted(non_passing_labels.items())
+            },
         },
     }
 

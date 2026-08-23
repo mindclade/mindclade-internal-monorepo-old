@@ -11,7 +11,7 @@ spec:
   target: //services/mlflow:image
   platform: linux/amd64
   repositorySuffix: /mlflow-server
-  imageDigest: sha256:472e9b5f1ce33d934b638dd441ac75aa894ea329e1e2e60178e3cdcdecdfbfa5
+  imageDigest: sha256:d9ce2ca6c031e4587287fb555d14c7e6ee1ef2665e3a159e1188a73d8f42f113
   mlflow:
     version: 3.15.1
     requirementsLock: services/mlflow/requirements.lock.txt
@@ -22,5 +22,5 @@ spec:
     indexDigest: sha256:23c59390fc717bf09f9336908199a0ae75d9c4264bf296123f94ad772fea3b52
     platforms:
       linux/amd64: sha256:ff4ceef5258b9303b40c004af0bd31ac82c6248a6b951f9d9b329bf456f1f4b7
-  qualifiedAt: "2026-08-21T22:10:14Z"
+  qualifiedAt: "2026-08-23T03:51:10Z"
   qualification: //services/mlflow:validate_image

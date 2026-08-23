@@ -2056,10 +2056,11 @@ more complex through speculative abstractions.
 
 `ci/common/affected.py` seeds changed owning packages and asks Bazel's
 post-loading graph for their complete reverse dependencies. It writes separate
-configured-analysis and test target files, always includes Gazelle qualification,
-and does not parse BUILD syntax. Pull requests use affected selection with full
-fallback; merge-group, protected-main, and daily CPU-nightly events remain
-`//...`. Git or Bazel query failure is a red verdict, never an empty affected set.
+configured-analysis and test target files, includes Gazelle qualification, and
+does not parse BUILD syntax. The selector is currently dormant for protected
+events: pull-request, merge-group, protected-main, and daily CPU-nightly runs all
+remain `//...`. Git or Bazel query failure is a red verdict, never an empty
+affected set.
 
 ### Artifact garbage collection
 
