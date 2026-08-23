@@ -9,7 +9,7 @@
           "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
           "logical_kind": "reference-index",
           "media_type": "application/octet-stream",
-          "schema_version": "v1",
+          "schema_version": 1,
           "size_bytes": 1
         }
       ],
