@@ -19,6 +19,7 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from ci.common import affected, full_graph_shards  # noqa: E402
+from ci.presubmit import disk_preflight  # noqa: E402
 
 
 def run(command: list[str]) -> int:
@@ -47,6 +48,13 @@ def main() -> int:
         type=Path,
         default=full_graph_shards.DEFAULT_CONTRACT,
     )
+    # The floor, not a suggestion. See ci/presubmit/disk_preflight.py for how the default is
+    # derived from measured Bazel, Cargo, and Go consumption.
+    parser.add_argument(
+        "--min-free-gib",
+        type=float,
+        default=disk_preflight.DEFAULT_MIN_FREE_BYTES / disk_preflight.GIB,
+    )
     args = parser.parse_args()
 
     if not args.bazel_only and run(
@@ -55,6 +63,17 @@ def main() -> int:
         return 1
     if args.static_only:
         return 0
+
+    # Everything past this point writes gigabytes: Cargo qualification, then Bazel analysis and
+    # test actions. Exhausting the disk inside those lanes does not report as a build failure --
+    # it reports as watchdog timeouts and ENOSPC on whatever file the harness happened to be
+    # writing. Assert headroom here, where the diagnosis is one line, instead of debugging the
+    # disguise later.
+    disk_failures = disk_preflight.check(REPO, int(args.min_free_gib * disk_preflight.GIB))
+    if disk_failures:
+        for failure in disk_failures:
+            print(failure, file=sys.stderr)
+        return 3
     shard_arguments = (args.shard_index is not None, args.shard_count is not None)
     if any(shard_arguments) and not all(shard_arguments):
         parser.error("full-graph sharding requires both --shard-index and --shard-count")
