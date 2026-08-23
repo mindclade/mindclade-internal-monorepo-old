@@ -1319,6 +1319,7 @@ def _presubmit_orchestration_errors() -> list[str]:
             changed = mock.Mock(return_value=changes)
             selector = mock.Mock(return_value=selection)
             executor = mock.Mock(return_value=0)
+            disk_check = mock.Mock(return_value=[])
             failure_writer = mock.Mock()
             argv = [
                 "pipeline.py",
@@ -1374,11 +1375,20 @@ def _presubmit_orchestration_errors() -> list[str]:
                     "write_failure_evidence",
                     failure_writer,
                 ),
+                mock.patch.object(
+                    presubmit_pipeline.disk_preflight,
+                    "check",
+                    disk_check,
+                ),
                 contextlib.redirect_stdout(io.StringIO()),
             ):
                 status = presubmit_pipeline.main()
             if status != 0:
                 raise AssertionError("status")
+            disk_check.assert_called_once_with(
+                presubmit_pipeline.REPO,
+                presubmit_pipeline.disk_preflight.DEFAULT_MIN_FREE_BYTES,
+            )
             resolver.assert_called_once_with("auto", event=event, ref=ref, base_sha=base_sha)
             clean_checkout.assert_called_once_with(
                 head,
@@ -1409,6 +1419,7 @@ def _presubmit_orchestration_errors() -> list[str]:
             failure_writer.assert_not_called()
 
         failure_writer = mock.Mock()
+        disk_check = mock.Mock(return_value=[])
         argv = [
             "pipeline.py",
             "--bazel-only",
@@ -1439,10 +1450,15 @@ def _presubmit_orchestration_errors() -> list[str]:
                 "write_failure_evidence",
                 failure_writer,
             ),
+            mock.patch.object(
+                presubmit_pipeline.disk_preflight,
+                "check",
+                disk_check,
+            ),
             contextlib.redirect_stderr(io.StringIO()),
         ):
             status = presubmit_pipeline.main()
-        if status != 2 or failure_writer.call_count != 1:
+        if status != 2 or failure_writer.call_count != 1 or disk_check.call_count != 1:
             raise AssertionError("failure evidence")
     except Exception:
         return [_error("AFFECTED-CODE-006", "presubmit orchestration contract is invalid")]
