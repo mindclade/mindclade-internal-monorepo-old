@@ -9,6 +9,7 @@ import "errors"
 
 var (
 	ErrInvalidAlgorithm = errors.New("signing: invalid algorithm")
+	ErrInvalidDomain    = errors.New("signing: invalid domain")
 	ErrInvalidKeyID     = errors.New("signing: invalid key id")
 	ErrInvalidKey       = errors.New("signing: invalid key")
 	ErrInvalidSignature = errors.New("signing: invalid signature")

@@ -28,7 +28,7 @@ func TestCursorRoundTripAndBinding(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	codec, err := NewCodec(signer, keys, clock, time.Hour)
+	codec, err := NewCodec(signer, keys, CursorDomain, clock, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +80,7 @@ func BenchmarkCodecDecode(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	codec, err := NewCodec(signer, keys, valueClock, time.Hour)
+	codec, err := NewCodec(signer, keys, CursorDomain, valueClock, time.Hour)
 	if err != nil {
 		b.Fatal(err)
 	}
