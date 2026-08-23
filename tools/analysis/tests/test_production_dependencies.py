@@ -492,16 +492,6 @@ def test_an_exception_does_not_cover_a_sibling_package(tmp_path: Path) -> None:
 # --------------------------------------------------------------------------------------
 
 
-def test_the_shipped_table_holds_only_the_argued_edge() -> None:
-    """Deliberately exact, so the table cannot grow without a test changing with it.
-
-    The repository-wide join is not asserted here: these run under Bazel against a runfiles
-    tree holding declared files only, so a whole-checkout scan would measure a repository
-    that is not there. The live tree is covered by the gate itself, which runs in the static
-    presubmit -- and by its staleness clause, which fails if this entry outlives its edge.
-    """
-    assert set(gate.PRODUCTION_DEPENDENCY_EXCEPTIONS) == {
-        ("control/ingestion", "control/orchestration")
-    }
-    entry = gate.PRODUCTION_DEPENDENCY_EXCEPTIONS[("control/ingestion", "control/orchestration")]
-    assert entry.owner and entry.adr and entry.reason.strip() and entry.expires_on
+def test_the_shipped_exception_table_is_empty() -> None:
+    """The steady state has no policy waivers; a new one requires an explicit test change."""
+    assert not gate.PRODUCTION_DEPENDENCY_EXCEPTIONS
