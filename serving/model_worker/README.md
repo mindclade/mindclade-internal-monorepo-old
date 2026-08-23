@@ -2,7 +2,8 @@
 
 **Status:** implemented provider-neutral model runtime; connected model/hardware qualification pending.
 
-The model worker owns final tensor-compatible batching, immutable model loading, explicit lifecycle
+The model worker owns final tensor-compatible batching, immutable model loading bounded by a
+least-recently-used residency ceiling (`WorkerLimits.maximum_loaded_models`), explicit lifecycle
 and drain behavior, process-local admission, and exact response cardinality. Advanced support
 modules provide bounded contracts for continuous batching, memory/KV reservations, shape buckets,
 precision selection, statistical seeds, generation/diffusion results, multimodal and biology
