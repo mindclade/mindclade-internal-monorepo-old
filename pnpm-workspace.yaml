@@ -11,4 +11,21 @@ packages:
 
 # Dependency lifecycle scripts are denied by default. Add a package here only with a reviewed
 # supply-chain justification; rules_js consumes this policy when translating pnpm-lock.yaml.
-allowBuilds: {}
+#
+# Every dependency that ships a lifecycle script needs an explicit entry, and `false` is a
+# decision. An empty map is NOT: pnpm 11 treats a missing key as "nobody has looked at this
+# yet", so `pnpm install` rewrote this file in place with
+# `{ '@bufbuild/buf': set this to true or false, esbuild: set this to true or false }` and then
+# failed with ERR_PNPM_IGNORED_BUILDS. Because pnpm 11 re-runs its dependency-status check
+# before `pnpm run`, that failure also took out every documented script — `pnpm lint`,
+# `pnpm typecheck`, `pnpm test` and `pnpm generate:check` all died on it — and left a dirty
+# working tree for anyone who ran them. CI only escaped because it passes `--ignore-scripts`,
+# which skips the decision entirely rather than recording one.
+#
+# Spelling the denials out restores the intent (no dependency runs a build script here) while
+# giving pnpm the recorded decision it demands, so it has nothing left to write back. Keep this
+# list in sync when a dependency with a lifecycle script is added or removed; a stale entry is
+# inert, but a missing one brings the rewrite back.
+allowBuilds:
+  "@bufbuild/buf": false
+  esbuild: false
