@@ -37,6 +37,13 @@ class _PathInspection:
     error: str | None = None
 
 
+@dataclass(frozen=True)
+class _DirectoryTraversal:
+    directory_fd: int | None
+    leaf_name: str | None
+    error: str | None = None
+
+
 def repository_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
@@ -67,38 +74,6 @@ def _result(
     }
 
 
-def _walk_without_symlinks(canonical_root: Path, candidate: Path) -> _PathInspection:
-    try:
-        relative = candidate.relative_to(canonical_root)
-    except ValueError:
-        return _PathInspection(candidate, None, "path resolves outside the repository root")
-    if relative.is_absolute() or ".." in relative.parts:
-        return _PathInspection(candidate, None, "path escapes the repository root")
-
-    current = canonical_root
-    components = relative.parts
-    if not components:
-        try:
-            return _PathInspection(current, current.lstat())
-        except OSError:
-            return _PathInspection(current, None, "path could not be inspected")
-
-    for index, component in enumerate(components):
-        current /= component
-        try:
-            file_stat = current.lstat()
-        except FileNotFoundError:
-            return _PathInspection(candidate, None)
-        except OSError:
-            return _PathInspection(candidate, None, "path could not be inspected")
-        if stat.S_ISLNK(file_stat.st_mode):
-            return _PathInspection(candidate, None, "path contains a symbolic link")
-        if index < len(components) - 1 and not stat.S_ISDIR(file_stat.st_mode):
-            return _PathInspection(candidate, None)
-
-    return _PathInspection(candidate, file_stat)
-
-
 def _same_file(left: os.stat_result, right: os.stat_result) -> bool:
     return (
         left.st_dev,
@@ -117,64 +92,228 @@ def _same_file(left: os.stat_result, right: os.stat_result) -> bool:
     )
 
 
-def _strict_contained_path(canonical_root: Path, relative: Path) -> _PathInspection:
-    """Inspect a repository-relative path without following any symbolic link.
+def _same_directory(left: os.stat_result, right: os.stat_result) -> bool:
+    return (
+        stat.S_ISDIR(left.st_mode)
+        and stat.S_ISDIR(right.st_mode)
+        and (left.st_dev, left.st_ino) == (right.st_dev, right.st_ino)
+    )
 
-    The double walk catches replacement races around canonical resolution. Callers consume the
-    returned lstat metadata directly, so no later `is_file` or following `stat` can escape the
-    repository after this check.
-    """
-    if relative.is_absolute() or ".." in relative.parts:
-        return _PathInspection(canonical_root / relative, None, "path escapes the repository root")
-    candidate = canonical_root / relative
-    before = _walk_without_symlinks(canonical_root, candidate)
-    if before.error is not None or before.file_stat is None:
-        return before
+
+def _required_open_flags(*names: str) -> tuple[int | None, str | None]:
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0)
+    for name in names:
+        value = getattr(os, name, None)
+        if value is None:
+            return None, f"platform does not support safe path traversal ({name})"
+        flags |= cast("int", value)
+    return flags, None
+
+
+def _lexical_error(relative: Path) -> str | None:
+    try:
+        raw_path = os.fspath(relative)
+        if "\x00" in raw_path:
+            return "path contains an invalid NUL character"
+        if relative.is_absolute() or ".." in relative.parts:
+            return "path escapes the repository root"
+    except (OSError, TypeError, ValueError):
+        return "path is not a valid repository-relative path"
+    return None
+
+
+def _close_fd(file_descriptor: int) -> None:
+    os.close(file_descriptor)
+
+
+def _descend_directories(
+    starting_fd: int, components: tuple[str, ...], directory_flags: int
+) -> tuple[int | None, str | None]:
+    """Take ownership of starting_fd and open each directory without following symlinks."""
+    current_fd = starting_fd
+    for component in components:
+        try:
+            entry_stat = os.stat(component, dir_fd=current_fd, follow_symlinks=False)
+        except FileNotFoundError:
+            _close_fd(current_fd)
+            return None, "path is missing"
+        except (OSError, ValueError):
+            _close_fd(current_fd)
+            return None, "path could not be inspected safely"
+        if stat.S_ISLNK(entry_stat.st_mode):
+            _close_fd(current_fd)
+            return None, "path contains a symbolic link"
+        if not stat.S_ISDIR(entry_stat.st_mode):
+            _close_fd(current_fd)
+            return None, "path is missing"
+
+        try:
+            next_fd = os.open(component, directory_flags, dir_fd=current_fd)
+        except (OSError, ValueError):
+            _close_fd(current_fd)
+            return None, "path changed or could not be inspected safely"
+        try:
+            opened_stat = os.fstat(next_fd)
+        except (OSError, ValueError):
+            _close_fd(next_fd)
+            _close_fd(current_fd)
+            return None, "path changed or could not be inspected safely"
+        if not _same_directory(entry_stat, opened_stat):
+            _close_fd(next_fd)
+            _close_fd(current_fd)
+            return None, "path changed during inspection"
+        _close_fd(current_fd)
+        current_fd = next_fd
+    return current_fd, None
+
+
+def _open_repository_root(canonical_root: Path) -> tuple[int | None, str | None]:
+    directory_flags, flag_error = _required_open_flags("O_DIRECTORY", "O_NOFOLLOW")
+    if directory_flags is None:
+        return None, flag_error
+    if not canonical_root.is_absolute() or not canonical_root.anchor:
+        return None, "repository root is not absolute"
 
     try:
-        resolved = candidate.resolve(strict=True)
-        resolved.relative_to(canonical_root)
+        root_fd = os.open(canonical_root.anchor, directory_flags)
+    except (OSError, ValueError):
+        return None, "repository root could not be opened safely"
+    try:
+        root_stat = os.fstat(root_fd)
+    except (OSError, ValueError):
+        _close_fd(root_fd)
+        return None, "repository root could not be opened safely"
+    if not stat.S_ISDIR(root_stat.st_mode):
+        _close_fd(root_fd)
+        return None, "repository root is not a directory"
+
+    components = tuple(
+        component for component in canonical_root.parts if component != canonical_root.anchor
+    )
+    return _descend_directories(root_fd, components, directory_flags)
+
+
+def _open_parent_directory(root_fd: int, relative: Path) -> _DirectoryTraversal:
+    lexical_error = _lexical_error(relative)
+    if lexical_error is not None:
+        return _DirectoryTraversal(None, None, lexical_error)
+
+    components = relative.parts
+    try:
+        starting_fd = os.dup(root_fd)
+    except OSError:
+        return _DirectoryTraversal(None, None, "repository root descriptor could not be duplicated")
+    if not components:
+        return _DirectoryTraversal(starting_fd, None)
+
+    directory_flags, flag_error = _required_open_flags("O_DIRECTORY", "O_NOFOLLOW")
+    if directory_flags is None:
+        _close_fd(starting_fd)
+        return _DirectoryTraversal(None, None, flag_error)
+    parent_fd, traversal_error = _descend_directories(starting_fd, components[:-1], directory_flags)
+    if parent_fd is None:
+        return _DirectoryTraversal(None, None, traversal_error)
+    return _DirectoryTraversal(parent_fd, components[-1])
+
+
+def _strict_contained_path(canonical_root: Path, root_fd: int, relative: Path) -> _PathInspection:
+    """Inspect a repository-relative path through directory descriptors only."""
+    candidate = canonical_root / relative
+    traversal = _open_parent_directory(root_fd, relative)
+    if traversal.error is not None:
+        if traversal.error == "path is missing":
+            return _PathInspection(candidate, None)
+        return _PathInspection(candidate, None, traversal.error)
+    if traversal.directory_fd is None:
+        return _PathInspection(candidate, None, "path could not be inspected safely")
+    try:
+        if traversal.leaf_name is None:
+            file_stat = os.fstat(traversal.directory_fd)
+        else:
+            file_stat = os.stat(
+                traversal.leaf_name,
+                dir_fd=traversal.directory_fd,
+                follow_symlinks=False,
+            )
     except FileNotFoundError:
         return _PathInspection(candidate, None)
-    except (OSError, RuntimeError, ValueError):
-        return _PathInspection(candidate, None, "path resolves outside the repository root")
-
-    after = _walk_without_symlinks(canonical_root, candidate)
-    if after.error is not None or after.file_stat is None:
-        return after
-    if not _same_file(before.file_stat, after.file_stat):
-        return _PathInspection(candidate, None, "path changed during inspection")
-    return after
+    except (OSError, ValueError):
+        return _PathInspection(candidate, None, "path could not be inspected safely")
+    finally:
+        _close_fd(traversal.directory_fd)
+    if stat.S_ISLNK(file_stat.st_mode):
+        return _PathInspection(candidate, None, "path contains a symbolic link")
+    return _PathInspection(candidate, file_stat)
 
 
-def _read_strict_file(canonical_root: Path, relative: Path) -> tuple[bytes | None, str | None]:
-    inspection = _strict_contained_path(canonical_root, relative)
-    if inspection.error is not None:
-        return None, inspection.error
-    if inspection.file_stat is None:
-        return None, "path is missing"
-    if not stat.S_ISREG(inspection.file_stat.st_mode):
+def _read_strict_file(root_fd: int, relative: Path) -> tuple[bytes | None, str | None]:
+    traversal = _open_parent_directory(root_fd, relative)
+    if traversal.error is not None:
+        return None, traversal.error
+    if traversal.directory_fd is None:
+        return None, "path could not be inspected safely"
+    if traversal.leaf_name is None:
+        _close_fd(traversal.directory_fd)
         return None, "path is not a regular file"
 
-    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    opened_fd: int | None = None
     try:
-        with os.fdopen(os.open(inspection.path, flags), "rb") as handle:
-            opened_before = os.fstat(handle.fileno())
-            contents = handle.read()
-            opened_after = os.fstat(handle.fileno())
-    except OSError:
-        return None, "path could not be read safely"
-    if not _same_file(inspection.file_stat, opened_before) or not _same_file(
-        opened_before, opened_after
-    ):
-        return None, "path changed while it was read"
+        try:
+            inspected_stat = os.stat(
+                traversal.leaf_name,
+                dir_fd=traversal.directory_fd,
+                follow_symlinks=False,
+            )
+        except FileNotFoundError:
+            return None, "path is missing"
+        except (OSError, ValueError):
+            return None, "path could not be inspected safely"
+        if stat.S_ISLNK(inspected_stat.st_mode):
+            return None, "path contains a symbolic link"
+        if not stat.S_ISREG(inspected_stat.st_mode):
+            return None, "path is not a regular file"
 
-    verified = _strict_contained_path(canonical_root, relative)
-    if verified.error is not None:
-        return None, verified.error
-    if verified.file_stat is None or not _same_file(opened_after, verified.file_stat):
-        return None, "path changed while it was read"
-    return contents, None
+        file_flags, flag_error = _required_open_flags("O_NOFOLLOW", "O_NONBLOCK")
+        if file_flags is None:
+            return None, flag_error
+        try:
+            opened_fd = os.open(
+                traversal.leaf_name,
+                file_flags,
+                dir_fd=traversal.directory_fd,
+            )
+            opened_before = os.fstat(opened_fd)
+        except (OSError, ValueError):
+            return None, "path changed or could not be opened safely"
+
+        if not stat.S_ISREG(opened_before.st_mode) or not _same_file(inspected_stat, opened_before):
+            return None, "path changed before it was read"
+
+        try:
+            with os.fdopen(opened_fd, "rb") as handle:
+                opened_fd = None
+                contents = handle.read()
+                opened_after = os.fstat(handle.fileno())
+        except (OSError, ValueError):
+            return None, "path could not be read safely"
+        if not _same_file(opened_before, opened_after):
+            return None, "path changed while it was read"
+
+        try:
+            verified_stat = os.stat(
+                traversal.leaf_name,
+                dir_fd=traversal.directory_fd,
+                follow_symlinks=False,
+            )
+        except (OSError, ValueError):
+            return None, "path changed while it was read"
+        if stat.S_ISLNK(verified_stat.st_mode) or not _same_file(opened_after, verified_stat):
+            return None, "path changed while it was read"
+        return contents, None
+    finally:
+        if opened_fd is not None:
+            _close_fd(opened_fd)
+        _close_fd(traversal.directory_fd)
 
 
 def _canonical_root(root: Path) -> tuple[Path | None, str | None]:
@@ -182,7 +321,7 @@ def _canonical_root(root: Path) -> tuple[Path | None, str | None]:
         canonical = Path(os.path.abspath(root)).resolve(strict=True)
         if not stat.S_ISDIR(canonical.lstat().st_mode):
             return None, "repository root is not a directory"
-    except (OSError, RuntimeError):
+    except (OSError, RuntimeError, ValueError):
         return None, "repository root could not be inspected"
     return canonical, None
 
@@ -213,74 +352,83 @@ def check(root: Path, manifest: Path) -> dict[str, object]:
     if canonical_root is None:
         return _result(manifest_errors=[f"blueprint {root_error}: {root}"])
 
-    manifest_relative, manifest_display = _manifest_relative_path(root, canonical_root, manifest)
-    if manifest_relative is None:
-        return _result(
-            manifest_errors=[
-                f"blueprint manifest is outside the repository root: {manifest_display}"
-            ]
-        )
-    manifest_bytes, manifest_error = _read_strict_file(canonical_root, manifest_relative)
-    if manifest_bytes is None:
-        if manifest_error == "path is missing":
-            message = f"blueprint manifest is missing: {manifest_display}"
-        else:
-            message = f"blueprint manifest is unsafe: {manifest_display} ({manifest_error})"
-        return _result(manifest_errors=[message])
+    root_fd, root_open_error = _open_repository_root(canonical_root)
+    if root_fd is None:
+        return _result(manifest_errors=[f"blueprint {root_open_error}: {root}"])
 
-    manifest_sha256 = hashlib.sha256(manifest_bytes).hexdigest()
     try:
-        manifest_text = manifest_bytes.decode("utf-8")
-    except UnicodeDecodeError:
+        manifest_relative, manifest_display = _manifest_relative_path(
+            root, canonical_root, manifest
+        )
+        if manifest_relative is None:
+            return _result(
+                manifest_errors=[
+                    f"blueprint manifest is outside the repository root: {manifest_display}"
+                ]
+            )
+        manifest_bytes, manifest_error = _read_strict_file(root_fd, manifest_relative)
+        if manifest_bytes is None:
+            if manifest_error == "path is missing":
+                message = f"blueprint manifest is missing: {manifest_display}"
+            else:
+                message = f"blueprint manifest is unsafe: {manifest_display} ({manifest_error})"
+            return _result(manifest_errors=[message])
+
+        manifest_sha256 = hashlib.sha256(manifest_bytes).hexdigest()
+        try:
+            manifest_text = manifest_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            return _result(
+                manifest_sha256=manifest_sha256,
+                manifest_errors=[f"blueprint manifest is not valid UTF-8: {manifest_display}"],
+            )
+        paths = [line.strip() for line in manifest_text.splitlines() if line.strip()]
+        if not paths:
+            return _result(
+                manifest_sha256=manifest_sha256,
+                manifest_errors=[f"blueprint manifest lists no paths: {manifest_display}"],
+            )
+
+        # One pass. `paths.count(path)` inside the comprehension rescanned the whole list per entry,
+        # which is ~20M comparisons for a manifest this size.
+        duplicates = sorted(path for path, count in Counter(paths).items() if count > 1)
+        unsafe = sorted(path for path in paths if _lexical_error(Path(path)) is not None)
+
+        # Lexical rejection happens before any per-entry filesystem probe. In particular, pathlib
+        # discards `root` when the right operand is absolute, so probing first can escape the checkout.
+        rejected = set(unsafe)
+        missing: list[str] = []
+        unexpected_empty: list[str] = []
+        materialized = 0
+        for path in paths:
+            if path in rejected:
+                continue
+            inspection = _strict_contained_path(canonical_root, root_fd, Path(path))
+            if inspection.error is not None:
+                unsafe.append(path)
+                continue
+            if inspection.file_stat is None or not stat.S_ISREG(inspection.file_stat.st_mode):
+                missing.append(path)
+                continue
+            materialized += 1
+            if (
+                inspection.file_stat.st_size == 0
+                and Path(path).name not in _ALLOWED_EMPTY
+                and path not in _ALLOWED_EMPTY_PATHS
+            ):
+                unexpected_empty.append(path)
+
         return _result(
             manifest_sha256=manifest_sha256,
-            manifest_errors=[f"blueprint manifest is not valid UTF-8: {manifest_display}"],
+            paths=paths,
+            duplicates=duplicates,
+            missing=sorted(missing),
+            unexpected_empty=sorted(unexpected_empty),
+            unsafe=sorted(set(unsafe)),
+            materialized=materialized,
         )
-    paths = [line.strip() for line in manifest_text.splitlines() if line.strip()]
-    if not paths:
-        return _result(
-            manifest_sha256=manifest_sha256,
-            manifest_errors=[f"blueprint manifest lists no paths: {manifest_display}"],
-        )
-
-    # One pass. `paths.count(path)` inside the comprehension rescanned the whole list per entry,
-    # which is ~20M comparisons for a manifest this size.
-    duplicates = sorted(path for path, n in Counter(paths).items() if n > 1)
-    unsafe = sorted(path for path in paths if Path(path).is_absolute() or ".." in Path(path).parts)
-
-    # Lexical rejection happens before any per-entry filesystem probe. In particular, pathlib
-    # discards `root` when the right operand is absolute, so probing first can escape the checkout.
-    rejected = set(unsafe)
-    missing: list[str] = []
-    unexpected_empty: list[str] = []
-    materialized = 0
-    for path in paths:
-        if path in rejected:
-            continue
-        inspection = _strict_contained_path(canonical_root, Path(path))
-        if inspection.error is not None:
-            unsafe.append(path)
-            continue
-        if inspection.file_stat is None or not stat.S_ISREG(inspection.file_stat.st_mode):
-            missing.append(path)
-            continue
-        materialized += 1
-        if (
-            inspection.file_stat.st_size == 0
-            and Path(path).name not in _ALLOWED_EMPTY
-            and path not in _ALLOWED_EMPTY_PATHS
-        ):
-            unexpected_empty.append(path)
-
-    return _result(
-        manifest_sha256=manifest_sha256,
-        paths=paths,
-        duplicates=duplicates,
-        missing=sorted(missing),
-        unexpected_empty=sorted(unexpected_empty),
-        unsafe=sorted(set(unsafe)),
-        materialized=materialized,
-    )
+    finally:
+        _close_fd(root_fd)
 
 
 def main() -> int:

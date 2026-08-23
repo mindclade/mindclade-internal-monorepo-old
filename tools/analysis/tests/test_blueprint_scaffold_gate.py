@@ -7,7 +7,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
+import os
 import sys
 from pathlib import Path
 
@@ -182,6 +184,116 @@ def test_manifest_ancestor_symlink_is_rejected(tmp_path: Path) -> None:
         f"blueprint manifest is unsafe: {checker.MANIFEST_RELPATH} (path contains a symbolic link)"
     ]
     assert suite._blueprint_scaffold(root) == result["manifest_errors"]
+
+
+def test_manifest_ancestor_swap_stays_on_opened_directory(tmp_path: Path, monkeypatch) -> None:
+    manifest_contents = b"safe.txt\n"
+    root = scaffold(tmp_path / "repo", ["safe.txt"], {"safe.txt": "safe\n"})
+    manifest = root / checker.MANIFEST_RELPATH
+    outside_docs = tmp_path / "outside-docs"
+    outside_manifest = outside_docs / "blueprint/production-monorepo-paths.txt"
+    outside_manifest.parent.mkdir(parents=True)
+    outside_manifest.write_bytes(b"external.txt\n")
+    original_open = checker.os.open
+    swapped = False
+
+    def racing_open(path, flags, mode=0o777, *, dir_fd=None):
+        nonlocal swapped
+        if path == manifest.name and dir_fd is not None and not swapped:
+            (root / "docs").rename(root / "docs-original")
+            (root / "docs").symlink_to(outside_docs, target_is_directory=True)
+            swapped = True
+        return original_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(checker.os, "open", racing_open)
+
+    result = checker.check(root, manifest)
+
+    assert swapped
+    assert result["manifest_errors"] == []
+    assert result["manifest_sha256"] == hashlib.sha256(manifest_contents).hexdigest()
+    assert result["materialized_path_count"] == 1
+
+
+def test_manifest_fifo_race_is_rejected_before_any_read(tmp_path: Path, monkeypatch) -> None:
+    root = scaffold(tmp_path / "repo", ["safe.txt"], {"safe.txt": "safe\n"})
+    manifest = root / checker.MANIFEST_RELPATH
+    original_open = checker.os.open
+    original_fdopen = checker.os.fdopen
+    raced = False
+    fdopen_calls = 0
+
+    def racing_open(path, flags, mode=0o777, *, dir_fd=None):
+        nonlocal raced
+        if path == manifest.name and dir_fd is not None and not raced:
+            manifest.rename(manifest.with_suffix(".original"))
+            os.mkfifo(manifest)
+            raced = True
+        return original_open(path, flags, mode, dir_fd=dir_fd)
+
+    def tracking_fdopen(*args, **kwargs):
+        nonlocal fdopen_calls
+        fdopen_calls += 1
+        return original_fdopen(*args, **kwargs)
+
+    monkeypatch.setattr(checker.os, "open", racing_open)
+    monkeypatch.setattr(checker.os, "fdopen", tracking_fdopen)
+
+    result = checker.check(root, manifest)
+
+    assert raced
+    assert fdopen_calls == 0
+    assert result["manifest_errors"] == [
+        f"blueprint manifest is unsafe: {checker.MANIFEST_RELPATH} "
+        "(path changed before it was read)"
+    ]
+
+
+def test_manifest_inspection_oserror_fails_closed_before_any_read(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = scaffold(tmp_path / "repo", ["safe.txt"], {"safe.txt": "safe\n"})
+    manifest = root / checker.MANIFEST_RELPATH
+    original_stat = checker.os.stat
+    original_fdopen = checker.os.fdopen
+    fdopen_calls = 0
+
+    def refusing_stat(path, *args, **kwargs):
+        if path == manifest.name and kwargs.get("dir_fd") is not None:
+            raise PermissionError("inspection denied")
+        return original_stat(path, *args, **kwargs)
+
+    def tracking_fdopen(*args, **kwargs):
+        nonlocal fdopen_calls
+        fdopen_calls += 1
+        return original_fdopen(*args, **kwargs)
+
+    monkeypatch.setattr(checker.os, "stat", refusing_stat)
+    monkeypatch.setattr(checker.os, "fdopen", tracking_fdopen)
+
+    result = checker.check(root, manifest)
+
+    assert fdopen_calls == 0
+    assert result["manifest_errors"] == [
+        f"blueprint manifest is unsafe: {checker.MANIFEST_RELPATH} "
+        "(path could not be inspected safely)"
+    ]
+
+
+def test_embedded_nul_path_is_stably_unsafe(tmp_path: Path) -> None:
+    root = scaffold(
+        tmp_path / "repo",
+        ["safe.txt", "bad\x00name.txt"],
+        {"safe.txt": "safe\n"},
+    )
+
+    result = checker.check(root, root / checker.MANIFEST_RELPATH)
+
+    assert result["manifest_errors"] == []
+    assert result["unsafe_paths"] == ["bad\x00name.txt"]
+    assert result["missing_paths"] == []
+    assert result["materialized_path_count"] == 1
+    assert result["coverage_percent"] == 50.0
 
 
 def test_manifest_outside_repository_root_is_rejected(tmp_path: Path) -> None:
