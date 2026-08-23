@@ -8,6 +8,12 @@
 - [x] Grant, range, publication/read, cache, and provider component tests pass.
 - [x] Core buffers, ranges, cache entries, and provider operations have explicit bounds.
 - [ ] Composed listener liveness, readiness, drain, cancellation, deadline, and shutdown pass.
+      Partially evidenced and deliberately left unchecked. `tests/composition.rs` drives the
+      real composition root over a real socket and proves liveness, readiness (including the
+      transition to ready, the drop to 503 when the object store stops answering, and the
+      recovery when it returns), drain on termination, and fail-closed startup. Cancellation
+      and deadline behavior on a *connected* listener are not covered, because there is no
+      byte-plane protocol to connect to. This item stays open until there is.
 - [ ] Fencing, replay, stale authority, and revocation behavior pass fault tests.
 - [ ] Security and tenant-isolation review is complete.
 - [ ] Performance, peak-memory, file-descriptor, queue, and recovery budgets pass.

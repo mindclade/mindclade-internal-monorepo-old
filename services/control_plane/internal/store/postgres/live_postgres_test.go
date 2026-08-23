@@ -80,6 +80,7 @@ func livePostgresStore(t *testing.T) (*Store, *sql.DB) {
 	revocationTable := schema + ".revocations"
 	artifactIdentityTable := schema + ".artifact_identities"
 	artifactLocationTable := schema + ".artifact_locations"
+	lineageGraphTable := schema + ".lineage_graphs"
 	statements, err := DDL(descriptorTable, releaseTable, graphTable)
 	if err != nil {
 		t.Fatal(err)
@@ -107,8 +108,16 @@ func livePostgresStore(t *testing.T) (*Store, *sql.DB) {
 			t.Fatalf("apply artifact catalog DDL: %v", err)
 		}
 	}
+	lineageStatement, err := LineageGraphDDL(lineageGraphTable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, lineageStatement); err != nil {
+		t.Fatalf("apply lineage graph DDL: %v", err)
+	}
 	store, err := New(db,
 		WithClock(clock.RealClock{}),
+		WithLineageGraphTable(lineageGraphTable),
 		WithArtifactIdentityTable(artifactIdentityTable),
 		WithArtifactLocationTable(artifactLocationTable),
 		WithDescriptorTable(descriptorTable),

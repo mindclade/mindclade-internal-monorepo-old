@@ -6,8 +6,11 @@
 package postgres
 
 import (
+	"fmt"
 	"strings"
 	"testing"
+
+	"go.mindclade.dev/control/lineage"
 )
 
 // The DDL and the store must name the same tables. A migration applied against
@@ -51,6 +54,40 @@ func TestEvidenceLedgerDDLCoversTheConfiguredTables(t *testing.T) {
 	for index, table := range tables {
 		if !strings.Contains(statements[index], "CREATE TABLE IF NOT EXISTS "+table) {
 			t.Fatalf("statement %d does not create %s", index, table)
+		}
+	}
+}
+
+// The lineage table is not the evidence graph table. They hold different
+// concepts under similar names, so a DDL that emitted one under the other's
+// configured name would be silently wrong -- the reader would find a table with
+// the right name and the wrong columns.
+func TestLineageGraphDDLIsDistinctFromTheEvidenceGraphTable(t *testing.T) {
+	t.Parallel()
+	if DefaultLineageGraphTable == DefaultEvidenceGraphTable {
+		t.Fatal("the lineage and evidence graph tables share a default name")
+	}
+	statement, err := LineageGraphDDL(DefaultLineageGraphTable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(statement, "CREATE TABLE IF NOT EXISTS "+DefaultLineageGraphTable) {
+		t.Fatalf("statement does not create %s", DefaultLineageGraphTable)
+	}
+	// graph_digest is the key: a release_id key here would be the evidence
+	// graph's schema wearing the lineage table's name.
+	if !strings.Contains(statement, "graph_digest   text PRIMARY KEY") {
+		t.Fatal("lineage DDL is not keyed by graph_digest")
+	}
+	// The bounds must quote the domain's maxima, so a change there cannot leave
+	// the schema accepting a graph the domain rejects.
+	for _, bound := range []string{
+		fmt.Sprintf("node_count <= %d", lineage.MaximumNodes),
+		fmt.Sprintf("edge_count <= %d", lineage.MaximumEdges),
+		fmt.Sprintf("schema_version = %d", lineage.SchemaVersion),
+	} {
+		if !strings.Contains(statement, bound) {
+			t.Fatalf("lineage DDL does not carry the domain bound %q", bound)
 		}
 	}
 }

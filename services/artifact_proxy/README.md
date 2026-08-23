@@ -48,7 +48,20 @@ tokens cannot commit, and unverified bytes are never accepted.
 ## Limitations
 
 The reusable core implements validated grants, bounded ranges, provider-backed publication/read,
-cache behavior, and component tests. The checked-in binary is deliberately a fail-closed
-composition seam: no listener starts until deployment wiring supplies a qualified object-store
-provider, network transport, identity, and telemetry exporter. Connected concurrency, load,
-failure, security, image, and rollback evidence remains required by `PRODUCTION_READINESS.md`.
+cache behavior, and component tests.
+
+The binary composes and stays resident (`src/bootstrap.rs`), serving `/healthz`, `/readyz`, and
+`/metrics`. It is still fail-closed, but by exiting 78 rather than by declining to start: a missing
+or invalid environment variable, or an object store that does not answer within five seconds, ends
+the process before the listener binds.
+
+What it does **not** serve is artifact bytes. The tenant-scoped byte plane has no wire contract in
+`protocols/` — the `ArtifactService` there is the control plane's catalog, which this service does
+not own — so reads and writes still arrive only through in-process calls. Readiness is scoped to
+the operational plane; a ready instance is not evidence that any caller can fetch bytes from it.
+Network transport, identity, and a real telemetry exporter remain deployment-supplied.
+
+The proxy verifies digests, on CAS read and on cache insert. It does **not** verify manifests.
+
+Connected concurrency, load, failure, security, image, and rollback evidence remains required by
+`PRODUCTION_READINESS.md`.

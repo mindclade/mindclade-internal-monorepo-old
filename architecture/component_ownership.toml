@@ -42,7 +42,7 @@ owner = "platform-control"
 criticality = "tier-1"
 language = "go"
 slo = "docs/slo/artifact-control.md"
-runbook = "docs/runbooks/artifact-corruption.md"
+runbook = "docs/runbooks/control-artifacts.md"
 security_review = true
 
 [component."control.admission"]
@@ -88,18 +88,24 @@ security_review = true
 # Ownership follows OWNERS.toml, which already claims `control/**` for platform-control; no
 # owner is being invented here, only written down where the checker can read it.
 #
-# All three are recorded tier-2 because no SLO or runbook has been written for any of them,
-# and tier is a statement about operational commitment rather than about how much code exists.
-# control.evidence is the one an owner should look at again: it signs the decisions that gate
-# whether a deployment bundle may ship, which is the same job control.release_evidence does at
-# tier-1 with docs/slo/control-release-evidence.md and a runbook behind it. Raising it to
-# tier-1 requires writing those two documents, which is an owner's call to make and not a
-# side effect of registering the component.
+# All three are recorded tier-2 because tier is a statement about operational commitment
+# rather than about how much code exists, and none of them has an SLO.
+#
+# control.evidence and control.lineage now carry a runbook: docs/runbooks/control-evidence.md
+# and docs/runbooks/control-lineage.md were written against each package's real failure
+# surface and each says so in its own first line. Referencing them records that the runbook
+# half of the tier-1 evidence exists; it deliberately does NOT raise either component's tier.
+# Both runbooks state plainly that they document a package with no production caller yet
+# (control/lineage) or one whose single consumer is the eligibility runtime (control/evidence),
+# so promoting on the strength of them would claim an operational commitment nobody has made.
+# Raising either to tier-1 still requires an SLO and an owner's decision, not a side effect of
+# wiring a document that already existed.
 [component."control.evidence"]
 owner = "platform-control"
 criticality = "tier-2"
 language = "go"
 security_review = true
+runbook = "docs/runbooks/control-evidence.md"
 
 # security_review is true for the classification boundary, not the graph maths: the MLflow
 # projection decides which restricted nodes and edges are withheld from an external consumer,
@@ -109,6 +115,7 @@ owner = "platform-control"
 criticality = "tier-2"
 language = "go"
 security_review = true
+runbook = "docs/runbooks/control-lineage.md"
 
 [component."control.orchestration"]
 owner = "platform-control"
@@ -159,7 +166,7 @@ owner = "runtime-platform"
 criticality = "tier-1"
 language = "rust"
 slo = "docs/slo/artifact-proxy.md"
-runbook = "docs/runbooks/artifact-corruption.md"
+runbook = "docs/runbooks/artifact-proxy.md"
 security_review = true
 
 [component."runtime.node_agent"]
@@ -167,7 +174,7 @@ owner = "runtime-platform"
 criticality = "tier-1"
 language = "rust"
 slo = "docs/slo/node-agent.md"
-runbook = "docs/runbooks/node-preemption.md"
+runbook = "docs/runbooks/node-agent.md"
 security_review = true
 
 [component."runtime.ingestion_worker"]
@@ -501,12 +508,14 @@ owner = "product-engineering"
 criticality = "tier-2"
 language = "typescript"
 security_review = true
+runbook = "docs/runbooks/typescript-applications.md"
 
 [component."apps.admin"]
 owner = "security-platform"
 criticality = "tier-2"
 language = "typescript"
 security_review = true
+runbook = "docs/runbooks/typescript-applications.md"
 
 # These entries govern source contracts, not activated environment resources. They remain
 # tier-2 until connected qualification, operational ownership, and release evidence exist.
