@@ -380,19 +380,33 @@ fn sanitize_host_status(status: &Status) -> Status {
             Status::deadline_exceeded("runtime-host deadline exceeded")
         }
         tonic::Code::Cancelled => Status::cancelled("runtime-host execution cancelled"),
-        // Everything else collapses to `unavailable` on purpose: the codes
-        // named above are the ones a caller can act on, and the rest would
-        // only leak runtime-host internals across the trust boundary.
+        tonic::Code::NotFound => Status::not_found("runtime-host has no such resource"),
+        tonic::Code::AlreadyExists => {
+            Status::already_exists("runtime-host is already running this execution")
+        }
+        tonic::Code::Aborted => Status::aborted("runtime-host aborted execution"),
+        tonic::Code::OutOfRange => Status::out_of_range("runtime-host rejected execution"),
+        tonic::Code::Unimplemented => {
+            Status::unimplemented("runtime-host does not implement this operation")
+        }
+        tonic::Code::DataLoss => Status::data_loss("runtime-host lost execution state"),
+        // What is sanitized here is the *message*, never the code. Every arm
+        // replaces the peer's text with a fixed string, so no runtime-host
+        // internal crosses the boundary either way — and a code carries no
+        // internals to leak, only the class of failure.
+        //
+        // Six codes were previously collapsed into `unavailable` alongside
+        // these four. That undid the fix on the only path a client sees: with
+        // `services/runtime_host` now answering `not_found` for a model it does
+        // not hold, collapsing it here would have handed the client
+        // `unavailable` — retry, and page — for a request that can never
+        // succeed. The four that remain are the ones where the host itself is
+        // the failure, which is exactly what `unavailable` means to this
+        // gateway's caller: a dependency is down, and retrying is correct.
         tonic::Code::Ok
         | tonic::Code::Unknown
-        | tonic::Code::NotFound
-        | tonic::Code::AlreadyExists
-        | tonic::Code::Aborted
-        | tonic::Code::OutOfRange
-        | tonic::Code::Unimplemented
         | tonic::Code::Internal
-        | tonic::Code::Unavailable
-        | tonic::Code::DataLoss => Status::unavailable("runtime-host execution failed"),
+        | tonic::Code::Unavailable => Status::unavailable("runtime-host execution failed"),
     }
 }
 
@@ -415,7 +429,7 @@ fn fault_status(error: &Fault) -> Status {
 
 #[cfg(test)]
 mod fault_status_tests {
-    use super::{Code, Fault, fault_status, status};
+    use super::{Code, Fault, Status, fault_status, sanitize_host_status, status};
 
     /// Every fault code renders the canonical gRPC status.
     ///
@@ -488,6 +502,56 @@ mod fault_status_tests {
                 fault_status(&Fault::new(code, "rendered")).code(),
                 tonic::Code::Ok,
                 "{code} rendered as a success"
+            );
+        }
+    }
+
+    /// The relay path. Rendering the host's own faults correctly is worth
+    /// nothing if the gateway flattens them again on the way out.
+    #[test]
+    fn relaying_a_host_status_preserves_what_the_caller_can_act_on() {
+        let preserved = [
+            tonic::Code::InvalidArgument,
+            tonic::Code::Unauthenticated,
+            tonic::Code::PermissionDenied,
+            tonic::Code::ResourceExhausted,
+            tonic::Code::FailedPrecondition,
+            tonic::Code::DeadlineExceeded,
+            tonic::Code::Cancelled,
+            tonic::Code::NotFound,
+            tonic::Code::AlreadyExists,
+            tonic::Code::Aborted,
+            tonic::Code::OutOfRange,
+            tonic::Code::Unimplemented,
+            tonic::Code::DataLoss,
+        ];
+        for code in preserved {
+            let relayed = sanitize_host_status(&Status::new(code, "host detail"));
+            assert_eq!(relayed.code(), code, "{code:?} was flattened");
+        }
+        for code in [
+            tonic::Code::Unknown,
+            tonic::Code::Internal,
+            tonic::Code::Unavailable,
+        ] {
+            let relayed = sanitize_host_status(&Status::new(code, "host detail"));
+            assert_eq!(relayed.code(), tonic::Code::Unavailable);
+        }
+    }
+
+    /// The sanitizing half, which the arms above must not have weakened: the
+    /// peer's message never crosses the trust boundary, whatever its code.
+    #[test]
+    fn relaying_a_host_status_never_forwards_its_message() {
+        for &code in status::ALL {
+            let host = Status::new(
+                tonic::Code::from(status::grpc_code(code)),
+                "worker /var/run/secret leaked this",
+            );
+            let relayed = sanitize_host_status(&host);
+            assert!(
+                !relayed.message().contains("secret"),
+                "{code} forwarded the runtime-host message"
             );
         }
     }
