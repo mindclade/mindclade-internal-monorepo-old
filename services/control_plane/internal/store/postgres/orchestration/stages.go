@@ -244,12 +244,53 @@ WHERE run_id=$1 AND stage_id=$2`, store.stages)
 		if emitErr := store.emitStage(txContext, "orchestration.stage."+string(to), updated); emitErr != nil {
 			return stageResult{}, emitErr
 		}
+		// The placement append is the fourth member of this transaction, beside
+		// the domain row, the audit record, and the outbox message, and it is
+		// here for the same reason they are. Appending after the commit would
+		// drop the work whenever the process died in between -- a stage durably
+		// queued that no queue had ever heard of, with nothing later in the run
+		// to notice. Appending before it would place work for a transition that
+		// might still roll back. It runs on txContext, so it fails the whole
+		// transaction rather than committing half of one.
+		if enqueueErr := store.enqueuePlacement(txContext, updated, to); enqueueErr != nil {
+			return stageResult{}, enqueueErr
+		}
 		return stageResult{record: updated}, nil
 	})
 	if err != nil {
 		return orchestration.StageRecord{}, false, err
 	}
 	return result.record, result.replayed, nil
+}
+
+// enqueuePlacement offers a promoted stage to the placement producer.
+//
+// Only a transition into StageQueued places work, and the trigger is the
+// transition rather than the stored state, so a replay -- which returns above
+// without ever reaching here -- places nothing. That is what stops a
+// redelivered reconcile from placing the same stage on every pass.
+//
+// The item comes from orchestration.PlacementItem rather than being built here,
+// for the same reason SealStage is called rather than restated: a promotion
+// recorded by the reference adapter and one recorded by this store must name
+// the same attempt, and two open-coded derivations is how they would drift.
+//
+// The producer's error is returned unchanged. Its code and retry policy are
+// what runMutation reads to tell a serialization conflict that must be replayed
+// from a payload that never can be; restating it as a store fault would flatten
+// that distinction and diverge from the reference adapter, which passes the
+// same error through.
+func (store *Store) enqueuePlacement(
+	ctx context.Context, record orchestration.StageRecord, to orchestration.StageState,
+) error {
+	if to != orchestration.StageQueued || nilInterface(store.enqueuer) {
+		return nil
+	}
+	item, err := orchestration.PlacementItem(record)
+	if err != nil {
+		return err
+	}
+	return store.enqueuer.EnqueueStage(ctx, item)
 }
 
 func (store *Store) lockStage(ctx context.Context, runID, stageID, operation string) (orchestration.StageRecord, bool, error) {

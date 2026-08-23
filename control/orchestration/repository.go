@@ -107,6 +107,15 @@ func (record StageRecord) Validate() error {
 // call was a duplicate of one already applied, which is what makes at-least-once
 // delivery safe to hand straight to a repository.
 //
+// TransitionStage carries one further obligation. A transition into StageQueued
+// is the moment a stage becomes placeable, so an implementation given an
+// Enqueuer must append the placement item inside the same transaction as the
+// state change. That is why the append lives here and not in Service: only a
+// repository owns the transaction, and a promotion whose placement is appended
+// outside it is either work that was dropped by a crash or work scheduled for a
+// transition that never committed. A replayed transition appends nothing, which
+// is what stops a redelivered reconcile from placing the same stage twice.
+//
 // Parameters are types-only by convention across control/, and `now` is always
 // supplied by the caller — a repository that read its own clock could not be
 // tested deterministically and would disagree with the service about when a
@@ -149,19 +158,46 @@ type MemoryRepository struct {
 	attempts      map[string]AttemptRecord
 	cancellations map[string]CancellationIntent
 	maximum       int
+	enqueuer      Enqueuer
 }
 
-func NewMemoryRepository(maximum int) *MemoryRepository {
+// MemoryOption configures the reference repository.
+//
+// Options rather than more constructor parameters, and variadic rather than a
+// second constructor, so an existing caller keeps compiling and a composition
+// that has no placement producer keeps saying so by omission.
+type MemoryOption func(*MemoryRepository)
+
+// WithMemoryEnqueuer binds the placement producer a promotion calls.
+//
+// Omitting it is a legitimate composition, not a misconfiguration: a repository
+// with no enqueuer still records stage state, which is what local single-process
+// composition and every test above the queue seam need. Making placement a
+// precondition for recording state would make those unable to run at all. The
+// composition root, not this adapter, is where "a scheduler role must have a
+// producer wired" is enforced — it is the only layer that knows which role this
+// process is playing.
+func WithMemoryEnqueuer(enqueuer Enqueuer) MemoryOption {
+	return func(repository *MemoryRepository) { repository.enqueuer = enqueuer }
+}
+
+func NewMemoryRepository(maximum int, options ...MemoryOption) *MemoryRepository {
 	if maximum <= 0 {
 		maximum = MaximumMemoryRecords
 	}
-	return &MemoryRepository{
+	repository := &MemoryRepository{
 		workflows:     make(map[string]CompiledWorkflow),
 		stages:        make(map[string]StageRecord),
 		attempts:      make(map[string]AttemptRecord),
 		cancellations: make(map[string]CancellationIntent),
 		maximum:       maximum,
 	}
+	for _, option := range options {
+		if option != nil {
+			option(repository)
+		}
+	}
+	return repository
 }
 
 func stageKey(runID, stageID string) string { return canonicalJoin(runID, stageID) }
@@ -346,8 +382,45 @@ func (repository *MemoryRepository) TransitionStage(
 	if err != nil {
 		return StageRecord{}, false, err
 	}
+	// The enqueue runs BEFORE the map write, not after. This adapter has no
+	// rollback -- the mutex is its entire transaction -- so a map it has
+	// already written cannot be un-written when the append then fails.
+	// Ordering the fallible step first reproduces the durable adapter's
+	// guarantee: the transition and its placement item land together, or
+	// neither does. Enqueueing after the write here would be the in-memory
+	// spelling of the crash-after-commit defect the transaction exists to stop.
+	if err := repository.enqueuePlacement(ctx, sealed, to); err != nil {
+		return StageRecord{}, false, err
+	}
 	repository.stages[key] = sealed
 	return sealed, false, nil
+}
+
+// enqueuePlacement offers a promoted stage to the placement producer.
+//
+// Only a transition to StageQueued places work, and every entry into queued
+// places it -- including the ones that come back from preparing or running
+// after a lost lease. A stage outlives its attempts, so a returned stage needs
+// a placement for the attempt that follows, while a stage merely starting to
+// run needs none.
+//
+// The caller holds the write lock, so this runs inside the mutation's critical
+// section, which is the contract Enqueuer states.
+//
+// The producer's error is returned unchanged rather than restated as a domain
+// fault. Its code and retry policy are what a caller uses to tell contention
+// that must be replayed from a payload that never can be, and the durable
+// adapter passes the same error through for the same reason -- restating it in
+// one adapter and not the other is how the two would stop agreeing.
+func (repository *MemoryRepository) enqueuePlacement(ctx context.Context, record StageRecord, to StageState) error {
+	if to != StageQueued || nilInterface(repository.enqueuer) {
+		return nil
+	}
+	item, err := PlacementItem(record)
+	if err != nil {
+		return err
+	}
+	return repository.enqueuer.EnqueueStage(ctx, item)
 }
 
 func (repository *MemoryRepository) PutAttempt(ctx context.Context, record AttemptRecord) (AttemptRecord, bool, error) {

@@ -32,7 +32,7 @@ var testStart = time.Date(2026, time.August, 23, 6, 0, 0, 0, time.UTC)
 // database. It cannot check SQL semantics, so the live suite covers those; what
 // it proves here is the part a live database would happily let through --
 // whether the store opens one transaction, commits once, and refuses to nest.
-func newHarness(t *testing.T) (*Store, *sqltest.State) {
+func newHarness(t *testing.T, options ...Option) (*Store, *sqltest.State) {
 	t.Helper()
 	state := &sqltest.State{}
 	state.Exec = func(context.Context, string, []driver.NamedValue) (driver.Result, error) {
@@ -69,11 +69,26 @@ func newHarness(t *testing.T) (*Store, *sqltest.State) {
 		t.Fatalf("retry executor: %v", err)
 	}
 	store, err := New(database, audit.NopRecorder{}, messages,
-		WithClock(clock.RealClock{}), WithRetry(retries))
+		append([]Option{WithClock(clock.RealClock{}), WithRetry(retries)}, options...)...)
 	if err != nil {
 		t.Fatalf("new store: %v", err)
 	}
 	return store, state
+}
+
+// serveStage makes the locking read return this record, so a transition has a
+// current row to move. Without it the fake driver answers every read with no
+// rows and TransitionStage stops at stage_not_found, short of the code under
+// test.
+func serveStage(t *testing.T, state *sqltest.State, record orchestration.StageRecord) {
+	t.Helper()
+	document, err := json.Marshal(record)
+	if err != nil {
+		t.Fatalf("marshal stage: %v", err)
+	}
+	state.Query = func(context.Context, string, []driver.NamedValue) (driver.Rows, error) {
+		return sqltest.NewRows([]string{"document"}, []driver.Value{document}), nil
+	}
 }
 
 func testID(t *testing.T, kind string) string {
@@ -294,3 +309,142 @@ func TestStoreRequiresItsProviders(t *testing.T) {
 }
 
 var _ outbox.Store = (*outboxmemory.Store)(nil)
+
+// nilEnqueuer exists to be a typed nil. A (*nilEnqueuer)(nil) is not == nil, so
+// it is exactly the wiring mistake WithEnqueuer has to catch.
+type nilEnqueuer struct{}
+
+func (*nilEnqueuer) EnqueueStage(context.Context, orchestration.WorkItem) error { return nil }
+
+// The placement append must run on the mutation's transaction context. On any
+// other context it would commit -- or fail -- independently of the stage
+// transition it is supposed to be atomic with, which is the entire reason the
+// seam takes a context at all.
+func TestPromotionEnqueuesInsideTheMutationTransaction(t *testing.T) {
+	record := newStageRecord(t)
+	var calls int
+	var joined bool
+	var placed orchestration.WorkItem
+	store, state := newHarness(t, WithEnqueuer(orchestration.EnqueuerFunc(
+		func(ctx context.Context, item orchestration.WorkItem) error {
+			calls++
+			_, joined = transaction.FromContext(ctx)
+			placed = item
+			return nil
+		})))
+	serveStage(t, state, record)
+
+	_, replayed, err := store.TransitionStage(context.Background(), record.RunID, record.StageID,
+		orchestration.StageQueued, record.Version, testStart.Add(time.Second))
+	if err != nil || replayed {
+		t.Fatalf("TransitionStage: err=%v replayed=%v", err, replayed)
+	}
+	if calls != 1 {
+		t.Fatalf("enqueued %d times, want exactly 1", calls)
+	}
+	if !joined {
+		t.Fatal("the placement append must receive the mutation's transaction, not an ambient context")
+	}
+	if placed.RunID != record.RunID || placed.StageID != record.StageID || placed.Attempt != 1 {
+		t.Fatalf("placed %+v, want the promoted stage at attempt 1", placed)
+	}
+	if state.Commits.Load() != 1 {
+		t.Fatalf("commits = %d, want exactly 1", state.Commits.Load())
+	}
+}
+
+// A placement that could not be appended must take the transition down with it.
+// Committing the stage into queued while its work item was lost is the failure
+// this whole seam exists to make unreachable.
+func TestAFailedPlacementRollsBackTheTransition(t *testing.T) {
+	record := newStageRecord(t)
+	failure := errors.New("placement queue rejected the item")
+	store, state := newHarness(t, WithEnqueuer(orchestration.EnqueuerFunc(
+		func(context.Context, orchestration.WorkItem) error { return failure })))
+	serveStage(t, state, record)
+
+	_, _, err := store.TransitionStage(context.Background(), record.RunID, record.StageID,
+		orchestration.StageQueued, record.Version, testStart.Add(time.Second))
+	if err == nil {
+		t.Fatal("a promotion whose placement failed must surface as an error")
+	}
+	if !errors.Is(err, failure) {
+		t.Fatalf("err = %v, want the producer's failure preserved", err)
+	}
+	if state.Commits.Load() != 0 {
+		t.Fatal("a promotion whose placement failed must not commit")
+	}
+	if state.Rollbacks.Load() == 0 {
+		t.Fatal("a promotion whose placement failed must roll back")
+	}
+}
+
+// Only promotion places work. A stage starting to run is already placed, and
+// enqueueing again would put a second worker on the same attempt.
+func TestOnlyPromotionPlacesWork(t *testing.T) {
+	record := newStageRecord(t)
+	queued := record
+	queued.State = orchestration.StageQueued
+	sealed, err := orchestration.SealStage(queued, record.Version.Generation()+1)
+	if err != nil {
+		t.Fatalf("seal queued stage: %v", err)
+	}
+	var calls int
+	store, state := newHarness(t, WithEnqueuer(orchestration.EnqueuerFunc(
+		func(context.Context, orchestration.WorkItem) error {
+			calls++
+			return nil
+		})))
+	serveStage(t, state, sealed)
+
+	if _, _, err := store.TransitionStage(context.Background(), sealed.RunID, sealed.StageID,
+		orchestration.StagePreparing, sealed.Version, testStart.Add(time.Second)); err != nil {
+		t.Fatalf("TransitionStage: %v", err)
+	}
+	if calls != 0 {
+		t.Fatalf("enqueued %d times, want 0; only a promotion places work", calls)
+	}
+}
+
+// A store composed without a producer still records stage state. Local
+// composition and every test above the queue seam depend on that.
+func TestAStoreWithNoProducerStillTransitions(t *testing.T) {
+	record := newStageRecord(t)
+	store, state := newHarness(t)
+	serveStage(t, state, record)
+	moved, _, err := store.TransitionStage(context.Background(), record.RunID, record.StageID,
+		orchestration.StageQueued, record.Version, testStart.Add(time.Second))
+	if err != nil {
+		t.Fatalf("TransitionStage: %v", err)
+	}
+	if moved.State != orchestration.StageQueued {
+		t.Fatalf("state = %s, want queued", moved.State)
+	}
+}
+
+// Wiring a nil producer is a mistake, not a composition. Accepting it would
+// drop every placement in silence, which is indistinguishable from the bug this
+// task fixed.
+func TestWithEnqueuerRefusesANilProducer(t *testing.T) {
+	state := &sqltest.State{}
+	database, err := sqltest.Open(state)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer func() { _ = database.Close() }()
+	messages, err := outboxmemory.New()
+	if err != nil {
+		t.Fatalf("outbox: %v", err)
+	}
+	cases := map[string]orchestration.Enqueuer{
+		"untyped nil": nil,
+		"typed nil":   (*nilEnqueuer)(nil),
+	}
+	for name, producer := range cases {
+		t.Run(name, func(t *testing.T) {
+			if _, err := New(database, audit.NopRecorder{}, messages, WithEnqueuer(producer)); err == nil {
+				t.Fatal("a nil placement producer must fail construction")
+			}
+		})
+	}
+}

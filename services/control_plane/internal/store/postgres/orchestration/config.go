@@ -10,6 +10,7 @@ import (
 	"database/sql"
 	"reflect"
 
+	"go.mindclade.dev/control/orchestration"
 	"go.mindclade.dev/libs/go/audit"
 	"go.mindclade.dev/libs/go/clock"
 	"go.mindclade.dev/libs/go/coordination/outbox"
@@ -67,6 +68,29 @@ func WithRetry(value *retry.Executor) Option {
 	}
 }
 
+// WithEnqueuer binds the placement producer a promotion appends through.
+//
+// The producer is supplied rather than built here for the reason spelled out on
+// orchestration.Enqueuer: the queue it writes to belongs to control/scheduling,
+// which already imports control/orchestration, so only the composition root can
+// name both. This adapter's job is the narrower half, and it is the whole point
+// of the seam -- to put that append inside the transaction that already carries
+// the stage transition, its audit record, and its outbox message.
+//
+// Omitting the option composes a store with no placement producer, which still
+// records stage state. Passing a nil one is a wiring mistake and is refused, so
+// a root that meant to wire a producer and handed over a typed nil fails at
+// construction rather than dropping every placement in silence.
+func WithEnqueuer(value orchestration.Enqueuer) Option {
+	return func(store *Store) error {
+		if nilInterface(value) {
+			return invalidConfig("placement enqueuer is required", "orchestration_nil_enqueuer")
+		}
+		store.enqueuer = value
+		return nil
+	}
+}
+
 func WithTables(workflows, stages, attempts, cancellations string) Option {
 	return func(store *Store) error {
 		for _, table := range []string{workflows, stages, attempts, cancellations} {
@@ -95,6 +119,7 @@ type Store struct {
 	audits        *audit.Factory
 	events        *outbox.Factory
 	retries       *retry.Executor
+	enqueuer      orchestration.Enqueuer
 	actor         audit.Actor
 	workflows     string
 	stages        string

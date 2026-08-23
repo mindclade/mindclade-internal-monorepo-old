@@ -143,6 +143,75 @@ func DecodeWorkItem(payload json.RawMessage) (WorkItem, error) {
 	return item, nil
 }
 
+// PlacementItem derives the work item a promotion to StageQueued must enqueue.
+//
+// Exported because the durable adapter has to derive the identical item: a
+// promotion recorded by one repository and drained by the shared worker must
+// name the same attempt whichever adapter wrote it, and two open-coded versions
+// of this rule is exactly how that stops being true.
+//
+// The attempt is the stage's attempt count plus one, not the count itself. A
+// stage charges an attempt when it reaches StagePreparing, so at promotion the
+// counter still describes attempts already opened; the item names the attempt
+// the claim is about to open, which is the number TransitionStage will store
+// when that claim moves the stage to preparing. Using the count verbatim would
+// make the first placement carry attempt 0, which WorkItem.Validate refuses,
+// and every later one address the attempt that just died.
+func PlacementItem(record StageRecord) (WorkItem, error) {
+	item := WorkItem{
+		RunID:   record.RunID,
+		JobID:   record.JobID,
+		StageID: record.StageID,
+		Attempt: record.Attempts + 1,
+	}
+	if err := item.Validate(); err != nil {
+		return WorkItem{}, err
+	}
+	return item, nil
+}
+
+// Enqueuer is the seam through which a promoted stage becomes queued work. It
+// is the producer counterpart of StageHandler below: this package says a stage
+// became placeable, and something outside it decides where that fact goes.
+//
+// # Why the queue name is not in this package
+//
+// The queue that carries this item is control/scheduling's, and its name is
+// scheduling.PlacementQueue. Naming it here would mean importing that package —
+// and control/scheduling already imports control/orchestration in five files
+// for StageKind, so the reverse edge is an import cycle that does not compile.
+// The arrow runs one way and only one way. ADR-0029 makes the same point from
+// the architecture side: orchestration and scheduling "communicate only through
+// the control-plane/placement durable work queue", and neither reaches into the
+// other. The composition root (providers/scheduler) is the only place that
+// legitimately knows both domains, so it supplies the queue name and translates
+// this payload into scheduling's own if the two shapes differ — they do, and
+// deliberately: scheduling.PlacementCommand wraps a PlacementRequest.
+//
+// Do not "simplify" this by importing control/scheduling for the constant.
+//
+// # What an implementation must guarantee
+//
+// The context is the durable mutation's transaction context, not the caller's
+// ambient one, and the append must join it. Appending after the transaction
+// commits drops the work when the process dies in between; appending before it
+// commits schedules work for a transition that never became durable. That is
+// why this hangs off the repository rather than off Service: only the
+// repository owns the transaction.
+//
+// It runs inside the mutation's critical section, so an implementation must not
+// call back into the repository and must not block indefinitely.
+type Enqueuer interface {
+	EnqueueStage(context.Context, WorkItem) error
+}
+
+// EnqueuerFunc adapts a function to Enqueuer.
+type EnqueuerFunc func(context.Context, WorkItem) error
+
+func (function EnqueuerFunc) EnqueueStage(ctx context.Context, item WorkItem) error {
+	return function(ctx, item)
+}
+
 // StageHandler executes the domain meaning of one claimed work item. The
 // composition root adapts it into a workqueue.Handler; this package never
 // constructs a worker, a queue, or a goroutine.

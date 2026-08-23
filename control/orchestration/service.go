@@ -98,12 +98,14 @@ func (service Service) StartRun(ctx context.Context, workflowID, runID, jobID st
 	now := service.now()
 	records := make([]StageRecord, 0, compiled.Graph.Len())
 	for _, stageID := range compiled.Graph.Order() {
-		record := StageRecord{
-			RunID:     runID,
-			JobID:     jobID,
-			StageID:   stageID,
-			State:     StageBlocked,
-			UpdatedAt: now,
+		// NewStage rather than a struct literal: a literal carries no sealed
+		// version, and PutStage validates the seal, so every StartRun refused
+		// its own stages with stage_version_invalid. Nothing reached AdmitReady
+		// to notice, because until the placement seam existed nothing drove
+		// this path end to end.
+		record, err := NewStage(runID, jobID, stageID, now)
+		if err != nil {
+			return nil, err
 		}
 		stored, _, err := service.Repository.PutStage(ctx, record)
 		if err != nil {
@@ -116,10 +118,14 @@ func (service Service) StartRun(ctx context.Context, workflowID, runID, jobID st
 
 // AdmitReady promotes every stage whose dependencies have all succeeded.
 //
-// It returns the stages it moved, which is what the caller enqueues. Reporting
-// the moved set rather than the ready set matters under concurrency: a stage
-// another reconciler already promoted comes back as replayed and is excluded, so
-// two reconcilers cannot enqueue the same stage twice.
+// It returns the stages it moved. The caller does NOT enqueue them: a promotion
+// appends its placement item inside the repository's transaction (see Enqueuer),
+// because an enqueue this service issued after TransitionStage returned would be
+// lost by a crash in between. Reporting the moved set rather than the ready set
+// still matters under concurrency -- a stage another reconciler already promoted
+// comes back as replayed and is excluded, so two reconcilers cannot place the
+// same stage twice -- but the set is now a report of what happened rather than a
+// work list.
 func (service Service) AdmitReady(ctx context.Context, workflowID, runID string) ([]StageRecord, error) {
 	if err := service.validate(ctx); err != nil {
 		return nil, err
@@ -159,6 +165,10 @@ func (service Service) AdmitReady(ctx context.Context, workflowID, runID string)
 // Only success releases dependents. A failed stage leaves its children blocked
 // because the outputs they consume do not exist; clearing them is what
 // cancelling the run is for.
+//
+// The stages it returns were promoted to queued, so each one has already placed
+// its own work item inside the repository's transaction. As with AdmitReady, the
+// caller reports on them rather than enqueueing them.
 func (service Service) CompleteStage(ctx context.Context, workflowID, runID, stageID string, outcome StageState) ([]StageRecord, error) {
 	if err := service.validate(ctx); err != nil {
 		return nil, err

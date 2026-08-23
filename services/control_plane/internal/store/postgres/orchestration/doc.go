@@ -28,6 +28,16 @@
 // compared, so two deliveries of the same message converge whichever one
 // commits first.
 //
+// TransitionStage puts a fourth write in that transaction when it promotes a
+// stage to queued: the placement item, appended through the
+// orchestration.Enqueuer a composition root binds with WithEnqueuer. It belongs
+// there rather than after the commit because a promotion and its placement are
+// one durable act -- a stage committed as queued whose work item was lost to a
+// crash is work nothing will ever pick up, and an item committed before a
+// transition that then rolled back is a placement for something that never
+// became ready. A replayed transition returns before the append, so a
+// redelivered reconcile places nothing.
+//
 // # Where this store deliberately differs from the memory adapter
 //
 // The memory adapter fails with a resource_exhausted "*_store_bound" fault once

@@ -30,12 +30,17 @@ import (
 
 	"go.mindclade.dev/control/orchestration"
 	"go.mindclade.dev/control/runtime_authority"
+	"go.mindclade.dev/libs/go/audit"
 	auditpostgres "go.mindclade.dev/libs/go/audit/postgres"
 	"go.mindclade.dev/libs/go/clock"
+	"go.mindclade.dev/libs/go/coordination/outbox"
 	outboxpostgres "go.mindclade.dev/libs/go/coordination/outbox/postgres"
+	"go.mindclade.dev/libs/go/coordination/workqueue"
+	workqueuepostgres "go.mindclade.dev/libs/go/coordination/workqueue/postgres"
 	"go.mindclade.dev/libs/go/faults"
 	"go.mindclade.dev/libs/go/idempotency"
 	"go.mindclade.dev/libs/go/identifiers"
+	"go.mindclade.dev/libs/go/requestmeta"
 )
 
 const livePostgresEnvironment = "MINDCLADE_TEST_POSTGRES_DSN"
@@ -45,6 +50,9 @@ var liveOrchestrationSchemaSequence atomic.Uint64
 type liveOrchestrationStore struct {
 	store             *Store
 	db                *sql.DB
+	recorder          audit.Recorder
+	messages          outbox.Store
+	schema            string
 	auditTable        string
 	outboxTable       string
 	workflowTable     string
@@ -90,6 +98,7 @@ func newLiveOrchestrationStore(t *testing.T) liveOrchestrationStore {
 
 	live := liveOrchestrationStore{
 		db:                db,
+		schema:            schema,
 		auditTable:        schema + ".audit_events",
 		outboxTable:       schema + ".outbox_messages",
 		workflowTable:     schema + ".orchestration_workflows",
@@ -129,6 +138,8 @@ func newLiveOrchestrationStore(t *testing.T) liveOrchestrationStore {
 		t.Fatal(err)
 	}
 	live.store = store
+	live.recorder = recorder
+	live.messages = messages
 	return live
 }
 
@@ -479,4 +490,152 @@ func liveCancellation(t *testing.T) orchestration.CancellationIntent {
 		},
 		RequestedAt: time.Now(),
 	}
+}
+
+// livePlacementQueue is a test-local queue name on purpose.
+//
+// The production name is scheduling.PlacementQueue, and this package cannot
+// reach it: control/scheduling imports control/orchestration, so the reverse
+// edge is a cycle. That the name is supplied here, by the code standing in for
+// the composition root, is precisely the property the seam is built to have.
+const livePlacementQueue = "test/placement"
+
+// withPlacement rebuilds the store over the same schema with a real durable
+// work queue bound as its placement producer, and returns that queue's table.
+//
+// A real queue rather than a recording double: the property under test is that
+// the work item lands in the SAME PostgreSQL transaction as the stage row, and
+// only a producer that actually writes to the database can be atomic with it.
+func (live *liveOrchestrationStore) withPlacement(t *testing.T) string {
+	t.Helper()
+	table := live.schema + ".placement_queue"
+	ddl, err := workqueuepostgres.DDL(table)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := live.db.ExecContext(context.Background(), ddl); err != nil {
+		t.Fatalf("apply work queue DDL: %v", err)
+	}
+	queue, err := workqueuepostgres.New(live.db, table)
+	if err != nil {
+		t.Fatal(err)
+	}
+	producer := orchestration.EnqueuerFunc(func(ctx context.Context, work orchestration.WorkItem) error {
+		payload, encodeErr := orchestration.EncodeWorkItem(work)
+		if encodeErr != nil {
+			return encodeErr
+		}
+		item, itemErr := workqueue.NewItem(
+			livePlacementQueue, payload, 0, time.Time{}, 10, requestmeta.Metadata{})
+		if itemErr != nil {
+			return itemErr
+		}
+		return queue.Enqueue(ctx, item)
+	})
+	store, err := New(live.db, live.recorder, live.messages,
+		WithClock(clock.RealClock{}),
+		WithTables(live.workflowTable, live.stageTable, live.attemptTable, live.cancellationTable),
+		WithEnqueuer(producer))
+	if err != nil {
+		t.Fatal(err)
+	}
+	live.store = store
+	return table
+}
+
+// The claim this task makes: promoting a stage and placing its work are one
+// durable act. Nothing produced placement work before, so a wired scheduler
+// drained a permanently empty queue; now a promotion fills it, and it does so
+// inside the transaction that carries the transition.
+func TestLivePostgresPromotionPlacesWorkInTheSameTransaction(t *testing.T) {
+	t.Run("commit", func(t *testing.T) {
+		live := newLiveOrchestrationStore(t)
+		queueTable := live.withPlacement(t)
+		ctx := context.Background()
+		stored, _, err := live.store.PutStage(ctx, liveStage(t))
+		if err != nil {
+			t.Fatalf("PutStage: %v", err)
+		}
+		// Materializing a stage is not placing it. Only promotion is.
+		if got := live.count(t, queueTable); got != 0 {
+			t.Fatalf("work items = %d after materialization, want 0", got)
+		}
+		if _, replayed, err := live.store.TransitionStage(ctx,
+			stored.RunID, stored.StageID, orchestration.StageQueued, stored.Version, time.Now()); err != nil || replayed {
+			t.Fatalf("promote: err=%v replayed=%v", err, replayed)
+		}
+		if got := live.count(t, queueTable); got != 1 {
+			t.Fatalf("work items = %d, want exactly 1", got)
+		}
+
+		var queue string
+		var payload []byte
+		if err := live.db.QueryRowContext(ctx,
+			"SELECT queue,payload FROM "+queueTable).Scan(&queue, &payload); err != nil {
+			t.Fatalf("read work item: %v", err)
+		}
+		if queue != livePlacementQueue {
+			t.Fatalf("queue = %q, want %q; the root supplies the name", queue, livePlacementQueue)
+		}
+		item, err := orchestration.DecodeWorkItem(payload)
+		if err != nil {
+			t.Fatalf("decode work item: %v", err)
+		}
+		if item.RunID != stored.RunID || item.JobID != stored.JobID || item.StageID != stored.StageID {
+			t.Fatalf("item identity = %+v, want the promoted stage's", item)
+		}
+		if item.Attempt != 1 {
+			t.Fatalf("attempt = %d, want 1", item.Attempt)
+		}
+
+		// A redelivered promotion replays the transition, so it must not place
+		// the stage a second time. This is the difference between placing a
+		// stage once and placing it on every reconcile.
+		current, err := live.store.GetStage(ctx, stored.RunID, stored.StageID)
+		if err != nil {
+			t.Fatalf("GetStage: %v", err)
+		}
+		if _, replayed, err := live.store.TransitionStage(ctx,
+			stored.RunID, stored.StageID, orchestration.StageQueued, current.Version, time.Now()); err != nil || !replayed {
+			t.Fatalf("replayed promotion: err=%v replayed=%v", err, replayed)
+		}
+		if got := live.count(t, queueTable); got != 1 {
+			t.Fatalf("work items = %d after a replay, want 1", got)
+		}
+	})
+
+	t.Run("a rejected placement rolls back the transition", func(t *testing.T) {
+		live := newLiveOrchestrationStore(t)
+		queueTable := live.withPlacement(t)
+		ctx := context.Background()
+		stored, _, err := live.store.PutStage(ctx, liveStage(t))
+		if err != nil {
+			t.Fatalf("PutStage: %v", err)
+		}
+		outboxBefore := live.count(t, live.outboxTable)
+		if _, err := live.db.ExecContext(ctx,
+			"ALTER TABLE "+queueTable+" ADD CONSTRAINT reject_all_placements CHECK (false)"); err != nil {
+			t.Fatalf("install placement failure: %v", err)
+		}
+		if _, _, err := live.store.TransitionStage(ctx,
+			stored.RunID, stored.StageID, orchestration.StageQueued, stored.Version, time.Now()); err == nil {
+			t.Fatal("a promotion must fail when its placement is rejected")
+		}
+		current, err := live.store.GetStage(ctx, stored.RunID, stored.StageID)
+		if err != nil {
+			t.Fatalf("GetStage: %v", err)
+		}
+		if current.State != orchestration.StageBlocked {
+			t.Fatalf("state = %s, want blocked; a stage must not commit as queued without its work item", current.State)
+		}
+		if current.Version.String() != stored.Version.String() {
+			t.Fatal("a rolled-back promotion must not advance the resource version")
+		}
+		if got := live.count(t, queueTable); got != 0 {
+			t.Fatalf("work items = %d, want 0", got)
+		}
+		if got := live.count(t, live.outboxTable); got != outboxBefore {
+			t.Fatalf("outbox messages = %d, want %d; the stage event must roll back too", got, outboxBefore)
+		}
+	})
 }
