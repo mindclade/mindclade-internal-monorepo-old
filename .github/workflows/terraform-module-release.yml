@@ -19,7 +19,7 @@ on:
         required: true
         type: string
       immutable-releases-evidence-digest:
-        description: SHA-256 digest proving immutable releases are enabled.
+        description: SHA-256 digest proving immutable releases are owner-enforced.
         required: true
         type: string
       change-reference:
@@ -78,9 +78,13 @@ jobs:
       - name: Bind checkout to the current protected main head
         env:
           EXPECTED_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
+          current_main="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          test "${current_main}" = "${EXPECTED_SHA}"
+          git update-ref refs/remotes/origin/main "${current_main}"
           test "$(git rev-parse --verify 'HEAD^{commit}')" = "${EXPECTED_SHA}"
           test "$(git rev-parse --verify 'origin/main^{commit}')" = "${EXPECTED_SHA}"
           git diff --quiet --no-ext-diff
@@ -114,6 +118,22 @@ jobs:
           persist-credentials: false
           ref: ${{ inputs.tag }}
 
+      - name: Reauthorize current main after environment approval
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          current_main="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          test "${current_main}" = "${EXPECTED_SHA}"
+          git -C publisher-source update-ref refs/remotes/origin/main "${current_main}"
+          test "$(git -C publisher-source rev-parse --verify 'HEAD^{commit}')" = "${EXPECTED_SHA}"
+          test "$(git -C publisher-source rev-parse --verify 'origin/main^{commit}')" = \
+            "${EXPECTED_SHA}"
+          git -C publisher-source diff --quiet --no-ext-diff
+          git -C publisher-source diff --cached --quiet --no-ext-diff
+
       - name: Resolve immutable release source
         id: source
         env:
@@ -122,10 +142,8 @@ jobs:
           set -euo pipefail
           [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
           source_sha="$(git -C release-source rev-parse --verify 'HEAD^{commit}')"
-          git -C publisher-source fetch --force origin \
-            "+refs/tags/${TAG}:refs/tags/${TAG}"
-          test "$(git -C publisher-source cat-file -t "${TAG}")" = tag
-          test "$(git -C publisher-source rev-parse --verify "${TAG}^{commit}")" = "${source_sha}"
+          test "$(git -C release-source cat-file -t "refs/tags/${TAG}")" = tag
+          test "$(git -C release-source rev-parse --verify "${TAG}^{commit}")" = "${source_sha}"
           git -C publisher-source merge-base --is-ancestor "${source_sha}" origin/main
           git -C release-source diff --quiet --no-ext-diff
           git -C release-source diff --cached --quiet --no-ext-diff
@@ -174,6 +192,7 @@ jobs:
 
       - name: Build deterministic module release manifest and checksum
         env:
+          CHANGE_REFERENCE: ${{ inputs.change-reference }}
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
           TAG: ${{ inputs.tag }}
         run: |
@@ -182,6 +201,7 @@ jobs:
             --source-root release-source \
             --tag "${TAG}" \
             --source-sha "${SOURCE_SHA}" \
+            --change-reference "${CHANGE_REFERENCE}" \
             --tag-evidence terraform-module-tag-evidence.json \
             --output terraform-module-release.json
           sha256sum terraform-module-release.json > terraform-module-release.json.sha256
@@ -218,9 +238,45 @@ jobs:
       - name: Create, verify, and publish immutable GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          IMMUTABILITY_EVIDENCE: ${{ inputs.immutable-releases-evidence-digest }}
+          SIGNER_EVIDENCE: ${{ inputs.signer-evidence-digest }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
           TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
+
+          assert_current_authorities() {
+            current_main="$(gh api \
+              "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+            test "${current_main}" = "${GITHUB_SHA}"
+            git -C publisher-source update-ref refs/remotes/origin/main "${current_main}"
+            test "$(git -C publisher-source rev-parse --verify 'HEAD^{commit}')" = \
+              "${GITHUB_SHA}"
+            test "$(git -C publisher-source rev-parse --verify 'origin/main^{commit}')" = \
+              "${GITHUB_SHA}"
+            test "$(git -C release-source rev-parse --verify 'HEAD^{commit}')" = \
+              "${SOURCE_SHA}"
+            git -C publisher-source diff --quiet --no-ext-diff
+            git -C publisher-source diff --cached --quiet --no-ext-diff
+            git -C release-source diff --quiet --no-ext-diff
+            git -C release-source diff --cached --quiet --no-ext-diff
+            python3 -B publisher-source/ci/terraform/module_release.py verify-connected \
+              --source-root release-source \
+              --repository "${GITHUB_REPOSITORY}" \
+              --tag "${TAG}" \
+              --source-sha "${SOURCE_SHA}" \
+              --signer-evidence-digest "${SIGNER_EVIDENCE}" \
+              --immutable-releases-evidence-digest "${IMMUTABILITY_EVIDENCE}" \
+              --output terraform-module-tag-evidence-current.json
+            cmp terraform-module-tag-evidence.json terraform-module-tag-evidence-current.json
+            rm terraform-module-tag-evidence-current.json
+          }
+
+          manifest_digest="sha256:$(sha256sum terraform-module-release.json | cut -d' ' -f1)"
+          checksum_digest="sha256:$(sha256sum terraform-module-release.json.sha256 | cut -d' ' -f1)"
+          attestation_digest="sha256:$(sha256sum terraform-module-release.attestation.jsonl | cut -d' ' -f1)"
+
+          assert_current_authorities
           if gh release view "${TAG}" >/dev/null 2>&1; then
             echo "release ${TAG} already exists; immutable releases are never replaced" >&2
             exit 1
@@ -236,26 +292,76 @@ jobs:
             --verify-tag
           gh attestation verify terraform-module-release.json \
             --repo "${GITHUB_REPOSITORY}"
-          gh release view "${TAG}" --json assets,isDraft,isPrerelease,tagName \
+          gh release view "${TAG}" \
+            --json assets,body,databaseId,isDraft,isPrerelease,name,tagName \
             > terraform-module-release-draft.json
-          jq -e --arg tag "${TAG}" '
+          jq -e \
+            --arg tag "${TAG}" \
+            --arg title "Terraform modules ${TAG}" \
+            --arg manifest "${manifest_digest}" \
+            --arg checksum "${checksum_digest}" \
+            --arg attestation "${attestation_digest}" \
+            --rawfile notes terraform-module-release-notes.md '
             .tagName == $tag
+            and .name == $title
+            and .body == $notes
             and .isDraft == true
             and .isPrerelease == false
-            and ([.assets[].name] | sort) == [
-              "terraform-module-release.attestation.jsonl",
-              "terraform-module-release.json",
-              "terraform-module-release.json.sha256"
+            and ([.assets[] | {name: .name, digest: .digest}] | sort_by(.name)) == [
+              {"name": "terraform-module-release.attestation.jsonl", "digest": $attestation},
+              {"name": "terraform-module-release.json", "digest": $manifest},
+              {"name": "terraform-module-release.json.sha256", "digest": $checksum}
             ]
           ' terraform-module-release-draft.json >/dev/null
-          gh release edit "${TAG}" --draft=false --latest=false
-          gh release view "${TAG}" --json isDraft,isImmutable,isPrerelease,tagName \
+          release_id="$(jq -er '.databaseId | select(type == "number")' \
+            terraform-module-release-draft.json)"
+          assert_current_authorities
+          gh api "repos/${GITHUB_REPOSITORY}/releases/${release_id}" \
+            > terraform-module-release-draft-ready.json
+          jq -e \
+            --argjson release_id "${release_id}" \
+            --arg tag "${TAG}" \
+            --arg title "Terraform modules ${TAG}" \
+            --arg manifest "${manifest_digest}" \
+            --arg checksum "${checksum_digest}" \
+            --arg attestation "${attestation_digest}" \
+            --rawfile notes terraform-module-release-notes.md '
+            .id == $release_id
+            and .tag_name == $tag
+            and .name == $title
+            and .body == $notes
+            and .draft == true
+            and .prerelease == false
+            and ([.assets[] | {name: .name, digest: .digest}] | sort_by(.name)) == [
+              {"name": "terraform-module-release.attestation.jsonl", "digest": $attestation},
+              {"name": "terraform-module-release.json", "digest": $manifest},
+              {"name": "terraform-module-release.json.sha256", "digest": $checksum}
+            ]
+          ' terraform-module-release-draft-ready.json >/dev/null
+          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/releases/${release_id}" \
+            -F draft=false \
+            -f make_latest=false \
             > terraform-module-release-published.json
-          jq -e --arg tag "${TAG}" '
-            .tagName == $tag
-            and .isDraft == false
-            and .isPrerelease == false
-            and .isImmutable == true
+          jq -e \
+            --argjson release_id "${release_id}" \
+            --arg tag "${TAG}" \
+            --arg title "Terraform modules ${TAG}" \
+            --arg manifest "${manifest_digest}" \
+            --arg checksum "${checksum_digest}" \
+            --arg attestation "${attestation_digest}" \
+            --rawfile notes terraform-module-release-notes.md '
+            .id == $release_id
+            and .tag_name == $tag
+            and .name == $title
+            and .body == $notes
+            and .draft == false
+            and .prerelease == false
+            and .immutable == true
+            and ([.assets[] | {name: .name, digest: .digest}] | sort_by(.name)) == [
+              {"name": "terraform-module-release.attestation.jsonl", "digest": $attestation},
+              {"name": "terraform-module-release.json", "digest": $manifest},
+              {"name": "terraform-module-release.json.sha256", "digest": $checksum}
+            ]
           ' terraform-module-release-published.json >/dev/null
 
       - name: Retain exact module release evidence

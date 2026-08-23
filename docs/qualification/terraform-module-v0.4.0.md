@@ -14,7 +14,8 @@ dirty developer worktree.
 - an operator who can create a protected SSH-signed annotated tag, distinct from the approvers;
 - a source-qualified signer identity and unexpired evidence digest in
   `infra/terraform/governance/module-release-authority.json`;
-- read-back evidence that immutable releases are enabled for the monorepo; and
+- no-more-than-seven-day read-back evidence that immutable releases are enforced on the monorepo
+  by its organization owner; and
 - the exact `terraform-module-release` protected environment applied from `github-config`.
 
 Abort if the proposed tag already exists, the checkout is dirty, the commit differs
@@ -88,10 +89,12 @@ signer authorization. Never move or recreate a published tag.
 From the Actions UI, dispatch `Terraform module release` on protected `main` with the existing tag,
 the exact signer-evidence digest, the immutable-release evidence digest, and the approved Mindclade
 pull request or issue URL. The workflow first binds itself to the current protected-main head, then
-enters the delayed Security-reviewed environment after independent Release tag signing. It checks
-out and qualifies the tag's exact peeled commit, repeats GitHub and SSH signature verification,
-builds a schema-2 manifest and checksum, attests the manifest, creates a draft with the three
-assets, and publishes only after the draft is complete. The final read-back must report
+enters the delayed Security-reviewed environment after independent Release tag signing. After the
+approval wait it refuses a dispatch whose source is no longer the current `main`. It checks out and
+qualifies the tag's exact peeled commit, repeats GitHub and SSH signature verification before draft
+creation and again immediately before publication, builds a schema-2 manifest and checksum, and
+attests the manifest including the exact protected change reference. Draft and immutable read-back
+must report the exact SHA-256 digest of all three assets; the final read-back must also report
 `isImmutable: true`.
 
 The workflow uses `gh release create --verify-tag`; it has no command that can create, delete, push,

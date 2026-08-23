@@ -1,6 +1,7 @@
 {
   "immutable_releases": {
     "evidence": null,
+    "enforced_by_owner": null,
     "qualification": "blocked"
   },
   "qualification": "blocked",

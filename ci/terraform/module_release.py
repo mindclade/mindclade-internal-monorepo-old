@@ -55,7 +55,9 @@ def load_release_authority(root: Path = ROOT) -> dict[str, Any]:
     return value
 
 
-def _validate_evidence(value: Any, label: str, *, require_fresh: bool) -> dict[str, Any]:
+def _validate_evidence(
+    value: Any, label: str, *, require_fresh: bool, max_lifetime_days: int = 90
+) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError(f"{label} must be an object")
     exact_keys(
@@ -77,8 +79,10 @@ def _validate_evidence(value: Any, label: str, *, require_fresh: bool) -> dict[s
     except ValueError as error:
         raise ValueError(f"{label} dates must be ISO calendar dates") from error
     lifetime = (expires - observed).days
-    if lifetime < 1 or lifetime > 90:
-        raise ValueError(f"{label} evidence lifetime must be between 1 and 90 days")
+    if lifetime < 1 or lifetime > max_lifetime_days:
+        raise ValueError(
+            f"{label} evidence lifetime must be between 1 and {max_lifetime_days} days"
+        )
     today = date.today()
     if observed > today:
         raise ValueError(f"{label} evidence is future-dated")
@@ -109,14 +113,22 @@ def validate_release_authority(
     immutable = value["immutable_releases"]
     if not isinstance(immutable, dict):
         raise ValueError("immutable release authority must be an object")
-    exact_keys(immutable, {"qualification", "evidence"}, "immutable release authority")
+    exact_keys(
+        immutable,
+        {"qualification", "evidence", "enforced_by_owner"},
+        "immutable release authority",
+    )
     if immutable["qualification"] not in {"blocked", "qualified"}:
         raise ValueError("immutable release qualification is invalid")
 
     if value["qualification"] == "blocked":
         if value["signer"] is not None or value["signer_qualification"] is not None:
             raise ValueError("blocked release authority must not name an unqualified signer")
-        if immutable != {"qualification": "blocked", "evidence": None}:
+        if immutable != {
+            "qualification": "blocked",
+            "evidence": None,
+            "enforced_by_owner": None,
+        }:
             raise ValueError("blocked release authority must not claim immutable release evidence")
         if require_qualified:
             raise ValueError("Terraform module release authority remains blocked")
@@ -144,8 +156,13 @@ def validate_release_authority(
     )
     if immutable["qualification"] != "qualified":
         raise ValueError("qualified release authority requires immutable releases")
+    if immutable["enforced_by_owner"] is not True:
+        raise ValueError("qualified immutable releases must be enforced by the repository owner")
     _validate_evidence(
-        immutable["evidence"], "immutable release qualification", require_fresh=require_qualified
+        immutable["evidence"],
+        "immutable release qualification",
+        require_fresh=require_qualified,
+        max_lifetime_days=7,
     )
     if immutable["evidence"]["evidence_sha256"] == value["signer_qualification"]["evidence_sha256"]:
         raise ValueError("signer and immutable release qualifications require distinct evidence")
@@ -256,7 +273,7 @@ def bind_signer_evidence(
     )
     return {
         "github_login": signer["github_login"],
-        "immutable_releases_evidence": authority["immutable_releases"]["evidence"],
+        "immutable_releases": authority["immutable_releases"],
         "signature_sha256": "sha256:"
         + hashlib.sha256(verification["signature"].encode("utf-8")).hexdigest(),
         "signer_qualification": authority["signer_qualification"],
@@ -338,11 +355,17 @@ def load_tag_evidence(path: Path, tag: str, source_sha: str) -> dict[str, Any]:
 
 
 def build_manifest(
-    tag: str, source_sha: str, tag_evidence: dict[str, Any], root: Path = ROOT
+    tag: str,
+    source_sha: str,
+    tag_evidence: dict[str, Any],
+    change_reference: str,
+    root: Path = ROOT,
 ) -> dict[str, Any]:
     policy, interfaces = validate_source(tag, source_sha, root)
     if tag_evidence["release_tag"] != tag or tag_evidence["source_revision"] != source_sha:
         raise ValueError("tag evidence disagrees with the module release identity")
+    if CHANGE_REFERENCE.fullmatch(change_reference) is None:
+        raise ValueError("publication change reference must be an exact Mindclade change")
     interface_bytes = (root / INTERFACE_MANIFEST).read_bytes()
     module_tree = subprocess.run(
         ["git", "rev-parse", f"{source_sha}:infra/terraform/modules"],
@@ -358,6 +381,7 @@ def build_manifest(
         "interface_manifest_sha256": hashlib.sha256(interface_bytes).hexdigest(),
         "module_count": len(interfaces.get("modules", {})),
         "module_tree_sha": module_tree,
+        "publication_change_reference": change_reference,
         "release_tag": tag,
         "schema_version": 2,
         "source_revision": source_sha,
@@ -380,6 +404,7 @@ def main() -> int:
             subparser.add_argument("--immutable-releases-evidence-digest", required=True)
             subparser.add_argument("--output", type=Path, required=True)
         if command == "manifest":
+            subparser.add_argument("--change-reference", required=True)
             subparser.add_argument("--tag-evidence", type=Path, required=True)
             subparser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
@@ -400,7 +425,13 @@ def main() -> int:
         )
     elif args.command == "manifest":
         tag_evidence = load_tag_evidence(args.tag_evidence, args.tag, args.source_sha)
-        document = build_manifest(args.tag, args.source_sha, tag_evidence, root)
+        document = build_manifest(
+            args.tag,
+            args.source_sha,
+            tag_evidence,
+            args.change_reference,
+            root,
+        )
         args.output.write_text(
             json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )

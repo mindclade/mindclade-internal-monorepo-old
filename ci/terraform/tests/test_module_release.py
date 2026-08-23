@@ -43,9 +43,11 @@ def qualified_authority() -> dict[str, object]:
         "signer_qualification": evidence,
         "immutable_releases": {
             "qualification": "qualified",
+            "enforced_by_owner": True,
             "evidence": {
                 **evidence,
                 "evidence_sha256": "sha256:" + "2" * 64,
+                "expires_at": (observed + timedelta(days=7)).isoformat(),
             },
         },
     }
@@ -85,6 +87,18 @@ def test_release_authority_rejects_future_or_reused_evidence() -> None:
         "signer_qualification"
     ]["evidence_sha256"]
     with pytest.raises(ValueError, match="distinct evidence"):
+        MODULE_RELEASE.validate_release_authority(authority, require_qualified=True)
+
+    authority = qualified_authority()
+    authority["immutable_releases"]["enforced_by_owner"] = False
+    with pytest.raises(ValueError, match="enforced by the repository owner"):
+        MODULE_RELEASE.validate_release_authority(authority, require_qualified=True)
+
+    authority = qualified_authority()
+    authority["immutable_releases"]["evidence"]["expires_at"] = (
+        date.today() + timedelta(days=8)
+    ).isoformat()
+    with pytest.raises(ValueError, match="between 1 and 7 days"):
         MODULE_RELEASE.validate_release_authority(authority, require_qualified=True)
 
 
@@ -162,12 +176,20 @@ def test_release_workflow_is_protected_fail_closed_and_never_manages_tags() -> N
     assert "github.ref_protected" in source
     assert "refs/heads/main" in source
     assert "verify-connected" in source and "validate-source" in source
+    assert '--change-reference "${CHANGE_REFERENCE}"' in source
+    assert source.count("assert_current_authorities") == 3
+    assert "immutable-releases-evidence-digest" in source
+    assert ".assets[] | {name: .name, digest: .digest}" in source
+    assert "git fetch" not in source
+    assert 'git/ref/heads/main" --jq .object.sha' in source
+    assert "releases/${release_id}" in source
+    assert "gh release edit" not in source
     assert "cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342" in source
     assert "ci/terraform/check.sh all" in source
     assert "gh release create" in source
     assert "--verify-tag" in source
     assert "--draft" in source
-    assert ".isImmutable == true" in source
+    assert ".immutable == true" in source
     assert "steps.attest.outputs.bundle-path" in source
     for publishing_command in ("git tag", "git push", "gh release delete"):
         assert publishing_command not in source

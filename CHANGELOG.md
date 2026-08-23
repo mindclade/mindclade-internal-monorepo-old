@@ -14,6 +14,8 @@ releases also carry immutable release manifests and evidence bundles.
   identity, expiring signer evidence, and independent immutable-release evidence;
 - qualified the tag's exact peeled source before building and attesting a schema-2 module manifest,
   then attached the manifest, checksum, and attestation to a draft before immutable publication;
+- reauthorized current `main`, the exact tag, fresh owner-enforced immutability evidence, and all
+  three asset digests after the environment wait and again at the draft publication boundary;
 - kept v0.4.0 planned and the authority blocked until the signer, immutable-releases setting,
   protected Security-reviewed environment, independent Release tag signing, and current whole-tree
   qualification are proven; and

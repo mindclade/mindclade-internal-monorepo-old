@@ -99,10 +99,12 @@ the six WIF capabilities are applied and negatively tested, and the connected ca
 
 `terraform-module-release.yml` is a separate module-source authority. It is dispatched only from
 the current protected `main`, qualifies an existing SSH-signed annotated tag, binds the exact
-source-managed signer fingerprint and expiring evidence, and publishes a manifest, checksum, and
-attestation through the monorepo-only `terraform-module-release` environment. The v0.4.0 source
-contract, signer authority, immutable-releases setting, and environment are still blocked; no
-merged workflow or local pass creates a tag or release.
+source-managed signer fingerprint and expiring owner-enforced evidence, and publishes a manifest,
+checksum, and attestation through the monorepo-only `terraform-module-release` environment. It
+reauthorizes current `main`, the tag, evidence, and exact asset digests after the approval wait and
+at the draft publication boundary. The v0.4.0 source contract, signer authority,
+immutable-releases setting, and environment are still blocked; no merged workflow or local pass
+creates a tag or release.
 
 ## Dependency updates
 
