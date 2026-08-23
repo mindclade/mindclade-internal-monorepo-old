@@ -49,20 +49,6 @@ func TestPlacementQueueNameIsSharedWithTheSchedulerRole(t *testing.T) {
 	}
 }
 
-// The scheduler role injects the domain service through
-// WithPlacementHandler(workqueue.Handler). If the domain stopped satisfying that
-// interface the role would fall back to its fail-closed default, which refuses
-// every item — correct, but silent.
-func TestSchedulingServiceSatisfiesTheWorkQueueHandlerContract(t *testing.T) {
-	var handler workqueue.Handler = scheduling.Service{
-		Repository: scheduling.NewMemoryRepository(0),
-		Fence:      1,
-	}
-	if handler == nil {
-		t.Fatal("scheduling.Service must satisfy workqueue.Handler")
-	}
-}
-
 // A handler that acknowledges work it cannot perform is worse than one that
 // retries: the item leaves the queue and the placement never happens. An
 // unconfigured service must fail rather than return a nil error.

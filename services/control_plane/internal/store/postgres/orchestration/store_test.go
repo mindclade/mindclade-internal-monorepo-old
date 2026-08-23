@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"go.mindclade.dev/control/orchestration"
-	"go.mindclade.dev/control/runtime_authority"
 	"go.mindclade.dev/libs/go/audit"
 	"go.mindclade.dev/libs/go/clock"
 	"go.mindclade.dev/libs/go/coordination/outbox"
@@ -86,23 +85,6 @@ func testID(t *testing.T, kind string) string {
 	return id.String()
 }
 
-func testStage(t *testing.T, id string) orchestration.StageSpec {
-	t.Helper()
-	return orchestration.StageSpec{
-		StageID:              id,
-		Kind:                 orchestration.StagePreprocess,
-		Operation:            "fetch",
-		OutputNamespace:      "raw",
-		ResolvedConfigDigest: identifiers.SHA256String("config"),
-		Budget: runtime_authority.ExecutionBudget{
-			CPUMillis: 1000, ResidentMemoryBytes: 1 << 20,
-			OpenFileDescriptors: 16, CPUWorkerThreads: 1,
-		},
-		Timeout:         time.Minute,
-		MaximumAttempts: 3,
-	}
-}
-
 // newStageRecord builds a sealed stage. StageRecord.Validate requires the
 // version to seal the content, so a hand-built literal is not a valid record.
 func newStageRecord(t *testing.T) orchestration.StageRecord {
@@ -112,21 +94,6 @@ func newStageRecord(t *testing.T) orchestration.StageRecord {
 		t.Fatalf("new stage: %v", err)
 	}
 	return record
-}
-
-func TestStoreSatisfiesTheRepositoryContract(t *testing.T) {
-	// The compile-time assertion in store.go is the real check; this names it so
-	// a reader of the test file learns the contract exists.
-	var repository orchestration.Repository = mustStore(t)
-	if repository == nil {
-		t.Fatal("the store must satisfy orchestration.Repository")
-	}
-}
-
-func mustStore(t *testing.T) *Store {
-	t.Helper()
-	store, _ := newHarness(t)
-	return store
 }
 
 // A mutation must own exactly one transaction. Two would mean a partial commit
