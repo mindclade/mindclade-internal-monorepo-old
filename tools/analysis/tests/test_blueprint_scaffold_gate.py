@@ -100,3 +100,115 @@ def test_unsafe_paths_are_never_counted_as_materialized(tmp_path: Path) -> None:
     assert result["blueprint_path_count"] == 3
     assert result["materialized_path_count"] == 1
     assert result["coverage_percent"] == 33.3333
+
+
+def test_regular_manifest_and_nested_files_remain_safe(tmp_path: Path) -> None:
+    root = scaffold(
+        tmp_path / "repo",
+        ["top-level.txt", "nested/deeper/value.txt"],
+        {"top-level.txt": "top\n", "nested/deeper/value.txt": "nested\n"},
+    )
+
+    result = checker.check(root, root / checker.MANIFEST_RELPATH)
+
+    assert result["manifest_errors"] == []
+    assert result["unsafe_paths"] == []
+    assert result["missing_paths"] == []
+    assert result["materialized_path_count"] == 2
+    assert result["coverage_percent"] == 100.0
+
+
+def test_listed_leaf_and_ancestor_symlinks_are_unsafe(tmp_path: Path) -> None:
+    outside_leaf = tmp_path / "outside-leaf.txt"
+    outside_leaf.write_text("outside\n", encoding="utf-8")
+    outside_directory = tmp_path / "outside-directory"
+    outside_directory.mkdir()
+    (outside_directory / "value.txt").write_text("outside\n", encoding="utf-8")
+    root = scaffold(
+        tmp_path / "repo",
+        [
+            "leaf-link.txt",
+            "directory-link/value.txt",
+            "internal-link/value.txt",
+            "nested/value.txt",
+        ],
+        {"real/value.txt": "target\n", "nested/value.txt": "safe\n"},
+    )
+    (root / "leaf-link.txt").symlink_to(outside_leaf)
+    (root / "directory-link").symlink_to(outside_directory, target_is_directory=True)
+    (root / "internal-link").symlink_to(root / "real", target_is_directory=True)
+
+    result = checker.check(root, root / checker.MANIFEST_RELPATH)
+
+    assert result["unsafe_paths"] == [
+        "directory-link/value.txt",
+        "internal-link/value.txt",
+        "leaf-link.txt",
+    ]
+    assert result["missing_paths"] == []
+    assert result["materialized_path_count"] == 1
+    assert result["coverage_percent"] == 25.0
+
+
+def test_manifest_leaf_symlink_is_rejected(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    manifest = root / checker.MANIFEST_RELPATH
+    manifest.parent.mkdir(parents=True)
+    outside = tmp_path / "outside-manifest.txt"
+    outside.write_text("real.txt\n", encoding="utf-8")
+    manifest.symlink_to(outside)
+
+    result = checker.check(root, manifest)
+
+    assert result["blueprint_path_count"] == 0
+    assert result["manifest_errors"] == [
+        f"blueprint manifest is unsafe: {checker.MANIFEST_RELPATH} (path contains a symbolic link)"
+    ]
+    assert suite._blueprint_scaffold(root) == result["manifest_errors"]
+
+
+def test_manifest_ancestor_symlink_is_rejected(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    root.mkdir()
+    outside_docs = tmp_path / "outside-docs"
+    outside_docs.mkdir()
+    (outside_docs / "production-monorepo-paths.txt").write_text("real.txt\n", encoding="utf-8")
+    (root / "docs").symlink_to(outside_docs, target_is_directory=True)
+
+    result = checker.check(root, root / checker.MANIFEST_RELPATH)
+
+    assert result["blueprint_path_count"] == 0
+    assert result["manifest_errors"] == [
+        f"blueprint manifest is unsafe: {checker.MANIFEST_RELPATH} (path contains a symbolic link)"
+    ]
+    assert suite._blueprint_scaffold(root) == result["manifest_errors"]
+
+
+def test_manifest_outside_repository_root_is_rejected(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    root.mkdir()
+    outside = tmp_path / "outside-manifest.txt"
+    outside.write_text("real.txt\n", encoding="utf-8")
+
+    result = checker.check(root, outside)
+
+    assert result["blueprint_path_count"] == 0
+    assert result["manifest_errors"] == [
+        f"blueprint manifest is outside the repository root: {outside}"
+    ]
+
+
+def test_cli_exit_codes_share_empty_manifest_failure(tmp_path: Path, monkeypatch, capsys) -> None:
+    empty_root = scaffold(tmp_path / "empty", [], {})
+    monkeypatch.setattr(sys, "argv", ["check_blueprint_scaffold", "--root", str(empty_root)])
+
+    assert checker.main() == 1
+    empty_output = capsys.readouterr()
+    assert f"blueprint manifest lists no paths: {checker.MANIFEST_RELPATH}" in empty_output.err
+
+    valid_root = scaffold(tmp_path / "valid", ["real.txt"], {"real.txt": "content\n"})
+    monkeypatch.setattr(sys, "argv", ["check_blueprint_scaffold", "--root", str(valid_root)])
+
+    assert checker.main() == 0
+    valid_output = capsys.readouterr()
+    assert valid_output.err == ""

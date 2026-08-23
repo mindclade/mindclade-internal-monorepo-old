@@ -52,7 +52,7 @@ _BLUEPRINT_UNGATED = frozenset({"missing_paths"})
 _BLUEPRINT_DEFECT_MESSAGES = {
     "duplicate_paths": "is listed more than once in the blueprint manifest",
     "unexpected_empty_paths": "is materialized but unexpectedly empty",
-    "unsafe_paths": "is absolute or escapes the repository root",
+    "unsafe_paths": "is absolute or escapes the repository root or contains a symbolic link",
 }
 
 
@@ -78,18 +78,17 @@ def _blueprint_scaffold(root: Path) -> list[str]:
     the count; this check owns the remaining invariants.
     """
     relpath = check_blueprint_scaffold.MANIFEST_RELPATH
-    manifest = root / relpath
-    if not manifest.is_file():
-        return [f"blueprint manifest is missing: {relpath}"]
-    result = check_blueprint_scaffold.check(root, manifest)
-    if not result["blueprint_path_count"]:
-        return [f"blueprint manifest lists no paths: {relpath}"]
-    return [
+    result = check_blueprint_scaffold.check(root, root / relpath)
+    if not check_blueprint_scaffold.has_failures(result, include_missing=False):
+        return []
+    errors = list(cast("list[str]", result["manifest_errors"]))
+    errors.extend(
         f"{path} {_BLUEPRINT_DEFECT_MESSAGES.get(key, 'violates a blueprint manifest invariant')}"
         for key in check_blueprint_scaffold.DEFECT_KEYS
         if key not in _BLUEPRINT_UNGATED
         for path in cast("list[str]", result[key])
-    ]
+    )
+    return errors
 
 
 CHECKS = [
