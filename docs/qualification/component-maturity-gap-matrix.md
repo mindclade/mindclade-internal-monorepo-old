@@ -1,9 +1,9 @@
 # Component maturity gap matrix
 
 **Review date:** 2026-08-23
-**Scope:** all 89 components declared in `components.toml`, against the six rules
+**Scope:** all 94 components declared in `components.toml`, against the six rules
 `maturity.toml` enumerates for `production`.
-**Decision:** no component advances. 0 of 89 satisfy `production`; the 24 that mechanically
+**Decision:** no component advances. 0 of 94 satisfy `production`; the 28 that mechanically
 satisfy `qualified` are rejected on document review, not on paperwork.
 
 ## Reproducing this
@@ -25,28 +25,32 @@ An unreferenced document does not satisfy a rule; `~` is a lead, not a pass.
 
 | Gate | Met | Unreferenced evidence |
 |---|---|---|
-| `requires_tests` | 85 / 89 | 0 |
-| `requires_build_target` | 89 / 89 | 0 |
-| `requires_qualification` | 28 / 89 | 0 |
-| `requires_slo` | 0 / 89 | 20 |
-| `requires_runbook` | 0 / 89 | 20 |
-| `requires_release_target` | 0 / 89 | 12 |
+| `requires_tests` | 90 / 94 | 0 |
+| `requires_build_target` | 94 / 94 | 0 |
+| `requires_qualification` | 28 / 94 | 0 |
+| `requires_slo` | 0 / 94 | 20 |
+| `requires_runbook` | 0 / 94 | 20 |
+| `requires_release_target` | 1 / 94 | 12 |
 
-Blocker sets, which partition all 89 components:
+Blocker sets, which partition all 94 components:
 
 | Components | Missing |
 |---|---|
-| 57 | qualification, SLO, runbook, release target |
+| 61 | qualification, SLO, runbook, release target |
 | 28 | SLO, runbook, release target |
 | 4 | tests, qualification, SLO, runbook, release target (the four `scaffolded` umbrellas) |
+| 1 | qualification, SLO, runbook (`services.go_vanity`, below) |
 
 ## Why every component is blocked
 
-**`release_target` is unmet by all 89 and is the binding constraint.** No component declares
-the field. `ci/release/targets.yaml` is the closed catalog a release request selects from, and
-it holds exactly three entries — `go-vanity`, `protobuf-contracts`, `weights-fixture` — whose
-Bazel packages overlap 12 declared components. `ci/release/requests/` contains only its README:
-no release request has ever been merged, so nothing in the tree has been released. `ci/release/README.md`
+**`release_target` is unmet by 93 of 94 and is the binding constraint.** One component declares
+the field: `services.go_vanity` names the `go-vanity` catalog entry, which is why its blocker
+set is one shorter than everything else's. `ci/release/targets.yaml` is the closed catalog a
+release request selects from, and it holds exactly three entries — `go-vanity`,
+`protobuf-contracts`, `weights-fixture` — whose Bazel packages overlap 12 declared components.
+Naming one is a statement that the catalog entry exists and nothing more:
+`ci/release/requests/` contains only its README, so no release request has ever been merged and
+nothing in the tree has been released. `ci/release/README.md`
 states that production activation additionally requires the reviewed `.github` v5 release,
 runner-group policy, capability-specific WIF, connected ARC canary evidence, and a ready GitOps
 receiver. None of that is in this repository.
@@ -95,46 +99,97 @@ follow a correction of the page rather than precede it.
 
 ## Statuses not advanced, and why
 
-- **24 components mechanically satisfy `qualified`** (tests + qualification + build target):
-  `ci.cpu_nightly`, `ci.presubmit`, `data`, `infra.security_contracts`, `infra.terraform.modules`,
-  `libs.rust`, `libs.typescript`, the five `models.*` leaves, the ten `protocols.protobuf.*`
-  packages, `runtime.ai_gateway_proxy`, and `sdk.typescript`. None advance: their qualification
-  references are the pending statements and READMEs in the table above.
+- **28 components mechanically satisfy `qualified`** (tests + qualification + build target):
+  `apps.admin`, `apps.console`, `ci.cpu_nightly`, `ci.presubmit`, `control.model_registry`,
+  `data`, `infra.security_contracts`, `infra.terraform.modules`, `libs.go`, `libs.rust`,
+  `libs.typescript`, the five `models.*` leaves, the ten `protocols.protobuf.*` packages,
+  `runtime.ai_gateway_proxy`, and `sdk.typescript`. None advance beyond where they already are:
+  their qualification references are the pending statements and READMEs in the table above, and
+  `control.model_registry` is the one already recorded `qualified` on the strength of the one
+  real record.
+- **`services.studio` and `services.go_vanity` are recorded `implemented`, not higher.** Neither
+  carries a qualification document, so neither reaches `qualified`; see the section below.
 - **`control.routing` stays `experimental`.** It has an SLO and a runbook in the ownership
   registry and no qualification evidence at all.
 - **The four `scaffolded` umbrellas** — `models`, `training`, `evaluation`, `kernels` — declare no
   tests, which is correct for reserved space.
 
-## Rules that are declared but not enforced
+## `production_dependency` is enforced
 
-`production_dependency = false` on `planned`, `scaffolded`, and `experimental` is read by no
-code. It is vacuously satisfied by its own wording because no component is `production`, but a
-passing `check_component_maturity` run is not evidence that the clause was checked.
-`components.toml` records no dependency edges, so enforcing it requires either adding edges or
-joining the rule against an import graph.
-
-The wider invariant — production-track code may not depend on `planned`, `scaffolded`, or
-`experimental` — does not hold vacuously, and it is already breached. Joining
-`components.toml` against `tools/analysis/go_import_graph.py` finds one edge out of the
-declared production-track surface:
+This section previously recorded `production_dependency = false` as read by no code. That is no
+longer true. `tools/analysis/check_production_dependencies.py` joins the rule against the real
+Go import graph (`tools/analysis/go_import_graph.py`), runs in the static suite, and resolved
+the one live violation the join found:
 
 - `control/ingestion`, declared `implemented`, imports `go.mindclade.dev/control/orchestration`
-  from non-test production code (`control/ingestion/pipeline.go`, `control/ingestion/stage.go`).
-  `control/orchestration` is not declared in `components.toml`, so it carries no status at all
-  and no maturity rule reaches it. An undeclared package is neither pass nor fail — it is
-  invisible, which is worse than a bad status because nothing can report on it.
+  from non-test production code (`control/ingestion/pipeline.go`, `control/ingestion/stage.go`),
+  and `control/orchestration` is `experimental`. The edge carries a dated, ADR-0020-backed entry
+  in `PRODUCTION_DEPENDENCY_EXCEPTIONS` expiring 2026-11-14, which the checker rejects if the
+  owner is not an OWNERS.toml team, the ADR is not accepted, the date has passed or is more than
+  90 days out, or the edge stops being a live violation.
 
-Two adjacent edges are outside that join and are recorded here rather than silently omitted:
-`services/control_plane/tests/api_test.go` imports `control/routing`, which is `experimental`
-(test code, not a linked production edge), and `services/control_plane` is itself undeclared, so
-it is not a production-track source the sweep can anchor on.
+The rule binds every status that does not carry the flag — `implemented`, `qualified`,
+`production` and `deprecated` — not only `production`, so it was never vacuous.
 
-## Undeclared surface
+One adjacent edge stays outside the join and is recorded here rather than silently omitted:
+`services/control_plane/tests/api_test.go` imports `control/routing`, which is `experimental`.
+That is test code, not a linked production edge, and `services/control_plane` is still
+undeclared, so it is not a production-track source the sweep can anchor on either way.
 
-`services/go_vanity` is a deployable Go service with a `BUILD.bazel`, an image target, and the
-`go-vanity` entry in the release catalog, but it is not declared in `components.toml` or
-`architecture/component_ownership.toml`. It is invisible to the maturity gate. Declaring it
-requires an owner and a criticality tier from the owning team.
+## Undeclared surface under `services/`
+
+`services/` held **17,721 lines of non-scaffold production Go across 58 packages** with no
+`components.toml` entry — the largest remaining instance of the hole a declaration gate exists
+to close, since every rule in `maturity.toml` is a rule about a *declared* component. Classified
+by file rather than counted, that surface is three deployables:
+
+| Deployable | Packages | Production Go (raw / non-blank) | Test files | Bazel | Declared as | Coverage where tests execute |
+|---|---|---|---|---|---|---|
+| `services/control_plane` | 45 | 13,732 / 11,006 | 43 | `go_library` + `go_test` throughout | **not declared — blocked** | 24 packages execute tests (`bootstrap` 58.8%, `config` 77.8%, `foundation/orchestration` 85.7%, `providers/api` 62.3%, `providers/apikeys` 84.4%, `store/postgres/admission` 40.8%); the 11 `cmd/*` mains are 9 lines each and 21 packages report 0.0% |
+| `services/studio` | 10 | 3,466 / 1,979 | 15 | `go_library` + `go_test` in all 10 | `services.studio`, `implemented`, tier-2 | `authz` 96.7%, `session` 94.2%, `iap` 87.4%, `stream` 77.3%, `metrics` 69.8%, `server` 51.0%, `httpx` 50.6%, `handoff` 35.6%, `cmd/studio` 18.8%; **`runlog` 0.0%** |
+| `services/go_vanity` | 3 | 523 / 355 | 3 | `go_library`/`go_binary`/`go_test`, plus `oci_image`/`oci_push` | `services.go_vanity`, `implemented`, tier-2 | `vanity` 93.0%, `service` 91.3%, `cmd/go_vanity` 12.0% |
+
+Two scaffold placeholders sit inside `services/control_plane` and are correctly excluded:
+reserved space is not a component. The Rust and Python services under `services/` were already
+declared and are not part of this count.
+
+**Granularity is the deployable, not the package.** Go's `internal/` is a compiler-enforced
+boundary, so `services/studio/internal/session` has no consumers outside its own deployable for
+a status to gate. Declaring 58 components would publish 58 statuses describing two shipping
+decisions. `check_component_maturity.py` matches declarations by path prefix precisely so an
+owner can declare at the granularity they ship at.
+
+**Two declarations, at the status the evidence supports.** Both are `implemented` — tests and a
+building Bazel target, which is what `maturity.toml` requires — and neither is `qualified`,
+because neither has a qualification document. `services.studio`'s `tests` list omits
+`internal/runlog/runlog_test.go`: it is entirely gated on `STUDIO_TEST_DATABASE_URL` and reports
+0.0% statement coverage without it, so listing it would claim evidence CI does not produce.
+`internal/handoff` is listed because `contention_test.go` beside the DSN-gated `handoff_test.go`
+runs with no database at all. Both are tier-2, matching the record's existing line for browser
+surfaces (`apps.console` and `apps.admin`, the TypeScript clients studio serves, are tier-2) and
+for a credential-free static responder.
+
+**`services/control_plane` cannot be declared here, and that is the result rather than an
+omission.** Its evidence supports `implemented` and its owner is unambiguous — OWNERS.toml
+claims `services/control_plane/**` for platform-control explicitly. Its tier is unambiguous too:
+it composes `control.runtime_authority`, `control.admission`, `control.artifacts`,
+`control.ingestion`, `control.model_registry` and `control.release_evidence`, every one tier-1,
+so the deployable hosting them cannot honestly sit below tier-1. That is exactly what blocks it.
+`check_component_ownership.py` requires **both** an `slo` and a `runbook` for any tier-0/tier-1
+component at `implemented` or above. `docs/runbooks/control-plane-outage.md` exists; `docs/slo/`
+has nineteen pages and none of them is the control plane's. The two ways to land the declaration
+are to write that SLO — platform-control's to write — or to record the component tier-2, which
+would be choosing a criticality to clear a gate rather than to describe the service.
+
+**The gate is widened only as far as it reaches zero.**
+`_GO_DECLARATION_GOVERNED_ROOTS` in `check_component_maturity.py` now reads
+`("control", "libs", "services/go_vanity", "services/studio")`. The entries are path prefixes,
+not top-level directories, so a root can be narrower than a directory. This is an allowlist of
+what *is* governed, not a denylist of paths waved through a check that claims to cover them: no
+path is exempted by name anywhere inside a governed root, and nothing here asserts
+`services/control_plane` is fine. When the control-plane SLO exists, those two entries collapse
+to a single `services`, and the test that pins the gap
+(`test_services_control_plane_is_a_measured_gap_not_an_assumed_one`) is deleted with them.
 
 ## What would change the answer
 
