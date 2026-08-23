@@ -285,8 +285,7 @@ def test_sizing_budget_is_shared_rather_than_per_candidate(
 
     monkeypatch.setattr(disk_preflight, "directory_size", spend_the_whole_share)
     candidates = [
-        disk_preflight.Candidate(tmp_path, f"candidate {index}")
-        for index in range(candidate_count)
+        disk_preflight.Candidate(tmp_path, f"candidate {index}") for index in range(candidate_count)
     ]
     started = time.monotonic()
     sized = disk_preflight.size_candidates(candidates, total_budget=budget)
