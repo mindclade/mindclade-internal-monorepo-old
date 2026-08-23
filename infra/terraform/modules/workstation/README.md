@@ -75,6 +75,60 @@ as `required_cache_grants` rather than created here: the buckets belong to `nix_
 `bazel_remote_cache`, which already expose member inputs. Two Terraform states each believing they
 own the same binding is how removing one revokes access the other still claims.
 
+## Provisioning sources in a locked-down VPC
+
+The startup script needs two things from outside the instance: Debian packages and the Nix
+installer. Both defaults are public internet endpoints — Debian's mirrors and `nixos.org` — and the
+environment this module targets denies egress by default at firewall priority 65000, admitting only
+intra-VPC traffic, the restricted Google API VIP, and the metadata server. There the defaults are
+not slow, they are blocked, and the instance boots reachable-but-unprovisioned.
+
+The idle timer is installed ahead of both fetches and both are non-fatal, so a blocked fetch costs a
+`nix` binary rather than an instance billing unwatched; `cat /var/lib/mindclade-provisioning-status`
+says which steps completed. That is damage control. These inputs are the repair:
+
+| Input | Replaces | Default |
+|---|---|---|
+| `apt_mirror_url` | the image's entire `sources.list` | the image's own public mirrors |
+| `apt_mirror_components` | the components on the internal `deb` line | `main` |
+| `nix_installer_url` | `https://nixos.org/nix/install` | the public installer |
+| `nix_installer_sha256` | nothing — adds a pin | unpinned |
+| `nix_substituter_uri` | the substituter list, wholesale | unset; see below |
+| `nix_substituter_trusted_public_key` | the trusted-key list | unset |
+
+`var.metadata` refuses the `startup-script` key, so a caller cannot supply a script of its own.
+These inputs are the only place this can be fixed.
+
+An override **replaces** its public source rather than adding to it, and the branch is resolved at
+plan time rather than in the guest. With `apt_mirror_url` set, the image's source files are moved
+aside to `.disabled` and the rendered script does not name the public mirror at all — leaving both
+enabled would mean `apt-get update` still stalls on `deb.debian.org` until it times out and still
+reports failure, override or no override. The suite comes from the booted image's
+`VERSION_CODENAME` rather than an input, so a mirror line cannot disagree with the image it is for.
+
+Every URL is constrained to `https` with a dotted DNS host: no plain `http`, no bare IP literal, no
+embedded credential, no query string or fragment. These values are rendered into instance metadata,
+which any principal holding `compute.instances.get` can read, and what `nix_installer_url` serves is
+executed as root. `nix_installer_sha256` pins that payload; on a mismatch the installer is not run
+and the status file records `FAILED-installer-digest-mismatch` rather than a firewall-shaped error.
+
+### What this does not do
+
+It makes the module *capable* of internal sourcing. It creates no mirror. A locked-down deployment
+still needs all of the following, none of which is in this module's authority:
+
+- **An APT remote repository the subnet can reach** — an Artifact Registry APT remote repository or
+  an estate-run mirror. For Artifact Registry that means DNS for `*.pkg.dev` resolving to the
+  restricted VIP, `roles/artifactregistry.reader` for the workstation identity (add it through
+  `extra_project_roles`; the deny list covers `writer` and `repoAdmin`, not `reader`), and — for a
+  private repository — the `apt-transport-artifact-registry` transport, which cannot be installed
+  from the mirror it is needed to reach and so must be baked into `var.image`.
+- **A reviewed Nix installer source**, served over `https` from inside the estate with a recorded
+  digest, so `nix_installer_sha256` has something true to assert. Nothing here reviews, mirrors, or
+  republishes the upstream installer.
+- **Cloud NAT**, still, for whatever is left on a public source. With every override set the
+  instance needs no NAT to provision; with none set it needs NAT for both fetches.
+
 ## The Nix cache is not a substituter
 
 The startup script installs Nix but does **not** point it at the Nix cache bucket.
@@ -82,6 +136,13 @@ The startup script installs Nix but does **not** point it at the Nix cache bucke
 false` with reason `raw-private-gcs-is-not-a-nix-substituter`; raw private GCS does not speak the
 authenticated Nix cache protocol. The `objectViewer` grant is for tooling that reads objects.
 Until a reviewed substituter service exists, this machine builds its closure locally.
+
+`nix_substituter_uri` and `nix_substituter_trusted_public_key` are the hook such a service plugs
+into, which is why they default to unset. They are **not** where the estate's cache bucket goes:
+setting them to it would contradict the contract `nix_binary_cache` publishes and would point the
+guest at an endpoint that does not implement the protocol. The two are refused unless set together,
+because this module never relaxes `require-sigs` and a substituter with no trusted key serves paths
+the guest cannot verify.
 
 This module also exports no NixOS, nix-darwin, or Home Manager configuration, matching
 `tools/build/nix/README.md`: the repository owns toolchains, not workstation or server lifecycle.
@@ -105,7 +166,9 @@ later should be a reviewed decision that states that trade explicitly.
 ## Prerequisites this module does not create
 
 - Cloud NAT and Private Google Access. The instance has no external address, so package and
-  substituter egress depends on both.
+  substituter egress depends on both — unless the provisioning sources are pointed at internal
+  ones, which this module can express but does not create. See "Provisioning sources in a
+  locked-down VPC".
 - `roles/cloudkms.cryptoKeyEncrypterDecrypter` for the Compute Engine service agent on the CMEK.
 - Cache bucket IAM, via `required_cache_grants`.
 - The firewall rule, if `create_iap_ssh_firewall_rule = false`; `required_firewall_rule` still
@@ -137,6 +200,8 @@ evidence must cover.
 | Name | Description | Type | Default | Required |
 | ---- | ----------- | ---- | ------- | :------: |
 | <a name="input_allow_stopping_for_update"></a> [allow\_stopping\_for\_update](#input\_allow\_stopping\_for\_update) | Permit Terraform to stop the instance when an update requires it | `bool` | `true` | no |
+| <a name="input_apt_mirror_components"></a> [apt\_mirror\_components](#input\_apt\_mirror\_components) | Debian components published by apt\_mirror\_url; null means main only | `list(string)` | `null` | no |
+| <a name="input_apt_mirror_url"></a> [apt\_mirror\_url](#input\_apt\_mirror\_url) | Internal Debian mirror base URL replacing the image's sources.list; null keeps the image default | `string` | `null` | no |
 | <a name="input_bazel_cache_bucket_name"></a> [bazel\_cache\_bucket\_name](#input\_bazel\_cache\_bucket\_name) | Bazel remote cache bucket the workstation identity may read and write | `string` | n/a | yes |
 | <a name="input_boot_disk_size_gb"></a> [boot\_disk\_size\_gb](#input\_boot\_disk\_size\_gb) | Boot disk size; the Nix store and Bazel cache live on the data disk, not here | `number` | `200` | no |
 | <a name="input_create_iap_ssh_firewall_rule"></a> [create\_iap\_ssh\_firewall\_rule](#input\_create\_iap\_ssh\_firewall\_rule) | Create the IAP ingress rule here; set false when firewall rules are centralized | `bool` | `true` | no |
@@ -160,6 +225,10 @@ evidence must cover.
 | <a name="input_network"></a> [network](#input\_network) | Network owning the IAP ingress rule; required when this module creates that rule | `string` | `null` | no |
 | <a name="input_network_tag"></a> [network\_tag](#input\_network\_tag) | Network tag binding the IAP ingress rule to this instance | `string` | `null` | no |
 | <a name="input_nix_cache_bucket_name"></a> [nix\_cache\_bucket\_name](#input\_nix\_cache\_bucket\_name) | Nix binary cache bucket the workstation identity may read | `string` | n/a | yes |
+| <a name="input_nix_installer_sha256"></a> [nix\_installer\_sha256](#input\_nix\_installer\_sha256) | SHA-256 pin for the fetched Nix installer; a mismatch refuses to run it | `string` | `null` | no |
+| <a name="input_nix_installer_url"></a> [nix\_installer\_url](#input\_nix\_installer\_url) | Internal Nix installer script URL replacing nixos.org; null keeps the public installer | `string` | `null` | no |
+| <a name="input_nix_substituter_trusted_public_key"></a> [nix\_substituter\_trusted\_public\_key](#input\_nix\_substituter\_trusted\_public\_key) | Ed25519 key trusted for nix\_substituter\_uri, as name:base64; required with it | `string` | `null` | no |
+| <a name="input_nix_substituter_uri"></a> [nix\_substituter\_uri](#input\_nix\_substituter\_uri) | Reviewed Nix substituter for the guest; null because no such service exists yet | `string` | `null` | no |
 | <a name="input_operator_principals"></a> [operator\_principals](#input\_operator\_principals) | Human principals permitted to open an IAP tunnel and log in | `set(string)` | n/a | yes |
 | <a name="input_os_login_role"></a> [os\_login\_role](#input\_os\_login\_role) | OS Login role granted to operators; osAdminLogin grants sudo | `string` | `"roles/compute.osLogin"` | no |
 | <a name="input_owner"></a> [owner](#input\_owner) | Accountable team governance label | `string` | n/a | yes |
