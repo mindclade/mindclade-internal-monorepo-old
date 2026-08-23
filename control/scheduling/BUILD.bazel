@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -30,6 +30,31 @@ go_library(
         "reservation.go",
         "service.go",
         "topology.go",
+        "validation.go",
     ],
     importpath = "go.mindclade.dev/control/scheduling",
+    visibility = [
+        "//control:__subpackages__",
+        "//services:__subpackages__",
+    ],
+    deps = [
+        "//control/orchestration",
+        "//libs/go/clock",
+        "//libs/go/coordination/workqueue",
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+        "//libs/go/resourceversion",
+    ],
+)
+
+go_test(
+    name = "scheduling_test",
+    srcs = glob(["*_test.go"]),
+    embed = [":scheduling"],
+    deps = [
+        "//control/orchestration",
+        "//libs/go/clock",
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+    ],
 )

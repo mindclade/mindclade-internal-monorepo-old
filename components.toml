@@ -93,7 +93,13 @@ name = "control.scheduling"
 path = "control/scheduling"
 status = "implemented"
 owner = "platform-control"
-tests = ["control/scheduling/capacity_test.go"]
+tests = [
+  "control/scheduling/placement_test.go",
+  "control/scheduling/fair_share_test.go",
+  "control/scheduling/capacity_test.go",
+  "control/scheduling/admission_test.go",
+  "control/scheduling/pool_test.go",
+]
 slo = "docs/slo/control-scheduling.md"
 runbook = "docs/runbooks/control-scheduling.md"
 
