@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 import shutil
-import time
 from pathlib import Path
 
 import pytest
@@ -100,6 +99,33 @@ def test_directory_size_stops_at_its_deadline(tmp_path: Path) -> None:
     # A deadline already in the past must return immediately and say so, rather than walking a
     # tree on a filesystem that is by definition already under pressure.
     size, truncated = disk_preflight.directory_size(tmp_path, deadline=float("-inf"))
+    assert truncated
+    assert size == 0
+
+
+def test_directory_size_checks_deadline_within_a_wide_directory(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # The old walk checked only between directories. A flat cache directory with hundreds of
+    # thousands of entries could therefore overrun the deadline by the whole scan.
+    (tmp_path / "blob").write_bytes(b"\0" * 1024)
+    ticks = iter([0.0, 2.0])
+    monkeypatch.setattr(disk_preflight.time, "monotonic", lambda: next(ticks))
+
+    size, truncated = disk_preflight.directory_size(tmp_path, deadline=1.0)
+
+    assert truncated
+    assert size == 0
+
+
+def test_directory_size_with_zero_remaining_budget_counts_no_entries(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    (tmp_path / "blob").write_bytes(b"\0" * 1024)
+    monkeypatch.setattr(disk_preflight.time, "monotonic", lambda: 1.0)
+
+    size, truncated = disk_preflight.directory_size(tmp_path, deadline=1.0)
+
     assert truncated
     assert size == 0
 
@@ -276,48 +302,51 @@ def test_sizing_budget_is_shared_rather_than_per_candidate(
     candidate_count = 20
     budget = 0.5
     shares: list[float] = []
+    clock = 0.0
 
     def spend_the_whole_share(path: Path, deadline: float) -> tuple[int, bool]:
-        share = deadline - time.monotonic()
+        nonlocal clock
+        share = deadline - clock
         shares.append(share)
-        time.sleep(max(0.0, share))
+        clock = deadline
         return 1, True
 
+    monkeypatch.setattr(disk_preflight.time, "monotonic", lambda: clock)
     monkeypatch.setattr(disk_preflight, "directory_size", spend_the_whole_share)
     candidates = [
         disk_preflight.Candidate(tmp_path, f"candidate {index}") for index in range(candidate_count)
     ]
-    started = time.monotonic()
     sized = disk_preflight.size_candidates(candidates, total_budget=budget)
-    elapsed = time.monotonic() - started
 
     assert len(sized) == candidate_count
     # The whole point: bounded by the shared budget, not by count x per-candidate ceiling.
-    assert elapsed < budget * 3
-    assert elapsed < candidate_count * disk_preflight.SIZE_SCAN_SECONDS
-    # No candidate is starved to nothing, and none exceeds the per-directory ceiling. The 0.99
-    # slack absorbs the microseconds that pass between computing the deadline and reading the
-    # clock inside the callee; without it this asserts on scheduler noise, not on the policy.
-    assert all(share >= disk_preflight.SIZE_SCAN_MIN_SECONDS * 0.99 for share in shares)
+    assert clock == pytest.approx(budget)
+    assert sum(shares) == pytest.approx(budget)
+    # Fair sharing gives every candidate the same nonzero slice when each predecessor spends
+    # its allocation, while no candidate exceeds the per-directory ceiling.
+    assert all(share == pytest.approx(budget / candidate_count) for share in shares)
     assert all(share <= disk_preflight.SIZE_SCAN_SECONDS for share in shares)
 
 
-def test_exhausted_budget_still_gives_every_candidate_its_floor(
+def test_exhausted_budget_does_not_extend_the_deadline(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    # A global-only budget is spent by whichever tree is walked first, and every candidate after
-    # it reports "0.0 GiB" -- which reads as "these are empty", not "these were not measured".
+    # A per-candidate floor after the shared deadline has expired makes the claimed global
+    # ceiling false. Exhausted candidates remain in the report as truncated lower bounds, but
+    # receive no additional time.
     shares: list[float] = []
+    clock = 10.0
 
     def record(path: Path, deadline: float) -> tuple[int, bool]:
-        shares.append(deadline - time.monotonic())
+        shares.append(deadline - clock)
         return 0, True
 
+    monkeypatch.setattr(disk_preflight.time, "monotonic", lambda: clock)
     monkeypatch.setattr(disk_preflight, "directory_size", record)
     candidates = [disk_preflight.Candidate(tmp_path, "x") for _ in range(5)]
     disk_preflight.size_candidates(candidates, total_budget=-1.0)
     assert shares
-    assert all(share >= disk_preflight.SIZE_SCAN_MIN_SECONDS * 0.99 for share in shares)
+    assert shares == [0.0] * len(candidates)
 
 
 def test_report_mode_prints_totals_and_the_reclamation_pointer(
