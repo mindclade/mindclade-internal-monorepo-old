@@ -188,7 +188,15 @@ fn provider_error(message: &'static str) -> impl FnOnce(object_store::Error) -> 
             object_store::Error::NotSupported { .. }
             | object_store::Error::NotImplemented { .. } => Code::Unimplemented,
             object_store::Error::NotModified { .. } => Code::FailedPrecondition,
-            _ => Code::Unavailable,
+            // `object_store::Error` is a third-party `#[non_exhaustive]` enum,
+            // so rustc compels a trailing wildcard here that no local change
+            // can remove. Every variant this build knows is still named, so a
+            // variant added by an upstream bump shows up as a lint here rather
+            // than silently inheriting `Unavailable`.
+            object_store::Error::Generic { .. }
+            | object_store::Error::JoinError { .. }
+            | object_store::Error::UnknownConfigurationKey { .. }
+            | _ => Code::Unavailable,
         };
         Fault::new(code, message).with_source(error)
     }
