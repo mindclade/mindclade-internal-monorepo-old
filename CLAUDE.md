@@ -241,9 +241,6 @@ workspace members, and from `Cargo.lock`. Canonical implementations live in `run
 **or** if any `.rs`/`Cargo.toml` under `libs/rust` references `mindclade_<name>` — that second
 clause is the one you can trip by copying an old import.
 
-(`docs/architecture/dependency-rules.md` still describes these as live facades. It is stale on
-this point; the checker is authoritative.)
-
 ### Maturity model — read before depending on any path
 
 The tree is a target-state scaffold with real implementations mixed in. `components.toml` records

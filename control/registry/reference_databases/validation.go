@@ -17,6 +17,15 @@ func invalid(reason, message string, cause error) error {
 	}
 	return faults.Wrap(cause, faults.CodeInvalidArgument, message, faults.WithReason(reason), faults.WithOperation("control.registry.reference_databases"), faults.WithRetryPolicy(faults.NoRetry()))
 }
+
+// conflict is the classification a storage adapter owes a caller when durable
+// state moved under it: a rejected insert, or a lost compare-and-swap. It is not
+// CodeInvalidArgument, because the request was well formed and the caller's only
+// correct response is to re-read and re-decide — the same shape
+// resourceversion.Precondition and the cache stores already use.
+func conflict(reason, message string) error {
+	return faults.New(faults.CodeConflict, message, faults.WithReason(reason), faults.WithOperation("control.registry.reference_databases"), faults.WithRetryPolicy(faults.NoRetry()))
+}
 func (r Release) Validate() error {
 	if _, err := identifiers.ParseID(r.ReleaseID); err != nil {
 		return invalid("reference_release_id_invalid", "reference release id must be canonical", err)

@@ -8,6 +8,7 @@ package leadership
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -61,6 +62,109 @@ func TestElectorAcquiresAndStopsHandler(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("handler did not stop")
 	}
+}
+
+// TestShutdownReleasesLeaseOnlyAfterHandlerStops pins two things graceful
+// shutdown has to get right, both of which were wrong.
+//
+// Ordering: releasing the lease publishes "this singleton is free" to every
+// standby, so it must not happen while the outgoing leader's handler is still
+// running. hold used to return as soon as the parent context was canceled,
+// without waiting for the handler, and Run released the lease immediately -- a
+// standby could acquire it and start the same singleton work alongside a leader
+// that had not finished writing.
+//
+// Effectiveness: the release has to name the epoch the process actually holds.
+// Run released the acquire-time lease, but every renewal bumps Lease.Version
+// and both adapters delete on an exact version match, so once a process had led
+// for longer than one RenewInterval the release failed with ErrStale -- an
+// error release swallows -- and standbys waited out the whole TTL instead. The
+// test therefore leads across at least one renewal before shutting down.
+func TestShutdownReleasesLeaseOnlyAfterHandlerStops(t *testing.T) {
+	inner, err := leasememory.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var handlerRunning, releasedWhileRunning atomic.Bool
+	store := &releaseWatchingStore{Store: inner, running: &handlerRunning, violated: &releasedWhileRunning}
+
+	key := lease.MustParseKey("projector/global")
+	started := make(chan struct{})
+	handler := func(ctx context.Context, _ Session) error {
+		handlerRunning.Store(true)
+		close(started)
+		<-ctx.Done()
+		// A real leader-owned component does not stop instantly: it drains
+		// in-flight work, flushes, and closes connections after cancellation.
+		time.Sleep(150 * time.Millisecond)
+		handlerRunning.Store(false)
+		return nil
+	}
+	renewed := make(chan struct{}, 1)
+	elector, err := New(store, Config{
+		Key:             key,
+		Owner:           "projector-1",
+		TTL:             2 * time.Second,
+		RenewInterval:   20 * time.Millisecond,
+		AcquireInterval: 10 * time.Millisecond,
+	}, handler, WithObserver(ObserverFunc(func(event Event) {
+		if event.Kind == EventRenewed {
+			select {
+			case renewed <- struct{}{}:
+			default:
+			}
+		}
+	})))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- elector.Run(ctx) }()
+	defer cancel()
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("handler did not start")
+	}
+	// Lead past a renewal so the held epoch differs from the acquired one.
+	select {
+	case <-renewed:
+	case <-time.After(2 * time.Second):
+		t.Fatal("leadership was never renewed")
+	}
+
+	cancel()
+	select {
+	case runErr := <-done:
+		if runErr != nil {
+			t.Fatalf("Run() error = %v, want nil", runErr)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("elector did not stop")
+	}
+	if handlerRunning.Load() {
+		t.Fatal("Run() returned while the leader handler was still running")
+	}
+	if releasedWhileRunning.Load() {
+		t.Fatal("the leadership lease was released while the leader handler was still running")
+	}
+	if _, err := inner.Lookup(context.Background(), key); !errors.Is(err, lease.ErrNotFound) {
+		t.Fatalf("Lookup() after shutdown = %v, want ErrNotFound: the lease was never actually released, so standbys wait out the full TTL", err)
+	}
+}
+
+type releaseWatchingStore struct {
+	lease.Store
+	running  *atomic.Bool
+	violated *atomic.Bool
+}
+
+func (store *releaseWatchingStore) Release(ctx context.Context, value lease.Lease) error {
+	if store.running.Load() {
+		store.violated.Store(true)
+	}
+	return store.Store.Release(ctx, value)
 }
 
 func TestReadinessCanRequireLeadership(t *testing.T) {

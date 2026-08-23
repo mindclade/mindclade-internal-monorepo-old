@@ -271,26 +271,48 @@ Kubernetes       kubernetes/client and focused subpackages
 A domain package depends on the narrow contract. Provider conformance suites
 must run against the real pinned dependency in connected CI.
 
+`messaging/pubsub` is the one entry above with no live path: it needs a
+`TopicResolver` backed by a Pub/Sub SDK, no such module is in `go.mod`, and
+`providers/broker` fails closed with `pubsub_provider_not_configured` rather
+than degrading to the in-process broker. Everything published today resolves to
+`messaging/memory`.
+
 ## Testing
 
-Use package-specific conformance kits rather than hand-written provider tests:
+Use the package-specific test kits rather than hand-written provider tests. They
+are two different shapes, and the `*test` suffix hides the difference.
+
+*Provider conformance suites* — one entry point that an adapter's own test calls
+against its factory:
 
 ```text
-connecttest, grpctest, httpxtest, obstest
-idempotencytest, messagingtest
-cursortest, outboxtest, workqueuetest
-blobtest, cachetest, leasetest, sqltest
+blobtest.Run    cachetest.Run    cursortest.Conformance
+leasetest.Run   outboxtest.Run   workqueuetest.Conformance
 ```
+
+*Fixtures, harnesses, and fakes* — building blocks a test composes itself:
+
+```text
+connecttest.Server              grpctest.Start
+httpxtest.Server/DecodeProblem  idempotencytest.NewMemoryStore
+messagingtest.Message           obstest recorders
+sqltest.Open/NewRows
+```
+
+Three are unconsumed and recorded in [`UNCONSUMED.toml`](UNCONSUMED.toml):
+`cursortest` and `workqueuetest` are suites whose in-tree adapters do not run
+them — compare `storage/lease/memory/conformance_test.go`, which calls
+`leasetest.Run` — and `obstest` is the one fixture package with no importer at
+all. Adopting them is how those waivers clear.
 
 Useful commands:
 
 ```bash
-go test ./libs/go/...
-go test -race ./libs/go/...
-tools/qualification/go/validate.sh offline
+tools/dev/nixw develop .#default --command go test -race ./libs/go/...
+tools/dev/nixw develop .#default --command tools/qualification/go/validate.sh offline
 
-go run ./services/control_plane/cmd/api --describe-profile
-go run ./services/control_plane/cmd/scheduler --describe-profile
+tools/dev/nixw develop .#default --command go run ./services/control_plane/cmd/api --describe-profile
+tools/dev/nixw develop .#default --command go run ./services/control_plane/cmd/scheduler --describe-profile
 ```
 
 The `--describe-profile` output is the machine-readable contract for the

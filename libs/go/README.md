@@ -22,8 +22,10 @@ entry points.
 | 3 — Adapters | `kubernetes/*`, `*/postgres`, GCS, Redis, memory/conformance adapters, SQL migrations | Production infrastructure integration |
 | 4 — Transports | `httpx`, `httpx/outbound`, `connectx`, `grpcx` | Standard inbound/outbound network behavior and wire-fault translation |
 
-Layer 5 consumers live outside this directory under `control/`, `services/`,
-`operators/`, and `workers/`.
+Layer 5 consumers live outside this directory, under `control/` (domain policy)
+and `services/` (deployable wiring). There is no `operators/` or `workers/`
+top-level directory; the operator and maintenance roles are commands under
+`services/control_plane/cmd/`.
 
 ## Mandatory production path
 
@@ -70,22 +72,29 @@ be duplicated incorrectly:
 
 See [`LAYERS.md`](LAYERS.md) for dependency law and
 [`CONSUMPTION.md`](CONSUMPTION.md) for the process-by-process adoption matrix.
-Adoption the matrix describes is the target; what processes actually link is
-generated from the import graph into
+The matrix describes intent; what processes actually link is generated from the
+import graph into
 `services/control_plane/internal/bootstrap/consumption.json`, and packages that
 nothing imports are recorded with their reason in
-[`UNCONSUMED.toml`](UNCONSUMED.toml).
+[`UNCONSUMED.toml`](UNCONSUMED.toml). Intent and inventory are no longer allowed
+to disagree quietly: every matrix cell opens with a token that
+`tools/analysis/check_foundation_consumption.py` checks against that generated
+inventory.
 
 See [`USAGE.md`](USAGE.md) for package selection, code patterns, provider composition, durable coordination recipes, and testing guidance.
 
 ## Qualification
 
+Nix owns the toolchain; keep the wrapper and `--command` in one invocation
+rather than calling a host `go`:
+
 ```bash
-gofmt -w ./libs/go
-go vet ./libs/go/...
-go test ./libs/go/...
-go test -race ./libs/go/...
-tools/dev/bazelw test //libs/go/... --config=ci
+tools/dev/nixw develop .#default  --command gofmt -w ./libs/go
+tools/dev/nixw develop .#default  --command go vet ./libs/go/...
+tools/dev/nixw develop .#default  --command go test -race ./libs/go/...
+tools/dev/nixw develop .#ci-bazel --command tools/dev/bazelw test //libs/go/... --config=ci
+tools/dev/nixw develop .#ci       --command python3 tools/analysis/check_foundation_consumption.py
+tools/dev/nixw develop .#ci       --command python3 tools/analysis/check_libs_go_admission.py
 ```
 
 Connected CI additionally runs PostgreSQL, Redis, GCS, Kubernetes, Connect,

@@ -44,5 +44,6 @@ go_test(
         "//libs/go/coordination/outbox/outboxtest",
         "//libs/go/identifiers",
         "//libs/go/requestmeta",
+        "//libs/go/storage/lease",
     ],
 )

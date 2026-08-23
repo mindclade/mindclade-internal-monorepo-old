@@ -35,3 +35,15 @@ func (s Snapshot) Validate() error {
 	}
 	return nil
 }
+
+// SameObservation reports whether two snapshots record the same immutable fact.
+// Everything a SnapshotID durably promises is compared: which source at which
+// version, which cursor position, and which raw bytes. ObservedAt is excluded
+// because a retried write of one observation may carry a later wall clock and
+// is still the same fact.
+func (s Snapshot) SameObservation(other Snapshot) bool {
+	return s.SnapshotID == other.SnapshotID &&
+		s.Source == other.Source &&
+		s.RawArtifact.EqualIdentity(other.RawArtifact) &&
+		s.SourceCursor == other.SourceCursor
+}
