@@ -2,8 +2,8 @@
   "schema_version": 2,
   "rust_version": "1.97.1",
   "edition": "2024",
-  "package_count": 30,
-  "production_package_count": 23,
+  "package_count": 25,
+  "production_package_count": 25,
   "packages": [
     {
       "directory": "artifact_cas",
@@ -12,37 +12,26 @@
       "stability": "evolving",
       "production": true,
       "dependencies": [
-        "artifact_manifest",
+        "bytes_io",
+        "content_digest",
+        "faults",
+        "identifiers",
+        "manifests",
         "object_store",
-        "content_digest",
-        "identifiers",
-        "faults",
-        "clock",
-        "byte_spec"
+        "runtime_core"
       ],
       "production_sources": [
-        "src/lib.rs"
+        "src/blob.rs",
+        "src/gc.rs",
+        "src/index.rs",
+        "src/lib.rs",
+        "src/manifest.rs",
+        "src/retention.rs",
+        "src/store.rs"
       ],
       "test_sources": [
-        "tests/integration.rs"
-      ]
-    },
-    {
-      "directory": "artifact_manifest",
-      "crate": "mindclade_artifact_manifest",
-      "layer": 5,
-      "stability": "compatibility",
-      "production": false,
-      "dependencies": [
-        "faults",
-        "content_digest",
-        "identifiers",
-        "record_io"
-      ],
-      "production_sources": [
-        "src/lib.rs"
-      ],
-      "test_sources": [
+        "tests/corruption.rs",
+        "tests/gc.rs",
         "tests/integration.rs"
       ]
     },
@@ -53,10 +42,10 @@
       "stability": "stable",
       "production": true,
       "dependencies": [
-        "faults",
         "content_digest",
+        "faults",
         "identifiers",
-        "clock"
+        "runtime_core"
       ],
       "production_sources": [
         "src/lib.rs",
@@ -78,10 +67,46 @@
         "faults"
       ],
       "production_sources": [
-        "src/lib.rs"
+        "src/a3m/mod.rs",
+        "src/a3m/parser.rs",
+        "src/a3m/record.rs",
+        "src/a3m/serializer.rs",
+        "src/common.rs",
+        "src/fasta/mod.rs",
+        "src/fasta/parser.rs",
+        "src/fasta/record.rs",
+        "src/fasta/serializer.rs",
+        "src/fastq/mod.rs",
+        "src/fastq/parser.rs",
+        "src/fastq/record.rs",
+        "src/fastq/serializer.rs",
+        "src/lib.rs",
+        "src/mmcif/lexer.rs",
+        "src/mmcif/mod.rs",
+        "src/mmcif/parser.rs",
+        "src/mmcif/record.rs",
+        "src/mmcif/serializer.rs",
+        "src/mol/mod.rs",
+        "src/mol/parser.rs",
+        "src/mol/record.rs",
+        "src/mol/serializer.rs",
+        "src/pdb/mod.rs",
+        "src/pdb/parser.rs",
+        "src/pdb/record.rs",
+        "src/pdb/serializer.rs",
+        "src/sdf/mod.rs",
+        "src/sdf/parser.rs",
+        "src/sdf/record.rs",
+        "src/sdf/serializer.rs",
+        "src/stockholm/mod.rs",
+        "src/stockholm/parser.rs",
+        "src/stockholm/record.rs",
+        "src/stockholm/serializer.rs"
       ],
       "test_sources": [
-        "tests/integration.rs"
+        "tests/adversarial.rs",
+        "tests/integration.rs",
+        "tests/roundtrip.rs"
       ]
     },
     {
@@ -95,26 +120,22 @@
         "faults"
       ],
       "production_sources": [
-        "src/lib.rs"
+        "src/budget.rs",
+        "src/cursor.rs",
+        "src/diagnostic.rs",
+        "src/lib.rs",
+        "src/limits.rs",
+        "src/location.rs",
+        "src/mode.rs",
+        "src/recovery.rs",
+        "src/source.rs"
       ],
       "test_sources": [
-        "tests/integration.rs"
-      ]
-    },
-    {
-      "directory": "byte_spec",
-      "crate": "mindclade_byte_spec",
-      "layer": 5,
-      "stability": "compatibility",
-      "production": false,
-      "dependencies": [
-        "faults"
-      ],
-      "production_sources": [
-        "src/lib.rs"
-      ],
-      "test_sources": [
-        "tests/integration.rs"
+        "tests/adversarial.rs",
+        "tests/allocation_limits.rs",
+        "tests/integration.rs",
+        "tests/nesting_limits.rs",
+        "tests/truncation.rs"
       ]
     },
     {
@@ -127,13 +148,20 @@
         "faults"
       ],
       "production_sources": [
+        "src/alignment.rs",
+        "src/buffer.rs",
         "src/copy.rs",
         "src/lib.rs",
+        "src/metrics.rs",
         "src/pool.rs",
-        "src/spec.rs"
+        "src/range.rs",
+        "src/spec.rs",
+        "src/vectored.rs"
       ],
       "test_sources": [
-        "tests/integration.rs"
+        "tests/integration.rs",
+        "tests/pool.rs",
+        "tests/range.rs"
       ]
     },
     {
@@ -144,37 +172,26 @@
       "production": true,
       "dependencies": [
         "artifact_cas",
-        "artifact_manifest",
-        "object_store",
+        "bytes_io",
         "content_digest",
-        "identifiers",
-        "resource_version",
-        "clock",
         "faults",
+        "identifiers",
+        "manifests",
+        "object_store",
         "record_io",
-        "byte_spec"
+        "runtime_core"
       ],
       "production_sources": [
         "src/lib.rs",
         "src/manifest.rs",
         "src/reader.rs",
+        "src/repair.rs",
+        "src/staging.rs",
+        "src/verify.rs",
         "src/writer.rs"
       ],
       "test_sources": [
-        "tests/integration.rs"
-      ]
-    },
-    {
-      "directory": "clock",
-      "crate": "mindclade_clock",
-      "layer": 5,
-      "stability": "compatibility",
-      "production": false,
-      "dependencies": [],
-      "production_sources": [
-        "src/lib.rs"
-      ],
-      "test_sources": [
+        "tests/fault_injection.rs",
         "tests/integration.rs"
       ]
     },
@@ -188,13 +205,17 @@
         "faults"
       ],
       "production_sources": [
+        "src/algorithm.rs",
         "src/digest.rs",
         "src/lib.rs",
+        "src/reader.rs",
         "src/sha256.rs",
-        "src/stream.rs"
+        "src/stream.rs",
+        "src/writer.rs"
       ],
       "test_sources": [
-        "tests/integration.rs"
+        "tests/integration.rs",
+        "tests/vectors.rs"
       ]
     },
     {
@@ -204,20 +225,29 @@
       "stability": "evolving",
       "production": true,
       "dependencies": [
+        "bytes_io",
+        "content_digest",
+        "faults",
+        "identifiers",
         "object_store",
         "record_io",
-        "content_digest",
-        "identifiers",
-        "byte_spec",
-        "faults",
-        "retry",
-        "clock"
+        "runtime_core"
       ],
       "production_sources": [
-        "src/lib.rs"
+        "src/cache.rs",
+        "src/lib.rs",
+        "src/metrics.rs",
+        "src/prefetch.rs",
+        "src/ranges.rs",
+        "src/reader.rs",
+        "src/resume.rs",
+        "src/shuffle.rs"
       ],
       "test_sources": [
-        "tests/integration.rs"
+        "tests/async_prefetch.rs",
+        "tests/integration.rs",
+        "tests/resume.rs",
+        "tests/retry_bounds.rs"
       ]
     },
     {
@@ -231,9 +261,12 @@
         "src/code.rs",
         "src/context.rs",
         "src/fault.rs",
-        "src/lib.rs"
+        "src/lib.rs",
+        "src/retry.rs",
+        "src/wire.rs"
       ],
       "test_sources": [
+        "tests/conformance.rs",
         "tests/integration.rs"
       ]
     },
@@ -244,14 +277,26 @@
       "stability": "evolving",
       "production": true,
       "dependencies": [
+        "content_digest",
         "faults",
         "runtime_core"
       ],
       "production_sources": [
-        "src/lib.rs"
+        "src/budget.rs",
+        "src/device.rs",
+        "src/inventory.rs",
+        "src/lib.rs",
+        "src/memory.rs",
+        "src/process.rs",
+        "src/providers/amd.rs",
+        "src/providers/mod.rs",
+        "src/providers/nvidia.rs"
       ],
       "test_sources": [
-        "tests/integration.rs"
+        "tests/budget.rs",
+        "tests/integration.rs",
+        "tests/inventory.rs",
+        "tests/memory.rs"
       ]
     },
     {
@@ -261,15 +306,22 @@
       "stability": "stable",
       "production": true,
       "dependencies": [
+        "content_digest",
         "faults",
-        "clock"
+        "runtime_core"
       ],
       "production_sources": [
+        "src/digest.rs",
+        "src/id.rs",
+        "src/kind.rs",
         "src/lib.rs",
         "src/name.rs",
-        "src/resource_id.rs"
+        "src/resource_id.rs",
+        "src/resource_version.rs"
       ],
       "test_sources": [
+        "tests/entropy.rs",
+        "tests/goldens.rs",
         "tests/integration.rs"
       ]
     },
@@ -280,17 +332,50 @@
       "stability": "evolving",
       "production": true,
       "dependencies": [
-        "record_io",
+        "bytes_io",
         "content_digest",
         "faults",
         "identifiers",
-        "byte_spec"
+        "record_io",
+        "worker_protocol"
       ],
       "production_sources": [
-        "src/lib.rs"
+        "src/control.rs",
+        "src/descriptor.rs",
+        "src/framing.rs",
+        "src/lib.rs",
+        "src/shared_memory.rs",
+        "src/unix.rs",
+        "src/windows.rs"
       ],
       "test_sources": [
-        "tests/integration.rs"
+        "tests/framing.rs",
+        "tests/integration.rs",
+        "tests/lifetime.rs"
+      ]
+    },
+    {
+      "directory": "ipc_os",
+      "crate": "mindclade_ipc_os",
+      "layer": 3,
+      "stability": "evolving",
+      "production": true,
+      "dependencies": [
+        "bytes_io",
+        "content_digest",
+        "faults",
+        "worker_protocol"
+      ],
+      "production_sources": [
+        "src/broker.rs",
+        "src/file.rs",
+        "src/lib.rs",
+        "src/linux.rs"
+      ],
+      "test_sources": [
+        "tests/broker.rs",
+        "tests/file_fallback.rs",
+        "tests/linux_memfd.rs"
       ]
     },
     {
@@ -307,11 +392,17 @@
       ],
       "production_sources": [
         "src/artifact.rs",
+        "src/checkpoint.rs",
+        "src/dataset.rs",
         "src/lib.rs",
-        "src/reference.rs"
+        "src/reference.rs",
+        "src/runtime.rs",
+        "src/tensor.rs",
+        "src/validation.rs"
       ],
       "test_sources": [
-        "tests/integration.rs"
+        "tests/integration.rs",
+        "tests/roundtrip.rs"
       ]
     },
     {
@@ -321,66 +412,55 @@
       "stability": "stable",
       "production": true,
       "dependencies": [
-        "faults",
-        "content_digest",
-        "byte_spec",
         "atomic_fs",
-        "clock",
-        "resource_version"
+        "bytes_io",
+        "content_digest",
+        "faults",
+        "runtime_core"
       ],
       "production_sources": [
+        "src/adapters/arrow.rs",
+        "src/adapters/local.rs",
+        "src/adapters/memory.rs",
+        "src/adapters/mod.rs",
+        "src/client.rs",
+        "src/conditional.rs",
+        "src/config.rs",
         "src/lib.rs",
         "src/local.rs",
         "src/memory.rs",
+        "src/metrics.rs",
+        "src/multipart.rs",
+        "src/namespace.rs",
         "src/path.rs",
-        "src/store.rs"
+        "src/range.rs",
+        "src/retry.rs",
+        "src/store.rs",
+        "src/verification.rs"
       ],
       "test_sources": [
-        "tests/integration.rs"
+        "tests/conditional.rs",
+        "tests/conformance.rs",
+        "tests/failure_injection.rs",
+        "tests/integration.rs",
+        "tests/provider.rs",
+        "tests/range.rs"
       ]
     },
     {
-      "directory": "observability",
-      "crate": "mindclade_observability",
-      "layer": 5,
-      "stability": "compatibility",
-      "production": false,
+      "directory": "process_os",
+      "crate": "mindclade_process_os",
+      "layer": 0,
+      "stability": "evolving",
+      "production": true,
       "dependencies": [
-        "clock",
-        "identifiers",
         "faults"
-      ],
-      "production_sources": [
-        "src/attributes.rs",
-        "src/event.rs",
-        "src/lib.rs",
-        "src/sink.rs"
-      ],
-      "test_sources": [
-        "tests/integration.rs"
-      ]
-    },
-    {
-      "directory": "python_bindings",
-      "crate": "mindclade_python_bindings",
-      "layer": 5,
-      "stability": "compatibility",
-      "production": false,
-      "dependencies": [
-        "content_digest",
-        "tokenizer_runtime",
-        "artifact_cas",
-        "artifact_manifest",
-        "data_stream",
-        "faults",
-        "ipc",
-        "byte_spec"
       ],
       "production_sources": [
         "src/lib.rs"
       ],
       "test_sources": [
-        "tests/integration.rs"
+        "tests/process_group.rs"
       ]
     },
     {
@@ -391,19 +471,28 @@
       "production": true,
       "dependencies": [
         "artifact_cas",
-        "manifests",
+        "bio_formats",
+        "bounded_parse",
         "bytes_io",
         "content_digest",
         "data_stream",
         "faults",
         "ipc",
-        "tokenizer_runtime"
+        "manifests",
+        "tokenizer_runtime",
+        "worker_protocol"
       ],
       "production_sources": [
-        "src/lib.rs"
+        "src/buffers.rs",
+        "src/errors.rs",
+        "src/lib.rs",
+        "src/manifests.rs",
+        "src/parsers.rs",
+        "src/tokenizers.rs"
       ],
       "test_sources": [
-        "tests/integration.rs"
+        "tests/integration.rs",
+        "tests/python_api.rs"
       ]
     },
     {
@@ -413,51 +502,23 @@
       "stability": "stable",
       "production": true,
       "dependencies": [
-        "faults",
+        "bytes_io",
         "content_digest",
-        "byte_spec"
+        "faults"
       ],
       "production_sources": [
         "src/codec.rs",
+        "src/compression.rs",
         "src/frame.rs",
-        "src/lib.rs"
+        "src/index.rs",
+        "src/lib.rs",
+        "src/reader.rs",
+        "src/writer.rs"
       ],
       "test_sources": [
-        "tests/integration.rs"
-      ]
-    },
-    {
-      "directory": "resource_version",
-      "crate": "mindclade_resource_version",
-      "layer": 5,
-      "stability": "compatibility",
-      "production": false,
-      "dependencies": [
-        "faults",
-        "content_digest"
-      ],
-      "production_sources": [
-        "src/lib.rs"
-      ],
-      "test_sources": [
-        "tests/integration.rs"
-      ]
-    },
-    {
-      "directory": "retry",
-      "crate": "mindclade_retry",
-      "layer": 5,
-      "stability": "compatibility",
-      "production": false,
-      "dependencies": [
-        "faults",
-        "clock"
-      ],
-      "production_sources": [
-        "src/lib.rs"
-      ],
-      "test_sources": [
-        "tests/integration.rs"
+        "tests/frame.rs",
+        "tests/integration.rs",
+        "tests/recovery.rs"
       ]
     },
     {
@@ -467,13 +528,22 @@
       "stability": "stable",
       "production": true,
       "dependencies": [
-        "faults",
-        "content_digest"
+        "content_digest",
+        "faults"
       ],
       "production_sources": [
-        "src/budget.rs",
+        "src/budget/account.rs",
+        "src/budget/allocation.rs",
+        "src/budget/hierarchy.rs",
+        "src/budget/limits.rs",
+        "src/budget/mod.rs",
+        "src/budget/reservation.rs",
+        "src/budget/snapshot.rs",
+        "src/budget/tracker.rs",
+        "src/byte_semaphore.rs",
         "src/cancellation.rs",
         "src/clock.rs",
+        "src/deadline.rs",
         "src/fencing.rs",
         "src/lib.rs",
         "src/resource_version.rs",
@@ -481,7 +551,12 @@
         "src/task_group.rs"
       ],
       "test_sources": [
-        "tests/integration.rs"
+        "tests/budget.rs",
+        "tests/budget_tree.rs",
+        "tests/cancellation.rs",
+        "tests/deadline.rs",
+        "tests/integration.rs",
+        "tests/task_group.rs"
       ]
     },
     {
@@ -491,22 +566,27 @@
       "stability": "evolving",
       "production": true,
       "dependencies": [
-        "runtime_core",
         "faults",
         "identifiers",
+        "runtime_core",
         "telemetry"
       ],
       "production_sources": [
         "src/component.rs",
+        "src/config.rs",
         "src/health.rs",
         "src/lib.rs",
         "src/lifecycle.rs",
+        "src/server.rs",
         "src/service.rs",
         "src/shutdown.rs",
+        "src/signals.rs",
         "src/supervisor.rs"
       ],
       "test_sources": [
-        "tests/integration.rs"
+        "tests/integration.rs",
+        "tests/lifecycle.rs",
+        "tests/signals.rs"
       ]
     },
     {
@@ -516,18 +596,23 @@
       "stability": "stable",
       "production": true,
       "dependencies": [
-        "runtime_core",
+        "faults",
         "identifiers",
-        "faults"
+        "runtime_core"
       ],
       "production_sources": [
         "src/attributes.rs",
         "src/event.rs",
         "src/lib.rs",
-        "src/sink.rs"
+        "src/logging.rs",
+        "src/metrics.rs",
+        "src/propagation.rs",
+        "src/sink.rs",
+        "src/tracing.rs"
       ],
       "test_sources": [
-        "tests/integration.rs"
+        "tests/integration.rs",
+        "tests/redaction.rs"
       ]
     },
     {
@@ -537,19 +622,25 @@
       "stability": "evolving",
       "production": true,
       "dependencies": [
-        "record_io",
         "atomic_fs",
-        "identifiers",
-        "clock",
-        "retry",
+        "bytes_io",
         "faults",
-        "byte_spec"
+        "identifiers",
+        "record_io",
+        "runtime_core"
       ],
       "production_sources": [
-        "src/lib.rs"
+        "src/batch.rs",
+        "src/delivery.rs",
+        "src/envelope.rs",
+        "src/journal.rs",
+        "src/lib.rs",
+        "src/spool.rs"
       ],
       "test_sources": [
-        "tests/integration.rs"
+        "tests/integration.rs",
+        "tests/limits.rs",
+        "tests/recovery.rs"
       ]
     },
     {
@@ -559,9 +650,9 @@
       "stability": "stable",
       "production": true,
       "dependencies": [
+        "content_digest",
         "faults",
-        "identifiers",
-        "content_digest"
+        "identifiers"
       ],
       "production_sources": [
         "src/lib.rs"
@@ -580,13 +671,26 @@
         "bytes_io",
         "content_digest",
         "faults",
+        "identifiers",
         "runtime_core"
       ],
       "production_sources": [
-        "src/lib.rs"
+        "src/command.rs",
+        "src/lib.rs",
+        "src/sequence.rs",
+        "src/signing.rs",
+        "src/status.rs",
+        "src/ticket.rs",
+        "src/validation.rs",
+        "src/workload.rs"
       ],
       "test_sources": [
-        "tests/integration.rs"
+        "tests/cross_language.rs",
+        "tests/ed25519.rs",
+        "tests/ed25519_cross_language.rs",
+        "tests/goldens.rs",
+        "tests/integration.rs",
+        "tests/workload.rs"
       ]
     },
     {
@@ -601,10 +705,24 @@
         "worker_protocol"
       ],
       "production_sources": [
-        "src/lib.rs"
+        "src/commit.rs",
+        "src/diagnostics.rs",
+        "src/drain.rs",
+        "src/heartbeat.rs",
+        "src/lease.rs",
+        "src/lib.rs",
+        "src/machine.rs",
+        "src/preemption.rs",
+        "src/state.rs",
+        "src/supervisor.rs"
       ],
       "test_sources": [
-        "tests/integration.rs"
+        "tests/failure_injection.rs",
+        "tests/fencing.rs",
+        "tests/heartbeat.rs",
+        "tests/integration.rs",
+        "tests/shutdown.rs",
+        "tests/state_machine.rs"
       ]
     }
   ]
