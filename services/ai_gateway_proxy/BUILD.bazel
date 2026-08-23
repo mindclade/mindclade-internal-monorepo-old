@@ -12,6 +12,7 @@ rust_library(
     crate_name = "mindclade_ai_gateway_proxy",
     edition = "2024",
     deps = [
+        "//libs/rust/config:mindclade_config",
         "//libs/rust/content_digest:mindclade_content_digest",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/telemetry:mindclade_telemetry",
@@ -47,6 +48,7 @@ rust_test(
     edition = "2024",
     deps = [
         ":mindclade_ai_gateway_proxy",
+        "//libs/rust/config:mindclade_config",
         "//libs/rust/faults:mindclade_faults",
         "@crates//:axum",
         "@crates//:bytes",
@@ -70,6 +72,17 @@ rust_test(
         "@crates//:serde_json",
         "@crates//:tokio",
         "@crates//:tower",
+    ],
+)
+
+rust_test(
+    name = "settings",
+    srcs = ["tests/settings.rs"],
+    edition = "2024",
+    deps = [
+        ":mindclade_ai_gateway_proxy",
+        "//libs/rust/config:mindclade_config",
+        "//libs/rust/faults:mindclade_faults",
     ],
 )
 

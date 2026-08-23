@@ -1,0 +1,41 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
+
+package(default_visibility = ["//libs/rust:repo_consumers"])
+
+rust_library(
+    name = "mindclade_config",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "mindclade_config",
+    edition = "2024",
+    deps = [
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+    ],
+)
+
+# Bazel does not glob `tests/**`, so a suite without a target here is invisible
+# to `bazel test //...` no matter how green `cargo test` is.
+rust_test(
+    name = "integration",
+    srcs = ["tests/integration.rs"],
+    edition = "2024",
+    deps = [
+        ":mindclade_config",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+    ],
+)
+
+filegroup(
+    name = "package_sources",
+    srcs = glob(
+        ["**"],
+        exclude = ["target/**"],
+    ),
+    visibility = ["//libs/rust:repo_consumers"],
+)

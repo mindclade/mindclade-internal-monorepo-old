@@ -42,6 +42,7 @@ filegroup(
         "//libs/rust/bounded_parse:package_sources",
         "//libs/rust/bytes_io:package_sources",
         "//libs/rust/checkpoint_io:package_sources",
+        "//libs/rust/config:package_sources",
         "//libs/rust/content_digest:package_sources",
         "//libs/rust/data_stream:package_sources",
         "//libs/rust/faults:package_sources",
