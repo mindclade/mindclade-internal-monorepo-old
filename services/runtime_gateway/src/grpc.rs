@@ -21,7 +21,6 @@ use mindclade_runtime_core::{BytePermit, FencingToken};
 use mindclade_serving_runtime::AdmissionPermit;
 use prost::Message;
 use std::net::SocketAddr;
-use std::path::PathBuf;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
@@ -314,10 +313,10 @@ async fn cancel_host(
 }
 
 async fn connect_host(endpoint: &str) -> Result<WorkerControlClient<Channel>, Status> {
-    let path = endpoint
-        .strip_prefix("unix://")
-        .map(PathBuf::from)
-        .filter(|path| path.is_absolute() && path.as_os_str().as_encoded_bytes().len() <= 100)
+    // Shared with the readiness probe rather than restated here: if what the
+    // probe connects to could drift from what dispatch connects to, readiness
+    // would stop describing this call.
+    let path = crate::host_probe::host_socket_path(endpoint)
         .ok_or_else(|| Status::failed_precondition("runtime-host route endpoint is invalid"))?;
     let connector_path = path.clone();
     let channel = Endpoint::from_static("http://[::]:50051")

@@ -11,6 +11,14 @@ use std::sync::atomic::{AtomicBool, Ordering};
 pub struct GatewayHealthSnapshot {
     pub accepting: bool,
     pub policy_fresh: bool,
+    /// The node-local runtime host's control socket was **reachable** at the
+    /// last probe round -- not that the host reports itself ready.
+    ///
+    /// `WorkerControl` carries only `rpc Execute`, so there is no host health
+    /// RPC to ask; `host_probe` therefore connects to the socket named by the
+    /// installed route snapshot and publishes what it observed. The flag keeps
+    /// its original spelling because `docs/runbooks/runtime-gateway-degraded.md`
+    /// and `docs/slo/runtime-gateway.md` cite it by name.
     pub runtime_host_ready: bool,
 }
 
@@ -47,6 +55,10 @@ impl GatewayHealth {
     pub fn set_policy_fresh(&self, value: bool) {
         self.policy_fresh.store(value, Ordering::Release);
     }
+    /// Publish the latest runtime-host reachability observation. Owned by
+    /// `host_probe::run`; nothing else in the process may assert it, because a
+    /// value not derived from an actual connection would be a readiness claim
+    /// with no evidence behind it.
     pub fn set_runtime_host_ready(&self, value: bool) {
         self.runtime_host_ready.store(value, Ordering::Release);
     }
