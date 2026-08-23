@@ -51,6 +51,7 @@ go_test(
     ],
     embed = [":bootstrap"],
     deps = [
+        "//libs/go/faults",
         "//libs/go/servicekit",
         "//libs/go/servicekit/production",
     ],

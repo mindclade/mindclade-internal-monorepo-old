@@ -23,6 +23,13 @@ have died at startup on "database_driver_not_linked". Their factory tests all
 passed, because a _test.go file imported lib/pq and put the driver in the test
 binary rather than the real one. A guard that reads the production import graph
 is the only thing that can tell those two apart.
+
+The lifecycle rules read every non-test .go file in a command package, not just
+main.go. A command package is one Go package, so a sibling file compiles into
+the same binary and can hold exactly the constructs main.go is forbidden to
+hold; a guard that reads one filename is a rule about a filename rather than
+about the binary. Nothing in the tree exercises that gap today, which is the
+point: it is cheaper to close now than to notice later.
 """
 
 from __future__ import annotations
@@ -56,10 +63,30 @@ DRIVERS = (
     "github.com/jackc/pgx/v4/stdlib",
 )
 
+# The lifecycle constructs libs/go/CONSUMPTION.md forbids a production command
+# to own. "signal.Notify" also matches signal.NotifyContext, which is the same
+# violation spelled differently. production.NewBuilder is here because a command
+# calling it would reach the right lifecycle by the wrong route: it would skip
+# the role-to-profile binding, the consumption evidence, and the Bind hook that
+# bootstrap.Execute performs, and nothing downstream would notice.
 FORBIDDEN = {
     "servicekit.New(": "command bypasses servicekit/production bootstrap",
     "servicekit.NewAssembly(": "command assembles its own service",
+    "production.NewBuilder(": "command composes its own production runtime instead of using bootstrap",
     "signal.Notify": "command takes signal ownership from servicekit",
+}
+
+# The go statement, in either spelling: `go func() {...}()` and `go start()` are
+# the same violation, and matching only the anonymous one would be a rule about
+# a coding style rather than about detached work. Anchoring to the start of a
+# statement keeps the word "go" in prose out of it; a Go comment line begins
+# with "//" or sits inside "/* */", neither of which this can start on.
+# TestNoCommandSpawnsADetachedGoroutine in the bootstrap package checks the same
+# rule through the Go parser, which is exact; this is the CI-side approximation.
+FORBIDDEN_PATTERNS = {
+    re.compile(r"(?m)^[ \t]*go[ \t]+[\w.]+[ \t]*\("): (
+        "command spawns a detached goroutine outside the servicekit lifecycle"
+    ),
 }
 
 
@@ -158,23 +185,38 @@ def check(root: Path) -> list[str]:
         ):
             if token not in source:
                 errors.append(f"{COMMAND_ROOT}/{command}/main.go: must contain {token}")
-        for token, message in FORBIDDEN.items():
-            if token in source:
-                errors.append(f"{COMMAND_ROOT}/{command}/main.go: {message}")
+
+        # Every file that compiles into the binary, not only main.go: a sibling
+        # file in the same package is the same binary, and the lifecycle rules
+        # are about the binary.
+        package_sources = sorted(
+            path
+            for path in directory.glob("*.go")
+            if not path.name.endswith("_test.go")
+        )
+        imports: set[str] = set()
+        for path in package_sources:
+            text = path.read_text(encoding="utf-8")
+            imports.update(graphs.file_imports(text))
+            for token, message in FORBIDDEN.items():
+                if token in text:
+                    errors.append(f"{COMMAND_ROOT}/{command}/{path.name}: {message}")
+            for pattern, message in FORBIDDEN_PATTERNS.items():
+                if pattern.search(text):
+                    errors.append(f"{COMMAND_ROOT}/{command}/{path.name}: {message}")
 
         # The pool is reached transitively, through the role's provider
         # factory, so the command's own imports cannot answer this.
         reachable = graphs.transitive_imports(graph, [f"{module}/{COMMAND_ROOT}/{command}"])
         if pool_package in reachable:
-            imports = graphs.file_imports(source)
             if not any(driver in imports for driver in DRIVERS):
                 errors.append(
-                    f"{COMMAND_ROOT}/{command}/main.go: links {SQL_POOL} but registers no "
+                    f"{COMMAND_ROOT}/{command}: links {SQL_POOL} but registers no "
                     f"database/sql driver; add a blank import of one of {', '.join(DRIVERS)}"
                 )
-        elif any(driver in graphs.file_imports(source) for driver in DRIVERS):
+        elif any(driver in imports for driver in DRIVERS):
             errors.append(
-                f"{COMMAND_ROOT}/{command}/main.go: registers a database/sql driver but never "
+                f"{COMMAND_ROOT}/{command}: registers a database/sql driver but never "
                 f"links {SQL_POOL}; drop the import"
             )
 
