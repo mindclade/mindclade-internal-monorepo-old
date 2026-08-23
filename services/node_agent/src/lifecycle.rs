@@ -11,9 +11,9 @@
 //! can answer ready before the lifecycle has actually started something, and a
 //! component that fails to start never files a report at all.
 
+use crate::NodeAgentCore;
 use crate::dependencies::ObjectStoreProbe;
 use crate::operations::{ARTIFACT_STORE_REPORT, CORE_REPORT};
-use crate::NodeAgentCore;
 use mindclade_faults::FaultResult;
 use mindclade_servicekit::{Component, HealthRegistry, HealthStatus};
 use std::sync::Arc;

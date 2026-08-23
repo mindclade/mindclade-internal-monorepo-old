@@ -196,9 +196,10 @@ async fn lease_expiry_rejects_stale_commit() {
 
     // A holder with a superseded fence cannot reach either commit point, even
     // though it holds a valid lease for the current one.
-    let runtime = WorkerRuntime::new(
-        mindclade_runtime_core::Budget::root("fencing", ResourceVector::default()),
-    );
+    let runtime = WorkerRuntime::new(mindclade_runtime_core::Budget::root(
+        "fencing",
+        ResourceVector::default(),
+    ));
     runtime.start().expect("start");
     let current = ticket(8, 1_000_000_000_000);
     runtime

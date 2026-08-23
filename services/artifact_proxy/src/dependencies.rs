@@ -43,8 +43,9 @@ impl core::fmt::Debug for ObjectStoreProbe {
 
 impl ObjectStoreProbe {
     pub fn new(store: Arc<dyn ObjectStore>) -> FaultResult<Self> {
-        let path = ObjectPath::new(PROBE_OBJECT)
-            .map_err(|error| Fault::internal("readiness probe path is invalid").with_source(error))?;
+        let path = ObjectPath::new(PROBE_OBJECT).map_err(|error| {
+            Fault::internal("readiness probe path is invalid").with_source(error)
+        })?;
         Ok(Self { store, path })
     }
 
@@ -79,7 +80,9 @@ impl ObjectStoreProbe {
         let read = tokio::task::spawn_blocking(move || store.head(&path));
         match tokio::time::timeout(budget, read).await {
             Ok(Ok(result)) => result.map(|_| ()),
-            Ok(Err(error)) => Err(Fault::internal("readiness probe task failed").with_source(error)),
+            Ok(Err(error)) => {
+                Err(Fault::internal("readiness probe task failed").with_source(error))
+            }
             Err(_) => Err(Fault::new(
                 Code::DeadlineExceeded,
                 "artifact object-store readiness probe exceeded its budget",

@@ -146,8 +146,11 @@ where
             Fault::new(Code::Unavailable, "node agent operations bind failed").with_source(error)
         })?;
     bound(listener.local_addr().map_err(|error| {
-        Fault::new(Code::Unavailable, "node agent operations address is unreadable")
-            .with_source(error)
+        Fault::new(
+            Code::Unavailable,
+            "node agent operations address is unreadable",
+        )
+        .with_source(error)
     })?);
 
     let health = Arc::new(NodeHealth::new());
@@ -268,11 +271,8 @@ fn parse_u32(name: &'static str) -> FaultResult<u32> {
 fn absolute_path(name: &'static str) -> FaultResult<PathBuf> {
     let path = PathBuf::from(required(name)?);
     if !path.is_absolute() {
-        return Err(
-            Fault::invalid_argument("node-agent path must be absolute")
-                .with_context("variable", name),
-        );
+        return Err(Fault::invalid_argument("node-agent path must be absolute")
+            .with_context("variable", name));
     }
     Ok(path)
 }
-

@@ -129,7 +129,8 @@ where
     let listener = operations::bind(config.operations_address)
         .await
         .map_err(|error| {
-            Fault::new(Code::Unavailable, "artifact proxy operations bind failed").with_source(error)
+            Fault::new(Code::Unavailable, "artifact proxy operations bind failed")
+                .with_source(error)
         })?;
     bound(listener.local_addr().map_err(|error| {
         Fault::new(

@@ -29,12 +29,12 @@ pub mod tool_runner;
 pub use checkpoint_transfer::CheckpointTransfer;
 pub use config::NodeAgentConfig;
 pub use data_stream::StreamWorker;
+pub use dependencies::ObjectStoreProbe;
 pub use diagnostics::{DiagnosticBundle, DiagnosticEntry};
 pub use diagnostics_bundle::{
     DEFAULT_MAXIMUM_DIAGNOSTIC_BYTES, DiagnosticProcessExit, NodeDiagnosticsBundle,
 };
 pub use health::{NodeHealth, NodeHealthSnapshot};
-pub use dependencies::ObjectStoreProbe;
 pub use lifecycle::{ArtifactStoreComponent, NodeAgentComponent};
 pub use process_supervisor::{ManagedProcess, ProcessSupervisor};
 pub use provider_store::ProviderSource;
