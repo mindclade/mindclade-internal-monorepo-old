@@ -22,6 +22,7 @@ name = "mindclade-node-agent"
 path = "src/main.rs"
 
 [dependencies]
+axum.workspace = true
 bytes.workspace = true
 mindclade_artifact_cas = { path = "../../libs/rust/artifact_cas" }
 mindclade_bytes_io = { path = "../../libs/rust/bytes_io" }
@@ -39,6 +40,8 @@ mindclade_servicekit = { path = "../../libs/rust/servicekit" }
 mindclade_telemetry = { path = "../../libs/rust/telemetry" }
 mindclade_worker_protocol = { path = "../../libs/rust/worker_protocol" }
 mindclade_worker_runtime = { path = "../../libs/rust/worker_runtime" }
+tokio.workspace = true
+tower.workspace = true
 
 [lints]
 workspace = true
