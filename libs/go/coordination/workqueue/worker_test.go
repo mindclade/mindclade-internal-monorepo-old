@@ -160,6 +160,78 @@ func TestWorkerRenewsLeaseDuringLongHandler(t *testing.T) {
 	t.Fatal("long-running item did not complete")
 }
 
+// TestWorkerDeadLettersItemWhoseLeaseExpiredWithoutTermination covers the
+// crash path end to end. A predecessor worker leased the item and died, so the
+// lease expired without a Complete or a Fail and the next lease spends an
+// attempt the item's budget no longer has. The worker must still be able to
+// bury the item: before this was fixed the store handed back a claim whose
+// Record it then rejected, so Renew cancelled the handler, Fail was refused,
+// and the item was re-leased and re-executed on every lease expiry forever.
+func TestWorkerDeadLettersItemWhoseLeaseExpiredWithoutTermination(t *testing.T) {
+	store := memory.New()
+	item, err := workqueue.NewItem("reconcile", []byte(`{"poison":true}`), 0, time.Time{}, 1, requestmeta.Metadata{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Enqueue(context.Background(), item); err != nil {
+		t.Fatal(err)
+	}
+	// Stand in for the crashed predecessor: take the item's only attempt and
+	// never report a terminal transition.
+	if _, err := store.Claim(context.Background(), workqueue.ClaimRequest{
+		Owner: "crashed-worker", Queues: []string{"reconcile"}, Limit: 1, LeaseDuration: 20 * time.Millisecond,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(50 * time.Millisecond)
+
+	var calls atomic.Int32
+	worker, err := workqueue.NewWorker(
+		store,
+		workqueue.HandlerFunc(func(context.Context, workqueue.Item) (workqueue.Result, error) {
+			calls.Add(1)
+			return workqueue.Result{}, faults.New(faults.CodeInternal, "handler always fails", faults.WithReason("poison_payload"))
+		}),
+		workqueue.WorkerConfig{
+			Owner:             "reconcile-1",
+			Queues:            []string{"reconcile"},
+			PollInterval:      time.Millisecond,
+			LeaseDuration:     time.Second,
+			HeartbeatInterval: 100 * time.Millisecond,
+			BatchSize:         1,
+			Concurrency:       1,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- worker.Run(ctx) }()
+	defer func() {
+		cancel()
+		<-done
+	}()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		record, lookupErr := store.Lookup(context.Background(), item.ID)
+		if lookupErr != nil {
+			t.Fatal(lookupErr)
+		}
+		if record.State == workqueue.StateFailed {
+			if record.LastError == "" {
+				t.Fatal("dead-lettered item kept no failure reason")
+			}
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	record, _ := store.Lookup(context.Background(), item.ID)
+	t.Fatalf("item was never dead-lettered: state=%q attempts=%d handler_calls=%d",
+		record.State, record.Attempts, calls.Load())
+}
+
 type renewCountingStore struct {
 	workqueue.Store
 	renewals atomic.Int32
