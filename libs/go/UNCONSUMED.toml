@@ -50,32 +50,6 @@ packages = [
 
 [[waiver]]
 reason = """
-Provider conformance suites that no adapter runs. libs/go has six such suites,
-each a single entry point an adapter's own test calls against its factory:
-blobtest.Run, cachetest.Run, cursortest.Conformance, leasetest.Run,
-outboxtest.Run, workqueuetest.Conformance. Four are consumed exactly that way --
-blobtest by storage/blob/memory, cachetest by storage/cache/memory, leasetest by
-storage/lease/memory, outboxtest by coordination/outbox and
-coordination/outbox/memory. These two are not, although both mechanisms already
-have two in-tree adapters that could call them today
-(coordination/cursor/{memory,postgres} and coordination/workqueue/
-{memory,postgres}). storage/lease/memory carries a conformance_test.go next to
-its store_test.go; cursor/memory and workqueue/memory carry only store_test.go,
-and that missing file is the whole waiver.
-
-So this is not a missing role. The scheduler, controller, operator,
-ingestion-controller, event-projector, and maintenance roles that claim these
-mechanisms are all materialized and all link them; the adapters simply do not
-exercise the shared suite. Clearing this waiver is a change in
-libs/go/coordination, not a wait.
-"""
-packages = [
-  "libs/go/coordination/cursor/cursortest",
-  "libs/go/coordination/workqueue/workqueuetest",
-]
-
-[[waiver]]
-reason = """
 Blocked on a dependency, not on a role. Every role that publishes is
 materialized and links libs/go/messaging, but they resolve to messaging/memory:
 libs/go/messaging/pubsub is provider-neutral and needs a TopicResolver backed

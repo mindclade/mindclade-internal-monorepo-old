@@ -94,27 +94,17 @@ class DependencyException:
 # `expires_on` is in the past or more than 90 days out, or when the edge it names is no
 # longer a live violation. A stale grant fails the build rather than sitting here covering
 # whatever appears at that path next.
-PRODUCTION_DEPENDENCY_EXCEPTIONS: dict[tuple[str, str], DependencyException] = {
-    ("control/ingestion", "control/orchestration"): DependencyException(
-        owner="data-platform",
-        adr="ADR-0020",
-        reason=(
-            "control/ingestion composes orchestration.StageSpec, StageKind, StageAttempt, "
-            "Workflow and WorkloadEnvelope. Those live in the implemented files of "
-            "control/orchestration (stage.go, workload.go, workflow.go, validation.go); the "
-            "other ten are const scaffold_* placeholders, which is why the component is "
-            "honestly declared experimental. ADR-0020 mandates ONE durable stage vocabulary "
-            "across ingestion, curation, preprocessing, training and rollout, so "
-            "re-declaring these types inside ingestion would fork the canonical "
-            "cross-language WorkloadEnvelope to satisfy a gate -- a worse outcome than the "
-            "violation it hides. Both honest fixes sit outside this change: "
-            "control/orchestration advancing on its own evidence, or the shared stage "
-            "vocabulary moving to a package whose status matches it. Neither is done by "
-            "editing a status until this check passes."
-        ),
-        expires_on="2026-11-14",
-    ),
-}
+# Empty, and that is the intended steady state rather than a table waiting to be filled.
+#
+# It held one entry: control/ingestion (implemented) importing control/orchestration, which was
+# then experimental because ten of its files were const scaffold_* placeholders. That entry
+# named its own two honest resolutions -- "control/orchestration advancing on its own evidence,
+# or the shared stage vocabulary moving to a package whose status matches it" -- and explicitly
+# ruled out the third, "editing a status until this check passes". The first happened: those ten
+# files carry implementations with tests, the component advanced to implemented on that
+# evidence, and the edge stopped being a violation. The grant went stale in the same change,
+# which is what this checker is built to notice.
+PRODUCTION_DEPENDENCY_EXCEPTIONS: dict[tuple[str, str], DependencyException] = {}
 
 
 @dataclass(frozen=True)

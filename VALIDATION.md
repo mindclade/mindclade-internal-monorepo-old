@@ -16,7 +16,7 @@ top-level Markdown links and heading hierarchy             PASS
 canonical LICENSE and CODE_OF_CONDUCT digests (7 repos)    PASS
 first-party proprietary header coverage                    PASS
 cargo deny check licenses                                  PASS
-static presubmit architecture and implementation gates     PASS (23 of 23 gates)
+static presubmit architecture and implementation gates     PASS (25 of 25 gates)
 dependency budget                                          PASS
 ```
 
@@ -30,10 +30,57 @@ outside its allowlist. That import still exists in `internal/providers/api`, but
 the budget now covers it and
 `tools/analysis/check_dependency_budgets.py` reports `dependency budget check
 passed`. The gate count also moved: the `CHECKS` list in
-`tools/analysis/run_architecture_checks.py` now holds 23 entries, not 20.
+`tools/analysis/run_architecture_checks.py` now holds 25 entries, not 20. An
+earlier revision of this document recorded 23; the list grows as gates are
+added, and the count above was re-measured from a passing run rather than
+carried forward.
 
 No production qualification is inferred from any of these passing checks. They
 are repository-only static evidence.
+
+## Control orchestration and scheduling validation (2026-08-23)
+
+`control/orchestration` and `control/scheduling` advanced from reserved package
+boundaries to `implemented`. Executed local evidence:
+
+```text
+go test -race -count=1 ./control/orchestration                     PASS  2026-08-23
+go test -race -count=1 ./control/orchestration/adapters/kubernetes PASS  2026-08-23
+go test -race -count=1 ./control/orchestration/adapters/local      PASS  2026-08-23
+go test -race -count=1 ./control/orchestration/adapters/slurm      PASS  2026-08-23
+go test -race -count=1 ./control/scheduling                        PASS  2026-08-23
+pytest tests/integration/cross_language/test_worker_protocol.py    62 passed  2026-08-23
+```
+
+Two package sets in that tree are deliberately absent from the rows above,
+because a reader counting rows would otherwise read them as covered.
+`control/orchestration/launchertest` holds the shared launcher conformance
+suite and declares no tests of its own; it is executed three times, once inside
+each launcher's own `_test.go`, which is what the three adapter rows above
+report. `control/scheduling/adapters/jobset` and
+`control/scheduling/adapters/kueue` carry no test files at all — `go test`
+prints `[no test files]` and exits 0 for both, which is not a pass.
+
+The cross-language row parses `control/orchestration/state_machine.go` and
+`libs/rust/worker_runtime/src/machine.rs` and compares the two attempt
+transition tables edge by edge, then pins both against the `WorkerState` enum in
+`protocols/proto/mindclade/runtime/v1/worker_status.proto`. Before it existed,
+each language asserted its table against a copy of itself, so a transition added
+on one side and not the other built clean in both; the first symptom would have
+been a stuck run.
+
+All of this is offline, single-host evidence. The Kubernetes launcher was
+exercised against the `controller-runtime` fake client, the Slurm launcher
+against an in-memory controller fake, and the local launcher against injected
+commands plus a re-exec of the test binary. No connected CI run, real cluster,
+Kueue or JobSet admission path, PostgreSQL-backed repository, Slurm controller,
+or GPU measurement is claimed for either component. `implemented` is not
+`qualified`, and neither component carries a qualification reference in
+`components.toml`.
+
+ADR-0026 records the three boundaries this work decided — the attempt-state
+vocabulary, the `orchestration`/`runs` split, and single-writer ownership of the
+Kubernetes objects the blueprint had listed under both packages.
 
 ## Materialization statement
 
@@ -43,15 +90,18 @@ boundaries:
 - `libs/go/` is source-complete for the reusable Go mechanism layer.
 - `control/` contains implemented Go durable-policy/domain boundaries for the
   runtime authority, artifact identity, reference releases, release evidence,
-  production-eligibility evidence, release lineage, ingestion, and related
-  control concerns. `routing` and `orchestration` are `experimental` in
-  `components.toml`, not implemented; ten of `control/orchestration`'s fourteen
-  non-test files are still scaffold placeholders. Sixteen further `control/`
-  directories — `audit`, `evaluations`, `events`, `metadata`, `registry` (root),
-  `registry/datasets`, `registry/deployments`, `runs`, `scheduling`, `tenancy`,
-  `usage`, `webhooks`, `weights`, and the ingestion/orchestration/scheduling
-  adapter leaves — hold zero non-scaffold production lines and are correctly
-  absent from `components.toml`.
+  production-eligibility evidence, release lineage, ingestion, workflow
+  orchestration, scheduling policy, and related control concerns. `routing` is
+  `experimental` in `components.toml`, not implemented. `orchestration` and
+  `scheduling` were `experimental`/undeclared in the revision this document
+  previously described; both are now `implemented`, with their five adapter
+  packages, and the scaffold-placeholder count that argued for the lower status
+  is zero — see the 2026-08-23 section below for the evidence and its limits.
+  Thirteen further `control/` directories — `audit`, `evaluations`, `events`,
+  `metadata`, `registry` (root), `registry/datasets`, `registry/deployments`,
+  `runs`, `tenancy`, `usage`, `webhooks`, `weights`, and the ingestion
+  Kubernetes adapter leaf — hold zero non-scaffold production lines and are
+  correctly absent from `components.toml`.
 - `services/control_plane/internal/{bootstrap,config,foundation,transport}`
   implements the canonical Go process composition path.
 - `libs/rust/` contains the audited user-supplied Rust foundation plus the
@@ -206,7 +256,7 @@ dated evidence, not a statement about the tree as it stands today.
 Go formatting over libs/go, control, control-plane service, and examples       PASS
 Go dependency-layer and paved-road checks                                      PASS
 Blueprint materialization: 4,494 / 4,494 (100.0%)                              PASS  2026-08-23
-Static presubmit architecture gates: 23 of 23                                  PASS  2026-08-23
+Static presubmit architecture gates: 25 of 25                                  PASS  2026-08-23
 Normal Go tests over 111 offline-safe package targets                          PASS
 Go vet over the same 111 package targets                                       PASS
 Race-enabled Go tests over the same 111 package targets, in bounded batches    PASS

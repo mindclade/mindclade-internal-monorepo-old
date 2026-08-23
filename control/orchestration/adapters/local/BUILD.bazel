@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -18,6 +18,30 @@ filegroup(
 
 go_library(
     name = "local",
-    srcs = ["launcher.go"],
+    srcs = [
+        "command.go",
+        "launcher.go",
+    ],
     importpath = "go.mindclade.dev/control/orchestration/adapters/local",
+    visibility = [
+        "//control:__subpackages__",
+        "//services:__subpackages__",
+    ],
+    deps = [
+        "//control/orchestration",
+        "//libs/go/clock",
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+    ],
+)
+
+go_test(
+    name = "local_test",
+    srcs = ["launcher_test.go"],
+    embed = [":local"],
+    deps = [
+        "//control/orchestration",
+        "//control/orchestration/launchertest",
+        "//libs/go/faults",
+    ],
 )
