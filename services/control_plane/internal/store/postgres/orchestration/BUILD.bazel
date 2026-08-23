@@ -47,7 +47,6 @@ go_test(
     embed = [":orchestration"],
     deps = [
         "//control/orchestration",
-        "//control/runtime_authority",
         "//libs/go/audit",
         "//libs/go/audit/postgres",
         "//libs/go/clock",
