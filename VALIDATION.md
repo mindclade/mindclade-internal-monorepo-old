@@ -42,8 +42,16 @@ boundaries:
 
 - `libs/go/` is source-complete for the reusable Go mechanism layer.
 - `control/` contains implemented Go durable-policy/domain boundaries for the
-  runtime authority, routing, artifact identity, reference releases, release
-  evidence, orchestration, ingestion, and related control concerns.
+  runtime authority, artifact identity, reference releases, release evidence,
+  production-eligibility evidence, release lineage, ingestion, and related
+  control concerns. `routing` and `orchestration` are `experimental` in
+  `components.toml`, not implemented; ten of `control/orchestration`'s fourteen
+  non-test files are still scaffold placeholders. Sixteen further `control/`
+  directories — `audit`, `evaluations`, `events`, `metadata`, `registry` (root),
+  `registry/datasets`, `registry/deployments`, `runs`, `scheduling`, `tenancy`,
+  `usage`, `webhooks`, `weights`, and the ingestion/orchestration/scheduling
+  adapter leaves — hold zero non-scaffold production lines and are correctly
+  absent from `components.toml`.
 - `services/control_plane/internal/{bootstrap,config,foundation,transport}`
   implements the canonical Go process composition path.
 - `libs/rust/` contains the audited user-supplied Rust foundation plus the
