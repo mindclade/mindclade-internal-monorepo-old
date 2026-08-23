@@ -305,11 +305,12 @@ messagingtest.Message           obstest recorders
 sqltest.Open/NewRows
 ```
 
-Three are unconsumed and recorded in [`UNCONSUMED.toml`](UNCONSUMED.toml):
-`cursortest` and `workqueuetest` are suites whose in-tree adapters do not run
-them — compare `storage/lease/memory/conformance_test.go`, which calls
-`leasetest.Run` — and `obstest` is the one fixture package with no importer at
-all. Adopting them is how those waivers clear.
+One is unconsumed and recorded in [`UNCONSUMED.toml`](UNCONSUMED.toml):
+`obstest`, the one fixture package with no importer at all. Adopting it is how
+that waiver clears. `cursortest` and `workqueuetest` were waived on the same
+footing until their memory adapters gained a `conformance_test.go` — compare
+`storage/lease/memory/conformance_test.go`, which calls `leasetest.Run` — so
+every provider suite here now has a caller.
 
 Useful commands:
 

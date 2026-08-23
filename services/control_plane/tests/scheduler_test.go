@@ -3,78 +3,100 @@
 // SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 //
 
-// Deliberately still a placeholder, and a tripwire rather than a silent one.
+// The scheduler seam, which no single package can observe.
 //
-// The sibling files in this package replaced their scaffolds with real cross-boundary tests
-// because they had subjects: control/ingestion, control/routing and control/runtime_authority
-// are implemented. control/scheduling is not. Every file in it -- admission, capacity,
-// placement, pool, preemption, priority, repository, reservation, service, topology, and both
-// adapters/{jobset,kueue} -- is the 9-line reservation stub:
+// This file replaces a tripwire. control/scheduling used to be entirely
+// `const scaffold_<file>` reservations, and a test written against that would
+// have asserted a constant equals itself while reporting as coverage — so the
+// tripwire asserted the reason instead, and said what to write once the package
+// became real: "quota and fair-share admission, placement against topology, and
+// preemption ordering."
 //
-//	// Package scheduling reserves the boundary defined by the production blueprint.
-//	package scheduling
-//	const scaffold_placement = "control/scheduling/placement.go"
-//
-// A scheduler test written against that would assert a constant equals itself. Worse, it would
-// report as coverage: the file would look tested, and whoever implements placement would have
-// no signal that nothing here checks their work.
-//
-// So this asserts the reason instead. The moment control/scheduling gains a real declaration,
-// this fails and says what to write. That is the honest state to leave a reserved path in --
-// not a passing t.Helper() that claims nothing while looking like it claims something.
+// Those three now have thorough in-package tests, which is where they belong;
+// re-testing them here would duplicate coverage rather than add it. What no
+// in-package test can reach is the seam between the domain and the composition
+// root: control/scheduling declares the queue it is drained from and the handler
+// contract it satisfies, services/control_plane/internal/providers/scheduler
+// builds the worker that drains it, and nothing links the two at compile time.
+// A mismatch there is silent — the role drains a queue nobody fills, and every
+// test on both sides still passes.
 package tests
 
 import (
-	"go/ast"
-	"go/parser"
-	"go/token"
-	"os"
-	"path/filepath"
-	"strings"
+	"context"
+	"encoding/json"
 	"testing"
+
+	"go.mindclade.dev/control/scheduling"
+	"go.mindclade.dev/libs/go/coordination/workqueue"
+	"go.mindclade.dev/libs/go/faults"
 )
 
-func TestSchedulingIsStillEntirelyScaffold(t *testing.T) {
-	root := filepath.Join("..", "..", "..", "control", "scheduling")
-	if _, err := os.Stat(root); err != nil {
-		t.Skipf("control/scheduling is absent: %v", err)
+// The domain's queue name and the worker's must be one value, not two equal
+// strings. They were two, and nothing compared them.
+func TestPlacementQueueNameIsSharedWithTheSchedulerRole(t *testing.T) {
+	if scheduling.PlacementQueue == "" {
+		t.Fatal("the scheduling domain must name the queue it is drained from")
 	}
+	// The provider imports this constant rather than restating it, so equality
+	// here is structural. Asserting the literal as well pins the wire name: a
+	// rename is a queue migration, not a refactor, because in-flight items sit
+	// under the old name.
+	const wire = "control-plane/placement"
+	if scheduling.PlacementQueue != wire {
+		t.Fatalf("placement queue = %q, want %q; renaming it strands in-flight work",
+			scheduling.PlacementQueue, wire)
+	}
+}
 
-	var implemented []string
-	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
-		// _test.go excluded: control/scheduling's own scaffold tests are themselves
-		// TestScaffoldX(t) { t.Helper() } bodies, so counting them would trip this
-		// immediately and for the wrong reason. Implementation is what matters here.
-		if err != nil || entry.IsDir() ||
-			!strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
-			return err
-		}
-		file, parseErr := parser.ParseFile(token.NewFileSet(), path, nil, 0)
-		if parseErr != nil {
-			return parseErr
-		}
-		for _, declaration := range file.Decls {
-			switch typed := declaration.(type) {
-			case *ast.FuncDecl:
-				implemented = append(implemented, path+":"+typed.Name.Name)
-			case *ast.GenDecl:
-				// A scaffold is exactly one const naming its own path. A type, an interface,
-				// a var, or an import means somebody started building.
-				if typed.Tok == token.TYPE || typed.Tok == token.VAR {
-					implemented = append(implemented, path+":"+typed.Tok.String())
-				}
-			}
-		}
-		return nil
-	})
+// The scheduler role injects the domain service through
+// WithPlacementHandler(workqueue.Handler). If the domain stopped satisfying that
+// interface the role would fall back to its fail-closed default, which refuses
+// every item — correct, but silent.
+func TestSchedulingServiceSatisfiesTheWorkQueueHandlerContract(t *testing.T) {
+	var handler workqueue.Handler = scheduling.Service{
+		Repository: scheduling.NewMemoryRepository(0),
+		Fence:      1,
+	}
+	if handler == nil {
+		t.Fatal("scheduling.Service must satisfy workqueue.Handler")
+	}
+}
+
+// A handler that acknowledges work it cannot perform is worse than one that
+// retries: the item leaves the queue and the placement never happens. An
+// unconfigured service must fail rather than return a nil error.
+func TestAnUnconfiguredSchedulerFailsClosed(t *testing.T) {
+	var service scheduling.Service
+	payload, err := json.Marshal(scheduling.PlacementCommand{})
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("marshal: %v", err)
 	}
+	_, err = service.Handle(context.Background(), workqueue.Item{
+		Queue:   scheduling.PlacementQueue,
+		Payload: payload,
+	})
+	if err == nil {
+		t.Fatal("a scheduler with no repository must not acknowledge work")
+	}
+}
 
-	if len(implemented) > 0 {
-		t.Fatalf("control/scheduling is no longer scaffold -- %d real declarations, starting at %s.\n"+
-			"Replace this test with real scheduler coverage: quota and fair-share admission, "+
-			"placement against topology, and preemption ordering. Delete this tripwire when you do.",
-			len(implemented), implemented[0])
+// A malformed payload must be terminal, not retried. Replaying it produces the
+// same parse failure forever, so it belongs in the dead-letter path immediately
+// — and the work queue reads that decision off the fault's retry policy.
+func TestAMalformedPlacementPayloadIsTerminal(t *testing.T) {
+	service := scheduling.Service{
+		Repository: scheduling.NewMemoryRepository(0),
+		Fence:      1,
+	}
+	_, err := service.Handle(context.Background(), workqueue.Item{
+		Queue:   scheduling.PlacementQueue,
+		Payload: []byte("{not json"),
+	})
+	if err == nil {
+		t.Fatal("a malformed payload must be rejected")
+	}
+	if faults.IsRetryable(err) {
+		t.Fatalf("a malformed payload must not be retryable; policy = %+v", faults.RetryPolicyOf(err))
 	}
 }

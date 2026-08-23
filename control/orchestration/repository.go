@@ -27,6 +27,52 @@ type StageRecord struct {
 	Version   resourceversion.Version
 }
 
+// NewStage opens a stage in the blocked state with a sealed initial version.
+//
+// Sealing at construction rather than at first write is what makes
+// TransitionStage's optimistic precondition meaningful from the very first
+// transition: an unsealed record has no version to compare, so the first
+// concurrent pair of reconcilers would both believe they held current state.
+func NewStage(runID, jobID, stageID string, now time.Time) (StageRecord, error) {
+	if err := validateID(runID, "run", "run_id"); err != nil {
+		return StageRecord{}, err
+	}
+	if err := validateID(jobID, "job", "job_id"); err != nil {
+		return StageRecord{}, err
+	}
+	if err := validateID(stageID, "stage", "stage_id"); err != nil {
+		return StageRecord{}, err
+	}
+	if now.IsZero() {
+		return StageRecord{}, invalid("stage_time_invalid", "stage creation time is required", nil)
+	}
+	record := StageRecord{
+		RunID:     runID,
+		JobID:     jobID,
+		StageID:   stageID,
+		State:     StageBlocked,
+		UpdatedAt: now.Round(0).UTC(),
+	}
+	return SealStage(record, 1)
+}
+
+// SealStage stamps a stage with the version that seals its content.
+//
+// Exported because a durable adapter has to seal transitions identically: a row
+// written by one repository and read by another must pass the same seal check,
+// and two open-coded versions of this rule is exactly how that stops being true.
+func SealStage(record StageRecord, generation uint64) (StageRecord, error) {
+	version, err := resourceversion.New(generation, stageDigest(record))
+	if err != nil {
+		return StageRecord{}, unavailable("stage_version_unavailable", "stage resource version is unavailable", err)
+	}
+	record.Version = version
+	if err := record.Validate(); err != nil {
+		return StageRecord{}, err
+	}
+	return record, nil
+}
+
 func (record StageRecord) Validate() error {
 	if err := validateID(record.RunID, "run", "run_id"); err != nil {
 		return err
@@ -39,6 +85,12 @@ func (record StageRecord) Validate() error {
 	}
 	if !record.State.Valid() || record.UpdatedAt.IsZero() {
 		return invalid("stage_record_invalid", "stage record is incomplete", nil)
+	}
+	if err := record.Version.Validate(); err != nil {
+		return invalid("stage_version_invalid", "stage resource version is invalid", err)
+	}
+	if !record.Version.Digest().Equal(stageDigest(record)) {
+		return invalid("stage_version_digest_mismatch", "stage version does not seal its content", nil)
 	}
 	return nil
 }
@@ -290,13 +342,12 @@ func (repository *MemoryRepository) TransitionStage(
 		// forever.
 		updated.Attempts = current.Attempts + 1
 	}
-	version, err := current.Version.Next(stageDigest(updated))
+	sealed, err := SealStage(updated, current.Version.Generation()+1)
 	if err != nil {
-		return StageRecord{}, false, unavailable("stage_version_unavailable", "stage resource version is unavailable", err)
+		return StageRecord{}, false, err
 	}
-	updated.Version = version
-	repository.stages[key] = updated
-	return updated, false, nil
+	repository.stages[key] = sealed
+	return sealed, false, nil
 }
 
 func (repository *MemoryRepository) PutAttempt(ctx context.Context, record AttemptRecord) (AttemptRecord, bool, error) {

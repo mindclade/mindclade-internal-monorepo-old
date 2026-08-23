@@ -10,10 +10,6 @@ package(default_visibility = ["//visibility:private"])
 # A real target, not the scaffold filegroup this package used to carry.
 # check_component_maturity.py treats filegroup as non-building, so while that was the only
 # rule here these tests could not count as a build target for any component that claimed them.
-#
-# scheduler_test.go walks ../../../control/scheduling from the test's working directory, which
-# under Bazel is the runfiles tree rather than the checkout -- so that tree has to be declared
-# as data or the walk finds nothing and the tripwire silently passes.
 go_test(
     name = "tests_test",
     srcs = [
@@ -22,16 +18,18 @@ go_test(
         "reconciliation_test.go",
         "scheduler_test.go",
     ],
-    data = ["//control/scheduling:scaffold_files"],
     deps = [
         "//control/ingestion",
         "//control/routing",
         "//control/runtime_authority",
+        "//control/scheduling",
         "//libs/go/audit",
         "//libs/go/clock",
         "//libs/go/coordination/outbox",
         "//libs/go/coordination/outbox/memory",
         "//libs/go/coordination/outbox/outboxtest",
+        "//libs/go/coordination/workqueue",
+        "//libs/go/faults",
         "//libs/go/identifiers",
         "//libs/go/storage/sql/sqltest",
         "//libs/go/storage/sql/transaction",
