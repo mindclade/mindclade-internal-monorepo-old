@@ -21,7 +21,6 @@ use mindclade_runtime_core::{BytePermit, FencingToken};
 use mindclade_serving_runtime::AdmissionPermit;
 use prost::Message;
 use std::net::SocketAddr;
-use std::path::PathBuf;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
@@ -314,10 +313,10 @@ async fn cancel_host(
 }
 
 async fn connect_host(endpoint: &str) -> Result<WorkerControlClient<Channel>, Status> {
-    let path = endpoint
-        .strip_prefix("unix://")
-        .map(PathBuf::from)
-        .filter(|path| path.is_absolute() && path.as_os_str().as_encoded_bytes().len() <= 100)
+    // Shared with the readiness probe rather than restated here: if what the
+    // probe connects to could drift from what dispatch connects to, readiness
+    // would stop describing this call.
+    let path = crate::host_probe::host_socket_path(endpoint)
         .ok_or_else(|| Status::failed_precondition("runtime-host route endpoint is invalid"))?;
     let connector_path = path.clone();
     let channel = Endpoint::from_static("http://[::]:50051")
@@ -381,7 +380,19 @@ fn sanitize_host_status(status: &Status) -> Status {
             Status::deadline_exceeded("runtime-host deadline exceeded")
         }
         tonic::Code::Cancelled => Status::cancelled("runtime-host execution cancelled"),
-        _ => Status::unavailable("runtime-host execution failed"),
+        // Everything else collapses to `unavailable` on purpose: the codes
+        // named above are the ones a caller can act on, and the rest would
+        // only leak runtime-host internals across the trust boundary.
+        tonic::Code::Ok
+        | tonic::Code::Unknown
+        | tonic::Code::NotFound
+        | tonic::Code::AlreadyExists
+        | tonic::Code::Aborted
+        | tonic::Code::OutOfRange
+        | tonic::Code::Unimplemented
+        | tonic::Code::Internal
+        | tonic::Code::Unavailable
+        | tonic::Code::DataLoss => Status::unavailable("runtime-host execution failed"),
     }
 }
 
@@ -396,6 +407,16 @@ fn fault_status(error: &Fault) -> Status {
         Code::DeadlineExceeded => Status::deadline_exceeded(error.message()),
         Code::Cancelled => Status::cancelled(error.message()),
         Code::Unavailable => Status::unavailable(error.message()),
-        _ => Status::internal("runtime gateway execution failed"),
+        // `Code` is `#[non_exhaustive]`, so rustc compels a trailing wildcard
+        // outside `libs/rust/faults` and no local change can remove it. Every
+        // code this build knows is still named, so the wildcard covers only a
+        // future variant and the fallback below is a decision, not a default.
+        Code::Unknown
+        | Code::NotFound
+        | Code::Aborted
+        | Code::Unimplemented
+        | Code::Internal
+        | Code::DataLoss
+        | _ => Status::internal("runtime gateway execution failed"),
     }
 }

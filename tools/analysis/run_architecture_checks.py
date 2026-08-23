@@ -30,6 +30,7 @@ if str(CODEGEN) not in sys.path:
     sys.path.append(str(CODEGEN))
 import check_affected_presubmit
 import check_artifact_gc_contract
+import check_blueprint_authority
 import check_blueprint_scaffold
 import check_build_toolchain_contract
 import check_cargo_bazel_alignment
@@ -113,6 +114,7 @@ CHECKS = [
     ("build/toolchain", check_build_toolchain_contract.check),
     ("affected presubmit", check_affected_presubmit.check),
     ("artifact GC", check_artifact_gc_contract.check),
+    ("blueprint authority", check_blueprint_authority.check),
     ("blueprint scaffold consistency", _blueprint_scaffold),
     ("foundation hardening", check_foundation_hardening.check),
     ("Cargo/Bazel Rust alignment", check_cargo_bazel_alignment.check),

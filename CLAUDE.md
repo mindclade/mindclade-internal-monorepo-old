@@ -99,8 +99,13 @@ tools/dev/nixw develop .#default --command sh -c 'cd sdk/go && go test ./...'
 
 `-run` with a name that matches nothing exits **0** and prints `[no tests to run]` — it does not
 fail. Read the output, not the exit code. PostgreSQL-backed suites skip without
-`MINDCLADE_TEST_POSTGRES_DSN`. The Nix contract is Go 1.26 and the current resolved tool is
-Go 1.26.6. Root `go test ./...` does not cover `sdk/go`. CI runs `GOTOOLCHAIN=local`.
+`MINDCLADE_TEST_POSTGRES_DSN` (control plane) or `STUDIO_TEST_DATABASE_URL` (browser plane), and
+a package whose tests all skipped still reports `ok` — so a locally green `go test` is not
+evidence that the durability layer ran. `configs/qualification/live_datastore_suites.toml`
+declares which packages must execute live; `ci/presubmit/live_datastore_gate.py` runs them and
+fails on a skip. CI provisions both DSNs from an ephemeral PostgreSQL service. The Nix contract
+is Go 1.26 and the current resolved tool is Go 1.26.6. Root `go test ./...` does not cover
+`sdk/go`. CI runs `GOTOOLCHAIN=local`.
 
 ### Rust
 

@@ -631,6 +631,16 @@ fn fault_status(error: &Fault) -> Status {
         Code::DeadlineExceeded => Status::deadline_exceeded(error.message()),
         Code::Cancelled => Status::cancelled(error.message()),
         Code::Unavailable => Status::unavailable(error.message()),
-        _ => Status::internal("runtime-host worker control failed"),
+        // `Code` is `#[non_exhaustive]`, so rustc compels a trailing wildcard
+        // outside `libs/rust/faults` and no local change can remove it. Every
+        // code this build knows is still named, so the wildcard covers only a
+        // future variant and the fallback below is a decision, not a default.
+        Code::Unknown
+        | Code::NotFound
+        | Code::Aborted
+        | Code::Unimplemented
+        | Code::Internal
+        | Code::DataLoss
+        | _ => Status::internal("runtime-host worker control failed"),
     }
 }

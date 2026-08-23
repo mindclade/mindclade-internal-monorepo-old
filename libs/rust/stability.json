@@ -18,6 +18,7 @@
   "evolving": [
     "artifact_cas",
     "checkpoint_io",
+    "config",
     "data_stream",
     "gpu_host",
     "ipc",

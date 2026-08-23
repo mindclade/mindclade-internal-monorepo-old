@@ -2,8 +2,8 @@
   "schema_version": 2,
   "rust_version": "1.97.1",
   "edition": "2024",
-  "package_count": 26,
-  "production_package_count": 26,
+  "package_count": 27,
+  "production_package_count": 27,
   "packages": [
     {
       "directory": "artifact_cas",
@@ -193,6 +193,30 @@
       "test_sources": [
         "tests/fault_injection.rs",
         "tests/hostile_manifest.rs",
+        "tests/integration.rs"
+      ]
+    },
+    {
+      "directory": "config",
+      "crate": "mindclade_config",
+      "layer": 1,
+      "stability": "evolving",
+      "production": true,
+      "dependencies": [
+        "content_digest",
+        "faults"
+      ],
+      "production_sources": [
+        "src/catalog.rs",
+        "src/error.rs",
+        "src/field.rs",
+        "src/lib.rs",
+        "src/reload.rs",
+        "src/secret.rs",
+        "src/snapshot.rs",
+        "src/source.rs"
+      ],
+      "test_sources": [
         "tests/integration.rs"
       ]
     },

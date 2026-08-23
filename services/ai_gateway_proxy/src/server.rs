@@ -449,7 +449,21 @@ fn fault_response(error: &Fault) -> Response {
         Code::Unimplemented => StatusCode::NOT_IMPLEMENTED,
         Code::DeadlineExceeded => StatusCode::GATEWAY_TIMEOUT,
         Code::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
-        _ => StatusCode::INTERNAL_SERVER_ERROR,
+        // `Code` is `#[non_exhaustive]`, so rustc compels a trailing wildcard
+        // outside `libs/rust/faults` and no local change can remove it. Every
+        // code this build knows is still named, so the wildcard covers only a
+        // future variant and the fallback below is a decision, not a default.
+        //
+        // `AlreadyExists` and `OutOfRange` render as 500 here even though the
+        // adjacent arms give `Conflict` a 409 and `InvalidArgument` a 400. The
+        // behaviour is left as it was rather than changed under a lint commit.
+        Code::Unknown
+        | Code::AlreadyExists
+        | Code::OutOfRange
+        | Code::Internal
+        | Code::DataLoss
+        | Code::Cancelled
+        | _ => StatusCode::INTERNAL_SERVER_ERROR,
     };
     let mut response = (
         status,

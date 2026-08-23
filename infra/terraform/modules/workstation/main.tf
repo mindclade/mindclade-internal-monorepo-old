@@ -38,6 +38,21 @@ locals {
 
   idle_cycles_before_poweroff = floor((var.idle_shutdown_minutes * 60) / var.idle_check_interval_seconds)
 
+  # Provisioning sources are resolved here, at plan time, rather than branched inside the guest.
+  # The script a reviewer reads in the plan is then the script that runs, and where an override is
+  # set the public endpoint does not appear in the rendered script at all — a guest-side `if` would
+  # leave the public URL sitting in the file on the box for someone to reach for.
+  #
+  # Each is rendered through an explicit null guard rather than interpolated raw. A null reaching a
+  # string template is a hard evaluation error inside this locals block, which fires before the
+  # instance precondition that exists to name the mistake — so a caller who set a substituter URI
+  # and forgot its key would get "cannot include a null value in a string template" pointing at a
+  # heredoc instead of the sentence explaining that the two go together.
+  apt_components             = join(" ", coalesce(var.apt_mirror_components, ["main"]))
+  nix_installer_url          = coalesce(var.nix_installer_url, "https://nixos.org/nix/install")
+  nix_installer_sha256       = var.nix_installer_sha256 == null ? "" : var.nix_installer_sha256
+  nix_substituter_public_key = var.nix_substituter_trusted_public_key == null ? "" : var.nix_substituter_trusted_public_key
+
   startup_script = <<-EOT
     #!/usr/bin/env bash
     set -euo pipefail
@@ -172,6 +187,36 @@ locals {
     set +e
 
     export DEBIAN_FRONTEND=noninteractive
+    %{if var.apt_mirror_url != null}
+    # AN INTERNAL MIRROR IN PLACE OF THE PUBLIC ONE, NOT ALONGSIDE IT. The image ships sources
+    # pointing at deb.debian.org and packages.cloud.google.com. Both leave the VPC, and where
+    # egress is default-denied both stall until their timeout and then fail the whole `apt-get
+    # update` — including for the packages the internal mirror answered for. Leaving them enabled
+    # would make the override cosmetic. They are moved aside rather than deleted, so
+    # `ls /etc/apt/sources.list.d` still shows an operator exactly what was replaced.
+    #
+    # The suite is read from the running image instead of being an input. It has to match the image
+    # that actually booted; a caller pinning bookworm against a trixie image would write a
+    # sources.list that resolves to nothing and have it reported as a mirror failure.
+    SUITE="$(. /etc/os-release 2>/dev/null && printf '%s' "$${VERSION_CODENAME:-}")"
+    if [ -n "$${SUITE}" ]; then
+      mkdir -p /etc/apt/sources.list.d
+      for existing in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+        # This script runs on every boot, so it must not disable the file it wrote last boot.
+        case "$${existing}" in
+          /etc/apt/sources.list.d/mindclade-internal.list) continue ;;
+        esac
+        [ -f "$${existing}" ] && mv -f "$${existing}" "$${existing}.disabled"
+      done
+      printf 'deb ${var.apt_mirror_url} %s ${local.apt_components}\n' "$${SUITE}" \
+        > /etc/apt/sources.list.d/mindclade-internal.list
+      record apt-source internal-mirror
+    else
+      record apt-source FAILED-no-version-codename
+    fi
+    %{else}
+    record apt-source image-default-public-mirror
+    %{endif}
     if apt-get update -y && \
        apt-get install -y --no-install-recommends tmux git curl ca-certificates xz-utils; then
       record packages ok
@@ -179,17 +224,29 @@ locals {
       record packages FAILED-egress-denied-or-mirror-unreachable
     fi
 
+    # An empty pin means unpinned, which is the default and the prior behaviour. When a pin is set
+    # the installer is verified BEFORE it is executed, because it is executed as root: running an
+    # installer that failed its own digest check and merely noting it in the status file would make
+    # the pin decorative. Each outcome records a distinct reason so an operator is not sent to debug
+    # the firewall over a digest mismatch, or the digest over a blocked fetch.
+    NIX_INSTALLER_URL="${local.nix_installer_url}"
+    NIX_INSTALLER_SHA256="${local.nix_installer_sha256}"
+
     if command -v nix >/dev/null 2>&1; then
       record nix already-present
-    elif curl --retry 3 --retry-max-time 120 --max-time 600 -fsSL \
-           https://nixos.org/nix/install -o /tmp/nix-install.sh && \
-         sh /tmp/nix-install.sh --daemon --yes; then
-      rm -f /tmp/nix-install.sh
+    elif ! curl --retry 3 --retry-max-time 120 --max-time 600 -fsSL \
+           "$${NIX_INSTALLER_URL}" -o /tmp/nix-install.sh; then
+      record nix FAILED-installer-unreachable
+    elif [ -n "$${NIX_INSTALLER_SHA256}" ] && \
+         ! printf '%s  %s\n' "$${NIX_INSTALLER_SHA256}" /tmp/nix-install.sh | \
+           sha256sum -c - >/dev/null 2>&1; then
+      record nix FAILED-installer-digest-mismatch
+    elif sh /tmp/nix-install.sh --daemon --yes; then
       record nix ok
     else
-      rm -f /tmp/nix-install.sh
-      record nix FAILED-installer-unreachable
+      record nix FAILED-installer-exited-nonzero
     fi
+    rm -f /tmp/nix-install.sh
 
     # Written unconditionally: it is inert without Nix and correct the moment Nix arrives, so a
     # later manual install needs no second pass.
@@ -200,11 +257,27 @@ locals {
     fi
     record nix-conf ok
 
+    %{if var.nix_substituter_uri != null}
+    # A caller-supplied substituter, which is the only sanctioned way this machine gets one. It is
+    # written as `substituters`, not `extra-substituters`: where egress is default-denied
+    # cache.nixos.org is unreachable, and leaving it in the list buys nothing but a per-path
+    # timeout before the local build that was going to happen anyway. require-sigs is left at its
+    # default, so the trusted key is what makes a served path acceptable — which is why the two
+    # inputs are refused unless they are set together.
+    if ! grep -q '^substituters' /etc/nix/nix.conf 2>/dev/null; then
+      printf 'substituters = %s\ntrusted-public-keys = %s\n' \
+        '${var.nix_substituter_uri}' '${local.nix_substituter_public_key}' \
+        >> /etc/nix/nix.conf
+    fi
+    record substituter configured
+    %{else}
     # The Nix binary-cache bucket is deliberately NOT configured as a substituter here.
     # nix_binary_cache exports substituter_uri = null and client_activation_contract.enabled =
     # false with reason raw-private-gcs-is-not-a-nix-substituter. Wiring it anyway would
-    # contradict a module contract; a reviewed substituter service activates that path.
+    # contradict a module contract. nix_substituter_uri is the input a reviewed substituter
+    # service plugs into, and it stays null until one exists.
     record substituter not-configured-by-design
+    %{endif}
 
     set -e
   EOT
@@ -366,6 +439,17 @@ resource "google_compute_instance" "workstation" {
     precondition {
       condition     = var.create_iap_ssh_firewall_rule == false || var.network != null
       error_message = "network is required when this module creates the IAP ingress rule."
+    }
+
+    # Cross-input rules live here rather than in a variable validation, matching the rules above.
+    precondition {
+      condition     = (var.nix_substituter_uri == null) == (var.nix_substituter_trusted_public_key == null)
+      error_message = "nix_substituter_uri and nix_substituter_trusted_public_key must be set together. A substituter with no trusted key serves paths the guest cannot verify and this module never relaxes require-sigs; a key with no substituter is inert."
+    }
+
+    precondition {
+      condition     = var.apt_mirror_components == null || var.apt_mirror_url != null
+      error_message = "apt_mirror_components applies only when apt_mirror_url is set. Against the image's own sources.list it would be silently ignored, which reads as a mirror that dropped a component."
     }
   }
 

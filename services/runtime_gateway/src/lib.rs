@@ -18,6 +18,7 @@ pub mod bootstrap;
 pub mod config;
 pub mod grpc;
 pub mod health;
+pub mod host_probe;
 pub mod lifecycle;
 pub mod network;
 pub mod protocol;

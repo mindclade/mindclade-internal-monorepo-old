@@ -33,6 +33,7 @@ tokio.workspace = true
 tokio-stream.workspace = true
 tonic.workspace = true
 mindclade_bytes_io = { path = "../../libs/rust/bytes_io" }
+mindclade_config = { path = "../../libs/rust/config" }
 mindclade_faults = { path = "../../libs/rust/faults" }
 mindclade_gpu_host = { path = "../../libs/rust/gpu_host" }
 mindclade_ipc = { path = "../../libs/rust/ipc" }
