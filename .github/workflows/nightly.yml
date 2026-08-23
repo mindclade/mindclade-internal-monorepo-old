@@ -195,6 +195,8 @@ jobs:
       - name: Analyze and test the complete configured graph
         env:
           BASH_ENV: ""
+          BAZEL_CACHE_MODE: ${{ steps.bazel-remote-cache.outputs.enabled == 'true' && 'remote' || 'disk' }}
+          BAZEL_CACHE_ROLE: ${{ steps.bazel-remote-cache.outputs.enabled == 'true' && steps.bazel-remote-cache.outputs.role || steps.bazel-cache-trust.outputs.role }}
         run: >-
           /nix/var/nix/profiles/default/bin/nix develop .#ci-bazel
           --command python3 -I ci/nightly/pipeline.py
@@ -204,6 +206,8 @@ jobs:
           --evidence-dir "${RUNNER_TEMP}/bazel-evidence"
           --job-started-at-file "${RUNNER_TEMP}/bazel-job-started"
           --runner-temp "${RUNNER_TEMP}"
+          --cache-mode "${BAZEL_CACHE_MODE}"
+          --cache-role "${BAZEL_CACHE_ROLE}"
 
       - name: Qualify the rolling affected-presubmit latency SLO
         env:

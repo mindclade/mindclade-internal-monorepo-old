@@ -38,6 +38,8 @@ def main() -> int:
     parser.add_argument("--evidence-dir", type=Path)
     parser.add_argument("--job-started-at-file", type=Path)
     parser.add_argument("--runner-temp", type=Path)
+    parser.add_argument("--cache-mode", choices=("disk", "remote"))
+    parser.add_argument("--cache-role", choices=("reader", "writer"))
     args = parser.parse_args()
 
     if not args.bazel_only and run(
@@ -51,7 +53,6 @@ def main() -> int:
     base_sha: str | None = None
     resolved_mode = args.mode
     job_started_epoch: int | None = None
-    runtime_contract: affected.BazelRuntimeContract | None = None
     try:
         resolved_mode = affected.resolve_selection_mode(
             args.mode,
@@ -60,6 +61,10 @@ def main() -> int:
             base_sha=args.base,
         )
         if args.event != "local":
+            if args.cache_mode is None or args.cache_role is None:
+                raise affected.SelectionError(
+                    "AFFECTED-SELECT-020", "Bazel runtime contract is invalid"
+                )
             if not args.head:
                 raise affected.SelectionError(
                     "AFFECTED-SELECT-019", "checkout integrity validation failed"
@@ -72,8 +77,13 @@ def main() -> int:
                 raise affected.SelectionError(
                     "AFFECTED-SELECT-014", "job-start timestamp is invalid"
                 )
-            affected.assert_clean_checkout(args.head)
-            runtime_contract = affected.assert_bazelrc_contract(args.event, args.runner_temp)
+            affected.assert_clean_checkout(
+                args.head,
+                event=args.event,
+                runner_temp=args.runner_temp,
+                cache_mode=args.cache_mode,
+                cache_role=args.cache_role,
+            )
             job_started_epoch = affected.load_job_started_epoch(
                 args.job_started_at_file,
                 runner_temp=args.runner_temp,
@@ -119,7 +129,6 @@ def main() -> int:
             selection,
             evidence_dir,
             job_started_epoch=job_started_epoch,
-            runtime_contract=runtime_contract,
         )
     except affected.SelectionError as error:
         print(f"affected Bazel selection failed: {error}", file=sys.stderr)

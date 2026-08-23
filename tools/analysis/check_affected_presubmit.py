@@ -59,6 +59,10 @@ PRESUBMIT_BAZEL_COMMAND = (
     "${RUNNER_TEMP}/bazel-job-started",
     "--runner-temp",
     "${RUNNER_TEMP}",
+    "--cache-mode",
+    "${BAZEL_CACHE_MODE}",
+    "--cache-role",
+    "${BAZEL_CACHE_ROLE}",
 )
 NIGHTLY_BAZEL_COMMAND = (
     "/nix/var/nix/profiles/default/bin/nix",
@@ -80,6 +84,10 @@ NIGHTLY_BAZEL_COMMAND = (
     "${RUNNER_TEMP}/bazel-job-started",
     "--runner-temp",
     "${RUNNER_TEMP}",
+    "--cache-mode",
+    "${BAZEL_CACHE_MODE}",
+    "--cache-role",
+    "${BAZEL_CACHE_ROLE}",
 )
 UPLOAD_ARTIFACT_ACTION = "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02"
 CHECKOUT_ACTION = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
@@ -158,7 +166,7 @@ PRESUBMIT_BAZEL_STEP_CONTRACT = (
     ),
     (
         "name:Run event-governed Bazel validation",
-        "6ae943963137c5ff2305f55988c863633a9837ce00c977794c4acaa06c3ee881",
+        "06640f4faa23fdb9a839cbf317e7e1de39d682a1ca53b17585b6f0181eb4e5ea",
     ),
     (
         "name:Measure bounded Bazel persistent action cache",
@@ -244,7 +252,7 @@ NIGHTLY_BAZEL_STEP_CONTRACT = (
     ),
     (
         "name:Analyze and test the complete configured graph",
-        "0620fb2d513f21c21a61e602c2d9e16174a915b69ac9e4cdfd4b301e88c6bc90",
+        "15baedeede5575397a92e3df628ddb212f28a66cf8c98748833e65fe149a954d",
     ),
     (
         "name:Qualify the rolling affected-presubmit latency SLO",
@@ -613,6 +621,14 @@ def _presubmit_workflow_errors(workflow: dict[str, Any]) -> list[str]:
         or step.get("env")
         != {
             "BASH_ENV": "",
+            "BAZEL_CACHE_MODE": (
+                "${{ steps.bazel-remote-cache.outputs.enabled == 'true' && 'remote' || 'disk' }}"
+            ),
+            "BAZEL_CACHE_ROLE": (
+                "${{ steps.bazel-remote-cache.outputs.enabled == 'true' "
+                "&& steps.bazel-remote-cache.outputs.role "
+                "|| steps.bazel-cache-trust.outputs.role }}"
+            ),
             "PR_BASE_SHA": "${{ github.event.pull_request.base.sha }}",
         }
         or _command(step.get("run")) != PRESUBMIT_BAZEL_COMMAND
@@ -723,7 +739,18 @@ def _nightly_workflow_errors(workflow: dict[str, Any]) -> list[str]:
     if (
         step is None
         or set(step) != {"env", "name", "run"}
-        or step.get("env") != {"BASH_ENV": ""}
+        or step.get("env")
+        != {
+            "BASH_ENV": "",
+            "BAZEL_CACHE_MODE": (
+                "${{ steps.bazel-remote-cache.outputs.enabled == 'true' && 'remote' || 'disk' }}"
+            ),
+            "BAZEL_CACHE_ROLE": (
+                "${{ steps.bazel-remote-cache.outputs.enabled == 'true' "
+                "&& steps.bazel-remote-cache.outputs.role "
+                "|| steps.bazel-cache-trust.outputs.role }}"
+            ),
+        }
         or _command(step.get("run")) != NIGHTLY_BAZEL_COMMAND
     ):
         errors.append(_error("AFFECTED-WORKFLOW-005", "nightly Bazel command is invalid"))
@@ -744,7 +771,7 @@ def _nightly_workflow_errors(workflow: dict[str, Any]) -> list[str]:
 
 def _selection_policy_errors() -> list[str]:
     cases = (
-        ("pull_request", "refs/pull/1/merge", "0" * 40, "affected"),
+        ("pull_request", "refs/pull/1/merge", "0" * 40, "full"),
         ("merge_group", "refs/heads/gh-readonly-queue/main/pr-1", None, "full"),
         ("push", "refs/heads/main", None, "full"),
         ("schedule", "refs/heads/main", None, "full"),
@@ -781,9 +808,26 @@ def _selection_policy_errors() -> list[str]:
 
 def _presubmit_orchestration_errors() -> list[str]:
     cases = (
-        ("pull_request", "refs/pull/1/merge", "0" * 40, "affected"),
-        ("merge_group", "refs/heads/gh-readonly-queue/main/pr-1", "", "full"),
-        ("push", "refs/heads/main", "", "full"),
+        ("pull_request", "refs/pull/1/merge", "0" * 40, "full", "disk", "reader"),
+        ("pull_request", "refs/pull/1/merge", "0" * 40, "full", "remote", "reader"),
+        (
+            "merge_group",
+            "refs/heads/gh-readonly-queue/main/pr-1",
+            "",
+            "full",
+            "disk",
+            "reader",
+        ),
+        (
+            "merge_group",
+            "refs/heads/gh-readonly-queue/main/pr-1",
+            "",
+            "full",
+            "remote",
+            "writer",
+        ),
+        ("push", "refs/heads/main", "", "full", "disk", "writer"),
+        ("push", "refs/heads/main", "", "full", "remote", "writer"),
     )
     evidence = Path("/tmp/mindclade-affected-orchestration")
     runner_temp = Path("/tmp/mindclade-affected-runner")
@@ -791,7 +835,7 @@ def _presubmit_orchestration_errors() -> list[str]:
     started_epoch = 123
     head = "1" * 40
     try:
-        for event, ref, base_sha, expected_mode in cases:
+        for event, ref, base_sha, expected_mode, cache_mode, cache_role in cases:
             changes = (
                 (affected.Change(status="M", path="pkg/source.py"),)
                 if expected_mode == "affected"
@@ -806,8 +850,6 @@ def _presubmit_orchestration_errors() -> list[str]:
             )
             resolver = mock.Mock(return_value=expected_mode)
             clean_checkout = mock.Mock()
-            runtime_contract = mock.sentinel.runtime_contract
-            bazelrc_contract = mock.Mock(return_value=runtime_contract)
             started_loader = mock.Mock(return_value=started_epoch)
             revision = mock.Mock(return_value=canonical_base)
             changed = mock.Mock(return_value=changes)
@@ -833,6 +875,10 @@ def _presubmit_orchestration_errors() -> list[str]:
                 str(started_file),
                 "--runner-temp",
                 str(runner_temp),
+                "--cache-mode",
+                cache_mode,
+                "--cache-role",
+                cache_role,
             ]
             with (
                 mock.patch.object(sys, "argv", argv),
@@ -845,11 +891,6 @@ def _presubmit_orchestration_errors() -> list[str]:
                     presubmit_pipeline.affected,
                     "assert_clean_checkout",
                     clean_checkout,
-                ),
-                mock.patch.object(
-                    presubmit_pipeline.affected,
-                    "assert_bazelrc_contract",
-                    bazelrc_contract,
                 ),
                 mock.patch.object(
                     presubmit_pipeline.affected,
@@ -875,8 +916,13 @@ def _presubmit_orchestration_errors() -> list[str]:
             if status != 0:
                 raise AssertionError("status")
             resolver.assert_called_once_with("auto", event=event, ref=ref, base_sha=base_sha)
-            clean_checkout.assert_called_once_with(head)
-            bazelrc_contract.assert_called_once_with(event, runner_temp)
+            clean_checkout.assert_called_once_with(
+                head,
+                event=event,
+                runner_temp=runner_temp,
+                cache_mode=cache_mode,
+                cache_role=cache_role,
+            )
             started_loader.assert_called_once_with(started_file, runner_temp=runner_temp)
             if expected_mode == "affected":
                 revision.assert_called_once_with(base_sha)
@@ -894,7 +940,6 @@ def _presubmit_orchestration_errors() -> list[str]:
                 selection,
                 evidence,
                 job_started_epoch=started_epoch,
-                runtime_contract=runtime_contract,
             )
             failure_writer.assert_not_called()
 
@@ -951,7 +996,11 @@ def _nightly_orchestration_errors() -> list[str]:
         test_targets=("//...",),
     )
     try:
-        for event in ("schedule", "workflow_dispatch"):
+        for event, cache_mode, cache_role in (
+            ("schedule", "disk", "writer"),
+            ("schedule", "remote", "writer"),
+            ("workflow_dispatch", "disk", "writer"),
+        ):
             selection = mock.Mock(
                 analysis_targets=("//...",),
                 test_targets=("//...",),
@@ -959,8 +1008,6 @@ def _nightly_orchestration_errors() -> list[str]:
             loader = mock.Mock(return_value=contract)
             resolver = mock.Mock(return_value="full")
             clean_checkout = mock.Mock()
-            runtime_contract = mock.sentinel.runtime_contract
-            bazelrc_contract = mock.Mock(return_value=runtime_contract)
             started_loader = mock.Mock(return_value=started_epoch)
             selector = mock.Mock(return_value=selection)
             executor = mock.Mock(return_value=0)
@@ -979,6 +1026,10 @@ def _nightly_orchestration_errors() -> list[str]:
                 str(started_file),
                 "--runner-temp",
                 str(runner_temp),
+                "--cache-mode",
+                cache_mode,
+                "--cache-role",
+                cache_role,
             ]
             with (
                 mock.patch.object(sys, "argv", argv),
@@ -992,11 +1043,6 @@ def _nightly_orchestration_errors() -> list[str]:
                     nightly_pipeline.affected,
                     "assert_clean_checkout",
                     clean_checkout,
-                ),
-                mock.patch.object(
-                    nightly_pipeline.affected,
-                    "assert_bazelrc_contract",
-                    bazelrc_contract,
                 ),
                 mock.patch.object(
                     nightly_pipeline.affected,
@@ -1022,15 +1068,19 @@ def _nightly_orchestration_errors() -> list[str]:
             resolver.assert_called_once_with(
                 "full", event=event, ref="refs/heads/main", base_sha=None
             )
-            clean_checkout.assert_called_once_with(head)
-            bazelrc_contract.assert_called_once_with(event, runner_temp)
+            clean_checkout.assert_called_once_with(
+                head,
+                event=event,
+                runner_temp=runner_temp,
+                cache_mode=cache_mode,
+                cache_role=cache_role,
+            )
             started_loader.assert_called_once_with(started_file, runner_temp=runner_temp)
             selector.assert_called_once_with([], mode="full", event=event)
             executor.assert_called_once_with(
                 selection,
                 evidence,
                 job_started_epoch=started_epoch,
-                runtime_contract=runtime_contract,
             )
             failure_writer.assert_not_called()
     except Exception:
@@ -1050,7 +1100,6 @@ def check(root: Path) -> list[str]:
     except (OSError, UnicodeError, SyntaxError):
         return [_error("AFFECTED-CODE-001", "affected-selection source is unreadable")]
     for symbol in (
-        "BazelRuntimeContract",
         "Change",
         "Selection",
         "SelectionError",

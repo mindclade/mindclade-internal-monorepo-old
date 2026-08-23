@@ -32,13 +32,13 @@ it was explicitly restored. The tool also could not parse Nix's
 `release 9.1.1- (@non-git)` version string and conservatively assumed configured
 rule inputs were unavailable. These measured conditions, plus the absent
 externally pinned required workflow, map to the five machine-readable blockers
-in the contract. The graph-native selector is not active; the existing
-repository-owned Bazel-query selector remains the pull-request authority.
+in the contract. Neither the graph-native selector nor the repository-owned
+Bazel-query selector is active on pull requests; protected events remain full-graph.
 
 ## Connected evidence required
 
-The live pull-request lane uses affected selection with fail-closed full fallback.
-Qualification remains pending until pull-request canaries can safely demonstrate leaf,
+The live pull-request lane uses full selection. Qualification remains pending until
+pull-request canaries can safely demonstrate leaf,
 documentation-only, global, intentional selector-failure, and intentional
 test-failure behavior; the exact `bazel / verdict` context is observed on both
 pull requests and merge groups; and 28 days of ordinary affected runs meet the

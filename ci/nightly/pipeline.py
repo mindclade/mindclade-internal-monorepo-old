@@ -106,6 +106,8 @@ def main() -> int:
     parser.add_argument("--event", default=os.environ.get("GITHUB_EVENT_NAME", "schedule"))
     parser.add_argument("--ref", default=os.environ.get("GITHUB_REF"))
     parser.add_argument("--head", default=os.environ.get("GITHUB_SHA"))
+    parser.add_argument("--cache-mode", choices=("disk", "remote"))
+    parser.add_argument("--cache-role", choices=("reader", "writer"))
     args = parser.parse_args()
     evidence_dir = args.evidence_dir or Path(tempfile.mkdtemp(prefix="mindclade-nightly-"))
     try:
@@ -116,6 +118,10 @@ def main() -> int:
             ref=args.ref,
             base_sha=None,
         )
+        if args.cache_mode is None or args.cache_role is None:
+            raise affected.SelectionError(
+                "AFFECTED-SELECT-020", "Bazel runtime contract is invalid"
+            )
         if not args.head:
             raise affected.SelectionError(
                 "AFFECTED-SELECT-019", "checkout integrity validation failed"
@@ -126,8 +132,13 @@ def main() -> int:
             )
         if args.job_started_at_file is None:
             raise affected.SelectionError("AFFECTED-SELECT-014", "job-start timestamp is invalid")
-        affected.assert_clean_checkout(args.head)
-        runtime_contract = affected.assert_bazelrc_contract(args.event, args.runner_temp)
+        affected.assert_clean_checkout(
+            args.head,
+            event=args.event,
+            runner_temp=args.runner_temp,
+            cache_mode=args.cache_mode,
+            cache_role=args.cache_role,
+        )
         selection = affected.select([], mode=mode, event=args.event)
         if selection.analysis_targets != contract.analysis_targets:
             raise affected.SelectionError(
@@ -144,7 +155,6 @@ def main() -> int:
                 args.job_started_at_file,
                 runner_temp=args.runner_temp,
             ),
-            runtime_contract=runtime_contract,
         )
     except affected.SelectionError as error:
         print(f"nightly Bazel qualification failed: {error}", file=sys.stderr)

@@ -5,12 +5,14 @@
 from __future__ import annotations
 
 import json
+import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 
 from ci.common import affected
+from ci.nightly import pipeline
 from ci.nightly.pipeline import NightlyContract, load_contract
 from ci.nightly.qualify_latency import Metric, load_metric, qualify
 
@@ -67,6 +69,137 @@ def test_contract_loader_redacts_invalid_utf8(tmp_path: Path) -> None:
         load_contract(path)
     assert captured.value.code == "AFFECTED-SELECT-017"
     assert "secret-nightly-content" not in str(captured.value)
+
+
+def test_bazel_execution_requires_an_explicit_cache_route(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    failures: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        pipeline,
+        "load_contract",
+        lambda _path: NightlyContract(
+            mode="full",
+            analysis_targets=("//...",),
+            test_targets=("//...",),
+        ),
+    )
+    monkeypatch.setattr(
+        pipeline.affected,
+        "write_failure_evidence",
+        lambda *args, **kwargs: failures.append(kwargs),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "pipeline.py",
+            "--event",
+            "schedule",
+            "--ref",
+            "refs/heads/main",
+            "--evidence-dir",
+            str(tmp_path),
+        ],
+    )
+    assert pipeline.main() == 2
+    error = failures[0]["error"]
+    assert isinstance(error, affected.SelectionError)
+    assert error.code == "AFFECTED-SELECT-020"
+
+
+@pytest.mark.parametrize(
+    ("event", "cache_mode", "cache_role"),
+    [
+        ("schedule", "disk", "writer"),
+        ("schedule", "remote", "writer"),
+        ("workflow_dispatch", "disk", "writer"),
+    ],
+)
+def test_governed_cache_route_is_verified_but_not_injected_into_executor(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    event: str,
+    cache_mode: str,
+    cache_role: str,
+) -> None:
+    runner_temp = tmp_path / "runner"
+    started_file = runner_temp / "bazel-job-started"
+    evidence = tmp_path / "evidence"
+    head = "1" * 40
+    contract = NightlyContract(
+        mode="full",
+        analysis_targets=("//...",),
+        test_targets=("//...",),
+    )
+    selection = affected.Selection(
+        mode="full",
+        reason="workflow_full",
+        changes=(),
+        seeds=("//...",),
+        analysis_targets=("//...",),
+        test_targets=("//...",),
+        base_sha=None,
+        head_sha=head,
+        event=event,
+    )
+    checkout_calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
+    execution_calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
+    monkeypatch.setattr(pipeline, "load_contract", lambda _path: contract)
+    monkeypatch.setattr(
+        pipeline.affected,
+        "assert_clean_checkout",
+        lambda *args, **kwargs: checkout_calls.append((args, kwargs)),
+    )
+    monkeypatch.setattr(pipeline.affected, "load_job_started_epoch", lambda *args, **kwargs: 123)
+    monkeypatch.setattr(pipeline.affected, "select", lambda *args, **kwargs: selection)
+    monkeypatch.setattr(
+        pipeline.affected,
+        "execute_selection",
+        lambda *args, **kwargs: execution_calls.append((args, kwargs)) or 0,
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "pipeline.py",
+            "--event",
+            event,
+            "--ref",
+            "refs/heads/main",
+            "--head",
+            head,
+            "--evidence-dir",
+            str(evidence),
+            "--job-started-at-file",
+            str(started_file),
+            "--runner-temp",
+            str(runner_temp),
+            "--cache-mode",
+            cache_mode,
+            "--cache-role",
+            cache_role,
+        ],
+    )
+
+    assert pipeline.main() == 0
+    assert checkout_calls == [
+        (
+            (head,),
+            {
+                "event": event,
+                "runner_temp": runner_temp,
+                "cache_mode": cache_mode,
+                "cache_role": cache_role,
+            },
+        )
+    ]
+    assert execution_calls == [
+        (
+            (selection, evidence),
+            {"job_started_epoch": 123},
+        )
+    ]
 
 
 def test_latency_qualification_holds_burn_in_then_enforces_p95() -> None:

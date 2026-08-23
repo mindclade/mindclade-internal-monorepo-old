@@ -129,15 +129,15 @@ tools/dev/nixw develop .#ci-bazel --command \
 
 Every presubmit loads all BUILD files, checks the language-independent
 dependency graph, and validates the registered toolchain. Protected pull
-requests use `ci/common/affected.py` to map changed files to owning-package
-seeds and ask Bazel for `rdeps(//..., seeds)`. Bazel's post-loading graph—not a
-BUILD-file regex—selects rules and tests, while mandatory Gazelle qualification
-remains in every non-empty affected test set.
+requests currently execute `//...`. The dormant `ci/common/affected.py` path maps
+changed files to owning-package seeds and asks Bazel for `rdeps(//..., seeds)`;
+Bazel's post-loading graph—not a BUILD-file regex—selects rules and tests when
+that path is explicitly qualified.
 
 CI, Starlark, toolchain, dependency-lock, protocol, architecture, component,
-maturity, deletion, rename, and unmapped changes expand to `//...`. Merge-group,
-protected-main, and nightly events always use `//...`; pull requests use affected
-selection only when the diff and Bazel graph are authoritative.
+maturity, deletion, rename, and unmapped changes expand to `//...`. Pull-request,
+merge-group, protected-main, and nightly events all use `//...` until affected
+activation has retained connected evidence and a separately reviewed switch.
 
 Analysis and test phases emit a JSON Build Event Protocol stream, compressed
 trace profile, normalized summaries, versioned selection record, exact target

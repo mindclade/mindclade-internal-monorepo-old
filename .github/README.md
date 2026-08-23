@@ -66,10 +66,10 @@ selection is reviewable and runnable locally rather than embedded in YAML. The
 architecture lane is `python3 ci/presubmit/pipeline.py --static-only`.
 
 Bazel is the test execution authority. CI selects targets; it does not duplicate
-build logic. Pull requests use owning-package reverse-dependency selection;
-global or structurally unsafe changes, merge groups, main pushes, and nightly
-runs execute `//...`. The separate graph-native target-determinator migration
-remains blocked on remote-cache and external required-workflow evidence.
+build logic. Pull requests, merge groups, main pushes, and nightly runs currently
+execute `//...`. Owning-package reverse-dependency selection and the separate
+graph-native target-determinator migration remain blocked on connected cache and
+external required-workflow evidence.
 
 ## Buildkite retirement status
 

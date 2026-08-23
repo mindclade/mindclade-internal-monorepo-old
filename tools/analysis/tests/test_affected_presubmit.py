@@ -122,6 +122,41 @@ def test_workflow_rejects_alternate_selection_mode() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("BAZEL_CACHE_MODE", "disk"),
+        ("BAZEL_CACHE_ROLE", "${{ steps.bazel-remote-cache.outputs.role }}"),
+    ],
+)
+def test_presubmit_rejects_ungoverned_cache_route(field: str, value: str) -> None:
+    workflow = _presubmit_workflow()
+    step = next(
+        item
+        for item in workflow["jobs"]["bazel"]["steps"]
+        if item.get("name") == "Run event-governed Bazel validation"
+    )
+    step["env"][field] = value
+    assert "[AFFECTED-WORKFLOW-005] governed Bazel command is invalid" in (
+        check_affected_presubmit._presubmit_workflow_errors(workflow)
+    )
+
+
+@pytest.mark.parametrize("flag", ["--cache-mode", "--cache-role"])
+def test_presubmit_requires_cache_route_arguments(flag: str) -> None:
+    workflow = _presubmit_workflow()
+    step = next(
+        item
+        for item in workflow["jobs"]["bazel"]["steps"]
+        if item.get("name") == "Run event-governed Bazel validation"
+    )
+    argument = "${BAZEL_CACHE_MODE}" if flag == "--cache-mode" else "${BAZEL_CACHE_ROLE}"
+    step["run"] = step["run"].replace(f' {flag} "{argument}"', "")
+    assert "[AFFECTED-WORKFLOW-005] governed Bazel command is invalid" in (
+        check_affected_presubmit._presubmit_workflow_errors(workflow)
+    )
+
+
 def test_workflow_parser_rejects_duplicate_keys() -> None:
     with pytest.raises(workflow_yaml.WorkflowYamlError) as captured:
         workflow_yaml.parse_workflow_text("name: first\nname: second\n")
@@ -333,11 +368,13 @@ def test_selection_policy_behavior_rejects_mutated_resolver(
     ]
 
 
-def test_selection_policy_is_independent_of_graph_native_activation(
+def test_selection_policy_rejects_unauthorized_graph_native_activation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(check_affected_presubmit.affected, "GRAPH_NATIVE_AFFECTED_ACTIVE", True)
-    assert check_affected_presubmit._selection_policy_errors() == []
+    assert check_affected_presubmit._selection_policy_errors() == [
+        "[AFFECTED-WORKFLOW-008] selection event policy is invalid"
+    ]
 
 
 def test_nightly_target_contract_rejects_duplicate_keys(tmp_path: Path) -> None:
@@ -358,6 +395,41 @@ def _nightly_workflow() -> dict[str, object]:
 
 def test_nightly_workflow_contract_is_full_and_non_bypassable() -> None:
     assert check_affected_presubmit._nightly_workflow_errors(_nightly_workflow()) == []
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("BAZEL_CACHE_MODE", "disk"),
+        ("BAZEL_CACHE_ROLE", "${{ steps.bazel-remote-cache.outputs.role }}"),
+    ],
+)
+def test_nightly_rejects_ungoverned_cache_route(field: str, value: str) -> None:
+    workflow = _nightly_workflow()
+    step = next(
+        item
+        for item in workflow["jobs"]["bazel-nightly"]["steps"]
+        if item.get("name") == "Analyze and test the complete configured graph"
+    )
+    step["env"][field] = value
+    assert "[AFFECTED-WORKFLOW-005] nightly Bazel command is invalid" in (
+        check_affected_presubmit._nightly_workflow_errors(workflow)
+    )
+
+
+@pytest.mark.parametrize("flag", ["--cache-mode", "--cache-role"])
+def test_nightly_requires_cache_route_arguments(flag: str) -> None:
+    workflow = _nightly_workflow()
+    step = next(
+        item
+        for item in workflow["jobs"]["bazel-nightly"]["steps"]
+        if item.get("name") == "Analyze and test the complete configured graph"
+    )
+    argument = "${BAZEL_CACHE_MODE}" if flag == "--cache-mode" else "${BAZEL_CACHE_ROLE}"
+    step["run"] = step["run"].replace(f' {flag} "{argument}"', "")
+    assert "[AFFECTED-WORKFLOW-005] nightly Bazel command is invalid" in (
+        check_affected_presubmit._nightly_workflow_errors(workflow)
+    )
 
 
 def test_nightly_rejects_expression_continue_on_error() -> None:

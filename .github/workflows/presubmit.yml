@@ -631,6 +631,8 @@ jobs:
       - name: Run event-governed Bazel validation
         env:
           BASH_ENV: ""
+          BAZEL_CACHE_MODE: ${{ steps.bazel-remote-cache.outputs.enabled == 'true' && 'remote' || 'disk' }}
+          BAZEL_CACHE_ROLE: ${{ steps.bazel-remote-cache.outputs.enabled == 'true' && steps.bazel-remote-cache.outputs.role || steps.bazel-cache-trust.outputs.role }}
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         # Event-to-mode routing lives in the tested Python state machine. The pull-request base is
         # retained for future activation, but every protected event currently resolves to full.
@@ -646,6 +648,8 @@ jobs:
           --evidence-dir "${RUNNER_TEMP}/bazel-evidence"
           --job-started-at-file "${RUNNER_TEMP}/bazel-job-started"
           --runner-temp "${RUNNER_TEMP}"
+          --cache-mode "${BAZEL_CACHE_MODE}"
+          --cache-role "${BAZEL_CACHE_ROLE}"
 
       - name: Measure bounded Bazel persistent action cache
         id: bazel-cache-size
