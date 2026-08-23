@@ -388,6 +388,20 @@ FALSIFIERS: tuple[Falsifier, ...] = (
             "docs/blueprint/production-monorepo-paths.txt", "Cargo.toml\n"
         ),
     ),
+    Falsifier(
+        check="protocol graph completeness",
+        defect=(
+            "a .proto reaches the tree with no proto_library, so it is absent from the "
+            "descriptor set, the compatibility baseline, and the Go and Python bindings "
+            "while buf still lints and projects it"
+        ),
+        expect="has no proto_library in",
+        inject=lambda tree: tree.write(
+            "protocols/proto/mindclade/common/v1/unwired.proto",
+            'syntax = "proto3";\n\npackage mindclade.common.v1;\n\n'
+            "message Unwired {\n  string value = 1;\n}\n",
+        ),
+    ),
 )
 
 
