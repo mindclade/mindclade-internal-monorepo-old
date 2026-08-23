@@ -575,6 +575,64 @@
             {
               "name": "ERROR_CODE_INTERNAL",
               "number": 9
+            },
+            {
+              "name": "ERROR_CODE_CANCELED",
+              "number": 10
+            },
+            {
+              "name": "ERROR_CODE_ALREADY_EXISTS",
+              "number": 11
+            },
+            {
+              "name": "ERROR_CODE_FAILED_PRECONDITION",
+              "number": 12
+            },
+            {
+              "name": "ERROR_CODE_ABORTED",
+              "number": 13
+            },
+            {
+              "name": "ERROR_CODE_OUT_OF_RANGE",
+              "number": 14
+            },
+            {
+              "name": "ERROR_CODE_NOT_IMPLEMENTED",
+              "number": 15
+            },
+            {
+              "name": "ERROR_CODE_DATA_LOSS",
+              "number": 16
+            },
+            {
+              "name": "ERROR_CODE_UNKNOWN",
+              "number": 17
+            }
+          ]
+        },
+        "mindclade.common.v1.RetryKind": {
+          "reserved_names": [],
+          "reserved_ranges": [],
+          "values": [
+            {
+              "name": "RETRY_KIND_UNSPECIFIED",
+              "number": 0
+            },
+            {
+              "name": "RETRY_KIND_NEVER",
+              "number": 1
+            },
+            {
+              "name": "RETRY_KIND_IMMEDIATE",
+              "number": 2
+            },
+            {
+              "name": "RETRY_KIND_WITH_BACKOFF",
+              "number": 3
+            },
+            {
+              "name": "RETRY_KIND_AFTER",
+              "number": 4
             }
           ]
         }
@@ -741,6 +799,14 @@
               "oneof": "_retry_after_millis",
               "proto3_optional": true,
               "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "retry_kind",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "mindclade.common.v1.RetryKind"
             }
           ],
           "reserved_names": [],

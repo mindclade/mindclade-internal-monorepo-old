@@ -13,4 +13,4 @@ pub mod wire;
 pub use code::Code;
 pub use context::{Context, ContextValue};
 pub use fault::{Fault, FaultResult, RetryHint};
-pub use wire::{WireContext, WireFault};
+pub use wire::{WireContext, WireFault, WireRetryKind};
