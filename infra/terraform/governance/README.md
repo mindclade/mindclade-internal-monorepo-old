@@ -16,8 +16,11 @@ distinct signer and owner-enforced immutable-release evidence. It verifies throu
 tag-object API and `ssh-keygen` that the signature is valid and targets the exact checked commit,
 then runs the complete repository-only Terraform gate and attests a deterministic source manifest.
 After the environment wait it rejects a stale `main`, and it revalidates `main`, the tag, evidence,
-and exact asset digests at the draft-to-immutable boundary. It publishes the manifest, checksum,
-and attestation as an immutable GitHub Release, but never creates, moves, deletes, or repairs a tag.
+and exact asset digests at the draft-to-immutable boundary. A separate read-only GitHub App proves
+the exact environment/approval, active Security membership, immutable-release policy, and both tag
+rulesets; that snapshot is embedded in the attested manifest and repeated before mutation. It
+publishes the manifest, checksum, and attestation as an immutable GitHub Release, but never creates,
+moves, deletes, or repairs a tag.
 
 Both this policy and the generated interface manifest must already record the matching contract
 as `released`; their current `planned` state therefore rejects `v0.4.0` fail closed. A future

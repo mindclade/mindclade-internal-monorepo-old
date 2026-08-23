@@ -16,6 +16,9 @@ releases also carry immutable release manifests and evidence bundles.
   then attached the manifest, checksum, and attestation to a draft before immutable publication;
 - reauthorized current `main`, the exact tag, fresh owner-enforced immutability evidence, and all
   three asset digests after the environment wait and again at the draft publication boundary;
+- added an independently scoped release-governance reader that binds the exact protected
+  environment, one active Security approval distinct from dispatcher and signer, owner-enforced
+  immutable releases, and the exact active creation/protection rules into the attested manifest;
 - kept v0.4.0 planned and the authority blocked until the signer, immutable-releases setting,
   protected Security-reviewed environment, independent Release tag signing, and current whole-tree
   qualification are proven; and

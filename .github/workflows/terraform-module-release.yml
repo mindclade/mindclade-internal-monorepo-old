@@ -102,6 +102,20 @@ jobs:
       contents: write
       id-token: write
     steps:
+      - name: Mint initial read-only release-governance token
+        id: initial-governance-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2.2.1
+        with:
+          app-id: ${{ vars.RELEASE_GOVERNANCE_READER_APP_ID }}
+          private-key: ${{ secrets.RELEASE_GOVERNANCE_READER_APP_PRIVATE_KEY }}
+          owner: mindclade
+          repositories: mindclade-internal-monorepo
+          permission-actions: read
+          permission-administration: read
+          permission-contents: read
+          permission-members: read
+          permission-metadata: read
+
       - name: Checkout trusted publisher source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -121,7 +135,7 @@ jobs:
       - name: Reauthorize current main after environment approval
         env:
           EXPECTED_SHA: ${{ github.sha }}
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.initial-governance-token.outputs.token }}
         run: |
           set -euo pipefail
           current_main="$(gh api \
@@ -150,18 +164,44 @@ jobs:
           printf 'sha=%s\n' "${source_sha}" >> "${GITHUB_OUTPUT}"
 
       - name: Require released source and qualified authority contracts
+        id: authority
         env:
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
           TAG: ${{ inputs.tag }}
-        run: >-
-          python3 -B publisher-source/ci/terraform/module_release.py validate-source
-          --source-root release-source
-          --tag "${TAG}"
-          --source-sha "${SOURCE_SHA}"
+        run: |
+          set -euo pipefail
+          python3 -B publisher-source/ci/terraform/module_release.py validate-source \
+            --source-root release-source \
+            --tag "${TAG}" \
+            --source-sha "${SOURCE_SHA}"
+          signer="$(jq -er '
+            select(.qualification == "qualified")
+            | .signer.github_login
+            | select(type == "string")
+          ' release-source/infra/terraform/governance/module-release-authority.json)"
+          [[ "${signer}" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,37}[A-Za-z0-9])?$ ]]
+          printf 'signer=%s\n' "${signer}" >> "${GITHUB_OUTPUT}"
+
+      - name: Verify independent connected release governance after approval
+        env:
+          DISPATCHER: ${{ github.actor }}
+          EXPECTED_RELEASE_TEAM_ID: ${{ vars.RELEASE_TEAM_ID }}
+          GH_TOKEN: ${{ steps.initial-governance-token.outputs.token }}
+          QUALIFIED_RELEASE_SIGNER: ${{ steps.authority.outputs.signer }}
+        run: |
+          set -euo pipefail
+          python3 -B publisher-source/ci/terraform/release_governance.py \
+            --repository "${GITHUB_REPOSITORY}" \
+            --release-team-id "${EXPECTED_RELEASE_TEAM_ID}" \
+            --run-id "${GITHUB_RUN_ID}" \
+            --source-sha "${GITHUB_SHA}" \
+            --dispatcher "${DISPATCHER}" \
+            --release-signer "${QUALIFIED_RELEASE_SIGNER}" \
+            --output terraform-module-release-governance.json
 
       - name: Verify exact signer identity and connected evidence
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.initial-governance-token.outputs.token }}
           IMMUTABILITY_EVIDENCE: ${{ inputs.immutable-releases-evidence-digest }}
           SIGNER_EVIDENCE: ${{ inputs.signer-evidence-digest }}
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
@@ -201,7 +241,9 @@ jobs:
             --source-root release-source \
             --tag "${TAG}" \
             --source-sha "${SOURCE_SHA}" \
+            --publisher-source-sha "${GITHUB_SHA}" \
             --change-reference "${CHANGE_REFERENCE}" \
+            --governance-evidence terraform-module-release-governance.json \
             --tag-evidence terraform-module-tag-evidence.json \
             --output terraform-module-release.json
           sha256sum terraform-module-release.json > terraform-module-release.json.sha256
@@ -235,10 +277,28 @@ jobs:
           own saved-plan, policy, cost, approval, rollback, and connected qualification evidence.
           EOF
 
+      - name: Refresh read-only governance token before publication
+        id: publication-governance-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2.2.1
+        with:
+          app-id: ${{ vars.RELEASE_GOVERNANCE_READER_APP_ID }}
+          private-key: ${{ secrets.RELEASE_GOVERNANCE_READER_APP_PRIVATE_KEY }}
+          owner: mindclade
+          repositories: mindclade-internal-monorepo
+          permission-actions: read
+          permission-administration: read
+          permission-contents: read
+          permission-members: read
+          permission-metadata: read
+
       - name: Create, verify, and publish immutable GitHub Release
         env:
+          DISPATCHER: ${{ github.actor }}
+          EXPECTED_RELEASE_TEAM_ID: ${{ vars.RELEASE_TEAM_ID }}
           GH_TOKEN: ${{ github.token }}
+          GOVERNANCE_TOKEN: ${{ steps.publication-governance-token.outputs.token }}
           IMMUTABILITY_EVIDENCE: ${{ inputs.immutable-releases-evidence-digest }}
+          QUALIFIED_RELEASE_SIGNER: ${{ steps.authority.outputs.signer }}
           SIGNER_EVIDENCE: ${{ inputs.signer-evidence-digest }}
           SOURCE_SHA: ${{ steps.source.outputs.sha }}
           TAG: ${{ inputs.tag }}
@@ -246,7 +306,7 @@ jobs:
           set -euo pipefail
 
           assert_current_authorities() {
-            current_main="$(gh api \
+            current_main="$(GH_TOKEN="${GOVERNANCE_TOKEN}" gh api \
               "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
             test "${current_main}" = "${GITHUB_SHA}"
             git -C publisher-source update-ref refs/remotes/origin/main "${current_main}"
@@ -260,7 +320,8 @@ jobs:
             git -C publisher-source diff --cached --quiet --no-ext-diff
             git -C release-source diff --quiet --no-ext-diff
             git -C release-source diff --cached --quiet --no-ext-diff
-            python3 -B publisher-source/ci/terraform/module_release.py verify-connected \
+            GH_TOKEN="${GOVERNANCE_TOKEN}" python3 -B \
+              publisher-source/ci/terraform/module_release.py verify-connected \
               --source-root release-source \
               --repository "${GITHUB_REPOSITORY}" \
               --tag "${TAG}" \
@@ -270,6 +331,18 @@ jobs:
               --output terraform-module-tag-evidence-current.json
             cmp terraform-module-tag-evidence.json terraform-module-tag-evidence-current.json
             rm terraform-module-tag-evidence-current.json
+            GH_TOKEN="${GOVERNANCE_TOKEN}" python3 -B \
+              publisher-source/ci/terraform/release_governance.py \
+              --repository "${GITHUB_REPOSITORY}" \
+              --release-team-id "${EXPECTED_RELEASE_TEAM_ID}" \
+              --run-id "${GITHUB_RUN_ID}" \
+              --source-sha "${GITHUB_SHA}" \
+              --dispatcher "${DISPATCHER}" \
+              --release-signer "${QUALIFIED_RELEASE_SIGNER}" \
+              --output terraform-module-release-governance-current.json
+            cmp terraform-module-release-governance.json \
+              terraform-module-release-governance-current.json
+            rm terraform-module-release-governance-current.json
           }
 
           manifest_digest="sha256:$(sha256sum terraform-module-release.json | cut -d' ' -f1)"
@@ -373,6 +446,7 @@ jobs:
             terraform-module-release.json
             terraform-module-release.json.sha256
             terraform-module-release.attestation.jsonl
+            terraform-module-release-governance.json
             terraform-module-tag-evidence.json
             terraform-module-release-published.json
           retention-days: 90

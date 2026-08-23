@@ -16,7 +16,10 @@ dirty developer worktree.
   `infra/terraform/governance/module-release-authority.json`;
 - no-more-than-seven-day read-back evidence that immutable releases are enforced on the monorepo
   by its organization owner; and
-- the exact `terraform-module-release` protected environment applied from `github-config`.
+- the exact `terraform-module-release` protected environment applied from `github-config`; and
+- the source-qualified `mindclade-release-governance-reader` App installed only on the approved
+  repositories, `RELEASE_GOVERNANCE_READER_APP_ID` set from source, and its private key stored only
+  as `RELEASE_GOVERNANCE_READER_APP_PRIVATE_KEY` in the protected release environment.
 
 Abort if the proposed tag already exists, the checkout is dirty, the commit differs
 from the approved commit, any lockfile would change, or candidate and exact-ref
@@ -96,6 +99,17 @@ creation and again immediately before publication, builds a schema-2 manifest an
 attests the manifest including the exact protected change reference. Draft and immutable read-back
 must report the exact SHA-256 digest of all three assets; the final read-back must also report
 `isImmutable: true`.
+
+Both after the Security wait and at each publication boundary, a fresh read-only App token proves
+the environment has exactly one active Security-team approval, a five-minute wait, protected
+branches, and no administrator or self-review bypass. The approver must differ from both the
+dispatcher and qualified Release signer. The same token proves owner-enforced immutable releases,
+the active organization `release-tag-creation` rule with only the exact Release-team creation
+bypass, and active `tag-protection` with no bypass and the exact deletion, update,
+non-fast-forward, and stable-SemVer rules. This normalized snapshot is embedded in the attested
+manifest and must remain byte-identical before mutation. The `GITHUB_TOKEN` contents-write
+capability is used only for the draft and publication operations and cannot substitute for the
+governance reader.
 
 The workflow uses `gh release create --verify-tag`; it has no command that can create, delete, push,
 or move a tag. As of 2026-08-23 the connected repository reports immutable releases disabled and

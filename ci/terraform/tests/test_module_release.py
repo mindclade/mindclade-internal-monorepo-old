@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import subprocess
 from datetime import date, timedelta
 from pathlib import Path
@@ -128,6 +129,31 @@ def test_signed_annotated_tag_must_target_exact_commit() -> None:
         )
 
 
+def test_manifest_governance_evidence_binds_publisher_and_signer(tmp_path: Path) -> None:
+    evidence = {
+        "approval": {},
+        "dispatcher": "publisher",
+        "environment": {},
+        "immutable_releases": {"enabled": True, "enforced_by_owner": True},
+        "qualified_release_signer": "release-operator",
+        "repository": "mindclade/mindclade-internal-monorepo",
+        "rulesets": {},
+        "run_id": 1,
+        "schema_version": 1,
+        "source_revision": "a" * 40,
+    }
+    path = tmp_path / "governance.json"
+    path.write_text(json.dumps(evidence) + "\n", encoding="utf-8")
+    loaded, digest = MODULE_RELEASE.load_governance_evidence(path, "a" * 40, "release-operator")
+    assert loaded == evidence
+    assert digest.startswith("sha256:")
+
+    evidence["immutable_releases"]["enforced_by_owner"] = False
+    path.write_text(json.dumps(evidence) + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="owner-enforced"):
+        MODULE_RELEASE.load_governance_evidence(path, "a" * 40, "release-operator")
+
+
 def test_signer_binding_rejects_wrong_cryptographic_fingerprint() -> None:
     authority = qualified_authority()
     tag_document = {
@@ -172,12 +198,29 @@ def test_release_workflow_is_protected_fail_closed_and_never_manages_tags() -> N
     }
     assert source.count("persist-credentials: false") == 3
     assert source.count("fetch-depth: 0") == 3
+    assert (
+        source.count("actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349")
+        == 2
+    )
+    assert source.count("RELEASE_GOVERNANCE_READER_APP_ID") == 2
+    assert source.count("RELEASE_GOVERNANCE_READER_APP_PRIVATE_KEY") == 2
+    for permission in (
+        "permission-actions: read",
+        "permission-administration: read",
+        "permission-contents: read",
+        "permission-members: read",
+        "permission-metadata: read",
+    ):
+        assert source.count(permission) == 2
     assert "workflow_dispatch:" in source
     assert "github.ref_protected" in source
     assert "refs/heads/main" in source
     assert "verify-connected" in source and "validate-source" in source
     assert '--change-reference "${CHANGE_REFERENCE}"' in source
     assert source.count("assert_current_authorities") == 3
+    assert source.count("release_governance.py") == 2
+    assert 'GH_TOKEN="${GOVERNANCE_TOKEN}"' in source
+    assert "terraform-module-release-governance.json" in source
     assert "immutable-releases-evidence-digest" in source
     assert ".assets[] | {name: .name, digest: .digest}" in source
     assert "git fetch" not in source

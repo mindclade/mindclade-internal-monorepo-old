@@ -354,10 +354,44 @@ def load_tag_evidence(path: Path, tag: str, source_sha: str) -> dict[str, Any]:
     return value
 
 
+def load_governance_evidence(
+    path: Path, source_sha: str, release_signer: str
+) -> tuple[dict[str, Any], str]:
+    contents = path.read_bytes()
+    value = json.loads(contents)
+    if not isinstance(value, dict):
+        raise ValueError("release governance evidence must be one JSON object")
+    exact_keys(
+        value,
+        {
+            "approval",
+            "dispatcher",
+            "environment",
+            "immutable_releases",
+            "qualified_release_signer",
+            "repository",
+            "rulesets",
+            "run_id",
+            "schema_version",
+            "source_revision",
+        },
+        "release governance evidence",
+    )
+    if value["schema_version"] != 1 or value["source_revision"] != source_sha:
+        raise ValueError("release governance evidence disagrees with the publication source")
+    if value["qualified_release_signer"] != release_signer:
+        raise ValueError("release governance evidence disagrees with the qualified signer")
+    if value["immutable_releases"] != {"enabled": True, "enforced_by_owner": True}:
+        raise ValueError("release governance evidence omits owner-enforced immutability")
+    return value, "sha256:" + hashlib.sha256(contents).hexdigest()
+
+
 def build_manifest(
     tag: str,
     source_sha: str,
+    publisher_source_sha: str,
     tag_evidence: dict[str, Any],
+    governance_evidence_path: Path,
     change_reference: str,
     root: Path = ROOT,
 ) -> dict[str, Any]:
@@ -366,6 +400,12 @@ def build_manifest(
         raise ValueError("tag evidence disagrees with the module release identity")
     if CHANGE_REFERENCE.fullmatch(change_reference) is None:
         raise ValueError("publication change reference must be an exact Mindclade change")
+    if SHA.fullmatch(publisher_source_sha) is None:
+        raise ValueError("publisher source must be a full commit SHA")
+    release_signer = str(tag_evidence["signer"].get("github_login", ""))
+    governance_evidence, governance_digest = load_governance_evidence(
+        governance_evidence_path, publisher_source_sha, release_signer
+    )
     interface_bytes = (root / INTERFACE_MANIFEST).read_bytes()
     module_tree = subprocess.run(
         ["git", "rev-parse", f"{source_sha}:infra/terraform/modules"],
@@ -382,6 +422,9 @@ def build_manifest(
         "module_count": len(interfaces.get("modules", {})),
         "module_tree_sha": module_tree,
         "publication_change_reference": change_reference,
+        "publisher_source_revision": publisher_source_sha,
+        "release_governance": governance_evidence,
+        "release_governance_sha256": governance_digest,
         "release_tag": tag,
         "schema_version": 2,
         "source_revision": source_sha,
@@ -405,6 +448,8 @@ def main() -> int:
             subparser.add_argument("--output", type=Path, required=True)
         if command == "manifest":
             subparser.add_argument("--change-reference", required=True)
+            subparser.add_argument("--governance-evidence", type=Path, required=True)
+            subparser.add_argument("--publisher-source-sha", required=True)
             subparser.add_argument("--tag-evidence", type=Path, required=True)
             subparser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
@@ -428,7 +473,9 @@ def main() -> int:
         document = build_manifest(
             args.tag,
             args.source_sha,
+            args.publisher_source_sha,
             tag_evidence,
+            args.governance_evidence,
             args.change_reference,
             root,
         )
