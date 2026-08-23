@@ -182,6 +182,11 @@ func (dispatcher *Dispatcher) Run(ctx context.Context) error {
 func (dispatcher *Dispatcher) dispatch(ctx context.Context) (int, error) {
 	request := ClaimRequest{Owner: dispatcher.config.Owner, Topics: dispatcher.config.Topics, Limit: dispatcher.config.BatchSize, LeaseDuration: dispatcher.config.ClaimDuration}
 	var claims []Claim
+	// Start the batch budget before the claim call. The store stamps the lease
+	// somewhere inside it, so measuring from here can only over-count elapsed
+	// time, and over-counting costs a deferred batch while under-counting
+	// costs a publish under a lease this process no longer holds.
+	claimedAt := dispatcher.clock.Now()
 	_, err := dispatcher.retry.Do(ctx, "outbox.claim", func(ctx context.Context, _ retry.Attempt) error {
 		var claimErr error
 		claims, claimErr = dispatcher.store.Claim(ctx, request)
@@ -190,7 +195,34 @@ func (dispatcher *Dispatcher) dispatch(ctx context.Context) (int, error) {
 	if err != nil {
 		return 0, qualify(err, "outbox.Dispatcher.claim")
 	}
+	// processed counts claims this pass actually worked, not claims returned.
+	// Reporting the batch size for a pass that abandoned everything would make
+	// Run believe it made progress and poll again without sleeping.
+	processed := 0
 	for _, claim := range claims {
+		// The claim lease is the only thing bounding how long one dispatcher
+		// pass may hold a batch, and the dispatcher never renews it: a batch
+		// whose publishes outrun ClaimDuration reaches messages this process
+		// no longer owns, because another dispatcher has already reclaimed
+		// them. Publishing anyway duplicates the delivery and then fails
+		// MarkPublished, so the message is claimed and published again -- the
+		// outbox manufacturing the duplicates it exists to bound. Abandon the
+		// rest of the batch instead and reclaim on the next poll with a fresh
+		// lease. This is also what keeps long-running work out of a
+		// dispatcher: work that does not fit inside ClaimDuration stops making
+		// progress here rather than silently republishing.
+		//
+		// The budget is elapsed time on the dispatcher's own clock, never
+		// Claim.ExpiresAt against clock.Now(). The PostgreSQL store stamps
+		// claim_expires_at from clock_timestamp(), so that comparison would
+		// cross two clocks: a process running ahead of the database by more
+		// than ClaimDuration would find every fresh claim already expired and
+		// would stop delivering entirely while reporting no error.
+		if dispatcher.clock.Since(claimedAt) >= dispatcher.config.ClaimDuration {
+			dispatcher.observe(DispatchEvent{Kind: DispatchFailed, Message: claim.Message(), Claim: claim, At: dispatcher.clock.Now(), Err: ErrClaimLost})
+			break
+		}
+		processed++
 		dispatcher.observe(DispatchEvent{Kind: DispatchClaimed, Message: claim.Message(), Claim: claim, At: dispatcher.clock.Now()})
 		started := dispatcher.clock.Now()
 		_, publishErr := dispatcher.retry.Do(ctx, "outbox.publish", func(ctx context.Context, _ retry.Attempt) error {
@@ -199,7 +231,7 @@ func (dispatcher *Dispatcher) dispatch(ctx context.Context) (int, error) {
 		if publishErr == nil {
 			markErr := dispatcher.store.MarkPublished(ctx, claim, dispatcher.clock.Now())
 			if markErr != nil {
-				return len(claims), qualify(markErr, "outbox.Dispatcher.mark_published")
+				return processed, qualify(markErr, "outbox.Dispatcher.mark_published")
 			}
 			dispatcher.observe(DispatchEvent{Kind: DispatchPublished, Message: claim.Message(), Claim: claim, At: dispatcher.clock.Now(), Duration: dispatcher.clock.Since(started)})
 			continue
@@ -207,7 +239,7 @@ func (dispatcher *Dispatcher) dispatch(ctx context.Context) (int, error) {
 		if claim.Attempts() >= dispatcher.config.MaxDeliveries {
 			deadErr := dispatcher.store.DeadLetter(ctx, claim, dispatcher.clock.Now(), safeErrorReason(publishErr))
 			if deadErr != nil {
-				return len(claims), qualify(errors.Join(publishErr, deadErr), "outbox.Dispatcher.dead_letter")
+				return processed, qualify(errors.Join(publishErr, deadErr), "outbox.Dispatcher.dead_letter")
 			}
 			dispatcher.observe(DispatchEvent{Kind: DispatchDeadLetter, Message: claim.Message(), Claim: claim, At: dispatcher.clock.Now(), Duration: dispatcher.clock.Since(started), Err: publishErr})
 			continue
@@ -215,11 +247,11 @@ func (dispatcher *Dispatcher) dispatch(ctx context.Context) (int, error) {
 		next := dispatcher.clock.Now().Add(rescheduleDelay(publishErr, claim.Attempts()))
 		rescheduleErr := dispatcher.store.Reschedule(ctx, claim, next, safeErrorReason(publishErr))
 		if rescheduleErr != nil {
-			return len(claims), qualify(errors.Join(publishErr, rescheduleErr), "outbox.Dispatcher.reschedule")
+			return processed, qualify(errors.Join(publishErr, rescheduleErr), "outbox.Dispatcher.reschedule")
 		}
 		dispatcher.observe(DispatchEvent{Kind: DispatchRescheduled, Message: claim.Message(), Claim: claim, At: dispatcher.clock.Now(), Duration: dispatcher.clock.Since(started), Err: publishErr})
 	}
-	return len(claims), nil
+	return processed, nil
 }
 
 func (dispatcher *Dispatcher) Component(name string) servicekit.Component {
