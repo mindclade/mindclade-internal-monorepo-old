@@ -16,7 +16,7 @@ use axum::extract::{DefaultBodyLimit, FromRequest, Request, State};
 use axum::http::{HeaderValue, StatusCode, header::CONTENT_LENGTH, header::CONTENT_TYPE};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
-use mindclade_faults::{Code, Fault};
+use mindclade_faults::{Code, Fault, status};
 use mindclade_protocols::runtime::v1::{RuntimeDispatchRequest, RuntimeDispatchResponse};
 use mindclade_runtime_core::{BytePermit, ByteSemaphore, ByteSemaphoreSnapshot};
 use prost::Message;
@@ -301,38 +301,24 @@ fn protobuf_response(status: StatusCode, body: Vec<u8>) -> Response {
 /// message. Structured context and source errors remain internal telemetry and
 /// are never reflected to an untrusted client.
 fn fault_response(error: &Fault) -> Response {
-    let status = match error.code() {
-        Code::InvalidArgument | Code::OutOfRange => StatusCode::BAD_REQUEST,
-        Code::Unauthenticated => StatusCode::UNAUTHORIZED,
-        Code::PermissionDenied => StatusCode::FORBIDDEN,
-        Code::ResourceExhausted => StatusCode::TOO_MANY_REQUESTS,
-        Code::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
-        Code::DeadlineExceeded => StatusCode::GATEWAY_TIMEOUT,
-        // `Code` is `#[non_exhaustive]`, so rustc compels a trailing wildcard
-        // outside `libs/rust/faults` and no local change can remove it. Every
-        // code this build knows is still named, so the wildcard covers only a
-        // future variant and the fallback below is a decision, not a default.
-        //
-        // Naming them exposes a divergence this arm used to hide:
-        // `services/ai_gateway_proxy` renders `NotFound` as 404,
-        // `Conflict`/`Aborted`/`FailedPrecondition` as 409 and `Unimplemented`
-        // as 501, while this gateway renders all four as 500. The behaviour is
-        // left as it was rather than changed under a lint commit; reconciling
-        // the two renderers is tracked separately.
-        Code::Unknown
-        | Code::NotFound
-        | Code::AlreadyExists
-        | Code::FailedPrecondition
-        | Code::Aborted
-        | Code::Unimplemented
-        | Code::Internal
-        | Code::DataLoss
-        | Code::Cancelled
-        | Code::Conflict
-        | _ => StatusCode::INTERNAL_SERVER_ERROR,
-    };
+    let status = http_status(error.code());
     let body = format!("{}: {}", error.code().as_str(), error.message());
     (status, body).into_response()
+}
+
+/// Renders the canonical HTTP status for a fault code.
+///
+/// The table is `mindclade_faults::status`, which mirrors `libs/go/httpx`. This
+/// gateway used to keep its own `match` and disagreed with
+/// `services/ai_gateway_proxy` about seven codes, `NotFound` among them: a
+/// missing deployment answered 500, which told the client to retry and paged an
+/// operator for a request that would never succeed.
+///
+/// `from_u16` is fallible only outside 100..1000 and the canonical table yields
+/// nothing there — `mindclade_faults::status` asserts every code renders in
+/// 400..600 — so the fallback is unreachable rather than a policy.
+fn http_status(code: Code) -> StatusCode {
+    StatusCode::from_u16(status::http_status(code)).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 pub(crate) fn unix_millis() -> Result<u64, Fault> {
@@ -373,5 +359,55 @@ mod tests {
         assert!(!body.contains("tenant-secret"));
         assert!(!body.contains("provider secret"));
         assert!(!body.contains("credential"));
+    }
+
+    /// Every fault code renders the canonical HTTP status.
+    ///
+    /// The numbers are restated here rather than read back from
+    /// `mindclade_faults::status`. Reading them back would assert only that
+    /// this edge calls the shared function, and the defect being closed is two
+    /// edges that each called nothing shared: these values are the
+    /// client-visible contract and a change to any one of them has to break a
+    /// test that names it.
+    #[test]
+    fn every_fault_code_renders_its_canonical_http_status() {
+        let expected: &[(Code, u16)] = &[
+            (Code::InvalidArgument, 400),
+            (Code::OutOfRange, 400),
+            (Code::Unauthenticated, 401),
+            (Code::PermissionDenied, 403),
+            (Code::NotFound, 404),
+            (Code::Cancelled, 408),
+            (Code::AlreadyExists, 409),
+            (Code::Conflict, 409),
+            (Code::Aborted, 409),
+            (Code::FailedPrecondition, 412),
+            (Code::ResourceExhausted, 429),
+            (Code::Internal, 500),
+            (Code::DataLoss, 500),
+            (Code::Unknown, 500),
+            (Code::Unimplemented, 501),
+            (Code::Unavailable, 503),
+            (Code::DeadlineExceeded, 504),
+        ];
+        assert_eq!(
+            expected.len(),
+            status::ALL.len(),
+            "a fault code is missing from this table"
+        );
+        for &(code, want) in expected {
+            let rendered = fault_response(&Fault::new(code, "rendered")).status();
+            assert_eq!(rendered.as_u16(), want, "{code} rendered HTTP {rendered}");
+        }
+    }
+
+    /// The regression. This gateway answered 500 for `NotFound`, so a client
+    /// asking for a deployment that does not exist was told the server had
+    /// failed: retry, and page an operator, for a request that can never
+    /// succeed. `services/ai_gateway_proxy` answered 404 for the same fault.
+    #[test]
+    fn a_missing_resource_is_not_reported_as_a_server_failure() {
+        let response = fault_response(&Fault::new(Code::NotFound, "no such deployment"));
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 }

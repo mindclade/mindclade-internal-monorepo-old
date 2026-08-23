@@ -8,7 +8,7 @@
 use crate::network::{GatewayNetworkState, round_admission_bytes, unix_millis};
 use crate::protocol;
 use hyper_util::rt::TokioIo;
-use mindclade_faults::{Code, Fault, FaultResult};
+use mindclade_faults::{Code, Fault, FaultResult, status};
 use mindclade_protocols::runtime::v1::runtime_execution_server::{
     RuntimeExecution, RuntimeExecutionServer,
 };
@@ -380,43 +380,179 @@ fn sanitize_host_status(status: &Status) -> Status {
             Status::deadline_exceeded("runtime-host deadline exceeded")
         }
         tonic::Code::Cancelled => Status::cancelled("runtime-host execution cancelled"),
-        // Everything else collapses to `unavailable` on purpose: the codes
-        // named above are the ones a caller can act on, and the rest would
-        // only leak runtime-host internals across the trust boundary.
+        tonic::Code::NotFound => Status::not_found("runtime-host has no such resource"),
+        tonic::Code::AlreadyExists => {
+            Status::already_exists("runtime-host is already running this execution")
+        }
+        tonic::Code::Aborted => Status::aborted("runtime-host aborted execution"),
+        tonic::Code::OutOfRange => Status::out_of_range("runtime-host rejected execution"),
+        tonic::Code::Unimplemented => {
+            Status::unimplemented("runtime-host does not implement this operation")
+        }
+        tonic::Code::DataLoss => Status::data_loss("runtime-host lost execution state"),
+        // What is sanitized here is the *message*, never the code. Every arm
+        // replaces the peer's text with a fixed string, so no runtime-host
+        // internal crosses the boundary either way — and a code carries no
+        // internals to leak, only the class of failure.
+        //
+        // Six codes were previously collapsed into `unavailable` alongside
+        // these four. That undid the fix on the only path a client sees: with
+        // `services/runtime_host` now answering `not_found` for a model it does
+        // not hold, collapsing it here would have handed the client
+        // `unavailable` — retry, and page — for a request that can never
+        // succeed. The four that remain are the ones where the host itself is
+        // the failure, which is exactly what `unavailable` means to this
+        // gateway's caller: a dependency is down, and retrying is correct.
         tonic::Code::Ok
         | tonic::Code::Unknown
-        | tonic::Code::NotFound
-        | tonic::Code::AlreadyExists
-        | tonic::Code::Aborted
-        | tonic::Code::OutOfRange
-        | tonic::Code::Unimplemented
         | tonic::Code::Internal
-        | tonic::Code::Unavailable
-        | tonic::Code::DataLoss => Status::unavailable("runtime-host execution failed"),
+        | tonic::Code::Unavailable => Status::unavailable("runtime-host execution failed"),
     }
 }
 
+/// Renders one of this gateway's own faults as a gRPC status.
+///
+/// The table is `mindclade_faults::status`, which mirrors `libs/go/grpcx`. The
+/// local `match` this replaces collapsed `NotFound`, `Aborted`, `Unimplemented`,
+/// `DataLoss`, and `Unknown` into `internal` even though gRPC defines an exact
+/// code for each, and rendered `OutOfRange` as `invalid_argument` and `Conflict`
+/// as `already_exists`.
+///
+/// `tonic::Code::from(i32)` is total, and the canonical table never yields 0,
+/// so a fault can never be rendered as `Ok`.
 fn fault_status(error: &Fault) -> Status {
-    match error.code() {
-        Code::InvalidArgument | Code::OutOfRange => Status::invalid_argument(error.message()),
-        Code::Unauthenticated => Status::unauthenticated(error.message()),
-        Code::PermissionDenied => Status::permission_denied(error.message()),
-        Code::AlreadyExists | Code::Conflict => Status::already_exists(error.message()),
-        Code::ResourceExhausted => Status::resource_exhausted(error.message()),
-        Code::FailedPrecondition => Status::failed_precondition(error.message()),
-        Code::DeadlineExceeded => Status::deadline_exceeded(error.message()),
-        Code::Cancelled => Status::cancelled(error.message()),
-        Code::Unavailable => Status::unavailable(error.message()),
-        // `Code` is `#[non_exhaustive]`, so rustc compels a trailing wildcard
-        // outside `libs/rust/faults` and no local change can remove it. Every
-        // code this build knows is still named, so the wildcard covers only a
-        // future variant and the fallback below is a decision, not a default.
-        Code::Unknown
-        | Code::NotFound
-        | Code::Aborted
-        | Code::Unimplemented
-        | Code::Internal
-        | Code::DataLoss
-        | _ => Status::internal("runtime gateway execution failed"),
+    Status::new(
+        tonic::Code::from(status::grpc_code(error.code())),
+        error.message(),
+    )
+}
+
+#[cfg(test)]
+mod fault_status_tests {
+    use super::{Code, Fault, Status, fault_status, sanitize_host_status, status};
+
+    /// Every fault code renders the canonical gRPC status.
+    ///
+    /// The codes are restated here rather than read back from
+    /// `mindclade_faults::status`. Reading them back would assert only that
+    /// this edge calls the shared function, and the defect being closed is
+    /// several edges that each called nothing shared: these values are the
+    /// client-visible contract and a change to any one of them has to break a
+    /// test that names it.
+    #[test]
+    fn every_fault_code_renders_its_canonical_grpc_status() {
+        let expected: &[(Code, tonic::Code)] = &[
+            (Code::Cancelled, tonic::Code::Cancelled),
+            (Code::Unknown, tonic::Code::Unknown),
+            (Code::InvalidArgument, tonic::Code::InvalidArgument),
+            (Code::DeadlineExceeded, tonic::Code::DeadlineExceeded),
+            (Code::NotFound, tonic::Code::NotFound),
+            (Code::AlreadyExists, tonic::Code::AlreadyExists),
+            (Code::PermissionDenied, tonic::Code::PermissionDenied),
+            (Code::ResourceExhausted, tonic::Code::ResourceExhausted),
+            (Code::FailedPrecondition, tonic::Code::FailedPrecondition),
+            (Code::Aborted, tonic::Code::Aborted),
+            (Code::Conflict, tonic::Code::Aborted),
+            (Code::OutOfRange, tonic::Code::OutOfRange),
+            (Code::Unimplemented, tonic::Code::Unimplemented),
+            (Code::Internal, tonic::Code::Internal),
+            (Code::Unavailable, tonic::Code::Unavailable),
+            (Code::DataLoss, tonic::Code::DataLoss),
+            (Code::Unauthenticated, tonic::Code::Unauthenticated),
+        ];
+        assert_eq!(
+            expected.len(),
+            status::ALL.len(),
+            "a fault code is missing from this table"
+        );
+        for &(code, want) in expected {
+            let rendered = fault_status(&Fault::new(code, "rendered")).code();
+            assert_eq!(rendered, want, "{code} rendered gRPC {rendered:?}");
+        }
+    }
+
+    /// The regression. `NotFound`, `Aborted`, `Unimplemented`, `DataLoss`, and
+    /// `Unknown` all collapsed into `internal` even though gRPC defines an
+    /// exact code for each — so a caller could not tell "that does not exist"
+    /// or "this method will never exist" from "we broke, retry".
+    #[test]
+    fn codes_with_an_exact_grpc_counterpart_do_not_collapse_into_internal() {
+        for code in [
+            Code::NotFound,
+            Code::Aborted,
+            Code::Unimplemented,
+            Code::DataLoss,
+            Code::Unknown,
+        ] {
+            let rendered = fault_status(&Fault::new(code, "rendered")).code();
+            assert_ne!(
+                rendered,
+                tonic::Code::Internal,
+                "{code} still collapses into internal"
+            );
+        }
+    }
+
+    /// A fault is a failure by construction, so it must never be rendered as a
+    /// success status a client would read as a completed call.
+    #[test]
+    fn a_fault_is_never_rendered_as_ok() {
+        for &code in status::ALL {
+            assert_ne!(
+                fault_status(&Fault::new(code, "rendered")).code(),
+                tonic::Code::Ok,
+                "{code} rendered as a success"
+            );
+        }
+    }
+
+    /// The relay path. Rendering the host's own faults correctly is worth
+    /// nothing if the gateway flattens them again on the way out.
+    #[test]
+    fn relaying_a_host_status_preserves_what_the_caller_can_act_on() {
+        let preserved = [
+            tonic::Code::InvalidArgument,
+            tonic::Code::Unauthenticated,
+            tonic::Code::PermissionDenied,
+            tonic::Code::ResourceExhausted,
+            tonic::Code::FailedPrecondition,
+            tonic::Code::DeadlineExceeded,
+            tonic::Code::Cancelled,
+            tonic::Code::NotFound,
+            tonic::Code::AlreadyExists,
+            tonic::Code::Aborted,
+            tonic::Code::OutOfRange,
+            tonic::Code::Unimplemented,
+            tonic::Code::DataLoss,
+        ];
+        for code in preserved {
+            let relayed = sanitize_host_status(&Status::new(code, "host detail"));
+            assert_eq!(relayed.code(), code, "{code:?} was flattened");
+        }
+        for code in [
+            tonic::Code::Unknown,
+            tonic::Code::Internal,
+            tonic::Code::Unavailable,
+        ] {
+            let relayed = sanitize_host_status(&Status::new(code, "host detail"));
+            assert_eq!(relayed.code(), tonic::Code::Unavailable);
+        }
+    }
+
+    /// The sanitizing half, which the arms above must not have weakened: the
+    /// peer's message never crosses the trust boundary, whatever its code.
+    #[test]
+    fn relaying_a_host_status_never_forwards_its_message() {
+        for &code in status::ALL {
+            let host = Status::new(
+                tonic::Code::from(status::grpc_code(code)),
+                "worker /var/run/secret leaked this",
+            );
+            let relayed = sanitize_host_status(&host);
+            assert!(
+                !relayed.message().contains("secret"),
+                "{code} forwarded the runtime-host message"
+            );
+        }
     }
 }
