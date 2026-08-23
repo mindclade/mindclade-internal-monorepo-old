@@ -288,6 +288,7 @@
         "src/fault.rs",
         "src/lib.rs",
         "src/retry.rs",
+        "src/status.rs",
         "src/wire.rs"
       ],
       "test_sources": [
