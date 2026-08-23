@@ -4,7 +4,7 @@ Generated from the Cargo manifests by
 `tools/analysis/check_rust_package_manifest.py --write`, which also gates it. Edit the
 crate `Cargo.toml` files, `layers.json`, or `stability.json` — not this table.
 
-Production crates: **26**  
+Production crates: **27**  
 Compatibility crates: **0**
 
 | Package | Layer | Status | Direct internal dependencies |
