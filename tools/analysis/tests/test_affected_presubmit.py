@@ -6,6 +6,9 @@ from __future__ import annotations
 
 import copy
 import json
+import os
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -94,6 +97,70 @@ def _presubmit_workflow() -> dict[str, object]:
 
 def test_structural_workflow_parser_accepts_governed_event_routing() -> None:
     assert check_affected_presubmit._presubmit_workflow_errors(_presubmit_workflow()) == []
+
+
+def test_checkout_sanitizer_preserves_only_reviewed_authority(tmp_path: Path) -> None:
+    nightly = workflow_yaml.parse_workflow(ROOT / ".github/workflows/nightly.yml")
+    sanitizer_steps = [
+        next(
+            step
+            for step in workflow["jobs"][job_id]["steps"]
+            if step.get("name") == "Remove ignored checkout byproducts"
+        )
+        for workflow, job_id in (
+            (_presubmit_workflow(), "bazel-workers"),
+            (nightly, "bazel-nightly-workers"),
+        )
+    ]
+    assert sanitizer_steps[0] == sanitizer_steps[1]
+    assert set(sanitizer_steps[0]) == {"name", "run"}
+
+    repository = tmp_path / "repository"
+    outputs = tmp_path / "outputs"
+    trusted_git_value = os.environ.get("MINDCLADE_GIT") or shutil.which("git")
+    assert trusted_git_value is not None
+    trusted_git = Path(trusted_git_value)
+    environment = os.environ | {
+        "PATH": f"{trusted_git.parent}:{os.environ.get('PATH', '')}",
+    }
+    repository.mkdir()
+    outputs.mkdir()
+    (repository / ".gitignore").write_text(
+        "/user.bazelrc\n/bazel-*\n/ignored-cache/\n",
+        encoding="utf-8",
+    )
+    subprocess.run(
+        ["git", "init", "--quiet"],
+        cwd=repository,
+        env=environment,
+        check=True,
+    )
+    for name in ("bazel-bin", "bazel-out", "bazel-testlogs", "bazel-repository"):
+        (repository / name).symlink_to(outputs, target_is_directory=True)
+    (repository / "ignored-cache").mkdir()
+    (repository / "ignored-cache/cache-entry").write_text("ignored\n", encoding="utf-8")
+    (repository / "user.bazelrc").write_text("build --disk_cache=/cache\n", encoding="utf-8")
+    (repository / "unreviewed.txt").write_text("must remain visible\n", encoding="utf-8")
+
+    subprocess.run(
+        ["bash", "-c", sanitizer_steps[0]["run"]],
+        cwd=repository,
+        env=environment,
+        check=True,
+    )
+
+    assert (repository / "user.bazelrc").is_file()
+    assert (repository / "unreviewed.txt").is_file()
+    assert not (repository / "ignored-cache").exists()
+    assert not any(
+        (repository / name).exists()
+        for name in (
+            "bazel-bin",
+            "bazel-out",
+            "bazel-testlogs",
+            "bazel-repository",
+        )
+    )
 
 
 def test_presubmit_worker_plan_uses_pinned_python_before_stdlib_selectors() -> None:
