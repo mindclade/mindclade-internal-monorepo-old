@@ -12,6 +12,8 @@ status = "qualified"
 owner = "platform-control"
 tests = ["libs/go"]
 qualification = "QUALIFICATION.md"
+slo = "docs/slo/libs-go.md"
+runbook = "docs/runbooks/libs-go.md"
 
 [[component]]
 name = "libs.rust"
@@ -20,6 +22,8 @@ status = "implemented"
 owner = "runtime-platform"
 tests = ["libs/rust"]
 qualification = "libs/rust/README.md"
+slo = "docs/slo/libs-rust.md"
+runbook = "docs/runbooks/libs-rust.md"
 
 [[component]]
 name = "control.runtime_authority"
@@ -27,6 +31,8 @@ path = "control/runtime_authority"
 status = "implemented"
 owner = "platform-control"
 tests = ["control/runtime_authority/ticket_test.go"]
+slo = "docs/slo/control-runtime-authority.md"
+runbook = "docs/runbooks/control-runtime-authority.md"
 
 [[component]]
 name = "control.routing"
@@ -34,6 +40,8 @@ path = "control/routing"
 status = "experimental"
 owner = "platform-control"
 tests = ["control/routing/policy_test.go"]
+slo = "docs/slo/control-routing.md"
+runbook = "docs/runbooks/control-routing.md"
 
 [[component]]
 name = "control.artifacts"
@@ -45,6 +53,9 @@ tests = [
     "control/artifacts/catalog_test.go",
     "control/artifacts/grant_test.go",
 ]
+qualification = "docs/qualification/control-artifacts.md"
+slo = "docs/slo/artifact-control.md"
+runbook = "docs/runbooks/control-artifacts.md"
 
 [[component]]
 name = "control.admission"
@@ -52,6 +63,8 @@ path = "control/admission"
 status = "implemented"
 owner = "platform-control"
 tests = ["control/admission/admission_test.go"]
+slo = "docs/slo/control-admission.md"
+runbook = "docs/runbooks/control-admission.md"
 
 [[component]]
 name = "control.reference_databases"
@@ -59,6 +72,8 @@ path = "control/registry/reference_databases"
 status = "implemented"
 owner = "data-platform"
 tests = ["control/registry/reference_databases/service_test.go"]
+slo = "docs/slo/control-reference-databases.md"
+runbook = "docs/runbooks/control-reference-databases.md"
 
 [[component]]
 name = "control.release_evidence"
@@ -66,6 +81,8 @@ path = "control/registry/releases"
 status = "implemented"
 owner = "release-engineering"
 tests = ["control/registry/releases/service_test.go"]
+slo = "docs/slo/control-release-evidence.md"
+runbook = "docs/runbooks/control-release-evidence.md"
 
 [[component]]
 name = "control.checkpoints"
@@ -81,6 +98,8 @@ path = "control/ingestion"
 status = "implemented"
 owner = "data-platform"
 tests = ["control/ingestion/pipeline_test.go", "control/ingestion/state_test.go"]
+slo = "docs/slo/control-ingestion.md"
+runbook = "docs/runbooks/control-ingestion.md"
 
 # ---------------------------------------------------------------------------------------
 # control/ domains that held production Go while unregistered
@@ -111,6 +130,7 @@ path = "control/evidence"
 status = "implemented"
 owner = "platform-control"
 tests = ["control/evidence/service_test.go"]
+runbook = "docs/runbooks/control-evidence.md"
 
 # Release-lineage graphs: order-independent digests, cycle rejection, connected-evidence
 # requirements, and classification-aware projection that withholds restricted nodes and the
@@ -122,6 +142,7 @@ path = "control/lineage"
 status = "implemented"
 owner = "platform-control"
 tests = ["control/lineage/lineage_test.go"]
+runbook = "docs/runbooks/control-lineage.md"
 
 # `experimental`, deliberately, and this is the entry most likely to be argued with. Four of
 # its fourteen non-test files are real — the stage, workflow and workload specs and their
@@ -159,6 +180,8 @@ path = "services/runtime_gateway"
 status = "implemented"
 owner = "runtime-platform"
 tests = ["services/runtime_gateway/tests/integration.rs", "services/runtime_gateway/tests/shutdown.rs"]
+slo = "docs/slo/runtime-gateway.md"
+runbook = "docs/runbooks/runtime-gateway-degraded.md"
 
 [[component]]
 name = "runtime.ai_gateway_proxy"
@@ -167,6 +190,8 @@ status = "implemented"
 owner = "runtime-platform"
 tests = ["services/ai_gateway_proxy/tests/integration.rs"]
 qualification = "docs/qualification/ai-gateway-proxy.md"
+slo = "docs/slo/ai-gateway-provider-edge.md"
+runbook = "docs/runbooks/ai-gateway-provider-edge.md"
 
 [[component]]
 name = "runtime.host"
@@ -174,6 +199,8 @@ path = "services/runtime_host"
 status = "implemented"
 owner = "runtime-platform"
 tests = ["services/runtime_host/tests/integration.rs", "services/runtime_host/tests/shutdown.rs"]
+slo = "docs/slo/runtime-host.md"
+runbook = "docs/runbooks/runtime-host-degraded.md"
 
 [[component]]
 name = "runtime.serving_core"
@@ -181,6 +208,8 @@ path = "serving/runtime"
 status = "implemented"
 owner = "runtime-platform"
 tests = ["serving/runtime/tests/gateway.rs", "serving/runtime/tests/host.rs", "serving/runtime/tests/outage.rs"]
+slo = "docs/slo/runtime-serving-core.md"
+runbook = "docs/runbooks/runtime-serving-core.md"
 
 [[component]]
 name = "runtime.artifact_proxy"
@@ -188,6 +217,8 @@ path = "services/artifact_proxy"
 status = "implemented"
 owner = "runtime-platform"
 tests = ["services/artifact_proxy/tests/integration.rs", "services/artifact_proxy/tests/shutdown.rs"]
+slo = "docs/slo/artifact-proxy.md"
+runbook = "docs/runbooks/artifact-proxy.md"
 
 [[component]]
 name = "runtime.node_agent"
@@ -195,6 +226,8 @@ path = "services/node_agent"
 status = "implemented"
 owner = "runtime-platform"
 tests = ["services/node_agent/tests/integration.rs", "services/node_agent/tests/shutdown.rs"]
+slo = "docs/slo/node-agent.md"
+runbook = "docs/runbooks/node-agent.md"
 
 [[component]]
 name = "runtime.ingestion_worker"
@@ -202,6 +235,8 @@ path = "services/workers/ingestion"
 status = "implemented"
 owner = "data-platform"
 tests = ["services/workers/ingestion/tests/integration.rs"]
+slo = "docs/slo/runtime-ingestion-worker.md"
+runbook = "docs/runbooks/runtime-ingestion-worker.md"
 
 [[component]]
 name = "models"
@@ -341,6 +376,8 @@ path = "services/workers/model_worker"
 status = "implemented"
 owner = "runtime-platform"
 tests = ["services/workers/model_worker/tests/test_smoke.py"]
+slo = "docs/slo/runtime-model-worker.md"
+runbook = "docs/runbooks/runtime-model-worker.md"
 
 [[component]]
 name = "runtime.batch_inference_worker"
@@ -415,6 +452,8 @@ tests = [
   "services/control_plane/internal/store/postgres/live_postgres_test.go",
 ]
 qualification = "docs/qualification/go/control-plane-registry.md"
+slo = "docs/slo/control-model-registry.md"
+runbook = "docs/runbooks/control-model-registry.md"
 
 [[component]]
 name = "infra.terraform.modules"
@@ -674,6 +713,7 @@ status = "experimental"
 owner = "product-engineering"
 tests = ["apps/console/tests/format.test.tsx"]
 qualification = "apps/console/PRODUCTION_READINESS.md"
+runbook = "docs/runbooks/typescript-applications.md"
 
 [[component]]
 name = "apps.admin"
@@ -682,6 +722,7 @@ status = "experimental"
 owner = "security-platform"
 tests = ["apps/admin/tests/format.test.tsx"]
 qualification = "apps/admin/PRODUCTION_READINESS.md"
+runbook = "docs/runbooks/typescript-applications.md"
 
 # ---------------------------------------------------------------------------------------
 # MLOps source contracts
@@ -769,6 +810,7 @@ tests = [
     "protocols/compatibility/check_typescript_projection.py",
 ]
 qualification = "protocols/qualification/README.md"
+release_target = "protobuf-contracts"
 
 [[component]]
 name = "protocols.protobuf.common.v1"
@@ -780,6 +822,7 @@ tests = [
     "protocols/compatibility/check_typescript_projection.py",
 ]
 qualification = "protocols/qualification/README.md"
+release_target = "protobuf-contracts"
 
 [[component]]
 name = "protocols.protobuf.data.v1"
@@ -791,6 +834,7 @@ tests = [
     "protocols/compatibility/check_typescript_projection.py",
 ]
 qualification = "protocols/qualification/README.md"
+release_target = "protobuf-contracts"
 
 [[component]]
 name = "protocols.protobuf.evaluation.v1"
@@ -802,6 +846,7 @@ tests = [
     "protocols/compatibility/check_typescript_projection.py",
 ]
 qualification = "protocols/qualification/README.md"
+release_target = "protobuf-contracts"
 
 [[component]]
 name = "protocols.protobuf.events.v1"
@@ -813,6 +858,7 @@ tests = [
     "protocols/compatibility/check_typescript_projection.py",
 ]
 qualification = "protocols/qualification/README.md"
+release_target = "protobuf-contracts"
 
 [[component]]
 name = "protocols.protobuf.inference.v1"
@@ -824,6 +870,7 @@ tests = [
     "protocols/compatibility/check_typescript_projection.py",
 ]
 qualification = "protocols/qualification/README.md"
+release_target = "protobuf-contracts"
 
 [[component]]
 name = "protocols.protobuf.orchestration.v1"
@@ -835,6 +882,7 @@ tests = [
     "protocols/compatibility/check_typescript_projection.py",
 ]
 qualification = "protocols/qualification/README.md"
+release_target = "protobuf-contracts"
 
 [[component]]
 name = "protocols.protobuf.registry.v1"
@@ -846,6 +894,7 @@ tests = [
     "protocols/compatibility/check_typescript_projection.py",
 ]
 qualification = "protocols/qualification/README.md"
+release_target = "protobuf-contracts"
 
 [[component]]
 name = "protocols.protobuf.runtime.v1"
@@ -857,6 +906,7 @@ tests = [
     "protocols/compatibility/check_typescript_projection.py",
 ]
 qualification = "protocols/qualification/README.md"
+release_target = "protobuf-contracts"
 
 [[component]]
 name = "protocols.protobuf.training.v1"
@@ -868,6 +918,7 @@ tests = [
     "protocols/compatibility/check_typescript_projection.py",
 ]
 qualification = "protocols/qualification/README.md"
+release_target = "protobuf-contracts"
 
 [[component]]
 name = "release.spdx_sbom"
@@ -886,6 +937,8 @@ tests = [
     "ci/presubmit/test_pipeline.py",
 ]
 qualification = "ci/presubmit/QUALIFICATION.md"
+slo = "docs/slo/ci-bazel-validation.md"
+runbook = "docs/runbooks/ci-bazel-validation.md"
 
 [[component]]
 name = "ci.cpu_nightly"
@@ -894,6 +947,8 @@ status = "implemented"
 owner = "release-engineering"
 tests = ["ci/nightly/test_pipeline.py"]
 qualification = "ci/nightly/QUALIFICATION.md"
+slo = "docs/slo/ci-bazel-validation.md"
+runbook = "docs/runbooks/ci-bazel-validation.md"
 
 # ---------------------------------------------------------------------------------------
 # services/ deployables that held production Go while unregistered
