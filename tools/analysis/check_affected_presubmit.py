@@ -105,16 +105,36 @@ PRESUBMIT_BAZEL_STEP_CONTRACT = (
         "889e811758a8eb0bfe298bec1412219d252c18e4946c086c793465172a6a4513",
     ),
     (
+        "name:Select qualified Bazel remote-cache route",
+        "e9857e10b7b5a13a3dc13a653574f5a6b2aabf3305f8502a823a34a773f4d972",
+    ),
+    (
         "name:Select trusted Bazel cache revision",
-        "3d521ffc2acfa1c39f7a088087af7ef2e5c1f703b44d2521a04b71e401054774",
+        "ee5076cc24fd3eec9405c0d067025536c0fa6f486c4d9e5f0d31bceff134e40f",
     ),
     (
         "name:Restore trusted Bazel persistent action cache",
-        "f7d3575c44f9f9f581cb999730b0337339a3ac4776abd4afee78f35711eca041",
+        "2451db34483041c5d9a402a684b0a8b25e60f3e47d3c2dadbe50a72f260d032f",
     ),
     (
         "name:Configure bounded Bazel persistent action cache",
-        "7f0ba186b0d4be7f54e1228a24e01a27021a045e6209a42ccd06dde751f847db",
+        "5a800a12d26226503fc54ccb5515ca1a4f537d1168a8f9759eab7411ac2c9925",
+    ),
+    (
+        "name:Build qualified Bazel GCS cache gateway",
+        "6f1f4320ac9b5bd8d49ac0784f852d711aea478def27cebd4104d687909e8096",
+    ),
+    (
+        "name:Authenticate read-only Bazel cache route",
+        "0744449797a1f59706bfd676fb0b6b408d366731a605eee8127922ce210f5931",
+    ),
+    (
+        "name:Authenticate trusted Bazel cache writer route",
+        "4f3a50497ca60210af3343e78880a5de32eae5b0921bf639674deb75f525548b",
+    ),
+    (
+        "name:Start loopback Bazel GCS cache gateway",
+        "0f1dcb106b4b0887d800f717543601ab397cf95247785c98eb93221975dae56e",
     ),
     (
         "name:buildifier",
@@ -142,15 +162,19 @@ PRESUBMIT_BAZEL_STEP_CONTRACT = (
     ),
     (
         "name:Measure bounded Bazel persistent action cache",
-        "d78717735c38ee3b264a8eabd30f320fcce1acb62bf88d6e5f6d0bc4d02e54ab",
+        "f5883ffd0675c8bade7c4d0abe80743f426aefbdd366e7ecc50f195c9d51487c",
     ),
     (
         "name:Save trusted Bazel persistent action cache",
-        "36a872484b4dce8390169fa23f851c9f8fec2e0f11254c319de5d84a4009db9b",
+        "dcbadf057eab254e9a46988c53ee666724ba6afc007b26e6a977efbf00e81127",
     ),
     (
         "name:Record Bazel persistent action cache metrics",
-        "597e3fd3eec0d351853272ce410f71e50880b3750e45dd54a0b63aea36245c47",
+        "82c5d7689d98d1426cfedcd3e7096e6a8cbddee555c24acc9ea19e268beb2b55",
+    ),
+    (
+        "name:Record Bazel GCS remote-cache metrics and stop gateway",
+        "b60c609354c9bfa92e4793ab2cc8b149c4c904919706118962e7d512d32791af",
     ),
     (
         "name:Upload Bazel performance evidence",
@@ -183,16 +207,32 @@ NIGHTLY_BAZEL_STEP_CONTRACT = (
         "889e811758a8eb0bfe298bec1412219d252c18e4946c086c793465172a6a4513",
     ),
     (
+        "name:Select qualified nightly Bazel remote-cache route",
+        "e9ed68f9e7b70a93d2682d463054715f817c483175d5c91817e77ba7c4349b8d",
+    ),
+    (
         "name:Select trusted nightly Bazel cache revision",
-        "725e3b66b3e931380dc1725b76b3b572c3c3cff6264c875c76fb5372a4f46a6f",
+        "bd9772938ffefad6dfc1779ded55675c9148dd81d2abd97a5bfd7bf8c04ed2a7",
     ),
     (
         "name:Restore trusted nightly Bazel persistent action cache",
-        "e1450dd287debaf42cdf34cae070136421bd115238ef43ee4186aaac7c5bd964",
+        "d2f8fb316c6fd8485dea77c8bd7c4f356376a70fcac19485c3ce23384e0341b0",
     ),
     (
         "name:Configure bounded nightly Bazel persistent action cache",
-        "6b777772303b943876ae184ad8e1976bf25086fb42036d63e0970491ff1498f4",
+        "c4f5b85a37f0408401350775feee92e6694f3f17c0aa1ebc6838b651c70db938",
+    ),
+    (
+        "name:Build qualified nightly Bazel GCS cache gateway",
+        "5d490c127bcbe8e961d15be535f78e809bcaf6fee8e64d4af32ed7cffe7c0ea0",
+    ),
+    (
+        "name:Authenticate scheduled Bazel cache writer route",
+        "1e6a054411a5caed2fc04fb952c2cdf918c403f9c0871622f14f7c31a621bd81",
+    ),
+    (
+        "name:Start scheduled loopback Bazel GCS cache gateway",
+        "8a051e9011ca96d6c5e7f68fd8844a1723b4ae6d0eb7a56de8c79331a0728bff",
     ),
     (
         "name:Validate complete loading, formatting, and layer policy",
@@ -212,15 +252,19 @@ NIGHTLY_BAZEL_STEP_CONTRACT = (
     ),
     (
         "name:Measure bounded nightly Bazel persistent action cache",
-        "8ded4c5c6f73bae12e26d9a1e3d6ef083142780697c07120ea34593d02aa4a6b",
+        "bce0199c50ce68ddfecb23a199f01556d25030adc1bd4cda32c63044ff6be29f",
     ),
     (
         "name:Save trusted nightly Bazel persistent action cache",
-        "0fcea9f0ecc363088ac840d65af3bbe71888c6d065ddf52e1788d88973f7a1a7",
+        "628d8743e71c0cdda2bde68e2f1c24f0f7cea9f6d60b9b11d8d464302ec0c2a3",
     ),
     (
         "name:Record nightly Bazel persistent action cache metrics",
-        "836f793db0d80c0ed9fe76faa0993f1a7c84c3299aaa022021fabdb13c80709a",
+        "0082722aa9cba07592609b610adc1f4e84136fb7bcd7c10bda3f07dc2ff64942",
+    ),
+    (
+        "name:Record nightly Bazel GCS remote-cache metrics and stop gateway",
+        "5aac65f7346ee5feaa552246e59fa96dd11df754f066dc97aea0e977b0e7223a",
     ),
     (
         "name:Upload nightly Bazel evidence",
@@ -546,8 +590,9 @@ def _presubmit_workflow_errors(workflow: dict[str, Any]) -> list[str]:
     bazel_job = _mapping(jobs.get("bazel")) if jobs is not None else None
     if (
         bazel_job is None
-        or set(bazel_job) != {"name", "runs-on", "steps", "timeout-minutes"}
+        or set(bazel_job) != {"name", "permissions", "runs-on", "steps", "timeout-minutes"}
         or bazel_job.get("name") != "bazel / verdict"
+        or bazel_job.get("permissions") != {"contents": "read"}
         or bazel_job.get("runs-on") != "ubuntu-24.04"
         or bazel_job.get("timeout-minutes") != 90
     ):
@@ -651,8 +696,17 @@ def _nightly_workflow_errors(workflow: dict[str, Any]) -> list[str]:
     job = _mapping(jobs.get("bazel-nightly")) if jobs is not None else None
     if (
         job is None
-        or set(job) != {"if", "name", "runs-on", "steps", "timeout-minutes"}
+        or set(job)
+        != {
+            "if",
+            "name",
+            "permissions",
+            "runs-on",
+            "steps",
+            "timeout-minutes",
+        }
         or job.get("name") != "nightly Bazel / verdict"
+        or job.get("permissions") != {"actions": "read", "contents": "read"}
         or job.get("runs-on") != "ubuntu-24.04"
         or job.get("timeout-minutes") != 90
     ):
