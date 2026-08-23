@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/binary"
+	"errors"
 	"hash/crc32"
 	"io"
 	"net/http"
@@ -28,6 +29,72 @@ const (
 	testBucket = "mc-common-ci-bazel-cache"
 	testPrefix = "bazel-http-cache/v1"
 )
+
+type bodyReadResult struct {
+	payload []byte
+	err     error
+}
+
+type asynchronousCloseTransport struct {
+	payload       []byte
+	digest        identifiers.Digest
+	putAttempts   atomic.Int32
+	releaseFirst  chan struct{}
+	firstRead     chan bodyReadResult
+	firstPayload  []byte
+	secondPayload []byte
+}
+
+func (transport *asynchronousCloseTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	switch request.Method {
+	case http.MethodPut:
+		if transport.putAttempts.Add(1) == 1 {
+			body := request.Body
+			go func() {
+				<-transport.releaseFirst
+				payload, err := io.ReadAll(body)
+				closeErr := body.Close()
+				if err == nil {
+					err = closeErr
+				}
+				transport.firstRead <- bodyReadResult{payload: payload, err: err}
+			}()
+			return nil, errors.New("synthetic transport failure")
+		}
+		close(transport.releaseFirst)
+		first := <-transport.firstRead
+		second, secondErr := io.ReadAll(request.Body)
+		closeErr := request.Body.Close()
+		if secondErr == nil {
+			secondErr = closeErr
+		}
+		transport.firstPayload = first.payload
+		transport.secondPayload = second
+		status := http.StatusOK
+		if first.err != nil || secondErr != nil || !bytes.Equal(first.payload, transport.payload) || !bytes.Equal(second, transport.payload) {
+			status = http.StatusBadRequest
+		}
+		return responseWithStatus(request, status), nil
+	case http.MethodHead:
+		response := responseWithStatus(request, http.StatusOK)
+		writeObjectHeaders(response.Header, transport.digest, int64(len(transport.payload)), 61)
+		response.ContentLength = int64(len(transport.payload))
+		return response, nil
+	default:
+		return responseWithStatus(request, http.StatusMethodNotAllowed), nil
+	}
+}
+
+func responseWithStatus(request *http.Request, status int) *http.Response {
+	return &http.Response{
+		Status:        strconv.Itoa(status) + " " + http.StatusText(status),
+		StatusCode:    status,
+		Header:        make(http.Header),
+		Body:          io.NopCloser(strings.NewReader("")),
+		ContentLength: 0,
+		Request:       request,
+	}
+}
 
 func TestPutIsCreateOnlyAndServerValidated(t *testing.T) {
 	t.Parallel()
@@ -158,6 +225,45 @@ func TestPutRetriesTransientFailureWithSameCreateOnlyBody(t *testing.T) {
 	}
 }
 
+func TestPutRetriesTransportErrorWithIndependentBodies(t *testing.T) {
+	t.Parallel()
+	payload := []byte("independent retry payload")
+	digest := identifiers.SHA256(payload)
+	transport := &asynchronousCloseTransport{
+		payload:      payload,
+		digest:       digest,
+		releaseFirst: make(chan struct{}),
+		firstRead:    make(chan bodyReadResult, 1),
+	}
+	store, err := newStore(
+		&http.Client{Transport: transport},
+		testBucket,
+		testPrefix,
+		1024,
+		mustParseURL(t, "https://storage.googleapis.test"),
+	)
+	if err != nil {
+		t.Fatalf("newStore() error = %v", err)
+	}
+	key := blob.MustParseKey("cas/" + digest.Hex())
+	_, err = store.Put(context.Background(), key, bytes.NewReader(payload), blob.PutOptions{
+		ContentType: "application/octet-stream",
+		Digest:      digest,
+		Preconditions: blob.Preconditions{
+			IfNotExists: true,
+		},
+	})
+	if err != nil {
+		t.Fatalf("Put() error = %v", err)
+	}
+	if got := transport.putAttempts.Load(); got != 2 {
+		t.Fatalf("PUT attempts = %d, want 2", got)
+	}
+	if !bytes.Equal(transport.firstPayload, payload) || !bytes.Equal(transport.secondPayload, payload) {
+		t.Fatalf("retry bodies = %q and %q, want %q twice", transport.firstPayload, transport.secondPayload, payload)
+	}
+}
+
 func TestOpenPinsGenerationAndVerifiesDigest(t *testing.T) {
 	t.Parallel()
 	payload := []byte("verified")
@@ -271,15 +377,21 @@ func TestStoreRejectsMismatchedUploadDigestBeforeNetwork(t *testing.T) {
 
 func testStore(t *testing.T, endpoint string, maximumBytes int64) *Store {
 	t.Helper()
-	parsed, err := url.Parse(endpoint)
-	if err != nil {
-		t.Fatalf("url.Parse() error = %v", err)
-	}
+	parsed := mustParseURL(t, endpoint)
 	store, err := newStore(http.DefaultClient, testBucket, testPrefix, maximumBytes, parsed)
 	if err != nil {
 		t.Fatalf("newStore() error = %v", err)
 	}
 	return store
+}
+
+func mustParseURL(t *testing.T, value string) *url.URL {
+	t.Helper()
+	parsed, err := url.Parse(value)
+	if err != nil {
+		t.Fatalf("url.Parse() error = %v", err)
+	}
+	return parsed
 }
 
 func writeObjectHeaders(headers http.Header, digest identifiers.Digest, size, generation int64) {

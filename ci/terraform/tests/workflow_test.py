@@ -66,10 +66,15 @@ def python_invocation(step: dict[str, object]) -> list[str]:
     return tokens[starts[0] :]
 
 
-def assert_remote_cache_command(step: dict[str, object], command: str) -> None:
-    invocation = python_invocation(step)
-    assert invocation[:3] == ["python3", "ci/common/bazel_remote_cache.py", command]
-    assert len(invocation) > 3, "remote-cache command must pass explicit arguments"
+def assert_remote_cache_command(
+    step: dict[str, object], command: str, arguments: list[str]
+) -> None:
+    assert python_invocation(step) == [
+        "python3",
+        "ci/common/bazel_remote_cache.py",
+        command,
+        *arguments,
+    ]
 
 
 def assert_auth_step(
@@ -198,7 +203,6 @@ for trusted_base in (
 assert "github.event_name == 'push'" in bazel_job
 assert "github.ref == 'refs/heads/main'" in bazel_job
 assert "github.ref_protected == true" in bazel_job
-assert '--ref-protected "${REF_PROTECTED}"' in bazel_job
 for command in ("select-trust", "configure", "measure", "record-metrics"):
     assert f"ci/common/bazel_disk_cache.py {command}" in bazel_job
 assert "steps.bazel-cache-size.outputs.within-limit == 'true'" in bazel_job
@@ -221,7 +225,32 @@ assert {key: value for key, value in presubmit_selector.items() if key != "run"}
         "REF_PROTECTED": "${{ github.ref_protected }}",
     },
 }
-assert_remote_cache_command(presubmit_selector, "select")
+assert_remote_cache_command(
+    presubmit_selector,
+    "select",
+    [
+        "--contract",
+        "ci/bazel_cache/activation.json",
+        "--repository-state",
+        "${BAZEL_REMOTE_CACHE_STATE}",
+        "--workflow",
+        "presubmit",
+        "--event",
+        "${GITHUB_EVENT_NAME}",
+        "--ref",
+        "${GITHUB_REF}",
+        "--ref-protected",
+        "${REF_PROTECTED}",
+        "--project-id",
+        "${CI_PROJECT_ID}",
+        "--pull-request-base-ref",
+        "${PR_BASE_REF}",
+        "--merge-group-base-ref",
+        "${MERGE_GROUP_BASE_REF}",
+        "--github-output",
+        "${GITHUB_OUTPUT}",
+    ],
+)
 
 assert_only_expected_auth_steps(
     bazel_workflow_job, {"bazel-cache-reader-auth", "bazel-cache-writer-auth"}
@@ -262,7 +291,34 @@ assert {key: value for key, value in presubmit_start.items() if key != "run"} ==
         "WIF_PROVIDER_BAZEL_CACHE": "${{ vars.WIF_PROVIDER_BAZEL_CACHE }}",
     },
 }
-assert_remote_cache_command(presubmit_start, "start")
+assert_remote_cache_command(
+    presubmit_start,
+    "start",
+    [
+        "--binary",
+        "${CACHE_BINARY}",
+        "--workspace",
+        "${GITHUB_WORKSPACE}",
+        "--bazelrc",
+        "${GITHUB_WORKSPACE}/user.bazelrc",
+        "--runtime-dir",
+        "${RUNNER_TEMP}/mindclade-bazel-remote-cache",
+        "--github-env",
+        "${GITHUB_ENV}",
+        "--bucket",
+        "${CACHE_BUCKET}",
+        "--role",
+        "${CACHE_ROLE}",
+        "--project-id",
+        "${CI_PROJECT_ID}",
+        "--provider",
+        "${WIF_PROVIDER_BAZEL_CACHE}",
+        "--service-account",
+        "${CACHE_SERVICE_ACCOUNT}",
+        "--credentials-file",
+        "${CACHE_CREDENTIALS_FILE}",
+    ],
+)
 
 presubmit_record = workflow_step(
     bazel_workflow_job, name="Record Bazel GCS remote-cache metrics and stop gateway"
@@ -275,7 +331,20 @@ assert {key: value for key, value in presubmit_record.items() if key != "run"} =
     ),
     "env": {"CACHE_ROLE": "${{ steps.bazel-remote-cache.outputs.role }}"},
 }
-assert_remote_cache_command(presubmit_record, "record-stop")
+assert_remote_cache_command(
+    presubmit_record,
+    "record-stop",
+    [
+        "--runtime-dir",
+        "${RUNNER_TEMP}/mindclade-bazel-remote-cache",
+        "--evidence-dir",
+        "${RUNNER_TEMP}/bazel-evidence",
+        "--summary",
+        "${GITHUB_STEP_SUMMARY}",
+        "--role",
+        "${CACHE_ROLE}",
+    ],
+)
 
 nightly_job = NIGHTLY.split("\n  bazel-nightly:\n", maxsplit=1)[1]
 assert "if: github.ref == 'refs/heads/main'" in nightly_job
@@ -298,7 +367,6 @@ assert "restore-keys:" in nightly_job
 assert "github.event_name == 'schedule'" in nightly_job
 assert "github.event_name == 'workflow_dispatch'" in nightly_job
 assert "github.ref_protected == true" in nightly_job
-assert '--ref-protected "${REF_PROTECTED}"' in nightly_job
 assert "steps.bazel-cache-trust.outputs.role == 'writer'" in nightly_job
 assert "steps.bazel-cache-size.outputs.within-limit == 'true'" in nightly_job
 assert "steps.bazel-disk-cache.outcome" in nightly_job
@@ -322,7 +390,28 @@ assert {key: value for key, value in nightly_selector.items() if key != "run"} =
         "REF_PROTECTED": "${{ github.ref_protected }}",
     },
 }
-assert_remote_cache_command(nightly_selector, "select")
+assert_remote_cache_command(
+    nightly_selector,
+    "select",
+    [
+        "--contract",
+        "ci/bazel_cache/activation.json",
+        "--repository-state",
+        "${BAZEL_REMOTE_CACHE_STATE}",
+        "--workflow",
+        "nightly",
+        "--event",
+        "${GITHUB_EVENT_NAME}",
+        "--ref",
+        "${GITHUB_REF}",
+        "--ref-protected",
+        "${REF_PROTECTED}",
+        "--project-id",
+        "${CI_PROJECT_ID}",
+        "--github-output",
+        "${GITHUB_OUTPUT}",
+    ],
+)
 
 assert_only_expected_auth_steps(nightly_workflow_job, {"bazel-cache-writer-auth"})
 assert_auth_step(
@@ -350,7 +439,34 @@ assert {key: value for key, value in nightly_start.items() if key != "run"} == {
         "WIF_PROVIDER_BAZEL_CACHE": "${{ vars.WIF_PROVIDER_BAZEL_CACHE }}",
     },
 }
-assert_remote_cache_command(nightly_start, "start")
+assert_remote_cache_command(
+    nightly_start,
+    "start",
+    [
+        "--binary",
+        "${CACHE_BINARY}",
+        "--workspace",
+        "${GITHUB_WORKSPACE}",
+        "--bazelrc",
+        "${GITHUB_WORKSPACE}/user.bazelrc",
+        "--runtime-dir",
+        "${RUNNER_TEMP}/mindclade-bazel-remote-cache",
+        "--github-env",
+        "${GITHUB_ENV}",
+        "--bucket",
+        "${CACHE_BUCKET}",
+        "--role",
+        "${CACHE_ROLE}",
+        "--project-id",
+        "${CI_PROJECT_ID}",
+        "--provider",
+        "${WIF_PROVIDER_BAZEL_CACHE}",
+        "--service-account",
+        "${SA_BAZEL_CACHE_WRITER}",
+        "--credentials-file",
+        "${CACHE_CREDENTIALS_FILE}",
+    ],
+)
 
 nightly_record = workflow_step(
     nightly_workflow_job, name="Record nightly Bazel GCS remote-cache metrics and stop gateway"
@@ -363,6 +479,19 @@ assert {key: value for key, value in nightly_record.items() if key != "run"} == 
     ),
     "env": {"CACHE_ROLE": "${{ steps.bazel-remote-cache.outputs.role }}"},
 }
-assert_remote_cache_command(nightly_record, "record-stop")
+assert_remote_cache_command(
+    nightly_record,
+    "record-stop",
+    [
+        "--runtime-dir",
+        "${RUNNER_TEMP}/mindclade-bazel-remote-cache",
+        "--evidence-dir",
+        "${RUNNER_TEMP}/bazel-evidence",
+        "--summary",
+        "${GITHUB_STEP_SUMMARY}",
+        "--role",
+        "${CACHE_ROLE}",
+    ],
+)
 
 print("Terraform and Bazel workflow trust-boundary assertions passed.")
