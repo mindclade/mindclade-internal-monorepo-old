@@ -53,9 +53,15 @@ func MustParseReason(value string) Reason {
 }
 
 func (reason Reason) String() string { return string(reason) }
+
+// Valid reports whether the reason is safe to emit exactly as it is.
+// ParseReason trims, so a parse-only check accepted Reason(" Reconciled ")
+// while String kept the padding, and the padded text became the reason that
+// event consumers and alert rules aggregate on. Requiring the value to already
+// equal its parsed form makes Valid mean "normalized".
 func (reason Reason) Valid() bool {
-	_, err := ParseReason(string(reason))
-	return err == nil
+	parsed, err := ParseReason(string(reason))
+	return err == nil && parsed == reason
 }
 
 // Event is a validated Kubernetes event request.
