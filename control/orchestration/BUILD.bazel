@@ -21,8 +21,14 @@ go_library(
     deps = [
         "//control/artifacts",
         "//control/runtime_authority",
+        "//libs/go/clock",
+        "//libs/go/coordination",
+        "//libs/go/coordination/workqueue",
         "//libs/go/faults",
+        "//libs/go/idempotency",
         "//libs/go/identifiers",
+        "//libs/go/resourceversion",
+        "//libs/go/storage/lease",
     ],
 )
 
@@ -31,7 +37,9 @@ go_test(
     srcs = glob(["*_test.go"]),
     embed = [":orchestration"],
     deps = [
+        "//control/artifacts",
         "//control/runtime_authority",
+        "//libs/go/faults",
         "//libs/go/identifiers",
     ],
 )

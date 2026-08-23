@@ -54,8 +54,28 @@ func (s StageSpec) Validate() error {
 	if _, err := identifiers.ParseID(s.StageID); err != nil {
 		return invalid("stage_id_invalid", "stage id must be canonical", err)
 	}
-	if !s.Kind.Valid() || s.Operation == "" || s.OutputNamespace == "" || !s.ResolvedConfigDigest.Valid() || s.Timeout <= 0 || s.MaximumAttempts == 0 {
-		return invalid("stage_spec_invalid", "stage kind, operation, output namespace, config digest, timeout, and attempts are required", nil)
+	if !s.Kind.Valid() || !s.ResolvedConfigDigest.Valid() || s.Timeout <= 0 || s.MaximumAttempts == 0 {
+		return invalid("stage_spec_invalid", "stage kind, config digest, timeout, and attempts are required", nil)
+	}
+	// Bounds match the tightest consumer rather than Go's own tolerance. Rust
+	// caps an operation at 256 bytes and Python at 128, and both reject the
+	// charset Go used to accept, so an operation admitted here without these
+	// checks would travel one hop and be refused at the worker with a far less
+	// useful diagnostic than this one.
+	if err := validateOperation(s.Operation); err != nil {
+		return err
+	}
+	if err := validateBoundedName(s.OutputNamespace, "output_namespace", MaximumOutputNamespaceLength); err != nil {
+		return err
+	}
+	if len(s.Inputs) > MaximumArtifactCount {
+		return exhausted("stage_input_bound", "stage exceeds the maximum input artifact count")
+	}
+	if len(s.Dependencies) > MaximumDependencyCount {
+		return exhausted("stage_dependency_bound", "stage exceeds the maximum dependency count")
+	}
+	if s.ReferenceSnapshotDigest != (identifiers.Digest{}) && !s.ReferenceSnapshotDigest.Valid() {
+		return invalid("reference_snapshot_digest_invalid", "reference snapshot digest is present but invalid", nil)
 	}
 	if err := s.Budget.Validate(); err != nil {
 		return err

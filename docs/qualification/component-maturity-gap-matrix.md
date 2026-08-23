@@ -1,9 +1,9 @@
 # Component maturity gap matrix
 
 **Review date:** 2026-08-23
-**Scope:** all 94 components declared in `components.toml`, against the six rules
+**Scope:** all 95 components declared in `components.toml`, against the six rules
 `maturity.toml` enumerates for `production`.
-**Decision:** no component advances. 0 of 94 satisfy `production`; the 28 that mechanically
+**Decision:** no component advances. 0 of 95 satisfy `production`; the 29 that mechanically
 satisfy `qualified` are rejected on document review, not on paperwork.
 
 ## Reproducing this
@@ -25,45 +25,49 @@ An unreferenced document does not satisfy a rule; `~` is a lead, not a pass.
 
 | Gate | Met | Unreferenced evidence |
 |---|---|---|
-| `requires_tests` | 90 / 94 | 0 |
-| `requires_build_target` | 94 / 94 | 0 |
-| `requires_qualification` | 28 / 94 | 0 |
-| `requires_slo` | 0 / 94 | 20 |
-| `requires_runbook` | 0 / 94 | 20 |
-| `requires_release_target` | 1 / 94 | 12 |
+| `requires_tests` | 91 / 95 | 0 |
+| `requires_build_target` | 95 / 95 | 0 |
+| `requires_qualification` | 29 / 95 | 0 |
+| `requires_slo` | 22 / 95 | 0 |
+| `requires_runbook` | 26 / 95 | 0 |
+| `requires_release_target` | 11 / 95 | 2 |
 
-Blocker sets, which partition all 94 components:
+Blocker sets, which partition all 95 components:
 
 | Components | Missing |
 |---|---|
-| 61 | qualification, SLO, runbook, release target |
-| 28 | SLO, runbook, release target |
+| 44 | qualification, SLO, runbook, release target |
+| 15 | qualification, release target |
+| 10 | SLO, runbook |
+| 10 | SLO, runbook, release target |
+| 7 | release target |
 | 4 | tests, qualification, SLO, runbook, release target (the four `scaffolded` umbrellas) |
-| 1 | qualification, SLO, runbook (`services.go_vanity`, below) |
+| 2 | qualification, SLO, release target |
+| 2 | SLO, release target |
+| 1 | qualification, SLO, runbook |
 
 ## Why every component is blocked
 
-**`release_target` is unmet by 93 of 94 and is the binding constraint.** One component declares
-the field: `services.go_vanity` names the `go-vanity` catalog entry, which is why its blocker
-set is one shorter than everything else's. `ci/release/targets.yaml` is the closed catalog a
-release request selects from, and it holds exactly three entries — `go-vanity`,
-`protobuf-contracts`, `weights-fixture` — whose Bazel packages overlap 12 declared components.
-Naming one is a statement that the catalog entry exists and nothing more:
+**`release_target` is unmet by 84 of 95 and remains a binding constraint.** Eleven components
+declare a catalog entry: `services.go_vanity` names `go-vanity`, and the ten protobuf components
+name `protobuf-contracts`. `ci/release/targets.yaml` is the closed catalog a release request
+selects from; it also contains `weights-fixture`, whose Bazel packages give two more components
+unreferenced candidate evidence. Naming a catalog entry is a statement that it exists and
+nothing more:
 `ci/release/requests/` contains only its README, so no release request has ever been merged and
 nothing in the tree has been released. `ci/release/README.md`
 states that production activation additionally requires the reviewed `.github` v5 release,
 runner-group policy, capability-specific WIF, connected ARC canary evidence, and a ready GitOps
 receiver. None of that is in this repository.
 
-**SLO and runbook evidence exists but is filed in the other record.** `docs/slo/` holds 19
-documents and `docs/runbooks/` holds 29, and `architecture/component_ownership.toml` binds an
-SLO and a runbook to 20 components — every tier-0 and tier-1 component. `components.toml`, which
-is what `maturity.toml`'s rules read, binds neither to any component. The two records must be
-wired together before any component can be promoted, and
-`check_component_maturity.py` now fails when they disagree.
+**SLO and runbook evidence is wired where an owner has made the claim.** `docs/slo/` holds 21
+documents and `docs/runbooks/` holds 38. `components.toml` and
+`architecture/component_ownership.toml` agree on the 22 SLO references and 26 runbook
+references the maturity matrix counts; `check_component_maturity.py` fails when mirrored fields
+disagree. Components without a referenced document continue to fail the corresponding gate.
 
-**Qualification references are counted, not read.** 28 components carry a `qualification` path
-and all 28 resolve. Reading them is a different result:
+**Qualification references are counted, not read.** 29 components carry a `qualification` path
+and all 29 resolve. Reading them is a different result:
 
 | Reference | Components | What it says |
 |---|---|---|
@@ -77,36 +81,36 @@ and all 28 resolve. Reading them is a different result:
 | `infra/terraform/PRODUCTION_READINESS.md` | 1 | "Not ready for production apply"; nine gates MISSING |
 | `apps/*/PRODUCTION_READINESS.md` | 2 | Unchecked boxes for drain, tenant isolation, SLOs, provenance |
 | `libs/rust/README.md`, `libs/ts/README.md`, `sdk/typescript/README.md` | 3 | Package catalogs and consumer docs. Not qualification records. |
+| `docs/qualification/control-artifacts.md` | 1 | A repository-local contract and test inventory; connected production qualification remains explicitly out of scope. |
 | `docs/qualification/go/control-plane-registry.md` | 1 | "**Qualified:** 2026-08-20" with a connected PostgreSQL evidence list. Real. |
 
-One of the 28 records connected qualification evidence, and it already backs the `qualified`
-status of `control.model_registry`. The remaining 27 either state that qualification is pending
+One of the 29 records connected qualification evidence, and it already backs the `qualified`
+status of `control.model_registry`. The remaining 28 either state that qualification is pending
 or are not qualification documents. Promoting on those would convert a document that says "not
 qualified" into a status that says "qualified", which is the exact inversion the maturity model
 exists to prevent.
 
 ## The SLO documents are not self-certifying either
 
-Counting `docs/slo/` pages would overstate readiness a second way. Five of the nineteen —
+Counting `docs/slo/` pages would overstate readiness a second way. Five of the twenty-one —
 `artifact-control.md`, `artifact-proxy.md`, `node-agent.md`, `runtime-gateway.md`,
 `runtime-host.md` — assert that "bounded admission, cancellation and shutdown budgets are
 release-qualified" and name a 99.9% availability objective. Nothing has been released, none of
 those five components carries a qualification reference, and `runtime.artifact_proxy`,
 `runtime.gateway`, `runtime.host`, and `runtime.node_agent` are all `implemented`. A document
-asserting that a budget is release-qualified is not evidence that it is; that is why this matrix
-reports an SLO page as `~` and never as a pass, and why wiring one into `components.toml` should
-follow a correction of the page rather than precede it.
+asserting that a budget is release-qualified is not evidence that it is. The matrix reports a
+referenced SLO as mechanically present, not as connected qualification evidence; the production
+decision above therefore remains blocked even where the SLO gate is met.
 
 ## Statuses not advanced, and why
 
-- **28 components mechanically satisfy `qualified`** (tests + qualification + build target):
-  `apps.admin`, `apps.console`, `ci.cpu_nightly`, `ci.presubmit`, `control.model_registry`,
+- **29 components mechanically satisfy `qualified`** (tests + qualification + build target):
+  `apps.admin`, `apps.console`, `ci.cpu_nightly`, `ci.presubmit`, `control.artifacts`, `control.model_registry`,
   `data`, `infra.security_contracts`, `infra.terraform.modules`, `libs.go`, `libs.rust`,
   `libs.typescript`, the five `models.*` leaves, the ten `protocols.protobuf.*` packages,
   `runtime.ai_gateway_proxy`, and `sdk.typescript`. None advance beyond where they already are:
   their qualification references are the pending statements and READMEs in the table above, and
-  `control.model_registry` is the one already recorded `qualified` on the strength of the one
-  real record.
+  `control.model_registry` is the one backed by the connected registry record.
 - **`services.studio` and `services.go_vanity` are recorded `implemented`, not higher.** Neither
   carries a qualification document, so neither reaches `qualified`; see the section below.
 - **`control.routing` stays `experimental`.** It has an SLO and a runbook in the ownership
@@ -118,15 +122,15 @@ follow a correction of the page rather than precede it.
 
 This section previously recorded `production_dependency = false` as read by no code. That is no
 longer true. `tools/analysis/check_production_dependencies.py` joins the rule against the real
-Go import graph (`tools/analysis/go_import_graph.py`), runs in the static suite, and resolved
-the one live violation the join found:
+Go import graph (`tools/analysis/go_import_graph.py`) and runs in the static suite.
+
+The one previously recorded breach is closed at the end that was actually wrong:
 
 - `control/ingestion`, declared `implemented`, imports `go.mindclade.dev/control/orchestration`
-  from non-test production code (`control/ingestion/pipeline.go`, `control/ingestion/stage.go`),
-  and `control/orchestration` is `experimental`. The edge carries a dated, ADR-0020-backed entry
-  in `PRODUCTION_DEPENDENCY_EXCEPTIONS` expiring 2026-11-14, which the checker rejects if the
-  owner is not an OWNERS.toml team, the ADR is not accepted, the date has passed or is more than
-  90 days out, or the edge stops being a live violation.
+  from non-test production code (`control/ingestion/pipeline.go`, `control/ingestion/stage.go`).
+  Orchestration is now an `implemented` component backed by substantive owning tests, so the
+  edge satisfies the policy and its dated exception has been removed. The exception table is
+  empty again, which is its intended steady state.
 
 The rule binds every status that does not carry the flag — `implemented`, `qualified`,
 `production` and `deprecated` — not only `production`, so it was never vacuous.

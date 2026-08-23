@@ -490,16 +490,17 @@ control/
   weights             sensitive model-weight access
 ```
 
-This is the blueprint boundary set, not a materialization claim. Ten of the
+This is the blueprint boundary set, not a materialization claim. Nine of the
 nineteen directories — `audit`, `evaluations`, `events`, `metadata`, `runs`,
-`scheduling`, `tenancy`, `usage`, `webhooks`, and `weights` — currently hold
-only reserved package boundaries (a `const scaffold_<file>` declaration per
-file) and carry no entry in `components.toml`. `orchestration` and `registry`
-are partly materialized: under `registry`, `checkpoints`, `models`,
-`reference_databases`, and `releases` carry implementations while the package
-root, `datasets`, and `deployments` are still reserved. Substantive
+`tenancy`, `usage`, `webhooks`, and `weights` — currently hold only reserved
+package boundaries (a `const scaffold_<file>` declaration per file) and carry
+no entry in `components.toml`. `registry` is partly materialized: `checkpoints`,
+`models`, `reference_databases`, and `releases` carry implementations while the
+package root, `datasets`, and `deployments` are still reserved. Substantive
 implementations live in `runtime_authority`, `admission`, `artifacts`,
-`evidence`, `lineage`, `routing`, and `ingestion`. Consult `components.toml`
+`evidence`, `lineage`, `routing`, `ingestion`, `orchestration`, and
+`scheduling`; the last two left the reserved set on 2026-08-23 and are declared
+`implemented`, which is not a qualification claim. Consult `components.toml`
 and `maturity.toml` before depending on any of them; a reserved boundary is not
 a dependency, and a declared component still carries its own status.
 
@@ -1980,8 +1981,9 @@ As of this consolidation:
   qualified where provider-independent;
 - `control/` contains implemented source for runtime authority, admission,
   routing, artifacts, lineage, evidence, ingestion, reference releases,
-  release-evidence validation, and unified orchestration seams; ten of its
-  nineteen directories are still reserved boundaries only (§7.1);
+  release-evidence validation, workflow/stage/attempt orchestration, and
+  scheduling policy; nine of its nineteen directories are still reserved
+  boundaries only (§7.1);
 - the uploaded Rust foundation has been adopted as the starting code and
   deepened with runtime/node primitives and gateway/host cores;
 - deterministic Python config resolution and preprocessing contracts/DAG/cache
