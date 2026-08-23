@@ -7,3 +7,7 @@ This directory is armed. `.github/workflows/release.yml` fires on a push to prot
 that adds exactly one file here, and it runs the real canary, build, push, attestation, and
 promotion proposal. A file added to demonstrate the request shape would start a release. Use
 the example in `../README.md` or a case in `../tests/test_release_request.py` instead.
+
+To check a request you *do* intend to merge, rehearse it while it is still outside this
+directory — `release_request.py validate --rehearsal --request <draft path>` applies every
+rule the merged file will face without arming anything. See `../README.md`.

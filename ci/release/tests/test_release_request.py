@@ -154,6 +154,114 @@ spec:
         with self.assertRaisesRegex(release_request.ContractError, "below ci/release/requests"):
             release_request.validate_request("release.yaml", "a" * 40)
 
+    def test_rehearsal_validates_a_request_outside_the_armed_directory(self) -> None:
+        # The point of the mode: the bytes an author intends to commit are checkable while
+        # they are still outside the directory whose merge starts the release.
+        outside = self.root / "v0.2.0.yaml"
+        outside.write_text((self.write_request()).read_text(encoding="utf-8"), encoding="utf-8")
+        (self.requests / "v0.2.0.yaml").unlink()
+        with self.assertRaisesRegex(release_request.ContractError, "below ci/release/requests"):
+            release_request.validate_request("v0.2.0.yaml", "a" * 40)
+        result = release_request.validate_request("v0.2.0.yaml", "a" * 40, rehearsal=True)
+        self.assertEqual(result["target"], "go-vanity")
+
+    def test_rehearsal_accepts_a_request_outside_the_repository(self) -> None:
+        """The realistic case, and the one the in-tree fixtures hid.
+
+        An author drafts the request somewhere scratch before committing it. `pathRelative`
+        is built with `relative_to(ROOT)`, which raises rather than returning a fallback, so
+        this path escaped every fixture that wrote inside the fake root.
+        """
+        with tempfile.TemporaryDirectory() as elsewhere:
+            outside = Path(elsewhere).resolve() / "v0.2.0.yaml"
+            outside.write_text((self.write_request()).read_text(encoding="utf-8"), encoding="utf-8")
+            result = release_request.validate_request(str(outside), "a" * 40, rehearsal=True)
+            self.assertEqual(result["target"], "go-vanity")
+            self.assertEqual(result["pathRelative"], outside.as_posix())
+
+    def test_rehearsal_relaxes_only_the_directory(self) -> None:
+        """A rehearsal that passed for a reason a merged request would not is worthless."""
+        outside = self.root / "v0.2.0.yaml"
+        for body, expected in (
+            ("go-vanity-staging", "not in the closed catalog"),
+            ("//services/attacker:push", "not in the closed catalog"),
+        ):
+            with self.subTest(target=body):
+                outside.write_text(
+                    f"""---
+apiVersion: release.mindclade.dev/v1beta2
+kind: ReleaseRequest
+metadata:
+  name: v0.2.0
+  changeTicket: PLATFORM-1234
+spec:
+  target: {body}
+  rollback:
+    strategy: previous-release
+    previousRelease:
+      id: v0.1.0
+      subjectDigest: sha256:{"1" * 64}
+""",
+                    encoding="utf-8",
+                )
+                with self.assertRaisesRegex(release_request.ContractError, expected):
+                    release_request.validate_request("v0.2.0.yaml", "a" * 40, rehearsal=True)
+
+        # The filename/metadata.name agreement is a content rule, not a directory rule.
+        misnamed = self.root / "v9.9.9.yaml"
+        misnamed.write_text(
+            f"""---
+apiVersion: release.mindclade.dev/v1beta2
+kind: ReleaseRequest
+metadata:
+  name: v0.2.0
+  changeTicket: PLATFORM-1234
+spec:
+  target: go-vanity
+  rollback:
+    strategy: previous-release
+    previousRelease:
+      id: v0.1.0
+      subjectDigest: sha256:{"1" * 64}
+""",
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(release_request.ContractError, "filename must exactly match"):
+            release_request.validate_request("v9.9.9.yaml", "a" * 40, rehearsal=True)
+
+    def test_rehearsal_does_not_reach_the_authority_path(self) -> None:
+        """`inspect` and `build` are what the workflow calls; neither takes the relaxation.
+
+        A rehearsal grants no authority. If it could reach `inspect`, a release could act on
+        a file that never passed through the reviewed directory.
+        """
+        outside = self.root / "v0.2.0.yaml"
+        outside.write_text((self.write_request()).read_text(encoding="utf-8"), encoding="utf-8")
+        (self.requests / "v0.2.0.yaml").unlink()
+        with self.assertRaisesRegex(release_request.ContractError, "below ci/release/requests"):
+            release_request.inspect_request("v0.2.0.yaml", "a" * 40, self.root / "out")
+
+        # Only `validate` accepts the flag; the two commands the workflow invokes reject it
+        # at the command line rather than quietly ignoring it.
+        parser = release_request.parser()
+        self.assertTrue(
+            parser.parse_args(
+                ["validate", "--request", "r.yaml", "--source-sha", "a" * 40, "--rehearsal"]
+            ).rehearsal
+        )
+        for command in ("inspect", "build"):
+            with self.subTest(command=command), self.assertRaises(SystemExit):
+                parser.parse_args(
+                    [command, "--request", "r.yaml", "--source-sha", "a" * 40, "--rehearsal"]
+                )
+
+    def test_oversized_request_is_refused_before_parsing(self) -> None:
+        """An unbounded read is the whole file in memory before a single field is checked."""
+        path = self.requests / "v0.2.0.yaml"
+        path.write_text("#" + "x" * (release_request.MAX_YAML_BYTES + 16), encoding="utf-8")
+        with self.assertRaisesRegex(release_request.ContractError, "exceeds the .* bound"):
+            release_request.validate_request("ci/release/requests/v0.2.0.yaml", "a" * 40)
+
     def test_zero_previous_subject_digest_is_rejected(self) -> None:
         self.write_request(previous_digest="sha256:" + "0" * 64)
         with self.assertRaisesRegex(release_request.ContractError, "zero digest"):
