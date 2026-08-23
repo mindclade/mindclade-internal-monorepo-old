@@ -7,6 +7,7 @@ package bootstrap
 
 import (
 	"context"
+	"time"
 
 	"go.mindclade.dev/libs/go/faults"
 	"go.mindclade.dev/libs/go/servicekit"
@@ -23,10 +24,97 @@ type Aggregate interface {
 	Register(*production.Builder) error
 }
 
+// Lifecycle carries the process shutdown budgets a role resolved from its
+// deployment configuration into the servicekit lifecycle that enforces them.
+//
+// It exists because the two budgets the control-plane configuration schema
+// declares -- shutdown.timeout and drain.timeout -- previously reached nothing.
+// Roles passed drain.timeout to their HTTP and gRPC servers, but servicekit
+// bounds every component Stop hook with its own budget, and httpx.Server.Stop
+// honours an inherited deadline ahead of its own; with servicekit left at its
+// 10s package default, a deployment that configured a 20s drain got 10s and no
+// error said so. shutdown.timeout reached nothing at all: it was parsed,
+// cross-validated against drain.timeout, and then discarded, so raising it
+// could not raise the budget it names.
+//
+// Both fields are optional. Zero keeps the servicekit package default, which is
+// bounded in either case; it never means "no limit" here.
+type Lifecycle struct {
+	// ShutdownTimeout is the total graceful shutdown budget for the process. It
+	// bounds drain, stop, and the wait for run loops together.
+	ShutdownTimeout time.Duration
+
+	// DrainTimeout is the budget for one component's Stop hook, which is where
+	// a control-plane transport actually finishes in-flight requests: httpx and
+	// grpcx expose graceful shutdown through Stop, not through Drain.
+	DrainTimeout time.Duration
+}
+
+// options renders the configured budgets as servicekit options.
+//
+// ShutdownTimeout is omitted rather than passed as zero because servicekit
+// reads a zero total budget as "disable the package timeout", which would make
+// process shutdown unbounded. The per-component options treat zero as "bounded
+// only by the total budget" instead, so omitting them is a defaulting choice
+// rather than a safety one -- but it is still the right choice, because a
+// component that inherited the whole budget could consume it and starve every
+// component stopped after it.
+//
+// Only the Stop budget is set. Nothing in this service registers a Drain hook;
+// the only one that runs is servicekit's own task-group drain, and leaving it
+// on the 10s package default keeps a slow drain from spending the window the
+// deployment allocated to finishing requests.
+func (lifecycle Lifecycle) options() []servicekit.Option {
+	options := make([]servicekit.Option, 0, 2)
+	if lifecycle.ShutdownTimeout > 0 {
+		options = append(options, servicekit.WithShutdownTimeout(lifecycle.ShutdownTimeout))
+	}
+	if lifecycle.DrainTimeout > 0 {
+		options = append(options, servicekit.WithComponentStopTimeout(lifecycle.DrainTimeout))
+	}
+	return options
+}
+
+// validate refuses a pair of budgets that cannot both hold. A per-component
+// budget longer than the whole shutdown budget is the exact shape of the defect
+// this type exists to close: the process would advertise the longer window and
+// silently enforce the shorter one.
+//
+// The bound is the same one config.Settings.Validate applies, deliberately: the
+// configuration schema is the authority on what a deployment may ask for, and a
+// second, stricter rule here would reject deployments that are valid by the
+// contract they were written against. It does leave headroom as the operator's
+// problem -- servicekit stops components in reverse order under one budget, so
+// a drain budget close to the shutdown budget can starve the stops that follow
+// the first slow one.
+func (lifecycle Lifecycle) validate() error {
+	if lifecycle.ShutdownTimeout < 0 || lifecycle.DrainTimeout < 0 {
+		return invalidLifecycle("negative_lifecycle_budget")
+	}
+	if lifecycle.ShutdownTimeout > 0 && lifecycle.DrainTimeout > lifecycle.ShutdownTimeout {
+		return invalidLifecycle("drain_budget_exceeds_shutdown_budget")
+	}
+	return nil
+}
+
+func invalidLifecycle(reason string) error {
+	return faults.New(
+		faults.CodeInvalidArgument,
+		"invalid control-plane process shutdown budget",
+		faults.WithReason(reason),
+		faults.WithOperation("controlplane.bootstrap.Lifecycle.Validate"),
+		faults.WithRetryPolicy(faults.NoRetry()),
+	)
+}
+
 // Runtime is a complete process composition returned by a provider factory.
 type Runtime struct {
 	Dependencies []Aggregate
 	Components   Components
+
+	// Lifecycle carries the deployment-configured shutdown and drain budgets.
+	// A factory that leaves it zero inherits the servicekit package defaults.
+	Lifecycle Lifecycle
 
 	// Bind, when set, receives the assembled production runtime after Build
 	// and before Run. It exists for components that must observe process
@@ -65,12 +153,19 @@ func Build(profile Profile, runtime Runtime) (*production.Runtime, error) {
 	if err := profile.Validate(); err != nil {
 		return nil, err
 	}
+	if err := runtime.Lifecycle.validate(); err != nil {
+		return nil, err
+	}
 	options := make([]servicekit.Option, 0)
 	for _, aggregate := range runtime.Dependencies {
 		if aggregate != nil {
 			options = append(options, aggregate.ServiceOptions()...)
 		}
 	}
+	// Last, so the deployment-configured budgets win over anything an aggregate
+	// set. Aggregates carry process-wide concerns such as the clock and the
+	// telemetry observer; the shutdown budget belongs to the deployment.
+	options = append(options, runtime.Lifecycle.options()...)
 	builder, err := production.NewBuilder(profile.Name, profile.ProductionRole, options...)
 	if err != nil {
 		return nil, err

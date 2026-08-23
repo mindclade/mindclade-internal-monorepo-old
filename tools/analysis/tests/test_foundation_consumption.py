@@ -55,6 +55,16 @@ def module_fixture(root: Path) -> None:
     write(root, "libs/go/storage/blob/gcs/store.go", 'package gcs\n\nconst Name = "gcs"\n')
     write(root, "libs/go/kubernetes/client/client.go", "package client\n")
     write(root, "services/control_plane/internal/bootstrap/profile.go", "package bootstrap\n")
+    write(
+        root,
+        consumption.MATRIX_PATH,
+        "## Process consumption matrix\n\n"
+        "All 1 declared roles are materialized.\n\n"
+        "| Mechanism | `registry` |\n"
+        "| --- | --- |\n"
+        "| `storage/blob/gcs` | required |\n"
+        "| `kubernetes/client` | no |\n",
+    )
 
 
 def test_import_graph_ignores_comments_and_test_files() -> None:

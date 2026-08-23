@@ -7,8 +7,17 @@ load("@rules_go//go:def.bzl", "go_binary", "go_library")
 
 package(default_visibility = ["//visibility:private"])
 
-exports_files(
-    ["main.go"],
+# The whole compiled package, not just main.go. The promotion tests in
+# //services/control_plane/internal/bootstrap read every non-test file that
+# reaches the binary, because a sibling file in this package is the same
+# binary and can hold exactly what main.go is forbidden to hold. Staging one
+# filename would make the Bazel run of those tests a rule about a filename.
+filegroup(
+    name = "sources",
+    srcs = glob(
+        ["*.go"],
+        exclude = ["*_test.go"],
+    ),
     visibility = ["//services/control_plane/internal/bootstrap:__pkg__"],
 )
 

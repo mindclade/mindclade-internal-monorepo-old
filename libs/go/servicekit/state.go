@@ -51,6 +51,38 @@ func (state State) Terminal() bool {
 	return state == StateStopped || state == StateFailed
 }
 
+// CanTransitionTo reports whether to is a legal successor of state.
+//
+// This is the repository-wide service phase graph, not a Go-only detail. The
+// Rust runtime runs the same seven phases (libs/rust/servicekit/src/lifecycle.rs
+// enforces this exact edge set on every transition), so a fleet controller that
+// models node phases can validate a phase report from either runtime against
+// one table. Keeping the two in agreement is what makes the phase a node
+// reports mean the same thing as the phase the control plane expects.
+//
+// Two edges exist because Run must be able to end a process that never served:
+// Starting -> Stopping is startup failure, and Starting -> Draining is a
+// termination request that arrives before Running is announced. Neither ever
+// passes through Running, which is what keeps readiness false for a service
+// that never admitted traffic.
+func (state State) CanTransitionTo(to State) bool {
+	switch state {
+	case StateNew:
+		return to == StateStarting || to == StateFailed
+	case StateStarting:
+		return to == StateRunning || to == StateDraining || to == StateStopping || to == StateFailed
+	case StateRunning:
+		return to == StateDraining || to == StateStopping || to == StateFailed
+	case StateDraining:
+		return to == StateStopping || to == StateFailed
+	case StateStopping:
+		return to == StateStopped || to == StateFailed
+	default:
+		// StateStopped, StateFailed, and any unknown state are terminal.
+		return false
+	}
+}
+
 // Snapshot is an immutable view of current service lifecycle state.
 type Snapshot struct {
 	Name  string

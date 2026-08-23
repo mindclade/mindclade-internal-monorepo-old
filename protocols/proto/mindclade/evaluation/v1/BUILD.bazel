@@ -4,6 +4,7 @@
 #
 
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@protobuf//bazel:py_proto_library.bzl", "py_proto_library")
 load("@rules_go//proto:def.bzl", "go_proto_library")
 
 package(default_visibility = ["//visibility:public"])
@@ -26,6 +27,17 @@ proto_library(
         ":evaluation_proto",
         "//protocols/proto/mindclade/common/v1:identifiers_proto",
         "//protocols/proto/mindclade/common/v1:pagination_proto",
+    ],
+)
+
+# Evaluation numerics are Python by language law, so the package that describes
+# an evaluation and its metrics has to be generated for Python too; otherwise the
+# only Python-side definition of an evaluation result is a hand-written mirror.
+py_proto_library(
+    name = "evaluation_py_pb2",
+    deps = [
+        ":evaluation_proto",
+        ":evaluation_service_proto",
     ],
 )
 

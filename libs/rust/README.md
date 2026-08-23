@@ -4,8 +4,16 @@
 
 ## Production-facing crates
 
-`runtime_core`, `bytes_io`, `content_digest`, `faults`, `identifiers`, `atomic_fs`, `record_io`, `manifests`, `object_store`, `tokenizer_runtime`, `artifact_cas`, `checkpoint_io`, `data_stream`, `ipc`, `servicekit`, `telemetry`, `telemetry_spool`, `bounded_parse`, `bio_formats`, `worker_protocol`, `worker_runtime`, `gpu_host`, and `python_bridge`.
+`runtime_core`, `bytes_io`, `content_digest`, `faults`, `identifiers`, `atomic_fs`, `process_os`, `record_io`, `manifests`, `object_store`, `tokenizer_runtime`, `artifact_cas`, `checkpoint_io`, `data_stream`, `ipc`, `ipc_os`, `servicekit`, `telemetry`, `telemetry_spool`, `bounded_parse`, `bio_formats`, `worker_protocol`, `worker_runtime`, `gpu_host`, and `python_bridge`.
 
-The former `clock`, `retry`, `resource_version`, `byte_spec`, `artifact_manifest`, `observability`, and `python_bindings` crates are one-epoch compatibility surfaces and must not be used by new production code. The former broad `common` crate is removed.
+`PACKAGE_CATALOG.md` carries the same inventory with each crate's layer, stability, and exact
+internal dependency edges, derived from the Cargo manifests.
+
+The former `clock`, `retry`, `resource_version`, `byte_spec`, `artifact_manifest`,
+`observability`, and `python_bindings` crates are **removed**, not deprecated: their
+directories, workspace members, and `Cargo.lock` entries are gone, and their mechanisms live in
+`runtime_core`, `bytes_io`, `manifests`, `telemetry`, and `python_bridge`. There is no
+compatibility facade left to import. The former broad `common` crate is removed, and a
+catch-all crate of that shape is forbidden rather than merely discouraged.
 
 Go owns durable fleet policy; Rust owns local runtime/data-plane execution; Python owns scientific/model numerics; TileLang owns qualified accelerator kernels.

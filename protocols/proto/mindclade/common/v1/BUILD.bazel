@@ -4,6 +4,7 @@
 #
 
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@protobuf//bazel:py_proto_library.bzl", "py_proto_library")
 load("@rules_go//proto:def.bzl", "go_proto_library")
 
 package(default_visibility = ["//visibility:public"])
@@ -36,6 +37,23 @@ proto_library(
     name = "pagination_proto",
     srcs = ["pagination.proto"],
     strip_import_prefix = "/protocols/proto",
+)
+
+# Python is a first-class consumer of the shared identifier, artifact-reference,
+# pagination, and error vocabulary, so common/v1 has to reach it as a generated
+# artifact rather than as a restatement. Hand-mirroring this package is exactly
+# how the Go and Rust fault taxonomies drifted from errors.proto. Every
+# proto_library in the package is listed because the generating aspect only
+# covers what is reachable from `deps`, and a partially covered package fails at
+# import time rather than at build time.
+py_proto_library(
+    name = "common_py_pb2",
+    deps = [
+        ":artifact_ref_proto",
+        ":errors_proto",
+        ":identifiers_proto",
+        ":pagination_proto",
+    ],
 )
 
 go_proto_library(

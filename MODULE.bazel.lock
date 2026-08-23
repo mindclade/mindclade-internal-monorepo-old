@@ -772,7 +772,7 @@
           "REPO_MAPPING:rules_rust+,bazel_tools bazel_tools",
           "REPO_MAPPING:rules_rust+,rules_cc rules_cc+",
           "FILE:@@//Cargo.lock e5b74b95149432103be47b90d8162670b0cc159d6680028dc452202ab03befa7",
-          "FILE:@@//Cargo.toml 0501e436b766de2cad20e3251310d08e90b4d820af2da656e97feac10cb339a7",
+          "FILE:@@//Cargo.toml 90bf951c04ba60358c03be9636beb8671d8e3f28d53dd3f9e7cb6f48ea10fa42",
           "FILE:@@//libs/rust/artifact_cas/Cargo.toml 739fd806cdfedbea93de4d6b615ea95dd05d7c06b8121b377f98e098eed4d040",
           "FILE:@@//libs/rust/atomic_fs/Cargo.toml 5317f19beb4cbef89f776e7d80e2c959942d99c461d3a0c5cdcbb8dbf3fd83a1",
           "FILE:@@//libs/rust/bio_formats/Cargo.toml 1621387ee79e742f894491ef56534b2807fea684f6747c4847ed518bc864d3d4",

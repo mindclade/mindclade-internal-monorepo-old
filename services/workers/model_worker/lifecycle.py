@@ -3,50 +3,17 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-"""Process-local model-worker lifecycle."""
+"""Shared lifecycle names exposed at the service boundary.
 
-from __future__ import annotations
+This adapter used to carry its own ``Lifecycle``/``State`` pair. That copy tracked only a
+phase, never an in-flight execution count, so ``stop()`` succeeded while the injected engine
+was still running and about to publish results — the supervisor saw a stopped worker and was
+free to reissue the same work elsewhere. It also raised bare ``RuntimeError`` across the Rust
+supervision boundary instead of the shared ``libs.python.errors`` contract. Every other worker
+in ``services/workers`` re-exports the shared runtime lifecycle; this one now does too.
+"""
 
-from enum import StrEnum
-from threading import Lock
+from libs.python.worker_runtime import WorkerLifecycle as Lifecycle
+from libs.python.worker_runtime import WorkerState as State
 
-
-class State(StrEnum):
-    STARTING = "starting"
-    READY = "ready"
-    DRAINING = "draining"
-    STOPPED = "stopped"
-
-
-class Lifecycle:
-    def __init__(self) -> None:
-        self._state = State.STARTING
-        self._lock = Lock()
-
-    @property
-    def state(self) -> State:
-        with self._lock:
-            return self._state
-
-    def ready(self) -> None:
-        self._transition(State.STARTING, State.READY)
-
-    def drain(self) -> None:
-        with self._lock:
-            if self._state is State.READY:
-                self._state = State.DRAINING
-
-    def stop(self) -> None:
-        with self._lock:
-            if self._state not in {State.DRAINING, State.STARTING}:
-                raise RuntimeError(f"cannot stop model worker from {self._state}")
-            self._state = State.STOPPED
-
-    def accepting(self) -> bool:
-        return self.state is State.READY
-
-    def _transition(self, expected: State, target: State) -> None:
-        with self._lock:
-            if self._state is not expected:
-                raise RuntimeError(f"expected {expected}, found {self._state}")
-            self._state = target
+__all__ = ["Lifecycle", "State"]

@@ -11,13 +11,37 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
+	"go.mindclade.dev/libs/go/faults"
 	"go.mindclade.dev/libs/go/servicekit"
 	"go.mindclade.dev/libs/go/servicekit/production"
 )
 
 func testComponent(name string) servicekit.Component {
 	return servicekit.Component{Name: name, Start: func(context.Context) error { return nil }}
+}
+
+// dispatcherComposition is the smallest composition that satisfies the
+// dispatcher role. It exists so lifecycle tests can build a real production
+// runtime without naming a concrete provider.
+func dispatcherComposition(mechanism servicekit.Component) Components {
+	return Components{
+		Passive: []production.Capability{
+			production.CapabilityClock,
+			production.CapabilityConfiguration,
+			production.CapabilityIdentifiers,
+			production.CapabilityRequestMetadata,
+			production.CapabilityRetry,
+			production.CapabilityMessaging,
+			production.CapabilityOutboxStore,
+		},
+		Mechanisms: []Mechanism{
+			{Capability: production.CapabilityObservability, Component: testComponent("telemetry")},
+			{Capability: production.CapabilityDatabase, Component: testComponent("database")},
+			{Capability: production.CapabilityOutboxDispatcher, Component: mechanism},
+		},
+	}
 }
 
 func TestEveryRoleHasAValidProfile(t *testing.T) {
@@ -45,22 +69,7 @@ func TestBuildUsesProductionBuilderAndCanonicalStages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	runtime, err := Build(profile, Runtime{Components: Components{
-		Passive: []production.Capability{
-			production.CapabilityClock,
-			production.CapabilityConfiguration,
-			production.CapabilityIdentifiers,
-			production.CapabilityRequestMetadata,
-			production.CapabilityRetry,
-			production.CapabilityMessaging,
-			production.CapabilityOutboxStore,
-		},
-		Mechanisms: []Mechanism{
-			{Capability: production.CapabilityObservability, Component: testComponent("telemetry")},
-			{Capability: production.CapabilityDatabase, Component: testComponent("database")},
-			{Capability: production.CapabilityOutboxDispatcher, Component: testComponent("dispatcher")},
-		},
-	}})
+	runtime, err := Build(profile, Runtime{Components: dispatcherComposition(testComponent("dispatcher"))})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,5 +193,105 @@ func TestRolesLinkOnlyTheProviderAdaptersTheyNeed(t *testing.T) {
 func TestConsumptionRejectsUnknownRole(t *testing.T) {
 	if _, err := ConsumptionFor(Role("not-a-role")); err == nil {
 		t.Fatal("unknown role accepted")
+	}
+}
+
+// The configured shutdown budget must reach the lifecycle that enforces it.
+//
+// This is a behavioural assertion rather than a wiring one: the component's
+// Stop hook reads the deadline servicekit hands it, which is the only place a
+// process can observe the budget it will actually be stopped under. Before the
+// budgets were wired, every role ran on the servicekit package defaults -- a
+// 10s component stop budget -- no matter what drain.timeout the deployment
+// set, and raising shutdown.timeout changed nothing at all.
+func TestBuildAppliesTheConfiguredShutdownBudget(t *testing.T) {
+	const (
+		shutdownBudget = 90 * time.Second
+		drainBudget    = 45 * time.Second
+		// Halfway between the servicekit package default (10s) and the
+		// configured budget, so the assertion cannot pass on the default.
+		floor = 30 * time.Second
+	)
+	profile, err := ProfileFor(RoleEventDispatcher)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var observed time.Duration
+	mechanism := servicekit.Component{
+		Name:  "dispatcher",
+		Start: func(context.Context) error { return nil },
+		Stop: func(ctx context.Context) error {
+			if deadline, ok := ctx.Deadline(); ok {
+				observed = time.Until(deadline)
+			}
+			return nil
+		},
+	}
+	runtime, err := Build(profile, Runtime{
+		Lifecycle:  Lifecycle{ShutdownTimeout: shutdownBudget, DrainTimeout: drainBudget},
+		Components: dispatcherComposition(mechanism),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	if err := runtime.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if observed <= floor {
+		t.Fatalf("component stop budget=%s; the configured drain timeout of %s never reached servicekit", observed, drainBudget)
+	}
+}
+
+// An unconfigured Lifecycle must inherit the bounded servicekit default rather
+// than disabling the timeout. Passing a zero duration through to servicekit
+// would remove the bound entirely, which is the failure mode the option list
+// is written to avoid.
+func TestBuildLeavesUnconfiguredBudgetsBounded(t *testing.T) {
+	profile, err := ProfileFor(RoleEventDispatcher)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bounded := false
+	mechanism := servicekit.Component{
+		Name:  "dispatcher",
+		Start: func(context.Context) error { return nil },
+		Stop: func(ctx context.Context) error {
+			_, bounded = ctx.Deadline()
+			return nil
+		},
+	}
+	runtime, err := Build(profile, Runtime{Components: dispatcherComposition(mechanism)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	if err := runtime.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if !bounded {
+		t.Fatal("component stop ran with no deadline; process shutdown is unbounded")
+	}
+}
+
+// A drain budget larger than the whole shutdown budget cannot hold: the total
+// silently truncates it. Refusing the pair at Build is what keeps the two
+// numbers a contract rather than a suggestion.
+func TestBuildRejectsADrainBudgetLargerThanShutdown(t *testing.T) {
+	profile, err := ProfileFor(RoleEventDispatcher)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = Build(profile, Runtime{
+		Lifecycle:  Lifecycle{ShutdownTimeout: 10 * time.Second, DrainTimeout: 30 * time.Second},
+		Components: dispatcherComposition(testComponent("dispatcher")),
+	})
+	if err == nil {
+		t.Fatal("a drain budget longer than the shutdown budget was accepted")
+	}
+	if reason := faults.ReasonOf(err); reason != "drain_budget_exceeds_shutdown_budget" {
+		t.Fatalf("reason=%s", reason)
 	}
 }
