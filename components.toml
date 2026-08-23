@@ -74,9 +74,13 @@ name = "control.scheduling"
 path = "control/scheduling"
 status = "implemented"
 owner = "platform-control"
-# placement_test.go does not exist yet; only declared paths that exist may be listed here
-# because check_component_maturity.py fails on a missing declared test path.
-tests = ["control/scheduling/capacity_test.go"]
+tests = [
+  "control/scheduling/placement_test.go",
+  "control/scheduling/fair_share_test.go",
+  "control/scheduling/capacity_test.go",
+  "control/scheduling/admission_test.go",
+  "control/scheduling/pool_test.go",
+]
 
 [[component]]
 name = "control.reference_databases"

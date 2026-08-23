@@ -24,4 +24,16 @@ go_library(
         "workloads.go",
     ],
     importpath = "go.mindclade.dev/control/scheduling/adapters/kueue",
+    visibility = [
+        "//control:__subpackages__",
+        "//services:__subpackages__",
+    ],
+    deps = [
+        "//control/scheduling",
+        "//libs/go/faults",
+        "@io_k8s_apimachinery//pkg/api/resource",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1/unstructured",
+        "@io_k8s_apimachinery//pkg/runtime/schema",
+        "@io_k8s_apimachinery//pkg/types",
+    ],
 )
