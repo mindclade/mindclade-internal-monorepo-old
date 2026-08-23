@@ -124,10 +124,11 @@ and no bound or latch was relaxed to restore throughput.
 
 ## Known limitations recorded here deliberately
 
-- No byte wire protocol. The process listens, but only for probes; artifacts cannot be fetched
-  from it over the network because `protocols/` defines no contract for the byte plane.
+- No byte wire protocol. The process listens only for the probes and metrics above; artifacts
+  cannot be fetched from it over the network because `protocols/` defines no contract for the byte
+  plane.
 - Six counters exist — `read_requests`, `read_bytes`, `write_requests`, `write_bytes`,
-  `cache_hits`, `rejected` (`src/telemetry.rs:16-27`). They are now exported at `GET /metrics`
+  `cache_hits`, `rejected` (`src/telemetry.rs:28-33`). They are now exported at `GET /metrics`
   alongside `artifact_proxy_active_transfers`, `artifact_proxy_accepting`, and
   `artifact_proxy_accounting_healthy`. The exposition is plain `name value` text, not a registered
   metrics format with types or labels.
