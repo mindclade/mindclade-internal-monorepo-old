@@ -41,6 +41,7 @@ go_library(
 go_test(
     name = "scheduling_test",
     srcs = [
+        "conformance_test.go",
         "live_postgres_test.go",
         "store_test.go",
     ],
@@ -48,6 +49,7 @@ go_test(
     deps = [
         "//control/orchestration",
         "//control/scheduling",
+        "//control/scheduling/schedulingtest",
         "//libs/go/audit",
         "//libs/go/audit/postgres",
         "//libs/go/auth",
