@@ -204,10 +204,21 @@ def test_presubmit_rejects_governed_step_shell_override() -> None:
     )
 
 
-@pytest.mark.parametrize("field", ["defaults", "env", "needs", "permissions"])
+@pytest.mark.parametrize("field", ["defaults", "env", "needs"])
 def test_presubmit_rejects_bazel_job_control_overrides(field: str) -> None:
     workflow = _presubmit_workflow()
     workflow["jobs"]["bazel"][field] = {}
+    assert "[AFFECTED-WORKFLOW-004] presubmit Bazel job is invalid" in (
+        check_affected_presubmit._presubmit_workflow_errors(workflow)
+    )
+
+
+def test_presubmit_rejects_bazel_job_permission_escalation() -> None:
+    workflow = _presubmit_workflow()
+    workflow["jobs"]["bazel"]["permissions"] = {
+        "contents": "read",
+        "id-token": "write",
+    }
     assert "[AFFECTED-WORKFLOW-004] presubmit Bazel job is invalid" in (
         check_affected_presubmit._presubmit_workflow_errors(workflow)
     )
@@ -397,6 +408,18 @@ def test_nightly_rejects_permissions_or_spoofed_verdict_context() -> None:
     errors = check_affected_presubmit._nightly_workflow_errors(workflow)
     assert "[AFFECTED-WORKFLOW-004] nightly permissions are invalid" in errors
     assert "[AFFECTED-WORKFLOW-004] nightly verdict job is ambiguous" in errors
+
+
+def test_nightly_rejects_bazel_job_permission_escalation() -> None:
+    workflow = _nightly_workflow()
+    workflow["jobs"]["bazel-nightly"]["permissions"] = {
+        "actions": "read",
+        "contents": "read",
+        "id-token": "write",
+    }
+    assert "[AFFECTED-WORKFLOW-004] nightly Bazel job is invalid" in (
+        check_affected_presubmit._nightly_workflow_errors(workflow)
+    )
 
 
 def test_pipeline_orchestration_is_exercised_behaviorally() -> None:
