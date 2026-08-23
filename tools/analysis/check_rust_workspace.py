@@ -13,34 +13,22 @@ import re
 import tomllib
 from pathlib import Path
 
-COMPAT = {
-    "mindclade_clock",
-    "mindclade_retry",
-    "mindclade_resource_version",
-    "mindclade_byte_spec",
-    "mindclade_artifact_manifest",
-    "mindclade_observability",
-    "mindclade_python_bindings",
-}
-# One migration epoch: these are the exact pre-existing dependencies allowed to
-# remain. New consumers or new compatibility edges are rejected.
-BASELINE = {
-    "artifact_cas": {"mindclade_artifact_manifest", "mindclade_byte_spec", "mindclade_clock"},
-    "atomic_fs": {"mindclade_clock"},
-    "checkpoint_io": {
-        "mindclade_artifact_manifest",
-        "mindclade_byte_spec",
-        "mindclade_clock",
-        "mindclade_resource_version",
-    },
-    "data_stream": {"mindclade_byte_spec", "mindclade_clock", "mindclade_retry"},
-    "object_store": {"mindclade_byte_spec", "mindclade_clock", "mindclade_resource_version"},
-    "observability": {"mindclade_clock"},
-    "python_bindings": {"mindclade_artifact_manifest", "mindclade_byte_spec"},
-    "record_io": {"mindclade_byte_spec"},
-    "retry": {"mindclade_clock"},
-    "telemetry_spool": {"mindclade_byte_spec", "mindclade_clock", "mindclade_retry"},
-}
+# A plain sibling import, with no sys.path insertion: this module only ever runs as a script from
+# tools/analysis (where the interpreter puts that directory on sys.path itself) or as an import
+# from run_architecture_checks.py, which inserts the directory before importing anything.
+import check_code_docs_alignment
+
+COMPAT = check_code_docs_alignment.REMOVED_COMPAT_CRATE_NAMES
+# The migration epoch is over and BASELINE is empty, which is the point: the compatibility crates
+# it used to grandfather are deleted, so no edge to one can be legitimate any more.
+#
+# It previously listed ten crates' pre-existing compatibility edges — including three entries for
+# `observability`, `python_bindings`, and `retry`, directories that no longer exist. Those dead
+# entries were not merely untidy. `unexpected = deps & COMPAT - allowed` meant re-adding
+# `mindclade_clock = { path = "../clock" }` to `atomic_fs` was explicitly *permitted* by the gate
+# written to forbid it; the reinstatement only failed because a different checker happens to
+# regex the crate name. An allowlist that outlives what it grandfathers fails open.
+BASELINE: dict[str, set[str]] = {}
 IMPLEMENTED = [
     "libs/rust/runtime_core",
     "libs/rust/bytes_io",

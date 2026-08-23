@@ -1,0 +1,479 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+schema_version = 2
+shard_count = 4
+default_test_duration_ms = 5000
+
+[evidence]
+generated_at = "2026-08-22T21:18:07Z"
+qualification_path_median_ms = 4220338
+test_wall_median_ms = 3002008
+test_bep_critical_path_median_ms = 261175
+test_bep_action_cache_miss_median = 9421
+
+[[evidence.sample]]
+artifact_id = 9474210694
+artifact_name = "bazel-performance-32563269168-1"
+artifact_digest = "sha256:86bf431a81f455d3745a0dc9f8c64a02dcfbea08b5368b21555c6d0ec6ff8d8e"
+artifact_size_bytes = 2530310
+workflow_run_id = 32563269168
+workflow_event = "pull_request"
+workflow_status = "completed"
+workflow_conclusion = "failure"
+run_attempt = 1
+head_sha = "1adeb702dafa5b13cd429231ccc93b0a2dee6716"
+bazel_job_id = 97008071245
+bazel_job_name = "bazel / verdict"
+bazel_job_status = "completed"
+bazel_job_conclusion = "failure"
+test_total = 406
+test_passed = 403
+test_failed = 3
+qualification_path_ms = 4329301
+test_wall_ms = 3118549
+test_bep_critical_path_ms = 264264
+test_bep_action_cache_misses = 9416
+failed_test_labels = [
+  "//infra/observability:test_alert_contracts",
+  "//protocols:protobuf_governance_test",
+  "//services/mlflow:validate_image",
+]
+
+[[evidence.sample]]
+artifact_id = 9474397769
+artifact_name = "bazel-performance-32564200407-1"
+artifact_digest = "sha256:d180206bf4fc28c0aca9e803bd94a78d09c2e9231938bc873b3b839a969b5d93"
+artifact_size_bytes = 2521505
+workflow_run_id = 32564200407
+workflow_event = "pull_request"
+workflow_status = "completed"
+workflow_conclusion = "failure"
+run_attempt = 1
+head_sha = "7fe0aae38a161837575989b9060dd74b66f1435c"
+bazel_job_id = 97010316210
+bazel_job_name = "bazel / verdict"
+bazel_job_status = "completed"
+bazel_job_conclusion = "failure"
+test_total = 406
+test_passed = 402
+test_failed = 4
+qualification_path_ms = 4056099
+test_wall_ms = 2900898
+test_bep_critical_path_ms = 330906
+test_bep_action_cache_misses = 9416
+failed_test_labels = [
+  "//infra/observability:test_alert_contracts",
+  "//protocols:protobuf_governance_test",
+  "//services/mlflow:validate_image",
+  "//services/workers/training/tests:test_reference_affine",
+]
+
+[[evidence.sample]]
+artifact_id = 9475478068
+artifact_name = "bazel-performance-32568301191-1"
+artifact_digest = "sha256:bc737c59f793f5828a5346ad98daf05d52228ff4f5dd305b3566fe5103d2f056"
+artifact_size_bytes = 2517837
+workflow_run_id = 32568301191
+workflow_event = "pull_request"
+workflow_status = "completed"
+workflow_conclusion = "success"
+run_attempt = 1
+head_sha = "732bb8ffb32b086a31261baf00be398fa9df5fa9"
+bazel_job_id = 97020192547
+bazel_job_name = "bazel / verdict"
+bazel_job_status = "completed"
+bazel_job_conclusion = "success"
+test_total = 407
+test_passed = 407
+test_failed = 0
+qualification_path_ms = 4477087
+test_wall_ms = 3171222
+test_bep_critical_path_ms = 261175
+test_bep_action_cache_misses = 9421
+failed_test_labels = []
+
+[[evidence.sample]]
+artifact_id = 9475535875
+artifact_name = "bazel-performance-32569239934-1"
+artifact_digest = "sha256:03e684c34de40296b5691c12470b9713e37613b05e507199079a77a62a70bfc1"
+artifact_size_bytes = 2445991
+workflow_run_id = 32569239934
+workflow_event = "pull_request"
+workflow_status = "completed"
+workflow_conclusion = "failure"
+run_attempt = 1
+head_sha = "74cca1e9c397cf45267cd4363e1868d9ae710b24"
+bazel_job_id = 97022243702
+bazel_job_name = "bazel / verdict"
+bazel_job_status = "completed"
+bazel_job_conclusion = "failure"
+test_total = 407
+test_passed = 406
+test_failed = 1
+qualification_path_ms = 3619099
+test_wall_ms = 2584241
+test_bep_critical_path_ms = 189108
+test_bep_action_cache_misses = 9421
+failed_test_labels = ["//services/mlflow:validate_image"]
+
+[[evidence.sample]]
+artifact_id = 9475914612
+artifact_name = "bazel-performance-32570214992-1"
+artifact_digest = "sha256:a8c31e777e9ff95ab0ea9b73bd5a0abd2cd73c7f65158797251785744410b715"
+artifact_size_bytes = 2505796
+workflow_run_id = 32570214992
+workflow_event = "pull_request"
+workflow_status = "completed"
+workflow_conclusion = "failure"
+run_attempt = 1
+head_sha = "a9cfee3494d954a8de49a88f04814660ad4d396e"
+bazel_job_id = 97024555709
+bazel_job_name = "bazel / verdict"
+bazel_job_status = "completed"
+bazel_job_conclusion = "failure"
+test_total = 408
+test_passed = 407
+test_failed = 1
+qualification_path_ms = 4220338
+test_wall_ms = 3002008
+test_bep_critical_path_ms = 243543
+test_bep_action_cache_misses = 9438
+failed_test_labels = ["//services/mlflow:validate_image"]
+
+[[test_weight]]
+label = "//data/loaders/packing/tests:test_packing"
+median_duration_ms = 6685
+minimum_duration_ms = 5419
+maximum_duration_ms = 6998
+observations = 5
+
+[[test_weight]]
+label = "//data/loaders/streaming/tests:test_streaming"
+median_duration_ms = 7041
+minimum_duration_ms = 5408
+maximum_duration_ms = 8640
+observations = 5
+
+[[test_weight]]
+label = "//data/loaders/tests:test_loader"
+median_duration_ms = 7847
+minimum_duration_ms = 6131
+maximum_duration_ms = 8271
+observations = 5
+
+[[test_weight]]
+label = "//infra/gitops:validate"
+median_duration_ms = 19090
+minimum_duration_ms = 15231
+maximum_duration_ms = 21975
+observations = 5
+
+[[test_weight]]
+label = "//infra/kubernetes:validate"
+median_duration_ms = 41996
+minimum_duration_ms = 34696
+maximum_duration_ms = 45944
+observations = 5
+
+[[test_weight]]
+label = "//kernels/api/tests:test_api"
+median_duration_ms = 13960
+minimum_duration_ms = 13238
+maximum_duration_ms = 19467
+observations = 5
+
+[[test_weight]]
+label = "//kernels/ops/attention/tests:test_attention"
+median_duration_ms = 10782
+minimum_duration_ms = 8215
+maximum_duration_ms = 11602
+observations = 5
+
+[[test_weight]]
+label = "//kernels/ops/diffusion/tests:test_diffusion"
+median_duration_ms = 10788
+minimum_duration_ms = 9953
+maximum_duration_ms = 13764
+observations = 5
+
+[[test_weight]]
+label = "//kernels/ops/fp8/tests:test_fp8"
+median_duration_ms = 10900
+minimum_duration_ms = 9890
+maximum_duration_ms = 11639
+observations = 5
+
+[[test_weight]]
+label = "//kernels/ops/fused/tests:test_fused"
+median_duration_ms = 11217
+minimum_duration_ms = 9448
+maximum_duration_ms = 15551
+observations = 5
+
+[[test_weight]]
+label = "//kernels/ops/moe/tests:test_moe"
+median_duration_ms = 11082
+minimum_duration_ms = 9484
+maximum_duration_ms = 12029
+observations = 5
+
+[[test_weight]]
+label = "//kernels/providers/tilelang/tests:test_provider"
+median_duration_ms = 7505
+minimum_duration_ms = 7087
+maximum_duration_ms = 11768
+observations = 5
+
+[[test_weight]]
+label = "//kernels/qualification/tests:test_qualification"
+median_duration_ms = 6938
+minimum_duration_ms = 5846
+maximum_duration_ms = 12410
+observations = 5
+
+[[test_weight]]
+label = "//kernels/tilelang/compiler/tests:test_codegen"
+median_duration_ms = 7062
+minimum_duration_ms = 4698
+maximum_duration_ms = 7289
+observations = 5
+
+[[test_weight]]
+label = "//kernels/tilelang/compiler/tests:test_layouts"
+median_duration_ms = 6879
+minimum_duration_ms = 5921
+maximum_duration_ms = 7054
+observations = 5
+
+[[test_weight]]
+label = "//kernels/tilelang/targets/tests:test_targets"
+median_duration_ms = 6941
+minimum_duration_ms = 6299
+maximum_duration_ms = 7410
+observations = 5
+
+[[test_weight]]
+label = "//kernels/tilelang/testing/tests:test_harness"
+median_duration_ms = 7153
+minimum_duration_ms = 5547
+maximum_duration_ms = 14493
+observations = 5
+
+[[test_weight]]
+label = "//libs/python/config/tests:test_properties"
+median_duration_ms = 19533
+minimum_duration_ms = 11956
+maximum_duration_ms = 26014
+observations = 5
+
+[[test_weight]]
+label = "//libs/python/serialization/tests:test_properties"
+median_duration_ms = 6123
+minimum_duration_ms = 5543
+maximum_duration_ms = 6574
+observations = 5
+
+[[test_weight]]
+label = "//models/adapters/export/tests:test_export"
+median_duration_ms = 23988
+minimum_duration_ms = 19829
+maximum_duration_ms = 24349
+observations = 5
+
+[[test_weight]]
+label = "//models/components/attention/tests:test_attention"
+median_duration_ms = 15920
+minimum_duration_ms = 10843
+maximum_duration_ms = 17611
+observations = 5
+
+[[test_weight]]
+label = "//models/components/nn/tests:test_nn"
+median_duration_ms = 15263
+minimum_duration_ms = 12007
+maximum_duration_ms = 16501
+observations = 5
+
+[[test_weight]]
+label = "//models/components/normalization/tests:test_normalization"
+median_duration_ms = 15398
+minimum_duration_ms = 14149
+maximum_duration_ms = 16512
+observations = 5
+
+[[test_weight]]
+label = "//models/families/llm/tests:test_llm"
+median_duration_ms = 23857
+minimum_duration_ms = 18206
+maximum_duration_ms = 24998
+observations = 5
+
+[[test_weight]]
+label = "//models/reference/tests:test_reference"
+median_duration_ms = 11362
+minimum_duration_ms = 7985
+maximum_duration_ms = 15017
+observations = 5
+
+[[test_weight]]
+label = "//services/runtime_host:execution_transport"
+median_duration_ms = 10694
+minimum_duration_ms = 8078
+maximum_duration_ms = 12036
+observations = 5
+
+[[test_weight]]
+label = "//services/workers/model_worker/tests:test_runtime"
+median_duration_ms = 9678
+minimum_duration_ms = 7933
+maximum_duration_ms = 11152
+observations = 5
+
+[[test_weight]]
+label = "//services/workers/model_worker/tests:test_smoke"
+median_duration_ms = 7467
+minimum_duration_ms = 5221
+maximum_duration_ms = 9078
+observations = 5
+
+[[test_weight]]
+label = "//services/workers/training/tests:test_distributed_engine"
+median_duration_ms = 48839
+minimum_duration_ms = 47667
+maximum_duration_ms = 77679
+observations = 5
+
+[[test_weight]]
+label = "//services/workers/training/tests:test_qualification"
+median_duration_ms = 16441
+minimum_duration_ms = 14054
+maximum_duration_ms = 33131
+observations = 5
+
+[[test_weight]]
+label = "//services/workers/training/tests:test_smoke"
+median_duration_ms = 14030
+minimum_duration_ms = 11293
+maximum_duration_ms = 25320
+observations = 5
+
+[[test_weight]]
+label = "//serving/model_worker/tests:test_training_parity"
+median_duration_ms = 11695
+minimum_duration_ms = 8809
+maximum_duration_ms = 13012
+observations = 5
+
+[[test_weight]]
+label = "//tests/integration/serving:test_training_serving_parity"
+median_duration_ms = 14638
+minimum_duration_ms = 13489
+maximum_duration_ms = 15663
+observations = 5
+
+[[test_weight]]
+label = "//tests/integration/serving:test_training_worker_parity"
+median_duration_ms = 14631
+minimum_duration_ms = 12822
+maximum_duration_ms = 19417
+observations = 5
+
+[[test_weight]]
+label = "//tests/numerical:test_kernel_provider_parity"
+median_duration_ms = 7268
+minimum_duration_ms = 5282
+maximum_duration_ms = 8340
+observations = 5
+
+[[test_weight]]
+label = "//tests/numerical:test_tilelang_parity"
+median_duration_ms = 11650
+minimum_duration_ms = 10242
+maximum_duration_ms = 12262
+observations = 5
+
+[[test_weight]]
+label = "//tests/performance:test_tilelang_regression"
+median_duration_ms = 6806
+minimum_duration_ms = 5560
+maximum_duration_ms = 7295
+observations = 5
+
+[[test_weight]]
+label = "//tools/qualification/kernels:test_kernel_tools"
+median_duration_ms = 7136
+minimum_duration_ms = 6477
+maximum_duration_ms = 8079
+observations = 5
+
+[[test_weight]]
+label = "//training/checkpointing/tests:test_dcp"
+median_duration_ms = 14071
+minimum_duration_ms = 13573
+maximum_duration_ms = 15311
+observations = 5
+
+[[test_weight]]
+label = "//training/checkpointing/tests:test_resume"
+median_duration_ms = 14916
+minimum_duration_ms = 12830
+maximum_duration_ms = 16509
+observations = 5
+
+[[test_weight]]
+label = "//training/contracts/tests:test_contracts"
+median_duration_ms = 10484
+minimum_duration_ms = 8582
+maximum_duration_ms = 13555
+observations = 5
+
+[[test_weight]]
+label = "//training/core/tests:test_state"
+median_duration_ms = 6623
+minimum_duration_ms = 5455
+maximum_duration_ms = 7386
+observations = 5
+
+[[test_weight]]
+label = "//training/core/tests:test_trainer"
+median_duration_ms = 13896
+minimum_duration_ms = 11300
+maximum_duration_ms = 16896
+observations = 5
+
+[[test_weight]]
+label = "//training/distributed/tests:test_context"
+median_duration_ms = 11018
+minimum_duration_ms = 8624
+maximum_duration_ms = 11938
+observations = 5
+
+[[test_weight]]
+label = "//training/distributed/tests:test_distributed_smoke"
+median_duration_ms = 25256
+minimum_duration_ms = 20902
+maximum_duration_ms = 27260
+observations = 5
+
+[[test_weight]]
+label = "//training/engines/native/tests:test_native"
+median_duration_ms = 13588
+minimum_duration_ms = 11063
+maximum_duration_ms = 14834
+observations = 5
+
+[[test_weight]]
+label = "//training/optim/tests:test_factory"
+median_duration_ms = 13714
+minimum_duration_ms = 10947
+maximum_duration_ms = 14637
+observations = 5
+
+[[test_weight]]
+label = "//training/tasks/tests:test_tasks"
+median_duration_ms = 10749
+minimum_duration_ms = 8943
+maximum_duration_ms = 11461
+observations = 5

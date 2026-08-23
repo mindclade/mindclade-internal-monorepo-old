@@ -298,3 +298,71 @@ func TestClientDisconnectEndsTheStream(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 	r.append(2, runlog.TerminalEventType, `{}`)
 }
+
+// endlessReader always returns a FULL batch and deliberately ignores ctx.
+//
+// Ignoring ctx is not a strawman: Reader is an interface, its doc comment
+// promises nothing about cancellation, and the fakeReader above ignores ctx
+// too. A pump whose only exit on disconnect is the Reader noticing is a pump
+// whose termination depends on a collaborator's undocumented behaviour.
+type endlessReader struct{ meta runlog.RunMeta }
+
+func (e *endlessReader) Run(context.Context, string) (runlog.RunMeta, error) {
+	return e.meta, nil
+}
+
+func (e *endlessReader) ReadFrom(_ context.Context, _ string, afterSeq int64, _ time.Time, limit int) ([]runlog.Event, error) {
+	out := make([]runlog.Event, 0, limit)
+	for i := 1; i <= limit; i++ {
+		// Strictly increasing, so the cursor advances and this is a legitimate
+		// backlog drain rather than a stuck read.
+		out = append(out, runlog.Event{
+			Seq: afterSeq + int64(i), Type: "token",
+			Payload: json.RawMessage(`{"t":"x"}`), CreatedAt: time.Now(),
+		})
+	}
+	return out, nil
+}
+
+// discardWriter accepts every write, which is what a severed TCP connection
+// looks like from inside the handler until the send buffer fills.
+type discardWriter struct{ header http.Header }
+
+func (d *discardWriter) Header() http.Header {
+	if d.header == nil {
+		d.header = http.Header{}
+	}
+	return d.header
+}
+func (d *discardWriter) Write(p []byte) (int, error) { return len(p), nil }
+func (d *discardWriter) WriteHeader(int)             {}
+func (d *discardWriter) Flush()                      {}
+
+// The backlog-drain path must observe cancellation on its own.
+//
+// TestClientDisconnectEndsTheStream above exercises the IDLE path, where the
+// select's ctx.Done() case does the work. This covers the other one: a run with
+// more than BatchLimit unread events never reaches that select, so without an
+// explicit check the handler goroutine and its database round trips outlive the
+// request for as long as the log keeps producing.
+func TestDrainStopsWhenTheRequestContextIsCancelled(t *testing.T) {
+	h := newHandler(&endlessReader{meta: runlog.RunMeta{ID: "run-1", Submitter: "alice"}},
+		allow, principal("alice", true))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	w := &discardWriter{}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		h.pump(ctx, w, w, runlog.RunMeta{ID: "run-1", StartedAt: time.Now()}, 0)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("pump kept draining after the request context was cancelled; " +
+			"the handler goroutine outlives the request whenever the log has a backlog")
+	}
+}

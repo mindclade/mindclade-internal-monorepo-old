@@ -140,6 +140,19 @@ services/*       concrete runtime processes
 Python engines   scientific/numerical behavior invoked by those processes
 ```
 
+The Python side of that last line follows the same shape as the Go split:
+
+```text
+serving/            reusable Python (and Rust) inference libraries
+    ↓
+services/workers/*  deployable worker processes that import serving.*
+```
+
+`services/workers/model_worker` importing `serving.model_worker` and
+`serving.contracts` is the Python mirror of `services/control_plane` importing
+`control/`. The engines stay in `serving/`; the worker holds ticket handling,
+IPC, and process lifecycle.
+
 ### 2.4 Dependency direction
 
 The intended high-level graph is:
@@ -149,14 +162,20 @@ protocols
    ↓
 foundational libs
    ↓
-{control, data, preprocessing, models, kernels}
+{data, preprocessing, models, kernels, evaluation}
    ↓
-{training, serving, evaluation}
+{control, serving}   |   {training}
    ↓
 services
    ↓
 apps through generated SDKs/contracts only
 ```
+
+`control/` and `serving/` are one enforced domain (`runtime`) and sit *above*
+the offline tier, not inside it; `training/` is a sibling domain that reaches
+the offline tier directly. Neither `training/` nor `evaluation/` may import
+`control/` or `serving/`, and only `services/workers/training` may import
+`training/`.
 
 Additional rules:
 
@@ -170,7 +189,15 @@ libs -> control/services                  forbidden
 provider-neutral -> provider adapter      forbidden except through interface
 ```
 
-Machine-readable dependency budgets enforce important portions of this graph.
+`tools/build/bazel/layers.bzl` is the authority for the package-graph directions
+above, and its `BAZEL_LAYER_ALLOW_MATRIX` is fail-closed, so the diagram orients
+but does not decide: resolve a specific edge from the matrix. Two of the listed
+rules are not package-graph rules and the Bazel matrix will answer "allowed" for
+both — the provider-neutral rule, which `tools/analysis/check_go_layers.py`
+enforces through the Layer 1/Layer 3 contract-adapter split, and the
+model-family rule, which no checker enforces today. Source-level prefix
+allowlists live in `architecture/dependency_budgets.toml`. See
+`docs/architecture/dependency-rules.md` for the rendered tables.
 
 ---
 
@@ -329,14 +356,17 @@ Layer 0  foundations
   clock · faults · identifiers
 
 Layer 1  shared contracts
-  audit · auth · idempotency · requestmeta · pagination · resourceversion
+  audit · auth · idempotency · messaging · pagination
+  requestmeta · resourceversion · signing
+  storage/{blob,cache,lease} · storage/sql/transaction
 
 Layer 2  runtime mechanisms
-  config · messaging · observability · retry · servicekit · signing
-  coordination contracts
+  config · observability · retry · servicekit · servicekit/production
+  coordination/{cursor,inbox,leadership,outbox,projector,workqueue}
 
 Layer 3  infrastructure adapters
-  PostgreSQL · Redis · GCS · Kubernetes · provider-backed coordination
+  PostgreSQL · Redis · GCS · Pub/Sub · Kubernetes
+  provider-backed coordination and storage
 
 Layer 4  transport adapters
   HTTP · Connect · gRPC
@@ -344,6 +374,12 @@ Layer 4  transport adapters
 Layer 5  consumers outside libs/go
   control/ · services/ · operators/controllers/workers
 ```
+
+A contract root and its provider subpackages are deliberately in different
+layers. `messaging` is a Layer 1 delivery contract while `messaging/pubsub` is a
+Layer 3 adapter; `storage/lease` is Layer 1 while `storage/lease/postgres` is
+Layer 3. `libs/go/LAYERS.md` is authoritative for placement and
+`tools/analysis/check_go_layers.py` enforces it.
 
 ### 6.2 Transactional outbox
 
@@ -438,6 +474,7 @@ control/
   audit              audit policy/export
   evaluations        qualification and gate records
   events             event publication/mapping policy
+  evidence           immutable claims, verification, signed eligibility
   ingestion          source snapshot and stage control
   lineage            provenance graph
   metadata           run/build/metric metadata
@@ -452,6 +489,19 @@ control/
   webhooks            subscriptions and delivery policy
   weights             sensitive model-weight access
 ```
+
+This is the blueprint boundary set, not a materialization claim. Ten of the
+nineteen directories — `audit`, `evaluations`, `events`, `metadata`, `runs`,
+`scheduling`, `tenancy`, `usage`, `webhooks`, and `weights` — currently hold
+only reserved package boundaries (a `const scaffold_<file>` declaration per
+file) and carry no entry in `components.toml`. `orchestration` and `registry`
+are partly materialized: under `registry`, `checkpoints`, `models`,
+`reference_databases`, and `releases` carry implementations while the package
+root, `datasets`, and `deployments` are still reserved. Substantive
+implementations live in `runtime_authority`, `admission`, `artifacts`,
+`evidence`, `lineage`, `routing`, and `ingestion`. Consult `components.toml`
+and `maturity.toml` before depending on any of them; a reserved boundary is not
+a dependency, and a declared component still carries its own status.
 
 ### 7.2 Control-plane process roles
 
@@ -1928,9 +1978,10 @@ As of this consolidation:
 
 - the Go foundation and durable coordination path are substantive and locally
   qualified where provider-independent;
-- `control/` contains implemented source for runtime authority, routing,
-  artifacts, reference releases, release-evidence validation, and unified
-  orchestration seams;
+- `control/` contains implemented source for runtime authority, admission,
+  routing, artifacts, lineage, evidence, ingestion, reference releases,
+  release-evidence validation, and unified orchestration seams; ten of its
+  nineteen directories are still reserved boundaries only (§7.1);
 - the uploaded Rust foundation has been adopted as the starting code and
   deepened with runtime/node primitives and gateway/host cores;
 - deterministic Python config resolution and preprocessing contracts/DAG/cache

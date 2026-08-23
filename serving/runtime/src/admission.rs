@@ -14,6 +14,13 @@ use mindclade_worker_protocol::AdmissionGrantClaims;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex, Weak};
 
+/// Ceiling on the client-supplied capability set, mirroring the 256-capability
+/// bound `worker_protocol` already enforces on grant and route capability sets.
+/// Only the per-entry length was checked here, so the set itself was unbounded
+/// while `select_route` walks it once per eligible route - an untrusted request
+/// could therefore buy arbitrary work and residency from a fixed-size grant.
+const MAXIMUM_REQUIRED_CAPABILITIES: usize = 256;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AdmissionRequest {
     pub request_key: Vec<u8>,
@@ -28,6 +35,11 @@ impl AdmissionRequest {
         if self.request_key.is_empty() || self.request_key.len() > maximum_key_bytes {
             return Err(Fault::invalid_argument(
                 "request key is missing or exceeds its limit",
+            ));
+        }
+        if self.required_capabilities.len() > MAXIMUM_REQUIRED_CAPABILITIES {
+            return Err(Fault::invalid_argument(
+                "request capability count exceeds its limit",
             ));
         }
         if self

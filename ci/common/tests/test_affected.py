@@ -279,7 +279,7 @@ def test_affected_selection_uses_bazel_rdeps_and_tests(tmp_path: Path) -> None:
     )
     assert len(expressions) == 2
     assert all('rdeps(//..., set("//pkg:*"))' in expression for expression in expressions)
-    assert all('attr("tags", "[\\\\[ ]manual[,\\\\]]"' in expression for expression in expressions)
+    assert all('attr("tags", "manual"' in expression for expression in expressions)
 
 
 def test_build_file_change_seeds_owning_package(tmp_path: Path) -> None:
@@ -517,6 +517,37 @@ def test_pull_request_affected_mode_requires_explicit_activation(
         )
 
 
+def test_pull_request_latency_optimization_cannot_weaken_merge_group(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(affected, "GRAPH_NATIVE_AFFECTED_ACTIVE", True)
+    assert (
+        affected.resolve_selection_mode(
+            "auto",
+            event="pull_request",
+            ref="refs/pull/1/merge",
+            base_sha="0" * 40,
+        )
+        == "affected"
+    )
+    assert (
+        affected.resolve_selection_mode(
+            "auto",
+            event="merge_group",
+            ref="refs/heads/gh-readonly-queue/main/pr-1",
+            base_sha=None,
+        )
+        == "full"
+    )
+    with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-010\]"):
+        affected.resolve_selection_mode(
+            "affected",
+            event="merge_group",
+            ref="refs/heads/gh-readonly-queue/main/pr-1",
+            base_sha="0" * 40,
+        )
+
+
 def test_protected_event_rejects_wrong_ref_and_local_affected_requires_base() -> None:
     with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-009\]"):
         affected.resolve_selection_mode(
@@ -686,6 +717,34 @@ def test_checkout_integrity_allows_only_canonical_generated_bazel_state(
     arguments = _disk_checkout_arguments(root)
     _create_canonical_bazel_symlinks(root, tmp_path / "output")
     affected.assert_clean_checkout(head, **arguments)
+
+
+def test_checkout_integrity_rejects_custom_output_base_bazel_symlinks(
+    tmp_path: Path,
+) -> None:
+    """A flat custom output base must not broaden the trusted symlink shape.
+
+    Hosted CI removes Bazel convenience symlinks before checkout validation.
+    If one remains, the validator must continue to require Bazel's canonical
+    _bazel_<user>/<workspace-hash> layout rather than trust an arbitrary
+    external execroot.
+    """
+    root, head = _initialized_git_repo(tmp_path / "repo")
+    arguments = _disk_checkout_arguments(root)
+    # Simulate --output_base=/home/runner/.bazel: no _bazel_<user>/<hash> prefix.
+    execroot = tmp_path / ".bazel" / "execroot" / "_main"
+    configuration = execroot / "bazel-out" / "k8-fastbuild"
+    (configuration / "bin").mkdir(parents=True)
+    (configuration / "testlogs").mkdir()
+    for name, target in {
+        f"bazel-{root.name}": execroot,
+        "bazel-out": execroot / "bazel-out",
+        "bazel-bin": configuration / "bin",
+        "bazel-testlogs": configuration / "testlogs",
+    }.items():
+        (root / name).symlink_to(target)
+    with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-019\]"):
+        affected.assert_clean_checkout(head, **arguments)
 
 
 @pytest.mark.parametrize(

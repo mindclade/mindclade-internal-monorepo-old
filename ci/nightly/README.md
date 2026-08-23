@@ -16,6 +16,12 @@ The lane uses the same evidence-producing execution implementation as
 presubmit. Workflow YAML owns only scheduling, least-privilege permissions,
 pinned tool setup, the 90-minute ceiling, and artifact retention.
 
+The stable verdict also downloads the compact normalized JSON from every worker and publishes
+the same static CI-health JSON and HTML used by presubmit. Shard p95, imbalance, BEP cache-hit,
+critical-path, and flaky-target metrics are therefore comparable without downloading raw BEP or
+profiles. Exact runner queue time is unavailable and remains explicitly null; worker elapsed
+time begins at the first job step and excludes verdict and upload time.
+
 ## Failure behavior
 
 Loading, toolchain resolution, analysis, testing, evidence normalization, and

@@ -107,10 +107,25 @@ type Predicate func(k8swatch.Event) (bool, error)
 
 // Until consumes events until predicate returns true. The matching event is
 // returned. A nil predicate is rejected.
+//
+// A match is the only success. Options.AllowCleanClosure lets Consume report a
+// closed result channel as nil, and forwarding that nil unchanged returned a
+// zero Event with a nil error — indistinguishable from a genuine match on a
+// zero-valued event, so every "wait until" call site silently proceeded as if
+// its condition had been observed. The stream ending before the predicate
+// matched is a failure, and it is reported as one.
+//
+// Until therefore overrides AllowCleanClosure rather than honouring it. The
+// option decides whether a closed stream is a success, and for Until it never
+// is; leaving it to the caller would only choose which of two fault reasons
+// describes the identical outcome, splitting one condition across two buckets
+// for anything that classifies watch failures by faults.ReasonOf.
 func Until(ctx context.Context, watcher k8swatch.Interface, options Options, predicate Predicate) (matched k8swatch.Event, err error) {
+	const operation = "kubernetes.watch.Until"
 	if predicate == nil {
-		return k8swatch.Event{}, invalid("kubernetes.watch.Until")
+		return k8swatch.Event{}, invalid(operation)
 	}
+	options.AllowCleanClosure = true
 	err = Consume(ctx, watcher, options, func(_ context.Context, event k8swatch.Event) error {
 		ok, predicateErr := predicate(event)
 		if predicateErr != nil {
@@ -124,6 +139,17 @@ func Until(ctx context.Context, watcher k8swatch.Interface, options Options, pre
 	})
 	if errors.Is(err, errMatched) {
 		return matched, nil
+	}
+	if err == nil {
+		return k8swatch.Event{}, faults.Wrap(
+			ErrClosed,
+			faults.CodeUnavailable,
+			"Kubernetes watch ended before the predicate matched",
+			faults.WithReason("watch_ended_without_match"),
+			faults.WithOperation(operation),
+			faults.WithContextMetadata(ctx),
+			faults.WithRetryPolicy(faults.ImmediateRetry(0)),
+		)
 	}
 	return k8swatch.Event{}, err
 }

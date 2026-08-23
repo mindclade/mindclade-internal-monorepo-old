@@ -57,6 +57,15 @@ var (
 	ErrNotFound = errors.New("handoff: no such handle")
 
 	ErrCapExceeded = errors.New("handoff: creator has too many outstanding handles")
+
+	// ErrContended means the bind lost its race maxBindAttempts times running.
+	//
+	// Distinct from ErrNotFound and from a database error on purpose: the
+	// handle may well exist and the caller may well be entitled to it, so this
+	// is "ask again", not "no". It is separate from a database failure because
+	// the two want different responses — a 503 the client may retry, versus an
+	// error somebody has to look at.
+	ErrContended = errors.New("handoff: redemption lost its binding race repeatedly")
 )
 
 // DefaultTTL is short by design. Minutes, not hours: the handle is a pointer
@@ -180,61 +189,84 @@ func (s *Store) Redeem(
 	materialize Materializer,
 	audit Auditor,
 ) (Redemption, error) {
+	return s.redeem(ctx, handleID, principal,
+		s.loadHandle(handleID), s.bindHandle(handleID, principal),
+		authorize, materialize, audit)
+}
+
+// maxBindAttempts bounds the load-then-bind race.
+//
+// # Why this is not libs/go/retry
+//
+// Losing the bind is not a transient failure to wait out; it is a
+// compare-and-set that lost, and the correct response is to re-read
+// immediately and apply the three cases to what is actually there now. A
+// backoff between attempts would only widen the window it is trying to close,
+// so this stays a local CAS loop rather than a retry policy.
+//
+// # Why it has a bound, which it previously did not
+//
+// The original form re-entered Redeem by tail call with no attempt counter.
+// Go does not eliminate tail calls, so a bind that keeps losing grows the
+// goroutine stack until the runtime kills the ENTIRE PROCESS with a stack
+// overflow — one contended handle taking down every unrelated request in the
+// pod, which is a far worse outcome than failing the one redemption. Worse, it
+// was silent until it was fatal: each lap also called materialize again, so a
+// contended handle left an orphaned canvas document per lap on the way there.
+//
+// Three is what an honest race needs: the losing caller's second read sees the
+// winner's binding and returns the idempotent redemption. Reaching the bound
+// means the row is changing underneath every read, which is a condition to
+// report rather than one to keep spinning on.
+//
+// This counts BINDS, not loads. The loop makes one more load than that, because
+// it ends on a read rather than on a failed write — see the terminal branch for
+// why giving up straight after a lost bind would answer the wrong question.
+const maxBindAttempts = 3
+
+// handleRow is one loaded handle, as the redeem loop needs it.
+type handleRow struct {
+	creator     string
+	resourceRef []byte
+	boundTo     string
+	isBound     bool
+	docID       string
+}
+
+// loadHandle and bindHandle are the two statements Redeem issues, returned as
+// closures so the loop below can be driven without a live PostgreSQL.
+//
+// The seam is not decoration: every other test in this package skips without
+// STUDIO_TEST_DATABASE_URL, which is exactly how an unbounded loop stayed here
+// unnoticed. The bound is a property of the loop, so it is tested at the loop.
+func (s *Store) loadHandle(handleID string) func(context.Context) (handleRow, error) {
 	const loadQ = `
 		SELECT creator_principal, resource_ref, bound_principal, doc_id
 		  FROM handoff_handles
 		 WHERE id = $1 AND expires_at > now()`
 
-	var creator string
-	var resourceRef []byte
-	var bound sql.NullString
-	var docID sql.NullString
+	return func(ctx context.Context) (handleRow, error) {
+		var row handleRow
+		var bound, docID sql.NullString
 
-	err := s.db.QueryRowContext(ctx, loadQ, handleID).Scan(&creator, &resourceRef, &bound, &docID)
-	if errors.Is(err, sql.ErrNoRows) {
-		// Covers "no such handle" and "expired" identically — the caller must
-		// not be able to tell them apart.
-		return Redemption{}, ErrNotFound
+		err := s.db.QueryRowContext(ctx, loadQ, handleID).
+			Scan(&row.creator, &row.resourceRef, &bound, &docID)
+		if errors.Is(err, sql.ErrNoRows) {
+			// Covers "no such handle" and "expired" identically — the caller
+			// must not be able to tell them apart.
+			return handleRow{}, ErrNotFound
+		}
+		if err != nil {
+			return handleRow{}, fmt.Errorf("handoff: load %s: %w", handleID, err)
+		}
+		row.boundTo, row.isBound, row.docID = bound.String, bound.Valid, docID.String
+		return row, nil
 	}
-	if err != nil {
-		return Redemption{}, fmt.Errorf("handoff: load %s: %w", handleID, err)
-	}
+}
 
-	// Bound to someone else: indistinguishable from not existing. Audited,
-	// because an attempt on a handle bound to another principal is exactly the
-	// event a trail exists to record.
-	if bound.Valid && bound.String != principal {
-		s.record(ctx, audit, AuditEvent{
-			HandleID: handleID, Creator: creator, Redeemer: principal,
-			ResourceRef: resourceRef, Outcome: "denied_bound_elsewhere", At: s.now(),
-		})
-		return Redemption{}, ErrNotFound
-	}
-
-	// RE-AUTHORIZE ON EVERY REDEMPTION, including the idempotent repeat below.
-	if err := authorize(ctx, principal, resourceRef); err != nil {
-		s.record(ctx, audit, AuditEvent{
-			HandleID: handleID, Creator: creator, Redeemer: principal,
-			ResourceRef: resourceRef, Outcome: "denied_unauthorized", At: s.now(),
-		})
-		return Redemption{}, ErrNotFound
-	}
-
-	// The back-button case: same principal, within TTL, same document.
-	if bound.Valid {
-		s.record(ctx, audit, AuditEvent{
-			HandleID: handleID, Creator: creator, Redeemer: principal,
-			ResourceRef: resourceRef, DocID: docID.String,
-			Outcome: "redeemed_idempotent", At: s.now(),
-		})
-		return Redemption{DocID: docID.String}, nil
-	}
-
-	newDocID, err := materialize(ctx, principal, resourceRef)
-	if err != nil {
-		return Redemption{}, fmt.Errorf("handoff: materialize for %s: %w", handleID, err)
-	}
-
+// bindHandle reports ErrNotFound when the conditional update matched no row,
+// which is the CAS having lost rather than the handle being absent.
+func (s *Store) bindHandle(handleID, principal string) func(context.Context, string) (string, error) {
 	// BINDING IS A CONDITIONAL UPDATE, not read-then-write. Two simultaneous
 	// clicks — which is what a double-click on a link produces — would
 	// otherwise both see NULL and both materialize a document.
@@ -244,23 +276,132 @@ func (s *Store) Redeem(
 		 WHERE id = $3 AND bound_principal IS NULL AND expires_at > now()
 		RETURNING doc_id`
 
-	var boundDoc string
-	err = s.db.QueryRowContext(ctx, bindQ, principal, newDocID, handleID).Scan(&boundDoc)
-	if errors.Is(err, sql.ErrNoRows) {
-		// Someone else won the race, or it expired between the load and here.
-		// Re-read and apply the three cases again rather than guessing.
-		return s.Redeem(ctx, handleID, principal, authorize, materialize, audit)
+	return func(ctx context.Context, docID string) (string, error) {
+		var boundDoc string
+		err := s.db.QueryRowContext(ctx, bindQ, principal, docID, handleID).Scan(&boundDoc)
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", ErrNotFound
+		}
+		if err != nil {
+			return "", fmt.Errorf("handoff: bind %s: %w", handleID, err)
+		}
+		return boundDoc, nil
 	}
-	if err != nil {
-		return Redemption{}, fmt.Errorf("handoff: bind %s: %w", handleID, err)
-	}
+}
 
-	s.record(ctx, audit, AuditEvent{
-		HandleID: handleID, Creator: creator, Redeemer: principal,
-		ResourceRef: resourceRef, DocID: boundDoc,
-		Outcome: "redeemed_first", At: s.now(),
-	})
-	return Redemption{DocID: boundDoc, FirstRedemption: true}, nil
+func (s *Store) redeem(
+	ctx context.Context,
+	handleID, principal string,
+	load func(context.Context) (handleRow, error),
+	bind func(context.Context, string) (string, error),
+	authorize Authorizer,
+	materialize Materializer,
+	audit Auditor,
+) (Redemption, error) {
+	// materialize runs AT MOST ONCE per call, and the document it produced is
+	// re-offered to every subsequent bind.
+	//
+	// Re-materializing per lap — which the recursive form did — leaves a real
+	// canvas document behind on every lost race, referenced by nothing and
+	// cleaned up by nothing. Re-offering is safe precisely because the bind is
+	// a compare-and-set: the same document either takes the row or it does not,
+	// and it was materialized for this principal from this resource_ref either
+	// way. Bounding the laps caps that leak; hoisting removes it.
+	var proposedDocID string
+	var proposed bool
+
+	for attempt := 0; ; attempt++ {
+		// Cancellation is checked per lap. Without it a caller that has already
+		// gone away still pays for another load, another authorize, and another
+		// materialize before the statements themselves notice.
+		if err := ctx.Err(); err != nil {
+			return Redemption{}, err
+		}
+
+		row, err := load(ctx)
+		if err != nil {
+			return Redemption{}, err
+		}
+
+		// Bound to someone else: indistinguishable from not existing. Audited,
+		// because an attempt on a handle bound to another principal is exactly
+		// the event a trail exists to record.
+		if row.isBound && row.boundTo != principal {
+			s.record(ctx, audit, AuditEvent{
+				HandleID: handleID, Creator: row.creator, Redeemer: principal,
+				ResourceRef: row.resourceRef, Outcome: "denied_bound_elsewhere", At: s.now(),
+			})
+			return Redemption{}, ErrNotFound
+		}
+
+		// RE-AUTHORIZE ON EVERY REDEMPTION, including the idempotent repeat
+		// below.
+		if err := authorize(ctx, principal, row.resourceRef); err != nil {
+			s.record(ctx, audit, AuditEvent{
+				HandleID: handleID, Creator: row.creator, Redeemer: principal,
+				ResourceRef: row.resourceRef, Outcome: "denied_unauthorized", At: s.now(),
+			})
+			return Redemption{}, ErrNotFound
+		}
+
+		// The back-button case: same principal, within TTL, same document.
+		if row.isBound {
+			s.record(ctx, audit, AuditEvent{
+				HandleID: handleID, Creator: row.creator, Redeemer: principal,
+				ResourceRef: row.resourceRef, DocID: row.docID,
+				Outcome: "redeemed_idempotent", At: s.now(),
+			})
+			return Redemption{DocID: row.docID}, nil
+		}
+
+		// THE BIND ATTEMPTS ARE SPENT, and the load above was the reconciling
+		// read.
+		//
+		// Giving up straight after the last lost bind would be wrong in both
+		// directions, because a lost bind means the row IS bound now — quite
+		// possibly to this same principal, which is the double-click this loop
+		// exists to serve. Ending on a load instead means the three cases above
+		// have already answered: the caller gets their 303 if the winner was
+		// them, a 404 if the handle expired underneath, and only a genuinely
+		// still-unbound row reaches here.
+		if attempt == maxBindAttempts {
+			// Audited like every other terminal branch. This is the one that
+			// can have materialized a document, so a trail without it leaves
+			// nothing to join a burst of 503s to.
+			s.record(ctx, audit, AuditEvent{
+				HandleID: handleID, Creator: row.creator, Redeemer: principal,
+				ResourceRef: row.resourceRef, DocID: proposedDocID,
+				Outcome: "contended", At: s.now(),
+			})
+			return Redemption{}, ErrContended
+		}
+
+		if !proposed {
+			proposedDocID, err = materialize(ctx, principal, row.resourceRef)
+			if err != nil {
+				return Redemption{}, fmt.Errorf("handoff: materialize for %s: %w", handleID, err)
+			}
+			proposed = true
+		}
+
+		boundDoc, err := bind(ctx, proposedDocID)
+		if errors.Is(err, ErrNotFound) {
+			// Someone else won the race, or it expired between the load and
+			// here. Re-read and apply the three cases again rather than
+			// guessing — the next lap returns the winner's document.
+			continue
+		}
+		if err != nil {
+			return Redemption{}, err
+		}
+
+		s.record(ctx, audit, AuditEvent{
+			HandleID: handleID, Creator: row.creator, Redeemer: principal,
+			ResourceRef: row.resourceRef, DocID: boundDoc,
+			Outcome: "redeemed_first", At: s.now(),
+		})
+		return Redemption{DocID: boundDoc, FirstRedemption: true}, nil
+	}
 }
 
 func (s *Store) record(ctx context.Context, audit Auditor, e AuditEvent) {

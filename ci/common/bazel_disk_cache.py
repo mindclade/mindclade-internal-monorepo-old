@@ -158,7 +158,7 @@ def configure(
         _fail(f"invalid Bazel cache role: {role}")
     if not cache_dir.is_absolute() or any(character.isspace() for character in str(cache_dir)):
         _fail("Bazel disk cache must be an absolute whitespace-free path")
-    if restore_outcome not in {"success", "failure", "cancelled"}:
+    if restore_outcome not in {"success", "failure", "cancelled", "skipped"}:
         _fail("configure requires a completed cache-restore outcome")
 
     if cache_dir.is_symlink():
@@ -184,7 +184,7 @@ def configure(
 
     if restore_outcome != "success" and cache_dir.exists():
         shutil.rmtree(cache_dir)
-        print("::warning::Bazel cache restore failed; continuing with an empty cold cache")
+        print("::warning::Bazel cache restore unavailable; continuing with an empty cold cache")
     cache_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     cache_dir.chmod(0o700)
     upload = "true" if role == "writer" else "false"

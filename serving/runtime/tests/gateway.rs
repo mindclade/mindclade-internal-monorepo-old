@@ -55,3 +55,18 @@ fn drain_is_linearized_with_local_admission() {
     ledger.resume();
     assert!(ledger.reserve(&grant(), &request()).is_ok());
 }
+
+#[test]
+fn admission_requests_reject_an_unbounded_capability_set() {
+    let mut value = request();
+    for index in 0..256_u32 {
+        value
+            .required_capabilities
+            .insert(format!("capability-{index:04}"));
+    }
+    assert!(value.validate(4096).is_ok());
+    value
+        .required_capabilities
+        .insert("capability-overflow".into());
+    assert!(value.validate(4096).is_err());
+}
