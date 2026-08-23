@@ -3280,7 +3280,6 @@ services/artifact_proxy/src/server.rs
 services/artifact_proxy/src/signing.rs
 services/artifact_proxy/src/telemetry.rs
 services/artifact_proxy/src/transfer.rs
-services/artifact_proxy/src/verification.rs
 services/artifact_proxy/tests/integration.rs
 services/artifact_proxy/tests/shutdown.rs
 services/control_plane/BUILD.bazel
