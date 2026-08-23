@@ -64,6 +64,7 @@ py_binary(
 pytest_test(
     name = "affected_test",
     srcs = ["tests/test_affected.py"],
+    env_inherit = ["MINDCLADE_GIT"],
     imports = ["../.."],
     deps = [":affected"],
 )

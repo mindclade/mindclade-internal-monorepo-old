@@ -5,6 +5,8 @@
 from __future__ import annotations
 
 import json
+import os
+import shlex
 import shutil
 import subprocess
 from pathlib import Path
@@ -12,6 +14,25 @@ from pathlib import Path
 import pytest
 
 from ci.common import affected
+
+
+@pytest.fixture(autouse=True)
+def _trusted_git_fixture(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    if os.environ.get("MINDCLADE_GIT"):
+        return
+    source = shutil.which("git")
+    assert source is not None
+    store = tmp_path_factory.mktemp("nix") / "store"
+    launcher = store / "fixture-git/bin/git"
+    launcher.parent.mkdir(parents=True)
+    launcher.write_text(f'#!/bin/sh\nexec {shlex.quote(source)} "$@"\n', encoding="utf-8")
+    launcher.chmod(0o555)
+    launcher.parent.chmod(0o555)
+    launcher.parent.parent.chmod(0o555)
+    monkeypatch.setattr(affected, "NIX_STORE_ROOT", store)
+    monkeypatch.setenv("MINDCLADE_GIT", str(launcher))
 
 
 def _workspace(tmp_path: Path) -> Path:

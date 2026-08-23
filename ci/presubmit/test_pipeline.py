@@ -28,7 +28,7 @@ def test_auto_mode_requires_a_governed_event(monkeypatch: pytest.MonkeyPatch) ->
         "write_failure_evidence",
         lambda *args, **kwargs: failures.append(kwargs),
     )
-    monkeypatch.setattr(sys, "argv", ["pipeline.py", "--bazel-only"])
+    monkeypatch.setattr(sys, "argv", ["pipeline.py", "--bazel-only", "--event", "local"])
     assert pipeline.main() == 2
     assert len(failures) == 1
     error = failures[0]["error"]
@@ -50,5 +50,9 @@ def test_full_bazel_only_uses_shared_executor(monkeypatch: pytest.MonkeyPatch) -
     )
     monkeypatch.setattr(pipeline.affected, "select", lambda *args, **kwargs: selection)
     monkeypatch.setattr(pipeline.affected, "execute_selection", lambda *args, **kwargs: 0)
-    monkeypatch.setattr(sys, "argv", ["pipeline.py", "--bazel-only", "--mode", "full"])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["pipeline.py", "--bazel-only", "--mode", "full", "--event", "local"],
+    )
     assert pipeline.main() == 0
