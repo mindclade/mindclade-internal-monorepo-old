@@ -75,6 +75,30 @@ jobs:
           --require-hashes
           --requirement requirements.lock.txt
 
+      # MLflow has an independent deployable lock. Its current cryptography finding is a
+      # publication blocker, not an ignored vulnerability or approved exception. The validator
+      # requires the exact finding and proves that the chart, runtime lock, and closed release
+      # catalog remain unable to publish the image. Scanner errors and unexpected findings fail.
+      - name: MLflow dependency state / declared BLOCKED
+        shell: bash
+        run: |
+          audit_rc=0
+          uvx --from pip-audit==2.10.1 pip-audit \
+            --disable-pip \
+            --require-hashes \
+            --requirement services/mlflow/requirements.lock.txt \
+            --format json \
+            --output "${RUNNER_TEMP}/mlflow-pip-audit.json" || audit_rc=$?
+          python3 -B services/mlflow/validate_dependency_gate.py \
+            --report "${RUNNER_TEMP}/mlflow-pip-audit.json" \
+            --scanner-exit-code "${audit_rc}"
+          {
+            echo "### MLflow dependency gate"
+            echo
+            echo "The current lock has a declared security blocker and is publication-ineligible."
+            echo "No vulnerability was ignored and no exception was approved."
+          } >> "${GITHUB_STEP_SUMMARY}"
+
   go-vulnerability:
     name: govulncheck / pinned source scan
     runs-on: ubuntu-24.04

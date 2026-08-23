@@ -37,6 +37,13 @@ not claim byte identity: Bazel's generated Python launcher makes the assembled a
 executor-host-dependent. `//services/mlflow:push` is therefore Linux-only. GitOps must replace the
 chart image with the protected release record's exact Artifact Registry digest.
 
+The image is currently publication-ineligible. The Security workflow audits this independent
+lock and binds its exact finding to `services/mlflow/security-gate.json`; the runtime lock records
+`blocked-security-findings`, the push target is package-private, and MLflow is absent from the
+closed release catalog. This is not an approved exception. A compatible upstream MLflow release,
+clean regenerated lock, rebuilt Linux image, and clean security gate must land together before a
+release target can be added.
+
 ## External prerequisites
 
 Activation must bind observed, environment-specific resources rather than fabricate them:

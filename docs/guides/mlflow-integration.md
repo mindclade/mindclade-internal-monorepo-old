@@ -91,3 +91,8 @@ The chart remains absent from active GitOps inventory until a protected monorepo
 image/release record, cloud dependencies, staging qualification, and reviewed generated output all
 exist. See the package production-readiness report and operations runbook before proposing
 activation.
+
+The current image is additionally blocked by the exact `cryptography` finding recorded in
+`services/mlflow/security-gate.json`. CI audits the service lock independently and proves the
+blocked image cannot enter the closed release catalog. A passing source gate therefore means the
+security denial is enforced; it does not mean the vulnerable image is accepted or releasable.

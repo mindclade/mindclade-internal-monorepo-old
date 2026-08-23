@@ -41,10 +41,10 @@ provider, GPU, deployment, or production-promotion evidence.
 
 ### Component census
 
-`components.toml` declares 106 components:
+`components.toml` declares 107 components:
 
 ```text
-implemented   90
+implemented   91
 experimental   9   preprocessing.core and eight control-plane roles
 scaffolded     4   models, training, evaluation, kernels
 qualified      3   libs.go, control.model_registry, services.control_plane.registry
@@ -80,6 +80,8 @@ bounded by that fact.
   are among the seven crates **removed** in the 2026-08 consolidation, not
   renamed facades — see `libs/rust/MIGRATION_2026_08.md`.)
 - deterministic Python resolved-configuration implementation;
+- an independently locked MLflow metadata-mirror image whose exact dependency finding is enforced
+  as a publication blocker rather than accepted as an exception;
 - scientific preprocessing contracts, durable DAG/cache/provenance boundaries,
   and model-independent MSA/template/ligand/feature stage structure;
 - canonical runtime/artifact/reference/evidence protocols and cross-language

@@ -22,8 +22,32 @@ filegroup(
     srcs = [
         "requirements.lock.txt",
         "runtime.lock.yaml",
+        "security-gate.json",
     ],
     visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "validate_dependency_gate",
+    srcs = ["validate_dependency_gate.py"],
+    main = "validate_dependency_gate.py",
+)
+
+py_test(
+    name = "dependency_gate_test",
+    srcs = [
+        "test_validate_dependency_gate.py",
+        "validate_dependency_gate.py",
+    ],
+    data = [
+        "requirements.lock.txt",
+        "runtime.lock.yaml",
+        "security-gate.json",
+        "//ci/release:release_catalog",
+        "//infra/kubernetes/platform/mlflow:chart",
+    ],
+    main = "test_validate_dependency_gate.py",
+    deps = ["@pypi//pytest"],
 )
 
 py_binary(
@@ -106,7 +130,6 @@ oci_push(
     image = ":image",
     repository = "localhost/mindclade/mlflow-server",
     target_compatible_with = ["@platforms//os:linux"],
-    visibility = ["//visibility:public"],
 )
 
 py_test(

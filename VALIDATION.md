@@ -16,7 +16,7 @@ top-level Markdown links and heading hierarchy             PASS
 canonical LICENSE and CODE_OF_CONDUCT digests (7 repos)    PASS
 first-party proprietary header coverage                    PASS
 cargo deny check licenses                                  PASS
-static presubmit architecture and implementation gates     PASS (25 of 25 gates)
+static presubmit architecture and implementation gates     PASS (29 of 29 gates)
 dependency budget                                          PASS
 ```
 
@@ -30,8 +30,8 @@ outside its allowlist. That import still exists in `internal/providers/api`, but
 the budget now covers it and
 `tools/analysis/check_dependency_budgets.py` reports `dependency budget check
 passed`. The gate count also moved: the `CHECKS` list in
-`tools/analysis/run_architecture_checks.py` now holds 25 entries, not 20. An
-earlier revision of this document recorded 23; the list grows as gates are
+`tools/analysis/run_architecture_checks.py` now holds 29 entries, not 20. Earlier
+revisions of this document recorded 23 and 25; the list grows as gates are
 added, and the count above was re-measured from a passing run rather than
 carried forward.
 
@@ -91,12 +91,11 @@ boundaries:
 - `control/` contains implemented Go durable-policy/domain boundaries for the
   runtime authority, artifact identity, reference releases, release evidence,
   production-eligibility evidence, release lineage, ingestion, workflow
-  orchestration, scheduling policy, and related control concerns. `routing` is
-  `experimental` in `components.toml`, not implemented. `orchestration` and
-  `scheduling` were `experimental`/undeclared in the revision this document
-  previously described; both are now `implemented`, with their five adapter
-  packages, and the scaffold-placeholder count that argued for the lower status
-  is zero — see the 2026-08-23 section below for the evidence and its limits.
+  orchestration, scheduling policy, and related control concerns. `routing`, `orchestration`, and
+  `scheduling` were `experimental`/undeclared in the revision this document previously described;
+  all three are now `implemented`. Orchestration and scheduling have their five adapter packages,
+  and the scaffold-placeholder count that argued for the lower status is zero — see the 2026-08-23
+  section below for the evidence and its limits.
   Thirteen further `control/` directories — `audit`, `evaluations`, `events`,
   `metadata`, `registry` (root), `registry/datasets`, `registry/deployments`,
   `runs`, `tenancy`, `usage`, `webhooks`, `weights`, and the ingestion
@@ -256,7 +255,7 @@ dated evidence, not a statement about the tree as it stands today.
 Go formatting over libs/go, control, control-plane service, and examples       PASS
 Go dependency-layer and paved-road checks                                      PASS
 Blueprint materialization: 4,494 / 4,494 (100.0%)                              PASS  2026-08-23
-Static presubmit architecture gates: 25 of 25                                  PASS  2026-08-23
+Static presubmit architecture gates: 29 of 29                                  PASS  2026-08-23
 Normal Go tests over 111 offline-safe package targets                          PASS
 Go vet over the same 111 package targets                                       PASS
 Race-enabled Go tests over the same 111 package targets, in bounded batches    PASS
