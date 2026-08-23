@@ -10,10 +10,13 @@ output value expressions, and required-provider source/aliases. It never runs
 ## Protected release source
 
 `.github/workflows/terraform-module-release.yml` consumes an already-created signed annotated
-SemVer tag behind the protected `terraform-module-release` environment. It verifies through the
-GitHub tag-object API that the tag signature is valid and targets the exact checked commit, then
-runs the complete repository-only Terraform gate and attests a deterministic source manifest.
-The workflow never creates, moves, or publishes a tag.
+SemVer tag from a protected-main dispatch behind the `terraform-module-release` environment. It
+requires `module-release-authority.json` to bind an exact signer, SSH key fingerprint, and fresh,
+distinct signer and immutable-release evidence. It verifies through the GitHub tag-object API and
+`ssh-keygen` that the signature is valid and targets the exact checked commit, then runs the
+complete repository-only Terraform gate and attests a deterministic source manifest. It publishes
+the manifest, checksum, and attestation as an immutable GitHub Release, but never creates, moves,
+deletes, or repairs a tag.
 
 Both this policy and the generated interface manifest must already record the matching contract
 as `released`; their current `planned` state therefore rejects `v0.4.0` fail closed. A future

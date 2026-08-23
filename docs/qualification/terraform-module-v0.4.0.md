@@ -11,7 +11,11 @@ dirty developer worktree.
 - successful required checks for that exact commit;
 - Platform and Security approvals recorded against one change ticket;
 - the `infrastructure-live` checkout that will consume `v0.4.0`;
-- an operator who can create a protected annotated tag, distinct from the approvers.
+- an operator who can create a protected SSH-signed annotated tag, distinct from the approvers;
+- a source-qualified signer identity and unexpired evidence digest in
+  `infra/terraform/governance/module-release-authority.json`;
+- read-back evidence that immutable releases are enabled for the monorepo; and
+- the exact `terraform-module-release` protected environment applied from `github-config`.
 
 Abort if the proposed tag already exists, the checkout is dirty, the commit differs
 from the approved commit, any lockfile would change, or candidate and exact-ref
@@ -77,8 +81,23 @@ cmp /tmp/mindclade-module-v0.4.0-{a,b}.tar.gz
 ## Protected publication
 
 Only after all source evidence and approvals refer to the same commit may the release
-operator create and push an annotated `v0.4.0` tag. Sign the tag when repository policy
-requires it. Never move or recreate a published tag.
+operator create and push the SSH-signed annotated `v0.4.0` tag. The signed tagger identity and
+SSH key fingerprint must match the qualified source contract; GitHub verification alone is not
+signer authorization. Never move or recreate a published tag.
+
+From the Actions UI, dispatch `Terraform module release` on protected `main` with the existing tag,
+the exact signer-evidence digest, the immutable-release evidence digest, and the approved Mindclade
+pull request or issue URL. The workflow first binds itself to the current protected-main head, then
+enters the delayed Security-reviewed environment after independent Release tag signing. It checks
+out and qualifies the tag's exact peeled commit, repeats GitHub and SSH signature verification,
+builds a schema-2 manifest and checksum, attests the manifest, creates a draft with the three
+assets, and publishes only after the draft is complete. The final read-back must report
+`isImmutable: true`.
+
+The workflow uses `gh release create --verify-tag`; it has no command that can create, delete, push,
+or move a tag. As of 2026-08-23 the connected repository reports immutable releases disabled and
+the signer authority remains `blocked`, so dispatch is intentionally ineligible until those
+operator gates are closed in reviewed source and live governance.
 
 After publication, rerun the live repository's released-ref contract before any plan:
 
@@ -95,7 +114,11 @@ not satisfy those gates and must not trigger an apply.
 
 ## Failure and rollback boundary
 
-Before the tag is published, fix the source and restart qualification from a new
-approved commit. After publication, do not delete or retarget `v0.4.0`; stop consumers,
-record the incident, restore their previous immutable module ref, and issue a new patch
-release for any correction. Terraform state rollback is not a module-source rollback.
+Before the signed tag exists, fix source defects and restart qualification from a new approved
+commit. After the tag exists, never move or recreate it. A failed run may leave a draft for
+operator inspection; resolve that draft only through the same protected change and Security
+approval boundary. Retry the same tag only when its released source remains correct; otherwise
+leave the tag unreleased and qualify a new patch version. After publication, do not delete or
+retarget the tag, replace its assets, or edit its evidence; stop consumers, record the incident,
+restore their previous immutable module ref, and issue a new patch release for any correction.
+Terraform state rollback is not a module-source rollback.
