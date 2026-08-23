@@ -5,8 +5,9 @@
 //
 
 use libfuzzer_sys::fuzz_target;
-use mindclade_bounded_parse::Limits;
+use mindclade_bio_formats_fuzz::derive_limits;
 
 fuzz_target!(|data: &[u8]| {
-    let _ = mindclade_bio_formats::sdf::parse(data, Limits::default());
+    let (limits, body) = derive_limits(data);
+    let _ = mindclade_bio_formats::sdf::parse(body, limits);
 });

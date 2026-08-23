@@ -36,8 +36,8 @@ exact/prefix/not-restored/error restore state, unverified save-attempt step outc
 bytes retained under the 1 GiB limit after Bazel shutdown. The latency series
 must segment cold not-restored runs, prefix restores, and exact restores. A cache
 improvement may reduce the measured percentile but may not change the target
-selection, full-graph merge-group/nightly contract, or 75/90-minute correctness
-ceilings.
+selection, full-graph merge-group/nightly contract, or the 90-minute worker
+correctness ceiling.
 
 After connected activation, the same file changes to the GCS transport schema and records the
 gateway binary SHA-256, reader/writer role, remote hits and misses, immutable creates, idempotent

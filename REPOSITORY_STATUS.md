@@ -20,15 +20,38 @@ roughly 17.5k lines of undeclared production Go across 59 packages. Directories
 whose Go is only `const scaffold_<name>` placeholders stay undeclared by design;
 reserved space is not a component.
 
-## Current gate status (2026-08-21)
+## Current gate status (2026-08-23)
 
+The complete static presubmit passes. `ci/presubmit/pipeline.py --static-only`
+runs the 23 checkers in the `CHECKS` list of
+`tools/analysis/run_architecture_checks.py`, and all 23 report `PASS` —
+including the dependency-budget gate that previously blocked this lane.
 Documentation, root policy, proprietary header, and dependency-license gates
-pass. The complete static presubmit remains blocked because
-`services/control_plane` consumes
-`go.mindclade.dev/protocols/servicepolicy` outside its declared dependency
-budget. The import or allowlist must be reconciled through the owning
-architecture process before the repository can claim a fully passing static
-lane.
+also pass.
+
+The `services/control_plane -> go.mindclade.dev/protocols/servicepolicy` import
+is still present in `internal/providers/api`, but it is now inside the declared
+budget: `tools/analysis/check_dependency_budgets.py` reports `dependency budget
+check passed`. The reconciliation happened in source; this document previously
+described the pre-reconciliation state and was wrong to call the lane blocked.
+
+A passing static lane is repository-only evidence. It carries no connected
+provider, GPU, deployment, or production-promotion evidence.
+
+### Component census
+
+`components.toml` declares 89 components:
+
+```text
+implemented   79
+experimental   4   control.routing, preprocessing.core, apps.console, apps.admin
+scaffolded     4   models, training, evaluation, kernels
+qualified      2   libs.go, control.model_registry
+production     0
+```
+
+No component holds `production` status. Every readiness statement below is
+bounded by that fact.
 
 ## Substantive implemented foundations
 
@@ -46,8 +69,10 @@ lane.
 - runnable Go control-plane, event-dispatcher, and ingestion integrations;
 - the user-supplied Rust foundation adopted as the literal starting point and
   deepened with cohesive runtime/node primitives, worker protocol/runtime,
-  resource budgets, manifests/byte/storage foundations, and runtime
-  gateway/host cores;
+  resource budgets, the `manifests`, `bytes_io`, `object_store`, and `record_io`
+  crates, and runtime gateway/host cores. (`byte_spec` and `artifact_manifest`
+  are among the seven crates **removed** in the 2026-08 consolidation, not
+  renamed facades — see `libs/rust/MIGRATION_2026_08.md`.)
 - deterministic Python resolved-configuration implementation;
 - scientific preprocessing contracts, durable DAG/cache/provenance boundaries,
   and model-independent MSA/template/ligand/feature stage structure;
@@ -87,7 +112,7 @@ applicable, and qualification evidence.
 Go        fleet control plane and durable policy
 Rust      online/runtime data plane and node execution
 Python    scientific, model, training, inference, and evaluation numerics
-TileLang  qualified accelerator kernels
+TileLang  qualification-gated accelerator kernels (always behind a fallback)
 TypeScript product surfaces and generated/public web clients
 ```
 

@@ -149,6 +149,7 @@ nav:
       - Supply chain: security/supply-chain.md
   - Qualification:
       - Overview: qualification/README.md
+      - Component maturity gap matrix: qualification/component-maturity-gap-matrix.md
       - AI gateway proxy: qualification/ai-gateway-proxy.md
       - Foundation freeze: qualification/foundation-freeze.md
       - Go qualification: qualification/go/README.md

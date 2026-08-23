@@ -146,6 +146,15 @@ pytest_test(
     data = ["check_go_test_signal.py"],
 )
 
+# Hermetic by construction: every case builds its own components.toml, maturity.toml,
+# ownership record, and release catalog under tmp_path, so the maturity gate's own evidence
+# rules are tested without depending on the repository's current component inventory.
+pytest_test(
+    name = "component_maturity_test",
+    srcs = ["tests/test_component_maturity.py"],
+    data = ["check_component_maturity.py"],
+)
+
 pytest_test(
     name = "control_plane_commands_test",
     srcs = [

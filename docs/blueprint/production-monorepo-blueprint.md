@@ -245,8 +245,8 @@ The supplied `libs/go` tree is already implemented and is adopted immediately. T
 
 ## 11. Complete optimized repository tree
 
-**Target-state explicit paths:** 4,475  
-**Tree lines:** 5,300
+**Target-state explicit paths:** 4,494  
+**Tree lines:** 5,281
 
 ```text
 /
