@@ -29,5 +29,8 @@ go_test(
     name = "artifacts_test",
     srcs = glob(["*_test.go"]),
     embed = [":artifacts"],
-    deps = ["//libs/go/identifiers"],
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/identifiers",
+    ],
 )
