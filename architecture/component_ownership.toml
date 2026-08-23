@@ -681,3 +681,91 @@ owner = "platform-control"
 criticality = "tier-2"
 language = "go"
 security_review = false
+
+[component."services.control_plane.registry"]
+owner = "platform-control"
+criticality = "tier-1"
+language = "go"
+slo = "docs/slo/control-model-registry.md"
+runbook = "docs/runbooks/control-model-registry.md"
+security_review = true
+
+[component."services.control_plane.api"]
+owner = "platform-control"
+criticality = "tier-1"
+language = "go"
+slo = "docs/slo/control-admission.md"
+runbook = "docs/runbooks/control-admission.md"
+security_review = true
+
+[component."services.control_plane.maintenance"]
+owner = "platform-control"
+criticality = "tier-1"
+language = "go"
+slo = "docs/slo/control-plane.md"
+runbook = "docs/runbooks/control-plane-outage.md"
+security_review = true
+
+[component."services.control_plane.admin"]
+owner = "platform-control"
+criticality = "tier-1"
+language = "go"
+slo = "docs/slo/control-admission.md"
+runbook = "docs/runbooks/control-admission.md"
+security_review = true
+
+[component."services.control_plane.scheduler"]
+owner = "platform-control"
+criticality = "tier-1"
+language = "go"
+slo = "docs/slo/control-scheduling.md"
+runbook = "docs/runbooks/control-scheduling.md"
+security_review = true
+
+[component."services.control_plane.controller"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "go"
+slo = "docs/slo/control-orchestration.md"
+runbook = "docs/runbooks/control-orchestration.md"
+security_review = true
+
+[component."services.control_plane.operator"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "go"
+slo = "docs/slo/control-orchestration.md"
+runbook = "docs/runbooks/control-orchestration.md"
+security_review = true
+
+[component."services.control_plane.event_projector"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "go"
+slo = "docs/slo/control-orchestration.md"
+runbook = "docs/runbooks/control-orchestration.md"
+security_review = true
+
+[component."services.control_plane.event_dispatcher"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "go"
+slo = "docs/slo/control-orchestration.md"
+runbook = "docs/runbooks/control-orchestration.md"
+security_review = true
+
+[component."services.control_plane.webhook_dispatcher"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "go"
+slo = "docs/slo/control-orchestration.md"
+runbook = "docs/runbooks/control-orchestration.md"
+security_review = true
+
+[component."services.control_plane.ingestion_controller"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "go"
+slo = "docs/slo/control-ingestion.md"
+runbook = "docs/runbooks/control-ingestion.md"
+security_review = true
