@@ -1,0 +1,25 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+{
+  "schemaVersion": "mindclade.dev/cloud-monitoring-alert-contract/v1alpha1",
+  "name": "developer-workstation",
+  "owner": "platform-control",
+  "serviceClass": "release",
+  "availabilityProfile": "internal-interactive",
+  "deployment": {"provider": "google-cloud-monitoring", "terraformModule": "infra/terraform/modules/monitoring", "deployableKubernetesResource": false},
+  "requiredEnvironmentInputs": ["emailNotificationChannelResourceNames", "environment", "googleChatNotificationChannelResourceNames", "httpsRunbookUrl", "projectId", "qualificationEvidenceSha256"],
+  "signals": [
+    {"name": "workstation-data-disk-utilization", "description": "The persistent data disk carrying /nix and the Bazel disk cache is above the explicitly proposed, unapproved utilization ratio. Exhaustion surfaces as ENOSPC from whichever tool notices first, which is rarely the tool that consumed the space.", "metric": "mindclade.workstation.data_disk_utilization_ratio", "condition": "above", "threshold": 0.85, "duration": "30m", "severity": "ticket", "missingData": "no-op", "minimumSamples": 3, "runbookAnchor": "workstation-data-disk-utilization", "thresholdStatus": "proposed"},
+    {"name": "workstation-unexpected-uptime", "description": "Continuous workstation uptime exceeds the explicitly proposed, unapproved cost envelope. Only the guest-initiated idle poweroff bounds spend on this instance, so sustained uptime means that bound is not holding.", "metric": "mindclade.workstation.continuous_uptime_hours", "condition": "above", "threshold": 24, "duration": "1h", "severity": "ticket", "missingData": "no-op", "minimumSamples": 3, "runbookAnchor": "workstation-unexpected-uptime", "thresholdStatus": "proposed"}
+  ],
+  "observedSignals": [
+    {"name": "workstation-idle-poweroff-rate", "description": "Observed guest-initiated idle poweroffs establish whether the systemd idle timer fires at all, which must be baselined before any uptime threshold can be approved.", "metric": "mindclade.workstation.idle_poweroff_count"},
+    {"name": "workstation-nix-store-on-persistent-disk", "description": "Confirms that /nix resolves to the persistent data disk and not to ephemeral local SSD, where every stop would discard the closure and force a full local rebuild with no substituter available.", "metric": "mindclade.workstation.nix_store_on_persistent_disk"}
+  ],
+  "cardinality": {"permittedDimensions": ["environment", "instance", "location"], "forbiddenDimensions": ["command", "dataset", "feature", "label", "model", "molecule", "operator", "principal", "process", "prompt", "request-id", "sequence", "session", "tenant", "user"], "rawValuesInTelemetry": false},
+  "activationPolicy": {"enabledByDefault": false, "requiresSyntheticFireAndResolve": true, "requiresHealthyTelemetry": true, "requiresReviewedThresholds": true}
+}

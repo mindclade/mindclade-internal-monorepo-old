@@ -27,6 +27,76 @@ _NON_BUILDING_RULES = frozenset(
 )
 _RULE_CALL = re.compile(r"^([a-z_][a-z0-9_]*)\(", re.MULTILINE)
 
+# Roots whose Go packages must appear in components.toml.
+#
+# The prior defect this closes: every rule in maturity.toml is a rule ABOUT a declared
+# component, so an undeclared package was neither pass nor fail — it was invisible, and
+# "production may not depend on planned/scaffolded/experimental" silently did not apply to
+# code the record had never heard of. `control/evidence` held 890 lines of signed
+# production-eligibility policy under exactly that hole, and `control/lineage` another 455.
+# Declaration was a convention someone had to remember; below it is an invariant.
+#
+# `services/` is deliberately NOT governed yet, and that is a gap rather than an exemption.
+# services/control_plane, services/studio, and services/go_vanity carry ~17.5k lines of
+# undeclared production Go across 59 packages, and declaring them means deciding owner,
+# criticality, and tier for each — owner work, not a sweep. Adding "services" to this tuple
+# is the check that proves it was done. What is not acceptable is listing those 59 paths as
+# exempt inside a check that claims to cover them.
+_GO_DECLARATION_GOVERNED_ROOTS = ("control", "libs")
+
+# A scaffold placeholder as this tree writes them: a licence header, a package clause, and one
+# `const scaffold_<file> = "<path>"`. Reserved space is not a component, so a directory holding
+# only these is correctly absent from components.toml.
+_SCAFFOLD_CONST = re.compile(r'^const\s+scaffold_[A-Za-z0-9_]+\s*=\s*"[^"]*"$')
+
+
+def _is_scaffold_source(path: Path) -> bool:
+    """True only when every meaningful line is a package clause or a scaffold constant.
+
+    Deliberately conservative in the fail-closed direction: anything this does not recognise
+    counts as real production Go and therefore has to be declared. A recogniser that guessed
+    the other way would hand back the hole it exists to close.
+    """
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("//"):
+            continue
+        if stripped.startswith("package ") or _SCAFFOLD_CONST.match(stripped):
+            continue
+        return False
+    return True
+
+
+def _undeclared_go_packages(root: Path, declared: list[str]) -> list[str]:
+    """Directories of real production Go that no components.toml entry covers.
+
+    Coverage is by path prefix, because components are declared at the granularity their owner
+    chose: `libs/go` is one entry standing for its whole subtree, while `control/registry` is
+    declared per leaf.
+    """
+    errors = []
+    for top in _GO_DECLARATION_GOVERNED_ROOTS:
+        base = root / top
+        if not base.is_dir():
+            continue
+        for directory in sorted({source.parent for source in base.rglob("*.go")}):
+            relative = directory.relative_to(root).as_posix()
+            if any(relative == d or relative.startswith(d + "/") for d in declared):
+                continue
+            sources = sorted(
+                path
+                for path in directory.glob("*.go")
+                if not path.name.endswith("_test.go") and not _is_scaffold_source(path)
+            )
+            if not sources:
+                continue
+            errors.append(
+                f"{relative}: {len(sources)} production Go file(s) and no components.toml "
+                f"entry ({', '.join(path.name for path in sources)}); an undeclared package "
+                "carries no status, so nothing gates depending on it"
+            )
+    return errors
+
 
 def _has_build_target(path: Path) -> bool:
     """True when the component's subtree declares at least one building Bazel rule.
@@ -49,8 +119,9 @@ def check(root: Path) -> list[str]:
     data = tomllib.loads((root / "components.toml").read_text())
     policy = tomllib.loads((root / "maturity.toml").read_text())
     allowed = set(policy["statuses"])
-    errors = []
-    for c in data.get("component", []):
+    components = data.get("component", [])
+    errors = _undeclared_go_packages(root, sorted({c["path"] for c in components if c.get("path")}))
+    for c in components:
         name, path, status = c.get("name", ""), root / c.get("path", ""), c.get("status", "")
         if status not in allowed:
             errors.append(f"{name}: unknown status {status}")

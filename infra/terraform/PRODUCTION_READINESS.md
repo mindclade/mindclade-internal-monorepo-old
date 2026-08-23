@@ -1,21 +1,23 @@
 # Terraform production readiness
 
 **Current decision:** Not ready for production apply.  
-**Implementation status:** All 44 reusable modules are materialized. The prior whole-tree
+**Implementation status:** All 46 reusable modules are materialized. The prior whole-tree
 qualification baseline covered 43 modules plus the now-retired `dns_hub` deployable root;
-the new Certificate Manager module and retired-root fixture pass scoped contracts,
-provider-schema validation, mock tests, and generated-interface governance. A fresh
-whole-tree qualification run is required before release. Environment topology and live
-evidence remain external and unknown.
-**Last repository review:** 2026-08-21.
+the Certificate Manager module and retired-root fixture pass scoped contracts,
+provider-schema validation, mock tests, and generated-interface governance. The
+`workstation` module is newer than every retained run: it is in the regenerated 46-module
+interface manifest and ships a 21-run mock suite, but no qualification output recorded
+here covers it. A fresh whole-tree qualification run is required before release.
+Environment topology and live evidence remain external and unknown.
+**Last repository review:** 2026-08-23.
 
 ## Promotion evidence
 
 | Gate | Status | Required evidence |
 |---|---|---|
-| Stable module contracts and owners | PASS | Generated interfaces for 44 modules, versioned migration evidence, component ownership, and Platform/Security review routing; `dns_hub` is retained only as a non-deployable DNS module test fixture |
+| Stable module contracts and owners | PASS | Generated interfaces for 46 modules, versioned migration evidence, component ownership, and Platform/Security review routing; `dns_hub` is retained only as a non-deployable DNS module test fixture |
 | Formatting and static repository checks | PASS | Terraform formatting, diff check, Actionlint, strict YAML lint, Nix flake evaluation/toolchain evidence, documentation build, and the repository static presubmit pass |
-| Backendless init/validate/mock tests | PARTIAL | The 2026-08-20 baseline passed 47/47 configurations and 261/261 mock runs across 44 suites; current scoped Certificate Manager and DNS module tests pass, but the post-retirement whole-tree gate has not been rerun |
+| Backendless init/validate/mock tests | PARTIAL | The 2026-08-20 baseline passed 47/47 configurations and 261/261 mock runs across 44 suites; current scoped Certificate Manager and DNS module tests pass, but the post-retirement whole-tree gate has not been rerun and the 21-run `workstation` suite has no retained result at all |
 | Provider-connected non-production plan | MISSING | Saved plan, plan JSON, provider versions, project/region, and expiration |
 | IaC security and policy checks | PARTIAL | CI pins TFLint 0.64.0 and Trivy 0.74.0; Trivy has zero unsuppressed findings, three resource-local exceptions, and one module-scoped embedded-check exception, all expiring 2027-08-20. Conftest's fail-closed policy and fixtures pass, and local Checkov reported 152 passed, 0 failed, 8 documented skips. An approved live profile, saved-plan evaluation, cost analysis, and retained reports remain missing |
 | IAM and public-access review | MISSING | Effective inherited IAM; WIF allow/deny; no keys/basic/public grants |
@@ -24,25 +26,40 @@ evidence remain external and unknown.
 | Private connectivity and security tests | MISSING | Allowed/denied flow evidence, audit routing, Binary Authorization and KSA isolation |
 | Data/event recovery | MISSING | Storage restore, Pub/Sub replay/DLQ/idempotence, SQL PITR, Redis recovery evidence |
 | GKE CPU/GPU qualification | MISSING | Pinned image/platform, autoscaling, preemption/cancellation, capacity and cache evidence |
+| Developer workstation qualification | MISSING | IAP tunnel reachability, `/nix` and Bazel-cache persistence across a real stop, idle-timer behaviour under a detached build, Cloud NAT egress, and CMEK rotation evidence |
 | SLO/alert qualification | MISSING | Alert fire/recovery, dashboard, notification owner, telemetry cost |
 | RTO/RPO and DR exercise | MISSING | Approved objectives plus timed restore/failover/failback |
 | Post-apply drift | MISSING | Empty reviewed plan after an approved non-production apply |
 
 `terraform test` with a mocked provider is a contract test. It cannot prove that APIs
 are enabled, service agents hold required grants, quotas/capacity exist, organization
-policy permits a resource, a restore succeeds, or a workload meets its SLO.
+policy permits a resource, a restore succeeds, or a workload meets its SLO. A mocked
+`google_compute_instance` proves even less about a guest: the workstation's tunnel, its
+`/nix` bind mount, and its idle timer are startup-script and network behaviour that no
+plan-time assertion reaches, which is why they are a separate MISSING gate rather than
+evidence its mock suite could supply.
 
 ## Local validation evidence
 
 The counts below are the 2026-08-20 pre-retirement repository baseline. They are retained
-as dated evidence and are not a claim about the current 44-module tree. The current DNS
-and certificate change has separate scoped validation; a new whole-tree run must replace
-this baseline before release.
+as dated evidence and are not a claim about the current 46-module tree. The DNS and
+certificate change has separate scoped validation; the later `workstation` module has
+none. A new whole-tree run must replace this baseline before release.
+
+One gate has been rerun against the current tree. On 2026-08-23,
+`infra/terraform/governance/check.sh` passed 46 units and 374 changes from 0.1.1, of which
+132 are breaking and all are recorded in the planned v0.4.0 migration record. That single
+result is why the contracts gate above reads 46 rather than the baseline's 44; no other
+line below has been rerun.
 
 The 2026-08-20 repository gate used Terraform 1.15.8 on `darwin_arm64` and
 checksum-verified Google providers. All 44 deployable-unit locks select reviewed version
 7.45.0; canonical three-platform fixtures qualify both the declared minimum 7.41.0 and
-reviewed 7.45.0. Initialization used `-backend=false`; no credentials, remote state,
+reviewed 7.45.0. The two modules added since — `certificate_manager` and `workstation` —
+carry locks on that same reviewed 7.45.0, so the current tree holds 46 module locks on a
+single selection. That is a lock-file fact read off the tree, not a rerun of this gate,
+and it is recorded here only so a reader does not mistake the 44 above for the current
+count. Initialization used `-backend=false`; no credentials, remote state,
 refresh, plan against GCP, apply, import, state mutation, or cloud API operation was used.
 
 - `terraform fmt -check -recursive infra/terraform`: pass.
