@@ -6,6 +6,35 @@ All notable changes to the repository architecture and released implementation
 surfaces are recorded here. Individual model, dataset, runtime, and service
 releases also carry immutable release manifests and evidence bundles.
 
+## 2026-08-23 — Private developer workstation module
+
+- added the reusable `workstation` module: one `x86_64-linux` instance with no external
+  address, reachable only through IAP TCP forwarding, carrying a persistent CMEK data disk
+  that keeps `/nix` and the Bazel disk cache across a stop;
+- bound all three grants a tunnel actually needs — `roles/iap.tunnelResourceAccessor`, OS
+  Login, and `roles/iam.serviceAccountUser` on the instance identity — because omitting the
+  third satisfies IAM and then fails at connect, which presents as a broken tunnel and sends
+  the operator to debug the wrong layer;
+- kept the IAP source range `35.235.240.0/20` a local rather than an input, refused Arm and
+  unquotaed `c3d-*` machine types, and refused `/nix` on ephemeral Local SSD, since a
+  configurable source range is how a rule that exists to admit only IAP eventually admits
+  `0.0.0.0/0`;
+- limited the workstation identity to the observability floor and denied KMS signing, Binary
+  Authorization attestation, container analysis, Artifact Registry writes, and
+  service-account token or key minting, and emitted the cache grants as a required-grant
+  contract rather than creating bindings the cache modules already own;
+- moved idle shutdown into the guest so the instance needs no instance-admin authority over
+  itself, and scheduled a daily stop with deliberately no start; and
+- regenerated the module interface manifest to 46 modules and corrected `module_sources`,
+  which listed 44 Bazel targets against 45 module directories.
+
+No workstation instance, disk, identity, firewall rule, cache grant, or Nix substituter is
+activated by this source change; the module also exports no NixOS, nix-darwin, or Home
+Manager configuration. Mock tests prove configuration contracts and input rejection only.
+Tunnel reachability, disk persistence across a real stop, idle-timer behaviour under a
+detached build, Cloud NAT egress, and CMEK rotation remain unproven and are recorded as a
+MISSING gate in `infra/terraform/PRODUCTION_READINESS.md`.
+
 ## 2026-08-22 — Fail-closed affected-input governance
 
 - moved repository-wide affected-selection inputs into a strict versioned contract consumed by
