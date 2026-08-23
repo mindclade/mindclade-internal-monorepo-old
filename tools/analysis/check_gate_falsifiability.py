@@ -42,9 +42,15 @@ Four further properties keep the meta-gate itself from becoming the eleventh ins
     accept it. A meta-gate nobody has watched fail is the defect this module exists to prevent,
     so it demonstrates its own failure on every run.
 
+Checkers that do not have a fixture yet are recorded in `UNFALSIFIED_BASELINE` with the reason.
+That is a ratchet, not an allowlist: it lets no violation through -- every checker still runs and
+still fails the build -- and it is asserted as an exact set, so a checker that acquires a fixture
+must be removed from it. It shrinks or it breaks.
+
 `tools/analysis/tests/test_gate_falsifiability.py` exercises the remaining directions: a stale
-fixture, a missing fixture, a mutation whose anchor has drifted, a fixture that trips an
-unrelated error, a checker that crashes, and a fixture that leaks state past its revert.
+fixture, a missing fixture, a stale baseline entry, a mutation whose anchor has drifted, a
+fixture body that raises, a fixture that trips an unrelated error, a checker that crashes, a
+checker that cannot read a fixture root, and a fixture that leaks state past its revert.
 """
 
 from __future__ import annotations
@@ -390,11 +396,38 @@ FALSIFIERS: tuple[Falsifier, ...] = (
         ),
     ),
     Falsifier(
+        check="protocol graph completeness",
+        defect="a promoted .proto is added without a proto_library to own it",
+        expect="fixture_orphan.proto has no proto_library in",
+        # The exact shape the checker was written for: buf still lints and projects the file,
+        # so the omission is invisible everywhere except a walk of the real tree.
+        inject=lambda tree: tree.write(
+            "protocols/proto/mindclade/common/v1/fixture_orphan.proto",
+            'syntax = "proto3";\n\n'
+            "package mindclade.common.v1;\n\n"
+            "message FixtureOrphan {\n  string value = 1;\n}\n",
+        ),
+    ),
+    Falsifier(
         check="blueprint scaffold consistency",
         defect="a blueprint path is listed twice in the manifest",
         expect="Cargo.toml is listed more than once in the blueprint manifest",
         inject=lambda tree: tree.append(
             "docs/blueprint/production-monorepo-paths.txt", "Cargo.toml\n"
+        ),
+    ),
+    Falsifier(
+        check="protocol graph completeness",
+        defect=(
+            "a .proto reaches the tree with no proto_library, so it is absent from the "
+            "descriptor set, the compatibility baseline, and the Go and Python bindings "
+            "while buf still lints and projects it"
+        ),
+        expect="has no proto_library in",
+        inject=lambda tree: tree.write(
+            "protocols/proto/mindclade/common/v1/unwired.proto",
+            'syntax = "proto3";\n\npackage mindclade.common.v1;\n\n'
+            "message Unwired {\n  string value = 1;\n}\n",
         ),
     ),
 )
@@ -570,6 +603,11 @@ def _verify(
         falsifier.inject(tree)
     except FixtureError as exc:
         return [f"{label}: fixture could not inject its defect: {exc}"]
+    except Exception as exc:  # Reported, never swallowed.
+        # A broken fixture body must surface as a meta-gate failure naming the fixture, not as a
+        # traceback out of the whole suite. The partial edit is still reverted by the caller,
+        # because every write is journalled before it happens.
+        return [f"{label}: fixture raised {type(exc).__name__} while injecting its defect ({exc})"]
 
     try:
         observed = _run(fn, tree.root)
@@ -664,7 +702,22 @@ def _registered_checks() -> CheckRegistry:
     return run_architecture_checks.CHECKS
 
 
-def check(root: Path, report: Callable[[str], None] | None = None) -> list[str]:
+def _print(message: str) -> None:
+    print(message, flush=True)
+
+
+def _silent(_message: str) -> None:
+    return
+
+
+def check(root: Path, report: Callable[[str], None] = _print) -> list[str]:
+    """Entry point used by run_architecture_checks, which calls every checker as `fn(root)`.
+
+    The reporter therefore defaults to printing rather than to silence. The evidence -- which
+    defect was injected into which gate, and what it reported -- is the product of this check;
+    a run that emitted only "PASS gate falsifiability" would be a claim without its receipt,
+    which is the shape of the problem this module exists to fix.
+    """
     checks = _registered_checks()
     errors = _self_falsification_evidence(report)
     if SELF_CHECK_NAME not in {name for name, _ in checks}:
