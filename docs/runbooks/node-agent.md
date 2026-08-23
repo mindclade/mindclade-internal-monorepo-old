@@ -85,10 +85,10 @@ valid ticket authority.
 
 ## Known limitations recorded here deliberately
 
-- No stage wire protocol. The process listens, but only for probes; stages cannot be dispatched
-  to it over the network because `protocols/` defines no contract for them.
+- No stage wire protocol. The process listens only for the probes and metrics above; stages cannot
+  be dispatched to it over the network because `protocols/` defines no contract for them.
 - Exactly three counters exist — `node_agent.stage_started`, `stage_completed`, `stage_failed`
-  (`services/node_agent/src/telemetry.rs:15-23`). They are now exported at `GET /metrics`
+  (`services/node_agent/src/telemetry.rs:29-31`). They are now exported at `GET /metrics`
   alongside `node_agent_active_stages`, `node_agent_accepting`, and
   `node_agent_accounting_healthy`. The exposition is plain `name value` text, not a registered
   metrics format with types or labels.
