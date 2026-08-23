@@ -173,3 +173,43 @@ func TestClassifyDistinguishesBackpressureFromFailure(t *testing.T) {
 		t.Fatal("a nil cause must not be treated as retryable")
 	}
 }
+
+// The label set must stay bounded. A metric keyed on the fault reason would grow
+// a new series for every failure mode anyone adds, which is the cardinality
+// failure the sibling domains' SLO contracts exist to prevent.
+func TestClassifyObservedReportsABoundedLabelSet(t *testing.T) {
+	var seen []ClassificationEvent
+	observer := ObserverFunc(func(event ClassificationEvent) {
+		seen = append(seen, event)
+	})
+	err := faults.New(faults.CodeResourceExhausted, "queue full",
+		faults.WithReason("a_reason_nobody_should_key_a_metric_on"),
+		faults.WithRetryPolicy(faults.NoRetry()))
+
+	if got := ClassifyObserved(err, observer); got != DispositionReschedule {
+		t.Fatalf("disposition = %s, want reschedule", got)
+	}
+	if len(seen) != 1 {
+		t.Fatalf("observed %d events, want 1", len(seen))
+	}
+	if seen[0].Disposition != DispositionReschedule {
+		t.Fatalf("event disposition = %s, want reschedule", seen[0].Disposition)
+	}
+	if seen[0].Code != faults.CodeResourceExhausted {
+		t.Fatalf("event code = %s, want resource_exhausted", seen[0].Code)
+	}
+}
+
+// Telemetry is never a precondition for running work, so an absent observer and
+// a typed-nil one must both classify normally rather than panic.
+func TestClassifyObservedToleratesAnAbsentObserver(t *testing.T) {
+	err := faults.New(faults.CodeConflict, "stale fence",
+		faults.WithReason("stale_fencing_token"), faults.WithRetryPolicy(faults.NoRetry()))
+	if got := ClassifyObserved(err, nil); got != DispositionTerminal {
+		t.Fatalf("disposition = %s, want terminal", got)
+	}
+	var typedNil ObserverFunc
+	if got := ClassifyObserved(err, typedNil); got != DispositionTerminal {
+		t.Fatalf("disposition with a typed-nil observer = %s, want terminal", got)
+	}
+}

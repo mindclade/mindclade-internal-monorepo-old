@@ -162,9 +162,19 @@ func (function StageHandlerFunc) HandleStage(ctx context.Context, item WorkItem)
 // The returned fault's retry policy is what the worker reads to choose between
 // retry and dead-letter, so Classify's decision is expressed as a policy rather
 // than as a second control flow the queue would have to be taught about.
-func Handler(handler StageHandler) (workqueue.HandlerFunc, error) {
+// An optional Observer sees each retry decision. It is variadic so existing
+// callers keep compiling and an unobserved handler stays the default; telemetry
+// must not be a precondition for running work.
+func Handler(handler StageHandler, observers ...Observer) (workqueue.HandlerFunc, error) {
 	if handler == nil || nilInterface(handler) {
 		return nil, unavailable("stage_handler_unavailable", "stage handler is not configured", nil)
+	}
+	if len(observers) > 1 {
+		return nil, invalid("stage_handler_observer_ambiguous", "a stage handler takes at most one observer", nil)
+	}
+	var observer Observer
+	if len(observers) == 1 {
+		observer = observers[0]
 	}
 	return func(ctx context.Context, item workqueue.Item) (workqueue.Result, error) {
 		decoded, err := DecodeWorkItem(item.Payload)
@@ -172,7 +182,7 @@ func Handler(handler StageHandler) (workqueue.HandlerFunc, error) {
 			return workqueue.Result{}, err
 		}
 		if err := handler.HandleStage(ctx, decoded); err != nil {
-			return workqueue.Result{}, retryPolicyFor(err)
+			return workqueue.Result{}, retryPolicyFor(err, observer)
 		}
 		return workqueue.Result{}, nil
 	}, nil
@@ -180,12 +190,12 @@ func Handler(handler StageHandler) (workqueue.HandlerFunc, error) {
 
 // retryPolicyFor restates a handler error with the retry policy its
 // classification implies, leaving the original as the cause.
-func retryPolicyFor(err error) error {
+func retryPolicyFor(err error, observer Observer) error {
 	reason := faults.ReasonOf(err)
 	if reason == "" {
 		reason = "stage_handler_failed"
 	}
-	switch Classify(err) {
+	switch ClassifyObserved(err, observer) {
 	case DispositionRetry:
 		return faults.Wrap(err, faults.CodeOf(err), faults.PublicMessageOf(err),
 			faults.WithReason(reason), faults.WithOperation(operation),
