@@ -43,6 +43,16 @@ not by themselves provide provenance, admission enforcement, or proof that
 scanning is active. This module is an infrastructure contract, not deployed or
 production-readiness evidence.
 
+This module creates a `STANDARD_REPOSITORY` and deliberately offers no
+`mode = "REMOTE_REPOSITORY"` input. Every guarantee it makes — immutable Docker
+tags, a deletion-protected digest-first publication root, inherited Artifact
+Analysis scanning, a bounded untagged cleanup contract — describes artifacts we
+publish and can attest. None of them survives being pointed at somebody else's
+archive, and `repository_uri` would stop describing what clients address. Declare
+a read-through proxy of a public upstream in `../artifact_registry_factory`, which
+restricts the upstream to a closed enumeration and states in its README what
+proxying does and does not imply.
+
 <!-- BEGIN_TF_DOCS -->
 ## Requirements
 
