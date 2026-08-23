@@ -126,12 +126,6 @@ criticality = "tier-2"
 language = "go"
 security_review = true
 
-[component."control.orchestration"]
-owner = "platform-control"
-criticality = "tier-2"
-language = "go"
-security_review = true
-
 [component."preprocessing.core"]
 owner = "biology-ml"
 criticality = "tier-2"

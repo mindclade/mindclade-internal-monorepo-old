@@ -373,6 +373,7 @@
       "libs/go/observability",
       "libs/go/pagination",
       "libs/go/requestmeta",
+      "libs/go/resourceversion",
       "libs/go/retry",
       "libs/go/servicekit",
       "libs/go/servicekit/production",

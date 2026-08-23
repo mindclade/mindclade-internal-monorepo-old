@@ -181,7 +181,12 @@ func (service Service) CompleteStage(ctx context.Context, workflowID, runID, sta
 	if outcome != StageSucceeded {
 		return nil, nil
 	}
-	records, err := service.Repository.ListStages(ctx, runID)
+	// Only the completed stage's children and their parents can change state
+	// here, so fetch exactly that set. Scanning the whole run would make a
+	// single completion cost O(stages) against a graph bounded at 4096, on a
+	// path that runs once per stage per run.
+	scope := compiled.Graph.CompletionScope(stageID)
+	records, err := service.Repository.GetStages(ctx, runID, scope)
 	if err != nil {
 		return nil, err
 	}

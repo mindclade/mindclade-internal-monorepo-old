@@ -19,6 +19,7 @@ import (
 
 	crclient "sigs.k8s.io/controller-runtime/pkg/client"
 
+	"go.mindclade.dev/control/scheduling"
 	foundationconfig "go.mindclade.dev/libs/go/config"
 	"go.mindclade.dev/libs/go/coordination/leadership"
 	"go.mindclade.dev/libs/go/coordination/workqueue"
@@ -56,7 +57,11 @@ const (
 // slow heartbeat does not surrender an in-flight item, and concurrency is
 // bounded because each placement issues cluster writes.
 const (
-	placementQueue             = "control-plane/placement"
+	// placementQueue is the domain's own constant rather than a second copy of
+	// the string. The two were duplicated and nothing compared them, so had
+	// either side changed, this role would have drained a queue nobody filled --
+	// silently, with no failing test and no error to read.
+	placementQueue             = scheduling.PlacementQueue
 	placementWorker            = "placement"
 	placementPollInterval      = 500 * time.Millisecond
 	placementLeaseDuration     = 60 * time.Second

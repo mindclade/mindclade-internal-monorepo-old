@@ -49,6 +49,14 @@ status = "implemented"
 owner = "platform-control"
 tests = ["control/admission/admission_test.go"]
 
+# Advanced from `experimental`, replacing an entry that argued for the lower status on the
+# grounds that ten of fourteen non-test files were scaffold placeholders -- service, executor,
+# state_machine, lease, compiler, repository among them. That premise no longer holds: those
+# ten carry implementations, and the tests below exercise the parts that can actually be wrong
+# rather than asserting that a zero value is zero. The earlier note also flagged that
+# control/ingestion is `implemented` and imports this package, which needed an answer before
+# `production_dependency = false` was enforced; advancing this component IS that answer, and
+# the dated exception in check_production_dependencies.py was deleted with it.
 [[component]]
 name = "control.orchestration"
 path = "control/orchestration"
@@ -139,27 +147,6 @@ path = "control/lineage"
 status = "implemented"
 owner = "platform-control"
 tests = ["control/lineage/lineage_test.go"]
-
-# `experimental`, deliberately, and this is the entry most likely to be argued with. Four of
-# its fourteen non-test files are real — the stage, workflow and workload specs and their
-# validation — and ten are scaffold placeholders, including service, executor, state_machine,
-# lease, compiler, repository and all three launcher adapters. That is the same shape as
-# control.routing, which is already recorded experimental, so recording it as `implemented`
-# would make this file's `implemented` mean two different things.
-#
-# `tests` names workflow_test.go only. workload_test.go asserts that a zero value is zero and
-# exercises nothing; listing it would inflate the evidence this entry claims.
-#
-# Note for whoever enforces maturity.toml's `production_dependency = false`: control/ingestion
-# is `implemented` and imports this package. The imported surface is the implemented half
-# (StageSpec, StageKind), but the edge is real and needs an answer before that rule is turned
-# on — see the PR that added the declaration-coverage gate.
-[[component]]
-name = "control.orchestration"
-path = "control/orchestration"
-status = "experimental"
-owner = "platform-control"
-tests = ["control/orchestration/workflow_test.go"]
 
 [[component]]
 name = "preprocessing.core"

@@ -66,6 +66,13 @@ type Repository interface {
 	PutStage(context.Context, StageRecord) (StageRecord, bool, error)
 	GetStage(context.Context, string, string) (StageRecord, error)
 	ListStages(context.Context, string) ([]StageRecord, error)
+	// GetStages fetches a named subset. Completing one stage only needs that
+	// stage's children and their parents -- a set bounded by graph shape rather
+	// than by run size -- so a wide run does not pay for a whole-run scan on
+	// every completion. Missing ids are omitted rather than erroring, because a
+	// caller derives them from the graph and a gap is a stage not yet
+	// materialized, not a fault.
+	GetStages(context.Context, string, []string) ([]StageRecord, error)
 	TransitionStage(context.Context, string, string, StageState, resourceversion.Version, time.Time) (StageRecord, bool, error)
 
 	PutAttempt(context.Context, AttemptRecord) (AttemptRecord, bool, error)
@@ -214,6 +221,24 @@ func (repository *MemoryRepository) ListStages(ctx context.Context, runID string
 	records := make([]StageRecord, 0, len(repository.stages))
 	for _, record := range repository.stages {
 		if record.RunID == runID {
+			records = append(records, record)
+		}
+	}
+	return records, nil
+}
+
+func (repository *MemoryRepository) GetStages(ctx context.Context, runID string, stageIDs []string) ([]StageRecord, error) {
+	if err := repository.guard(ctx); err != nil {
+		return nil, err
+	}
+	if len(stageIDs) > MaximumStageCount {
+		return nil, exhausted("stage_lookup_bound", "stage lookup exceeds the maximum stage count")
+	}
+	repository.mu.RLock()
+	defer repository.mu.RUnlock()
+	records := make([]StageRecord, 0, len(stageIDs))
+	for _, stageID := range stageIDs {
+		if record, ok := repository.stages[stageKey(runID, stageID)]; ok {
 			records = append(records, record)
 		}
 	}
