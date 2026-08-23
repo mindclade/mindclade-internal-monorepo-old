@@ -25,6 +25,7 @@ py_library(
     visibility = [
         "//ci/nightly:__pkg__",
         "//ci/presubmit:__pkg__",
+        "//tools/analysis:__pkg__",
     ],
     deps = [":affected_contract"],
 )
@@ -63,6 +64,7 @@ py_binary(
 pytest_test(
     name = "affected_test",
     srcs = ["tests/test_affected.py"],
+    env_inherit = ["MINDCLADE_GIT"],
     imports = ["../.."],
     deps = [":affected"],
 )

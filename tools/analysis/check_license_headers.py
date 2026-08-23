@@ -18,8 +18,8 @@ The bash version knows only `#` files.
     python3 tools/analysis/check_license_headers.py --fix       # insert missing headers
     python3 tools/analysis/check_license_headers.py path/to/f   # check just these paths
 
-Stdlib only, like every other checker under this directory — `ci/presubmit/pipeline.py` runs
-them before anything has been installed.
+This checker remains stdlib-only. The architecture entry point itself runs in the pinned Nix
+shell because its workflow-contract checker uses the repository-pinned PyYAML parser.
 """
 
 from __future__ import annotations

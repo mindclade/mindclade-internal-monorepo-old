@@ -30,21 +30,36 @@ from 7.5 GiB to 7.0 GiB, so it was interrupted before destabilizing concurrent
 work. The interruption left the checkout detached at the before revision until
 it was explicitly restored. The tool also could not parse Nix's
 `release 9.1.1- (@non-git)` version string and conservatively assumed configured
-rule inputs were unavailable. These measured conditions map to the four
-machine-readable blockers in the contract. No graph-native selector is active.
+rule inputs were unavailable. These measured conditions, plus the absent
+externally pinned required workflow, map to the five machine-readable blockers
+in the contract. The graph-native selector is not active; the existing
+repository-owned Bazel-query selector remains the pull-request authority.
 
 ## Connected evidence required
 
-Qualification remains pending until pull-request canaries demonstrate leaf,
+The live pull-request lane uses affected selection with fail-closed full fallback.
+Qualification remains pending until pull-request canaries can safely demonstrate leaf,
 documentation-only, global, intentional selector-failure, and intentional
 test-failure behavior; the exact `bazel / verdict` context is observed on both
 pull requests and merge groups; and 28 days of ordinary affected runs meet the
 p95 30-minute objective.
 
-Graph-native activation additionally requires all four contract blockers to be
+Graph-native activation additionally requires all five contract blockers to be
 replaced by retained evidence from a trusted x86_64 Linux runner. The transition
 must preserve full `//...` execution for merge groups and nightly runs; affected
 selection remains a pull-request latency optimization only.
+
+Artifact-plan Phase 5 remains incomplete until that evidence is accepted and the
+graph-native implementation is reviewed. The current source hardens, but does not
+activate, the migration boundary: immutable fallback anchors cover the Bazel/Nix/Git
+launchers, package-boundary additions and deletions force full validation, exact
+ordered workflow steps and event routing are behaviorally modeled, and failure
+evidence carries only stable redacted codes.
+
+Repository-local workflow and runtime-integrity checks are defense in depth, not
+an external trust boundary. Phase 5 also remains incomplete until the pinned
+organization required workflow is active and observed blocking both pull requests
+and merge groups from a protected ref.
 
 Ruleset evaluation and activation evidence belongs to `github-config`. A local
 test pass is not evidence that GitHub is enforcing the context.

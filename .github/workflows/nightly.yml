@@ -114,11 +114,17 @@ jobs:
           nix develop .#ci-bazel --command python3 tools/analysis/verify_cc_toolchain_selection.py
 
       - name: Analyze and test the complete configured graph
+        env:
+          BASH_ENV: ""
         run: >-
-          nix develop .#ci-bazel --command python3 ci/nightly/pipeline.py
+          /nix/var/nix/profiles/default/bin/nix develop .#ci-bazel
+          --command python3 -I ci/nightly/pipeline.py
           --event "${GITHUB_EVENT_NAME}"
+          --ref "${GITHUB_REF}"
+          --head "${GITHUB_SHA}"
           --evidence-dir "${RUNNER_TEMP}/bazel-evidence"
           --job-started-at-file "${RUNNER_TEMP}/bazel-job-started"
+          --runner-temp "${RUNNER_TEMP}"
 
       - name: Qualify the rolling affected-presubmit latency SLO
         env:

@@ -60,21 +60,32 @@ A materialized scaffold path is not a production release claim.
 The presubmit implementation now uses Bazel's post-loading reverse-dependency
 graph, separate analysis/test target files, rename-aware Git input, fail-closed
 query behavior, versioned BEP/profile/selection evidence, and a stable
-`bazel / verdict` context. Merge groups, main pushes, global changes, and the
-new CPU nightly retain full `//...` execution.
+`bazel / verdict` context. Pull requests use affected selection and always
+include `//:gazelle_check`; global or structurally unsafe changes, merge groups,
+main pushes, and the CPU nightly retain full `//...` execution.
 
 Repository-wide fallback inputs now live in one strict, versioned contract.
 Static presubmit inventories every root entry and every `tools/` authority, so a
 new graph-control surface cannot silently bypass full validation. A
 checksum-pinned target-determinator candidate remains activation-blocked by the
-unqualified remote cache, incomplete Linux full-graph evidence, checkout
-restoration behavior under interruption, and Bazel 9 version-string fallback.
+unqualified remote cache, absent externally pinned required workflow, incomplete
+Linux full-graph evidence, checkout restoration behavior under interruption, and
+Bazel 9 version-string fallback.
+Artifact-plan Phase 5 is explicitly incomplete; this source does not activate or
+claim graph-native selection. Immutable fallback anchors and event-policy tests
+preserve affected pull-request behavior with full fallback, plus full
+merge-group, protected-main, and nightly correctness gates meanwhile.
+Protected execution also rejects Git files, worktrees, symlinked checkout roots,
+YAML aliases/tags/duplicate keys, and block-scalar normalization drift. The exact
+validated disk-cache role is repeated after `--config=ci` so later rc expansion
+cannot change its effective write policy.
 
 Connected pull-request, merge-group, scheduled-run, required-check, and 28-day
-latency evidence is pending. Local real-graph validation currently reaches the
-authoritative query and fails on pre-existing host materialization of
-`torch==2.13.0+cpu`; that dependency-resolution failure is preserved as a red
-selector result and is not reported as an empty affected set.
+latency evidence is pending, as is activation of the pinned organization required
+workflow outside the pull request's mutable trust boundary. Local aarch64-Darwin
+real-graph validation passed with two analysis targets and one test. An initial
+external Go-proxy TLS timeout failed closed as `AFFECTED-SELECT-007`; retrying after
+repository materialization passed and never produced an empty affected set.
 
 ## Rust hardening validation (2026-08-20)
 
@@ -270,7 +281,7 @@ rollback evidence remain release blockers for each promoted deployable.
 
 The final hardening tranche is materialized and the offline foundation-freeze gate passes. This tranche adds and validates:
 
-- Bazel-authoritative affected presubmit selection with conservative full-graph fallback for global, structural, toolchain, protocol, and architecture changes;
+- Bazel-authoritative affected-selection qualification source, kept dormant behind full protected-event validation until its connected activation gates pass;
 - two-level artifact garbage collection: Go owns reachability/lease/pin/hold/retention eligibility, while Rust performs version-conditional byte deletion;
 - pinned Rust 1.97.1 release qualification orchestration, committed-lock enforcement, and Cargo/Bazel alignment checks;
 - Rust supply-chain policy, runtime compatibility matrix, failure-injection matrix, and explicit performance budgets;

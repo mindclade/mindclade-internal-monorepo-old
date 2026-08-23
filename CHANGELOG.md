@@ -10,13 +10,26 @@ releases also carry immutable release manifests and evidence bundles.
 
 - moved repository-wide affected-selection inputs into a strict versioned contract consumed by
   the selector and static architecture gate;
-- added behavioral inventory checks that reject any unreviewed root or `tools/` authority and
-  expanded full-graph fallback to omitted Bazel, Nix, Python, and Rust dependency inputs; and
+- added immutable minimum anchors, structural YAML/event-policy checks, and redacted error codes
+  that reject weakened review boundaries or alternate protected-gate modes;
+- expanded full-graph fallback to omitted Bazel, Nix, Python, Rust, launcher, and package-boundary
+  inputs;
+- pinned Git to the read-only Nix closure, require canonical non-worktree repository metadata,
+  reject hidden index flags and host Git overrides, bind the disk cache to exact runner temporary
+  storage, pass its role as command-line-final Bazel options, and validate canonical start epochs;
+- parse workflow YAML with pinned PyYAML semantics, reject aliases, tags, and duplicate keys, and
+  digest-pin each Bazel step in order so block-scalar, reordered, repinned, or spoofed verdict
+  paths fail closed; and
 - recorded the checksum-pinned target-determinator candidate plus the measured blockers that keep
   graph-native pull-request selection dormant.
 
-Merge groups and nightly runs retain full `//...` execution. No graph-native selector, cache,
-workflow gate, release, or deployment is activated by this source change.
+Pull requests retain the existing Bazel-query affected selector with mandatory
+`//:gazelle_check` and fail-closed full fallback. Merge groups, main pushes, and
+nightly runs retain full `//...` execution. No graph-native selector,
+authenticated remote cache, workflow gate, release, or deployment is activated
+by this source change.
+Artifact-plan Phase 5 remains incomplete pending the retained evidence above and activation of
+the pinned organization required workflow outside the pull request's mutable trust boundary.
 
 ## 2026-08-22 — Evidence ledger and production eligibility
 

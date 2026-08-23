@@ -2,26 +2,235 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
 
 from __future__ import annotations
 
 import ast
+import contextlib
+import hashlib
+import io
 import json
-import re
-import subprocess
+import shlex
 import sys
 from pathlib import Path
+from typing import Any
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from workflow_yaml import WorkflowYamlError, parse_workflow  # noqa: E402
+
+from ci.common import affected  # noqa: E402
 from ci.common.affected_contract import (  # noqa: E402
     ContractError,
     GlobalInputContract,
     load_global_input_contract,
+    load_global_input_payload,
 )
+from ci.nightly import pipeline as nightly_pipeline  # noqa: E402
+from ci.presubmit import pipeline as presubmit_pipeline  # noqa: E402
+
+PRESUBMIT_EVENTS = frozenset({"merge_group", "pull_request", "push"})
+NIGHTLY_EVENTS = frozenset({"schedule", "workflow_dispatch"})
+PRESUBMIT_BAZEL_COMMAND = (
+    "/nix/var/nix/profiles/default/bin/nix",
+    "develop",
+    ".#ci-bazel",
+    "--command",
+    "python3",
+    "-I",
+    "ci/presubmit/pipeline.py",
+    "--bazel-only",
+    "--mode",
+    "auto",
+    "--base",
+    "${PR_BASE_SHA}",
+    "--event",
+    "${GITHUB_EVENT_NAME}",
+    "--ref",
+    "${GITHUB_REF}",
+    "--head",
+    "${GITHUB_SHA}",
+    "--evidence-dir",
+    "${RUNNER_TEMP}/bazel-evidence",
+    "--job-started-at-file",
+    "${RUNNER_TEMP}/bazel-job-started",
+    "--runner-temp",
+    "${RUNNER_TEMP}",
+)
+NIGHTLY_BAZEL_COMMAND = (
+    "/nix/var/nix/profiles/default/bin/nix",
+    "develop",
+    ".#ci-bazel",
+    "--command",
+    "python3",
+    "-I",
+    "ci/nightly/pipeline.py",
+    "--event",
+    "${GITHUB_EVENT_NAME}",
+    "--ref",
+    "${GITHUB_REF}",
+    "--head",
+    "${GITHUB_SHA}",
+    "--evidence-dir",
+    "${RUNNER_TEMP}/bazel-evidence",
+    "--job-started-at-file",
+    "${RUNNER_TEMP}/bazel-job-started",
+    "--runner-temp",
+    "${RUNNER_TEMP}",
+)
+UPLOAD_ARTIFACT_ACTION = "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02"
+CHECKOUT_ACTION = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+PRESUBMIT_BAZEL_STEP_CONTRACT = (
+    (
+        "name:Record Bazel verdict start",
+        "6e3581f87afe2f1357d9389beee1612d32a39123b48a1f7112e11a70865bfd16",
+    ),
+    (
+        "uses:actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "3facce523aa8a0e29a937485282e18e07e2907c45914b4ce7745b674c765f3b7",
+    ),
+    (
+        "name:Prepare GitHub-hosted runner disk for Nix",
+        "c8ce580064e9a2ca3c9dabcdac62b53fe14d8ce7b17fa00de32d1a1e97915267",
+    ),
+    (
+        "uses:bazel-contrib/setup-bazel@4fd964a13a440a8aeb0be47350db2fc640f19ca8",
+        "5c825b313c6e81fad2e993ae09ce267a40dd48b30816e4e151764b96273d16f2",
+    ),
+    (
+        "uses:cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342",
+        "889e811758a8eb0bfe298bec1412219d252c18e4946c086c793465172a6a4513",
+    ),
+    (
+        "name:Select trusted Bazel cache revision",
+        "3d521ffc2acfa1c39f7a088087af7ef2e5c1f703b44d2521a04b71e401054774",
+    ),
+    (
+        "name:Restore trusted Bazel persistent action cache",
+        "f7d3575c44f9f9f581cb999730b0337339a3ac4776abd4afee78f35711eca041",
+    ),
+    (
+        "name:Configure bounded Bazel persistent action cache",
+        "7f0ba186b0d4be7f54e1228a24e01a27021a045e6209a42ccd06dde751f847db",
+    ),
+    (
+        "name:buildifier",
+        "59abfcb3d0cfb35ea31cf7fd1c3e9bb1fd11b9123984cd69f4b3e082cf2cb07b",
+    ),
+    (
+        "name:Every BUILD file loads and every label resolves",
+        "f32d7fa54fe7ab8d7d88953737d06603c6eb7930af8688c2964967cac33d362d",
+    ),
+    (
+        "name:Prove affected selection against the real Bazel graph",
+        "dd7aa75569631162fbe616a72f544093cd46341c2bc1cd0269a5e94e4b1cd222",
+    ),
+    (
+        "name:Enforce Bazel dependency layers",
+        "e3692c38e0d68c64e90ac2f2736adbcccfa92facf1d63eb63042eccf15d3de08",
+    ),
+    (
+        "name:Validate and resolve the registered C/C++ toolchain",
+        "32b66957e0535bb0ba2f7a3076d97e8dc7aab1a22d23be807e96255cbb42028b",
+    ),
+    (
+        "name:Run event-governed Bazel validation",
+        "6ae943963137c5ff2305f55988c863633a9837ce00c977794c4acaa06c3ee881",
+    ),
+    (
+        "name:Measure bounded Bazel persistent action cache",
+        "d78717735c38ee3b264a8eabd30f320fcce1acb62bf88d6e5f6d0bc4d02e54ab",
+    ),
+    (
+        "name:Save trusted Bazel persistent action cache",
+        "36a872484b4dce8390169fa23f851c9f8fec2e0f11254c319de5d84a4009db9b",
+    ),
+    (
+        "name:Record Bazel persistent action cache metrics",
+        "597e3fd3eec0d351853272ce410f71e50880b3750e45dd54a0b63aea36245c47",
+    ),
+    (
+        "name:Upload Bazel performance evidence",
+        "993670b32d2cd1be75d6dccbdc68e0aa9afcddb4d85adbcd39b27642dbadb4d3",
+    ),
+    (
+        "name:Upload Bazel latency metric",
+        "e6641e5b4f5e36548083e59a30bc606ee9355d00549af926b9ea907c61ff75f2",
+    ),
+)
+NIGHTLY_BAZEL_STEP_CONTRACT = (
+    (
+        "name:Record nightly verdict start",
+        "63dc8127ef8e2ef48145a82df11a5b8f74628c9e38fb1f9fe1b005cde7c96e1c",
+    ),
+    (
+        "uses:actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+        "69983d424f70d56e16aca2c5bc441464578ac832b548ce342069dd3e5a1ca9e1",
+    ),
+    (
+        "name:Prepare GitHub-hosted runner disk for Nix",
+        "c8ce580064e9a2ca3c9dabcdac62b53fe14d8ce7b17fa00de32d1a1e97915267",
+    ),
+    (
+        "uses:bazel-contrib/setup-bazel@4fd964a13a440a8aeb0be47350db2fc640f19ca8",
+        "5c825b313c6e81fad2e993ae09ce267a40dd48b30816e4e151764b96273d16f2",
+    ),
+    (
+        "uses:cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342",
+        "889e811758a8eb0bfe298bec1412219d252c18e4946c086c793465172a6a4513",
+    ),
+    (
+        "name:Select trusted nightly Bazel cache revision",
+        "725e3b66b3e931380dc1725b76b3b572c3c3cff6264c875c76fb5372a4f46a6f",
+    ),
+    (
+        "name:Restore trusted nightly Bazel persistent action cache",
+        "e1450dd287debaf42cdf34cae070136421bd115238ef43ee4186aaac7c5bd964",
+    ),
+    (
+        "name:Configure bounded nightly Bazel persistent action cache",
+        "6b777772303b943876ae184ad8e1976bf25086fb42036d63e0970491ff1498f4",
+    ),
+    (
+        "name:Validate complete loading, formatting, and layer policy",
+        "109754186aa21f7f2339b83fa8ea74622b42f92b25f03e2869345a42e3ee6b2b",
+    ),
+    (
+        "name:Validate and resolve the registered C/C++ toolchain",
+        "32b66957e0535bb0ba2f7a3076d97e8dc7aab1a22d23be807e96255cbb42028b",
+    ),
+    (
+        "name:Analyze and test the complete configured graph",
+        "0620fb2d513f21c21a61e602c2d9e16174a915b69ac9e4cdfd4b301e88c6bc90",
+    ),
+    (
+        "name:Qualify the rolling affected-presubmit latency SLO",
+        "eedf4c01ce782c9ada03aa258781ebed51fc9835203bb485f647850c4d9a613f",
+    ),
+    (
+        "name:Measure bounded nightly Bazel persistent action cache",
+        "8ded4c5c6f73bae12e26d9a1e3d6ef083142780697c07120ea34593d02aa4a6b",
+    ),
+    (
+        "name:Save trusted nightly Bazel persistent action cache",
+        "0fcea9f0ecc363088ac840d65af3bbe71888c6d065ddf52e1788d88973f7a1a7",
+    ),
+    (
+        "name:Record nightly Bazel persistent action cache metrics",
+        "836f793db0d80c0ed9fe76faa0993f1a7c84c3299aaa022021fabdb13c80709a",
+    ),
+    (
+        "name:Upload nightly Bazel evidence",
+        "73dd5401be7731758e82064e0fef2fbd8d4d0b5e475b7fa9cd74d01bb54390fb",
+    ),
+)
+
+
+def _error(code: str, message: str) -> str:
+    return f"[{code}] {message}"
 
 
 def _top_level_symbols(path: Path) -> set[str]:
@@ -58,29 +267,26 @@ def _imports(path: Path) -> set[str]:
     return names
 
 
-def _job_block(workflow: str, job: str) -> str:
-    match = re.search(rf"(?m)^  {re.escape(job)}:\s*$", workflow)
-    if match is None:
-        return ""
-    following = workflow[match.end() :]
-    next_job = re.search(r"(?m)^  [A-Za-z0-9_-]+:\s*$", following)
-    return following[: next_job.start()] if next_job else following
-
-
 def _tracked_paths(root: Path) -> tuple[str, ...]:
-    result = subprocess.run(
-        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
-        cwd=root,
-        capture_output=True,
-        check=False,
-    )
-    if result.returncode:
-        raise ContractError("[AFFECTED-GLOBAL-008] tracked-path inventory failed")
-    return tuple(
-        sorted(
-            field.decode("utf-8", errors="strict") for field in result.stdout.split(b"\0") if field
+    try:
+        result = affected.run_git(
+            ["ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+            root=root,
         )
-    )
+    except affected.SelectionError as error:
+        raise ContractError("AFFECTED-GLOBAL-008", "tracked-path inventory failed") from error
+    if result.returncode:
+        raise ContractError("AFFECTED-GLOBAL-008", "tracked-path inventory failed")
+    try:
+        return tuple(
+            sorted(
+                field.decode("utf-8", errors="strict")
+                for field in result.stdout.split(b"\0")
+                if field
+            )
+        )
+    except UnicodeError as error:
+        raise ContractError("AFFECTED-GLOBAL-008", "tracked-path inventory failed") from error
 
 
 def _boundary_entries(paths: tuple[str, ...], boundary: str) -> set[str]:
@@ -99,39 +305,48 @@ def _review_boundary_errors(contract: GlobalInputContract, paths: tuple[str, ...
     for boundary, expected_entries in contract.review_boundaries:
         expected = set(expected_entries)
         actual = _boundary_entries(paths, boundary)
-        display = boundary or "root"
-        for entry in sorted(actual - expected):
-            errors.append(f"[AFFECTED-GLOBAL-006] {display} authority {entry!r} is not reviewed")
-        for entry in sorted(expected - actual):
-            errors.append(f"[AFFECTED-GLOBAL-007] {display} authority {entry!r} is stale")
+        if actual - expected:
+            errors.append(
+                _error("AFFECTED-GLOBAL-006", "an unreviewed repository authority exists")
+            )
+        if expected - actual:
+            errors.append(_error("AFFECTED-GLOBAL-007", "a reviewed authority is stale"))
     return errors
 
 
 def _activation_errors(path: Path) -> list[str]:
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return ["[AFFECTED-GLOBAL-001] global-input contract is unreadable"]
-    activation = payload.get("activation") if isinstance(payload, dict) else None
-    if not isinstance(activation, dict):
-        return ["[AFFECTED-GLOBAL-009] graph-native activation evidence is missing"]
+        payload = load_global_input_payload(path)
+    except ContractError as error:
+        return [str(error)]
+    activation = payload.get("activation")
+    if not isinstance(activation, dict) or set(activation) != {
+        "blockers",
+        "release",
+        "state",
+        "tool",
+    }:
+        return [_error("AFFECTED-GLOBAL-009", "graph-native activation evidence is invalid")]
     errors: list[str] = []
     if activation.get("state") != "blocked":
         errors.append(
-            "[AFFECTED-GLOBAL-009] graph-native activation must remain blocked pending evidence"
+            _error(
+                "AFFECTED-GLOBAL-009",
+                "graph-native activation must remain blocked pending evidence",
+            )
         )
-    blockers = activation.get("blockers")
     expected_blockers = [
         "bazel_version_parse_not_qualified",
+        "external_required_workflow_not_active",
         "full_graph_linux_not_qualified",
         "remote_cache_not_qualified",
         "workspace_restoration_not_hardened",
     ]
-    if blockers != expected_blockers:
-        errors.append("[AFFECTED-GLOBAL-009] graph-native activation blockers drifted")
+    if activation.get("blockers") != expected_blockers:
+        errors.append(_error("AFFECTED-GLOBAL-009", "graph-native blockers are invalid"))
     release = activation.get("release")
-    if not isinstance(release, dict):
-        errors.append("[AFFECTED-GLOBAL-010] graph-native release pin is missing")
+    if not isinstance(release, dict) or set(release) != {"assets", "commit", "license", "tag"}:
+        errors.append(_error("AFFECTED-GLOBAL-010", "graph-native release pin is invalid"))
         return errors
     if (
         activation.get("tool") != "bazel-contrib/target-determinator"
@@ -139,7 +354,7 @@ def _activation_errors(path: Path) -> list[str]:
         or release.get("commit") != "d4b6125546979713431e63b5c3e65810fa989446"
         or release.get("license") != "Apache-2.0"
     ):
-        errors.append("[AFFECTED-GLOBAL-010] graph-native release identity drifted")
+        errors.append(_error("AFFECTED-GLOBAL-010", "graph-native release identity drifted"))
     assets = release.get("assets")
     expected_assets = {
         "aarch64-darwin": (
@@ -156,90 +371,660 @@ def _activation_errors(path: Path) -> list[str]:
         ),
     }
     if not isinstance(assets, dict) or set(assets) != set(expected_assets):
-        errors.append("[AFFECTED-GLOBAL-010] graph-native release assets drifted")
+        errors.append(_error("AFFECTED-GLOBAL-010", "graph-native release assets drifted"))
         return errors
     for system, (expected_name, expected_digest) in expected_assets.items():
         asset = assets.get(system)
-        digest = asset.get("sha256") if isinstance(asset, dict) else None
         if (
             not isinstance(asset, dict)
+            or set(asset) != {"name", "sha256"}
             or asset.get("name") != expected_name
-            or digest != expected_digest
+            or asset.get("sha256") != expected_digest
         ):
-            errors.append(f"[AFFECTED-GLOBAL-010] invalid release asset for {system}")
+            errors.append(_error("AFFECTED-GLOBAL-010", "a release asset pin is invalid"))
     return errors
+
+
+def _mapping(value: Any) -> dict[str, Any] | None:
+    if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
+        return None
+    return value
+
+
+def _step_contract_is_exact(job: dict[str, Any], expected: tuple[tuple[str, str], ...]) -> bool:
+    steps = job.get("steps")
+    if not isinstance(steps, list):
+        return False
+    actual: list[tuple[str, str]] = []
+    try:
+        for step in steps:
+            if not isinstance(step, dict):
+                return False
+            name = step.get("name")
+            uses = step.get("uses")
+            if isinstance(name, str) and name:
+                identity = f"name:{name}"
+            elif isinstance(uses, str) and uses:
+                identity = f"uses:{uses}"
+            else:
+                return False
+            canonical = json.dumps(
+                step,
+                ensure_ascii=True,
+                separators=(",", ":"),
+                sort_keys=True,
+            ).encode("ascii")
+            actual.append((identity, hashlib.sha256(canonical).hexdigest()))
+    except (TypeError, UnicodeError, ValueError):
+        return False
+    return tuple(actual) == expected
+
+
+def _verdict_job_is_unique(
+    jobs: dict[str, Any] | None, *, expected_id: str, expected_name: str
+) -> bool:
+    if jobs is None:
+        return False
+    matching_ids = [
+        job_id
+        for job_id, candidate in jobs.items()
+        if isinstance(candidate, dict) and candidate.get("name") == expected_name
+    ]
+    return matching_ids == [expected_id]
+
+
+def _verdict_context_errors(workflows: dict[str, dict[str, Any]]) -> list[str]:
+    protected_names = {"bazel / verdict", "nightly Bazel / verdict"}
+    expected = {
+        (".github/workflows/nightly.yml", "bazel-nightly", "nightly Bazel / verdict"),
+        (".github/workflows/presubmit.yml", "bazel", "bazel / verdict"),
+    }
+    observed: set[tuple[str, str, str]] = set()
+    for path, workflow in workflows.items():
+        jobs = _mapping(workflow.get("jobs"))
+        if jobs is None:
+            continue
+        for job_id, candidate in jobs.items():
+            job = _mapping(candidate)
+            name = job.get("name") if job is not None else None
+            if isinstance(name, str) and "${{" in name:
+                return [_error("AFFECTED-WORKFLOW-010", "Bazel verdict context is ambiguous")]
+            if name in protected_names:
+                observed.add((path, job_id, name))
+    if observed != expected:
+        return [_error("AFFECTED-WORKFLOW-010", "Bazel verdict context is ambiguous")]
+    return []
+
+
+def _named_step(job: dict[str, Any], name: str) -> dict[str, Any] | None:
+    steps = job.get("steps")
+    if not isinstance(steps, list):
+        return None
+    matches = [step for step in steps if isinstance(step, dict) and step.get("name") == name]
+    if len(matches) != 1:
+        return None
+    return matches[0]
+
+
+def _command(value: Any) -> tuple[str, ...] | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        return tuple(shlex.split(value, comments=False, posix=True))
+    except ValueError:
+        return None
+
+
+def _checkout_is_complete(job: dict[str, Any], *, full_history: bool, before_step: str) -> bool:
+    steps = job.get("steps")
+    if not isinstance(steps, list):
+        return False
+    checkout_indices = [
+        index
+        for index, step in enumerate(steps)
+        if isinstance(step, dict)
+        and isinstance(step.get("uses"), str)
+        and step["uses"].startswith("actions/checkout@")
+    ]
+    governed_indices = [
+        index
+        for index, step in enumerate(steps)
+        if isinstance(step, dict) and step.get("name") == before_step
+    ]
+    if len(checkout_indices) != 1 or len(governed_indices) != 1:
+        return False
+    checkout_index = checkout_indices[0]
+    checkout = steps[checkout_index]
+    expected_configuration = {"persist-credentials": False}
+    if full_history:
+        expected_configuration["fetch-depth"] = 0
+    return (
+        checkout_index < governed_indices[0]
+        and set(checkout) == {"uses", "with"}
+        and checkout.get("uses") == CHECKOUT_ACTION
+        and _mapping(checkout.get("with")) == expected_configuration
+    )
+
+
+def _uploads_are_governed(job: dict[str, Any], expected: dict[str, dict[str, Any]]) -> bool:
+    for name, expected_configuration in expected.items():
+        step = _named_step(job, name)
+        configuration = _mapping(step.get("with")) if step is not None else None
+        if (
+            step is None
+            or set(step) != {"if", "name", "uses", "with"}
+            or step.get("if") != "always()"
+            or "continue-on-error" in step
+            or step.get("uses") != UPLOAD_ARTIFACT_ACTION
+            or configuration != expected_configuration
+        ):
+            return False
+    return True
+
+
+def _presubmit_workflow_errors(workflow: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    if set(workflow) != {"concurrency", "jobs", "name", "on", "permissions"}:
+        errors.append(_error("AFFECTED-WORKFLOW-004", "presubmit workflow keys are invalid"))
+    events = _mapping(workflow.get("on"))
+    if events is None or set(events) != PRESUBMIT_EVENTS:
+        errors.append(_error("AFFECTED-WORKFLOW-003", "presubmit event contract is invalid"))
+    else:
+        push = _mapping(events.get("push"))
+        if (
+            push is None
+            or push.get("branches") != ["main"]
+            or events.get("pull_request") != {}
+            or events.get("merge_group") != {}
+        ):
+            errors.append(_error("AFFECTED-WORKFLOW-003", "presubmit event routing is invalid"))
+    if workflow.get("permissions") != {"contents": "read"}:
+        errors.append(_error("AFFECTED-WORKFLOW-004", "presubmit permissions are invalid"))
+    jobs = _mapping(workflow.get("jobs"))
+    if not _verdict_job_is_unique(jobs, expected_id="bazel", expected_name="bazel / verdict"):
+        errors.append(_error("AFFECTED-WORKFLOW-004", "presubmit verdict job is ambiguous"))
+    bazel_job = _mapping(jobs.get("bazel")) if jobs is not None else None
+    if (
+        bazel_job is None
+        or set(bazel_job) != {"name", "runs-on", "steps", "timeout-minutes"}
+        or bazel_job.get("name") != "bazel / verdict"
+        or bazel_job.get("runs-on") != "ubuntu-24.04"
+        or bazel_job.get("timeout-minutes") != 90
+    ):
+        return [*errors, _error("AFFECTED-WORKFLOW-004", "presubmit Bazel job is invalid")]
+    if not _step_contract_is_exact(bazel_job, PRESUBMIT_BAZEL_STEP_CONTRACT):
+        errors.append(_error("AFFECTED-WORKFLOW-009", "presubmit Bazel steps drifted"))
+    if not _checkout_is_complete(
+        bazel_job,
+        full_history=True,
+        before_step="Run event-governed Bazel validation",
+    ):
+        errors.append(_error("AFFECTED-WORKFLOW-004", "presubmit checkout is incomplete"))
+    step = _named_step(bazel_job, "Run event-governed Bazel validation")
+    if step is None:
+        errors.append(_error("AFFECTED-WORKFLOW-005", "governed Bazel step is missing"))
+    elif (
+        set(step) != {"env", "name", "run"}
+        or step.get("env")
+        != {
+            "BASH_ENV": "",
+            "PR_BASE_SHA": "${{ github.event.pull_request.base.sha }}",
+        }
+        or _command(step.get("run")) != PRESUBMIT_BAZEL_COMMAND
+    ):
+        errors.append(_error("AFFECTED-WORKFLOW-005", "governed Bazel command is invalid"))
+    if not _uploads_are_governed(
+        bazel_job,
+        {
+            "Upload Bazel performance evidence": {
+                "name": "bazel-performance-${{ github.run_id }}-${{ github.run_attempt }}",
+                "path": "${{ runner.temp }}/bazel-evidence/*",
+                "if-no-files-found": "warn",
+                "retention-days": 35,
+            },
+            "Upload Bazel latency metric": {
+                "name": "bazel-metrics-${{ github.run_id }}-${{ github.run_attempt }}",
+                "path": "${{ runner.temp }}/bazel-evidence/run-metrics.json",
+                "if-no-files-found": "ignore",
+                "retention-days": 35,
+            },
+        },
+    ):
+        errors.append(_error("AFFECTED-WORKFLOW-006", "Bazel evidence retention is invalid"))
+    return errors
+
+
+def _nightly_target_errors(path: Path) -> list[str]:
+    def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("duplicate key")
+            result[key] = value
+        return result
+
+    try:
+        lines = [
+            line
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#") and line.strip() != "---"
+        ]
+        payload = json.loads(
+            "\n".join(lines),
+            object_pairs_hook=unique_object,
+            parse_constant=lambda _value: (_ for _ in ()).throw(ValueError("constant")),
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError, RecursionError, ValueError):
+        return [_error("AFFECTED-WORKFLOW-007", "nightly target contract is unreadable")]
+    if payload != {
+        "schema_version": 1,
+        "mode": "full",
+        "analysis_targets": ["//..."],
+        "test_targets": ["//..."],
+    }:
+        return [_error("AFFECTED-WORKFLOW-007", "nightly target contract is not full graph")]
+    return []
+
+
+def _nightly_workflow_errors(workflow: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    if set(workflow) != {"concurrency", "jobs", "name", "on", "permissions"}:
+        errors.append(_error("AFFECTED-WORKFLOW-004", "nightly workflow keys are invalid"))
+    events = _mapping(workflow.get("on"))
+    schedule = events.get("schedule") if events is not None else None
+    if (
+        events is None
+        or set(events) != NIGHTLY_EVENTS
+        or events.get("workflow_dispatch") != {}
+        or schedule != [{"cron": "17 5 * * *"}]
+    ):
+        errors.append(_error("AFFECTED-WORKFLOW-003", "nightly event contract is invalid"))
+    if workflow.get("permissions") != {"actions": "read", "contents": "read"}:
+        errors.append(_error("AFFECTED-WORKFLOW-004", "nightly permissions are invalid"))
+    jobs = _mapping(workflow.get("jobs"))
+    if not _verdict_job_is_unique(
+        jobs,
+        expected_id="bazel-nightly",
+        expected_name="nightly Bazel / verdict",
+    ):
+        errors.append(_error("AFFECTED-WORKFLOW-004", "nightly verdict job is ambiguous"))
+    job = _mapping(jobs.get("bazel-nightly")) if jobs is not None else None
+    if (
+        job is None
+        or set(job) != {"if", "name", "runs-on", "steps", "timeout-minutes"}
+        or job.get("name") != "nightly Bazel / verdict"
+        or job.get("runs-on") != "ubuntu-24.04"
+        or job.get("timeout-minutes") != 90
+    ):
+        return [*errors, _error("AFFECTED-WORKFLOW-004", "nightly Bazel job is invalid")]
+    if not _step_contract_is_exact(job, NIGHTLY_BAZEL_STEP_CONTRACT):
+        errors.append(_error("AFFECTED-WORKFLOW-009", "nightly Bazel steps drifted"))
+    if job.get("if") != "github.ref == 'refs/heads/main'" or not _checkout_is_complete(
+        job,
+        full_history=False,
+        before_step="Analyze and test the complete configured graph",
+    ):
+        errors.append(_error("AFFECTED-WORKFLOW-004", "nightly Bazel job can be bypassed"))
+    step = _named_step(job, "Analyze and test the complete configured graph")
+    if (
+        step is None
+        or set(step) != {"env", "name", "run"}
+        or step.get("env") != {"BASH_ENV": ""}
+        or _command(step.get("run")) != NIGHTLY_BAZEL_COMMAND
+    ):
+        errors.append(_error("AFFECTED-WORKFLOW-005", "nightly Bazel command is invalid"))
+    if not _uploads_are_governed(
+        job,
+        {
+            "Upload nightly Bazel evidence": {
+                "name": "bazel-nightly-${{ github.run_id }}-${{ github.run_attempt }}",
+                "path": "${{ runner.temp }}/bazel-evidence/*",
+                "if-no-files-found": "warn",
+                "retention-days": 35,
+            }
+        },
+    ):
+        errors.append(_error("AFFECTED-WORKFLOW-006", "nightly evidence retention is invalid"))
+    return errors
+
+
+def _selection_policy_errors() -> list[str]:
+    cases = (
+        ("pull_request", "refs/pull/1/merge", "0" * 40, "affected"),
+        ("merge_group", "refs/heads/gh-readonly-queue/main/pr-1", None, "full"),
+        ("push", "refs/heads/main", None, "full"),
+        ("schedule", "refs/heads/main", None, "full"),
+        ("workflow_dispatch", "refs/heads/main", None, "full"),
+    )
+    for event, ref, base_sha, expected_mode in cases:
+        try:
+            actual_mode = affected.resolve_selection_mode(
+                "auto",
+                event=event,
+                ref=ref,
+                base_sha=base_sha,
+            )
+        except affected.SelectionError:
+            return [_error("AFFECTED-WORKFLOW-008", "selection event policy is invalid")]
+        if actual_mode != expected_mode:
+            return [_error("AFFECTED-WORKFLOW-008", "selection event policy is invalid")]
+
+        alternate_mode = "full" if expected_mode == "affected" else "affected"
+        try:
+            affected.resolve_selection_mode(
+                alternate_mode,
+                event=event,
+                ref=ref,
+                base_sha=base_sha,
+            )
+        except affected.SelectionError as error:
+            if error.code != "AFFECTED-SELECT-010":
+                return [_error("AFFECTED-WORKFLOW-008", "selection event policy is invalid")]
+        else:
+            return [_error("AFFECTED-WORKFLOW-008", "selection event policy is invalid")]
+    return []
+
+
+def _presubmit_orchestration_errors() -> list[str]:
+    cases = (
+        ("pull_request", "refs/pull/1/merge", "0" * 40, "affected"),
+        ("merge_group", "refs/heads/gh-readonly-queue/main/pr-1", "", "full"),
+        ("push", "refs/heads/main", "", "full"),
+    )
+    evidence = Path("/tmp/mindclade-affected-orchestration")
+    runner_temp = Path("/tmp/mindclade-affected-runner")
+    started_file = runner_temp / "bazel-job-started"
+    started_epoch = 123
+    head = "1" * 40
+    try:
+        for event, ref, base_sha, expected_mode in cases:
+            changes = (
+                (affected.Change(status="M", path="pkg/source.py"),)
+                if expected_mode == "affected"
+                else ()
+            )
+            canonical_base = "2" * 40 if expected_mode == "affected" else None
+            selection = mock.Mock(
+                mode=expected_mode,
+                reason="orchestration_contract",
+                analysis_targets=(),
+                test_targets=(),
+            )
+            resolver = mock.Mock(return_value=expected_mode)
+            clean_checkout = mock.Mock()
+            runtime_contract = mock.sentinel.runtime_contract
+            bazelrc_contract = mock.Mock(return_value=runtime_contract)
+            started_loader = mock.Mock(return_value=started_epoch)
+            revision = mock.Mock(return_value=canonical_base)
+            changed = mock.Mock(return_value=changes)
+            selector = mock.Mock(return_value=selection)
+            executor = mock.Mock(return_value=0)
+            failure_writer = mock.Mock()
+            argv = [
+                "pipeline.py",
+                "--bazel-only",
+                "--mode",
+                "auto",
+                "--base",
+                base_sha,
+                "--event",
+                event,
+                "--ref",
+                ref,
+                "--head",
+                head,
+                "--evidence-dir",
+                str(evidence),
+                "--job-started-at-file",
+                str(started_file),
+                "--runner-temp",
+                str(runner_temp),
+            ]
+            with (
+                mock.patch.object(sys, "argv", argv),
+                mock.patch.object(
+                    presubmit_pipeline.affected,
+                    "resolve_selection_mode",
+                    resolver,
+                ),
+                mock.patch.object(
+                    presubmit_pipeline.affected,
+                    "assert_clean_checkout",
+                    clean_checkout,
+                ),
+                mock.patch.object(
+                    presubmit_pipeline.affected,
+                    "assert_bazelrc_contract",
+                    bazelrc_contract,
+                ),
+                mock.patch.object(
+                    presubmit_pipeline.affected,
+                    "load_job_started_epoch",
+                    started_loader,
+                ),
+                mock.patch.object(presubmit_pipeline.affected, "git_revision", revision),
+                mock.patch.object(presubmit_pipeline.affected, "git_changed", changed),
+                mock.patch.object(presubmit_pipeline.affected, "select", selector),
+                mock.patch.object(
+                    presubmit_pipeline.affected,
+                    "execute_selection",
+                    executor,
+                ),
+                mock.patch.object(
+                    presubmit_pipeline.affected,
+                    "write_failure_evidence",
+                    failure_writer,
+                ),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                status = presubmit_pipeline.main()
+            if status != 0:
+                raise AssertionError("status")
+            resolver.assert_called_once_with("auto", event=event, ref=ref, base_sha=base_sha)
+            clean_checkout.assert_called_once_with(head)
+            bazelrc_contract.assert_called_once_with(event, runner_temp)
+            started_loader.assert_called_once_with(started_file, runner_temp=runner_temp)
+            if expected_mode == "affected":
+                revision.assert_called_once_with(base_sha)
+                changed.assert_called_once_with(canonical_base)
+            else:
+                revision.assert_not_called()
+                changed.assert_not_called()
+            selector.assert_called_once_with(
+                changes,
+                mode=expected_mode,
+                base_sha=canonical_base,
+                event=event,
+            )
+            executor.assert_called_once_with(
+                selection,
+                evidence,
+                job_started_epoch=started_epoch,
+                runtime_contract=runtime_contract,
+            )
+            failure_writer.assert_not_called()
+
+        failure_writer = mock.Mock()
+        argv = [
+            "pipeline.py",
+            "--bazel-only",
+            "--mode",
+            "auto",
+            "--base",
+            "0" * 40,
+            "--event",
+            "pull_request",
+            "--ref",
+            "refs/pull/1/merge",
+            "--head",
+            head,
+            "--evidence-dir",
+            str(evidence),
+        ]
+        with (
+            mock.patch.object(sys, "argv", argv),
+            mock.patch.object(
+                presubmit_pipeline.affected,
+                "resolve_selection_mode",
+                side_effect=affected.SelectionError(
+                    "AFFECTED-SELECT-010", "selection mode conflicts with workflow policy"
+                ),
+            ),
+            mock.patch.object(
+                presubmit_pipeline.affected,
+                "write_failure_evidence",
+                failure_writer,
+            ),
+            contextlib.redirect_stderr(io.StringIO()),
+        ):
+            status = presubmit_pipeline.main()
+        if status != 2 or failure_writer.call_count != 1:
+            raise AssertionError("failure evidence")
+    except Exception:
+        return [_error("AFFECTED-CODE-006", "presubmit orchestration contract is invalid")]
+    return []
+
+
+def _nightly_orchestration_errors() -> list[str]:
+    evidence = Path("/tmp/mindclade-nightly-orchestration")
+    runner_temp = Path("/tmp/mindclade-nightly-runner")
+    started_file = runner_temp / "bazel-job-started"
+    started_epoch = 123
+    head = "1" * 40
+    contract = nightly_pipeline.NightlyContract(
+        mode="full",
+        analysis_targets=("//...",),
+        test_targets=("//...",),
+    )
+    try:
+        for event in ("schedule", "workflow_dispatch"):
+            selection = mock.Mock(
+                analysis_targets=("//...",),
+                test_targets=("//...",),
+            )
+            loader = mock.Mock(return_value=contract)
+            resolver = mock.Mock(return_value="full")
+            clean_checkout = mock.Mock()
+            runtime_contract = mock.sentinel.runtime_contract
+            bazelrc_contract = mock.Mock(return_value=runtime_contract)
+            started_loader = mock.Mock(return_value=started_epoch)
+            selector = mock.Mock(return_value=selection)
+            executor = mock.Mock(return_value=0)
+            failure_writer = mock.Mock()
+            argv = [
+                "pipeline.py",
+                "--event",
+                event,
+                "--ref",
+                "refs/heads/main",
+                "--head",
+                head,
+                "--evidence-dir",
+                str(evidence),
+                "--job-started-at-file",
+                str(started_file),
+                "--runner-temp",
+                str(runner_temp),
+            ]
+            with (
+                mock.patch.object(sys, "argv", argv),
+                mock.patch.object(nightly_pipeline, "load_contract", loader),
+                mock.patch.object(
+                    nightly_pipeline.affected,
+                    "resolve_selection_mode",
+                    resolver,
+                ),
+                mock.patch.object(
+                    nightly_pipeline.affected,
+                    "assert_clean_checkout",
+                    clean_checkout,
+                ),
+                mock.patch.object(
+                    nightly_pipeline.affected,
+                    "assert_bazelrc_contract",
+                    bazelrc_contract,
+                ),
+                mock.patch.object(
+                    nightly_pipeline.affected,
+                    "load_job_started_epoch",
+                    started_loader,
+                ),
+                mock.patch.object(nightly_pipeline.affected, "select", selector),
+                mock.patch.object(
+                    nightly_pipeline.affected,
+                    "execute_selection",
+                    executor,
+                ),
+                mock.patch.object(
+                    nightly_pipeline.affected,
+                    "write_failure_evidence",
+                    failure_writer,
+                ),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                status = nightly_pipeline.main()
+            if status != 0:
+                raise AssertionError("status")
+            resolver.assert_called_once_with(
+                "full", event=event, ref="refs/heads/main", base_sha=None
+            )
+            clean_checkout.assert_called_once_with(head)
+            bazelrc_contract.assert_called_once_with(event, runner_temp)
+            started_loader.assert_called_once_with(started_file, runner_temp=runner_temp)
+            selector.assert_called_once_with([], mode="full", event=event)
+            executor.assert_called_once_with(
+                selection,
+                evidence,
+                job_started_epoch=started_epoch,
+                runtime_contract=runtime_contract,
+            )
+            failure_writer.assert_not_called()
+    except Exception:
+        return [_error("AFFECTED-CODE-007", "nightly orchestration contract is invalid")]
+    return []
 
 
 def check(root: Path) -> list[str]:
     errors: list[str] = []
     affected_path = root / "ci/common/affected.py"
     pipeline_path = root / "ci/presubmit/pipeline.py"
-    affected_symbols = _top_level_symbols(affected_path)
-    affected_assignments = _top_level_assignments(affected_path)
-    pipeline_symbols = _top_level_symbols(pipeline_path)
+    try:
+        affected_symbols = _top_level_symbols(affected_path)
+        affected_assignments = _top_level_assignments(affected_path)
+        affected_imports = _imports(affected_path)
+        pipeline_symbols = _top_level_symbols(pipeline_path)
+    except (OSError, UnicodeError, SyntaxError):
+        return [_error("AFFECTED-CODE-001", "affected-selection source is unreadable")]
     for symbol in (
+        "BazelRuntimeContract",
         "Change",
         "Selection",
         "SelectionError",
+        "assert_bazelrc_contract",
+        "assert_clean_checkout",
         "bazel_query",
         "execute_selection",
         "git_changed",
         "load_global_input_contract",
+        "load_job_started_epoch",
+        "resolve_selection_mode",
+        "run_git",
         "rust_qualification_required",
         "select",
+        "trusted_git_launcher",
         "write_failure_evidence",
     ):
         if symbol not in affected_symbols:
-            errors.append(f"affected selector missing top-level {symbol}")
-    if "re" in _imports(affected_path):
-        errors.append("affected selector must not parse BUILD files with regular expressions")
-    for obsolete in ("GLOBAL_EXACT_PATHS", "GLOBAL_PREFIXES"):
-        if obsolete in affected_assignments:
-            errors.append(f"affected selector embeds obsolete global-input list {obsolete}")
+            errors.append(_error("AFFECTED-CODE-002", "affected selector interface is incomplete"))
+            break
+    if "re" in affected_imports:
+        errors.append(_error("AFFECTED-CODE-003", "affected selector uses a forbidden parser"))
+    if {"GLOBAL_EXACT_PATHS", "GLOBAL_PREFIXES"} & affected_assignments:
+        errors.append(_error("AFFECTED-CODE-004", "selector embeds mutable global inputs"))
+    if affected.GRAPH_NATIVE_AFFECTED_ACTIVE is not False:
+        errors.append(_error("AFFECTED-CODE-008", "affected workflow activation is premature"))
     if "main" not in pipeline_symbols:
-        errors.append("presubmit pipeline missing main entry point")
-
-    pipeline = pipeline_path.read_text(encoding="utf-8")
-    for contract in (
-        "--static-only",
-        "--bazel-only",
-        "--mode",
-        "--base",
-        "--evidence-dir",
-        "affected.git_changed",
-        "affected.select",
-        "affected.execute_selection",
-    ):
-        if contract not in pipeline:
-            errors.append(f"presubmit pipeline missing contract {contract}")
-
-    workflow = (root / ".github/workflows/presubmit.yml").read_text(encoding="utf-8")
-    bazel_job = _job_block(workflow, "bazel")
-    if not bazel_job:
-        errors.append("presubmit workflow missing bazel job")
-    else:
-        for contract in (
-            "name: bazel / verdict",
-            "fetch-depth: 0",
-            "ci/presubmit/pipeline.py",
-            "--bazel-only",
-            '--mode "${mode}"',
-            "github.event.pull_request.base.sha",
-            '[[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]',
-            "retention-days: 35",
-        ):
-            if contract not in bazel_job:
-                errors.append(f"presubmit Bazel job missing {contract}")
-        if "--static-only" in bazel_job:
-            errors.append("presubmit Bazel job must not invoke the static-only pipeline path")
-        for direct_full_command in ("bazelw build //...", "bazelw test //..."):
-            if direct_full_command in bazel_job:
-                errors.append(
-                    f"presubmit Bazel job bypasses selection pipeline with {direct_full_command}"
-                )
-    for event in ("pull_request:", "merge_group:"):
-        if not re.search(rf"(?m)^  {re.escape(event)}\s*$", workflow):
-            errors.append(f"presubmit workflow must declare {event[:-1]}")
+        errors.append(_error("AFFECTED-CODE-005", "presubmit pipeline entry point is missing"))
 
     contract_path = root / "ci/common/affected_global_inputs.json"
     try:
@@ -249,42 +1034,31 @@ def check(root: Path) -> list[str]:
         errors.append(str(error))
     errors.extend(_activation_errors(contract_path))
 
-    nightly_path = root / ".github/workflows/nightly.yml"
-    if not nightly_path.is_file():
-        errors.append("CPU nightly workflow is missing")
-    else:
-        nightly = nightly_path.read_text(encoding="utf-8")
-        nightly_job = _job_block(nightly, "bazel-nightly")
-        for contract in (
-            'cron: "17 5 * * *"',
-            "workflow_dispatch:",
-            "permissions:",
-            "actions: read",
-            "contents: read",
-            "timeout-minutes: 90",
-            "ci/nightly/pipeline.py",
-            "retention-days: 35",
-        ):
-            source = (
-                nightly
-                if contract
-                in {
-                    'cron: "17 5 * * *"',
-                    "workflow_dispatch:",
-                    "permissions:",
-                    "actions: read",
-                    "contents: read",
-                }
-                else nightly_job or nightly
-            )
-            if contract not in source:
-                errors.append(f"CPU nightly workflow missing {contract}")
+    workflows: dict[str, dict[str, Any]] = {}
+    try:
+        for path in sorted((root / ".github/workflows").glob("*.y*ml")):
+            workflows[path.relative_to(root).as_posix()] = parse_workflow(path)
+        presubmit = workflows[".github/workflows/presubmit.yml"]
+        errors.extend(_presubmit_workflow_errors(presubmit))
+        nightly = workflows[".github/workflows/nightly.yml"]
+        errors.extend(_nightly_workflow_errors(nightly))
+        errors.extend(_verdict_context_errors(workflows))
+    except (KeyError, WorkflowYamlError) as error:
+        if isinstance(error, WorkflowYamlError):
+            errors.append(str(error))
+        else:
+            errors.append(_error("AFFECTED-WORKFLOW-001", "workflow source is unreadable"))
+    errors.extend(_nightly_target_errors(root / "ci/nightly/targets.yaml"))
+    errors.extend(_selection_policy_errors())
+    errors.extend(_presubmit_orchestration_errors())
+    errors.extend(_nightly_orchestration_errors())
     return errors
 
 
 def main() -> int:
     errors = check(ROOT)
-    [print(error) for error in errors]
+    for error in errors:
+        print(error)
     if errors:
         return 1
     print("affected presubmit contract passed")

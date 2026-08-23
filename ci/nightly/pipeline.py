@@ -54,23 +54,47 @@ class NightlyContract:
 
 
 def load_contract(path: Path) -> NightlyContract:
-    if path.is_symlink():
-        raise ValueError(f"nightly contract must not be a symbolic link: {path}")
-    lines = [
-        line
-        for line in path.read_text(encoding="utf-8").splitlines()
-        if line.strip() and not line.lstrip().startswith("#") and line.strip() != "---"
-    ]
-    return NightlyContract.from_dict(json.loads("\n".join(lines)))
-
-
-def _job_started_epoch(path: Path | None) -> float | None:
-    if path is None:
-        return None
     try:
-        return float(path.read_text(encoding="utf-8").strip())
-    except (OSError, ValueError) as error:
-        raise affected.SelectionError(f"invalid job-start timestamp {path}: {error}") from error
+        if path.is_symlink():
+            raise OSError("symbolic link")
+        lines = [
+            line
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#") and line.strip() != "---"
+        ]
+    except (OSError, UnicodeError) as error:
+        raise affected.SelectionError(
+            "AFFECTED-SELECT-017", "nightly target contract is unreadable"
+        ) from error
+
+    def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise affected.SelectionError(
+                    "AFFECTED-SELECT-018", "nightly target contract is invalid"
+                )
+            result[key] = value
+        return result
+
+    def reject_constant(_value: str) -> None:
+        raise affected.SelectionError("AFFECTED-SELECT-018", "nightly target contract is invalid")
+
+    try:
+        payload = json.loads(
+            "\n".join(lines),
+            object_pairs_hook=unique_object,
+            parse_constant=reject_constant,
+        )
+        if not isinstance(payload, dict):
+            raise ValueError("root")
+        return NightlyContract.from_dict(payload)
+    except affected.SelectionError:
+        raise
+    except (json.JSONDecodeError, RecursionError, ValueError) as error:
+        raise affected.SelectionError(
+            "AFFECTED-SELECT-018", "nightly target contract is invalid"
+        ) from error
 
 
 def main() -> int:
@@ -78,22 +102,51 @@ def main() -> int:
     parser.add_argument("--targets", type=Path, default=Path(__file__).with_name("targets.yaml"))
     parser.add_argument("--evidence-dir", type=Path)
     parser.add_argument("--job-started-at-file", type=Path)
+    parser.add_argument("--runner-temp", type=Path)
     parser.add_argument("--event", default=os.environ.get("GITHUB_EVENT_NAME", "schedule"))
+    parser.add_argument("--ref", default=os.environ.get("GITHUB_REF"))
+    parser.add_argument("--head", default=os.environ.get("GITHUB_SHA"))
     args = parser.parse_args()
     evidence_dir = args.evidence_dir or Path(tempfile.mkdtemp(prefix="mindclade-nightly-"))
     try:
         contract = load_contract(args.targets)
-        selection = affected.select([], mode=contract.mode, event=args.event)
+        mode = affected.resolve_selection_mode(
+            contract.mode,
+            event=args.event,
+            ref=args.ref,
+            base_sha=None,
+        )
+        if not args.head:
+            raise affected.SelectionError(
+                "AFFECTED-SELECT-019", "checkout integrity validation failed"
+            )
+        if args.runner_temp is None:
+            raise affected.SelectionError(
+                "AFFECTED-SELECT-020", "Bazel runtime contract is invalid"
+            )
+        if args.job_started_at_file is None:
+            raise affected.SelectionError("AFFECTED-SELECT-014", "job-start timestamp is invalid")
+        affected.assert_clean_checkout(args.head)
+        runtime_contract = affected.assert_bazelrc_contract(args.event, args.runner_temp)
+        selection = affected.select([], mode=mode, event=args.event)
         if selection.analysis_targets != contract.analysis_targets:
-            raise affected.SelectionError("nightly analysis target contract drift")
+            raise affected.SelectionError(
+                "AFFECTED-SELECT-015", "nightly analysis target contract drifted"
+            )
         if selection.test_targets != contract.test_targets:
-            raise affected.SelectionError("nightly test target contract drift")
+            raise affected.SelectionError(
+                "AFFECTED-SELECT-015", "nightly test target contract drifted"
+            )
         return affected.execute_selection(
             selection,
             evidence_dir,
-            job_started_epoch=_job_started_epoch(args.job_started_at_file),
+            job_started_epoch=affected.load_job_started_epoch(
+                args.job_started_at_file,
+                runner_temp=args.runner_temp,
+            ),
+            runtime_contract=runtime_contract,
         )
-    except (affected.SelectionError, ValueError, json.JSONDecodeError) as error:
+    except affected.SelectionError as error:
         print(f"nightly Bazel qualification failed: {error}", file=sys.stderr)
         affected.write_failure_evidence(
             evidence_dir,

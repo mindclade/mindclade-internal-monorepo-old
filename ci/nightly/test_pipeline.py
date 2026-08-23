@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+from ci.common import affected
 from ci.nightly.pipeline import NightlyContract, load_contract
 from ci.nightly.qualify_latency import Metric, load_metric, qualify
 
@@ -45,6 +46,27 @@ def test_contract_rejects_non_full_mode(mode: object) -> None:
                 "test_targets": ["//..."],
             }
         )
+
+
+def test_contract_loader_rejects_duplicate_keys(tmp_path: Path) -> None:
+    path = tmp_path / "targets.yaml"
+    path.write_text(
+        '{"schema_version":1,"mode":"full","mode":"full",'
+        '"analysis_targets":["//..."],"test_targets":["//..."]}',
+        encoding="utf-8",
+    )
+    with pytest.raises(affected.SelectionError) as captured:
+        load_contract(path)
+    assert captured.value.code == "AFFECTED-SELECT-018"
+
+
+def test_contract_loader_redacts_invalid_utf8(tmp_path: Path) -> None:
+    path = tmp_path / "targets.yaml"
+    path.write_bytes(b"\xffsecret-nightly-content")
+    with pytest.raises(affected.SelectionError) as captured:
+        load_contract(path)
+    assert captured.value.code == "AFFECTED-SELECT-017"
+    assert "secret-nightly-content" not in str(captured.value)
 
 
 def test_latency_qualification_holds_burn_in_then_enforces_p95() -> None:

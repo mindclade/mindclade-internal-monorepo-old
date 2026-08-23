@@ -20,8 +20,8 @@ pinned tool setup, the 90-minute ceiling, and artifact retention.
 
 Loading, toolchain resolution, analysis, testing, evidence normalization, and
 contract parsing are blocking. Tests do not run after failed configured
-analysis. The 35-day evidence window covers the 28-day affected-presubmit
-latency burn-in.
+analysis. After affected mode is activated, the 35-day evidence window covers
+the 28-day affected-presubmit latency burn-in.
 
 This is CPU repository qualification only. It does not claim GPU, remote
 execution, connected providers, release publication, or deployment readiness.

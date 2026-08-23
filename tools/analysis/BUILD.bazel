@@ -58,6 +58,7 @@ pytest_test(
     name = "blueprint_scaffold_gate_test",
     srcs = ["tests/test_blueprint_scaffold_gate.py"],
     data = [":architecture_policy"],
+    deps = ["@pypi//pyyaml"],
 )
 
 py_binary(
@@ -102,8 +103,17 @@ pytest_test(
 pytest_test(
     name = "affected_presubmit_test",
     srcs = ["tests/test_affected_presubmit.py"],
-    data = ["check_affected_presubmit.py"],
-    deps = ["//ci/common:affected_contract"],
+    data = [
+        "check_affected_presubmit.py",
+        "workflow_yaml.py",
+    ],
+    deps = [
+        "@pypi//pyyaml",
+        "//ci/common:affected",
+        "//ci/common:affected_contract",
+        "//ci/nightly:pipeline_lib",
+        "//ci/presubmit:pipeline_lib",
+    ],
 )
 
 pytest_test(
@@ -221,7 +231,10 @@ py_binary(
     main = "run_architecture_checks.py",
     visibility = ["//visibility:public"],
     deps = [
+        "//ci/common:affected",
         "//ci/common:affected_contract",
+        "//ci/nightly:pipeline_lib",
+        "//ci/presubmit:pipeline_lib",
         "//configs:contract_validation",
         "//infra/observability:alert_contracts",
         "//tools/qualification:release_evidence",
