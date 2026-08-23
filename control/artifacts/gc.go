@@ -13,6 +13,24 @@ import (
 	"go.mindclade.dev/libs/go/identifiers"
 )
 
+// Nothing in this repository drives the collector. GCPolicy.Evaluate,
+// BuildGCPlan, and ValidateGCReceipt have no callers outside this package's
+// tests, and they are kept rather than deleted because they encode a safety
+// contract that is expensive to re-derive and cheap to hold: the byte plane
+// must be handed an exact observed object path and version, must report one
+// outcome per planned object, and must not substitute a digest or a path.
+//
+// Three things are missing before a driver can exist, and none of them belongs
+// in this package. Catalog cannot enumerate -- it answers per digest, so
+// nothing can produce the []GCArtifactState this file consumes. Reachability
+// is an input here, not a computation: something must count durable, release
+// evidence, and audit references, and nothing does. And Catalog has no Delete,
+// so even a completed sweep leaves the row behind; a collector that reclaimed
+// object bytes while the catalog grew forever would trade one leak for another.
+//
+// The bounds in this file are therefore written for the driver that does not
+// exist yet, not for a live path. That is deliberate: an unbounded batch is
+// invisible while nothing calls it and immediate the moment something does.
 type GCBlockReason string
 
 const (
@@ -138,7 +156,30 @@ type GCPlan struct {
 	Candidates []GCCandidate
 }
 
+// MaximumGCPlanStates bounds one BuildGCPlan batch.
+//
+// Nothing drives the collector yet (see the package note below), so this bound
+// is not load-bearing today. It is here because the moment a driver exists the
+// caller will be enumerating a catalog that only ever grows, and BuildGCPlan
+// allocates a candidate slice and a receipt-sized payload buffer proportional
+// to its input. A driver that handed it the whole catalog would build one plan
+// the byte plane then has to execute atomically, which is both an unbounded
+// allocation here and an unbounded blast radius there.
+//
+// The bound rejects rather than truncates. A truncated plan would still be a
+// well-formed plan: its PlanID would hash only the surviving candidates, and
+// ValidateGCReceipt compares receipt length against candidate length, so a
+// receipt covering the truncated set would validate cleanly. The dropped
+// objects would never be collected and nothing would say so. Rejecting makes
+// the caller page.
+const MaximumGCPlanStates = 4096
+
+// BuildGCPlan turns observed artifact state into a deterministic, bounded
+// deletion plan. The caller must page its input at MaximumGCPlanStates.
 func BuildGCPlan(policy GCPolicy, states []GCArtifactState, now time.Time) (GCPlan, error) {
+	if len(states) > MaximumGCPlanStates {
+		return GCPlan{}, invalid("gc_plan_batch_too_large", "GC plan batch exceeds the maximum states per plan", nil)
+	}
 	candidates := make([]GCCandidate, 0, len(states))
 	for _, state := range states {
 		if err := state.Ref.Validate(); err != nil {

@@ -5,8 +5,8 @@ layer *n* or below. `layers.json` is the machine-readable assignment and
 `tools/analysis/check_rust_package_manifest.py` gates both the assignment and the direction
 against the Cargo manifests, so this list and that file cannot drift apart.
 
-- Layer 0: `faults`, `content_digest`, `runtime_core`, `bytes_io`, `process_os`
-- Layer 1: `identifiers`, `atomic_fs`, `telemetry`, `bounded_parse`
+- Layer 0: `faults`, `content_digest`, `runtime_core`, `bytes_io`, `process_os`, `sandbox_os`
+- Layer 1: `identifiers`, `atomic_fs`, `telemetry`, `bounded_parse`, `config`
 - Layer 2: `record_io`, `manifests`, `object_store`, `tokenizer_runtime`, `bio_formats`
 - Layer 3: `artifact_cas`, `checkpoint_io`, `data_stream`, `ipc`, `ipc_os`, `servicekit`, `telemetry_spool`, `worker_protocol`, `gpu_host`
 - Layer 4: `worker_runtime`, `python_bridge`

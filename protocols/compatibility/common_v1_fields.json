@@ -1,0 +1,145 @@
+{
+  "mindclade.common.v1.ArtifactLocation": {
+    "1": {
+      "label": "singular",
+      "name": "artifact",
+      "type": "ArtifactRef"
+    },
+    "2": {
+      "label": "singular",
+      "name": "provider",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "uri",
+      "type": "string"
+    },
+    "4": {
+      "label": "singular",
+      "name": "generation",
+      "type": "string"
+    },
+    "5": {
+      "label": "singular",
+      "name": "region",
+      "type": "string"
+    }
+  },
+  "mindclade.common.v1.ArtifactRef": {
+    "1": {
+      "label": "singular",
+      "name": "digest",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "size_bytes",
+      "type": "uint64"
+    },
+    "3": {
+      "label": "singular",
+      "name": "media_type",
+      "type": "string"
+    },
+    "4": {
+      "label": "singular",
+      "name": "logical_kind",
+      "type": "string"
+    },
+    "5": {
+      "label": "singular",
+      "name": "schema_version",
+      "type": "uint32"
+    }
+  },
+  "mindclade.common.v1.ContentDigest": {
+    "1": {
+      "label": "singular",
+      "name": "algorithm",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "value",
+      "type": "bytes"
+    }
+  },
+  "mindclade.common.v1.ErrorDetail": {
+    "1": {
+      "label": "singular",
+      "name": "code",
+      "type": "ErrorCode"
+    },
+    "2": {
+      "label": "singular",
+      "name": "message",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "request_id",
+      "type": "string"
+    },
+    "4": {
+      "label": "repeated",
+      "name": "field_violations",
+      "type": "FieldViolation"
+    },
+    "5": {
+      "label": "optional",
+      "name": "retry_after_millis",
+      "type": "uint64"
+    },
+    "6": {
+      "label": "singular",
+      "name": "retry_kind",
+      "type": "RetryKind"
+    }
+  },
+  "mindclade.common.v1.FieldViolation": {
+    "1": {
+      "label": "singular",
+      "name": "field",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "description",
+      "type": "string"
+    }
+  },
+  "mindclade.common.v1.PageRequest": {
+    "1": {
+      "label": "singular",
+      "name": "page_size",
+      "type": "int32"
+    },
+    "2": {
+      "label": "singular",
+      "name": "page_token",
+      "type": "string"
+    }
+  },
+  "mindclade.common.v1.PageResponse": {
+    "1": {
+      "label": "singular",
+      "name": "next_page_token",
+      "type": "string"
+    }
+  },
+  "mindclade.common.v1.ResourceId": {
+    "1": {
+      "label": "singular",
+      "name": "value",
+      "type": "string"
+    }
+  },
+  "mindclade.common.v1.ResourceVersion": {
+    "1": {
+      "label": "singular",
+      "name": "value",
+      "type": "string"
+    }
+  }
+}

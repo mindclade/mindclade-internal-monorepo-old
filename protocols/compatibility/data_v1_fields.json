@@ -1,0 +1,202 @@
+{
+  "mindclade.data.v1.CanonicalRecord": {
+    "1": {
+      "label": "singular",
+      "name": "digest",
+      "type": "mindclade.common.v1.ContentDigest"
+    },
+    "2": {
+      "label": "singular",
+      "name": "source_record_digest",
+      "type": "mindclade.common.v1.ContentDigest"
+    },
+    "3": {
+      "label": "singular",
+      "name": "values_artifact_digest",
+      "type": "mindclade.common.v1.ContentDigest"
+    },
+    "4": {
+      "label": "singular",
+      "name": "schema_version",
+      "type": "uint32"
+    }
+  },
+  "mindclade.data.v1.Dataset": {
+    "1": {
+      "label": "singular",
+      "name": "id",
+      "type": "mindclade.common.v1.ResourceId"
+    },
+    "10": {
+      "label": "singular",
+      "name": "lineage_summary",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "name",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "version",
+      "type": "string"
+    },
+    "4": {
+      "label": "singular",
+      "name": "manifest_digest",
+      "type": "mindclade.common.v1.ContentDigest"
+    },
+    "5": {
+      "label": "singular",
+      "name": "record_count",
+      "type": "uint64"
+    },
+    "6": {
+      "label": "singular",
+      "name": "size_bytes",
+      "type": "uint64"
+    },
+    "7": {
+      "label": "singular",
+      "name": "created_at",
+      "type": "google.protobuf.Timestamp"
+    },
+    "8": {
+      "label": "singular",
+      "name": "status",
+      "type": "DatasetStatus"
+    },
+    "9": {
+      "label": "singular",
+      "name": "license",
+      "type": "string"
+    }
+  },
+  "mindclade.data.v1.DatasetShard": {
+    "1": {
+      "label": "singular",
+      "name": "shard_id",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "ordinal",
+      "type": "uint32"
+    },
+    "3": {
+      "label": "singular",
+      "name": "record_count",
+      "type": "uint64"
+    },
+    "4": {
+      "label": "singular",
+      "name": "artifact",
+      "type": "mindclade.common.v1.ArtifactRef"
+    },
+    "5": {
+      "label": "singular",
+      "name": "index_digest",
+      "type": "mindclade.common.v1.ContentDigest"
+    }
+  },
+  "mindclade.data.v1.GetDatasetRequest": {
+    "1": {
+      "label": "singular",
+      "name": "dataset_id",
+      "type": "mindclade.common.v1.ResourceId"
+    }
+  },
+  "mindclade.data.v1.GetDatasetResponse": {
+    "1": {
+      "label": "singular",
+      "name": "dataset",
+      "type": "Dataset"
+    }
+  },
+  "mindclade.data.v1.ListDatasetsRequest": {
+    "1": {
+      "label": "singular",
+      "name": "page",
+      "type": "mindclade.common.v1.PageRequest"
+    }
+  },
+  "mindclade.data.v1.ListDatasetsResponse": {
+    "1": {
+      "label": "repeated",
+      "name": "datasets",
+      "type": "Dataset"
+    },
+    "2": {
+      "label": "singular",
+      "name": "page",
+      "type": "mindclade.common.v1.PageResponse"
+    }
+  },
+  "mindclade.data.v1.SourceCursor": {
+    "1": {
+      "label": "singular",
+      "name": "value",
+      "type": "bytes"
+    },
+    "2": {
+      "label": "singular",
+      "name": "sequence",
+      "type": "uint64"
+    }
+  },
+  "mindclade.data.v1.SourceSnapshot": {
+    "1": {
+      "label": "singular",
+      "name": "snapshot_id",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "source",
+      "type": "SourceSpec"
+    },
+    "3": {
+      "label": "singular",
+      "name": "raw_artifact",
+      "type": "mindclade.common.v1.ArtifactRef"
+    },
+    "4": {
+      "label": "singular",
+      "name": "cursor",
+      "type": "SourceCursor"
+    },
+    "5": {
+      "label": "singular",
+      "name": "observed_at",
+      "type": "google.protobuf.Timestamp"
+    }
+  },
+  "mindclade.data.v1.SourceSpec": {
+    "1": {
+      "label": "singular",
+      "name": "source_id",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "kind",
+      "type": "SourceKind"
+    },
+    "3": {
+      "label": "singular",
+      "name": "locator",
+      "type": "string"
+    },
+    "4": {
+      "label": "singular",
+      "name": "version",
+      "type": "string"
+    },
+    "5": {
+      "label": "singular",
+      "name": "license",
+      "type": "string"
+    }
+  }
+}

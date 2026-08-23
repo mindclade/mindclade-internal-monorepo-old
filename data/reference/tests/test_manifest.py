@@ -25,7 +25,7 @@ DIGESTS = tuple("sha256:" + character * 64 for character in "abcd")
 
 
 def snapshot() -> ReferenceSnapshot:
-    artifact = ArtifactRef(DIGESTS[1], 100, "application/octet-stream", "reference-index", "v1")
+    artifact = ArtifactRef(DIGESTS[1], 100, "application/octet-stream", "reference-index", 1)
     return ReferenceSnapshot(
         "uniref",
         "2026-08",

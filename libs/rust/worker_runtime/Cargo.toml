@@ -13,5 +13,6 @@ license.workspace=true
 mindclade_worker_protocol={path="../worker_protocol"}
 mindclade_faults={path="../faults"}
 mindclade_runtime_core={path="../runtime_core"}
+mindclade_sandbox_os={path="../sandbox_os"}
 [lints]
 workspace=true

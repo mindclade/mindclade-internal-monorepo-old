@@ -10,6 +10,7 @@
     "atomic_fs": 1,
     "telemetry": 1,
     "bounded_parse": 1,
+    "config": 1,
     "record_io": 2,
     "manifests": 2,
     "object_store": 2,
@@ -25,7 +26,8 @@
     "worker_protocol": 3,
     "gpu_host": 3,
     "worker_runtime": 4,
-    "python_bridge": 4
+    "python_bridge": 4,
+    "sandbox_os": 0
   },
   "compatibility_only": []
 }

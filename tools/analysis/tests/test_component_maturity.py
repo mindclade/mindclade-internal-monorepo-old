@@ -321,3 +321,45 @@ def test_repository_control_and_libs_go_packages_are_all_declared() -> None:
     components = tomllib.loads((ROOT / "components.toml").read_text())["component"]
     declared = sorted({c["path"] for c in components if c.get("path")})
     assert maturity._undeclared_go_packages(ROOT, declared) == []
+
+
+def test_a_governed_root_can_be_narrower_than_a_top_level_directory(monkeypatch, tmp_path) -> None:
+    # The entries are path prefixes, not top-level directories. That is what lets `services/`
+    # be governed for the deployables whose owners have made a declaration decision without
+    # claiming the whole directory is covered — the distinction between an allowlist of what
+    # IS governed and a denylist of paths waved through a check that says it covers them.
+    root = _repository(tmp_path)
+    _go(
+        root / "services/go_vanity/internal/vanity/vanity.go",
+        "package vanity\n\nfunc Handler() error { return nil }\n",
+    )
+    _go(
+        root / "services/control_plane/internal/config/config.go",
+        "package config\n\nfunc Load() error { return nil }\n",
+    )
+    monkeypatch.setattr(maturity, "_GO_DECLARATION_GOVERNED_ROOTS", ("services/go_vanity",))
+    errors = maturity._undeclared_go_packages(root, [])
+    assert [e.split(":")[0] for e in errors] == ["services/go_vanity/internal/vanity"]
+
+
+def test_services_control_plane_is_a_measured_gap_not_an_assumed_one(monkeypatch) -> None:
+    # The one Go deployable under services/ that is NOT governed, asserted against the real
+    # tree rather than described in a comment. It is undeclared because
+    # check_component_ownership.py requires an SLO for any tier-0/tier-1 component at
+    # `implemented` or above and docs/slo/ has no control-plane page; recording it tier-2 to
+    # clear that gate would be choosing a criticality to pass a check.
+    #
+    # DELETE THIS TEST when that SLO is written and the component is declared. It failing
+    # because control_plane became declared is the ratchet working, not a regression.
+    import tomllib
+
+    roots = maturity._GO_DECLARATION_GOVERNED_ROOTS
+    assert "services/go_vanity" in roots and "services/studio" in roots
+    assert "services" not in roots and "services/control_plane" not in roots
+
+    components = tomllib.loads((ROOT / "components.toml").read_text())["component"]
+    declared = sorted({c["path"] for c in components if c.get("path")})
+    monkeypatch.setattr(maturity, "_GO_DECLARATION_GOVERNED_ROOTS", ("services/control_plane",))
+    undeclared = maturity._undeclared_go_packages(ROOT, declared)
+    assert undeclared, "services/control_plane is declared; delete this test and govern services"
+    assert all(e.startswith("services/control_plane/") for e in undeclared)

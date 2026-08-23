@@ -176,14 +176,36 @@ allowed_prefixes = ["go.mindclade.dev/libs/go/", "go.mindclade.dev/services/stud
 forbidden_prefixes = ["go.mindclade.dev/services/control_plane/", "go.mindclade.dev/control/"]
 
 [[budget]]
+path = "libs/rust/config"
+language = "rust"
+# The configuration foundation reaches nothing but the fault taxonomy and the
+# SHA-256 boundary. It is deliberately narrow: a config crate that can reach
+# transports or providers becomes the place service-specific behavior hides.
+allowed_prefixes = ["mindclade_content_digest", "mindclade_faults"]
+
+[[budget]]
 path = "libs/rust/runtime_core"
 language = "rust"
 allowed_prefixes = ["mindclade_faults", "mindclade_content_digest"]
 
 [[budget]]
+path = "libs/rust/sandbox_os"
+language = "rust"
+# A kernel-confinement leaf. Its whole value is that it is reachable from any
+# layer without dragging anything behind it, so the allowlist is the taxonomy
+# crate and nothing else. Widening this is the signal that policy construction
+# has started living here instead of at the composition root that owns it.
+allowed_prefixes = ["mindclade_faults"]
+
+[[budget]]
 path = "libs/rust/worker_runtime"
 language = "rust"
-allowed_prefixes = ["mindclade_faults", "mindclade_runtime_core", "mindclade_worker_protocol"]
+allowed_prefixes = [
+    "mindclade_faults",
+    "mindclade_runtime_core",
+    "mindclade_sandbox_os",
+    "mindclade_worker_protocol",
+]
 
 # The telemetry pair is budgeted as a pair, because the edge between them only
 # holds in one direction. `telemetry` is Layer 1 and `telemetry_spool` is Layer
@@ -221,12 +243,12 @@ allowed_prefixes = ["mindclade_content_digest", "mindclade_faults", "mindclade_i
 [[budget]]
 path = "services/ai_gateway_proxy"
 language = "rust"
-allowed_prefixes = ["mindclade_content_digest", "mindclade_faults", "mindclade_telemetry"]
+allowed_prefixes = ["mindclade_config", "mindclade_content_digest", "mindclade_faults", "mindclade_telemetry"]
 
 [[budget]]
 path = "services/runtime_host"
 language = "rust"
-allowed_prefixes = ["mindclade_bytes_io", "mindclade_faults", "mindclade_gpu_host", "mindclade_ipc", "mindclade_ipc_os", "mindclade_process_os", "mindclade_protocols", "mindclade_runtime_core", "mindclade_servicekit", "mindclade_serving_runtime", "mindclade_telemetry", "mindclade_worker_protocol", "mindclade_worker_runtime"]
+allowed_prefixes = ["mindclade_bytes_io", "mindclade_config", "mindclade_faults", "mindclade_gpu_host", "mindclade_ipc", "mindclade_ipc_os", "mindclade_process_os", "mindclade_protocols", "mindclade_runtime_core", "mindclade_servicekit", "mindclade_serving_runtime", "mindclade_telemetry", "mindclade_worker_protocol", "mindclade_worker_runtime"]
 
 # ---------------------------------------------------------------------------
 # TypeScript

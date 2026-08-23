@@ -11,24 +11,27 @@
 #![forbid(unsafe_code)]
 
 pub mod access;
+pub mod bootstrap;
 pub mod cache;
 pub mod config;
+pub mod dependencies;
 pub mod grants;
 pub mod health;
 pub mod lifecycle;
+pub mod operations;
 pub mod provider;
 pub mod ranges;
 pub mod server;
 pub mod signing;
 pub mod telemetry;
 pub mod transfer;
-pub mod verification;
 pub use access::AccessContext;
 pub use cache::{CacheEntry, LocalCache};
 pub use config::ProxyConfig;
+pub use dependencies::ObjectStoreProbe;
 pub use grants::ValidatedGrant;
 pub use health::{ProxyHealth, ProxyHealthSnapshot};
-pub use lifecycle::ArtifactProxyComponent;
+pub use lifecycle::{ArtifactProxyComponent, ObjectStoreComponent};
 pub use provider::ProviderArtifacts;
 pub use ranges::RangeRequest;
 pub use server::{ArtifactProxyCore, ReadResult, WriteResult};

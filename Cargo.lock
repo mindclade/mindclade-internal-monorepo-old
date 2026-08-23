@@ -1041,6 +1041,7 @@ dependencies = [
  "base64",
  "bytes",
  "futures-util",
+ "mindclade_config",
  "mindclade_content_digest",
  "mindclade_faults",
  "mindclade_telemetry",
@@ -1056,6 +1057,7 @@ dependencies = [
 name = "mindclade-artifact-proxy"
 version = "0.0.0"
 dependencies = [
+ "axum",
  "bytes",
  "mindclade_artifact_cas",
  "mindclade_bytes_io",
@@ -1069,6 +1071,7 @@ dependencies = [
  "mindclade_telemetry",
  "mindclade_worker_protocol",
  "tokio",
+ "tower",
 ]
 
 [[package]]
@@ -1086,6 +1089,7 @@ dependencies = [
 name = "mindclade-node-agent"
 version = "0.0.0"
 dependencies = [
+ "axum",
  "bytes",
  "mindclade_artifact_cas",
  "mindclade_bytes_io",
@@ -1104,6 +1108,7 @@ dependencies = [
  "mindclade_worker_protocol",
  "mindclade_worker_runtime",
  "tokio",
+ "tower",
 ]
 
 [[package]]
@@ -1137,6 +1142,7 @@ dependencies = [
  "hyper-util",
  "mindclade-serving-runtime",
  "mindclade_bytes_io",
+ "mindclade_config",
  "mindclade_content_digest",
  "mindclade_faults",
  "mindclade_gpu_host",
@@ -1239,6 +1245,14 @@ dependencies = [
  "mindclade_object_store",
  "mindclade_record_io",
  "mindclade_runtime_core",
+]
+
+[[package]]
+name = "mindclade_config"
+version = "0.0.0"
+dependencies = [
+ "mindclade_content_digest",
+ "mindclade_faults",
 ]
 
 [[package]]
@@ -1389,6 +1403,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "mindclade_sandbox_os"
+version = "0.0.0"
+dependencies = [
+ "libc",
+ "mindclade_faults",
+ "seccompiler",
+]
+
+[[package]]
 name = "mindclade_servicekit"
 version = "0.0.0"
 dependencies = [
@@ -1448,6 +1471,7 @@ version = "0.0.0"
 dependencies = [
  "mindclade_faults",
  "mindclade_runtime_core",
+ "mindclade_sandbox_os",
  "mindclade_worker_protocol",
 ]
 
@@ -2114,6 +2138,15 @@ name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
+
+[[package]]
+name = "seccompiler"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4ae55de56877481d112a559bbc12667635fdaf5e005712fd4e2b2fa50ffc884"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "security-framework"

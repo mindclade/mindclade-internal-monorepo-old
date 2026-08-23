@@ -4,7 +4,7 @@ Generated from the Cargo manifests by
 `tools/analysis/check_rust_package_manifest.py --write`, which also gates it. Edit the
 crate `Cargo.toml` files, `layers.json`, or `stability.json` — not this table.
 
-Production crates: **25**  
+Production crates: **27**  
 Compatibility crates: **0**
 
 | Package | Layer | Status | Direct internal dependencies |
@@ -14,8 +14,10 @@ Compatibility crates: **0**
 | `faults` | 0 | stable | — |
 | `process_os` | 0 | evolving | `faults` |
 | `runtime_core` | 0 | stable | `content_digest`, `faults` |
+| `sandbox_os` | 0 | evolving | `faults` |
 | `atomic_fs` | 1 | stable | `content_digest`, `faults`, `identifiers`, `runtime_core` |
 | `bounded_parse` | 1 | stable | `bytes_io`, `faults` |
+| `config` | 1 | evolving | `content_digest`, `faults` |
 | `identifiers` | 1 | stable | `content_digest`, `faults`, `runtime_core` |
 | `telemetry` | 1 | stable | `faults`, `identifiers`, `runtime_core` |
 | `bio_formats` | 2 | stable | `bounded_parse`, `faults` |
@@ -33,7 +35,7 @@ Compatibility crates: **0**
 | `telemetry_spool` | 3 | evolving | `atomic_fs`, `bytes_io`, `faults`, `identifiers`, `record_io`, `runtime_core`, `telemetry` |
 | `worker_protocol` | 3 | evolving | `bytes_io`, `content_digest`, `faults`, `identifiers`, `runtime_core` |
 | `python_bridge` | 4 | evolving | `artifact_cas`, `bio_formats`, `bounded_parse`, `bytes_io`, `content_digest`, `data_stream`, `faults`, `ipc`, `manifests`, `tokenizer_runtime`, `worker_protocol` |
-| `worker_runtime` | 4 | evolving | `faults`, `runtime_core`, `worker_protocol` |
+| `worker_runtime` | 4 | evolving | `faults`, `runtime_core`, `sandbox_os`, `worker_protocol` |
 
 Layer 5 is the compatibility tier. It is empty: the 2026-08 epoch crates were removed,
 not deprecated. See `MIGRATION_2026_08.md` for the replacement mechanism of each one.

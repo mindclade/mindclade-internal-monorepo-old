@@ -8,6 +8,7 @@
 #![forbid(unsafe_code)]
 
 pub mod commit;
+pub mod confinement;
 pub mod diagnostics;
 pub mod drain;
 pub mod heartbeat;
@@ -19,6 +20,7 @@ pub mod supervisor;
 use diagnostics::DiagnosticSnapshot;
 use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_runtime_core::{Budget, CancellationToken, FencingToken, Reservation};
+use mindclade_sandbox_os::{Confinement, SandboxRequest};
 use mindclade_worker_protocol::{
     ExecutionTicket, RevocationSnapshot, SignatureVerifier, WorkerState,
 };
@@ -71,9 +73,43 @@ impl WorkerRuntime {
     pub fn cancellation_token(&self) -> CancellationToken {
         self.cancellation.clone()
     }
+    /// Start unconfined.
+    ///
+    /// Equivalent to `start_confined(&SandboxRequest::Disabled)`. Routed through
+    /// the same path deliberately: running without kernel confinement is a
+    /// decision that should be spelled somewhere, and this is the spelling.
     pub fn start(&self) -> FaultResult<()> {
+        self.start_confined(&SandboxRequest::Disabled).map(|_| ())
+    }
+    /// Install kernel-enforced syscall confinement, then start.
+    ///
+    /// The filter is installed between `Starting` and `Ready`, which is the last
+    /// moment before the worker can lease a ticket and the first moment the
+    /// process exists at all. seccomp filters are inherited across `clone` and
+    /// `execve` and can never be relaxed, so this call confines everything the
+    /// worker does afterwards, including any child it spawns.
+    ///
+    /// Fails closed. If `request` is [`SandboxRequest::Required`] and the filter
+    /// cannot be installed — non-Linux host, unresolvable syscall, kernel
+    /// refusal — the worker transitions to `Failed` rather than `Ready` and the
+    /// fault is returned. It never reports success for a filter that is not in
+    /// force, because a supervisor that believed otherwise would route untrusted
+    /// input to an unconfined process.
+    pub fn start_confined(&self, request: &SandboxRequest) -> FaultResult<Confinement> {
         self.transition(WorkerState::Starting)?;
-        self.transition(WorkerState::Ready)
+        match mindclade_sandbox_os::install(request) {
+            Ok(confinement) => {
+                self.transition(WorkerState::Ready)?;
+                Ok(confinement)
+            }
+            Err(fault) => {
+                // Recorded in the state machine, not just returned: a caller that
+                // drops the error must still not find a worker sitting in
+                // `Starting` that a later `start()` could walk to `Ready`.
+                self.transition(WorkerState::Failed)?;
+                Err(fault)
+            }
+        }
     }
     /// Validate and claim an execution ticket, atomically installing the node
     /// resource reservation before the worker becomes visible as `Leased`.

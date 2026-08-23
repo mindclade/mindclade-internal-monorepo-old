@@ -11,12 +11,14 @@
 //! this module owns only node-local execution state.
 
 use crate::async_ipc::{self, AsyncControlSession, AsyncControlSessionFactory};
+use crate::config;
 use crate::grpc::{self, WorkerControlService};
 use crate::protocol;
 use crate::{
     HostAuthority, HostComponent, HostConfig, HostCore, HostHealth, ModelSpec, ProcessSpec,
     StdProcessLauncher,
 };
+use mindclade_config::{EnvSource, Snapshot};
 use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_gpu_host::DeviceCapability;
 use mindclade_protocols::runtime::v1 as wire;
@@ -27,7 +29,6 @@ use mindclade_worker_protocol::Digest;
 use mindclade_worker_protocol::{Ed25519VerificationKey, WorkerState, WorkerStatus};
 use prost::Message;
 use std::collections::BTreeMap;
-use std::env;
 use std::future::Future;
 use std::io::Read;
 use std::path::PathBuf;
@@ -39,6 +40,7 @@ use tokio::sync::watch;
 
 const MAX_POLICY_FILE_BYTES: u64 = 16 * 1024 * 1024;
 const MAX_SOCKET_PATH_BYTES: usize = 100;
+const MAX_KEY_ID_BYTES: usize = 256;
 
 #[derive(Clone, Debug)]
 pub struct BootstrapConfig {
@@ -58,58 +60,77 @@ pub struct BootstrapConfig {
 }
 
 impl BootstrapConfig {
+    /// Resolves the bootstrap configuration from the process environment.
     pub fn from_env() -> FaultResult<Self> {
-        let socket_path = absolute_path("MINDCLADE_RUNTIME_HOST_SOCKET")?;
-        if socket_path.as_os_str().as_encoded_bytes().len() > MAX_SOCKET_PATH_BYTES {
-            return Err(Fault::invalid_argument(
-                "runtime-host socket path exceeds platform bound",
-            ));
-        }
-        let grpc_socket_path = absolute_path("MINDCLADE_RUNTIME_HOST_GRPC_SOCKET")?;
-        if grpc_socket_path == socket_path
-            || grpc_socket_path.as_os_str().as_encoded_bytes().len() > MAX_SOCKET_PATH_BYTES
-        {
+        Self::resolve(&EnvSource::process())
+    }
+
+    /// Resolves from an explicit variable table.
+    ///
+    /// The composition root uses [`BootstrapConfig::from_env`]. This exists so
+    /// `tests/settings.rs` can pin the environment contract without
+    /// `std::env::set_var`, which edition 2024 gates behind an audited block
+    /// and which races every other test sharing the process.
+    pub fn from_variables(variables: BTreeMap<String, String>) -> FaultResult<Self> {
+        Self::resolve(&EnvSource::from_table(variables))
+    }
+
+    /// Order here is the pre-migration order, deliberately. When several
+    /// settings are wrong at once the operator sees the same one reported first
+    /// as before, and a startup-failure runbook keyed to that stays correct.
+    fn resolve(lookup: &EnvSource) -> FaultResult<Self> {
+        let settings = config::bind(lookup.clone());
+        let snapshot = config::catalog()?.load(&[&settings])?;
+
+        let socket_path = bounded_socket_path(
+            &snapshot,
+            "host.socket",
+            "runtime-host socket path exceeds platform bound",
+        )?;
+        let grpc_socket_path = bounded_socket_path(
+            &snapshot,
+            "host.grpc.socket",
+            "runtime-host gRPC socket path is invalid",
+        )?;
+        if grpc_socket_path == socket_path {
             return Err(Fault::invalid_argument(
                 "runtime-host gRPC socket path is invalid",
             ));
         }
-        let key_id = required("MINDCLADE_RUNTIME_KEY_ID")?;
-        if key_id.len() > 256 {
+        let key_id = snapshot.string("key.id")?;
+        if key_id.len() > MAX_KEY_ID_BYTES {
             return Err(Fault::invalid_argument("runtime key id exceeds bound"));
         }
-        let public_key = decode_32_byte_hex(&required("MINDCLADE_RUNTIME_PUBLIC_KEY_HEX")?)?;
-        let key_not_before_unix_millis = parse_u64("MINDCLADE_RUNTIME_KEY_NOT_BEFORE_MS")?;
-        let key_not_after_unix_millis = parse_u64("MINDCLADE_RUNTIME_KEY_NOT_AFTER_MS")?;
+        let public_key = decode_32_byte_hex(snapshot.raw("key.public.hex")?)?;
+        let key_not_before_unix_millis = snapshot.u64("key.not.before.ms")?;
+        let key_not_after_unix_millis = snapshot.u64("key.not.after.ms")?;
         if key_not_before_unix_millis >= key_not_after_unix_millis {
             return Err(Fault::invalid_argument(
                 "runtime verification-key validity window is invalid",
             ));
         }
-        let revocation_snapshot_path = absolute_path("MINDCLADE_RUNTIME_REVOCATION_SNAPSHOT_FILE")?;
-        let minimum_policy_epoch = parse_positive_u64("MINDCLADE_RUNTIME_MIN_POLICY_EPOCH")?;
-        let minimum_route_version = parse_positive_u64("MINDCLADE_RUNTIME_MIN_ROUTE_VERSION")?;
-        let minimum_revocation_epoch =
-            parse_positive_u64("MINDCLADE_RUNTIME_MIN_REVOCATION_EPOCH")?;
+        let revocation_snapshot_path = snapshot.absolute_path("revocation.snapshot.file")?;
+        let minimum_policy_epoch = snapshot.u64_positive("min.policy.epoch")?;
+        let minimum_route_version = snapshot.u64_positive("min.route.version")?;
+        let minimum_revocation_epoch = snapshot.u64_positive("min.revocation.epoch")?;
 
         let host = HostConfig {
-            maximum_processes: parse_positive_u32("MINDCLADE_RUNTIME_MAX_PROCESSES")?,
-            maximum_model_slots: parse_positive_u32("MINDCLADE_RUNTIME_MAX_MODEL_SLOTS")?,
-            maximum_input_buffers: parse_positive_usize("MINDCLADE_RUNTIME_MAX_INPUT_BUFFERS")?,
-            maximum_control_payload_bytes: parse_positive_u64(
-                "MINDCLADE_RUNTIME_MAX_CONTROL_BYTES",
-            )?,
-            node_resources: node_resources_from_env()?,
+            maximum_processes: snapshot.u32_positive("max.processes")?,
+            maximum_model_slots: snapshot.u32_positive("max.model.slots")?,
+            maximum_input_buffers: snapshot.usize_positive("max.input.buffers")?,
+            maximum_control_payload_bytes: snapshot.u64_positive("max.control.bytes")?,
+            node_resources: node_resources(&snapshot)?,
         };
         host.validate()?;
 
         let gpu = DeviceCapability {
-            vendor: required("MINDCLADE_RUNTIME_GPU_VENDOR")?,
-            architecture: required("MINDCLADE_RUNTIME_GPU_ARCH")?,
-            total_memory_bytes: parse_positive_u64("MINDCLADE_RUNTIME_GPU_MEMORY_BYTES")?,
+            vendor: snapshot.string("gpu.vendor")?,
+            architecture: snapshot.string("gpu.arch")?,
+            total_memory_bytes: snapshot.u64_positive("gpu.memory.bytes")?,
         };
         gpu.validate()?;
 
-        let preloaded_model = model_spec_from_env()?;
+        let preloaded_model = model_spec(lookup, &snapshot)?;
         Ok(Self {
             socket_path,
             grpc_socket_path,
@@ -126,6 +147,19 @@ impl BootstrapConfig {
             preloaded_model,
         })
     }
+}
+
+/// An absolute path that also fits the platform's `sun_path` limit.
+fn bounded_socket_path(
+    snapshot: &Snapshot,
+    key: &str,
+    message: &'static str,
+) -> FaultResult<PathBuf> {
+    let path = snapshot.absolute_path(key)?;
+    if path.as_os_str().as_encoded_bytes().len() > MAX_SOCKET_PATH_BYTES {
+        return Err(Fault::invalid_argument(message));
+    }
+    Ok(path)
 }
 
 pub async fn run(config: BootstrapConfig) -> FaultResult<()> {
@@ -539,86 +573,105 @@ fn validate_reason_deadline(reason: &str, deadline: u64, now: u64) -> FaultResul
     Ok(())
 }
 
-fn node_resources_from_env() -> FaultResult<ResourceVector> {
+fn node_resources(snapshot: &Snapshot) -> FaultResult<ResourceVector> {
+    // The optional capacities default to zero, which `ResourceVector` reads as
+    // "unconstrained". They are declared with defaults rather than read as
+    // `Option` so the whole node envelope stays visible in the catalog.
     Ok(ResourceVector::new()
         .set(
             ResourceKind::CpuMillis,
-            parse_positive_u64("MINDCLADE_RUNTIME_NODE_CPU_MILLIS")?,
+            snapshot.u64_positive("node.cpu.millis")?,
         )
         .set(
             ResourceKind::ResidentMemoryBytes,
-            parse_positive_u64("MINDCLADE_RUNTIME_NODE_MEMORY_BYTES")?,
+            snapshot.u64_positive("node.memory.bytes")?,
         )
         .set(
             ResourceKind::PinnedMemoryBytes,
-            parse_optional_u64("MINDCLADE_RUNTIME_NODE_PINNED_MEMORY_BYTES")?,
+            snapshot.u64("node.pinned.memory.bytes")?,
         )
         .set(
             ResourceKind::SharedMemoryBytes,
-            parse_optional_u64("MINDCLADE_RUNTIME_NODE_SHARED_MEMORY_BYTES")?,
+            snapshot.u64("node.shared.memory.bytes")?,
         )
         .set(
             ResourceKind::LocalDiskBytes,
-            parse_optional_u64("MINDCLADE_RUNTIME_NODE_DISK_BYTES")?,
+            snapshot.u64("node.disk.bytes")?,
         )
         .set(
             ResourceKind::OpenFileDescriptors,
-            parse_positive_u64("MINDCLADE_RUNTIME_NODE_OPEN_FDS")?,
+            snapshot.u64_positive("node.open.fds")?,
         )
         .set(
             ResourceKind::ObjectStoreRequests,
-            parse_optional_u64("MINDCLADE_RUNTIME_NODE_OBJECT_REQUESTS")?,
+            snapshot.u64("node.object.requests")?,
         )
         .set(
             ResourceKind::QueuedRequests,
-            parse_optional_u64("MINDCLADE_RUNTIME_NODE_QUEUED_REQUESTS")?,
+            snapshot.u64("node.queued.requests")?,
         )
         .set(
             ResourceKind::Processes,
-            parse_positive_u64("MINDCLADE_RUNTIME_NODE_PROCESSES")?,
+            snapshot.u64_positive("node.processes")?,
         )
         .set(
             ResourceKind::CpuThreads,
-            parse_positive_u64("MINDCLADE_RUNTIME_NODE_CPU_THREADS")?,
+            snapshot.u64_positive("node.cpu.threads")?,
         )
         .set(
             ResourceKind::GpuMemoryEstimateBytes,
-            parse_positive_u64("MINDCLADE_RUNTIME_NODE_GPU_MEMORY_BYTES")?,
+            snapshot.u64_positive("node.gpu.memory.bytes")?,
         )
         .set(
             ResourceKind::CheckpointStagingBytes,
-            parse_optional_u64("MINDCLADE_RUNTIME_NODE_CHECKPOINT_STAGING_BYTES")?,
+            snapshot.u64("node.checkpoint.staging.bytes")?,
         )
         .set(
             ResourceKind::TelemetrySpoolBytes,
-            parse_optional_u64("MINDCLADE_RUNTIME_NODE_TELEMETRY_SPOOL_BYTES")?,
+            snapshot.u64("node.telemetry.spool.bytes")?,
         ))
 }
 
-fn model_spec_from_env() -> FaultResult<Option<ModelSpec>> {
-    let digest = env::var("MINDCLADE_RUNTIME_MODEL_BUNDLE_DIGEST").ok();
-    let executable = env::var("MINDCLADE_RUNTIME_MODEL_WORKER_EXECUTABLE").ok();
-    let control_socket = env::var("MINDCLADE_RUNTIME_MODEL_WORKER_SOCKET").ok();
-    let config_path = env::var("MINDCLADE_RUNTIME_MODEL_WORKER_CONFIG").ok();
-    match (digest, executable, control_socket, config_path) {
-        (None, None, None, None) => Ok(None),
-        (Some(digest), Some(executable), Some(control_socket), Some(config_path)) => {
-            build_model_spec(
-                &digest,
-                executable,
-                control_socket,
-                config_path,
-                env::var("MINDCLADE_RUNTIME_HOST_SOCKET").unwrap_or_default(),
-                env::var("MINDCLADE_RUNTIME_HOST_GRPC_SOCKET").unwrap_or_default(),
-                parse_positive_u64("MINDCLADE_RUNTIME_MODEL_GPU_MEMORY_BYTES")?,
-                parse_optional_u64("MINDCLADE_RUNTIME_MODEL_PINNED_MEMORY_BYTES")?,
-            )
-            .map(Some)
+/// The preloaded-model group is present as a unit or absent as a unit.
+///
+/// `Snapshot::is_set` distinguishes an operator-supplied value from the declared
+/// default, including an operator-supplied *empty* value, which is what the
+/// replaced `env::var(..).ok()` reads did. A partially configured group is
+/// rejected rather than half-applied: a host that silently skips preloading is a
+/// capacity incident nobody gets paged for.
+fn model_spec(lookup: &EnvSource, snapshot: &Snapshot) -> FaultResult<Option<ModelSpec>> {
+    const GROUP: [&str; 4] = [
+        "model.bundle.digest",
+        "model.worker.executable",
+        "model.worker.socket",
+        "model.worker.config",
+    ];
+    let mut configured = 0_usize;
+    for key in GROUP {
+        if snapshot.is_set(key)? {
+            configured += 1;
         }
-        _ => Err(Fault::invalid_argument(
-            "preloaded model digest, worker executable, worker socket, and worker config must be configured together",
-        )),
     }
+    if configured == 0 {
+        return Ok(None);
+    }
+    if configured != GROUP.len() {
+        return Err(Fault::invalid_argument(
+            "preloaded model digest, worker executable, worker socket, and worker config must be configured together",
+        ));
+    }
+    let model = config::model_catalog()?.load(&[&config::bind_model(lookup.clone())])?;
+    build_model_spec(
+        snapshot.raw("model.bundle.digest")?,
+        snapshot.string("model.worker.executable")?,
+        snapshot.string("model.worker.socket")?,
+        snapshot.string("model.worker.config")?,
+        snapshot.string("host.socket")?,
+        snapshot.string("host.grpc.socket")?,
+        model.u64_positive("model.gpu.memory.bytes")?,
+        model.u64("model.pinned.memory.bytes")?,
+    )
+    .map(Some)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -717,85 +770,6 @@ fn read_message<M: Message + Default>(path: &PathBuf) -> FaultResult<M> {
     M::decode(bytes.as_slice()).map_err(|error| {
         Fault::invalid_argument("runtime policy protobuf is invalid").with_source(error)
     })
-}
-
-fn required(name: &'static str) -> FaultResult<String> {
-    let value = env::var(name).map_err(|_| {
-        Fault::new(
-            Code::FailedPrecondition,
-            "required runtime-host environment variable is missing",
-        )
-        .with_context("variable", name)
-    })?;
-    if value.is_empty() || value != value.trim() || value.len() > 4096 {
-        return Err(
-            Fault::invalid_argument("runtime-host environment value is invalid")
-                .with_context("variable", name),
-        );
-    }
-    Ok(value)
-}
-
-fn parse_u64(name: &'static str) -> FaultResult<u64> {
-    required(name)?.parse::<u64>().map_err(|error| {
-        Fault::invalid_argument("runtime-host integer environment value is invalid")
-            .with_context("variable", name)
-            .with_source(error)
-    })
-}
-
-fn parse_positive_u64(name: &'static str) -> FaultResult<u64> {
-    let value = parse_u64(name)?;
-    if value == 0 {
-        return Err(
-            Fault::invalid_argument("runtime-host integer must be positive")
-                .with_context("variable", name),
-        );
-    }
-    Ok(value)
-}
-
-fn parse_optional_u64(name: &'static str) -> FaultResult<u64> {
-    match env::var(name) {
-        Ok(value) if !value.is_empty() => value.parse::<u64>().map_err(|error| {
-            Fault::invalid_argument("runtime-host optional integer environment value is invalid")
-                .with_context("variable", name)
-                .with_source(error)
-        }),
-        Ok(_) | Err(env::VarError::NotPresent) => Ok(0),
-        Err(error) => Err(
-            Fault::invalid_argument("runtime-host environment value is not Unicode")
-                .with_context("variable", name)
-                .with_source(error),
-        ),
-    }
-}
-
-fn parse_positive_u32(name: &'static str) -> FaultResult<u32> {
-    let value = parse_positive_u64(name)?;
-    u32::try_from(value).map_err(|_| {
-        Fault::new(Code::OutOfRange, "runtime-host integer exceeds u32")
-            .with_context("variable", name)
-    })
-}
-
-fn parse_positive_usize(name: &'static str) -> FaultResult<usize> {
-    let value = parse_positive_u64(name)?;
-    usize::try_from(value).map_err(|_| {
-        Fault::new(Code::OutOfRange, "runtime-host integer exceeds usize")
-            .with_context("variable", name)
-    })
-}
-
-fn absolute_path(name: &'static str) -> FaultResult<PathBuf> {
-    let path = PathBuf::from(required(name)?);
-    if !path.is_absolute() {
-        return Err(
-            Fault::invalid_argument("runtime-host path must be absolute")
-                .with_context("variable", name),
-        );
-    }
-    Ok(path)
 }
 
 fn decode_32_byte_hex(value: &str) -> FaultResult<[u8; 32]> {

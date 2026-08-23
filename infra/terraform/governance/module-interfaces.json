@@ -380,15 +380,28 @@
           "type": "string",
           "validation_fingerprints": []
         },
+        "remote_upstream_egress_approved": {
+          "default": false,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "bool",
+          "validation_fingerprints": []
+        },
         "repositories": {
           "default": null,
           "ephemeral": false,
           "nullable": true,
           "required": true,
           "sensitive": false,
-          "type": "map(object({ format = string description = string docker_config = optional(object({ immutable_tags = optional(bool, true) })) cleanup_policies = optional(map(object({ action = string condition_state = optional(string) older_than = optional(string) most_recent_versions = optional(number) })), {}) }))",
+          "type": "map(object({ format = string description = string mode = optional(string, \"STANDARD_REPOSITORY\") docker_config = optional(object({ immutable_tags = optional(bool, true) })) remote_repository_config = optional(object({ description = optional(string) public_upstream = string upstream_path = optional(string) })) cleanup_policies = optional(map(object({ action = string condition_state = optional(string) older_than = optional(string) most_recent_versions = optional(number) })), {}) }))",
           "validation_fingerprints": [
-            "sha256:d620606fc541f512e1ff232604a1ac9afbc48fd9c73b5fb3b2574c255d448183"
+            "sha256:3375d796d1ddb26e292b4d85947c0b4406296fe98a8874a795c02d300e1f58a5",
+            "sha256:46a55f61959e90614a6b3b1462eb9bf2028a9b8a8573da8fc879d784f1e8e15c",
+            "sha256:94a51cb9e4767f60817ec11319f8bcf0b074b7c143a63a084538c8abe6d45324",
+            "sha256:aad67d4020109544b75c8005b0b25d520053e135abd03bd23982170bcc0e315d",
+            "sha256:f30c1853ceb454ce729d209ef18b4e25d85cb22868b6b8a3064dc8d931d49b5a"
           ]
         }
       },
@@ -398,6 +411,11 @@
       "module_calls": {},
       "moved": [],
       "outputs": {
+        "remote_upstreams": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:0f1bf0acdab57801298641d530fcfa8fc105b60a7099c69c63837a4a3a00dcfb"
+        },
         "repositories": {
           "ephemeral": false,
           "sensitive": false,
@@ -7445,6 +7463,28 @@
           "type": "bool",
           "validation_fingerprints": []
         },
+        "apt_mirror_components": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "list(string)",
+          "validation_fingerprints": [
+            "sha256:ccfc7e73f4101de082a21de4820b79bc58a23fb89e6f0ed457dbb234b4070ab8"
+          ]
+        },
+        "apt_mirror_url": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:cf0548c2dfd34c3f0e538164d467b96fa5f2f50b7a59deef6d2d076a2151a90f"
+          ]
+        },
         "bazel_cache_bucket_name": {
           "default": null,
           "ephemeral": false,
@@ -7698,6 +7738,50 @@
           "type": "string",
           "validation_fingerprints": [
             "sha256:5c983f2f0689a5104e6a8a9652ca1f760a74a1e50d61e2aa14c1831dbe9940fc"
+          ]
+        },
+        "nix_installer_sha256": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:715d2ec970351595ec436c9d865da249a9e44d9c0e7e700f29505a47c4c88c41"
+          ]
+        },
+        "nix_installer_url": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:0aa09499dcadbca3acbd165d3782e87a9364b140a6ae887896e64ae4ec764354"
+          ]
+        },
+        "nix_substituter_trusted_public_key": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:554be6085305be5cc0ac9cbd6add2b4b61d40e67ee085e3fdbf0dce632bd1e41"
+          ]
+        },
+        "nix_substituter_uri": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:91e9eaed0fd51c1ece94e7d7fdb320ad554bd3b0dcc114df52f1d7349aadcb68"
           ]
         },
         "operator_principals": {

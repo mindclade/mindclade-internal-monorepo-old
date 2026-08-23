@@ -29,7 +29,10 @@ rust_library(
         "//libs/rust/telemetry:mindclade_telemetry",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
         "//libs/rust/worker_runtime:mindclade_worker_runtime",
+        "@crates//:axum",
         "@crates//:bytes",
+        "@crates//:tokio",
+        "@crates//:tower",
     ],
 )
 
@@ -56,7 +59,38 @@ rust_binary(
         "//libs/rust/telemetry:mindclade_telemetry",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
         "//libs/rust/worker_runtime:mindclade_worker_runtime",
+        "@crates//:axum",
         "@crates//:bytes",
+        "@crates//:tokio",
+        "@crates//:tower",
+    ],
+)
+
+rust_test(
+    name = "composition",
+    srcs = ["tests/composition.rs"],
+    edition = "2024",
+    deps = [
+        ":mindclade_node_agent",
+        "//libs/rust/artifact_cas:mindclade_artifact_cas",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/checkpoint_io:mindclade_checkpoint_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/data_stream:mindclade_data_stream",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/identifiers:mindclade_identifiers",
+        "//libs/rust/ipc_os:mindclade_ipc_os",
+        "//libs/rust/manifests:mindclade_manifests",
+        "//libs/rust/object_store:mindclade_object_store",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "//libs/rust/servicekit:mindclade_servicekit",
+        "//libs/rust/telemetry:mindclade_telemetry",
+        "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        "//libs/rust/worker_runtime:mindclade_worker_runtime",
+        "@crates//:axum",
+        "@crates//:bytes",
+        "@crates//:tokio",
+        "@crates//:tower",
     ],
 )
 
@@ -81,8 +115,10 @@ rust_test(
         "//libs/rust/telemetry:mindclade_telemetry",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
         "//libs/rust/worker_runtime:mindclade_worker_runtime",
+        "@crates//:axum",
         "@crates//:bytes",
         "@crates//:tokio",
+        "@crates//:tower",
     ],
 )
 
@@ -107,8 +143,10 @@ rust_test(
         "//libs/rust/telemetry:mindclade_telemetry",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
         "//libs/rust/worker_runtime:mindclade_worker_runtime",
+        "@crates//:axum",
         "@crates//:bytes",
         "@crates//:tokio",
+        "@crates//:tower",
     ],
 )
 
@@ -133,8 +171,10 @@ rust_test(
         "//libs/rust/telemetry:mindclade_telemetry",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
         "//libs/rust/worker_runtime:mindclade_worker_runtime",
+        "@crates//:axum",
         "@crates//:bytes",
         "@crates//:tokio",
+        "@crates//:tower",
     ],
 )
 
@@ -159,8 +199,10 @@ rust_test(
         "//libs/rust/telemetry:mindclade_telemetry",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
         "//libs/rust/worker_runtime:mindclade_worker_runtime",
+        "@crates//:axum",
         "@crates//:bytes",
         "@crates//:tokio",
+        "@crates//:tower",
     ],
 )
 
@@ -185,8 +227,10 @@ rust_test(
         "//libs/rust/telemetry:mindclade_telemetry",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
         "//libs/rust/worker_runtime:mindclade_worker_runtime",
+        "@crates//:axum",
         "@crates//:bytes",
         "@crates//:tokio",
+        "@crates//:tower",
     ],
 )
 

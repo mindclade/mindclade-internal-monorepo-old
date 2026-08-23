@@ -12,6 +12,7 @@ members = [
     "libs/rust/bounded_parse",
     "libs/rust/bytes_io",
     "libs/rust/checkpoint_io",
+    "libs/rust/config",
     "libs/rust/content_digest",
     "libs/rust/data_stream",
     "libs/rust/faults",
@@ -25,6 +26,7 @@ members = [
     "libs/rust/python_bridge",
     "libs/rust/record_io",
     "libs/rust/runtime_core",
+    "libs/rust/sandbox_os",
     "libs/rust/servicekit",
     "libs/rust/telemetry",
     "libs/rust/telemetry_spool",
@@ -56,6 +58,12 @@ prost = "=0.14.4"
 prost-types = "=0.14.4"
 reqwest = { version = "=0.13.4", default-features = false, features = ["json", "stream", "rustls"] }
 ring = "=0.17.14"
+# Pure-Rust seccomp-BPF compiler from the rust-vmm/Firecracker project. Zero build script,
+# no bindgen/libclang, and `libc` is its only non-optional dependency — already pinned above.
+# Default features off keeps the optional serde/serde_json JSON frontend out of the closure;
+# policies here are Rust values, not parsed documents. ADR-0026 records the evaluation
+# against libseccomp bindings and Cloudflare's `foundations`.
+seccompiler = { version = "=0.5.0", default-features = false }
 serde = { version = "=1.0.229", features = ["derive"] }
 protoc-bin-vendored = "=3.2.0"
 serde_json = "=1.0.151"
