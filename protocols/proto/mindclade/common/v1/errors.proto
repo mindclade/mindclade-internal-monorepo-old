@@ -9,7 +9,19 @@ package mindclade.common.v1;
 
 option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/common/v1;commonv1";
 
+// The wire authority for fault classification. `libs/go/faults` and
+// `libs/rust/faults` mirror this set; the value name with the `ERROR_CODE_`
+// prefix removed and lowercased is the string those two libraries put on the
+// wire, and `tests/integration/cross_language/test_error_codes.py` fails if the
+// three sets ever diverge again.
+//
+// Values 10-17 were appended after the mirrors were found to carry concepts the
+// proto could not express, which forced them to collapse onto a neighbouring
+// code and lose the client retry behavior the sender had chosen.
 enum ErrorCode {
+  // The sender did not set the field. Distinct from ERROR_CODE_UNKNOWN, which
+  // is an assertion that the sender classified the failure and could not place
+  // it. Receivers treat both as unclassified.
   ERROR_CODE_UNSPECIFIED = 0;
   ERROR_CODE_INVALID_ARGUMENT = 1;
   ERROR_CODE_UNAUTHENTICATED = 2;
@@ -20,6 +32,34 @@ enum ErrorCode {
   ERROR_CODE_DEADLINE_EXCEEDED = 7;
   ERROR_CODE_UNAVAILABLE = 8;
   ERROR_CODE_INTERNAL = 9;
+  ERROR_CODE_CANCELED = 10;
+  ERROR_CODE_ALREADY_EXISTS = 11;
+  ERROR_CODE_FAILED_PRECONDITION = 12;
+  ERROR_CODE_ABORTED = 13;
+  ERROR_CODE_OUT_OF_RANGE = 14;
+  ERROR_CODE_NOT_IMPLEMENTED = 15;
+  ERROR_CODE_DATA_LOSS = 16;
+  // The catch-all a sender emits when classification fails. A receiver that
+  // does not recognize a peer's code degrades to this rather than rejecting the
+  // message, so a newer peer's code never fails a parse on an older build.
+  ERROR_CODE_UNKNOWN = 17;
+}
+
+// How a caller may retry. Carried beside `retry_after_millis` because a delay
+// alone cannot express the difference between "the sender explicitly refuses a
+// retry" and "the sender said nothing about retrying" — both previously
+// serialized as an absent delay, and a client cannot choose a policy from that.
+enum RetryKind {
+  // No retry guidance. The caller's own policy applies.
+  RETRY_KIND_UNSPECIFIED = 0;
+  // An explicit refusal. The caller must not retry.
+  RETRY_KIND_NEVER = 1;
+  RETRY_KIND_IMMEDIATE = 2;
+  // Retry under the caller's backoff algorithm. The sender deliberately does
+  // not prescribe the schedule.
+  RETRY_KIND_WITH_BACKOFF = 3;
+  // Retry no earlier than `retry_after_millis`, which is set only for this kind.
+  RETRY_KIND_AFTER = 4;
 }
 
 message FieldViolation {
@@ -33,4 +73,5 @@ message ErrorDetail {
   string request_id = 3;
   repeated FieldViolation field_violations = 4;
   optional uint64 retry_after_millis = 5;
+  RetryKind retry_kind = 6;
 }
