@@ -72,6 +72,7 @@ affected_executor = (ROOT / "ci/common/affected.py").read_text(encoding="utf-8")
 assert bazel_job.count(f"actions/cache/restore@{CACHE_SHA}") == 1
 assert bazel_job.count(f"actions/cache/save@{CACHE_SHA}") == 1
 for start, end in (
+    ("- name: Select trusted Bazel cache revision", "- name: Restore trusted Bazel"),
     ("- name: Restore trusted Bazel", "- name: Configure bounded Bazel"),
     ("- name: Measure bounded Bazel", "- name: Save trusted Bazel"),
     ("- name: Save trusted Bazel", "- name: Record Bazel"),
@@ -79,6 +80,7 @@ for start, end in (
     assert (
         "continue-on-error: true" in bazel_job.split(start, maxsplit=1)[1].split(end, maxsplit=1)[0]
     )
+assert "if: steps.bazel-cache-trust.outcome == 'success'" in bazel_job
 assert "--build_event_json_file=" in affected_executor
 assert "bazel-performance-${{ github.run_id }}-${{ github.run_attempt }}" in bazel_job
 assert "tools/dev/bazelw query '//...' --config=ci" in bazel_job

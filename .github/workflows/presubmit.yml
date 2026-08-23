@@ -443,6 +443,7 @@ jobs:
       # fingerprint, and GitHub's cache service resolves it from the default-branch scope.
       - name: Select trusted Bazel cache revision
         id: bazel-cache-trust
+        continue-on-error: true
         env:
           CACHE_FINGERPRINT: ${{ hashFiles('.bazelversion', 'MODULE.bazel', 'MODULE.bazel.lock', 'REPO.bazel', 'flake.lock', 'tools/build/nix/toolchain-manifest.json') }}
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -471,6 +472,7 @@ jobs:
 
       - name: Restore trusted Bazel persistent action cache
         id: bazel-disk-cache
+        if: steps.bazel-cache-trust.outcome == 'success'
         continue-on-error: true
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
@@ -484,6 +486,7 @@ jobs:
       # Reader events never upload local results. The 4 GiB GC ceiling and one-second idle delay
       # bound the prior duplicate-output failure mode; zstd reduces the persisted archive further.
       - name: Configure bounded Bazel persistent action cache
+        if: steps.bazel-cache-trust.outcome == 'success'
         env:
           BAZEL_CACHE_ROLE: ${{ steps.bazel-cache-trust.outputs.role }}
           BAZEL_CACHE_RESTORE_OUTCOME: ${{ steps.bazel-disk-cache.outcome }}
