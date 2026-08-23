@@ -53,9 +53,6 @@ func invalid(reason, message string, cause error) error {
 	}
 	return faults.Wrap(cause, faults.CodeInvalidArgument, message, faults.WithReason(reason), faults.WithOperation("control.artifacts"), faults.WithRetryPolicy(faults.NoRetry()))
 }
-func notFound(reason, message string) error {
-	return faults.New(faults.CodeNotFound, message, faults.WithReason(reason), faults.WithOperation("control.artifacts"), faults.WithRetryPolicy(faults.NoRetry()))
-}
 
 func identityConflict() error {
 	return invalid(ReasonIdentityConflict, "digest is already registered with different immutable metadata", ErrIdentityConflict)
