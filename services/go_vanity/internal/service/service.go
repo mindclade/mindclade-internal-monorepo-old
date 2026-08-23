@@ -131,8 +131,8 @@ func (runtime *Runtime) Serve(ctx context.Context, appListener, metricsListener 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 	shutdownErrors := make(chan error, 2)
-	go func() { shutdownErrors <- runtime.appServer.Shutdown(shutdownCtx) }()
-	go func() { shutdownErrors <- runtime.metricsServer.Shutdown(shutdownCtx) }()
+	go func() { shutdownErrors <- ignoreClosed(runtime.appServer.Shutdown(shutdownCtx)) }()
+	go func() { shutdownErrors <- ignoreClosed(runtime.metricsServer.Shutdown(shutdownCtx)) }()
 	shutdownErr := errors.Join(<-shutdownErrors, <-shutdownErrors)
 
 	// Collect both Serve results. If one result triggered shutdown, only the
