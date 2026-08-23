@@ -66,22 +66,29 @@ JSON_TYPE_FOR = {"string": "string", "uint64": "integer", "bytes": "string"}
 
 
 def test_every_domain_publishes_the_identical_envelope_schema():
-    """One envelope contract, eight published copies; they must not diverge.
+    """One envelope contract, eight published copies; only their authority IDs differ.
 
     Each domain gets its own file so its generated bundle is self-contained. A
     consumer that validates against the artifact schema and a producer that
-    emits against the training schema have to agree, so the copies are compared
-    byte for byte rather than merely being present.
+    emits against the training schema have to agree, so every keyword other
+    than the domain-specific ``$id`` is compared structurally.
     """
     domains = event_domains()
     assert domains, f"no event domains under {GENERATED}"
     missing = [name for name in domains if not (GENERATED / name / "v1" / SCHEMA_NAME).is_file()]
     assert not missing, f"event domains published with no envelope schema: {missing}"
     reference_path = GENERATED / domains[0] / "v1" / SCHEMA_NAME
-    reference = reference_path.read_bytes()
+    reference = json.loads(reference_path.read_text())
+    reference_id = reference.pop("$id")
+    assert (
+        reference_id == f"https://schemas.mindclade.dev/events/{domains[0]}/v1/event-envelope.json"
+    )
     for name in domains[1:]:
         path = GENERATED / name / "v1" / SCHEMA_NAME
-        assert path.read_bytes() == reference, (
+        candidate = json.loads(path.read_text())
+        schema_id = candidate.pop("$id")
+        assert schema_id == f"https://schemas.mindclade.dev/events/{name}/v1/event-envelope.json"
+        assert candidate == reference, (
             f"{path.relative_to(ROOT)} has drifted from {reference_path.relative_to(ROOT)}"
         )
 
@@ -121,15 +128,10 @@ def test_schema_types_match_the_declared_wire_types(envelope_schema, envelope_pr
             )
 
 
-# Ratchet, not an allowlist. Every other string in the envelope carries either a
-# maxLength or a length-fixing anchored pattern; `workspace_id` carries neither,
-# so a producer can put an arbitrarily long value into a durable event that every
-# consumer must decode before it can decide to drop it. The fix belongs in
-# protocols/events/generated/*/v1/event-envelope.schema.json — all eight copies —
-# as the `^workspace_[0-9a-f]{32}$` pattern that `tenant_id` already uses. The set
-# is asserted exactly so this can only shrink: a second unbounded field fails, and
-# so does leaving this entry behind once the schema is fixed.
-UNBOUNDED_ENVELOPE_STRINGS = {"workspace_id"}
+# Ratchet, not an allowlist. Every string in the generated envelope schemas now
+# carries either a maxLength or a length-fixing anchored pattern. The set is
+# asserted exactly so a newly unbounded field fails closed.
+UNBOUNDED_ENVELOPE_STRINGS: set[str] = set()
 
 # `*`, `+`, and `{n,}` are open-ended, so `^workspace_.*$` is anchored and still
 # accepts a gigabyte. Only a pattern with no unbounded quantifier fixes a length.
