@@ -11,7 +11,9 @@ pub mod repair;
 pub mod staging;
 pub mod verify;
 mod writer;
-pub use manifest::{CHECKPOINT_SCHEMA, CheckpointManifest, CheckpointShard};
+pub use manifest::{
+    CHECKPOINT_SCHEMA, CheckpointManifest, CheckpointShard, MAX_COMPONENTS, MAX_SHARDS,
+};
 pub use reader::{CheckpointReader, VerificationReport};
 pub use repair::RepairPlan;
 pub use staging::StagingBudget;

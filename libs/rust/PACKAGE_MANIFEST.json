@@ -192,6 +192,7 @@
       ],
       "test_sources": [
         "tests/fault_injection.rs",
+        "tests/hostile_manifest.rs",
         "tests/integration.rs"
       ]
     },
@@ -518,6 +519,7 @@
       "test_sources": [
         "tests/frame.rs",
         "tests/integration.rs",
+        "tests/item_bounds.rs",
         "tests/recovery.rs"
       ]
     },

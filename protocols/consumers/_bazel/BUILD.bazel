@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 
 load("@rules_go//go:def.bzl", "go_test")
+load("//tools/build:pytest.bzl", "pytest_test")
 
 package(default_visibility = ["//protocols/consumers:__pkg__"])
 
@@ -21,6 +22,32 @@ go_test(
         "//protocols/proto/mindclade/runtime/v1:runtime_go_proto",
         "//protocols/proto/mindclade/training/v1:training_go_proto",
         "@org_golang_google_protobuf//proto",
+    ],
+)
+
+# The Python half of the same conformance claim. protoc emits one module per `.proto`
+# rather than one package per proto package, so this target has to name every
+# `py_proto_library` in the repository: the test asserts the generated Python surface is
+# the whole promoted set, and a `py_proto_library` nobody depends on is a target that is
+# built but never imported. `all_proto_sources` is the enumeration the test partitions
+# against — without it the coverage assertion has nothing to compare the generated
+# modules to and would pass on an empty tree.
+pytest_test(
+    name = "generated_python_test",
+    srcs = ["generated_python_test.py"],
+    data = ["//protocols:all_proto_sources"],
+    deps = [
+        "//protocols/proto/mindclade/artifact/v1:checkpoint_commit_py_pb2",
+        "//protocols/proto/mindclade/common/v1:common_py_pb2",
+        "//protocols/proto/mindclade/data/v1:data_py_pb2",
+        "//protocols/proto/mindclade/evaluation/v1:evaluation_py_pb2",
+        "//protocols/proto/mindclade/events/v1:events_py_pb2",
+        "//protocols/proto/mindclade/inference/v1:inference_py_pb2",
+        "//protocols/proto/mindclade/orchestration/v1:orchestration_py_pb2",
+        "//protocols/proto/mindclade/registry/v1:checkpoint_record_py_pb2",
+        "//protocols/proto/mindclade/registry/v1:release_py_pb2",
+        "//protocols/proto/mindclade/runtime/v1:runtime_worker_py_pb2",
+        "//protocols/proto/mindclade/training/v1:checkpoint_contract_py_pb2",
     ],
 )
 

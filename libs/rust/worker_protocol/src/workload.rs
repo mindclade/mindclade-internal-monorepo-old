@@ -10,11 +10,24 @@ use mindclade_content_digest::Digest;
 use mindclade_faults::{Code, Fault, FaultResult};
 use mindclade_identifiers::ResourceId;
 
+/// Rust projection of `mindclade.orchestration.v1.StageKind`.
+///
+/// The variant names track the proto value names exactly. They used to read
+/// `Curation` and `Preprocessing` while the proto, Go (`control/orchestration`),
+/// Python (`libs/python/worker_runtime`), and the TypeScript SDK all spell those
+/// members `curate` and `preprocess`. Nothing caught it: this crate has no
+/// protobuf dependency, so the taxonomy is a hand-written fourth copy that no
+/// build step compares with the other three, and the two odd names had no
+/// callers to fail. A decoder written against the wire enum would have had to
+/// map `STAGE_KIND_CURATE` onto a differently spelled variant, which is how a
+/// stage silently ends up classified as the wrong kind.
+/// `tests/integration/cross_language/test_worker_protocol.py` now compares all
+/// four copies mechanically.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum WorkloadKind {
     Ingestion,
-    Curation,
-    Preprocessing,
+    Curate,
+    Preprocess,
     ReferenceBuild,
     BatchInference,
     Evaluation,
