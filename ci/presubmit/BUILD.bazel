@@ -48,6 +48,23 @@ py_binary(
     ],
 )
 
+py_library(
+    name = "live_datastore_gate",
+    srcs = ["live_datastore_gate.py"],
+    data = ["//configs:live_datastore_suites"],
+    imports = ["../.."],
+)
+
+pytest_test(
+    name = "test_live_datastore_gate",
+    srcs = [
+        "live_datastore_gate.py",
+        "test_live_datastore_gate.py",
+    ],
+    data = ["//configs:live_datastore_suites"],
+    imports = ["../.."],
+)
+
 pytest_test(
     name = "test_disk_preflight",
     srcs = [
