@@ -31,6 +31,10 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+    # Scheduled cache WIF remains unreachable until the source activation record is qualified.
+    permissions:
+      actions: read
+      contents: read
     steps:
       - name: Record nightly verdict start
         run: date +%s > "${RUNNER_TEMP}/bazel-job-started"
@@ -55,8 +59,27 @@ jobs:
             experimental-features = nix-command flakes
             accept-flake-config = false
 
+      - name: Select qualified nightly Bazel remote-cache route
+        id: bazel-remote-cache
+        env:
+          BAZEL_REMOTE_CACHE_STATE: ${{ vars.BAZEL_REMOTE_CACHE_STATE }}
+          CI_PROJECT_ID: ${{ vars.CI_PROJECT_ID }}
+          REF_PROTECTED: ${{ github.ref_protected }}
+        run: |
+          set -euo pipefail
+          python3 ci/common/bazel_remote_cache.py select \
+            --contract ci/bazel_cache/activation.json \
+            --repository-state "${BAZEL_REMOTE_CACHE_STATE}" \
+            --workflow nightly \
+            --event "${GITHUB_EVENT_NAME}" \
+            --ref "${GITHUB_REF}" \
+            --ref-protected "${REF_PROTECTED}" \
+            --project-id "${CI_PROJECT_ID}" \
+            --github-output "${GITHUB_OUTPUT}"
+
       - name: Select trusted nightly Bazel cache revision
         id: bazel-cache-trust
+        if: steps.bazel-remote-cache.outputs.enabled != 'true'
         env:
           CACHE_FINGERPRINT: ${{ hashFiles('.bazelversion', 'MODULE.bazel', 'MODULE.bazel.lock', 'REPO.bazel', 'flake.lock', 'tools/build/nix/toolchain-manifest.json') }}
           REF_PROTECTED: ${{ github.ref_protected }}
@@ -77,6 +100,7 @@ jobs:
 
       - name: Restore trusted nightly Bazel persistent action cache
         id: bazel-disk-cache
+        if: steps.bazel-remote-cache.outputs.enabled != 'true'
         continue-on-error: true
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
@@ -86,6 +110,7 @@ jobs:
             ${{ steps.bazel-cache-trust.outputs.restore-prefix }}
 
       - name: Configure bounded nightly Bazel persistent action cache
+        if: steps.bazel-remote-cache.outputs.enabled != 'true'
         env:
           BAZEL_CACHE_ROLE: ${{ steps.bazel-cache-trust.outputs.role }}
           BAZEL_CACHE_RESTORE_OUTCOME: ${{ steps.bazel-disk-cache.outcome }}
@@ -98,6 +123,60 @@ jobs:
             --role "${BAZEL_CACHE_ROLE}" \
             --github-env "${GITHUB_ENV}" \
             --restore-outcome "${BAZEL_CACHE_RESTORE_OUTCOME}"
+
+      - name: Build qualified nightly Bazel GCS cache gateway
+        id: bazel-remote-cache-binary
+        if: steps.bazel-remote-cache.outputs.enabled == 'true'
+        run: |
+          set -euo pipefail
+          target='//tools/build/bazel/cache_gateway/cmd:cache_gateway'
+          nix develop .#ci-bazel --command tools/dev/bazelw build "${target}" --config=ci
+          binary="$({
+            nix develop .#ci-bazel --command tools/dev/bazelw cquery \
+              "${target}" --config=ci --output=files
+          })"
+          [[ -n "${binary}" && "${binary}" != *$'\n'* && -x "${binary}" ]]
+          printf 'path=%s\n' "$(realpath "${binary}")" >> "${GITHUB_OUTPUT}"
+
+      - name: Authenticate scheduled Bazel cache writer route
+        id: bazel-cache-writer-auth
+        if: >-
+          steps.bazel-remote-cache.outputs.enabled == 'true' &&
+          steps.bazel-remote-cache.outputs.role == 'writer'
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3.0.0
+        with:
+          cleanup_credentials: true
+          create_credentials_file: true
+          export_environment_variables: false
+          project_id: ${{ vars.CI_PROJECT_ID }}
+          service_account: ${{ vars.SA_BAZEL_CACHE_WRITER }}
+          workload_identity_provider: ${{ vars.WIF_PROVIDER_BAZEL_CACHE }}
+
+      - name: Start scheduled loopback Bazel GCS cache gateway
+        id: bazel-remote-cache-start
+        if: steps.bazel-remote-cache.outputs.enabled == 'true'
+        env:
+          CACHE_BINARY: ${{ steps.bazel-remote-cache-binary.outputs.path }}
+          CACHE_BUCKET: ${{ steps.bazel-remote-cache.outputs.bucket }}
+          CACHE_CREDENTIALS_FILE: ${{ steps.bazel-cache-writer-auth.outputs.credentials_file_path }}
+          CACHE_ROLE: ${{ steps.bazel-remote-cache.outputs.role }}
+          CI_PROJECT_ID: ${{ vars.CI_PROJECT_ID }}
+          SA_BAZEL_CACHE_WRITER: ${{ vars.SA_BAZEL_CACHE_WRITER }}
+          WIF_PROVIDER_BAZEL_CACHE: ${{ vars.WIF_PROVIDER_BAZEL_CACHE }}
+        run: |
+          set -euo pipefail
+          python3 ci/common/bazel_remote_cache.py start \
+            --binary "${CACHE_BINARY}" \
+            --workspace "${GITHUB_WORKSPACE}" \
+            --bazelrc "${GITHUB_WORKSPACE}/user.bazelrc" \
+            --runtime-dir "${RUNNER_TEMP}/mindclade-bazel-remote-cache" \
+            --github-env "${GITHUB_ENV}" \
+            --bucket "${CACHE_BUCKET}" \
+            --role "${CACHE_ROLE}" \
+            --project-id "${CI_PROJECT_ID}" \
+            --provider "${WIF_PROVIDER_BAZEL_CACHE}" \
+            --service-account "${SA_BAZEL_CACHE_WRITER}" \
+            --credentials-file "${CACHE_CREDENTIALS_FILE}"
 
       - name: Validate complete loading, formatting, and layer policy
         run: |
@@ -158,7 +237,7 @@ jobs:
 
       - name: Measure bounded nightly Bazel persistent action cache
         id: bazel-cache-size
-        if: always()
+        if: always() && steps.bazel-remote-cache.outputs.enabled != 'true'
         continue-on-error: true
         run: |
           set -euo pipefail
@@ -173,6 +252,7 @@ jobs:
         id: bazel-cache-save
         if: >-
           success() &&
+          steps.bazel-remote-cache.outputs.enabled != 'true' &&
           github.ref == 'refs/heads/main' &&
           github.ref_protected == true &&
           (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
@@ -186,7 +266,7 @@ jobs:
           key: ${{ steps.bazel-cache-trust.outputs.primary-key }}
 
       - name: Record nightly Bazel persistent action cache metrics
-        if: always()
+        if: always() && steps.bazel-remote-cache.outputs.enabled != 'true'
         env:
           CACHE_ROLE: ${{ steps.bazel-cache-trust.outputs.role }}
           CACHE_REVISION: ${{ steps.bazel-cache-trust.outputs.revision }}
@@ -215,6 +295,21 @@ jobs:
             --restore-prefix "${CACHE_RESTORE_PREFIX}" \
             --restore-outcome "${CACHE_RESTORE_OUTCOME}" \
             --measure-outcome "${CACHE_MEASURE_OUTCOME}"
+
+      - name: Record nightly Bazel GCS remote-cache metrics and stop gateway
+        if: >-
+          always() &&
+          steps.bazel-remote-cache.outputs.enabled == 'true' &&
+          steps.bazel-remote-cache-start.outcome == 'success'
+        env:
+          CACHE_ROLE: ${{ steps.bazel-remote-cache.outputs.role }}
+        run: |
+          set -euo pipefail
+          python3 ci/common/bazel_remote_cache.py record-stop \
+            --runtime-dir "${RUNNER_TEMP}/mindclade-bazel-remote-cache" \
+            --evidence-dir "${RUNNER_TEMP}/bazel-evidence" \
+            --summary "${GITHUB_STEP_SUMMARY}" \
+            --role "${CACHE_ROLE}"
 
       - name: Upload nightly Bazel evidence
         if: always()

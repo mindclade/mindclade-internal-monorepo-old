@@ -1,0 +1,34 @@
+{
+  "backend": "gcs-generation-zero",
+  "bucket": null,
+  "gateway_target": "//tools/build/bazel/cache_gateway/cmd:cache_gateway",
+  "module_release": {
+    "status": "unpublished",
+    "version": "v0.4.0"
+  },
+  "protocol": "bazel-http-cache-v1",
+  "qualification": {
+    "access_logging": false,
+    "bucket_retention": false,
+    "cache_loss_rebuild": false,
+    "cas_integrity": false,
+    "cmek_encryption": false,
+    "cold_rebuild": false,
+    "corrupt_download_rejected": false,
+    "duplicate_write_idempotent": false,
+    "evidence_object_generation": null,
+    "evidence_sha256": null,
+    "immutable_collision_rejected": false,
+    "negative_route_matrix": false,
+    "object_versioning": false,
+    "public_access_prevention": false,
+    "reader_write_denied": false,
+    "reviewed_at": null,
+    "reviewer": null,
+    "soft_delete_recovery": false,
+    "warm_cache_hit": false,
+    "writer_delete_denied": false
+  },
+  "schema_version": 1,
+  "state": "blocked"
+}
