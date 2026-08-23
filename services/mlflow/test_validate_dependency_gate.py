@@ -14,7 +14,6 @@ import pytest
 
 from services.mlflow import validate_dependency_gate as gate
 
-
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -64,13 +63,16 @@ def test_repository_gate_is_fail_closed() -> None:
 
 def test_exact_scanner_finding_is_observed_but_not_accepted(tmp_path: Path) -> None:
     report = write_report(tmp_path, scanner_report())
-    assert gate.validate(
-        ROOT,
-        ROOT / gate.GATE,
-        report_path=report,
-        scanner_exit_code=1,
-        today=dt.date(2026, 8, 23),
-    ) == "blocked and publication-ineligible"
+    assert (
+        gate.validate(
+            ROOT,
+            ROOT / gate.GATE,
+            report_path=report,
+            scanner_exit_code=1,
+            today=dt.date(2026, 8, 23),
+        )
+        == "blocked and publication-ineligible"
+    )
     with pytest.raises(gate.GateError, match="blocked until"):
         gate.validate(
             ROOT,

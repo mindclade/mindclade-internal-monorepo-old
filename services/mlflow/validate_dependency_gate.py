@@ -16,7 +16,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-
 ROOT = Path(__file__).resolve().parents[2]
 GATE = Path("services/mlflow/security-gate.json")
 EXPECTED_GATE_FIELDS = {
@@ -112,7 +111,9 @@ def normalized_finding(
     return package, version, finding_id, tuple(aliases), tuple(fixes)
 
 
-def scanner_findings(report: dict[str, Any]) -> tuple[tuple[str, str, str, tuple[str, ...], tuple[str, ...]], ...]:
+def scanner_findings(
+    report: dict[str, Any],
+) -> tuple[tuple[str, str, str, tuple[str, ...], tuple[str, ...]], ...]:
     if set(report) != {"dependencies", "fixes"}:
         raise GateError("pip-audit report has unsupported or missing fields")
     dependencies = report.get("dependencies")
@@ -125,7 +126,12 @@ def scanner_findings(report: dict[str, Any]) -> tuple[tuple[str, str, str, tuple
         package = dependency.get("name")
         version = dependency.get("version")
         vulnerabilities = dependency.get("vulns")
-        if not isinstance(package, str) or not package or not isinstance(version, str) or not version:
+        if (
+            not isinstance(package, str)
+            or not package
+            or not isinstance(version, str)
+            or not version
+        ):
             raise GateError(f"pip-audit dependency {index} has no exact identity")
         if not isinstance(vulnerabilities, list):
             raise GateError(f"pip-audit dependency {package} has no vulnerability list")
@@ -146,7 +152,13 @@ def scanner_findings(report: dict[str, Any]) -> tuple[tuple[str, str, str, tuple
             ):
                 raise GateError(f"pip-audit fixes for {package} are invalid")
             findings.append(
-                (package, version, finding_id, tuple(sorted(set(aliases))), tuple(sorted(set(fixes))))
+                (
+                    package,
+                    version,
+                    finding_id,
+                    tuple(sorted(set(aliases))),
+                    tuple(sorted(set(fixes))),
+                )
             )
     if len(findings) != len(set(findings)):
         raise GateError("pip-audit report contains duplicate findings")
@@ -169,7 +181,10 @@ def require_source_boundary(root: Path, gate: dict[str, Any]) -> None:
         encoding="utf-8"
     )
     for pattern, message in (
-        (r"(?m)^activation:\n  enabled: false\n  releaseEvidenceDigest: blocked$", "chart defaults activate MLflow"),
+        (
+            r"(?m)^activation:\n  enabled: false\n  releaseEvidenceDigest: blocked$",
+            "chart defaults activate MLflow",
+        ),
         (r"(?m)^  digest: sha256:0{64}$", "chart defaults select a releasable image"),
     ):
         if re.search(pattern, values) is None:
@@ -182,9 +197,9 @@ def require_source_boundary(root: Path, gate: dict[str, Any]) -> None:
     if gate["status"] == "clean" and not release_entry:
         raise GateError("clean MLflow image is absent from the closed release catalog")
 
-    readiness = (
-        root / "infra/kubernetes/platform/mlflow/PRODUCTION_READINESS.md"
-    ).read_text(encoding="utf-8")
+    readiness = (root / "infra/kubernetes/platform/mlflow/PRODUCTION_READINESS.md").read_text(
+        encoding="utf-8"
+    )
     required_readiness = (
         (
             "| Observed | Cryptography advisory remediation | BLOCKED |",
@@ -239,7 +254,7 @@ def validate(
     deadline = iso_date(gate.get("remediationDeadline"), "remediationDeadline")
     if deadline < reviewed or (deadline - reviewed).days > MAX_REMEDIATION_DAYS:
         raise GateError("MLflow remediation deadline is invalid or exceeds 30 days")
-    effective_today = today or dt.datetime.now(dt.timezone.utc).date()
+    effective_today = today or dt.datetime.now(dt.UTC).date()
     if effective_today > deadline:
         raise GateError(f"MLflow remediation deadline expired on {deadline.isoformat()}")
 
