@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import functools
 import importlib.util
+import sys
 from pathlib import Path
 
 import pytest
@@ -145,11 +146,29 @@ MATERIALIZATION_BASELINE = 0
 
 
 def _load_checker(root: Path):
+    """Load the checker by path, registering it before it executes.
+
+    The `sys.modules` registration is load-bearing, not bookkeeping. `check_blueprint_scaffold`
+    carries `from __future__ import annotations`, so its `@dataclass` field annotations are
+    strings, and `dataclasses._process_class` resolves each one through
+    `sys.modules.get(cls.__module__).__dict__` to decide whether it names `KW_ONLY`. A module
+    executed without being registered first is absent from `sys.modules`, that `.get()` returns
+    None, and class creation dies with `AttributeError: 'NoneType' object has no attribute
+    '__dict__'` before the checker finishes importing.
+
+    This helper omitted the line from the start. It was harmless until 40e8fab1 (#74) hardened
+    the checker and gave it dataclasses, at which point every test in this module began failing
+    on a clean checkout — reported as a Python 3.14 incompatibility, but it reproduces
+    identically on 3.12, because the unguarded lookup in `_is_type` is not new. Registration is
+    the step CPython's own "importing a source file directly" recipe prescribes, and it is what
+    the ten other by-path loaders in this repository already do; this one was the outlier.
+    """
     path = root / "tools/analysis/check_blueprint_scaffold.py"
     spec = importlib.util.spec_from_file_location("check_blueprint_scaffold", path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"unable to load {path}")
     module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 

@@ -35,7 +35,7 @@ but unsafe landing zone.
 | Runtime/data | `gke`, `cpu_node_pool`, `gpu_node_pool`, `postgres`, `redis`, `pubsub` | Regional private GKE is the execution substrate; workload policy and data-consumer idempotence remain runtime responsibilities. |
 | Storage | `storage`, `object_storage`, `bazel_remote_cache`, `nix_binary_cache`, `artifact_registry` | `storage` owns one protected bucket; composition modules select distinct data/cache policies and never duplicate bucket authority. |
 | Operations | `log_sink`, `audit_archive`, `monitoring`, `observability` | `log_sink` and `monitoring` own resources; archive/observability compose standardized organization and multi-project views. |
-| Build execution | `bazel_remote_execution` | Composes a CPU pool and keyless executor identity; Kubernetes executor deployment and Bazel policy remain GitOps/Bazel-owned. |
+| Build execution | `bazel_remote_execution`, `workstation` | Composes a CPU pool and keyless executor identity; Kubernetes executor deployment and Bazel policy remain GitOps/Bazel-owned. `workstation` is one IAP-tunnel-only developer host and the `x86_64-linux` builder for `remote-execution-base`; it owns no cache-bucket IAM, holds no signing or attestation authority, and does not replace `iap_access`, which binds the unrelated IAP-for-Web surface. |
 
 `object_storage` does not replace `storage`; `observability` does not replace
 `monitoring`; and `audit_archive` does not replace `log_sink`. These higher-level
