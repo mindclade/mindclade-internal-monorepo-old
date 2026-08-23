@@ -33,7 +33,16 @@ impl RelativePath {
         for component in value.components() {
             match component {
                 Component::Normal(segment) if !segment.is_empty() => normalized.push(segment),
-                _ => return Err(RelativePathError("path contains an unsupported component")),
+                // `Component::Normal` is named again because the guard above
+                // cannot prove coverage: an empty normal segment must be
+                // rejected here rather than silently normalised away.
+                Component::Prefix(_)
+                | Component::RootDir
+                | Component::CurDir
+                | Component::ParentDir
+                | Component::Normal(_) => {
+                    return Err(RelativePathError("path contains an unsupported component"));
+                }
             }
         }
         if normalized.as_os_str().is_empty() {

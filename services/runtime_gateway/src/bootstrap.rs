@@ -9,6 +9,7 @@
 //! configuration. Global policy remains owned by the Go control plane.
 
 use crate::grpc;
+use crate::host_probe;
 use crate::{
     GatewayAuthority, GatewayComponent, GatewayConfig, GatewayCore, GatewayHealth,
     network::{self, GatewayNetworkState},
@@ -122,6 +123,7 @@ pub async fn run(config: BootstrapConfig) -> FaultResult<()> {
     let request_buffer_budget_bytes = config.gateway.request_buffer_budget_bytes;
     let response_buffer_budget_bytes = config.gateway.response_buffer_budget_bytes;
     let execution_enabled = config.gateway.execution_enabled;
+    let probe_policy = authority.policy();
     let core = Arc::new(GatewayCore::new(
         config.gateway,
         authority.policy(),
@@ -152,6 +154,12 @@ pub async fn run(config: BootstrapConfig) -> FaultResult<()> {
     )?;
     let network_state = state.clone();
     let network_shutdown = shutdown_rx.clone();
+    let probe_shutdown = shutdown_rx.clone();
+    // The readiness probe is an arm of this join, not a detached task: it then
+    // shares the process runtime, is cancelled by the same `watch` channel as
+    // the serve loops, and cannot outlive them. `runtime_host_ready` is the one
+    // readiness input the component start hook cannot assert, because it is a
+    // statement about another process rather than about this one's lifecycle.
     let result = tokio::try_join!(
         async move {
             network::serve(listen_address, network_state, network_shutdown)
@@ -162,6 +170,7 @@ pub async fn run(config: BootstrapConfig) -> FaultResult<()> {
                 })
         },
         grpc::serve(grpc_listen_address, state, shutdown_rx),
+        host_probe::run(probe_policy, health.clone(), probe_shutdown),
     )
     .map(|_| ());
     signal.abort();

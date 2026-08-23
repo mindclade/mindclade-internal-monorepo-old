@@ -309,7 +309,9 @@ fn worker_control_and_status_validation_are_bounded() {
         sequence: 2,
         ticket: match command {
             WorkerCommand::Start { ticket, .. } => ticket,
-            _ => unreachable!(),
+            WorkerCommand::Cancel { .. }
+            | WorkerCommand::Drain { .. }
+            | WorkerCommand::Heartbeat { .. } => unreachable!(),
         },
         inputs: Vec::new(),
         operation: "bad operation with spaces".into(),

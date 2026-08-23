@@ -472,7 +472,16 @@ impl ControlSession {
                 .active_mut()?
                 .cancel("model worker acknowledged cancellation")?,
             WorkerState::Failed => self.active_mut()?.fail("model worker reported failure")?,
-            _ => {
+            // A model worker only reaches these phases before it is admitted
+            // or while the host itself is driving a transition, so seeing one
+            // in a status report means the worker and the host disagree.
+            WorkerState::Created
+            | WorkerState::Starting
+            | WorkerState::Ready
+            | WorkerState::Leased
+            | WorkerState::Committing
+            | WorkerState::Recovering
+            | WorkerState::Cancelling => {
                 return Err(Fault::new(
                     Code::FailedPrecondition,
                     "model-worker reported an invalid execution state",

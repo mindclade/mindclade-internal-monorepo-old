@@ -126,7 +126,10 @@ impl From<&Fault> for WireFault {
                 key: key.to_owned(),
                 value: match value {
                     ContextValue::Sensitive => REDACTED.to_owned(),
-                    _ => value.to_string(),
+                    ContextValue::String(_)
+                    | ContextValue::Signed(_)
+                    | ContextValue::Unsigned(_)
+                    | ContextValue::Boolean(_) => value.to_string(),
                 },
             })
             .collect();
