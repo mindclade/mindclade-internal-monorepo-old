@@ -18,6 +18,19 @@ rust_library(
     ],
 )
 
+# Bazel does not glob `tests/**`, so a suite without a target here is invisible
+# to `bazel test //...` no matter how green `cargo test` is.
+rust_test(
+    name = "adversarial",
+    srcs = ["tests/adversarial.rs"],
+    edition = "2024",
+    deps = [
+        ":mindclade_bounded_parse",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/faults:mindclade_faults",
+    ],
+)
+
 rust_test(
     name = "allocation_limits",
     srcs = ["tests/allocation_limits.rs"],
