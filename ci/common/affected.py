@@ -262,6 +262,7 @@ class Selection:
     event: str
     analysis_query: str | None = None
     test_query: str | None = None
+    partition: dict[str, Any] | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -282,6 +283,7 @@ class Selection:
                 "test_targets": len(self.test_targets),
             },
             "queries": {"analysis": self.analysis_query, "test": self.test_query},
+            "partition": self.partition,
         }
 
 
@@ -957,7 +959,7 @@ def _package_pattern(package: Path, *, root: Path = ROOT) -> str:
 def _query_expression(seeds: Sequence[str], *, tests: bool) -> str:
     seed_set = "set(" + " ".join(json.dumps(seed) for seed in seeds) + ")"
     affected = f"rdeps(//..., {seed_set})"
-    manual_pattern = json.dumps(r"[\[ ]manual[,\]]")
+    manual_pattern = json.dumps("manual")
     selected = "tests($affected)" if tests else 'kind(".* rule", $affected)'
     return (
         f"let affected = {affected} in "
@@ -1328,6 +1330,24 @@ def _execute_selection(
             "latency_slo_met": payload["latency_slo_met"],
             "analysis_target_count": len(selection.analysis_targets),
             "test_target_count": len(selection.test_targets),
+            "shard_index": (
+                selection.partition["selected_shard"]["index"]
+                if selection.partition is not None
+                else None
+            ),
+            "shard_count": (
+                selection.partition["shard_count"] if selection.partition is not None else None
+            ),
+            "analysis_graph_sha256": (
+                selection.partition["analysis_graph_sha256"]
+                if selection.partition is not None
+                else None
+            ),
+            "test_graph_sha256": (
+                selection.partition["test_graph_sha256"]
+                if selection.partition is not None
+                else None
+            ),
         },
     )
     return next((item["exit_code"] for item in execution if item["exit_code"]), 0)

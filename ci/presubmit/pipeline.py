@@ -18,7 +18,7 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from ci.common import affected  # noqa: E402
+from ci.common import affected, full_graph_shards  # noqa: E402
 
 
 def run(command: list[str]) -> int:
@@ -40,6 +40,13 @@ def main() -> int:
     parser.add_argument("--runner-temp", type=Path)
     parser.add_argument("--cache-mode", choices=("disk", "remote"))
     parser.add_argument("--cache-role", choices=("reader", "writer"))
+    parser.add_argument("--shard-index", type=int)
+    parser.add_argument("--shard-count", type=int)
+    parser.add_argument(
+        "--shard-contract",
+        type=Path,
+        default=full_graph_shards.DEFAULT_CONTRACT,
+    )
     args = parser.parse_args()
 
     if not args.bazel_only and run(
@@ -48,6 +55,9 @@ def main() -> int:
         return 1
     if args.static_only:
         return 0
+    shard_arguments = (args.shard_index is not None, args.shard_count is not None)
+    if any(shard_arguments) and not all(shard_arguments):
+        parser.error("full-graph sharding requires both --shard-index and --shard-count")
 
     evidence_dir = args.evidence_dir or Path(tempfile.mkdtemp(prefix="mindclade-bazel-"))
     base_sha: str | None = None
@@ -61,6 +71,10 @@ def main() -> int:
             ref=args.ref,
             base_sha=args.base,
         )
+        if all(shard_arguments) and (resolved_mode != "full" or args.event == "pull_request"):
+            raise affected.SelectionError(
+                "AFFECTED-SELECT-010", "selection mode conflicts with workflow policy"
+            )
         if args.event != "local":
             if args.cache_mode is None or args.cache_role is None:
                 raise affected.SelectionError(
@@ -116,12 +130,31 @@ def main() -> int:
             else:
                 print("Skipping full Rust qualification: no Rust/runtime/toolchain inputs changed")
 
-        selection = affected.select(
-            changes,
-            mode=resolved_mode,
-            base_sha=base_sha,
-            event=args.event,
-        )
+        if args.shard_index is not None and args.shard_count is not None:
+            try:
+                contract = full_graph_shards.load_contract(args.shard_contract)
+                if args.shard_count != contract.shard_count:
+                    raise full_graph_shards.ShardContractError(
+                        "runtime shard count does not match the retained contract"
+                    )
+                graph = full_graph_shards.plan_from_bazel(contract)
+                selection = full_graph_shards.selection_for_shard(
+                    graph,
+                    args.shard_index,
+                    event=args.event,
+                    head_sha=affected.git_revision("HEAD"),
+                )
+            except full_graph_shards.ShardContractError as error:
+                raise affected.SelectionError(
+                    "AFFECTED-SELECT-023", "full-graph shard contract is invalid"
+                ) from error
+        else:
+            selection = affected.select(
+                changes,
+                mode=resolved_mode,
+                base_sha=base_sha,
+                event=args.event,
+            )
         print(
             f"Bazel selection: mode={selection.mode} reason={selection.reason} "
             f"analysis={len(selection.analysis_targets)} tests={len(selection.test_targets)}"

@@ -12,44 +12,55 @@ import os
 import sys
 import tempfile
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from ci.common import affected  # noqa: E402
+from ci.common import affected, full_graph_shards  # noqa: E402
 
 
 @dataclass(frozen=True)
 class NightlyContract:
     mode: str
-    analysis_targets: tuple[str, ...]
-    test_targets: tuple[str, ...]
+    shard_count: int
+    partition_contract: str
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> NightlyContract:
-        expected = {"schema_version", "mode", "analysis_targets", "test_targets"}
+        expected = {"schema_version", "mode", "shard_count", "partition_contract"}
         unknown = set(payload) - expected
+        missing = expected - set(payload)
         if unknown:
             raise ValueError(f"unknown nightly contract fields: {sorted(unknown)}")
-        if type(payload.get("schema_version")) is not int or payload["schema_version"] != 1:
-            raise ValueError("nightly schema_version must be integer 1")
+        if missing:
+            raise ValueError(f"missing nightly contract fields: {sorted(missing)}")
+        if type(payload.get("schema_version")) is not int or payload["schema_version"] != 2:
+            raise ValueError("nightly schema_version must be integer 2")
         if payload.get("mode") != "full":
             raise ValueError("nightly mode must be full")
-        for field in ("analysis_targets", "test_targets"):
-            value = payload.get(field)
-            if (
-                not isinstance(value, list)
-                or not value
-                or not all(isinstance(target, str) and target.startswith("//") for target in value)
-            ):
-                raise ValueError(f"nightly {field} must be a non-empty Bazel target list")
+        shard_count = payload.get("shard_count")
+        if type(shard_count) is not int or shard_count < 2:
+            raise ValueError("nightly shard_count must be an integer >= 2")
+        partition_contract = payload.get("partition_contract")
+        if not isinstance(partition_contract, str):
+            raise ValueError("nightly partition_contract must be a repository-relative path")
+        relative = PurePosixPath(partition_contract)
+        if (
+            relative.is_absolute()
+            or ".." in relative.parts
+            or relative.as_posix() != partition_contract
+            or relative.parts[:2] != ("ci", "bazel")
+            or len(relative.parts) < 3
+            or relative.suffix != ".toml"
+        ):
+            raise ValueError("nightly partition_contract must remain under ci/bazel")
         return cls(
             mode="full",
-            analysis_targets=tuple(payload["analysis_targets"]),
-            test_targets=tuple(payload["test_targets"]),
+            shard_count=shard_count,
+            partition_contract=partition_contract,
         )
 
 
@@ -108,7 +119,12 @@ def main() -> int:
     parser.add_argument("--head", default=os.environ.get("GITHUB_SHA"))
     parser.add_argument("--cache-mode", choices=("disk", "remote"))
     parser.add_argument("--cache-role", choices=("reader", "writer"))
+    parser.add_argument("--shard-index", type=int)
+    parser.add_argument("--shard-count", type=int)
     args = parser.parse_args()
+    shard_arguments = (args.shard_index is not None, args.shard_count is not None)
+    if any(shard_arguments) and not all(shard_arguments):
+        parser.error("full-graph sharding requires both --shard-index and --shard-count")
     evidence_dir = args.evidence_dir or Path(tempfile.mkdtemp(prefix="mindclade-nightly-"))
     try:
         contract = load_contract(args.targets)
@@ -139,15 +155,31 @@ def main() -> int:
             cache_mode=args.cache_mode,
             cache_role=args.cache_role,
         )
-        selection = affected.select([], mode=mode, event=args.event)
-        if selection.analysis_targets != contract.analysis_targets:
-            raise affected.SelectionError(
-                "AFFECTED-SELECT-015", "nightly analysis target contract drifted"
-            )
-        if selection.test_targets != contract.test_targets:
-            raise affected.SelectionError(
-                "AFFECTED-SELECT-015", "nightly test target contract drifted"
-            )
+        if args.shard_index is None or args.shard_count is None:
+            selection = affected.select([], mode=mode, event=args.event)
+        else:
+            try:
+                if args.shard_count != contract.shard_count:
+                    raise full_graph_shards.ShardContractError(
+                        "runtime shard count does not match the nightly contract"
+                    )
+                partition_path = REPO / contract.partition_contract
+                shard_contract = full_graph_shards.load_contract(partition_path)
+                if shard_contract.shard_count != contract.shard_count:
+                    raise full_graph_shards.ShardContractError(
+                        "nightly and full-graph shard contracts disagree"
+                    )
+                graph = full_graph_shards.plan_from_bazel(shard_contract)
+                selection = full_graph_shards.selection_for_shard(
+                    graph,
+                    args.shard_index,
+                    event=args.event,
+                    head_sha=affected.git_revision("HEAD"),
+                )
+            except full_graph_shards.ShardContractError as error:
+                raise affected.SelectionError(
+                    "AFFECTED-SELECT-023", "full-graph shard contract is invalid"
+                ) from error
         return affected.execute_selection(
             selection,
             evidence_dir,

@@ -17,6 +17,7 @@ PRESUBMIT = (ROOT / ".github/workflows/presubmit.yml").read_text(encoding="utf-8
 NIGHTLY = (ROOT / ".github/workflows/nightly.yml").read_text(encoding="utf-8")
 SECURITY = (ROOT / ".github/workflows/security.yml").read_text(encoding="utf-8")
 CACHE_SHA = "55cc8345863c7cc4c66a329aec7e433d2d1c52a9"
+DOWNLOAD_ARTIFACT_SHA = "634f93cb2916e3fdff6788551b99b062d0335ce0"
 REUSABLE_SHA = "7e4b7a873fc9312c2985ed262b251455c71756fe"
 AUTH_SHA = "7c6bc770dae815cd3e89ee6cdf493a5fab2cc093"
 AUTH_ACTION = f"google-github-actions/auth@{AUTH_SHA}"
@@ -27,6 +28,25 @@ PULL_REQUEST_CACHE_BASE_SHA = (
     "${{ github.event.pull_request.stack.base.sha || github.event.pull_request.base.sha }}"
 )
 PULL_REQUEST_SELECTION_BASE_SHA = "${{ github.event.pull_request.base.sha }}"
+REMOTE_CACHE_ENABLED_EXPRESSION = (
+    "${{ steps.bazel-remote-cache.outcome == 'success' "
+    "&& steps.bazel-remote-cache.outputs.enabled || 'false' }}"
+)
+PERSISTENT_CACHE_TRUST_IF = "steps.bazel-remote-cache.outputs.enabled != 'true'"
+PERSISTENT_CACHE_RESTORE_IF = (
+    "steps.bazel-remote-cache.outputs.enabled != 'true' "
+    "&& steps.bazel-cache-trust.outcome == 'success'"
+)
+PERSISTENT_CACHE_ROLE_EXPRESSION = (
+    "${{ steps.bazel-cache-trust.outcome == 'success' "
+    "&& steps.bazel-cache-trust.outputs.role || 'reader' }}"
+)
+GOVERNED_CACHE_ROLE_EXPRESSION = (
+    "${{ steps.bazel-remote-cache.outputs.enabled == 'true' "
+    "&& steps.bazel-remote-cache.outputs.role "
+    "|| steps.bazel-cache-trust.outcome == 'success' "
+    "&& steps.bazel-cache-trust.outputs.role || 'reader' }}"
+)
 PERSISTENT_CACHE_MEASURE_IF = (
     "always() && steps.bazel-remote-cache.outputs.enabled != 'true' "
     "&& steps.bazel-cache-trust.outcome == 'success'"
@@ -36,6 +56,14 @@ REMOTE_CACHE_ACTIVATION = json.loads(
 )
 PRESUBMIT_WORKFLOW = yaml.safe_load(PRESUBMIT)
 NIGHTLY_WORKFLOW = yaml.safe_load(NIGHTLY)
+
+
+def job_block(workflow: str, job: str) -> str:
+    match = re.search(rf"(?m)^  {re.escape(job)}:\s*$", workflow)
+    assert match is not None, f"workflow is missing job {job}"
+    following = workflow[match.end() :]
+    next_job = re.search(r"(?m)^  [A-Za-z0-9_-]+:\s*$", following)
+    return following[: next_job.start()] if next_job else following
 
 
 def workflow_job(workflow: object, name: str) -> dict[str, object]:
@@ -171,8 +199,29 @@ assert python_audit_job.count("--requirement requirements.lock.txt") == 2
 assert python_audit_job.count("--vulnerability-service osv") == 1
 assert "torch's Linux +cpu wheel" in python_audit_job
 
-bazel_job = PRESUBMIT.split("\n  bazel:\n", maxsplit=1)[1]
-bazel_job = bazel_job.split("\n  # Stable, always-reported", maxsplit=1)[0]
+bazel_plan = job_block(PRESUBMIT, "bazel-worker-plan")
+bazel_job = job_block(PRESUBMIT, "bazel-workers")
+bazel_verdict = job_block(PRESUBMIT, "bazel")
+assert "name: bazel / verdict" in bazel_verdict
+assert "needs: [bazel-worker-plan, bazel-workers]" in bazel_verdict
+assert "ci/common/bazel_verdict.py" in bazel_verdict
+assert f"actions/download-artifact@{DOWNLOAD_ARTIFACT_SHA}" in bazel_verdict
+assert "if: always()" in bazel_verdict
+assert "actions/setup-python@" in bazel_plan
+assert 'python-version: "3.14.7"' in bazel_plan
+assert "nix develop" not in bazel_plan
+assert "ci/common/bazel_remote_cache.py" in bazel_plan
+assert "ci/common/bazel_worker_matrix.py" in bazel_plan
+assert "worker: ${{ fromJSON(needs.bazel-worker-plan.outputs.workers) }}" in bazel_job
+assert "fail-fast: false" in bazel_job
+assert "BAZEL_MATRIX_CACHE_STATE_DRIFT" in bazel_job
+assert '--shard-index "${WORKER}"' in bazel_job
+assert '--shard-count "${SHARD_COUNT}"' in bazel_job
+assert "Redact completed Bazel worker selection" in bazel_job
+assert "Upload redacted Bazel worker selection" in bazel_job
+assert "if-no-files-found: error" in bazel_job
+assert '--expected-workers "${EXPECTED_WORKERS}"' in bazel_verdict
+assert '--selection-root "${RUNNER_TEMP}/bazel-worker-selections"' in bazel_verdict
 assert "timeout-minutes: 90" in bazel_job
 affected_executor = (ROOT / "ci/common/affected.py").read_text(encoding="utf-8")
 assert bazel_job.count(f"actions/cache/restore@{CACHE_SHA}") == 1
@@ -186,7 +235,10 @@ for start, end in (
         "continue-on-error: true" in bazel_job.split(start, maxsplit=1)[1].split(end, maxsplit=1)[0]
     )
 assert "--build_event_json_file=" in affected_executor
-assert "bazel-performance-${{ github.run_id }}-${{ github.run_attempt }}" in bazel_job
+assert (
+    "bazel-performance-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.worker }}"
+    in bazel_job
+)
 assert "tools/dev/bazelw query '//...' --config=ci" in bazel_job
 assert re.search(r"smoke_test --config=ci\s*$", bazel_job, re.MULTILINE)
 
@@ -222,8 +274,20 @@ assert "steps.bazel-disk-cache.outcome" in bazel_job
 assert "steps.bazel-cache-size.outcome" in bazel_job
 assert "--bazel-wrapper" in bazel_job
 assert REMOTE_CACHE_ACTIVATION["state"] == "blocked"
-bazel_workflow_job = workflow_job(PRESUBMIT_WORKFLOW, "bazel")
+bazel_plan_workflow_job = workflow_job(PRESUBMIT_WORKFLOW, "bazel-worker-plan")
+bazel_workflow_job = workflow_job(PRESUBMIT_WORKFLOW, "bazel-workers")
 assert bazel_workflow_job["permissions"] == {"contents": "read"}
+assert bazel_plan_workflow_job["outputs"]["remote_cache_enabled"] == (
+    REMOTE_CACHE_ENABLED_EXPRESSION
+)
+
+presubmit_plan_selector = workflow_step(bazel_plan_workflow_job, step_id="bazel-remote-cache")
+presubmit_plan_selector_env = presubmit_plan_selector.get("env")
+assert isinstance(presubmit_plan_selector_env, dict)
+assert "if" not in presubmit_plan_selector
+assert presubmit_plan_selector_env["PR_BASE_REF"] == PULL_REQUEST_CACHE_BASE_REF
+presubmit_plan_matrix = workflow_step(bazel_plan_workflow_job, step_id="worker-matrix")
+assert presubmit_plan_matrix["env"]["REMOTE_CACHE_ENABLED"] == (REMOTE_CACHE_ENABLED_EXPRESSION)
 
 presubmit_selector = workflow_step(bazel_workflow_job, step_id="bazel-remote-cache")
 assert {key: value for key, value in presubmit_selector.items() if key != "run"} == {
@@ -267,15 +331,38 @@ assert_remote_cache_command(
 presubmit_disk_selector = workflow_step(bazel_workflow_job, step_id="bazel-cache-trust")
 presubmit_disk_selector_env = presubmit_disk_selector.get("env")
 assert isinstance(presubmit_disk_selector_env, dict)
+assert presubmit_disk_selector["if"] == PERSISTENT_CACHE_TRUST_IF
 assert presubmit_disk_selector_env["PR_BASE_REF"] == PULL_REQUEST_CACHE_BASE_REF
 assert presubmit_disk_selector_env["PR_BASE_SHA"] == PULL_REQUEST_CACHE_BASE_SHA
 
+presubmit_disk_restore = workflow_step(bazel_workflow_job, step_id="bazel-disk-cache")
+assert presubmit_disk_restore["if"] == PERSISTENT_CACHE_RESTORE_IF
+presubmit_disk_configure = workflow_step(
+    bazel_workflow_job, name="Configure bounded Bazel persistent action cache"
+)
+assert presubmit_disk_configure["env"]["BAZEL_CACHE_ROLE"] == (PERSISTENT_CACHE_ROLE_EXPRESSION)
+
 presubmit_governed_run = workflow_step(
-    bazel_workflow_job, name="Run event-governed Bazel validation"
+    bazel_workflow_job,
+    step_id="bazel-validation",
+    name="Run event-governed Bazel validation",
 )
 presubmit_governed_env = presubmit_governed_run.get("env")
 assert isinstance(presubmit_governed_env, dict)
 assert presubmit_governed_env["PR_BASE_SHA"] == PULL_REQUEST_SELECTION_BASE_SHA
+assert presubmit_governed_env["BAZEL_CACHE_ROLE"] == GOVERNED_CACHE_ROLE_EXPRESSION
+assert presubmit_governed_env["REMOTE_CACHE_ENABLED"] == REMOTE_CACHE_ENABLED_EXPRESSION
+
+presubmit_redaction = workflow_step(
+    bazel_workflow_job,
+    step_id="bazel-selection-redact",
+    name="Redact completed Bazel worker selection",
+)
+assert presubmit_redaction["if"] == "steps.bazel-validation.outcome == 'success'"
+presubmit_selection_upload = workflow_step(
+    bazel_workflow_job, name="Upload redacted Bazel worker selection"
+)
+assert presubmit_selection_upload["if"] == ("steps.bazel-selection-redact.outcome == 'success'")
 
 presubmit_cache_measure = workflow_step(bazel_workflow_job, step_id="bazel-cache-size")
 assert presubmit_cache_measure.get("if") == PERSISTENT_CACHE_MEASURE_IF
@@ -374,8 +461,30 @@ assert_remote_cache_command(
     ],
 )
 
-nightly_job = NIGHTLY.split("\n  bazel-nightly:\n", maxsplit=1)[1]
-assert "if: github.ref == 'refs/heads/main'" in nightly_job
+nightly_plan = job_block(NIGHTLY, "bazel-nightly-plan")
+nightly_job = job_block(NIGHTLY, "bazel-nightly-workers")
+nightly_verdict = job_block(NIGHTLY, "bazel-nightly")
+assert "if: github.ref == 'refs/heads/main'" in nightly_plan
+assert "name: nightly Bazel / verdict" in nightly_verdict
+assert "needs: [bazel-nightly-plan, bazel-nightly-workers]" in nightly_verdict
+assert "ci/common/bazel_verdict.py" in nightly_verdict
+assert f"actions/download-artifact@{DOWNLOAD_ARTIFACT_SHA}" in nightly_verdict
+assert "if: always() && github.ref == 'refs/heads/main'" in nightly_verdict
+assert "actions/setup-python@" in nightly_plan
+assert 'python-version: "3.14.7"' in nightly_plan
+assert "nix develop" not in nightly_plan
+assert "ci/common/bazel_remote_cache.py" in nightly_plan
+assert "ci/common/bazel_worker_matrix.py" in nightly_plan
+assert "worker: ${{ fromJSON(needs.bazel-nightly-plan.outputs.workers) }}" in nightly_job
+assert "fail-fast: false" in nightly_job
+assert "BAZEL_MATRIX_CACHE_STATE_DRIFT" in nightly_job
+assert '--shard-index "${WORKER}"' in nightly_job
+assert '--shard-count "${SHARD_COUNT}"' in nightly_job
+assert "Redact completed nightly Bazel worker selection" in nightly_job
+assert "Upload redacted nightly Bazel worker selection" in nightly_job
+assert "if-no-files-found: error" in nightly_job
+assert '--expected-workers "${EXPECTED_WORKERS}"' in nightly_verdict
+assert '--selection-root "${RUNNER_TEMP}/bazel-worker-selections"' in nightly_verdict
 assert nightly_job.count(f"actions/cache/restore@{CACHE_SHA}") == 1
 assert nightly_job.count(f"actions/cache/save@{CACHE_SHA}") == 1
 for start, end in (
@@ -404,8 +513,8 @@ for command in ("select-trust", "configure", "measure", "record-metrics"):
     assert f"ci/common/bazel_disk_cache.py {command}" in nightly_job
 assert "ci/nightly/pipeline.py" in nightly_job
 assert "--mode affected" not in nightly_job
-nightly_workflow_job = workflow_job(NIGHTLY_WORKFLOW, "bazel-nightly")
-assert nightly_workflow_job["if"] == "github.ref == 'refs/heads/main'"
+nightly_workflow_job = workflow_job(NIGHTLY_WORKFLOW, "bazel-nightly-workers")
+assert nightly_workflow_job["if"] == "needs.bazel-nightly-plan.result == 'success'"
 assert nightly_workflow_job["permissions"] == {"actions": "read", "contents": "read"}
 
 nightly_selector = workflow_step(nightly_workflow_job, step_id="bazel-remote-cache")

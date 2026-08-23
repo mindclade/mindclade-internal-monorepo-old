@@ -324,7 +324,10 @@ def test_quiesce_fails_closed_on_shutdown_timeout(
         )
 
 
-def test_configure_discards_partial_cache_after_restore_failure(tmp_path: Path) -> None:
+@pytest.mark.parametrize("restore_outcome", ("failure", "skipped"))
+def test_configure_discards_partial_cache_without_successful_restore(
+    tmp_path: Path, restore_outcome: str
+) -> None:
     workspace, cache = _configured_cache(tmp_path)
     partial = cache / "partial-entry"
     partial.write_bytes(b"incomplete")
@@ -336,7 +339,7 @@ def test_configure_discards_partial_cache_after_restore_failure(tmp_path: Path) 
         bazelrc=workspace / "user.bazelrc",
         role="writer",
         github_env=github_env,
-        restore_outcome="failure",
+        restore_outcome=restore_outcome,
     )
     assert cache.is_dir()
     assert not partial.exists()
