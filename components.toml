@@ -53,6 +53,7 @@ tests = [
     "control/artifacts/catalog_test.go",
     "control/artifacts/grant_test.go",
 ]
+qualification = "docs/qualification/control-artifacts.md"
 slo = "docs/slo/artifact-control.md"
 runbook = "docs/runbooks/control-artifacts.md"
 
