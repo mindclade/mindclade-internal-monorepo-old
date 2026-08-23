@@ -151,6 +151,21 @@ impl<'a> Decoder<'a> {
         std::str::from_utf8(self.bytes()?)
             .map_err(|error| Fault::data_loss("encoded string is not UTF-8").with_source(error))
     }
+    /// Reads a declared repeated-item count, bounded by what this message can
+    /// actually contain.
+    ///
+    /// The count is attacker-controlled and every caller pre-allocates from it
+    /// (`Vec::with_capacity(count)`), so a fixed ceiling alone made a tiny
+    /// message an allocation amplifier: four bytes claiming `max_items` items
+    /// were accepted, the caller reserved for a million records, and only then
+    /// did the first item fail to decode. Every encodable item costs at least
+    /// one byte — `Encoder` has no zero-width write — so a message cannot hold
+    /// more items than it has bytes left. Bounding by `remaining()` collapses
+    /// the amplification to the message's own size.
+    ///
+    /// This only ever tightens. The absolute `max_items` ceiling still applies
+    /// first, and a well-formed message always carries at least one byte per
+    /// item, so nothing that decoded before is rejected now.
     pub fn item_count(&mut self) -> FaultResult<usize> {
         let count = usize::try_from(self.u32()?)
             .map_err(|_| Fault::data_loss("encoded item count is invalid"))?;
@@ -158,6 +173,13 @@ impl<'a> Decoder<'a> {
             return Err(Fault::new(
                 Code::ResourceExhausted,
                 "encoded item count exceeds limit",
+            ));
+        }
+        // Evaluated after the `u32` above, so this is the budget left for the
+        // items themselves rather than for the count field.
+        if count > self.remaining() {
+            return Err(Fault::data_loss(
+                "encoded item count exceeds remaining message bytes",
             ));
         }
         Ok(count)
