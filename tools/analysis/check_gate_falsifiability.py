@@ -54,7 +54,7 @@ import os
 import shutil
 import sys
 import tempfile
-from collections.abc import Callable, Iterable, Iterator, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -391,6 +391,53 @@ FALSIFIERS: tuple[Falsifier, ...] = (
 )
 
 
+# Checkers that do not have a falsifying fixture yet, each with the reason.
+#
+# A ratchet, in the sense CLAUDE.md sanctions -- not an allowlist. It does not let a violation
+# through: every checker here still runs, and still fails the build when it finds something. What
+# it records is the coverage frontier, and it is asserted as an EXACT set in both directions:
+#
+#   * a checker that is neither covered nor listed here fails the gate, so a newly added gate
+#     cannot land without a fixture;
+#   * a checker listed here that HAS acquired a fixture also fails the gate, so the list cannot
+#     be left stale. It shrinks or it breaks; it cannot quietly grow.
+#
+# Adding an entry is therefore a deliberate, reviewable act with a reason attached, which is the
+# opposite of the silent fail-open that produced the ten original defects.
+UNFALSIFIED_BASELINE: dict[str, str] = {
+    "Cargo/Bazel Rust alignment": (
+        "the checker parses MODULE.bazel's crate.from_cargo call and cross-references the "
+        "workspace inventory; a fixture has to corrupt both sides coherently to isolate one "
+        "invariant"
+    ),
+    "Go command composition": "needs a Go command fixture that violates composition, not layering",
+    "Go test signals": "needs a fixture Go test whose signal is absent rather than merely weak",
+    "MLOps static contracts": "contract inventory not yet surveyed for a single-invariant anchor",
+    "Rust implementation": "needs a fixture that trips one bound without tripping the others",
+    "Rust package manifest": (
+        "covered by tests/test_rust_package_manifest.py in the emerging by-hand pattern; needs "
+        "porting to a Falsifier rather than a second fixture written from scratch"
+    ),
+    "affected presubmit": (
+        "the largest checker in the suite (1500+ lines) and the one with the most cross-file "
+        "invariants; it needs its own survey before a fixture can isolate one of them"
+    ),
+    "component maturity": (
+        "covered by tests/test_component_maturity.py, which builds a hermetic components.toml "
+        "per case; needs porting to a Falsifier"
+    ),
+    "control-plane commands": "needs a Go command fixture; same survey as Go command composition",
+    "dependency budgets": "budget inputs not yet surveyed for a single-invariant anchor",
+    "foundation consumption": "needs a Go import-graph fixture; same survey as Go layers",
+    "generated artifacts": (
+        "verify_generated regenerates bindings from protocols/; a fixture must corrupt a "
+        "generated artifact without tripping the codegen lane, and protocols/ and tools/codegen "
+        "are both under active change"
+    ),
+    "production dependencies": "landed in #129 after this harness; not yet surveyed",
+}
+
+
 def _run(fn: CheckFn, root: Path) -> frozenset[str]:
     return frozenset(fn(root))
 
@@ -406,6 +453,7 @@ def audit(
     falsifiers: Sequence[Falsifier],
     *,
     exempt: frozenset[str] = frozenset(),
+    pending: Mapping[str, str] | None = None,
     report: Callable[[str], None] | None = None,
 ) -> list[str]:
     """Require every checker in `checks` to be falsified by a fixture in `falsifiers`.
@@ -416,8 +464,12 @@ def audit(
     `exempt` names checkers the caller has discharged by other means. It exists for exactly one
     caller -- `check`, exempting this harness from auditing itself -- and every exempt name must
     still be registered, so the exemption cannot outlive the thing it exempts.
+
+    `pending` is the coverage ratchet: names mapped to the reason no fixture exists yet. It is
+    asserted exactly, so an entry that acquires a fixture becomes a failure until it is removed.
     """
     say = report or (lambda _message: None)
+    waiting = dict(pending or {})
     errors: list[str] = []
 
     registered: dict[str, CheckFn] = {}
@@ -443,11 +495,23 @@ def audit(
             f"stale fixture: {name!r} names no registered checker, so its falsifiers exercise "
             "nothing; delete them or repair the name"
         )
-    for name in sorted(set(registered) - set(covered) - exempt):
+    for name in sorted(set(waiting) - set(registered)):
+        errors.append(
+            f"stale baseline entry: {name!r} is recorded as awaiting a fixture but is not a "
+            "registered checker; remove it from UNFALSIFIED_BASELINE"
+        )
+    for name in sorted(set(waiting) & set(covered)):
+        errors.append(
+            f"stale baseline entry: {name!r} now has a falsifying fixture; remove it from "
+            "UNFALSIFIED_BASELINE. The baseline is a ratchet and only moves down"
+        )
+    for name in sorted(set(registered) - set(covered) - exempt - set(waiting)):
         errors.append(
             f"unfalsifiable gate: {name!r} has no falsifying fixture, so nobody has watched it "
             f"fail; add a Falsifier for it in {Path(__file__).name}"
         )
+    for name in sorted(set(waiting) & set(registered) - set(covered)):
+        say(f"PENDING  {name}: {waiting[name]}")
 
     runnable = sorted((set(registered) & set(covered)) - exempt)
     if not runnable:
@@ -600,7 +664,14 @@ def check(root: Path, report: Callable[[str], None] | None = None) -> list[str]:
             "run_architecture_checks.CHECKS; a meta-gate that does not run enforces nothing"
         )
     errors.extend(
-        audit(root, checks, FALSIFIERS, exempt=frozenset({SELF_CHECK_NAME}), report=report)
+        audit(
+            root,
+            checks,
+            FALSIFIERS,
+            exempt=frozenset({SELF_CHECK_NAME}),
+            pending=UNFALSIFIED_BASELINE,
+            report=report,
+        )
     )
     return errors
 

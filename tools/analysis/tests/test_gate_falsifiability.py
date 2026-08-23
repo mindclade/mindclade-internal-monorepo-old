@@ -219,6 +219,41 @@ def test_self_falsification_evidence_passes(tmp_path: Path) -> None:
     assert harness._self_falsification_evidence() == []
 
 
+def test_a_pending_checker_is_not_required_to_have_a_fixture(source: Path) -> None:
+    """The coverage ratchet: an unwritten fixture is recorded with a reason, not ignored."""
+    errors = harness.audit(
+        source,
+        [("content", content_checker)],
+        [],
+        pending={"content": "fixture not written yet"},
+    )
+    assert errors == []
+
+
+def test_a_pending_entry_that_gained_a_fixture_is_rejected(source: Path) -> None:
+    """The ratchet only moves down. A covered checker may not stay on the pending list."""
+    errors = harness.audit(
+        source,
+        [("content", content_checker)],
+        [falsifier("content")],
+        pending={"content": "fixture not written yet"},
+    )
+    assert any("now has a falsifying fixture" in error for error in errors), errors
+
+
+def test_a_pending_entry_for_an_unregistered_checker_is_rejected(source: Path) -> None:
+    errors = harness.audit(
+        source, [("content", content_checker)], [falsifier("content")], pending={"gone": "reason"}
+    )
+    assert any("stale baseline entry: 'gone'" in error for error in errors), errors
+
+
+def test_every_pending_entry_carries_a_reason() -> None:
+    """An entry with no reason is an allowlist; an entry with one is a tracked debt."""
+    for name, reason in harness.UNFALSIFIED_BASELINE.items():
+        assert reason.strip(), name
+
+
 def test_every_registered_falsifier_pins_a_message() -> None:
     """An empty `expect` would match every message and reduce the gate to "it printed"."""
     for entry in harness.FALSIFIERS:
