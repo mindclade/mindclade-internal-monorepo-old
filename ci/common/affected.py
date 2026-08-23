@@ -43,7 +43,7 @@ BAZELRC_FIXED_LINES = (
     "build --noremote_cache_async",
     "build --remote_verify_downloads",
     "build --remote_cache_compression",
-    "build --experimental_disk_cache_gc_max_size=4G",
+    "build --experimental_disk_cache_gc_max_size=1G",
     "build --experimental_disk_cache_gc_idle_delay=1s",
 )
 SANITIZED_BUILD_ENVIRONMENT = frozenset(

@@ -75,3 +75,9 @@ pytest_test(
     imports = ["../.."],
     deps = [":bazel_disk_cache_lib"],
 )
+
+pytest_test(
+    name = "prepare_nix_runner_test",
+    srcs = ["tests/test_prepare_nix_runner.py"],
+    data = ["prepare_nix_runner.sh"],
+)

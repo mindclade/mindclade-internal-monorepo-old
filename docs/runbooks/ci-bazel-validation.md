@@ -40,7 +40,7 @@ Cloud Storage, and does not remove the activation block on the future authentica
   those refs may still restore a cache published from the default branch.
 - `user.bazelrc` is generated after restore and before the first Bazel invocation. It points only at
   `$RUNNER_TEMP`, makes cache uploads synchronous, enables digest verification and compression,
-  caps Bazel 9 garbage collection at 4 GiB with a one-second idle delay, and contains no
+  caps Bazel 9 garbage collection at 1 GiB with a one-second idle delay, and contains no
   credentials.
 - Before measurement or persistence, CI waits for the idle GC boundary and shuts down the Bazel
   server. Shutdown cancels or waits for background GC and upload work, leaving a stable cache tree;

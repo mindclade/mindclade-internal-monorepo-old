@@ -32,7 +32,7 @@ evidence.
 
 `cache-metrics.json` records the persistent-cache role, trusted revision,
 exact/prefix/not-restored/error restore state, unverified save-attempt step outcome, and
-bytes retained under the 4 GiB limit after Bazel shutdown. The latency series
+bytes retained under the 1 GiB limit after Bazel shutdown. The latency series
 must segment cold not-restored runs, prefix restores, and exact restores. A cache
 improvement may reduce the measured percentile but may not change the target
 selection, full-graph merge-group/nightly contract, or 75/90-minute correctness
