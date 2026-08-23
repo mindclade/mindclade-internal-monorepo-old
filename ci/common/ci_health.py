@@ -309,7 +309,9 @@ def build_dashboard(
         raise HealthContractError("CI health identity is invalid")
     if ARTIFACT_PREFIX_PATTERN.fullmatch(artifact_prefix) is None:
         raise HealthContractError("CI health artifact prefix is invalid")
-    if topology_mode not in TOPOLOGY_WORKERS or (topology_mode == "full-sharded" and shard_count < 2):
+    if topology_mode not in TOPOLOGY_WORKERS or (
+        topology_mode == "full-sharded" and shard_count < 2
+    ):
         raise HealthContractError("CI health topology is invalid")
     if expected_workers != TOPOLOGY_WORKERS[topology_mode](shard_count):
         raise HealthContractError("CI health worker topology disagrees")
