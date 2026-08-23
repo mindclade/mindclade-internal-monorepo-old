@@ -84,6 +84,38 @@ slo = "docs/slo/control-ingestion.md"
 runbook = "docs/runbooks/control-ingestion.md"
 security_review = true
 
+# The three control/ domains that were carrying production Go with no components.toml entry.
+# Ownership follows OWNERS.toml, which already claims `control/**` for platform-control; no
+# owner is being invented here, only written down where the checker can read it.
+#
+# All three are recorded tier-2 because no SLO or runbook has been written for any of them,
+# and tier is a statement about operational commitment rather than about how much code exists.
+# control.evidence is the one an owner should look at again: it signs the decisions that gate
+# whether a deployment bundle may ship, which is the same job control.release_evidence does at
+# tier-1 with docs/slo/control-release-evidence.md and a runbook behind it. Raising it to
+# tier-1 requires writing those two documents, which is an owner's call to make and not a
+# side effect of registering the component.
+[component."control.evidence"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "go"
+security_review = true
+
+# security_review is true for the classification boundary, not the graph maths: the MLflow
+# projection decides which restricted nodes and edges are withheld from an external consumer,
+# and a change that quietly widens it leaks lineage for datasets and safety evidence.
+[component."control.lineage"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "go"
+security_review = true
+
+[component."control.orchestration"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "go"
+security_review = true
+
 [component."preprocessing.core"]
 owner = "biology-ml"
 criticality = "tier-2"

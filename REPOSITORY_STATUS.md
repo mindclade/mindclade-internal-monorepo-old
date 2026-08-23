@@ -8,6 +8,18 @@ separate states. Machine-readable component state is recorded in
 `components.toml` and `maturity.toml`; `VALIDATION.md` and `QUALIFICATION.md`
 record evidence.
 
+Every package under `control/` and `libs/` that contains non-scaffold production
+Go now carries a `components.toml` entry, enforced by
+`tools/analysis/check_component_maturity.py`. Before that gate existed a path
+could hold production code and simply not appear in the record, and an
+undeclared path inherits no status — so the model's central prohibition,
+that production may not depend on `planned`/`scaffolded`/`experimental`, had
+nothing to attach to. `services/` is **not** yet inside that invariant:
+`services/control_plane`, `services/studio`, and `services/go_vanity` hold
+roughly 17.5k lines of undeclared production Go across 59 packages. Directories
+whose Go is only `const scaffold_<name>` placeholders stay undeclared by design;
+reserved space is not a component.
+
 ## Current gate status (2026-08-21)
 
 Documentation, root policy, proprietary header, and dependency-license gates
@@ -23,8 +35,13 @@ lane.
 - complete layered `libs/go` mechanism foundation and durable coordination;
 - standard Go process assembly through `servicekit/production`;
 - typed Go control-plane domains under `control/`, including runtime authority,
-  routing, artifacts, orchestration, reference releases, canonical evidence,
-  append-only evidence-ledger storage, and signed production-eligibility decisions;
+  artifacts, reference releases, ingestion, release lineage, canonical evidence,
+  append-only evidence-ledger storage, and signed production-eligibility decisions.
+  `control/routing` and `control/orchestration` appear in this tree for the domain
+  shape they establish rather than as implemented capability: both are
+  `experimental` in `components.toml`, and ten of `control/orchestration`'s
+  fourteen non-test files — service, executor, state machine, lease, compiler,
+  repository, and the three launcher adapters — are still scaffold placeholders;
 - Go architecture, dependency, root-module, and library-admission enforcement;
 - runnable Go control-plane, event-dispatcher, and ingestion integrations;
 - the user-supplied Rust foundation adopted as the literal starting point and
