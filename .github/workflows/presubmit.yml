@@ -41,25 +41,28 @@ jobs:
   # and admission rules, Rust workspace shape, Cargo/Bazel dep parity, component maturity.
   #
   # `--static-only` stops after the architecture checks. The Bazel job invokes the same pipeline's
-  # evidence-producing full path while affected-mode activation remains blocked.
+  # evidence-producing affected or protected full-graph path.
   architecture:
     name: architecture
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          # Retain full history so the dormant selector's behavioral qualification can compare
-          # revisions without changing the live full-graph event policy.
+          # Retain full history so affected pull-request selection can prove canonical ancestry.
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
-        with:
-          python-version: "3.14.7"
+      - name: Prepare GitHub-hosted runner disk for Nix
+        run: ci/common/prepare_nix_runner.sh
 
-      # Stdlib only by design, so there is nothing to install first.
-      - run: python3 ci/presubmit/pipeline.py --static-only
+      - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = false
+
+      - run: nix develop .#ci --command python3 ci/presubmit/pipeline.py --static-only
 
   # Go — the fleet control plane and durable policy. ~59k LOC, the largest lane.
   #

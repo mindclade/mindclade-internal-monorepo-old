@@ -297,9 +297,7 @@ def test_selection_policy_behavior_rejects_mutated_resolver(
 def test_selection_policy_is_independent_of_graph_native_activation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(
-        check_affected_presubmit.affected, "GRAPH_NATIVE_AFFECTED_ACTIVE", True
-    )
+    monkeypatch.setattr(check_affected_presubmit.affected, "GRAPH_NATIVE_AFFECTED_ACTIVE", True)
     assert check_affected_presubmit._selection_policy_errors() == []
 
 
