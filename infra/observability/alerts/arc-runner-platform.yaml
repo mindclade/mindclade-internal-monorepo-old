@@ -1,0 +1,26 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+---
+{
+  "schemaVersion": "mindclade.dev/cloud-monitoring-alert-contract/v1alpha1",
+  "name": "arc-runner-platform",
+  "owner": "release-engineering",
+  "serviceClass": "release",
+  "availabilityProfile": "internal-interactive",
+  "deployment": {"provider": "google-cloud-monitoring", "terraformModule": "infra/terraform/modules/monitoring", "deployableKubernetesResource": false},
+  "requiredEnvironmentInputs": ["emailNotificationChannelResourceNames", "environment", "googleChatNotificationChannelResourceNames", "httpsRunbookUrl", "projectId", "qualificationEvidenceSha256"],
+  "signals": [
+    {"name": "arc-controller-reconcile-error-ratio", "description": "Actions Runner Controller reconciliation errors exceed the explicitly proposed, unapproved ratio after a sufficient controller event sample. A reconciling controller that cannot converge leaves ephemeral runners orphaned rather than failing visibly.", "metric": "mindclade.arc.reconcile_error_ratio", "condition": "above", "threshold": 0.05, "duration": "10m", "severity": "ticket", "missingData": "no-op", "minimumSamples": 20, "runbookAnchor": "arc-controller-reconcile-error-ratio", "thresholdStatus": "proposed"},
+    {"name": "arc-controller-target-absent", "description": "The expected Actions Runner Controller telemetry target is absent and runner-plane health cannot be established. The threshold is structural rather than a reviewed objective: the series is a target-up gauge, so anything below one means no evidence exists.", "metric": "mindclade.arc.controller_up", "condition": "below", "threshold": 1, "duration": "10m", "severity": "page", "missingData": "fire", "minimumSamples": 1, "runbookAnchor": "arc-controller-target-absent"},
+    {"name": "arc-runner-pool-saturation", "description": "Ephemeral runners in a bounded scale set hold above the explicitly proposed, unapproved share of their configured maximum. The ratio is measured per runner group so a saturated build group is never read as pressure on the separately governed release group.", "metric": "mindclade.arc.runner_pool_utilization_ratio", "condition": "above", "threshold": 0.9, "duration": "30m", "severity": "ticket", "missingData": "no-op", "minimumSamples": 6, "runbookAnchor": "arc-runner-pool-saturation", "thresholdStatus": "proposed"}
+  ],
+  "observedSignals": [
+    {"name": "arc-job-queue-wait-p95", "description": "Queue wait at the ninety-fifth percentile baselines how a bounded runner pool behaves under real merge-queue load, which must exist before a saturation threshold can be approved rather than guessed.", "metric": "mindclade.arc.job_queue_wait_seconds_p95"},
+    {"name": "arc-runner-pool-maximum", "description": "The configured maximum runner count is the bound the saturation ratio is divided by; an unobserved or unbounded maximum makes that ratio meaningless and must be exported alongside it.", "metric": "mindclade.arc.runner_pool_maximum"}
+  ],
+  "cardinality": {"permittedDimensions": ["cluster", "environment", "location", "namespace", "result", "runner-group", "service"], "forbiddenDimensions": ["actor", "branch", "commit", "dataset", "feature", "job", "label", "model", "molecule", "prompt", "pull-request", "repository", "request-id", "run-id", "sequence", "tenant", "user", "workflow"], "rawValuesInTelemetry": false},
+  "activationPolicy": {"enabledByDefault": false, "requiresSyntheticFireAndResolve": true, "requiresHealthyTelemetry": true, "requiresReviewedThresholds": true}
+}

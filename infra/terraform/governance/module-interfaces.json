@@ -7433,6 +7433,471 @@
         "google": ">= 7.41.0, < 8.0.0",
         "terraform": ">= 1.9.0, < 2.0.0"
       }
+    },
+    "workstation": {
+      "inputs": {
+        "allow_stopping_for_update": {
+          "default": true,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "bool",
+          "validation_fingerprints": []
+        },
+        "bazel_cache_bucket_name": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:011a428fc2091e985111ecd41f202eefa3dae4e3de6dde407913dfd9835579ab"
+          ]
+        },
+        "boot_disk_size_gb": {
+          "default": 200,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "number",
+          "validation_fingerprints": [
+            "sha256:bcf501924072ece2e11a7b577c5e58cc0d71face721b3a15f9502c434238ce28"
+          ]
+        },
+        "create_iap_ssh_firewall_rule": {
+          "default": true,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "bool",
+          "validation_fingerprints": []
+        },
+        "daily_stop_schedule": {
+          "default": "0 3 * * *",
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:be9c0edf78ea0a13fb65d7ea6182b3aeadc892a5be7f42ae104e20759617154a"
+          ]
+        },
+        "data_classification": {
+          "default": "internal",
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:f0b80abfbf0dfe541b437f69b2d8fe3ed6289830773a11c3d53e61a3efb61ab5"
+          ]
+        },
+        "data_disk_size_gb": {
+          "default": 500,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "number",
+          "validation_fingerprints": [
+            "sha256:f093fb885a903e098282a9955ee8857fd1a17f0e138da8690ef90a08de11fb55"
+          ]
+        },
+        "deletion_protection": {
+          "default": true,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "bool",
+          "validation_fingerprints": []
+        },
+        "disk_type": {
+          "default": "pd-balanced",
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:f99630ca4c3af10209962d594621dd81b097970bf83bf772ee6efb4f77ca29e4"
+          ]
+        },
+        "environment": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:66a490389045fcca26507596c9bed83dd7ae836c80b5a651c9e1e1abdba41bf1"
+          ]
+        },
+        "extra_project_roles": {
+          "default": [],
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "set(string)",
+          "validation_fingerprints": [
+            "sha256:14b78bd8897d6c7306ca4bd040632248a9cfbb7abb74015d43acf67c867c1d43",
+            "sha256:57ae438196bec34b018959b2cfed5f7b88f054018096f21694d5c74d4c8e62f1",
+            "sha256:95d8092a1c3776e18f4a20850d7658ad8efeb5bee8364f8f96ece1f5420976d7",
+            "sha256:d8f3b7566805ca2879a72b9d49724893b1482f2bd65c21866d11fd8a7319638f"
+          ]
+        },
+        "idle_check_interval_seconds": {
+          "default": 300,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "number",
+          "validation_fingerprints": [
+            "sha256:c970209dcb930b9025974e4da619410c989d99f6c1c466b45a9834c64f5814d3"
+          ]
+        },
+        "idle_load_threshold": {
+          "default": 0.5,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "number",
+          "validation_fingerprints": [
+            "sha256:e7cc59c57e994d0c6dd979a73e1403f4fc3dee6590dda6f025cef5bde1f62fc6"
+          ]
+        },
+        "idle_shutdown_minutes": {
+          "default": 60,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "number",
+          "validation_fingerprints": [
+            "sha256:20c2dc5b6cf50f17bc40e4bf3f9b2f7d8a5e39f2a3d7f77e0864f041bd9686f5"
+          ]
+        },
+        "image": {
+          "default": "debian-cloud/debian-12",
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:6fd9cb73f888fc5223f81c5feebf4b5e6254166b0aa310c5d29a4fc482d81f78"
+          ]
+        },
+        "kms_key_name": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:9daffc529f85b29d1c6b83abcc376c5d47d3c736aa6861291408f9ea18d324a0"
+          ]
+        },
+        "labels": {
+          "default": {},
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "map(string)",
+          "validation_fingerprints": [
+            "sha256:8c62cc3a04d787cbe4a6ee8ca64171953129a5d1254097b71cf516a57f1ade63",
+            "sha256:e423193950ca748300751804a834181ec6007885479ac06c0bdec74ac2a56786"
+          ]
+        },
+        "local_ssd_count": {
+          "default": 0,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "number",
+          "validation_fingerprints": [
+            "sha256:867acb4ca372dae5673d700e26125ae7fb5faa607f22b57f552f2d27e90b7db3"
+          ]
+        },
+        "machine_type": {
+          "default": "c2d-standard-16",
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:cfe73c1968a5d4dce05f0139ab50c418ddacbe2a126ed96b88db9a2be4030b0b"
+          ]
+        },
+        "metadata": {
+          "default": {},
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "map(string)",
+          "validation_fingerprints": [
+            "sha256:022e99ef96fabdec3cdc4d42b45d77b983dd6c180c433a57710ef9b4ec49357f",
+            "sha256:8467d8e852b410a6e8a550b7c47d7704043c2a8c2b0ff5fc050d68dacd257171"
+          ]
+        },
+        "name": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:3dd13f7892392134739ae549e262ad1ae714b384b5f94df541f9fee362ac46e4",
+            "sha256:7bf2ec8923a56da50f16a626fcd018d1fe0fb63dcbd36009a8d8055700824a5e"
+          ]
+        },
+        "network": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:e63fc8f49f2fc3a31de6a490ad355a8d52629c2643052dd0149c0a5c1db003c7"
+          ]
+        },
+        "network_tag": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:401cb74354e65ad9ec06b03af709b3d6eecee8ca69838745300ca6ffbf6031b2"
+          ]
+        },
+        "nix_cache_bucket_name": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:5c983f2f0689a5104e6a8a9652ca1f760a74a1e50d61e2aa14c1831dbe9940fc"
+          ]
+        },
+        "operator_principals": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "set(string)",
+          "validation_fingerprints": [
+            "sha256:27fb4a2ef01357e24ba708d349bd334c23af6a61103cd4a8978a209fcd2bcb27",
+            "sha256:7295029ca11c9649164e969f19b6af30a707bf31f635586d73fe392cc5f32466",
+            "sha256:78fb74ea72fa0d79e74914ef0cd415717124e9fbf469c1bb17d122d054ff657e"
+          ]
+        },
+        "os_login_role": {
+          "default": "roles/compute.osLogin",
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:868579ad014ada0308e04e43e9e41dada7f953487ecbc2f930b913ee7cfff0a7"
+          ]
+        },
+        "owner": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:29fb622a89d591383ade7497470c7fa009c8a6f0116be50814dd3d6286bd1ed4"
+          ]
+        },
+        "project_id": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:4d2ac951189583cc50a533dba28364d8c76ee6e303a084cdf9e5265daea9a7f2"
+          ]
+        },
+        "region": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:ef7060d41d241c7f5a8225173c7bf7379db9b55ef1f70ffd1011824293c2a628"
+          ]
+        },
+        "schedule_timezone": {
+          "default": "Etc/UTC",
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:a4870978136f910933e80e6e783b73656c354cdf8297582e61055afff71a7ea9"
+          ]
+        },
+        "service_account_id": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:435c45995011305bc94e3ffa163cc7818c334916aeb34d4ecbbfe04828cfa9cf"
+          ]
+        },
+        "subnetwork": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:3a7b80b6caae50323a1c01ea5e36fb0f6651526b44b7915983351e9a5d396425"
+          ]
+        },
+        "zone": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:cf114a2c35f761397d1b264be2e26ea2d528ad3469f23d793944f65fbc05e6b3"
+          ]
+        }
+      },
+      "managed_resource_addresses": [
+        "google_compute_disk.data",
+        "google_compute_firewall.iap_ssh",
+        "google_compute_instance.workstation",
+        "google_compute_instance_iam_member.os_login",
+        "google_compute_resource_policy.daily_stop",
+        "google_iap_tunnel_instance_iam_member.operator",
+        "google_project_iam_member.workstation",
+        "google_service_account.workstation",
+        "google_service_account_iam_member.operator_act_as"
+      ],
+      "module_calls": {},
+      "moved": [],
+      "outputs": {
+        "builder_contract": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:b1a065b2e33de32fb6ed22e78f3e27fa7cf290a4cacd8efa080408d4055852d0"
+        },
+        "cache_access_contract": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:ab8654f283932973d66336ed9a4e5139118d528369c8ea7ee782ba39b9cf2021"
+        },
+        "data_disk": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:fc5fe0d086ad3314fda2e440424e577c20f5b1f9ee8e86f0b2924ca41e0ff1cf"
+        },
+        "iap_access_contract": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:a8947fa98eba03cb6c362d5ee7ae8429f2866413fbdac0a8d4a0728e107d50f1"
+        },
+        "instance": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:41abfd81e0e253ea77e455489d7846d17bca0a95e9917d5bd564a4b940948e8a"
+        },
+        "qualification_requirements": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:023241f7dae33c35f00baab5694e811f444001871f8d18bfc9d74742224cfc73"
+        },
+        "required_apis": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:8fd9c60ac6634d5ee93bc996a54a5da248a5c325500d7e716c46f395d402bf02"
+        },
+        "required_cache_grants": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:7f54c559c3ad74cac39a02e99ec63fa2424bba2ec92fe1a99fcc65aaaf8a8498"
+        },
+        "required_firewall_rule": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:dfe1c7f1f233602fd90a828b0694777ea48e0e2c8307bc237e427e756b61d66c"
+        },
+        "required_grants": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:26df52c117fa8e93cea874a8520982464ca34833d19dfe46460625996a9160c6"
+        },
+        "required_network_prerequisites": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:3039b8c4ce3eb4001ed62068a25a2859b1d086ac795aa9b6a30c5b8c0b894af3"
+        },
+        "service_account": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:f260cbedf2d313d663b3d5c97313b0c0ecb988b2f7eb6477981e18a86c8bd853"
+        },
+        "shutdown_policy": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:da6a61d29b53216e1941d106ed3d4cec65c6c6fffc956e55a16f0290b013b752"
+        },
+        "ssh_command": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:8f252fa70327af7dbb70742a55cfcf59159c06c329ee268980697ae2229cdb09"
+        }
+      },
+      "path": "infra/terraform/modules/workstation",
+      "provider_contracts": {
+        "google": {
+          "configuration_aliases": [],
+          "source": "registry.terraform.io/hashicorp/google"
+        }
+      },
+      "requirements": {
+        "google": ">= 7.41.0, < 8.0.0",
+        "terraform": ">= 1.9.0, < 2.0.0"
+      }
     }
   },
   "schema_version": 2,
