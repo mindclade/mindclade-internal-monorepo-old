@@ -4,6 +4,7 @@
 #
 
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@protobuf//bazel:py_proto_library.bzl", "py_proto_library")
 load("@rules_go//proto:def.bzl", "go_proto_library")
 
 package(default_visibility = ["//visibility:public"])
@@ -67,6 +68,22 @@ proto_library(
         ":source_proto",
         "//protocols/proto/mindclade/common/v1:artifact_ref_proto",
         "@protobuf//:timestamp_proto",
+    ],
+)
+
+# Preprocessing and dataset materialization are Python by language law, and the
+# shard, cursor, and snapshot descriptors those pipelines exchange with the Go
+# control plane are wire contracts rather than local structs.
+py_proto_library(
+    name = "data_py_pb2",
+    deps = [
+        ":cursor_proto",
+        ":dataset_proto",
+        ":dataset_service_proto",
+        ":record_proto",
+        ":shard_proto",
+        ":snapshot_proto",
+        ":source_proto",
     ],
 )
 
