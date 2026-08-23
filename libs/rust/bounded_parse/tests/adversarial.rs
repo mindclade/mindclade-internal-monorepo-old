@@ -10,7 +10,8 @@
 //! diagnostic sink cannot be grown without bound by hostile input.
 
 use mindclade_bounded_parse::{
-    AllocationBudget, Cursor, Diagnostic, Limits, Location, ParseMode, Recovery, Source,
+    AllocationBudget, Cursor, Diagnostic, Limits, Location, MAXIMUM_MESSAGE_BYTES, ParseMode,
+    Recovery, Source,
 };
 use mindclade_bytes_io::ByteSize;
 
@@ -63,12 +64,52 @@ fn recovery_truncates_at_the_ceiling_and_counts_what_it_dropped() {
 }
 
 #[test]
-fn recovery_validates_the_diagnostics_it_retains() {
+fn an_oversized_diagnostic_message_is_clamped_rather_than_aborting_the_parse() {
+    // A recovery-mode reporter quotes the construct it rejected, and a hostile
+    // line may run to `maximum_line_bytes`. Returning an error here would abort
+    // through the parser's `?` and turn recovery into strict mode under exactly
+    // the input recovery exists to survive.
     let mut recovery =
         Recovery::new(ParseMode::Recovery, Limits::default()).expect("limits are valid");
     recovery
-        .record(diagnostic(&"x".repeat(4097)))
-        .expect_err("an oversized diagnostic message must be rejected");
+        .record(diagnostic(&"x".repeat(MAXIMUM_MESSAGE_BYTES * 4)))
+        .expect("an oversized message is clamped, not rejected");
+    assert_eq!(recovery.diagnostics().len(), 1);
+    assert_eq!(
+        recovery.diagnostics()[0].message.len(),
+        MAXIMUM_MESSAGE_BYTES
+    );
+}
+
+#[test]
+fn clamping_a_message_never_splits_a_character() {
+    // The quoted construct is arbitrary UTF-8 from the input, and a 3-byte
+    // character does not divide the bound evenly, so the clamp has to walk back
+    // to a boundary or `String::truncate` panics.
+    let mut recovery =
+        Recovery::new(ParseMode::Recovery, Limits::default()).expect("limits are valid");
+    recovery
+        .record(diagnostic(&"\u{4e00}".repeat(MAXIMUM_MESSAGE_BYTES)))
+        .expect("multi-byte messages are clamped safely");
+    let clamped = &recovery.diagnostics()[0].message;
+    assert!(clamped.len() <= MAXIMUM_MESSAGE_BYTES);
+    // 4096 is not a multiple of 3, so a correct clamp lands just below it.
+    assert_eq!(clamped.len(), MAXIMUM_MESSAGE_BYTES - 1);
+}
+
+#[test]
+fn a_diagnostic_with_an_out_of_bounds_code_is_still_an_error() {
+    // The code is a constant the parser author picked, not input-derived, so an
+    // invalid one stays a bug worth surfacing rather than data to clamp.
+    let mut recovery =
+        Recovery::new(ParseMode::Recovery, Limits::default()).expect("limits are valid");
+    recovery
+        .record(Diagnostic {
+            location: Location::start(),
+            code: "",
+            message: "empty code".to_owned(),
+        })
+        .expect_err("an empty diagnostic code is a parser bug");
     assert!(recovery.diagnostics().is_empty());
 }
 
@@ -90,13 +131,16 @@ fn strict_mode_retains_nothing_and_still_succeeds() {
             .record(diagnostic(&format!("defect {index}")))
             .expect("strict mode discards rather than fails");
     }
-    assert!(recovery.into_diagnostics().is_empty());
+    // Read the counter off the sink that actually absorbed those 10,000
+    // diagnostics, before `into_diagnostics` consumes it. Asserting on a freshly
+    // built `Recovery` instead would pass even if strict mode started counting
+    // suppressions — which is the regression this line exists to pin.
     assert_eq!(
-        Recovery::new(ParseMode::Strict, Limits::default())
-            .expect("limits")
-            .suppressed(),
-        0
+        recovery.suppressed(),
+        0,
+        "strict mode discards; it does not suppress"
     );
+    assert!(recovery.into_diagnostics().is_empty());
 }
 
 // ---------------------------------------------------------------------------
@@ -107,7 +151,7 @@ fn strict_mode_retains_nothing_and_still_succeeds() {
 fn allocation_budget_aborts_at_the_ceiling_and_does_not_retain_rejected_charges() {
     let limits = Limits {
         maximum_input_bytes: ByteSize::new(16),
-        maximum_allocation_bytes: ByteSize::new(16),
+        maximum_payload_bytes: ByteSize::new(16),
         ..Limits::default()
     };
     let mut budget = AllocationBudget::from_limits(limits);
@@ -140,7 +184,7 @@ fn allocation_budget_rejects_accounting_overflow() {
 fn input_ceiling_is_inclusive() {
     let limits = Limits {
         maximum_input_bytes: ByteSize::new(4),
-        maximum_allocation_bytes: ByteSize::new(4),
+        maximum_payload_bytes: ByteSize::new(4),
         ..Limits::default()
     };
     Source::new(b"abcd", limits).expect("an input of exactly the ceiling is accepted");
@@ -185,7 +229,7 @@ fn zero_and_inconsistent_limits_are_rejected() {
 
     let inconsistent = Limits {
         maximum_input_bytes: ByteSize::new(1024),
-        maximum_allocation_bytes: ByteSize::new(1),
+        maximum_payload_bytes: ByteSize::new(1),
         ..Limits::default()
     };
     inconsistent
