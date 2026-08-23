@@ -639,3 +639,26 @@ language = "python"
 slo = "docs/slo/ci-bazel-validation.md"
 runbook = "docs/runbooks/ci-bazel-validation.md"
 security_review = true
+
+# Two of the three Go deployables under services/. The owner is the one OWNERS.toml already
+# records, not a new assignment: `services/control_plane/**` is claimed explicitly by
+# platform-control, and studio and go_vanity fall to the default `paths = ["**"]` rule, which
+# is that file's owner of record for anything no narrower rule claims. An explicit OWNERS.toml
+# entry for either would be an improvement and belongs to the owning team to write.
+#
+# `security_review = true` for studio: it terminates IAP-authenticated browser sessions,
+# verifies Google IAP JWTs against a fetched JWK set, and issues session cookies, so its
+# authentication surface is the reason to look at it. `false` for go_vanity: the process holds
+# no credential, database, writable volume or network egress, and its whole response body is
+# a `go-import` meta tag computed from a checked-in repository URL.
+[component."services.studio"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "go"
+security_review = true
+
+[component."services.go_vanity"]
+owner = "platform-control"
+criticality = "tier-2"
+language = "go"
+security_review = false
