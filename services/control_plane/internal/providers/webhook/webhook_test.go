@@ -8,13 +8,17 @@ package webhook
 import (
 	"context"
 	"net/http"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	_ "github.com/lib/pq"
 
 	foundationconfig "go.mindclade.dev/libs/go/config"
 	"go.mindclade.dev/libs/go/coordination/workqueue"
+	"go.mindclade.dev/libs/go/coordination/workqueue/memory"
 	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/requestmeta"
 	"go.mindclade.dev/services/control_plane/internal/bootstrap"
 	"go.mindclade.dev/services/control_plane/internal/config"
 )
@@ -163,4 +167,93 @@ func decodeSettings(t *testing.T, source foundationconfig.MapSource) (config.Set
 		return config.Settings{}, err
 	}
 	return resolved.Settings, nil
+}
+
+// TestUnconfiguredDeliveryDeadLettersWithoutSpendingTheAttemptBudget pins the
+// mechanism behind the fail-closed default, not just its error code.
+//
+// refuseDelivery carries faults.NoRetry(), and the worker treats a
+// non-retryable handler error as terminal on the spot
+// (terminal := !faults.IsRetryable(handlerErr) || attempts >= MaxAttempts). So
+// an unconfigured dispatcher buries the item on its first attempt instead of
+// re-leasing it until the budget runs out.
+//
+// That distinction is the point. A delivery attempt is an outbound request to
+// a third party, so retrying a delivery policy that is *missing* would spend
+// the item's whole budget re-entering a path that cannot succeed. The item has
+// to be visible as dead-lettered immediately, with its remaining attempts
+// unspent, because an operator reading a queue depth is how anyone finds out
+// the dispatcher has no delivery policy at all.
+func TestUnconfiguredDeliveryDeadLettersWithoutSpendingTheAttemptBudget(t *testing.T) {
+	store := memory.New()
+	// A deliberately generous budget: were the default handler ever made
+	// retryable, the item would burn all five attempts before being buried and
+	// this test would observe attempts > 1.
+	item, err := workqueue.NewItem(
+		deliveryQueue,
+		[]byte(`{"endpoint":"https://hooks.example.com/hook"}`),
+		0, time.Time{}, 5, requestmeta.Metadata{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Enqueue(context.Background(), item); err != nil {
+		t.Fatal(err)
+	}
+
+	var calls atomic.Int32
+	worker, err := workqueue.NewWorker(
+		store,
+		workqueue.HandlerFunc(func(ctx context.Context, claimed workqueue.Item) (workqueue.Result, error) {
+			calls.Add(1)
+			return refuseDelivery(ctx, claimed)
+		}),
+		workqueue.WorkerConfig{
+			Owner:             "webhook-dispatcher-test",
+			Queues:            []string{deliveryQueue},
+			PollInterval:      time.Millisecond,
+			LeaseDuration:     time.Second,
+			HeartbeatInterval: 100 * time.Millisecond,
+			BatchSize:         1,
+			Concurrency:       1,
+			// Short enough that a retrying handler would visibly spend its
+			// budget inside this test's deadline rather than time out.
+			FailureDelay: time.Millisecond,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- worker.Run(ctx) }()
+	defer func() {
+		cancel()
+		<-done
+	}()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		record, lookupErr := store.Lookup(context.Background(), item.ID)
+		if lookupErr != nil {
+			t.Fatal(lookupErr)
+		}
+		if record.State == workqueue.StateFailed {
+			if record.Attempts != 1 {
+				t.Fatalf("unconfigured delivery spent %d attempts before dead-lettering, want 1: "+
+					"a missing delivery policy must not be retried against a third-party endpoint", record.Attempts)
+			}
+			if invocations := calls.Load(); invocations != 1 {
+				t.Fatalf("delivery handler ran %d times, want 1", invocations)
+			}
+			if record.LastError == "" {
+				t.Fatal("dead-lettered webhook kept no failure reason")
+			}
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	record, _ := store.Lookup(context.Background(), item.ID)
+	t.Fatalf("unconfigured webhook delivery was never dead-lettered: state=%q attempts=%d handler_calls=%d",
+		record.State, record.Attempts, calls.Load())
 }
