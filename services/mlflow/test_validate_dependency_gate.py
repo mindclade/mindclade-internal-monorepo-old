@@ -47,6 +47,7 @@ def boundary_root(tmp_path: Path) -> Path:
         "ci/release/targets.yaml",
         "infra/kubernetes/platform/mlflow/PRODUCTION_READINESS.md",
         "infra/kubernetes/platform/mlflow/chart/values.yaml",
+        "services/mlflow/requirements.lock.txt",
         "services/mlflow/runtime.lock.yaml",
     ):
         destination = tmp_path / relative
@@ -105,6 +106,56 @@ def test_new_or_missing_finding_fails_closed(tmp_path: Path) -> None:
         )
 
 
+def test_clean_transition_outlives_closed_blocker_window(tmp_path: Path) -> None:
+    root = boundary_root(tmp_path)
+    runtime = root / "services/mlflow/runtime.lock.yaml"
+    runtime.write_text(
+        runtime.read_text(encoding="utf-8").replace(
+            "publicationState: blocked-security-findings",
+            "publicationState: release-candidate",
+        ),
+        encoding="utf-8",
+    )
+    catalog = root / "ci/release/targets.yaml"
+    catalog.write_text(
+        catalog.read_text(encoding="utf-8")
+        + "\n  mlflow:\n"
+        + "    buildTarget: //services/mlflow:image\n"
+        + "    pushTarget: //services/mlflow:push\n",
+        encoding="utf-8",
+    )
+    readiness = root / "infra/kubernetes/platform/mlflow/PRODUCTION_READINESS.md"
+    lines = readiness.read_text(encoding="utf-8").splitlines()
+    readiness.write_text(
+        "\n".join(
+            "| Observed | Cryptography advisory remediation | PASS | independently audited clean lock |"
+            if "| Observed | Cryptography advisory remediation |" in line
+            else line
+            for line in lines
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    policy = gate.load_json(ROOT / gate.GATE)
+    policy["status"] = "clean"
+    policy["findings"] = []
+    policy_path = tmp_path / "clean-gate.json"
+    policy_path.write_text(json.dumps(policy), encoding="utf-8")
+    report = write_report(tmp_path, scanner_report(vulnerable=False))
+
+    assert (
+        gate.validate(
+            root,
+            policy_path,
+            report_path=report,
+            scanner_exit_code=0,
+            require_clean=True,
+            today=dt.date(2026, 9, 7),
+        )
+        == "clean and release-eligible"
+    )
+
+
 def test_scanner_failure_and_exit_report_mismatch_fail_closed(tmp_path: Path) -> None:
     report = write_report(tmp_path, scanner_report())
     with pytest.raises(gate.GateError, match="unsupported exit code"):
@@ -137,6 +188,14 @@ def test_expired_or_approved_blocker_fails_closed(tmp_path: Path) -> None:
     with pytest.raises(gate.GateError, match="must not claim"):
         gate.validate(ROOT, approved_path, today=dt.date(2026, 8, 23))
 
+    future = copy.deepcopy(payload)
+    future["reviewedAt"] = "2026-08-24"
+    future["remediationDeadline"] = "2026-09-07"
+    future_path = tmp_path / "future.json"
+    future_path.write_text(json.dumps(future), encoding="utf-8")
+    with pytest.raises(gate.GateError, match="in the future"):
+        gate.validate(ROOT, future_path, today=dt.date(2026, 8, 23))
+
 
 def test_release_catalog_or_chart_activation_regression_fails_closed(tmp_path: Path) -> None:
     policy = gate.load_json(ROOT / gate.GATE)
@@ -146,10 +205,44 @@ def test_release_catalog_or_chart_activation_regression_fails_closed(tmp_path: P
     with pytest.raises(gate.GateError, match="closed release catalog"):
         gate.require_source_boundary(root, policy)
 
+    root = boundary_root(tmp_path / "renamed")
+    catalog = root / "ci/release/targets.yaml"
+    catalog.write_text(
+        catalog.read_text(encoding="utf-8")
+        + "\n  metadata-mirror:\n"
+        + "    buildTarget: //services/mlflow:alternate_image\n"
+        + "    pushTarget: //services/mlflow:alternate_push\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(gate.GateError, match="closed release catalog"):
+        gate.require_source_boundary(root, policy)
+
     root = boundary_root(tmp_path / "chart")
     values = root / "infra/kubernetes/platform/mlflow/chart/values.yaml"
     values.write_text(
         values.read_text(encoding="utf-8").replace("  enabled: false", "  enabled: true", 1),
+        encoding="utf-8",
+    )
+    with pytest.raises(gate.GateError, match="activate MLflow"):
+        gate.require_source_boundary(root, policy)
+
+    root = boundary_root(tmp_path / "duplicate")
+    values = root / "infra/kubernetes/platform/mlflow/chart/values.yaml"
+    values.write_text(
+        values.read_text(encoding="utf-8")
+        + "\nactivation:\n  enabled: true\n  releaseEvidenceDigest: bypass\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(gate.GateError, match="must occur exactly once"):
+        gate.require_source_boundary(root, policy)
+
+    root = boundary_root(tmp_path / "duplicate-key")
+    values = root / "infra/kubernetes/platform/mlflow/chart/values.yaml"
+    values.write_text(
+        values.read_text(encoding="utf-8").replace(
+            "  releaseEvidenceDigest: blocked",
+            "  releaseEvidenceDigest: blocked\n  enabled: true",
+        ),
         encoding="utf-8",
     )
     with pytest.raises(gate.GateError, match="activate MLflow"):

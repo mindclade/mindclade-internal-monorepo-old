@@ -165,6 +165,15 @@ def scanner_findings(
     return tuple(sorted(findings))
 
 
+def top_level_block(contents: str, section: str) -> str:
+    headings = list(re.finditer(rf"(?m)^{re.escape(section)}:\s*$", contents))
+    if len(headings) != 1:
+        raise GateError(f"chart {section} boundary must occur exactly once")
+    tail = contents[headings[0].end() :]
+    next_heading = re.search(r"(?m)^[A-Za-z][A-Za-z0-9_-]*:\s*$", tail)
+    return tail[: next_heading.start()] if next_heading else tail
+
+
 def require_source_boundary(root: Path, gate: dict[str, Any]) -> None:
     runtime_lock = (root / "services/mlflow/runtime.lock.yaml").read_text(encoding="utf-8")
     expected_state = (
@@ -180,22 +189,37 @@ def require_source_boundary(root: Path, gate: dict[str, Any]) -> None:
     values = (root / "infra/kubernetes/platform/mlflow/chart/values.yaml").read_text(
         encoding="utf-8"
     )
-    for pattern, message in (
+    activation = top_level_block(values, "activation")
+    image = top_level_block(values, "image")
+    for contents, pattern, message in (
         (
-            r"(?m)^activation:\n  enabled: false\n  releaseEvidenceDigest: blocked$",
+            activation,
+            r"(?m)^  enabled: false$",
             "chart defaults activate MLflow",
         ),
-        (r"(?m)^  digest: sha256:0{64}$", "chart defaults select a releasable image"),
+        (
+            activation,
+            r"(?m)^  releaseEvidenceDigest: blocked$",
+            "chart defaults carry releasable evidence",
+        ),
+        (image, r"(?m)^  digest: sha256:0{64}$", "chart defaults select a releasable image"),
     ):
-        if re.search(pattern, values) is None:
+        if len(re.findall(pattern, contents)) != 1:
             raise GateError(message)
 
     release_catalog = (root / "ci/release/targets.yaml").read_text(encoding="utf-8")
-    release_entry = re.search(r"(?m)^  mlflow(?:-server)?:\s*$", release_catalog)
-    if gate["status"] == "blocked" and release_entry:
+    release_reference = re.search(
+        r"(?m)^\s+(?:buildTarget|pushTarget):\s*//services/mlflow:[^\s#]+\s*$",
+        release_catalog,
+    )
+    release_build = re.search(
+        r"(?m)^\s+buildTarget:\s*//services/mlflow:image\s*$", release_catalog
+    )
+    release_push = re.search(r"(?m)^\s+pushTarget:\s*//services/mlflow:push\s*$", release_catalog)
+    if gate["status"] == "blocked" and release_reference:
         raise GateError("blocked MLflow image is present in the closed release catalog")
-    if gate["status"] == "clean" and not release_entry:
-        raise GateError("clean MLflow image is absent from the closed release catalog")
+    if gate["status"] == "clean" and not (release_build and release_push):
+        raise GateError("clean MLflow image targets are absent from the closed release catalog")
 
     readiness = (root / "infra/kubernetes/platform/mlflow/PRODUCTION_READINESS.md").read_text(
         encoding="utf-8"
@@ -255,7 +279,9 @@ def validate(
     if deadline < reviewed or (deadline - reviewed).days > MAX_REMEDIATION_DAYS:
         raise GateError("MLflow remediation deadline is invalid or exceeds 30 days")
     effective_today = today or dt.datetime.now(dt.UTC).date()
-    if effective_today > deadline:
+    if reviewed > effective_today:
+        raise GateError("MLflow security review date is in the future")
+    if gate["status"] == "blocked" and effective_today > deadline:
         raise GateError(f"MLflow remediation deadline expired on {deadline.isoformat()}")
 
     raw_findings = gate.get("findings")
