@@ -571,9 +571,7 @@ def _verify(
         # A broken fixture body must surface as a meta-gate failure naming the fixture, not as a
         # traceback out of the whole suite. The partial edit is still reverted by the caller,
         # because every write is journalled before it happens.
-        return [
-            f"{label}: fixture raised {type(exc).__name__} while injecting its defect ({exc})"
-        ]
+        return [f"{label}: fixture raised {type(exc).__name__} while injecting its defect ({exc})"]
 
     try:
         observed = _run(fn, tree.root)
