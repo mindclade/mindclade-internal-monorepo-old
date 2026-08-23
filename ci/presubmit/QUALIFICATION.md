@@ -32,13 +32,13 @@ it was explicitly restored. The tool also could not parse Nix's
 `release 9.1.1- (@non-git)` version string and conservatively assumed configured
 rule inputs were unavailable. These measured conditions, plus the absent
 externally pinned required workflow, map to the five machine-readable blockers
-in the contract. The graph-native selector is not active; the existing
-repository-owned Bazel-query selector remains the pull-request authority.
+in the contract. Neither the graph-native selector nor the repository-owned
+Bazel-query selector is active on pull requests; protected events remain full-graph.
 
 ## Connected evidence required
 
-The live pull-request lane uses affected selection with fail-closed full fallback.
-Qualification remains pending until pull-request canaries can safely demonstrate leaf,
+The live pull-request lane uses full selection. Qualification remains pending until
+pull-request canaries can safely demonstrate leaf,
 documentation-only, global, intentional selector-failure, and intentional
 test-failure behavior; the exact `bazel / verdict` context is observed on both
 pull requests and merge groups; and 28 days of ordinary affected runs meet the
@@ -60,6 +60,15 @@ Repository-local workflow and runtime-integrity checks are defense in depth, not
 an external trust boundary. Phase 5 also remains incomplete until the pinned
 organization required workflow is active and observed blocking both pull requests
 and merge groups from a protected ref.
+
+Native-stack qualification preserves two distinct bases: cache authorization is
+anchored to `pull_request.stack.base` (with the direct pull-request base as the
+fallback), while affected selection receives the immediate parent SHA. Semantic
+workflow mutation tests pin that separation and require cache measurement to skip
+after a cache-trust rejection, leaving the rejection as the authoritative failure.
+The same tests require `-B` on each repository Python launch through the governed
+presubmit and nightly steps, so checkout integrity remains strict without allowing
+mutable ignored bytecode as an exception.
 
 Ruleset evaluation and activation evidence belongs to `github-config`. A local
 test pass is not evidence that GitHub is enforcing the context.

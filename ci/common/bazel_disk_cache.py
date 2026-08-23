@@ -18,8 +18,9 @@ import time
 from pathlib import Path
 from typing import NoReturn
 
-MAX_SIZE_BYTES = 4 * 1024**3
-MAX_SIZE_FLAG = "4G"
+MAX_SIZE_BYTES = 1024**3
+MAX_SIZE_FLAG = "1G"
+MAX_SIZE_MIB = MAX_SIZE_BYTES // 1024**2
 GC_IDLE_DELAY = "1s"
 SHUTDOWN_TIMEOUT_SECONDS = 120
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
@@ -27,7 +28,7 @@ FINGERPRINT = re.compile(r"^[0-9a-f]{64}$")
 KEY_COMPONENT_PATTERN = r"[A-Za-z0-9][A-Za-z0-9._-]{0,31}"
 KEY_COMPONENT = re.compile(rf"^{KEY_COMPONENT_PATTERN}$")
 PULL_REQUEST_REF = re.compile(r"^refs/pull/[1-9][0-9]*/merge$")
-CACHE_NAMESPACE = "bazel-disk-v1"
+CACHE_NAMESPACE = "bazel-disk-v2"
 CACHE_RESTORE_PREFIX = re.compile(
     rf"^{CACHE_NAMESPACE}-{KEY_COMPONENT_PATTERN}-{KEY_COMPONENT_PATTERN}-[0-9a-f]{{64}}-$"
 )
@@ -271,7 +272,7 @@ def measure(*, cache_dir: Path) -> dict[str, str]:
     if not within_limit:
         print(
             "::warning::Bazel disk cache is "
-            f"{size_bytes} bytes; skipping persistence above the 4 GiB ceiling"
+            f"{size_bytes} bytes; skipping persistence above the {MAX_SIZE_MIB} MiB ceiling"
         )
     return {
         "size-bytes": str(size_bytes),
@@ -432,7 +433,7 @@ def record_metrics(
         stream.write(f"| Save attempt | `{save_state}` (step: `{normalized_save_outcome}`) |\n")
         stream.write(f"| Measurement | `{measure_state}` |\n")
         if measure_state == "measured":
-            stream.write(f"| Size | `{size_bytes / 1024**2:.1f} MiB` / `4096 MiB` |\n")
+            stream.write(f"| Size | `{size_bytes / 1024**2:.1f} MiB` / `{MAX_SIZE_MIB} MiB` |\n")
         else:
             stream.write("| Size | `unavailable` |\n")
     return payload

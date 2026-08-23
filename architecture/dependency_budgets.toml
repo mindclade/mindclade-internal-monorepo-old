@@ -154,7 +154,7 @@ forbidden_prefixes = [
 [[budget]]
 path = "services/go_vanity"
 language = "go"
-# One internal package and nothing shared. The ceiling exists so that adopting
+# Internal packages only and nothing shared. The ceiling exists so that adopting
 # a foundation package is a visible, reviewed step rather than a silent one.
 allowed_prefixes = ["go.mindclade.dev/libs/go/", "go.mindclade.dev/services/go_vanity/"]
 forbidden_prefixes = ["go.mindclade.dev/control/", "go.mindclade.dev/services/control_plane/"]

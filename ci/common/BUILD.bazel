@@ -61,6 +61,14 @@ py_binary(
     deps = [":affected"],
 )
 
+py_binary(
+    name = "bazel_remote_cache",
+    srcs = ["bazel_remote_cache.py"],
+    data = ["//ci/bazel_cache:activation.json"],
+    main = "bazel_remote_cache.py",
+    visibility = ["//visibility:public"],
+)
+
 pytest_test(
     name = "affected_test",
     srcs = ["tests/test_affected.py"],
@@ -70,8 +78,23 @@ pytest_test(
 )
 
 pytest_test(
+    name = "bazel_remote_cache_test",
+    srcs = [
+        "bazel_remote_cache.py",
+        "tests/test_bazel_remote_cache.py",
+    ],
+    data = ["//ci/bazel_cache:activation.json"],
+)
+
+pytest_test(
     name = "bazel_disk_cache_test",
     srcs = ["tests/test_bazel_disk_cache.py"],
     imports = ["../.."],
     deps = [":bazel_disk_cache_lib"],
+)
+
+pytest_test(
+    name = "prepare_nix_runner_test",
+    srcs = ["tests/test_prepare_nix_runner.py"],
+    data = ["prepare_nix_runner.sh"],
 )
