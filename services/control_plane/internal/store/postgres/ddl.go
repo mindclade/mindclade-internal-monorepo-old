@@ -189,6 +189,66 @@ CREATE INDEX IF NOT EXISTS %s
 	return []string{claims, verifications, decisions, revocations}, nil
 }
 
+// ArtifactCatalogDDL returns the forward-only schema for the artifact catalog:
+// one row per artifact identity, and one row per durable placement of it.
+//
+// digest is the primary key of the identity table because the digest is the
+// identity -- the domain binds it to immutable metadata permanently, so a
+// second row under the same digest is a contract violation rather than a
+// duplicate. The immutable fields are projected out of the document as well as
+// stored in it: a write must decide "is this the same identity?" without
+// decoding and re-canonicalizing the stored row, and the projection is what
+// lets that decision be the SQL predicate rather than a read-modify-write.
+//
+// The location table's foreign key is the durable half of "a location cannot
+// exist without its identity". The store also guards the insert on the
+// projected columns, because the key alone would happily attach a location to a
+// digest registered with different metadata -- the row exists, so the reference
+// is satisfied. Both are required: the guard is the domain rule, the key is
+// what survives a writer that forgets it.
+//
+// The composite primary key makes a repeated placement an idempotent no-op
+// rather than a duplicate row. Region is excluded from it deliberately, matching
+// Location.SamePlacement: it describes where a generation sits, and including it
+// would let one object appear twice under two spellings of its region.
+func ArtifactCatalogDDL(identityTable, locationTable string) ([]string, error) {
+	for table, reason := range map[string]string{
+		identityTable: "invalid_artifact_identity_table",
+		locationTable: "invalid_artifact_location_table",
+	} {
+		if err := checkTable(table, reason, "registry.postgres.ArtifactCatalogDDL"); err != nil {
+			return nil, err
+		}
+	}
+	identities := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (
+    digest         text PRIMARY KEY,
+    size_bytes     bigint NOT NULL CHECK (size_bytes >= 0),
+    media_type     text NOT NULL,
+    logical_kind   text NOT NULL,
+    schema_version bigint NOT NULL CHECK (schema_version > 0),
+    document       jsonb NOT NULL,
+    written_at     timestamptz NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS %s
+    ON %s (logical_kind, written_at DESC);
+`, identityTable, indexName(identityTable, "kind_time_idx"), identityTable)
+	locations := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (
+    digest     text NOT NULL REFERENCES %s (digest),
+    provider   text NOT NULL,
+    uri        text NOT NULL,
+    generation text NOT NULL,
+    region     text NOT NULL,
+    written_at timestamptz NOT NULL,
+    PRIMARY KEY (digest, provider, uri, generation)
+);
+
+CREATE INDEX IF NOT EXISTS %s
+    ON %s (digest);
+`, locationTable, identityTable, indexName(locationTable, "digest_idx"), locationTable)
+	return []string{identities, locations}, nil
+}
+
 // DDL returns the three statements in the order a migration must apply them.
 // The composition root owns migration versioning, so this returns statements
 // rather than a migration.

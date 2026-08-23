@@ -1,0 +1,57 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
+
+package(default_visibility = ["//libs/rust:repo_consumers"])
+
+# The backing crates mirror the `[target.'cfg(target_os = "linux")'.dependencies]`
+# table in Cargo.toml. `seccompiler` does not compile off Linux at all, so a flat
+# dependency list would break any non-Linux Bazel configuration in exactly the
+# way the cfg gate exists to prevent.
+rust_library(
+    name = "mindclade_sandbox_os",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "mindclade_sandbox_os",
+    edition = "2024",
+    deps = [
+        "//libs/rust/faults:mindclade_faults",
+    ] + select({
+        "@platforms//os:linux": [
+            "@crates//:libc",
+            "@crates//:seccompiler",
+        ],
+        "//conditions:default": [],
+    }),
+)
+
+rust_test(
+    name = "policy",
+    srcs = ["tests/policy.rs"],
+    edition = "2024",
+    deps = [
+        ":mindclade_sandbox_os",
+        "//libs/rust/faults:mindclade_faults",
+    ],
+)
+
+rust_test(
+    name = "enforcement",
+    srcs = ["tests/enforcement.rs"],
+    edition = "2024",
+    deps = [
+        ":mindclade_sandbox_os",
+        "//libs/rust/faults:mindclade_faults",
+    ],
+)
+
+filegroup(
+    name = "package_sources",
+    srcs = glob(
+        ["**"],
+        exclude = ["target/**"],
+    ),
+    visibility = ["//libs/rust:repo_consumers"],
+)
