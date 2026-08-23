@@ -231,6 +231,7 @@ def test_render_counts_every_production_rule(tmp_path: Path) -> None:
         assert f"{gate:<16} met   1/1" in rendered
     assert "satisfies production     1/1" in rendered
 
+
 LICENCE = (
     "// Copyright © 2026 Mindclade, LLC. All Rights Reserved.\n"
     "// Mindclade Proprietary and Confidential.\n"
