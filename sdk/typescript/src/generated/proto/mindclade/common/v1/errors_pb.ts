@@ -15,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file mindclade/common/v1/errors.proto.
  */
 export const file_mindclade_common_v1_errors: GenFile = /*@__PURE__*/
-  fileDesc("CiBtaW5kY2xhZGUvY29tbW9uL3YxL2Vycm9ycy5wcm90bxITbWluZGNsYWRlLmNvbW1vbi52MSI0Cg5GaWVsZFZpb2xhdGlvbhINCgVmaWVsZBgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCSLXAQoLRXJyb3JEZXRhaWwSLAoEY29kZRgBIAEoDjIeLm1pbmRjbGFkZS5jb21tb24udjEuRXJyb3JDb2RlEg8KB21lc3NhZ2UYAiABKAkSEgoKcmVxdWVzdF9pZBgDIAEoCRI9ChBmaWVsZF92aW9sYXRpb25zGAQgAygLMiMubWluZGNsYWRlLmNvbW1vbi52MS5GaWVsZFZpb2xhdGlvbhIfChJyZXRyeV9hZnRlcl9taWxsaXMYBSABKARIAIgBAUIVChNfcmV0cnlfYWZ0ZXJfbWlsbGlzKrcCCglFcnJvckNvZGUSGgoWRVJST1JfQ09ERV9VTlNQRUNJRklFRBAAEh8KG0VSUk9SX0NPREVfSU5WQUxJRF9BUkdVTUVOVBABEh4KGkVSUk9SX0NPREVfVU5BVVRIRU5USUNBVEVEEAISIAocRVJST1JfQ09ERV9QRVJNSVNTSU9OX0RFTklFRBADEhgKFEVSUk9SX0NPREVfTk9UX0ZPVU5EEAQSFwoTRVJST1JfQ09ERV9DT05GTElDVBAFEiEKHUVSUk9SX0NPREVfUkVTT1VSQ0VfRVhIQVVTVEVEEAYSIAocRVJST1JfQ09ERV9ERUFETElORV9FWENFRURFRBAHEhoKFkVSUk9SX0NPREVfVU5BVkFJTEFCTEUQCBIXChNFUlJPUl9DT0RFX0lOVEVSTkFMEAlCQFo+Z28ubWluZGNsYWRlLmRldi9wcm90b2NvbHMvZ2VuL2dvL21pbmRjbGFkZS9jb21tb24vdjE7Y29tbW9udjFiBnByb3RvMw");
+  fileDesc("CiBtaW5kY2xhZGUvY29tbW9uL3YxL2Vycm9ycy5wcm90bxITbWluZGNsYWRlLmNvbW1vbi52MSI0Cg5GaWVsZFZpb2xhdGlvbhINCgVmaWVsZBgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCSKLAgoLRXJyb3JEZXRhaWwSLAoEY29kZRgBIAEoDjIeLm1pbmRjbGFkZS5jb21tb24udjEuRXJyb3JDb2RlEg8KB21lc3NhZ2UYAiABKAkSEgoKcmVxdWVzdF9pZBgDIAEoCRI9ChBmaWVsZF92aW9sYXRpb25zGAQgAygLMiMubWluZGNsYWRlLmNvbW1vbi52MS5GaWVsZFZpb2xhdGlvbhIfChJyZXRyeV9hZnRlcl9taWxsaXMYBSABKARIAIgBARIyCgpyZXRyeV9raW5kGAYgASgOMh4ubWluZGNsYWRlLmNvbW1vbi52MS5SZXRyeUtpbmRCFQoTX3JldHJ5X2FmdGVyX21pbGxpcyqaBAoJRXJyb3JDb2RlEhoKFkVSUk9SX0NPREVfVU5TUEVDSUZJRUQQABIfChtFUlJPUl9DT0RFX0lOVkFMSURfQVJHVU1FTlQQARIeChpFUlJPUl9DT0RFX1VOQVVUSEVOVElDQVRFRBACEiAKHEVSUk9SX0NPREVfUEVSTUlTU0lPTl9ERU5JRUQQAxIYChRFUlJPUl9DT0RFX05PVF9GT1VORBAEEhcKE0VSUk9SX0NPREVfQ09ORkxJQ1QQBRIhCh1FUlJPUl9DT0RFX1JFU09VUkNFX0VYSEFVU1RFRBAGEiAKHEVSUk9SX0NPREVfREVBRExJTkVfRVhDRUVERUQQBxIaChZFUlJPUl9DT0RFX1VOQVZBSUxBQkxFEAgSFwoTRVJST1JfQ09ERV9JTlRFUk5BTBAJEhcKE0VSUk9SX0NPREVfQ0FOQ0VMRUQQChIdChlFUlJPUl9DT0RFX0FMUkVBRFlfRVhJU1RTEAsSIgoeRVJST1JfQ09ERV9GQUlMRURfUFJFQ09ORElUSU9OEAwSFgoSRVJST1JfQ09ERV9BQk9SVEVEEA0SGwoXRVJST1JfQ09ERV9PVVRfT0ZfUkFOR0UQDhIeChpFUlJPUl9DT0RFX05PVF9JTVBMRU1FTlRFRBAPEhgKFEVSUk9SX0NPREVfREFUQV9MT1NTEBASFgoSRVJST1JfQ09ERV9VTktOT1dOEBEqigEKCVJldHJ5S2luZBIaChZSRVRSWV9LSU5EX1VOU1BFQ0lGSUVEEAASFAoQUkVUUllfS0lORF9ORVZFUhABEhgKFFJFVFJZX0tJTkRfSU1NRURJQVRFEAISGwoXUkVUUllfS0lORF9XSVRIX0JBQ0tPRkYQAxIUChBSRVRSWV9LSU5EX0FGVEVSEARCQFo+Z28ubWluZGNsYWRlLmRldi9wcm90b2NvbHMvZ2VuL2dvL21pbmRjbGFkZS9jb21tb24vdjE7Y29tbW9udjFiBnByb3RvMw");
 
 /**
  * @generated from message mindclade.common.v1.FieldViolation
@@ -67,6 +67,11 @@ export type ErrorDetail = Message<"mindclade.common.v1.ErrorDetail"> & {
    * @generated from field: optional uint64 retry_after_millis = 5;
    */
   retryAfterMillis?: bigint | undefined;
+
+  /**
+   * @generated from field: mindclade.common.v1.RetryKind retry_kind = 6;
+   */
+  retryKind: RetryKind;
 };
 
 /**
@@ -77,10 +82,24 @@ export const ErrorDetailSchema: GenMessage<ErrorDetail> = /*@__PURE__*/
   messageDesc(file_mindclade_common_v1_errors, 1);
 
 /**
+ * The wire authority for fault classification. `libs/go/faults` and
+ * `libs/rust/faults` mirror this set; the value name with the `ERROR_CODE_`
+ * prefix removed and lowercased is the string those two libraries put on the
+ * wire, and `tests/integration/cross_language/test_error_codes.py` fails if the
+ * three sets ever diverge again.
+ *
+ * Values 10-17 were appended after the mirrors were found to carry concepts the
+ * proto could not express, which forced them to collapse onto a neighbouring
+ * code and lose the client retry behavior the sender had chosen.
+ *
  * @generated from enum mindclade.common.v1.ErrorCode
  */
 export enum ErrorCode {
   /**
+   * The sender did not set the field. Distinct from ERROR_CODE_UNKNOWN, which
+   * is an assertion that the sender classified the failure and could not place
+   * it. Receivers treat both as unclassified.
+   *
    * @generated from enum value: ERROR_CODE_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
@@ -129,6 +148,50 @@ export enum ErrorCode {
    * @generated from enum value: ERROR_CODE_INTERNAL = 9;
    */
   INTERNAL = 9,
+
+  /**
+   * @generated from enum value: ERROR_CODE_CANCELED = 10;
+   */
+  CANCELED = 10,
+
+  /**
+   * @generated from enum value: ERROR_CODE_ALREADY_EXISTS = 11;
+   */
+  ALREADY_EXISTS = 11,
+
+  /**
+   * @generated from enum value: ERROR_CODE_FAILED_PRECONDITION = 12;
+   */
+  FAILED_PRECONDITION = 12,
+
+  /**
+   * @generated from enum value: ERROR_CODE_ABORTED = 13;
+   */
+  ABORTED = 13,
+
+  /**
+   * @generated from enum value: ERROR_CODE_OUT_OF_RANGE = 14;
+   */
+  OUT_OF_RANGE = 14,
+
+  /**
+   * @generated from enum value: ERROR_CODE_NOT_IMPLEMENTED = 15;
+   */
+  NOT_IMPLEMENTED = 15,
+
+  /**
+   * @generated from enum value: ERROR_CODE_DATA_LOSS = 16;
+   */
+  DATA_LOSS = 16,
+
+  /**
+   * The catch-all a sender emits when classification fails. A receiver that
+   * does not recognize a peer's code degrades to this rather than rejecting the
+   * message, so a newer peer's code never fails a parse on an older build.
+   *
+   * @generated from enum value: ERROR_CODE_UNKNOWN = 17;
+   */
+  UNKNOWN = 17,
 }
 
 /**
@@ -136,4 +199,54 @@ export enum ErrorCode {
  */
 export const ErrorCodeSchema: GenEnum<ErrorCode> = /*@__PURE__*/
   enumDesc(file_mindclade_common_v1_errors, 0);
+
+/**
+ * How a caller may retry. Carried beside `retry_after_millis` because a delay
+ * alone cannot express the difference between "the sender explicitly refuses a
+ * retry" and "the sender said nothing about retrying" — both previously
+ * serialized as an absent delay, and a client cannot choose a policy from that.
+ *
+ * @generated from enum mindclade.common.v1.RetryKind
+ */
+export enum RetryKind {
+  /**
+   * No retry guidance. The caller's own policy applies.
+   *
+   * @generated from enum value: RETRY_KIND_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * An explicit refusal. The caller must not retry.
+   *
+   * @generated from enum value: RETRY_KIND_NEVER = 1;
+   */
+  NEVER = 1,
+
+  /**
+   * @generated from enum value: RETRY_KIND_IMMEDIATE = 2;
+   */
+  IMMEDIATE = 2,
+
+  /**
+   * Retry under the caller's backoff algorithm. The sender deliberately does
+   * not prescribe the schedule.
+   *
+   * @generated from enum value: RETRY_KIND_WITH_BACKOFF = 3;
+   */
+  WITH_BACKOFF = 3,
+
+  /**
+   * Retry no earlier than `retry_after_millis`, which is set only for this kind.
+   *
+   * @generated from enum value: RETRY_KIND_AFTER = 4;
+   */
+  AFTER = 4,
+}
+
+/**
+ * Describes the enum mindclade.common.v1.RetryKind.
+ */
+export const RetryKindSchema: GenEnum<RetryKind> = /*@__PURE__*/
+  enumDesc(file_mindclade_common_v1_errors, 1);
 
