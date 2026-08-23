@@ -10,6 +10,7 @@
     "atomic_fs": 1,
     "telemetry": 1,
     "bounded_parse": 1,
+    "config": 1,
     "record_io": 2,
     "manifests": 2,
     "object_store": 2,

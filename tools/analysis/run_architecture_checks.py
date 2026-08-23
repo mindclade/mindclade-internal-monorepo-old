@@ -42,6 +42,7 @@ import check_dependency_layers
 import check_enforced_decisions
 import check_foundation_consumption
 import check_foundation_hardening
+import check_gate_falsifiability
 import check_go_command_composition
 import check_go_layers
 import check_go_modules
@@ -49,6 +50,7 @@ import check_go_test_signal
 import check_libs_go_admission
 import check_mlops_contracts
 import check_production_dependencies
+import check_protocol_graph
 import check_rust_implementation
 import check_rust_package_manifest
 import check_rust_workspace
@@ -130,9 +132,16 @@ CHECKS = [
     ("libs/go admission", check_libs_go_admission.check),
     ("MLOps static contracts", check_mlops_contracts.check),
     ("production dependencies", check_production_dependencies.check),
+    ("protocol graph completeness", check_protocol_graph.check),
     ("Rust workspace", check_rust_workspace.check),
     ("Rust package manifest", check_rust_package_manifest.check),
     ("Rust implementation", check_rust_implementation.check),
+    # Last on purpose. This is the meta-gate: it copies the tree, injects a named defect for
+    # every entry above, and requires each checker to report it. Running it after the checkers
+    # it measures keeps the output readable -- the individual PASS lines first, then the
+    # falsification evidence -- and its name is load-bearing, since the module refuses to pass
+    # unless it finds itself registered under exactly this string.
+    ("gate falsifiability", check_gate_falsifiability.check),
 ]
 
 

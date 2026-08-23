@@ -14,6 +14,7 @@ rust_library(
     edition = "2024",
     deps = [
         "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/config:mindclade_config",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/gpu_host:mindclade_gpu_host",
         "//libs/rust/ipc:mindclade_ipc",
@@ -42,6 +43,7 @@ rust_binary(
     deps = [
         ":mindclade_runtime_host",
         "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/config:mindclade_config",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/gpu_host:mindclade_gpu_host",
         "//libs/rust/ipc:mindclade_ipc",
@@ -68,6 +70,7 @@ rust_test(
     edition = "2024",
     deps = [
         "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/config:mindclade_config",
         # tests/integration.rs calls hash_bytes directly. Declared here and as a Cargo
         # dev-dependency, not on the library: architecture/dependency_budgets.toml governs what
         # this service ships with, and check_cargo_bazel_alignment only reads [dependencies], so
@@ -93,12 +96,24 @@ rust_test(
 )
 
 rust_test(
+    name = "settings",
+    srcs = ["tests/settings.rs"],
+    edition = "2024",
+    deps = [
+        ":mindclade_runtime_host",
+        "//libs/rust/config:mindclade_config",
+        "//libs/rust/faults:mindclade_faults",
+    ],
+)
+
+rust_test(
     name = "shutdown",
     srcs = ["tests/shutdown.rs"],
     edition = "2024",
     deps = [
         ":mindclade_runtime_host",
         "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/config:mindclade_config",
         "//libs/rust/faults:mindclade_faults",
         "//libs/rust/gpu_host:mindclade_gpu_host",
         "//libs/rust/identifiers:mindclade_identifiers",

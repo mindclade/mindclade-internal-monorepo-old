@@ -7463,6 +7463,28 @@
           "type": "bool",
           "validation_fingerprints": []
         },
+        "apt_mirror_components": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "list(string)",
+          "validation_fingerprints": [
+            "sha256:ccfc7e73f4101de082a21de4820b79bc58a23fb89e6f0ed457dbb234b4070ab8"
+          ]
+        },
+        "apt_mirror_url": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:cf0548c2dfd34c3f0e538164d467b96fa5f2f50b7a59deef6d2d076a2151a90f"
+          ]
+        },
         "bazel_cache_bucket_name": {
           "default": null,
           "ephemeral": false,
@@ -7716,6 +7738,50 @@
           "type": "string",
           "validation_fingerprints": [
             "sha256:5c983f2f0689a5104e6a8a9652ca1f760a74a1e50d61e2aa14c1831dbe9940fc"
+          ]
+        },
+        "nix_installer_sha256": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:715d2ec970351595ec436c9d865da249a9e44d9c0e7e700f29505a47c4c88c41"
+          ]
+        },
+        "nix_installer_url": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:0aa09499dcadbca3acbd165d3782e87a9364b140a6ae887896e64ae4ec764354"
+          ]
+        },
+        "nix_substituter_trusted_public_key": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:554be6085305be5cc0ac9cbd6add2b4b61d40e67ee085e3fdbf0dce632bd1e41"
+          ]
+        },
+        "nix_substituter_uri": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:91e9eaed0fd51c1ece94e7d7fdb320ad554bd3b0dcc114df52f1d7349aadcb68"
           ]
         },
         "operator_principals": {
