@@ -522,7 +522,7 @@ def audit(
             fn = registered[name]
             try:
                 baseline = _run(fn, tree.root)
-            except Exception as exc:  # noqa: BLE001 - reported, never swallowed
+            except Exception as exc:  # Reported, never swallowed.
                 errors.append(
                     f"{name}: raised {type(exc).__name__} on an unmutated fixture root ({exc}); "
                     "the checker cannot be pointed at a fixture tree, so its falsifiability "
@@ -536,7 +536,7 @@ def audit(
 
             try:
                 restored = _run(fn, tree.root)
-            except Exception as exc:  # noqa: BLE001 - reported, never swallowed
+            except Exception as exc:  # Reported, never swallowed.
                 errors.append(f"{name}: raised {type(exc).__name__} after fixture revert ({exc})")
                 continue
             if restored != baseline:
@@ -564,7 +564,7 @@ def _verify(
 
     try:
         observed = _run(fn, tree.root)
-    except Exception as exc:  # noqa: BLE001 - reported, never swallowed
+    except Exception as exc:  # Reported, never swallowed.
         return [
             f"{label}: the checker raised {type(exc).__name__} ({exc}) instead of reporting a "
             "violation; a stack trace is not a gate result"

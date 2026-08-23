@@ -74,9 +74,7 @@ def falsifier(check: str, *, expect: str = "tampered", inject=tamper):
 
 def test_a_checker_that_cannot_fail_is_rejected(source: Path) -> None:
     """The headline property. This is the case the original ten gates would all have hit."""
-    errors = harness.audit(
-        source, [("vacuous", lambda _root: [])], [falsifier("vacuous")]
-    )
+    errors = harness.audit(source, [("vacuous", lambda _root: [])], [falsifier("vacuous")])
     assert any("this gate cannot fail" in error for error in errors), errors
 
 
@@ -169,9 +167,7 @@ def test_a_fixture_that_leaks_past_its_revert_is_reported(source: Path) -> None:
             errors.append("leaked.txt is present")
         return errors
 
-    errors = harness.audit(
-        source, [("residue", sees_residue)], [falsifier("residue", inject=leak)]
-    )
+    errors = harness.audit(source, [("residue", sees_residue)], [falsifier("residue", inject=leak)])
     assert any("leaked state past its revert" in error for error in errors), errors
 
 
