@@ -5,8 +5,12 @@
 //
 
 use libfuzzer_sys::fuzz_target;
-use mindclade_bounded_parse::Limits;
+use mindclade_bio_formats_fuzz::derive_limits;
 
 fuzz_target!(|data: &[u8]| {
-    let _ = mindclade_bio_formats::mmcif::parse(data, Limits::default());
+    // The semicolon text field accumulates across lines and is the only place
+    // one token can outgrow one line, so the token ceiling is worth driving
+    // with fuzzer-chosen limits rather than the default 1 MiB.
+    let (limits, body) = derive_limits(data);
+    let _ = mindclade_bio_formats::mmcif::parse(body, limits);
 });

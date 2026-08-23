@@ -10,8 +10,8 @@ use mindclade_bounded_parse::ParseMode;
 
 fuzz_target!(|data: &[u8]| {
     let (limits, body) = derive_limits(data);
-    // Both modes: recovery skips invalid bytes and keeps going, so it walks
-    // paths that strict mode returns from early.
-    let _ = mindclade_bio_formats::parse_fasta(body, limits, ParseMode::Strict);
-    let _ = mindclade_bio_formats::parse_fasta(body, limits, ParseMode::Recovery);
+    // FASTQ reads four lines per record, so truncation mid-record is its own
+    // failure mode and the sequence/quality length agreement is a real invariant.
+    let _ = mindclade_bio_formats::parse_fastq(body, limits, ParseMode::Strict);
+    let _ = mindclade_bio_formats::parse_fastq(body, limits, ParseMode::Recovery);
 });
