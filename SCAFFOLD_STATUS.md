@@ -16,13 +16,13 @@ The authoritative machine-readable state is in `components.toml` and
 
 ## Census (2026-08-23)
 
-`components.toml` declares 93 components:
+`components.toml` declares 106 components:
 
 ```text
-implemented   83
-experimental   4   control.routing, preprocessing.core, apps.console, apps.admin
+implemented   90
+experimental   9   preprocessing.core and eight control-plane roles
 scaffolded     4   models, training, evaluation, kernels
-qualified      2   libs.go, control.model_registry
+qualified      3   libs.go, control.model_registry, services.control_plane.registry
 production     0
 ```
 

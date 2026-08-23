@@ -5,11 +5,8 @@
 
 """Resume semantics of a preprocessing plan.
 
-`preprocessing/pipeline/resume.py` is still a scaffold boundary — it exports a path constant and
-no behavior. What already exists, and what any resumer will be built on, is the plan: an
-interrupted run is resumed by replanning from the same arguments and matching completed work
-against the reconstructed stage ids. That makes four properties load-bearing today, and every
-one of them is a property of code that is implemented:
+An interrupted run is resumed by replanning from the same arguments and binding completed work
+to exact stage descriptors. These properties are load-bearing:
 
   * replanning is a pure function of its arguments, or completed work cannot be matched at all;
   * a stage id is stable under a configuration change, so identity alone is *not* sufficient
@@ -17,17 +14,21 @@ one of them is a property of code that is implemented:
   * a plan may not be pruned to "what is left" — the validator requires the whole DAG;
   * the DAG admits an incremental frontier, so a resumed run does strictly the remaining work.
 
-`test_planner.py` covers how the plan is constructed; this file covers what survives an
-interruption. The last test here is a tripwire on the scaffold itself.
+`test_planner.py` covers construction; this file covers what survives an interruption.
 """
 
 from __future__ import annotations
 
 import pytest
 
-from preprocessing import pipeline
 from preprocessing.contracts import ArtifactRef, PipelinePlan
-from preprocessing.pipeline import compile_plan, plan_structure_pipeline, resume
+from preprocessing.pipeline import (
+    StageCompletion,
+    compile_plan,
+    plan_resume,
+    plan_structure_pipeline,
+    stage_descriptor_digest,
+)
 
 _INPUT = ArtifactRef("sha256:" + "a" * 64, 512, "chemical/x-fasta", "job_input", 1)
 _CONFIG = "sha256:" + "b" * 64
@@ -163,16 +164,46 @@ def test_completion_state_from_a_differently_toggled_run_is_stale_not_reusable()
     assert _runnable(without_msa, frozenset(completed)) == frozenset()
 
 
-def test_resume_module_is_still_a_scaffold_boundary() -> None:
-    # A tripwire, not an endorsement. `resume.py` declares a scaffold path and exports no
-    # behavior, and `preprocessing.pipeline` publishes no resume entry point — the properties
-    # above are all this package can promise today. The day resume is implemented this test
-    # fails, which is exactly when the tests above have to be joined by real coverage of it.
-    assert resume.SCAFFOLD_PATH == "preprocessing/pipeline/resume.py"
-    exported = [
-        name
-        for name in vars(resume)
-        if not name.startswith("_") and callable(getattr(resume, name))
-    ]
-    assert exported == []
-    assert [name for name in pipeline.__all__ if "resume" in name] == []
+def _completion(plan: PipelinePlan, stage_id: str) -> StageCompletion:
+    stage = next(stage for stage in plan.stages if stage.spec.stage_id == stage_id)
+    return StageCompletion(
+        stage_id=stage_id,
+        descriptor_digest=stage_descriptor_digest(stage),
+        output_artifacts=(
+            ArtifactRef(
+                "sha256:" + stage_id[-1].encode().hex().ljust(64, "0")[:64],
+                1,
+                "application/octet-stream",
+                "stage_output",
+                1,
+            ),
+        ),
+    )
+
+
+def test_resume_returns_only_the_next_dependency_ready_frontier() -> None:
+    plan = _plan()
+    resumed = plan_resume(plan, [_completion(plan, "job:canonicalize")])
+    assert [stage.spec.stage_id for stage in resumed.runnable] == ["job:msa", "job:ligands"]
+    assert resumed.completed_stage_ids == ("job:canonicalize",)
+    assert not resumed.finished
+
+
+def test_resume_rejects_stale_descriptor_after_configuration_change() -> None:
+    baseline = _plan()
+    changed = _plan(config_digest="sha256:" + "d" * 64)
+    with pytest.raises(ValueError, match="descriptor changed"):
+        plan_resume(changed, [_completion(baseline, "job:canonicalize")])
+
+
+def test_resume_rejects_completion_without_completed_dependency() -> None:
+    plan = _plan()
+    with pytest.raises(ValueError, match="missing completed dependencies"):
+        plan_resume(plan, [_completion(plan, "job:features")])
+
+
+def test_resume_reports_finished_only_for_every_exact_stage() -> None:
+    plan = _plan()
+    resumed = plan_resume(plan, [_completion(plan, stage.spec.stage_id) for stage in plan.stages])
+    assert resumed.finished
+    assert resumed.runnable == ()

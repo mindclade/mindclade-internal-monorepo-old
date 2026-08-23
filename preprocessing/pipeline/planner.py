@@ -7,6 +7,8 @@
 
 from __future__ import annotations
 
+import re
+
 from preprocessing.contracts import (
     ArtifactRef,
     PipelinePlan,
@@ -14,6 +16,10 @@ from preprocessing.contracts import (
     StageInput,
     StageKind,
 )
+from preprocessing.contracts.validation import require_sha256
+
+_PREFIX = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+_SHA256 = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 
 def plan_structure_pipeline(
@@ -26,6 +32,21 @@ def plan_structure_pipeline(
     include_templates: bool = True,
     include_ligands: bool = True,
 ) -> PipelinePlan:
+    if _PREFIX.fullmatch(prefix) is None:
+        raise ValueError("preprocessing pipeline prefix must be a bounded safe identifier")
+    require_sha256(config_digest, "config_digest")
+    require_sha256(reference_snapshot_digest, "reference_snapshot_digest")
+    if _SHA256.fullmatch(config_digest) is None:
+        raise ValueError("config_digest must be canonical lowercase sha256 digest")
+    if _SHA256.fullmatch(reference_snapshot_digest) is None:
+        raise ValueError("reference_snapshot_digest must be canonical lowercase sha256 digest")
+    for name, value in (
+        ("include_msa", include_msa),
+        ("include_templates", include_templates),
+        ("include_ligands", include_ligands),
+    ):
+        if type(value) is not bool:
+            raise ValueError(f"{name} must be a boolean")
     stages: list[PlannedStage] = []
     canonical = f"{prefix}:canonicalize"
     stages.append(

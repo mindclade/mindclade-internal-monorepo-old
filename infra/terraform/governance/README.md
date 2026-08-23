@@ -7,6 +7,20 @@ also fingerprints variable validation conditions, `nullable`/`ephemeral` behavio
 output value expressions, and required-provider source/aliases. It never runs
 `terraform plan` or accesses a backend, credentials, state, or a cloud API.
 
+## Protected release source
+
+`.github/workflows/terraform-module-release.yml` consumes an already-created signed annotated
+SemVer tag behind the protected `terraform-module-release` environment. It verifies through the
+GitHub tag-object API that the tag signature is valid and targets the exact checked commit, then
+runs the complete repository-only Terraform gate and attests a deterministic source manifest.
+The workflow never creates, moves, or publishes a tag.
+
+Both this policy and the generated interface manifest must already record the matching contract
+as `released`; their current `planned` state therefore rejects `v0.4.0` fail closed. A future
+review must advance the governed sources without interface drift before an authorized signer may
+create that tag. Passing this lane is release provenance for reusable module source, not evidence
+that any live composition was planned or applied.
+
 Run the write-side generator only when intentionally changing module documentation or
 an interface:
 

@@ -13,7 +13,13 @@ import (
 type Deployment = runtime_authority.DeploymentRoute
 
 func CanonicalDeployments(in []Deployment) ([]Deployment, error) {
-	out := append([]Deployment(nil), in...)
+	out := make([]Deployment, len(in))
+	for i := range in {
+		out[i] = in[i]
+		// Deployment contains a slice, so copying the struct alone would let the
+		// canonicalizer reorder caller-owned policy in place.
+		out[i].Capabilities = append([]string(nil), in[i].Capabilities...)
+	}
 	for i := range out {
 		sort.Strings(out[i].Capabilities)
 		if err := out[i].Validate(); err != nil {
