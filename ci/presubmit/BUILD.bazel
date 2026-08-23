@@ -10,17 +10,30 @@ package(default_visibility = ["//visibility:public"])
 py_library(
     name = "pipeline_lib",
     srcs = ["pipeline.py"],
+    data = [
+        "targets.yaml",
+        "//ci/bazel:full_graph_shards.toml",
+    ],
     imports = ["../.."],
-    deps = ["//ci/common:affected"],
+    deps = [
+        "//ci/common:affected",
+        "//ci/common:full_graph_shards",
+    ],
 )
 
 py_binary(
     name = "pipeline",
     srcs = ["pipeline.py"],
-    data = ["targets.yaml"],
+    data = [
+        "targets.yaml",
+        "//ci/bazel:full_graph_shards.toml",
+    ],
     imports = ["../.."],
     main = "pipeline.py",
-    deps = ["//ci/common:affected"],
+    deps = [
+        "//ci/common:affected",
+        "//ci/common:full_graph_shards",
+    ],
 )
 
 pytest_test(
@@ -29,6 +42,10 @@ pytest_test(
         "pipeline.py",
         "test_pipeline.py",
     ],
+    data = ["//ci/bazel:full_graph_shards.toml"],
     imports = ["../.."],
-    deps = ["//ci/common:affected"],
+    deps = [
+        "//ci/common:affected",
+        "//ci/common:full_graph_shards",
+    ],
 )

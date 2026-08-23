@@ -1,0 +1,27 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+package(default_visibility = ["//visibility:private"])
+
+go_library(
+    name = "cache_gateway_lib",
+    srcs = ["main.go"],
+    importpath = "go.mindclade.dev/tools/build/bazel/cache_gateway/cmd",
+    deps = [
+        "//libs/go/faults",
+        "//libs/go/storage/blob",
+        "//tools/build/bazel/cache_gateway/gateway",
+        "//tools/build/bazel/cache_gateway/gcshttp",
+        "@org_golang_x_oauth2//:oauth2",
+        "@org_golang_x_oauth2//google",
+    ],
+)
+
+go_binary(
+    name = "cache_gateway",
+    embed = [":cache_gateway_lib"],
+    visibility = ["//visibility:public"],
+)

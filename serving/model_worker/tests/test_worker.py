@@ -46,3 +46,18 @@ def test_worker_lifecycle_and_engine_response_contract() -> None:
         worker.execute((request("r3"),))
     worker.stop()
     assert worker.phase is WorkerPhase.STOPPED
+
+
+def test_worker_rejects_a_registry_wider_than_its_loaded_model_limit() -> None:
+    """The declared residency ceiling has to bind the registry it is handed."""
+    with pytest.raises(ValueError):
+        ModelWorker(
+            WorkerLimits(maximum_loaded_models=1),
+            ModelRegistry(Loader(), capacity=2),
+            Engine(),
+        )
+    ModelWorker(
+        WorkerLimits(maximum_loaded_models=2),
+        ModelRegistry(Loader(), capacity=2),
+        Engine(),
+    )

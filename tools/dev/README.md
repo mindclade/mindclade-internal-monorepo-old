@@ -7,6 +7,12 @@
 
 Repository-owned code generation, analysis, developer, qualification, and release tools. Tools are invoked through Bazel targets in production/CI paths. This path specializes that domain for **dev**.
 
+`git_hygiene_report.py` inventories local and `origin` branches, registered worktrees, unique
+commits relative to `origin/main`, and dirty file paths before any manual cleanup. It is strictly
+report-only: it has no delete, prune, reset, checkout, branch-update, or worktree-removal mode.
+The scheduled workflow publishes JSON and static HTML from a clean hosted checkout; developers
+must run it locally to include machine-local dirty or locked worktrees.
+
 ## Boundary
 
 Reusable implementation belongs in this owning package. Deployable entry points,

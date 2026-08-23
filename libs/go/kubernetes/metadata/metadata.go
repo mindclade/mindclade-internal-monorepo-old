@@ -41,7 +41,12 @@ func Clone(values map[string]string) map[string]string {
 	return cloned
 }
 
-// Merge overlays non-empty keys from overlays from left to right.
+// Merge applies each overlay onto base from left to right. It deliberately
+// neither filters nor canonicalizes keys: an invalid key must survive into the
+// candidate map so ValidateLabels or ValidateAnnotations can reject the whole
+// mutation. Merge previously skipped the empty key, which turned
+// SetLabel(object, "", value) into a silent (false, nil) no-op that a caller
+// could not distinguish from "the label was already present".
 func Merge(base map[string]string, overlays ...map[string]string) map[string]string {
 	merged := Clone(base)
 	if merged == nil {
@@ -49,9 +54,6 @@ func Merge(base map[string]string, overlays ...map[string]string) map[string]str
 	}
 	for _, overlay := range overlays {
 		for key, value := range overlay {
-			if key == "" {
-				continue
-			}
 			merged[key] = value
 		}
 	}
@@ -126,6 +128,9 @@ func RemoveLabel(object metav1.Object, key string) (bool, error) {
 	if isNil(object) {
 		return false, nilObject("kubernetes.metadata.RemoveLabel")
 	}
+	if err := removableKey(key, "kubernetes.metadata.RemoveLabel"); err != nil {
+		return false, err
+	}
 	labels := Clone(object.GetLabels())
 	if _, exists := labels[key]; !exists {
 		return false, nil
@@ -157,6 +162,9 @@ func RemoveAnnotation(object metav1.Object, key string) (bool, error) {
 	if isNil(object) {
 		return false, nilObject("kubernetes.metadata.RemoveAnnotation")
 	}
+	if err := removableKey(key, "kubernetes.metadata.RemoveAnnotation"); err != nil {
+		return false, err
+	}
 	annotations := Clone(object.GetAnnotations())
 	if _, exists := annotations[key]; !exists {
 		return false, nil
@@ -176,6 +184,27 @@ func invalid(message, reason, key string, problems []string) error {
 		faults.WithReason(reason),
 		faults.WithOperation("kubernetes.metadata.Validate"),
 		faults.WithFields(faults.Fields{"key": key, "problems": problems}),
+		faults.WithRetryPolicy(faults.NoRetry()),
+	)
+}
+
+// removableKey rejects the empty key on the delete path so it matches the write
+// path, which now returns InvalidArgument for it. Removal deliberately does not
+// run the full IsQualifiedName check: a key written by an earlier release must
+// stay removable even if it would no longer pass validation, so tightening the
+// rules must never strand metadata on live objects. The empty key is the one
+// case with no such history — the API server cannot store it, so asking to
+// remove it can only be a caller that computed an empty key and would otherwise
+// read the (false, nil) answer as "it was not there".
+func removableKey(key, operation string) error {
+	if key != "" {
+		return nil
+	}
+	return faults.New(
+		faults.CodeInvalidArgument,
+		"Kubernetes metadata key is required",
+		faults.WithReason("empty_metadata_key"),
+		faults.WithOperation(operation),
 		faults.WithRetryPolicy(faults.NoRetry()),
 	)
 }
