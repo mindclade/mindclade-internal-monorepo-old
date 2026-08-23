@@ -20,6 +20,17 @@ CACHE_SHA = "55cc8345863c7cc4c66a329aec7e433d2d1c52a9"
 REUSABLE_SHA = "7e4b7a873fc9312c2985ed262b251455c71756fe"
 AUTH_SHA = "7c6bc770dae815cd3e89ee6cdf493a5fab2cc093"
 AUTH_ACTION = f"google-github-actions/auth@{AUTH_SHA}"
+PULL_REQUEST_CACHE_BASE_REF = (
+    "${{ github.event.pull_request.stack.base.ref || github.event.pull_request.base.ref }}"
+)
+PULL_REQUEST_CACHE_BASE_SHA = (
+    "${{ github.event.pull_request.stack.base.sha || github.event.pull_request.base.sha }}"
+)
+PULL_REQUEST_SELECTION_BASE_SHA = "${{ github.event.pull_request.base.sha }}"
+PERSISTENT_CACHE_MEASURE_IF = (
+    "always() && steps.bazel-remote-cache.outputs.enabled != 'true' "
+    "&& steps.bazel-cache-trust.outcome == 'success'"
+)
 REMOTE_CACHE_ACTIVATION = json.loads(
     (ROOT / "ci/bazel_cache/activation.json").read_text(encoding="utf-8")
 )
@@ -221,7 +232,7 @@ assert {key: value for key, value in presubmit_selector.items() if key != "run"}
         "BAZEL_REMOTE_CACHE_STATE": "${{ vars.BAZEL_REMOTE_CACHE_STATE }}",
         "CI_PROJECT_ID": "${{ vars.CI_PROJECT_ID }}",
         "MERGE_GROUP_BASE_REF": "${{ github.event.merge_group.base_ref }}",
-        "PR_BASE_REF": "${{ github.event.pull_request.base.ref }}",
+        "PR_BASE_REF": PULL_REQUEST_CACHE_BASE_REF,
         "REF_PROTECTED": "${{ github.ref_protected }}",
     },
 }
@@ -251,6 +262,22 @@ assert_remote_cache_command(
         "${GITHUB_OUTPUT}",
     ],
 )
+
+presubmit_disk_selector = workflow_step(bazel_workflow_job, step_id="bazel-cache-trust")
+presubmit_disk_selector_env = presubmit_disk_selector.get("env")
+assert isinstance(presubmit_disk_selector_env, dict)
+assert presubmit_disk_selector_env["PR_BASE_REF"] == PULL_REQUEST_CACHE_BASE_REF
+assert presubmit_disk_selector_env["PR_BASE_SHA"] == PULL_REQUEST_CACHE_BASE_SHA
+
+presubmit_governed_run = workflow_step(
+    bazel_workflow_job, name="Run event-governed Bazel validation"
+)
+presubmit_governed_env = presubmit_governed_run.get("env")
+assert isinstance(presubmit_governed_env, dict)
+assert presubmit_governed_env["PR_BASE_SHA"] == PULL_REQUEST_SELECTION_BASE_SHA
+
+presubmit_cache_measure = workflow_step(bazel_workflow_job, step_id="bazel-cache-size")
+assert presubmit_cache_measure.get("if") == PERSISTENT_CACHE_MEASURE_IF
 
 assert_only_expected_auth_steps(
     bazel_workflow_job, {"bazel-cache-reader-auth", "bazel-cache-writer-auth"}
