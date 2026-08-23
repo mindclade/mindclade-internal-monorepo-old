@@ -1878,8 +1878,8 @@ security
 release
 ```
 
-Heavy GPU/multinode/scale qualification may run on Buildkite or dedicated
-internal infrastructure, but the work remains expressed as Bazel targets.
+Heavy GPU/multinode/scale qualification runs only on qualified dedicated
+internal GitHub Actions infrastructure, while the work remains expressed as Bazel targets.
 
 Release promotion is impossible without required qualification artifacts.
 

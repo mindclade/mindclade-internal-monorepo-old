@@ -8,7 +8,7 @@
 
 > **Maturity:** Presubmit and security workflows are active repository contracts. The ARC
 > release path is source-complete but remains fail-closed until its connected activation gates
-> pass; Buildkite is retained only as non-authoritative rollback evidence during that rollout.
+> pass. Buildkite source and authority are retired and are not a rollback path.
 
 ## Workflows
 
@@ -91,9 +91,9 @@ rollback mechanism.
 ## Release activation status
 
 `release.yml` accepts only a protected-main push that adds exactly one immutable reviewed
-request under `ci/release/requests/`. It calls the immutable `.github` v4 ARC canary, builder,
+request under `ci/release/requests/`. It calls the immutable `.github` v5 ARC canary, builder,
 independent qualifier, protected deployment signer, and review-only GitOps promoter. The source
-remains inactive until `.github` v4 is published, the exact runner group and GitHub Apps exist,
+remains inactive until `.github` v5 is published, the exact runner group and GitHub Apps exist,
 the six WIF capabilities are applied and negatively tested, and the connected canary passes.
 
 `terraform-module-release.yml` is a separate module-source authority. It is dispatched only from
