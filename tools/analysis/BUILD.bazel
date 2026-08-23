@@ -94,6 +94,13 @@ pytest_test(
 )
 
 pytest_test(
+    name = "affected_presubmit_test",
+    srcs = ["tests/test_affected_presubmit.py"],
+    data = ["check_affected_presubmit.py"],
+    deps = ["//ci/common:affected_contract"],
+)
+
+pytest_test(
     name = "cc_toolchain_bundle_test",
     srcs = ["tests/test_cc_toolchain_bundle.py"],
     data = [
@@ -121,6 +128,15 @@ pytest_test(
     name = "go_test_signal_test",
     srcs = ["tests/test_go_test_signal.py"],
     data = ["check_go_test_signal.py"],
+)
+
+pytest_test(
+    name = "control_plane_commands_test",
+    srcs = [
+        "check_control_plane_commands.py",
+        "go_import_graph.py",
+        "tests/test_control_plane_commands.py",
+    ],
 )
 
 pytest_test(
@@ -199,6 +215,7 @@ py_binary(
     main = "run_architecture_checks.py",
     visibility = ["//visibility:public"],
     deps = [
+        "//ci/common:affected_contract",
         "//configs:contract_validation",
         "//infra/observability:alert_contracts",
         "//tools/qualification:release_evidence",

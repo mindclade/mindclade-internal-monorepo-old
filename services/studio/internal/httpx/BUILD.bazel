@@ -30,4 +30,5 @@ go_test(
         "security_test.go",
     ],
     embed = [":httpx"],
+    deps = ["//libs/go/observability"],
 )

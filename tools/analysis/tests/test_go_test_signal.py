@@ -43,9 +43,18 @@ def test_accepts_subtest_signal(tmp_path: Path) -> None:
     write(
         tmp_path,
         "pkg/subtest_test.go",
-        'package pkg\nimport "testing"\nfunc TestSubtest(t *testing.T) { t.Run("case", func(t *testing.T) {}) }\n',
+        'package pkg\nimport "testing"\nfunc TestSubtest(t *testing.T) { t.Run("case", func(t *testing.T) { t.Error("failed") }) }\n',
     )
     assert check_go_test_signal.check(tmp_path) == []
+
+
+def test_rejects_empty_subtest(tmp_path: Path) -> None:
+    write(
+        tmp_path,
+        "pkg/subtest_test.go",
+        'package pkg\nimport "testing"\nfunc TestSubtest(t *testing.T) { t.Run("case", func(t *testing.T) {}) }\n',
+    )
+    assert check_go_test_signal.check(tmp_path) == ["GO_TEST_SIGNAL_MISSING pkg/subtest_test.go"]
 
 
 def test_rejects_helper_only_test(tmp_path: Path) -> None:

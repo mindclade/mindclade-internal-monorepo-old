@@ -29,4 +29,8 @@ go_test(
     name = "reference_databases_test",
     srcs = glob(["*_test.go"]),
     embed = [":reference_databases"],
+    deps = [
+        "//control/artifacts",
+        "//libs/go/identifiers",
+    ],
 )

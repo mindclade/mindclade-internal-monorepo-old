@@ -28,6 +28,7 @@ is the only thing that can tell those two apart.
 from __future__ import annotations
 
 import argparse
+import ast
 import re
 import sys
 from pathlib import Path
@@ -60,6 +61,69 @@ FORBIDDEN = {
     "servicekit.NewAssembly(": "command assembles its own service",
     "signal.Notify": "command takes signal ownership from servicekit",
 }
+
+
+def _named_calls(tree: ast.AST, name: str) -> list[ast.Call]:
+    return [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == name
+    ]
+
+
+def _loaded_symbols(tree: ast.AST, label: str) -> set[str]:
+    symbols: set[str] = set()
+    for call in _named_calls(tree, "load"):
+        if (
+            not call.args
+            or not isinstance(call.args[0], ast.Constant)
+            or call.args[0].value != label
+        ):
+            continue
+        symbols.update(
+            argument.value
+            for argument in call.args[1:]
+            if isinstance(argument, ast.Constant) and isinstance(argument.value, str)
+        )
+        symbols.update(
+            keyword.arg
+            for keyword in call.keywords
+            if keyword.arg is not None
+            and isinstance(keyword.value, ast.Constant)
+            and keyword.value.value == "go_binary"
+        )
+    return symbols
+
+
+def _dependency_labels(tree: ast.AST) -> set[str]:
+    labels: set[str] = set()
+    for rule in ("go_binary", "go_library"):
+        for call in _named_calls(tree, rule):
+            for keyword in call.keywords:
+                if keyword.arg != "deps":
+                    continue
+                labels.update(
+                    node.value
+                    for node in ast.walk(keyword.value)
+                    if isinstance(node, ast.Constant) and isinstance(node.value, str)
+                )
+    return labels
+
+
+def build_contract_errors(source: str, label: str) -> list[str]:
+    try:
+        tree = ast.parse(source, filename=label)
+    except SyntaxError as error:
+        return [f"{label}: BUILD syntax is not structurally parseable: {error.msg}"]
+    errors: list[str] = []
+    if "go_binary" not in _loaded_symbols(tree, "@rules_go//go:def.bzl"):
+        errors.append(f'{label}: must load go_binary from "@rules_go//go:def.bzl"')
+    if not _named_calls(tree, "go_binary"):
+        errors.append(f"{label}: must declare a go_binary rule")
+    bootstrap = "//services/control_plane/internal/bootstrap"
+    if bootstrap not in _dependency_labels(tree):
+        errors.append(f"{label}: must declare dependency {bootstrap}")
+    return errors
 
 
 def check(root: Path) -> list[str]:
@@ -118,13 +182,12 @@ def check(root: Path) -> list[str]:
         if not build.is_file():
             errors.append(f"{COMMAND_ROOT}/{command}: missing BUILD.bazel")
             continue
-        build_text = build.read_text(encoding="utf-8")
-        for token in (
-            'load("@rules_go//go:def.bzl", "go_binary")',
-            "//services/control_plane/internal/bootstrap",
-        ):
-            if token not in build_text:
-                errors.append(f"{COMMAND_ROOT}/{command}/BUILD.bazel: must contain {token}")
+        errors.extend(
+            build_contract_errors(
+                build.read_text(encoding="utf-8"),
+                f"{COMMAND_ROOT}/{command}/BUILD.bazel",
+            )
+        )
     return errors
 
 

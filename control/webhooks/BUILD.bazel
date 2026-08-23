@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_go//go:def.bzl", "go_library")
+
 package(default_visibility = ["//visibility:private"])
 
 filegroup(
@@ -12,4 +14,18 @@ filegroup(
         exclude = ["BUILD.bazel"],
     ),
     visibility = ["//visibility:public"],
+)
+
+go_library(
+    name = "webhooks",
+    srcs = [
+        "delivery.go",
+        "doc.go",
+        "endpoint.go",
+        "repository.go",
+        "service.go",
+        "signature.go",
+        "subscription.go",
+    ],
+    importpath = "go.mindclade.dev/control/webhooks",
 )

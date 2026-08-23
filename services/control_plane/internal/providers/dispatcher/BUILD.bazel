@@ -37,6 +37,9 @@ go_test(
     srcs = ["dispatcher_test.go"],
     embed = [":dispatcher"],
     deps = [
+        "//libs/go/config",
+        "//libs/go/faults",
+        "//services/control_plane/internal/bootstrap",
         "@com_github_lib_pq//:pq",
     ],
 )

@@ -5,6 +5,7 @@
 
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
 load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@gazelle//:def.bzl", "gazelle", "gazelle_binary", "gazelle_test")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@npm//apps/console:next/package_json.bzl", next_bin = "bin")
 load("//tools/build/bazel:layers.bzl", "declare_bazel_layer_package_groups")
@@ -15,6 +16,31 @@ package(default_visibility = ["//visibility:private"])
 # consumed by tools/analysis/check_bazel_layers.py. Their membership is defined once in the
 # loaded module so BUILD visibility and the query-based CI gate cannot silently diverge.
 declare_bazel_layer_package_groups()
+
+# Gazelle owns only native Go BUILD metadata. The repository does not pin a reviewed Python
+# language extension, and the default binary also carries Proto and visibility extensions that
+# would silently broaden this target's authority. Keep the binary explicit until each additional
+# language is separately versioned and qualified.
+# gazelle:prefix go.mindclade.dev
+gazelle_binary(
+    name = "gazelle_go_binary",
+    languages = ["@gazelle//language/go"],
+)
+
+gazelle(
+    name = "gazelle",
+    command = "fix",
+    gazelle = ":gazelle_go_binary",
+    visibility = ["//visibility:public"],
+)
+
+# gazelle_test runs in diff mode against the real checkout. Unlike a generated-file fixture, it
+# fails when any committed Go BUILD target has drifted from source or go.mod/go.sum resolution.
+gazelle_test(
+    name = "gazelle_check",
+    gazelle = ":gazelle_go_binary",
+    workspace = "//:BUILD.bazel",
+)
 
 npm_link_all_packages(name = "node_modules")
 

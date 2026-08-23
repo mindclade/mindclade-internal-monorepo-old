@@ -3,15 +3,21 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
-load("@rules_go//go:def.bzl", "go_binary")
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
 
 package(default_visibility = ["//visibility:private"])
 
 go_binary(
     name = "registry",
-    srcs = ["main.go"],
+    embed = [":registry_lib"],
     importpath = "go.mindclade.dev/services/control_plane/cmd/registry",
     visibility = ["//services/control_plane:__subpackages__"],
+)
+
+go_library(
+    name = "registry_lib",
+    srcs = ["main.go"],
+    importpath = "go.mindclade.dev/services/control_plane/cmd/registry",
     deps = [
         "//services/control_plane/internal/bootstrap",
         "//services/control_plane/internal/providers/registry",

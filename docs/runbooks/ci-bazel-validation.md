@@ -1,5 +1,25 @@
 # CI Bazel validation runbook
 
+## Gazelle ownership
+
+`//:gazelle` owns native Go BUILD metadata and `//:gazelle_check` verifies the checkout without
+modifying it. The generator is intentionally limited to Gazelle's Go language extension; Python,
+Proto, and visibility generation remain outside its authority. Every non-empty affected test
+selection includes `//:gazelle_check`, while protected full-graph runs include it through `//...`.
+
+Run the generator only when reconciling reviewed Go source changes:
+
+```bash
+tools/dev/nixw develop .#ci-bazel --command tools/dev/bazelw run //:gazelle
+tools/dev/nixw develop .#ci-bazel --command tools/dev/bazelw test //:gazelle_check --config=ci
+```
+
+Full-graph sharding remains deferred until the shared Bazel remote cache is connected and
+qualified. Sharding hosted runners while the bounded GitHub-transported disk cache is the only
+persistent cache would split warm state across workers and can increase cold compilation cost.
+Do not add matrix shards or claim a latency improvement before retained connected cache evidence
+supports that transition.
+
 ## Persistent action cache
 
 The immediate persistent action cache is Bazel's local `--disk_cache`, transported between

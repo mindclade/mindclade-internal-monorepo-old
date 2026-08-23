@@ -23,7 +23,10 @@ go_library(
 
 go_test(
     name = "config_test",
-    srcs = ["config_test.go"],
+    srcs = [
+        "config_test.go",
+        "validation_test.go",
+    ],
     embed = [":config"],
     deps = [
         "//libs/go/config",

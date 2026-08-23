@@ -54,6 +54,7 @@ go_test(
     ],
     embed = [":maintenance"],
     deps = [
+        "//control/admission",
         "//libs/go/audit",
         "//libs/go/clock",
         "//libs/go/config",
