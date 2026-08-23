@@ -7,6 +7,7 @@ package status
 
 import (
 	"context"
+	"reflect"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,7 +26,7 @@ type ConditionAccessor interface {
 }
 
 func SetCondition(accessor ConditionAccessor, condition metav1.Condition, now time.Time) (bool, error) {
-	if accessor == nil {
+	if isNil(accessor) {
 		return false, invalid("condition accessor is required", "nil_condition_accessor")
 	}
 	values := append([]metav1.Condition(nil), accessor.GetConditions()...)
@@ -38,7 +39,7 @@ func SetCondition(accessor ConditionAccessor, condition metav1.Condition, now ti
 }
 
 func RemoveCondition(accessor ConditionAccessor, conditionType string) (bool, error) {
-	if accessor == nil {
+	if isNil(accessor) {
 		return false, invalid("condition accessor is required", "nil_condition_accessor")
 	}
 	values := append([]metav1.Condition(nil), accessor.GetConditions()...)
@@ -57,4 +58,22 @@ func Patch(ctx context.Context, client crclient.Client, before, after crclient.O
 
 func invalid(message, reason string) error {
 	return faults.New(faults.CodeInvalidArgument, message, faults.WithReason(reason), faults.WithOperation("kubernetes.status"), faults.WithRetryPolicy(faults.NoRetry()))
+}
+
+// ConditionAccessor is an interface, so a nil *T argument is not == nil: the
+// interface value carries a type and a nil pointer. A plain `accessor == nil`
+// guard let that through and the first GetConditions call crashed the
+// reconciler. Every other package in this subtree uses the same reflective
+// check for exactly this reason.
+func isNil(value any) bool {
+	if value == nil {
+		return true
+	}
+	reflected := reflect.ValueOf(value)
+	switch reflected.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return reflected.IsNil()
+	default:
+		return false
+	}
 }

@@ -10,6 +10,8 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"go.mindclade.dev/libs/go/faults"
 )
 
 type accessor struct{ values []metav1.Condition }
@@ -29,5 +31,21 @@ func TestSetAndRemoveCondition(t *testing.T) {
 	changed, err = RemoveCondition(value, "Ready")
 	if err != nil || !changed || len(value.values) != 0 {
 		t.Fatalf("RemoveCondition() = (%v, %v), values=%#v", changed, err, value.values)
+	}
+}
+
+// ConditionAccessor is an interface, so a nil *T argument is not == nil. The
+// guard used to miss that and dereference the typed nil inside GetConditions,
+// crashing the reconciler instead of returning an invalid-argument fault.
+func TestConditionMutatorsRejectTypedNilAccessor(t *testing.T) {
+	var value *accessor
+	condition := metav1.Condition{Type: "Ready", Status: metav1.ConditionTrue, Reason: "Reconciled"}
+	changed, err := SetCondition(value, condition, time.Unix(100, 0))
+	if !faults.IsCode(err, faults.CodeInvalidArgument) || changed {
+		t.Fatalf("SetCondition(typed nil) = (%v, %v)", changed, err)
+	}
+	changed, err = RemoveCondition(value, "Ready")
+	if !faults.IsCode(err, faults.CodeInvalidArgument) || changed {
+		t.Fatalf("RemoveCondition(typed nil) = (%v, %v)", changed, err)
 	}
 }

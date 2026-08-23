@@ -44,9 +44,16 @@ func MustParse(value string) Name {
 }
 
 func (name Name) String() string { return string(name) }
+
+// Valid reports whether the name is safe to write to a Kubernetes object
+// exactly as it is. Parse trims, so a parse-only check accepted
+// Name(" mindclade.dev/cleanup ") while String kept the padding; Add then
+// wrote a whitespace-padded finalizer that the API server rejects and that
+// Contains can never match. Requiring the value to already equal its parsed
+// form makes Valid mean "normalized", which is what every caller assumes.
 func (name Name) Valid() bool {
-	_, err := Parse(string(name))
-	return err == nil
+	parsed, err := Parse(string(name))
+	return err == nil && parsed == name
 }
 
 func Contains(object crclient.Object, name Name) bool {

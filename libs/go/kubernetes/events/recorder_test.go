@@ -173,3 +173,29 @@ func TestRecorderRejectsInvalidInputs(t *testing.T) {
 		t.Fatalf("Record(nil object) = %v", err)
 	}
 }
+
+// ParseReason trims, so Reason.Valid() used to accept an untrimmed value while
+// Reason.String() still returned the padded text, which then became the event
+// reason that clients and alert rules aggregate on.
+func TestRecordRejectsUnnormalizedReason(t *testing.T) {
+	provider := &fakeRecorder{}
+	recorder, err := New(provider)
+	if err != nil {
+		t.Fatal(err)
+	}
+	padded := Reason(" Reconciled ")
+	if padded.Valid() {
+		t.Fatal("Reason.Valid() accepted a value with surrounding whitespace")
+	}
+	err = recorder.Record(context.Background(), &metav1.PartialObjectMetadata{}, Event{
+		Type:    TypeNormal,
+		Reason:  padded,
+		Message: "resource reconciled",
+	})
+	if !faults.IsCode(err, faults.CodeInvalidArgument) {
+		t.Fatalf("Record(unnormalized reason) = %v", err)
+	}
+	if len(provider.events) != 0 {
+		t.Fatalf("recorded = %#v", provider.events)
+	}
+}

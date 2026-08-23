@@ -26,5 +26,8 @@ go_test(
     name = "metadata_test",
     srcs = ["metadata_test.go"],
     embed = [":metadata"],
-    deps = ["@io_k8s_apimachinery//pkg/apis/meta/v1:meta"],
+    deps = [
+        "//libs/go/faults",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+    ],
 )
