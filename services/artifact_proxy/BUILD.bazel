@@ -24,7 +24,10 @@ rust_library(
         "//libs/rust/servicekit:mindclade_servicekit",
         "//libs/rust/telemetry:mindclade_telemetry",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        "@crates//:axum",
         "@crates//:bytes",
+        "@crates//:tokio",
+        "@crates//:tower",
     ],
 )
 
@@ -46,7 +49,25 @@ rust_binary(
         "//libs/rust/servicekit:mindclade_servicekit",
         "//libs/rust/telemetry:mindclade_telemetry",
         "//libs/rust/worker_protocol:mindclade_worker_protocol",
+        "@crates//:axum",
         "@crates//:bytes",
+        "@crates//:tokio",
+        "@crates//:tower",
+    ],
+)
+
+rust_test(
+    name = "composition",
+    srcs = ["tests/composition.rs"],
+    edition = "2024",
+    deps = [
+        ":mindclade_artifact_proxy",
+        "//libs/rust/bytes_io:mindclade_bytes_io",
+        "//libs/rust/content_digest:mindclade_content_digest",
+        "//libs/rust/faults:mindclade_faults",
+        "//libs/rust/object_store:mindclade_object_store",
+        "//libs/rust/runtime_core:mindclade_runtime_core",
+        "@crates//:tokio",
     ],
 )
 
