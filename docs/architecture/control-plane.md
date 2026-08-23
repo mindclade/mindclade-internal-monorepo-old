@@ -33,8 +33,10 @@ Reusable mechanisms remain in `libs/go`; generated wire types remain in
 
 The list above is the blueprint boundary set. It does not assert that each
 directory is implemented: `audit`, `evaluations`, `events`, `metadata`, `runs`,
-`scheduling`, `tenancy`, `usage`, `webhooks`, and `weights` currently hold only
-reserved package boundaries and are undeclared in `components.toml`. See
+`tenancy`, `usage`, `webhooks`, and `weights` currently hold only reserved
+package boundaries and are undeclared in `components.toml`. `orchestration` and
+`scheduling` left that set on 2026-08-23 and are now declared `implemented`,
+which is neither `qualified` nor `production`. See
 [`system-design-reference.md` §7.1](system-design-reference.md) for the current
 split and `components.toml` for the authoritative per-component status.
 

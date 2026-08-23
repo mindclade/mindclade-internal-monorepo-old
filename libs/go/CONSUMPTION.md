@@ -68,7 +68,7 @@ two is a claim a reviewer has to judge, not one the checker can.
 | `auth` | required | required | required (internal identity) | required (internal identity) | required (internal identity) | required (internal identity) | required (internal identity) | required (internal identity) | required (internal identity) |
 | `audit` | required (mutations) | required (mutations) | required | required | required | optional (policy-dependent) | unmaterialized (delivery audit) | required (delivery audit) | required |
 | `idempotency` | required (mutations) | required (mutations) | required | required | required | required (through inbox) | unmaterialized (delivery-specific) | required (delivery-specific) | required (where mutating) |
-| `resourceversion` | required | required | unmaterialized | unmaterialized | unmaterialized | optional (projection-specific) | no | no | required (maintenance-specific) |
+| `resourceversion` | required | required | required | unmaterialized | unmaterialized | optional (projection-specific) | no | no | required (maintenance-specific) |
 | `pagination` | required | required | transitive | transitive | transitive | transitive | transitive | transitive | transitive |
 | `signing` | required (cursor tokens) | required (cursor tokens) | required (execution tickets) | optional | optional | optional (verification only) | optional | required (webhook signing) | optional |
 | `messaging` | required (outbox only) | required (outbox only) | required | required | required | required (subscription) | required (publication) | required (publication) | optional |

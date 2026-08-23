@@ -16,10 +16,10 @@ The authoritative machine-readable state is in `components.toml` and
 
 ## Census (2026-08-23)
 
-`components.toml` declares 89 components:
+`components.toml` declares 93 components:
 
 ```text
-implemented   79
+implemented   83
 experimental   4   control.routing, preprocessing.core, apps.console, apps.admin
 scaffolded     4   models, training, evaluation, kernels
 qualified      2   libs.go, control.model_registry
@@ -38,7 +38,8 @@ empty target-state placeholders:
 - `libs/go/`: reusable Go mechanisms, durable coordination, production
   lifecycle, transports, storage/security/provider seams;
 - `control/`: Go durable policy domains, including runtime authority, routing,
-  artifacts, orchestration, registry/reference/evidence seams;
+  artifacts, workflow/stage/attempt orchestration with its three launchers,
+  scheduling admission/placement policy, registry/reference/evidence seams;
 - `services/control_plane/internal/{bootstrap,foundation}/`: standardized role
   manifests, typed capabilities, and fail-closed composition;
 - `libs/rust/`: the supplied Rust codebase as the starting implementation,
