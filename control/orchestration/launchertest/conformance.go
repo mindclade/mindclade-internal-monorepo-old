@@ -83,6 +83,7 @@ func Envelope(tb testing.TB, now time.Time) orchestration.WorkloadEnvelope {
 				Deadline:             now.Add(time.Hour),
 				Expires:              now.Add(30 * time.Minute),
 				PolicyEpoch:          1,
+				RouteSnapshotVersion: 1,
 				RevocationEpoch:      1,
 				Budget: runtime_authority.ExecutionBudget{
 					CPUMillis:           1000,
