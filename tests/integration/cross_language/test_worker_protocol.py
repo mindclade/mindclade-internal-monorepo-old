@@ -1067,7 +1067,9 @@ def test_attempt_states_match_the_worker_state_enum() -> None:
     }
     assert wire, "WorkerState enum was not found in the runtime protocol"
     reachable = {state for edge in _rust_transitions() for state in edge}
-    assert reachable <= wire, f"the transition table names states the protocol does not: {sorted(reachable - wire)}"
+    assert reachable <= wire, (
+        f"the transition table names states the protocol does not: {sorted(reachable - wire)}"
+    )
     assert set(_RUST_TO_WIRE.values()) == wire, (
         "the Rust-to-wire state mapping in this test has drifted from the protocol enum: "
         f"{sorted(set(_RUST_TO_WIRE.values()) ^ wire)}"
