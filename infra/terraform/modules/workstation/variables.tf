@@ -141,138 +141,27 @@ variable "machine_type" {
 }
 
 variable "image" {
-  description = "Boot image as project/family or a full image self-link"
+  description = "Immutable NixOS boot image as a full Compute Engine image self-link"
   type        = string
-  default     = "debian-cloud/debian-12"
 
   validation {
-    condition = can(regex("^[a-z][a-z0-9-]*/[a-z][a-z0-9-]*$", var.image)) || can(
-      regex("^projects/[^/]+/global/images/[^/]+$", var.image)
-    )
-    error_message = "image must be project/family or a fully qualified image path."
+    condition     = can(regex("^projects/[a-z][a-z0-9-]{4,28}[a-z0-9]/global/images/[a-z](?:[-a-z0-9]{0,61}[a-z0-9])?$", var.image))
+    error_message = "image must be an immutable full projects/<project>/global/images/<name> reference; image families are forbidden."
   }
 }
 
-# PROVISIONING SOURCES.
-#
-# The startup script fetches Debian packages and the Nix installer, and both defaults are public
-# internet endpoints. This module targets an environment whose firewall denies egress by default at
-# priority 65000 — only intra-VPC destinations, the restricted Google API VIP, and the metadata
-# server are reachable — so there the defaults are not slow, they are blocked, and the instance
-# boots reachable-but-unprovisioned.
-#
-# These inputs are the only place that can be fixed: var.metadata refuses the startup-script key,
-# so no caller can substitute a script of its own. Each one defaults to null, which keeps today's
-# public source and today's rendered script unchanged; setting one REPLACES that source rather than
-# adding to it. None of them creates a mirror. README.md states what an estate must still stand up
-# outside this module for a locked-down deployment to actually provision.
-#
-# Every URL here is rendered into instance metadata, which any principal holding
-# compute.instances.get can read, and the Nix installer is executed as root. That is why the
-# validations below are narrow rather than "must look like a URL": an input that accepts anything
-# is how the installer eventually comes from a host nobody reviewed.
-
-variable "apt_mirror_url" {
-  description = "Internal Debian mirror base URL replacing the image's sources.list; null keeps the image default"
+variable "image_contract_sha256" {
+  description = "Lowercase SHA-256 digest of /etc/mindclade/image-contract.json in the selected image"
   type        = string
-  default     = null
 
   validation {
-    # https only, and a dotted DNS host only. Plain http puts the package set of a machine that can
-    # reach the caches on an unauthenticated wire; a bare IP literal is a destination no reviewer
-    # can tie to an owner and no DNS policy can redirect; userinfo, query, and fragment are refused
-    # because a mirror base carrying a credential would be published in instance metadata.
-    condition = var.apt_mirror_url == null || can(regex(
-      "^https://[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*\\.[a-z]{2,}(:[0-9]{1,5})?(/[A-Za-z0-9._~/-]*)?$",
-      var.apt_mirror_url
-    ))
-    error_message = "apt_mirror_url must be null or an https URL naming a dotted DNS host, with no userinfo, query string, or fragment. Plain http, a bare IP literal, and an embedded credential are refused: this value is rendered into instance metadata that every principal holding compute.instances.get can read."
-  }
-}
-
-variable "apt_mirror_components" {
-  description = "Debian components published by apt_mirror_url; null means main only"
-  type        = list(string)
-  default     = null
-
-  validation {
-    # Written verbatim into sources.list, so the set is closed. An unconstrained string here is a
-    # repository line that reaches a root apt-get without anyone having read it.
-    condition = var.apt_mirror_components == null ? true : (
-      length(var.apt_mirror_components) >= 1 &&
-      length(var.apt_mirror_components) <= 4 &&
-      alltrue([
-        for component in var.apt_mirror_components :
-        contains(["main", "contrib", "non-free", "non-free-firmware"], component)
-      ])
-    )
-    error_message = "apt_mirror_components must be null or between one and four of main, contrib, non-free, non-free-firmware."
-  }
-}
-
-variable "nix_installer_url" {
-  description = "Internal Nix installer script URL replacing nixos.org; null keeps the public installer"
-  type        = string
-  default     = null
-
-  validation {
-    # The same shape as apt_mirror_url, and for a stronger reason: whatever this URL serves is run
-    # as root by the startup script. nix_installer_sha256 exists to pin what it serves.
-    condition = var.nix_installer_url == null || can(regex(
-      "^https://[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*\\.[a-z]{2,}(:[0-9]{1,5})?(/[A-Za-z0-9._~/-]*)?$",
-      var.nix_installer_url
-    ))
-    error_message = "nix_installer_url must be null or an https URL naming a dotted DNS host, with no userinfo, query string, or fragment. What this URL serves is executed as root, so plain http, a bare IP literal, and an embedded credential are refused."
-  }
-}
-
-variable "nix_installer_sha256" {
-  description = "SHA-256 pin for the fetched Nix installer; a mismatch refuses to run it"
-  type        = string
-  default     = null
-
-  validation {
-    condition     = var.nix_installer_sha256 == null || can(regex("^[a-f0-9]{64}$", var.nix_installer_sha256))
-    error_message = "nix_installer_sha256 must be null or 64 lowercase hexadecimal characters."
-  }
-}
-
-variable "nix_substituter_uri" {
-  description = "Reviewed Nix substituter for the guest; null because no such service exists yet"
-  type        = string
-  default     = null
-
-  validation {
-    # This is the hook a reviewed substituter service plugs into. It is NOT where the estate's Nix
-    # cache bucket goes: nix_binary_cache exports substituter_uri = null and
-    # client_activation_contract.enabled = false with reason
-    # raw-private-gcs-is-not-a-nix-substituter, because raw private GCS does not speak the
-    # authenticated Nix cache protocol. Pointing this at that bucket contradicts a module contract.
-    condition = var.nix_substituter_uri == null || can(regex(
-      "^https://[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*\\.[a-z]{2,}(:[0-9]{1,5})?(/[A-Za-z0-9._~/-]*)?$",
-      var.nix_substituter_uri
-    ))
-    error_message = "nix_substituter_uri must be null or an https URL naming a dotted DNS host, with no userinfo, query string, or fragment. It names a reviewed substituter service; a raw private Cloud Storage bucket is not one."
-  }
-}
-
-variable "nix_substituter_trusted_public_key" {
-  description = "Ed25519 key trusted for nix_substituter_uri, as name:base64; required with it"
-  type        = string
-  default     = null
-
-  validation {
-    # Nix's own trusted-public-keys format. require-sigs is never relaxed by this module, so this
-    # key is the whole reason a path served by the substituter is acceptable to the guest.
-    condition = var.nix_substituter_trusted_public_key == null || can(
-      regex("^[A-Za-z0-9._-]+:[A-Za-z0-9+/]{43}=$", var.nix_substituter_trusted_public_key)
-    )
-    error_message = "nix_substituter_trusted_public_key must be null or a Nix trusted-public-keys entry of the form name:base64, where base64 encodes 32 ed25519 bytes."
+    condition     = can(regex("^[a-f0-9]{64}$", var.image_contract_sha256)) && var.image_contract_sha256 != "0000000000000000000000000000000000000000000000000000000000000000"
+    error_message = "image_contract_sha256 must be a nonzero lowercase SHA-256 digest."
   }
 }
 
 variable "boot_disk_size_gb" {
-  description = "Boot disk size; the Nix store and Bazel cache live on the data disk, not here"
+  description = "Boot disk size carrying the immutable NixOS generation and image-defined Nix store"
   type        = number
   default     = 200
 
@@ -283,13 +172,13 @@ variable "boot_disk_size_gb" {
 }
 
 variable "data_disk_size_gb" {
-  description = "Persistent data disk carrying /nix and the Bazel disk cache"
+  description = "Persistent data disk carrying workspaces and the Bazel disk cache"
   type        = number
   default     = 500
 
   validation {
     condition     = floor(var.data_disk_size_gb) == var.data_disk_size_gb && var.data_disk_size_gb >= 200 && var.data_disk_size_gb <= 4000
-    error_message = "data_disk_size_gb must be a whole number between 200 and 4000. The measured reference /nix/store is 46 GB; the default leaves headroom for the Bazel disk cache and Rust target directories."
+    error_message = "data_disk_size_gb must be a whole number between 200 and 4000, leaving bounded headroom for workspaces, Bazel outputs, and Rust target directories."
   }
 }
 
@@ -305,7 +194,7 @@ variable "disk_type" {
 }
 
 variable "local_ssd_count" {
-  description = "Ephemeral NVMe scratch disks for the Bazel cache only; never for /nix"
+  description = "Ephemeral NVMe scratch disks for the Bazel cache only; never for workspaces or the image-defined Nix store"
   type        = number
   default     = 0
 

@@ -1773,6 +1773,221 @@
         "terraform": ">= 1.9.0, < 2.0.0"
       }
     },
+    "compute_image": {
+      "inputs": {
+        "compute_service_account_email": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:4c298290df5368c583e40c655fe78a160838e70c0d77de5847e8c9fe8eb71e20"
+          ]
+        },
+        "data_classification": {
+          "default": "internal",
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:f0b80abfbf0dfe541b437f69b2d8fe3ed6289830773a11c3d53e61a3efb61ab5"
+          ]
+        },
+        "description": {
+          "default": "Mindclade immutable NixOS workstation image.",
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:dd3b8cc435d0836ed6a6705fe017d3e6fa42282243967117a4ef0b2a68ae04b0"
+          ]
+        },
+        "environment": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:3676fec4245f6520a5126f99a201ef3d9fca6ba2b795c922aeebbc67dc00662e"
+          ]
+        },
+        "image_contract_sha256": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:58f877e49a50655e5fb4bcc31d79962effb29c27a11316838d8725eb4d10a488"
+          ]
+        },
+        "kms_key_name": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:6d75f066a8a27a0f32a13d6187593ae6d652360d16a8229b43e74b6a8ac7618f"
+          ]
+        },
+        "labels": {
+          "default": {},
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "map(string)",
+          "validation_fingerprints": [
+            "sha256:00fad5cce269c22156fd1dfb1f0c0e85af1804ccfe1882aec923f41306575b5c"
+          ]
+        },
+        "name": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:417f79a022b31ab5019af273f862c13172628aef3a4ea1449c6458b1703c0d8b"
+          ]
+        },
+        "owner": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:f6159f9de238ecc2fd4dc8dc6889294e9cd8ef6ab34e20a7e0ce0a9ab508ed96"
+          ]
+        },
+        "project_id": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:4be8488ef61f0545236d900f8dccad4829ccd19b0509813a6eb7045250d233fa"
+          ]
+        },
+        "qualification_state": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:ec34e52b1a976bca4e81da8f92cfebac8f640fe3f242a22c5c5438439ee551db"
+          ]
+        },
+        "source_bucket_name": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:69cc3351faf8794358f6f9ed2d65b5c1d0bd2b80a79b4eef7efe5c905986389f"
+          ]
+        },
+        "source_object_generation": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:734d050a867abc29ff8da6877650935e483df257b6fa9df909dceea53ec7947d"
+          ]
+        },
+        "source_sha256": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:0a2deb955f4f7c4cb428a84073e8813647e937fa864072b4b5a8448be565ba96"
+          ]
+        },
+        "source_uri": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:a4d37ea469e3172c48ff4216ef7424280b73a15c4c935eff1fbff91c25ced8c3"
+          ]
+        },
+        "storage_locations": {
+          "default": [
+            "us"
+          ],
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "list(string)",
+          "validation_fingerprints": [
+            "sha256:7915f3697488fa6cf6e4da7733f036fdb60fc63a43cddf77d27257dd37cca086"
+          ]
+        }
+      },
+      "managed_resource_addresses": [
+        "google_compute_image.this"
+      ],
+      "module_calls": {},
+      "moved": [],
+      "outputs": {
+        "encryption_contract": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:946e1381e78c457d5972ca5f64f35a0d72c6dcec9dd9fa9255e03a790b195138"
+        },
+        "image": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:374a136542806af287f7a92d76e912046dfbbf9329ac5ceba53cfbfbba487ad3"
+        },
+        "source_contract": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:d2d477762e78c6d600f4899736212a38cc3e3aa1fabaa7f61edb840dfa9fab1e"
+        }
+      },
+      "path": "infra/terraform/modules/compute_image",
+      "provider_contracts": {
+        "google": {
+          "configuration_aliases": [],
+          "source": "registry.terraform.io/hashicorp/google"
+        }
+      },
+      "requirements": {
+        "google": ">= 7.41.0, < 8.0.0",
+        "terraform": ">= 1.9.0, < 2.0.0"
+      }
+    },
     "cpu_node_pool": {
       "inputs": {
         "additional_taints": {
@@ -7463,28 +7678,6 @@
           "type": "bool",
           "validation_fingerprints": []
         },
-        "apt_mirror_components": {
-          "default": null,
-          "ephemeral": false,
-          "nullable": true,
-          "required": false,
-          "sensitive": false,
-          "type": "list(string)",
-          "validation_fingerprints": [
-            "sha256:ccfc7e73f4101de082a21de4820b79bc58a23fb89e6f0ed457dbb234b4070ab8"
-          ]
-        },
-        "apt_mirror_url": {
-          "default": null,
-          "ephemeral": false,
-          "nullable": true,
-          "required": false,
-          "sensitive": false,
-          "type": "string",
-          "validation_fingerprints": [
-            "sha256:cf0548c2dfd34c3f0e538164d467b96fa5f2f50b7a59deef6d2d076a2151a90f"
-          ]
-        },
         "bazel_cache_bucket_name": {
           "default": null,
           "ephemeral": false,
@@ -7546,7 +7739,7 @@
           "sensitive": false,
           "type": "number",
           "validation_fingerprints": [
-            "sha256:f093fb885a903e098282a9955ee8857fd1a17f0e138da8690ef90a08de11fb55"
+            "sha256:63af1e5aa41624df19b48a0f7496528a3f4e776264a29f982da480d00c47a99b"
           ]
         },
         "deletion_protection": {
@@ -7628,14 +7821,25 @@
           ]
         },
         "image": {
-          "default": "debian-cloud/debian-12",
+          "default": null,
           "ephemeral": false,
           "nullable": true,
-          "required": false,
+          "required": true,
           "sensitive": false,
           "type": "string",
           "validation_fingerprints": [
-            "sha256:6fd9cb73f888fc5223f81c5feebf4b5e6254166b0aa310c5d29a4fc482d81f78"
+            "sha256:2918eee89acbb2fcb8206ef2e5b91f7f110301389860c58012942a101d9ac29e"
+          ]
+        },
+        "image_contract_sha256": {
+          "default": null,
+          "ephemeral": false,
+          "nullable": true,
+          "required": true,
+          "sensitive": false,
+          "type": "string",
+          "validation_fingerprints": [
+            "sha256:58f877e49a50655e5fb4bcc31d79962effb29c27a11316838d8725eb4d10a488"
           ]
         },
         "kms_key_name": {
@@ -7738,50 +7942,6 @@
           "type": "string",
           "validation_fingerprints": [
             "sha256:5c983f2f0689a5104e6a8a9652ca1f760a74a1e50d61e2aa14c1831dbe9940fc"
-          ]
-        },
-        "nix_installer_sha256": {
-          "default": null,
-          "ephemeral": false,
-          "nullable": true,
-          "required": false,
-          "sensitive": false,
-          "type": "string",
-          "validation_fingerprints": [
-            "sha256:715d2ec970351595ec436c9d865da249a9e44d9c0e7e700f29505a47c4c88c41"
-          ]
-        },
-        "nix_installer_url": {
-          "default": null,
-          "ephemeral": false,
-          "nullable": true,
-          "required": false,
-          "sensitive": false,
-          "type": "string",
-          "validation_fingerprints": [
-            "sha256:0aa09499dcadbca3acbd165d3782e87a9364b140a6ae887896e64ae4ec764354"
-          ]
-        },
-        "nix_substituter_trusted_public_key": {
-          "default": null,
-          "ephemeral": false,
-          "nullable": true,
-          "required": false,
-          "sensitive": false,
-          "type": "string",
-          "validation_fingerprints": [
-            "sha256:554be6085305be5cc0ac9cbd6add2b4b61d40e67ee085e3fdbf0dce632bd1e41"
-          ]
-        },
-        "nix_substituter_uri": {
-          "default": null,
-          "ephemeral": false,
-          "nullable": true,
-          "required": false,
-          "sensitive": false,
-          "type": "string",
-          "validation_fingerprints": [
-            "sha256:91e9eaed0fd51c1ece94e7d7fdb320ad554bd3b0dcc114df52f1d7349aadcb68"
           ]
         },
         "operator_principals": {
@@ -7920,6 +8080,11 @@
           "sensitive": false,
           "value_fingerprint": "sha256:a8947fa98eba03cb6c362d5ee7ae8429f2866413fbdac0a8d4a0728e107d50f1"
         },
+        "image_contract": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:25ae26f2d5c85d8993910e286c08e671a0bfcb27865c9652217214418a7a62cb"
+        },
         "instance": {
           "ephemeral": false,
           "sensitive": false,
@@ -7928,7 +8093,7 @@
         "qualification_requirements": {
           "ephemeral": false,
           "sensitive": false,
-          "value_fingerprint": "sha256:023241f7dae33c35f00baab5694e811f444001871f8d18bfc9d74742224cfc73"
+          "value_fingerprint": "sha256:b383bf71d38195e9ad9cabad2d216e0d8c6441f47b22830eac882195b39f2e6d"
         },
         "required_apis": {
           "ephemeral": false,
@@ -7953,7 +8118,7 @@
         "required_network_prerequisites": {
           "ephemeral": false,
           "sensitive": false,
-          "value_fingerprint": "sha256:3039b8c4ce3eb4001ed62068a25a2859b1d086ac795aa9b6a30c5b8c0b894af3"
+          "value_fingerprint": "sha256:632d6da7a33ccbf6a04df7ff0b78ee2700bb7aa273c55b0ab7530767241b0280"
         },
         "service_account": {
           "ephemeral": false,
@@ -7963,7 +8128,7 @@
         "shutdown_policy": {
           "ephemeral": false,
           "sensitive": false,
-          "value_fingerprint": "sha256:da6a61d29b53216e1941d106ed3d4cec65c6c6fffc956e55a16f0290b013b752"
+          "value_fingerprint": "sha256:86171e6f985152dbcdf198c2b2c6b7b9f2307ad2d19eec7b0efb5d22c8b1294c"
         },
         "ssh_command": {
           "ephemeral": false,
