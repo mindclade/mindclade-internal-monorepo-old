@@ -39,11 +39,13 @@ GATEWAY_TARGET = "//tools/build/bazel/cache_gateway/cmd:cache_gateway"
 LOOPBACK_ENDPOINT = "http://127.0.0.1:8085"
 ALLOWED_STATES = {"blocked", "qualified-v1"}
 MAXIMUM_BODY_BYTES = 1024**3
+MAXIMUM_CONCURRENT_STAGING = 2
 MAXIMUM_CREDENTIAL_BYTES = 64 * 1024
 MAXIMUM_GATEWAY_LOG_BYTES = 16 * 1024**2
 QUALIFICATION_FIELDS = {
     "access_logging",
     "bucket_retention",
+    "bounded_staging_load",
     "cache_loss_rebuild",
     "cas_integrity",
     "cmek_encryption",
@@ -325,8 +327,8 @@ def configure_and_start(
         provider=provider,
         service_account=service_account,
     )
-    uploads = runtime_dir / "uploads"
-    uploads.mkdir(mode=0o700)
+    staging = runtime_dir / "staging"
+    staging.mkdir(mode=0o700)
     ready = runtime_dir / "ready"
     log = runtime_dir / "gateway.log"
     pid_path = runtime_dir / "gateway.pid"
@@ -360,6 +362,8 @@ def configure_and_start(
                     "127.0.0.1:8085",
                     "--maximum-body-bytes",
                     str(MAXIMUM_BODY_BYTES),
+                    "--maximum-concurrent-staging",
+                    str(MAXIMUM_CONCURRENT_STAGING),
                     "--mode",
                     mode,
                     "--prefix",
@@ -367,7 +371,7 @@ def configure_and_start(
                     "--ready-file",
                     str(ready),
                     "--temporary-directory",
-                    str(uploads),
+                    str(staging),
                 ],
                 cwd=resolved_workspace,
                 stdin=subprocess.DEVNULL,
@@ -538,6 +542,7 @@ def record_and_stop(
             "head_hit",
             "head_miss",
             "immutable_collision",
+            "maximum_concurrent_staging",
             "mode",
             "protocol",
             "put_created",
@@ -546,11 +551,15 @@ def record_and_stop(
             "read_bytes",
             "request_error",
             "schema_version",
+            "staging_active",
+            "staging_peak",
+            "staging_wait",
+            "staging_wait_canceled",
             "written_bytes",
         }
         if not isinstance(payload, dict) or set(payload) != expected:
             _fail("cache gateway metrics fields are not exact")
-        if payload["schema_version"] != 1 or payload["protocol"] != "bazel-http-cache-v1":
+        if payload["schema_version"] != 2 or payload["protocol"] != "bazel-http-cache-v1":
             _fail("cache gateway metrics protocol is invalid")
         expected_mode = "write" if role == "writer" else "read"
         if payload["mode"] != expected_mode:
@@ -564,6 +573,12 @@ def record_and_stop(
                 or payload[field] < 0
             ):
                 _fail("cache gateway metrics counters must be non-negative integers")
+        if payload["maximum_concurrent_staging"] != MAXIMUM_CONCURRENT_STAGING:
+            _fail("cache gateway staging limit does not match the qualified launcher")
+        if payload["staging_active"] != 0:
+            _fail("cache gateway staging must be idle before evidence collection")
+        if payload["staging_peak"] > payload["maximum_concurrent_staging"]:
+            _fail("cache gateway staging peak exceeds its configured bound")
         payload.update(
             {
                 "backend": "gcs-generation-zero",
@@ -592,6 +607,11 @@ def record_and_stop(
             )
             stream.write(
                 f"| Bytes read / written | {payload['read_bytes']} / {payload['written_bytes']} |\n"
+            )
+            stream.write(
+                "| Staging peak / limit / waits | "
+                f"{payload['staging_peak']} / {payload['maximum_concurrent_staging']} / "
+                f"{payload['staging_wait']} |\n"
             )
     finally:
         stop_gateway(runtime_dir)

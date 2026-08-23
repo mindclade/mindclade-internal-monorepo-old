@@ -43,7 +43,8 @@ func main() {
 	instanceName := flag.String("instance-name", "", "exact Bazel HTTP cache instance")
 	mode := flag.String("mode", "", "cache access mode: read or write")
 	maximumBodyBytes := flag.Int64("maximum-body-bytes", defaultMaximumBodyBytes, "maximum accepted cache object")
-	temporaryDirectory := flag.String("temporary-directory", "", "upload staging directory")
+	maximumConcurrentStaging := flag.Int("maximum-concurrent-staging", gateway.DefaultMaximumConcurrentStaging, "maximum concurrent GET and PUT staging files")
+	temporaryDirectory := flag.String("temporary-directory", "", "GET and PUT staging directory")
 	readyFile := flag.String("ready-file", "", "readiness sentinel written after backend access succeeds")
 	flag.Parse()
 
@@ -56,6 +57,9 @@ func main() {
 	}
 	if *maximumBodyBytes <= 0 || *maximumBodyBytes > defaultMaximumBodyBytes {
 		fatal(logger, "invalid_maximum_body", errors.New("maximum-body-bytes must be between one byte and one GiB"))
+	}
+	if *maximumConcurrentStaging < 1 || *maximumConcurrentStaging > gateway.MaximumConcurrentStaging {
+		fatal(logger, "invalid_maximum_staging", fmt.Errorf("maximum-concurrent-staging must be between 1 and %d", gateway.MaximumConcurrentStaging))
 	}
 	cacheMode := gateway.Mode(*mode)
 	scope := storageReadOnlyScope
@@ -96,10 +100,11 @@ func main() {
 		fatal(logger, "gcs_read_probe_failed", err)
 	}
 	handler, err := gateway.New(store, gateway.Config{
-		Mode:             cacheMode,
-		InstanceName:     *instanceName,
-		MaximumBodyBytes: *maximumBodyBytes,
-		TemporaryDir:     *temporaryDirectory,
+		Mode:                     cacheMode,
+		InstanceName:             *instanceName,
+		MaximumBodyBytes:         *maximumBodyBytes,
+		MaximumConcurrentStaging: *maximumConcurrentStaging,
+		TemporaryDir:             *temporaryDirectory,
 	}, logger)
 	if err != nil {
 		fatal(logger, "gateway_configuration_failed", err)

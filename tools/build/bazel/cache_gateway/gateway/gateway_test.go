@@ -12,12 +12,42 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"go.mindclade.dev/libs/go/storage/blob"
 	"go.mindclade.dev/libs/go/storage/blob/memory"
 )
+
+type corruptingStore struct {
+	Store
+	replacement []byte
+}
+
+func (store corruptingStore) Open(ctx context.Context, key blob.Key, options blob.GetOptions) (blob.Object, error) {
+	object, err := store.Store.Open(ctx, key, options)
+	if err != nil {
+		return blob.Object{}, err
+	}
+	if err := object.Close(); err != nil {
+		return blob.Object{}, err
+	}
+	object.Body = io.NopCloser(bytes.NewReader(store.replacement))
+	return object, nil
+}
+
+type blockingReader struct {
+	started chan<- struct{}
+	release <-chan struct{}
+}
+
+func (reader *blockingReader) Read([]byte) (int, error) {
+	close(reader.started)
+	<-reader.release
+	return 0, io.EOF
+}
 
 func newGateway(t *testing.T, mode Mode, maximum int64) (*Gateway, *memory.Store) {
 	t.Helper()
@@ -63,6 +93,140 @@ func TestCASRoundTripAndHead(t *testing.T) {
 	get := request(t, gateway, http.MethodGet, path, nil)
 	if get.Code != http.StatusOK || !bytes.Equal(get.Body.Bytes(), payload) {
 		t.Fatalf("GET status = %d, body = %q", get.Code, get.Body.String())
+	}
+}
+
+func TestGetRejectsSameSizeCorruptObjectBeforeWritingSuccess(t *testing.T) {
+	writer, store := newGateway(t, ModeWrite, 1024)
+	payload := []byte("valid-action-result")
+	path := "/ac/" + strings.Repeat("a", 64)
+	if response := request(t, writer, http.MethodPut, path, payload); response.Code != http.StatusOK {
+		t.Fatalf("PUT status = %d, body = %q", response.Code, response.Body.String())
+	}
+	corrupt := append([]byte(nil), payload...)
+	corrupt[0] ^= 0xff
+	temporaryDirectory := t.TempDir()
+	reader, err := New(corruptingStore{Store: store, replacement: corrupt}, Config{
+		Mode:             ModeRead,
+		MaximumBodyBytes: 1024,
+		TemporaryDir:     temporaryDirectory,
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := request(t, reader, http.MethodGet, path, nil)
+	if response.Code != http.StatusBadGateway || response.Header().Get("X-Mindclade-Error-Code") != "backend_error" {
+		t.Fatalf("GET status = %d, code = %q", response.Code, response.Header().Get("X-Mindclade-Error-Code"))
+	}
+	if response.Body.String() != "Bad Gateway\n" {
+		t.Fatalf("GET body = %q; expected only the redacted backend error", response.Body.String())
+	}
+	entries, err := os.ReadDir(temporaryDirectory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("GET left %d staged files", len(entries))
+	}
+}
+
+func TestConcurrentGetAndPutStagingIsBoundAndContextAware(t *testing.T) {
+	store, err := memory.New(memory.WithMaximumObjectBytes(1024))
+	if err != nil {
+		t.Fatal(err)
+	}
+	gateway, err := New(store, Config{
+		Mode:                     ModeWrite,
+		MaximumBodyBytes:         1024,
+		MaximumConcurrentStaging: 1,
+		TemporaryDir:             t.TempDir(),
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	started := make(chan struct{})
+	release := make(chan struct{})
+	released := false
+	defer func() {
+		if !released {
+			close(release)
+		}
+	}()
+	putResponse := make(chan *httptest.ResponseRecorder, 1)
+	go func() {
+		putRequest := httptest.NewRequest(http.MethodPut, "/ac/"+strings.Repeat("b", 64), &blockingReader{
+			started: started,
+			release: release,
+		})
+		response := httptest.NewRecorder()
+		gateway.ServeHTTP(response, putRequest)
+		putResponse <- response
+	}()
+	<-started
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	getRequest := httptest.NewRequest(http.MethodGet, "/ac/"+strings.Repeat("c", 64), nil).WithContext(ctx)
+	getResponses := make(chan *httptest.ResponseRecorder, 1)
+	go func() {
+		response := httptest.NewRecorder()
+		gateway.ServeHTTP(response, getRequest)
+		getResponses <- response
+	}()
+	deadline := time.Now().Add(5 * time.Second)
+	for gateway.metrics.stagingWait.Load() == 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if gateway.metrics.stagingWait.Load() != 1 {
+		t.Fatal("GET did not block on the shared staging semaphore")
+	}
+	cancel()
+	var getResponse *httptest.ResponseRecorder
+	select {
+	case getResponse = <-getResponses:
+	case <-time.After(5 * time.Second):
+		t.Fatal("queued GET did not observe context cancellation")
+	}
+	if getResponse.Code != http.StatusRequestTimeout || getResponse.Header().Get("X-Mindclade-Error-Code") != "staging_wait_canceled" {
+		t.Fatalf("queued GET status = %d, code = %q", getResponse.Code, getResponse.Header().Get("X-Mindclade-Error-Code"))
+	}
+	close(release)
+	released = true
+	select {
+	case response := <-putResponse:
+		if response.Code != http.StatusOK {
+			t.Fatalf("PUT status = %d, body = %q", response.Code, response.Body.String())
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("PUT did not resume after staging slot was released")
+	}
+	metrics := request(t, gateway, http.MethodGet, "/metrics", nil).Body.String()
+	for _, expected := range []string{
+		`"maximum_concurrent_staging":1`,
+		`"staging_active":0`,
+		`"staging_peak":1`,
+		`"staging_wait":1`,
+		`"staging_wait_canceled":1`,
+	} {
+		if !strings.Contains(metrics, expected) {
+			t.Fatalf("metrics = %q, missing %q", metrics, expected)
+		}
+	}
+}
+
+func TestNewRejectsUnboundedConcurrentStaging(t *testing.T) {
+	store, err := memory.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = New(store, Config{
+		Mode:                     ModeRead,
+		MaximumBodyBytes:         1024,
+		MaximumConcurrentStaging: MaximumConcurrentStaging + 1,
+		TemporaryDir:             t.TempDir(),
+	}, nil)
+	if err == nil {
+		t.Fatal("New accepted an unbounded staging configuration")
 	}
 }
 
@@ -152,7 +316,7 @@ func TestMetricsAreRedactedAndCounted(t *testing.T) {
 	path := "/cas/" + strings.Repeat("f", 64)
 	_ = request(t, gateway, http.MethodGet, path, nil)
 	metrics := request(t, gateway, http.MethodGet, "/metrics", nil)
-	if metrics.Code != http.StatusOK || !strings.Contains(metrics.Body.String(), `"get_miss":1`) {
+	if metrics.Code != http.StatusOK || !strings.Contains(metrics.Body.String(), `"get_miss":1`) || !strings.Contains(metrics.Body.String(), `"maximum_concurrent_staging":2`) || !strings.Contains(metrics.Body.String(), `"schema_version":2`) {
 		t.Fatalf("metrics status = %d, body = %q", metrics.Code, metrics.Body.String())
 	}
 	if strings.Contains(metrics.Body.String(), strings.Repeat("f", 64)) {

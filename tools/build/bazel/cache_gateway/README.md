@@ -12,10 +12,12 @@ published through the Cloud Storage XML API with `x-goog-if-generation-match: 0`
 are idempotent, while a different payload at an existing key is an immutable-collision failure.
 The lightweight transport supplies a server-validated CRC32C on upload, stores the canonical
 SHA-256 as immutable custom metadata, pins reads to the observed object generation, and verifies
-the complete download against that SHA-256 before accepting EOF. It deliberately has no list,
-update, or delete operation and does not pull the Cloud Storage SDK/protobuf graph into cache
-bootstrap. The cache is a performance input only and never supplies provenance, release, or test
-verdicts.
+the complete download against that SHA-256 in a private spool before emitting a successful HTTP
+response or any object bytes. GET and PUT share a context-aware staging semaphore; the production
+launcher permits two concurrent one-GiB staging files, and exposes peak/wait/cancellation counters
+for connected load qualification. It deliberately has no list, update, or delete operation and
+does not pull the Cloud Storage SDK/protobuf graph into cache bootstrap. The cache is a performance
+input only and never supplies provenance, release, or test verdicts.
 
 `read` mode rejects `PUT` in the process and runs with the object-viewer service account.
 `write` mode is available only to protected main, merge-group, and scheduled-nightly WIF routes,
@@ -25,5 +27,6 @@ GCS read probe before writing its readiness file.
 
 Activation remains separate from source implementation. `ci/bazel_cache/activation.json` must
 record connected cold/warm, duplicate-write, negative-route, corruption, and cache-loss evidence
-before repository governance may set `BAZEL_REMOTE_CACHE_STATE=qualified-v1`. Until then, CI keeps
-the bounded GitHub-transported disk cache and the Bazel jobs omit OIDC permission entirely.
+plus a bounded concurrent-staging load run before repository governance may set
+`BAZEL_REMOTE_CACHE_STATE=qualified-v1`. Until then, CI keeps the bounded GitHub-transported disk
+cache and the Bazel jobs omit OIDC permission entirely.
