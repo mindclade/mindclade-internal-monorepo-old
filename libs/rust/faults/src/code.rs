@@ -20,8 +20,20 @@ use core::str::FromStr;
 const MAXIMUM_CODE_BYTES: usize = 32;
 
 /// Stable classes used across process and protocol boundaries.
+///
+/// Deliberately **not** `#[non_exhaustive]`. Every crate in this workspace is
+/// `publish = false`, so the attribute bought no external-API stability; what
+/// it bought instead was a compulsory `_ =>` arm in every downstream `match`,
+/// and four transport edges used that arm to render `NotFound`, `Aborted`,
+/// `Unimplemented`, and `DataLoss` as HTTP 500 / gRPC `internal`. Exhaustive
+/// matching is the mechanism that keeps a code added here from silently
+/// inheriting a catch-all at an edge that has not been taught about it.
+///
+/// Totality on ingestion — the reason a taxonomy usually reaches for the
+/// attribute — is provided at the *value* level instead, by [`Code::Unknown`]
+/// and [`Code::from_wire`]: a peer's unrecognized code still parses, it just
+/// parses into a code every match already names.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[non_exhaustive]
 pub enum Code {
     /// Classification failed, or a peer sent a code this build does not know.
     ///

@@ -18,7 +18,7 @@ use axum::{
     routing::{get, post},
 };
 use mindclade_content_digest::hash_bytes;
-use mindclade_faults::{Code, Fault, FaultResult};
+use mindclade_faults::{Code, Fault, FaultResult, status};
 use serde_json::{Value, json};
 use std::{
     sync::{
@@ -438,33 +438,23 @@ fn single_header<'a>(headers: &'a HeaderMap, name: &str, maximum: usize) -> Faul
     Ok(value)
 }
 
+/// Renders the canonical HTTP status for a fault code.
+///
+/// The table is `mindclade_faults::status`, which mirrors `libs/go/httpx`. This
+/// proxy used to keep its own `match`, which rendered `AlreadyExists` and
+/// `OutOfRange` as 500 while the adjacent arms gave `Conflict` a 409 and
+/// `InvalidArgument` a 400, and gave `FailedPrecondition` a 409 rather than the
+/// 412 the Go edge answers.
+///
+/// `from_u16` is fallible only outside 100..1000 and the canonical table yields
+/// nothing there — `mindclade_faults::status` asserts every code renders in
+/// 400..600 — so the fallback is unreachable rather than a policy.
+fn http_status(code: Code) -> StatusCode {
+    StatusCode::from_u16(status::http_status(code)).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
+}
+
 fn fault_response(error: &Fault) -> Response {
-    let status = match error.code() {
-        Code::InvalidArgument => StatusCode::BAD_REQUEST,
-        Code::Unauthenticated => StatusCode::UNAUTHORIZED,
-        Code::PermissionDenied => StatusCode::FORBIDDEN,
-        Code::NotFound => StatusCode::NOT_FOUND,
-        Code::Conflict | Code::Aborted | Code::FailedPrecondition => StatusCode::CONFLICT,
-        Code::ResourceExhausted => StatusCode::TOO_MANY_REQUESTS,
-        Code::Unimplemented => StatusCode::NOT_IMPLEMENTED,
-        Code::DeadlineExceeded => StatusCode::GATEWAY_TIMEOUT,
-        Code::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
-        // `Code` is `#[non_exhaustive]`, so rustc compels a trailing wildcard
-        // outside `libs/rust/faults` and no local change can remove it. Every
-        // code this build knows is still named, so the wildcard covers only a
-        // future variant and the fallback below is a decision, not a default.
-        //
-        // `AlreadyExists` and `OutOfRange` render as 500 here even though the
-        // adjacent arms give `Conflict` a 409 and `InvalidArgument` a 400. The
-        // behaviour is left as it was rather than changed under a lint commit.
-        Code::Unknown
-        | Code::AlreadyExists
-        | Code::OutOfRange
-        | Code::Internal
-        | Code::DataLoss
-        | Code::Cancelled
-        | _ => StatusCode::INTERNAL_SERVER_ERROR,
-    };
+    let status = http_status(error.code());
     let mut response = (
         status,
         axum::Json(json!({
@@ -476,4 +466,76 @@ fn fault_response(error: &Fault) -> Response {
         .headers_mut()
         .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     response
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Code, Fault, StatusCode, fault_response, status};
+
+    /// Every fault code renders the canonical HTTP status.
+    ///
+    /// The numbers are restated here rather than read back from
+    /// `mindclade_faults::status`. Reading them back would assert only that
+    /// this edge calls the shared function, and the defect being closed is two
+    /// edges that each called nothing shared: these values are the
+    /// client-visible contract and a change to any one of them has to break a
+    /// test that names it. This table is byte-for-byte the one in
+    /// `services/runtime_gateway/src/network.rs`, which is the point.
+    #[test]
+    fn every_fault_code_renders_its_canonical_http_status() {
+        let expected: &[(Code, u16)] = &[
+            (Code::InvalidArgument, 400),
+            (Code::OutOfRange, 400),
+            (Code::Unauthenticated, 401),
+            (Code::PermissionDenied, 403),
+            (Code::NotFound, 404),
+            (Code::Cancelled, 408),
+            (Code::AlreadyExists, 409),
+            (Code::Conflict, 409),
+            (Code::Aborted, 409),
+            (Code::FailedPrecondition, 412),
+            (Code::ResourceExhausted, 429),
+            (Code::Internal, 500),
+            (Code::DataLoss, 500),
+            (Code::Unknown, 500),
+            (Code::Unimplemented, 501),
+            (Code::Unavailable, 503),
+            (Code::DeadlineExceeded, 504),
+        ];
+        assert_eq!(
+            expected.len(),
+            status::ALL.len(),
+            "a fault code is missing from this table"
+        );
+        for &(code, want) in expected {
+            let rendered = fault_response(&Fault::new(code, "rendered")).status();
+            assert_eq!(rendered.as_u16(), want, "{code} rendered HTTP {rendered}");
+        }
+    }
+
+    /// The regression on this side. `AlreadyExists` and `OutOfRange` rendered
+    /// as 500 while the arms beside them gave `Conflict` a 409 and
+    /// `InvalidArgument` a 400 — the same fault class, split across an
+    /// availability signal and a client error by nothing but arm order.
+    #[test]
+    fn request_shaped_faults_are_not_reported_as_server_failures() {
+        for code in [Code::AlreadyExists, Code::OutOfRange, Code::Cancelled] {
+            let rendered = fault_response(&Fault::new(code, "rendered")).status();
+            assert_ne!(
+                rendered,
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "{code} still renders as a server failure"
+            );
+        }
+    }
+
+    /// 412, not 409. A precondition failure is separately actionable from a
+    /// state conflict, and `httpx.StatusFromCode` has always said so.
+    #[test]
+    fn a_failed_precondition_is_distinguishable_from_a_conflict() {
+        let precondition = fault_response(&Fault::new(Code::FailedPrecondition, "rendered"));
+        let conflict = fault_response(&Fault::new(Code::Conflict, "rendered"));
+        assert_eq!(precondition.status(), StatusCode::PRECONDITION_FAILED);
+        assert_eq!(conflict.status(), StatusCode::CONFLICT);
+    }
 }
