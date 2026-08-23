@@ -18,3 +18,19 @@ func invalid(reason, message string, cause error) error {
 	}
 	return faults.Wrap(cause, faults.CodeInvalidArgument, message, append(options, faults.WithCause(cause))...)
 }
+
+func conflict(reason, message string) error {
+	return faults.New(faults.CodeConflict, message,
+		faults.WithReason(reason),
+		faults.WithOperation("control.ingestion"),
+		faults.WithRetryPolicy(faults.NoRetry()),
+	)
+}
+
+func exhausted(reason, message string) error {
+	return faults.New(faults.CodeResourceExhausted, message,
+		faults.WithReason(reason),
+		faults.WithOperation("control.ingestion"),
+		faults.WithRetryPolicy(faults.NoRetry()),
+	)
+}
