@@ -126,8 +126,7 @@ DEFAULT_MIN_FREE_BYTES = 16 * GIB
 # must not turn an out-of-disk abort into a hang on a filesystem that is already struggling.
 SIZE_SCAN_SECONDS = 2.0
 
-# Wall-clock ceiling for the sizing walk as a whole, and the floor each candidate keeps no
-# matter how many of them there are.
+# Wall-clock ceiling for the sizing walk as a whole.
 #
 # WHY BOTH. A purely per-candidate budget is unbounded in the number of candidates, and the
 # number of candidates is exactly what grows on the host this gate exists for: the reference
@@ -136,13 +135,13 @@ SIZE_SCAN_SECONDS = 2.0
 # is spent entirely by whichever tree is scanned first, and every candidate after it reports
 # "0.0 GiB", which reads as "these are empty" rather than "these were not measured".
 #
-# So each candidate receives an equal share of whatever remains, clamped into
-# [SIZE_SCAN_MIN_SECONDS, SIZE_SCAN_SECONDS]. Candidates that finish early return their unspent
-# time to the ones after them, a short list still gets the full per-directory budget, and a long
-# list degrades into many honest lower bounds instead of one accurate number followed by a
-# column of zeroes.
+# So each candidate receives an equal share of whatever remains, capped at
+# SIZE_SCAN_SECONDS. Candidates that finish early return their unspent time to the ones after
+# them, a short list still gets the full per-directory budget, and a long list degrades into
+# many small, honest lower bounds instead of one accurate number followed by a column of
+# zeroes. There is deliberately no per-candidate floor: for an unbounded candidate count, a
+# positive floor and a hard total ceiling are mathematically incompatible.
 SIZE_SCAN_TOTAL_SECONDS = 8.0
-SIZE_SCAN_MIN_SECONDS = 0.05
 
 # Bazel writes the absolute workspace path into this file at the root of every output base, with
 # no trailing newline. It is the only cheap, authoritative way to ask "which checkout does this
@@ -412,12 +411,17 @@ def directory_size(path: Path, deadline: float) -> tuple[int, bool]:
     truncated = False
     stack = [path]
     while stack:
-        if time.monotonic() > deadline:
+        if time.monotonic() >= deadline:
             return total, True
         current = stack.pop()
         try:
             with os.scandir(current) as entries:
                 for entry in entries:
+                    # A single directory may itself contain hundreds of thousands of entries.
+                    # Checking only between directories makes the claimed deadline unbounded
+                    # for exactly those wide cache trees this diagnostic is likely to inspect.
+                    if time.monotonic() >= deadline:
+                        return total, True
                     try:
                         if entry.is_symlink():
                             continue
@@ -440,11 +444,13 @@ def size_candidates(
     See SIZE_SCAN_TOTAL_SECONDS for why the budget is neither purely per-candidate nor purely
     global. Returns `(bytes, truncated, candidate)` tuples.
     """
-    end = time.monotonic() + total_budget
+    # A negative value is treated as an already exhausted budget rather than granting every
+    # candidate a new slice beyond the advertised ceiling.
+    end = time.monotonic() + max(0.0, total_budget)
     sized: list[tuple[int, bool, Candidate]] = []
     for index, candidate in enumerate(candidates):
-        share = (end - time.monotonic()) / (len(candidates) - index)
-        share = min(SIZE_SCAN_SECONDS, max(SIZE_SCAN_MIN_SECONDS, share))
+        remaining = max(0.0, end - time.monotonic())
+        share = min(SIZE_SCAN_SECONDS, remaining / (len(candidates) - index))
         size, truncated = directory_size(candidate.path, time.monotonic() + share)
         sized.append((size, truncated, candidate))
     sized.sort(key=lambda item: item[0], reverse=True)
