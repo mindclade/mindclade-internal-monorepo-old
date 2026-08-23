@@ -108,11 +108,11 @@ pytest_test(
         "workflow_yaml.py",
     ],
     deps = [
-        "@pypi//pyyaml",
         "//ci/common:affected",
         "//ci/common:affected_contract",
         "//ci/nightly:pipeline_lib",
         "//ci/presubmit:pipeline_lib",
+        "@pypi//pyyaml",
     ],
 )
 

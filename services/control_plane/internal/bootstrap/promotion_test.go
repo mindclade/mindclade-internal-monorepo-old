@@ -8,15 +8,12 @@ package bootstrap
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
 
-// commandRoot is this package's path to the control-plane commands. The test
-// reads source rather than importing the commands, because a main package
-// cannot be imported and the property under test is about what the source
-// wires, not about what it does at runtime.
-const commandRoot = "../../cmd"
+const commandPackage = "services/control_plane/cmd"
 
 // PRODUCTION_READINESS.md requires that a promoted command not reach
 // bootstrap.UnconfiguredFactory. That is a property of the source, so it is
@@ -48,6 +45,7 @@ func TestEveryCommandEntersThroughSharedBootstrap(t *testing.T) {
 // name a role. A role with no command is a manifest entry nothing can deploy;
 // a command with no role cannot be validated before it starts.
 func TestEveryRoleHasACommand(t *testing.T) {
+	commandRoot := commandSourceRoot(t)
 	entries, err := os.ReadDir(commandRoot)
 	if err != nil {
 		t.Fatal(err)
@@ -69,6 +67,7 @@ func TestEveryRoleHasACommand(t *testing.T) {
 
 func forEachCommandSource(t *testing.T, check func(path string, source string)) {
 	t.Helper()
+	commandRoot := commandSourceRoot(t)
 	entries, err := os.ReadDir(commandRoot)
 	if err != nil {
 		t.Fatal(err)
@@ -90,4 +89,20 @@ func forEachCommandSource(t *testing.T, check func(path string, source string)) 
 	if seen == 0 {
 		t.Fatal("no control-plane commands were found")
 	}
+}
+
+func commandSourceRoot(t *testing.T) string {
+	t.Helper()
+	if runfilesRoot := os.Getenv("TEST_SRCDIR"); runfilesRoot != "" {
+		workspace := os.Getenv("TEST_WORKSPACE")
+		if workspace == "" {
+			t.Fatal("TEST_WORKSPACE is empty under Bazel")
+		}
+		return filepath.Join(runfilesRoot, workspace, commandPackage)
+	}
+	_, source, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("cannot resolve promotion test source path")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(source), "../../cmd"))
 }

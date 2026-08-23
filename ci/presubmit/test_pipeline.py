@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -36,7 +37,40 @@ def test_auto_mode_requires_a_governed_event(monkeypatch: pytest.MonkeyPatch) ->
     assert error.code == "AFFECTED-SELECT-010"
 
 
-def test_full_bazel_only_uses_shared_executor(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_bazel_execution_requires_an_explicit_cache_route(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    failures: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        pipeline.affected,
+        "write_failure_evidence",
+        lambda *args, **kwargs: failures.append(kwargs),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "pipeline.py",
+            "--bazel-only",
+            "--event",
+            "pull_request",
+            "--ref",
+            "refs/pull/1/merge",
+            "--base",
+            "0" * 40,
+            "--evidence-dir",
+            str(tmp_path),
+        ],
+    )
+    assert pipeline.main() == 2
+    error = failures[0]["error"]
+    assert isinstance(error, pipeline.affected.SelectionError)
+    assert error.code == "AFFECTED-SELECT-020"
+
+
+def test_local_full_bazel_allows_no_cache_route_or_runtime_option_injection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     selection = pipeline.affected.Selection(
         mode="full",
         reason="explicit_full",
@@ -48,11 +82,258 @@ def test_full_bazel_only_uses_shared_executor(monkeypatch: pytest.MonkeyPatch) -
         head_sha="1" * 40,
         event="merge_group",
     )
+    executions: list[dict[str, object]] = []
     monkeypatch.setattr(pipeline.affected, "select", lambda *args, **kwargs: selection)
-    monkeypatch.setattr(pipeline.affected, "execute_selection", lambda *args, **kwargs: 0)
+    monkeypatch.setattr(
+        pipeline.affected,
+        "execute_selection",
+        lambda *args, **kwargs: executions.append(kwargs) or 0,
+    )
     monkeypatch.setattr(
         sys,
         "argv",
-        ["pipeline.py", "--bazel-only", "--mode", "full", "--event", "local"],
+        [
+            "pipeline.py",
+            "--bazel-only",
+            "--mode",
+            "full",
+            "--event",
+            "local",
+        ],
     )
     assert pipeline.main() == 0
+    assert executions == [{"job_started_epoch": None}]
+
+
+@pytest.mark.parametrize(
+    ("event", "ref", "base", "cache_mode", "cache_role"),
+    [
+        ("pull_request", "refs/pull/1/merge", "0" * 40, "disk", "reader"),
+        ("pull_request", "refs/pull/1/merge", "0" * 40, "remote", "reader"),
+        ("merge_group", "refs/heads/gh-readonly-queue/main/pr-1", "", "disk", "reader"),
+        ("merge_group", "refs/heads/gh-readonly-queue/main/pr-1", "", "remote", "writer"),
+        ("push", "refs/heads/main", "", "disk", "writer"),
+        ("push", "refs/heads/main", "", "remote", "writer"),
+    ],
+)
+def test_governed_cache_route_is_verified_but_not_injected_into_executor(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    event: str,
+    ref: str,
+    base: str,
+    cache_mode: str,
+    cache_role: str,
+) -> None:
+    runner_temp = tmp_path / "runner"
+    started_file = runner_temp / "bazel-job-started"
+    head = "1" * 40
+    selection = pipeline.affected.Selection(
+        mode="full",
+        reason="workflow_full",
+        changes=(),
+        seeds=("//...",),
+        analysis_targets=("//...",),
+        test_targets=("//...",),
+        base_sha=None,
+        head_sha=head,
+        event=event,
+    )
+    checkout_calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
+    execution_calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
+    authority = object()
+    monkeypatch.setattr(
+        pipeline.affected,
+        "assert_clean_checkout",
+        lambda *args, **kwargs: (checkout_calls.append((args, kwargs)), authority)[1],
+    )
+    monkeypatch.setattr(pipeline.affected, "load_job_started_epoch", lambda *args, **kwargs: 123)
+    monkeypatch.setattr(pipeline.affected, "select", lambda *args, **kwargs: selection)
+    monkeypatch.setattr(
+        pipeline.affected,
+        "execute_selection",
+        lambda *args, **kwargs: execution_calls.append((args, kwargs)) or 0,
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "pipeline.py",
+            "--bazel-only",
+            "--mode",
+            "auto",
+            "--base",
+            base,
+            "--event",
+            event,
+            "--ref",
+            ref,
+            "--head",
+            head,
+            "--evidence-dir",
+            str(tmp_path / "evidence"),
+            "--job-started-at-file",
+            str(started_file),
+            "--runner-temp",
+            str(runner_temp),
+            "--cache-mode",
+            cache_mode,
+            "--cache-role",
+            cache_role,
+        ],
+    )
+
+    assert pipeline.main() == 0
+    assert checkout_calls == [
+        (
+            (head,),
+            {
+                "event": event,
+                "runner_temp": runner_temp,
+                "cache_mode": cache_mode,
+                "cache_role": cache_role,
+            },
+        )
+    ]
+    assert execution_calls == [
+        (
+            (selection, tmp_path / "evidence"),
+            {"bazelrc_authority": authority, "job_started_epoch": 123},
+        )
+    ]
+
+
+def test_full_shard_uses_complete_partition_and_preserves_bazelrc_authority(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    head = "1" * 40
+    runner_temp = tmp_path / "runner"
+    authority = object()
+    selection = pipeline.affected.Selection(
+        mode="full",
+        reason="complete_partition:1_of_4",
+        changes=(),
+        seeds=("//...",),
+        analysis_targets=("//pkg:library",),
+        test_targets=("//pkg:library_test",),
+        base_sha=None,
+        head_sha=head,
+        event="merge_group",
+    )
+    contract = type("Contract", (), {"shard_count": 4})()
+    graph = object()
+    executions: list[tuple[tuple[object, ...], dict[str, object]]] = []
+    monkeypatch.setattr(
+        pipeline.affected, "assert_clean_checkout", lambda *args, **kwargs: authority
+    )
+    monkeypatch.setattr(pipeline.affected, "load_job_started_epoch", lambda *args, **kwargs: 123)
+    monkeypatch.setattr(pipeline.affected, "git_revision", lambda _revision: head)
+    monkeypatch.setattr(pipeline.full_graph_shards, "load_contract", lambda _path: contract)
+    monkeypatch.setattr(pipeline.full_graph_shards, "plan_from_bazel", lambda _contract: graph)
+    monkeypatch.setattr(
+        pipeline.full_graph_shards,
+        "selection_for_shard",
+        lambda plan, index, **kwargs: (
+            selection
+            if plan is graph and index == 0 and kwargs == {"event": "merge_group", "head_sha": head}
+            else pytest.fail("unexpected shard selection")
+        ),
+    )
+    monkeypatch.setattr(
+        pipeline.affected,
+        "execute_selection",
+        lambda *args, **kwargs: executions.append((args, kwargs)) or 0,
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "pipeline.py",
+            "--bazel-only",
+            "--mode",
+            "auto",
+            "--event",
+            "merge_group",
+            "--ref",
+            "refs/heads/gh-readonly-queue/main/pr-1",
+            "--head",
+            head,
+            "--evidence-dir",
+            str(tmp_path / "evidence"),
+            "--job-started-at-file",
+            str(runner_temp / "bazel-job-started"),
+            "--runner-temp",
+            str(runner_temp),
+            "--cache-mode",
+            "remote",
+            "--cache-role",
+            "writer",
+            "--shard-index",
+            "0",
+            "--shard-count",
+            "4",
+        ],
+    )
+
+    assert pipeline.main() == 0
+    assert executions == [
+        (
+            (selection, tmp_path / "evidence"),
+            {"bazelrc_authority": authority, "job_started_epoch": 123},
+        )
+    ]
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ["--mode", "full", "--shard-index", "0"],
+        ["--mode", "full", "--shard-count", "4"],
+    ],
+)
+def test_partial_shard_arguments_fail_closed(
+    monkeypatch: pytest.MonkeyPatch, arguments: list[str]
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["pipeline.py", "--bazel-only", *arguments])
+    with pytest.raises(SystemExit) as error:
+        pipeline.main()
+    assert error.value.code == 2
+
+
+def test_pull_request_cannot_bypass_full_selector_with_shard_arguments(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    failures: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        pipeline.affected,
+        "write_failure_evidence",
+        lambda *args, **kwargs: failures.append(kwargs),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "pipeline.py",
+            "--bazel-only",
+            "--mode",
+            "auto",
+            "--event",
+            "pull_request",
+            "--ref",
+            "refs/pull/1/merge",
+            "--base",
+            "0" * 40,
+            "--evidence-dir",
+            str(tmp_path),
+            "--shard-index",
+            "0",
+            "--shard-count",
+            "4",
+        ],
+    )
+    assert pipeline.main() == 2
+    error = failures[0]["error"]
+    assert isinstance(error, pipeline.affected.SelectionError)
+    assert error.code == "AFFECTED-SELECT-010"

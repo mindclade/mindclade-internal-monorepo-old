@@ -316,6 +316,27 @@ func mountBFF(mux *http.ServeMux, d Deps) {
 			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
+		if errors.Is(err, context.Canceled) {
+			// The user navigated away before the redirect landed. Nothing is
+			// listening for a status and nothing went wrong, so this must not
+			// reach the ERROR log — a browser closing a tab is not a server
+			// fault, and counting it as one is what puts an error-rate SLO on a
+			// pager for ordinary behaviour.
+			d.Logger.DebugContext(r.Context(), "handoff redemption abandoned by the client",
+				"handle_id", r.PathValue("handleID"))
+			return
+		}
+		if errors.Is(err, handoff.ErrContended) {
+			// The binding race was lost repeatedly. The handle probably exists
+			// and this principal is probably entitled to it, so a 500 would be
+			// a lie and a 404 would be worse: it would tell a legitimate
+			// redeemer their link is dead. 503 with Retry-After says the true
+			// thing, and /o/<id> is safe to re-request because redemption is
+			// idempotent for the binding principal.
+			w.Header().Set("Retry-After", "1")
+			http.Error(w, "temporarily unavailable", http.StatusServiceUnavailable)
+			return
+		}
 		if err != nil {
 			d.Logger.Error("redeem handoff", "error", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)

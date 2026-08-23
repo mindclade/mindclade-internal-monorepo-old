@@ -34,12 +34,43 @@ from ci.presubmit import pipeline as presubmit_pipeline  # noqa: E402
 
 PRESUBMIT_EVENTS = frozenset({"merge_group", "pull_request", "push"})
 NIGHTLY_EVENTS = frozenset({"schedule", "workflow_dispatch"})
+PULL_REQUEST_CACHE_BASE_REF = (
+    "${{ github.event.pull_request.stack.base.ref || github.event.pull_request.base.ref }}"
+)
+PULL_REQUEST_CACHE_BASE_SHA = (
+    "${{ github.event.pull_request.stack.base.sha || github.event.pull_request.base.sha }}"
+)
+PULL_REQUEST_SELECTION_BASE_SHA = "${{ github.event.pull_request.base.sha }}"
+REMOTE_CACHE_ENABLED_EXPRESSION = (
+    "${{ steps.bazel-remote-cache.outcome == 'success' "
+    "&& steps.bazel-remote-cache.outputs.enabled || 'false' }}"
+)
+PERSISTENT_CACHE_TRUST_IF = "steps.bazel-remote-cache.outputs.enabled != 'true'"
+PERSISTENT_CACHE_RESTORE_IF = (
+    "steps.bazel-remote-cache.outputs.enabled != 'true' "
+    "&& steps.bazel-cache-trust.outcome == 'success'"
+)
+PERSISTENT_CACHE_ROLE_EXPRESSION = (
+    "${{ steps.bazel-cache-trust.outcome == 'success' "
+    "&& steps.bazel-cache-trust.outputs.role || 'reader' }}"
+)
+GOVERNED_CACHE_ROLE_EXPRESSION = (
+    "${{ steps.bazel-remote-cache.outputs.enabled == 'true' "
+    "&& steps.bazel-remote-cache.outputs.role "
+    "|| steps.bazel-cache-trust.outcome == 'success' "
+    "&& steps.bazel-cache-trust.outputs.role || 'reader' }}"
+)
+PERSISTENT_CACHE_MEASURE_IF = (
+    "always() && steps.bazel-remote-cache.outputs.enabled != 'true' "
+    "&& steps.bazel-cache-trust.outcome == 'success'"
+)
 PRESUBMIT_BAZEL_COMMAND = (
     "/nix/var/nix/profiles/default/bin/nix",
     "develop",
     ".#ci-bazel",
     "--command",
     "python3",
+    "-B",
     "-I",
     "ci/presubmit/pipeline.py",
     "--bazel-only",
@@ -59,6 +90,10 @@ PRESUBMIT_BAZEL_COMMAND = (
     "${RUNNER_TEMP}/bazel-job-started",
     "--runner-temp",
     "${RUNNER_TEMP}",
+    "--cache-mode",
+    "${BAZEL_CACHE_MODE}",
+    "--cache-role",
+    "${BAZEL_CACHE_ROLE}",
 )
 NIGHTLY_BAZEL_COMMAND = (
     "/nix/var/nix/profiles/default/bin/nix",
@@ -66,6 +101,7 @@ NIGHTLY_BAZEL_COMMAND = (
     ".#ci-bazel",
     "--command",
     "python3",
+    "-B",
     "-I",
     "ci/nightly/pipeline.py",
     "--event",
@@ -80,153 +116,103 @@ NIGHTLY_BAZEL_COMMAND = (
     "${RUNNER_TEMP}/bazel-job-started",
     "--runner-temp",
     "${RUNNER_TEMP}",
+    "--cache-mode",
+    "${BAZEL_CACHE_MODE}",
+    "--cache-role",
+    "${BAZEL_CACHE_ROLE}",
 )
 UPLOAD_ARTIFACT_ACTION = "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02"
+DOWNLOAD_ARTIFACT_ACTION = "actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0"
 CHECKOUT_ACTION = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
+# fmt: off
+PRESUBMIT_PLAN_STEP_CONTRACT = (
+    ("uses:actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "69983d424f70d56e16aca2c5bc441464578ac832b548ce342069dd3e5a1ca9e1"),
+    ("uses:actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1", "be44ea9b59f4d2b9ef17fc2526f2d1b8607bfcba533e0e8c81636aa6cbbb1f7d"),
+    ("name:Select qualified Bazel remote-cache route for topology", "92b2e9a94eb29b8f3c62e7fa143a71e14fd4d0e03e9b08cd013d42d09e71582d"),
+    ("name:Select presubmit, fallback, or complete shard workers", "15104f529af37a1778ca416ffc346a3f78ad6d502147dc56a50e5f1d7101466f"),
+)
+
 PRESUBMIT_BAZEL_STEP_CONTRACT = (
-    (
-        "name:Record Bazel verdict start",
-        "6e3581f87afe2f1357d9389beee1612d32a39123b48a1f7112e11a70865bfd16",
-    ),
-    (
-        "uses:actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
-        "3facce523aa8a0e29a937485282e18e07e2907c45914b4ce7745b674c765f3b7",
-    ),
-    (
-        "name:Prepare GitHub-hosted runner disk for Nix",
-        "c8ce580064e9a2ca3c9dabcdac62b53fe14d8ce7b17fa00de32d1a1e97915267",
-    ),
-    (
-        "uses:bazel-contrib/setup-bazel@4fd964a13a440a8aeb0be47350db2fc640f19ca8",
-        "5c825b313c6e81fad2e993ae09ce267a40dd48b30816e4e151764b96273d16f2",
-    ),
-    (
-        "uses:cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342",
-        "889e811758a8eb0bfe298bec1412219d252c18e4946c086c793465172a6a4513",
-    ),
-    (
-        "name:Select trusted Bazel cache revision",
-        "3d521ffc2acfa1c39f7a088087af7ef2e5c1f703b44d2521a04b71e401054774",
-    ),
-    (
-        "name:Restore trusted Bazel persistent action cache",
-        "f7d3575c44f9f9f581cb999730b0337339a3ac4776abd4afee78f35711eca041",
-    ),
-    (
-        "name:Configure bounded Bazel persistent action cache",
-        "7f0ba186b0d4be7f54e1228a24e01a27021a045e6209a42ccd06dde751f847db",
-    ),
-    (
-        "name:buildifier",
-        "59abfcb3d0cfb35ea31cf7fd1c3e9bb1fd11b9123984cd69f4b3e082cf2cb07b",
-    ),
-    (
-        "name:Every BUILD file loads and every label resolves",
-        "f32d7fa54fe7ab8d7d88953737d06603c6eb7930af8688c2964967cac33d362d",
-    ),
-    (
-        "name:Prove affected selection against the real Bazel graph",
-        "dd7aa75569631162fbe616a72f544093cd46341c2bc1cd0269a5e94e4b1cd222",
-    ),
-    (
-        "name:Enforce Bazel dependency layers",
-        "e3692c38e0d68c64e90ac2f2736adbcccfa92facf1d63eb63042eccf15d3de08",
-    ),
-    (
-        "name:Validate and resolve the registered C/C++ toolchain",
-        "32b66957e0535bb0ba2f7a3076d97e8dc7aab1a22d23be807e96255cbb42028b",
-    ),
-    (
-        "name:Run event-governed Bazel validation",
-        "6ae943963137c5ff2305f55988c863633a9837ce00c977794c4acaa06c3ee881",
-    ),
-    (
-        "name:Measure bounded Bazel persistent action cache",
-        "d78717735c38ee3b264a8eabd30f320fcce1acb62bf88d6e5f6d0bc4d02e54ab",
-    ),
-    (
-        "name:Save trusted Bazel persistent action cache",
-        "36a872484b4dce8390169fa23f851c9f8fec2e0f11254c319de5d84a4009db9b",
-    ),
-    (
-        "name:Record Bazel persistent action cache metrics",
-        "597e3fd3eec0d351853272ce410f71e50880b3750e45dd54a0b63aea36245c47",
-    ),
-    (
-        "name:Upload Bazel performance evidence",
-        "993670b32d2cd1be75d6dccbdc68e0aa9afcddb4d85adbcd39b27642dbadb4d3",
-    ),
-    (
-        "name:Upload Bazel latency metric",
-        "e6641e5b4f5e36548083e59a30bc606ee9355d00549af926b9ea907c61ff75f2",
-    ),
+    ("name:Record Bazel worker start", "ebbea1fb183f31a06004e81796280e9eda032e3cedcdac4fb2e4aff15e5e800a"),
+    ("uses:actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "3facce523aa8a0e29a937485282e18e07e2907c45914b4ce7745b674c765f3b7"),
+    ("name:Prepare GitHub-hosted runner disk for Nix", "c8ce580064e9a2ca3c9dabcdac62b53fe14d8ce7b17fa00de32d1a1e97915267"),
+    ("uses:bazel-contrib/setup-bazel@4fd964a13a440a8aeb0be47350db2fc640f19ca8", "5c825b313c6e81fad2e993ae09ce267a40dd48b30816e4e151764b96273d16f2"),
+    ("uses:cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342", "889e811758a8eb0bfe298bec1412219d252c18e4946c086c793465172a6a4513"),
+    ("name:Select qualified Bazel remote-cache route", "17f1e826fbd763e44b11c1d9b11e8f21b62c8fde215ec4e63810bc6ad168473c"),
+    ("name:Verify worker topology still matches cache qualification", "3daf2e1f1fa43b9f8a6537ba80783c30081cfaca72d2a3d8e8923478422053fe"),
+    ("name:Select trusted Bazel cache revision", "bea656ab62c9f9a001e3c1ad62af6470630387cdc39aa490946410a3d9d6ba8e"),
+    ("name:Restore trusted Bazel persistent action cache", "130a9b6847621a68bb1b45ebbb5a6b7fdb98d479b758e215f1b9c586dff951ea"),
+    ("name:Configure bounded Bazel persistent action cache", "09667757ca3924ef1858867e2bc4ec849de1d42f53437d7125c0d358c3721b6b"),
+    ("name:Build qualified Bazel GCS cache gateway", "6f1f4320ac9b5bd8d49ac0784f852d711aea478def27cebd4104d687909e8096"),
+    ("name:Authenticate read-only Bazel cache route", "0744449797a1f59706bfd676fb0b6b408d366731a605eee8127922ce210f5931"),
+    ("name:Authenticate trusted Bazel cache writer route", "4f3a50497ca60210af3343e78880a5de32eae5b0921bf639674deb75f525548b"),
+    ("name:Start loopback Bazel GCS cache gateway", "9c57f2444e9db26b2f8814163b2314a7bdc8c366b9c6711c9083e574254a26c4"),
+    ("name:buildifier", "92af3aaebc20a2145f6756ad32330ea5174f55e46dc9a86ceb16c2234c41cecd"),
+    ("name:Every BUILD file loads and every label resolves", "c39f7f4b83b46ac46627a640d9a4687e384ef1e8a7219c2401775d8fb1743bb2"),
+    ("name:Prove affected selection against the real Bazel graph", "66567131eb51965014ce86328e7c3887e4ab8632092cbdd9f7fb5a50f4c75d1b"),
+    ("name:Enforce Bazel dependency layers", "6085cb60c60baafa38e8ca9a205ab62e10d61f6eca03d3815a4574e1c93357bc"),
+    ("name:Validate and resolve the registered C/C++ toolchain", "94adcdaa6f8e676dce149820b3b12a968bb11a093b16463e1c6c22b06125cfd9"),
+    ("name:Remove ignored checkout byproducts", "799d86234a1bf27e77569c23ef52802e80e03dc89e4f2c2a47630fef2f0caeae"),
+    ("name:Run event-governed Bazel validation", "1f87c93b03269d1e9bf50d6598d20bc406568e16ec02fa1a1b033e2da3014414"),
+    ("name:Redact completed Bazel worker selection", "733419ff8de8d49f0a95b7eaf1865f9210769687667f717944876afe09f88850"),
+    ("name:Measure bounded Bazel persistent action cache", "95b92bedabf6707c2764881bd036ab7fd73f3e26b4e6258de880830752acdfd5"),
+    ("name:Save trusted Bazel persistent action cache", "dcbadf057eab254e9a46988c53ee666724ba6afc007b26e6a977efbf00e81127"),
+    ("name:Record Bazel persistent action cache metrics", "9b4261daaa5be664481d8a50a5c9875daf0d72f466c70b9f1d9244c91f4b1875"),
+    ("name:Record Bazel GCS remote-cache metrics and stop gateway", "48b22f3adde66695cd963bf0bb50b07f7f35e9beebef3562f6e330ba380abe63"),
+    ("name:Upload Bazel performance evidence", "1e9b7293ed88d18c63aad10fbee4b3b44ce0cdbca5c43e031f2e3df58ca72f01"),
+    ("name:Upload redacted Bazel worker selection", "142b944b484fa14736495f4444875651ddadd286651de3df1e32a2f177ddc8e7"),
+    ("name:Upload Bazel latency metric", "6a9fe809a0489b2829fe0d1f78fe9f4066b965132c5fa115af5909c23eda3c42"),
 )
+
+PRESUBMIT_VERDICT_STEP_CONTRACT = (
+    ("uses:actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "69983d424f70d56e16aca2c5bc441464578ac832b548ce342069dd3e5a1ca9e1"),
+    ("uses:actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1", "be44ea9b59f4d2b9ef17fc2526f2d1b8607bfcba533e0e8c81636aa6cbbb1f7d"),
+    ("name:Download redacted Bazel worker selections", "8fc21eab2b1421a5b96400bcfd153794ba1afd6def1f5175a2190c0a42bb5d57"),
+    ("name:Aggregate the complete Bazel verdict", "695006f5b961e445ab082d3637ed1c4877ba147d1989221c7bf37ace27081fcc"),
+)
+
+NIGHTLY_PLAN_STEP_CONTRACT = (
+    ("uses:actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "69983d424f70d56e16aca2c5bc441464578ac832b548ce342069dd3e5a1ca9e1"),
+    ("uses:actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1", "be44ea9b59f4d2b9ef17fc2526f2d1b8607bfcba533e0e8c81636aa6cbbb1f7d"),
+    ("name:Select qualified nightly Bazel remote-cache route for topology", "6e24f1b7afdb369a1c603faddb6a10c79417466e279f508c74bf9158b01f1082"),
+    ("name:Select fallback or complete shard workers", "1a00cc24da3dd53e50e7ea7812e6a2d9145c57f4e2c70e5ac1687690caea199f"),
+)
+
 NIGHTLY_BAZEL_STEP_CONTRACT = (
-    (
-        "name:Record nightly verdict start",
-        "63dc8127ef8e2ef48145a82df11a5b8f74628c9e38fb1f9fe1b005cde7c96e1c",
-    ),
-    (
-        "uses:actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
-        "69983d424f70d56e16aca2c5bc441464578ac832b548ce342069dd3e5a1ca9e1",
-    ),
-    (
-        "name:Prepare GitHub-hosted runner disk for Nix",
-        "c8ce580064e9a2ca3c9dabcdac62b53fe14d8ce7b17fa00de32d1a1e97915267",
-    ),
-    (
-        "uses:bazel-contrib/setup-bazel@4fd964a13a440a8aeb0be47350db2fc640f19ca8",
-        "5c825b313c6e81fad2e993ae09ce267a40dd48b30816e4e151764b96273d16f2",
-    ),
-    (
-        "uses:cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342",
-        "889e811758a8eb0bfe298bec1412219d252c18e4946c086c793465172a6a4513",
-    ),
-    (
-        "name:Select trusted nightly Bazel cache revision",
-        "725e3b66b3e931380dc1725b76b3b572c3c3cff6264c875c76fb5372a4f46a6f",
-    ),
-    (
-        "name:Restore trusted nightly Bazel persistent action cache",
-        "e1450dd287debaf42cdf34cae070136421bd115238ef43ee4186aaac7c5bd964",
-    ),
-    (
-        "name:Configure bounded nightly Bazel persistent action cache",
-        "6b777772303b943876ae184ad8e1976bf25086fb42036d63e0970491ff1498f4",
-    ),
-    (
-        "name:Validate complete loading, formatting, and layer policy",
-        "109754186aa21f7f2339b83fa8ea74622b42f92b25f03e2869345a42e3ee6b2b",
-    ),
-    (
-        "name:Validate and resolve the registered C/C++ toolchain",
-        "32b66957e0535bb0ba2f7a3076d97e8dc7aab1a22d23be807e96255cbb42028b",
-    ),
-    (
-        "name:Analyze and test the complete configured graph",
-        "0620fb2d513f21c21a61e602c2d9e16174a915b69ac9e4cdfd4b301e88c6bc90",
-    ),
-    (
-        "name:Qualify the rolling affected-presubmit latency SLO",
-        "eedf4c01ce782c9ada03aa258781ebed51fc9835203bb485f647850c4d9a613f",
-    ),
-    (
-        "name:Measure bounded nightly Bazel persistent action cache",
-        "8ded4c5c6f73bae12e26d9a1e3d6ef083142780697c07120ea34593d02aa4a6b",
-    ),
-    (
-        "name:Save trusted nightly Bazel persistent action cache",
-        "0fcea9f0ecc363088ac840d65af3bbe71888c6d065ddf52e1788d88973f7a1a7",
-    ),
-    (
-        "name:Record nightly Bazel persistent action cache metrics",
-        "836f793db0d80c0ed9fe76faa0993f1a7c84c3299aaa022021fabdb13c80709a",
-    ),
-    (
-        "name:Upload nightly Bazel evidence",
-        "73dd5401be7731758e82064e0fef2fbd8d4d0b5e475b7fa9cd74d01bb54390fb",
-    ),
+    ("name:Record nightly Bazel worker start", "e1cf7d309e7de6ab674dcf7d4a60245045e0aa0a286020bba1922e57fea3aa92"),
+    ("uses:actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "69983d424f70d56e16aca2c5bc441464578ac832b548ce342069dd3e5a1ca9e1"),
+    ("name:Prepare GitHub-hosted runner disk for Nix", "c8ce580064e9a2ca3c9dabcdac62b53fe14d8ce7b17fa00de32d1a1e97915267"),
+    ("uses:bazel-contrib/setup-bazel@4fd964a13a440a8aeb0be47350db2fc640f19ca8", "5c825b313c6e81fad2e993ae09ce267a40dd48b30816e4e151764b96273d16f2"),
+    ("uses:cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342", "889e811758a8eb0bfe298bec1412219d252c18e4946c086c793465172a6a4513"),
+    ("name:Select qualified nightly Bazel remote-cache route", "f946134ef78e00c5703c21fd217855b331e8d1c6a6ef166800cad24bbd95a21c"),
+    ("name:Verify worker topology still matches cache qualification", "24917606b35637d9306c319ede0e349e32cd12c5a2bfc96393cbf28414b41ae8"),
+    ("name:Select trusted nightly Bazel cache revision", "8a11170e45d5ba4e1ab10f13a6032f173057e060766aa8895f18b7f242514a7b"),
+    ("name:Restore trusted nightly Bazel persistent action cache", "d2f8fb316c6fd8485dea77c8bd7c4f356376a70fcac19485c3ce23384e0341b0"),
+    ("name:Configure bounded nightly Bazel persistent action cache", "c307e45367643c715bd84ce724a8364413b4f9367948e1f2925bf23b2103066c"),
+    ("name:Build qualified nightly Bazel GCS cache gateway", "5d490c127bcbe8e961d15be535f78e809bcaf6fee8e64d4af32ed7cffe7c0ea0"),
+    ("name:Authenticate scheduled Bazel cache writer route", "1e6a054411a5caed2fc04fb952c2cdf918c403f9c0871622f14f7c31a621bd81"),
+    ("name:Start scheduled loopback Bazel GCS cache gateway", "5d87963363e71b5606287182b94caa97a9c4f41ff1a1db20066529df80a4e518"),
+    ("name:Validate complete loading, formatting, and layer policy", "041657899e59b4e043e7ad2342e72e9458795c556c53ca5037bf66210b031f11"),
+    ("name:Validate and resolve the registered C/C++ toolchain", "3fd02d1b463a91acccf44039cd942bf18d6cd3de0a3c9cd099f67464906fbc6d"),
+    ("name:Remove ignored checkout byproducts", "799d86234a1bf27e77569c23ef52802e80e03dc89e4f2c2a47630fef2f0caeae"),
+    ("name:Analyze and test the selected repository-graph workload", "4b83233850c325791937e173349d35a70429ca007d52b4dfbe5848e564185342"),
+    ("name:Redact completed nightly Bazel worker selection", "9990a7fae2199d3f1841b8b5abbb2e861dbc568172032fe50d1226bddeaebb76"),
+    ("name:Qualify the rolling affected-presubmit latency SLO", "9ab6f78df68c7169b3468352f541e1a9c6b08dacbad44778b2d1dc3e3af39e57"),
+    ("name:Measure bounded nightly Bazel persistent action cache", "867a6253a4d0c3d2996066a6d842fae33252c4fdf4c4e8e2478d75ffd6ff9c17"),
+    ("name:Save trusted nightly Bazel persistent action cache", "628d8743e71c0cdda2bde68e2f1c24f0f7cea9f6d60b9b11d8d464302ec0c2a3"),
+    ("name:Record nightly Bazel persistent action cache metrics", "d7997e4788ffd0e339395d1d154a5dfaca8cab0559f0c26ac234ea54944c3298"),
+    ("name:Record nightly Bazel GCS remote-cache metrics and stop gateway", "f6f3004b9f1f49492a6bb1d030bc0d0518145a09709e3f4a3824dd465edd5112"),
+    ("name:Upload nightly Bazel evidence", "5338817a03fb411508e4d256a6e4ec0e2c719269c9dd0dbd127774ffee55c809"),
+    ("name:Upload redacted nightly Bazel worker selection", "a4d65697706ff3d752142ef0027ff2ee4a950938918bdec75e56366a0895358e"),
 )
+
+NIGHTLY_VERDICT_STEP_CONTRACT = (
+    ("uses:actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "69983d424f70d56e16aca2c5bc441464578ac832b548ce342069dd3e5a1ca9e1"),
+    ("uses:actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1", "be44ea9b59f4d2b9ef17fc2526f2d1b8607bfcba533e0e8c81636aa6cbbb1f7d"),
+    ("name:Download redacted nightly Bazel worker selections", "e8e24cd90169ec82cd0d22bca18d370fa199fef64addde9bda2e4a3aa65808e2"),
+    ("name:Aggregate the complete nightly Bazel verdict", "cf518d016ba216975c860f3f63ed5f9f50eab415e62a8682d87a46fede39ec99"),
+)
+# fmt: on
 
 
 def _error(code: str, message: str) -> str:
@@ -440,6 +426,18 @@ def _verdict_context_errors(workflows: dict[str, dict[str, Any]]) -> list[str]:
         (".github/workflows/presubmit.yml", "bazel", "bazel / verdict"),
     }
     observed: set[tuple[str, str, str]] = set()
+    allowed_dynamic_names = {
+        (
+            ".github/workflows/nightly.yml",
+            "bazel-nightly-workers",
+            "nightly Bazel / worker ${{ matrix.worker }}",
+        ),
+        (
+            ".github/workflows/presubmit.yml",
+            "bazel-workers",
+            "bazel / worker ${{ matrix.worker }}",
+        ),
+    }
     for path, workflow in workflows.items():
         jobs = _mapping(workflow.get("jobs"))
         if jobs is None:
@@ -447,7 +445,11 @@ def _verdict_context_errors(workflows: dict[str, dict[str, Any]]) -> list[str]:
         for job_id, candidate in jobs.items():
             job = _mapping(candidate)
             name = job.get("name") if job is not None else None
-            if isinstance(name, str) and "${{" in name:
+            if (
+                isinstance(name, str)
+                and "${{" in name
+                and (path, job_id, name) not in allowed_dynamic_names
+            ):
                 return [_error("AFFECTED-WORKFLOW-010", "Bazel verdict context is ambiguous")]
             if name in protected_names:
                 observed.add((path, job_id, name))
@@ -464,6 +466,24 @@ def _named_step(job: dict[str, Any], name: str) -> dict[str, Any] | None:
     if len(matches) != 1:
         return None
     return matches[0]
+
+
+def _steps_are_ordered(job: dict[str, Any], identities: tuple[str, ...]) -> bool:
+    steps = job.get("steps")
+    if not isinstance(steps, list):
+        return False
+    observed: list[int] = []
+    for identity in identities:
+        matches = [
+            index
+            for index, step in enumerate(steps)
+            if isinstance(step, dict)
+            and (step.get("name") == identity or step.get("uses") == identity)
+        ]
+        if len(matches) != 1:
+            return False
+        observed.append(matches[0])
+    return observed == sorted(observed)
 
 
 def _command(value: Any) -> tuple[str, ...] | None:
@@ -507,19 +527,114 @@ def _checkout_is_complete(job: dict[str, Any], *, full_history: bool, before_ste
 
 
 def _uploads_are_governed(job: dict[str, Any], expected: dict[str, dict[str, Any]]) -> bool:
-    for name, expected_configuration in expected.items():
+    for name, expected_contract in expected.items():
+        expected_configuration = {
+            key: value for key, value in expected_contract.items() if key != "__if__"
+        }
+        expected_condition = expected_contract.get("__if__", "always()")
         step = _named_step(job, name)
         configuration = _mapping(step.get("with")) if step is not None else None
         if (
             step is None
             or set(step) != {"if", "name", "uses", "with"}
-            or step.get("if") != "always()"
+            or step.get("if") != expected_condition
             or "continue-on-error" in step
             or step.get("uses") != UPLOAD_ARTIFACT_ACTION
             or configuration != expected_configuration
         ):
             return False
     return True
+
+
+def _presubmit_cache_routing_is_governed(plan: dict[str, Any], workers: dict[str, Any]) -> bool:
+    plan_remote_route = _named_step(plan, "Select qualified Bazel remote-cache route for topology")
+    plan_matrix = _named_step(plan, "Select presubmit, fallback, or complete shard workers")
+    worker_remote_route = _named_step(workers, "Select qualified Bazel remote-cache route")
+    topology_check = _named_step(
+        workers, "Verify worker topology still matches cache qualification"
+    )
+    disk_route = _named_step(workers, "Select trusted Bazel cache revision")
+    disk_restore = _named_step(workers, "Restore trusted Bazel persistent action cache")
+    disk_configure = _named_step(workers, "Configure bounded Bazel persistent action cache")
+    governed_run = _named_step(workers, "Run event-governed Bazel validation")
+    redaction = _named_step(workers, "Redact completed Bazel worker selection")
+    cache_measure = _named_step(workers, "Measure bounded Bazel persistent action cache")
+    plan_remote_env = (
+        _mapping(plan_remote_route.get("env")) if plan_remote_route is not None else None
+    )
+    plan_matrix_env = _mapping(plan_matrix.get("env")) if plan_matrix is not None else None
+    worker_remote_env = (
+        _mapping(worker_remote_route.get("env")) if worker_remote_route is not None else None
+    )
+    topology_env = _mapping(topology_check.get("env")) if topology_check is not None else None
+    disk_env = _mapping(disk_route.get("env")) if disk_route is not None else None
+    configure_env = _mapping(disk_configure.get("env")) if disk_configure is not None else None
+    governed_env = _mapping(governed_run.get("env")) if governed_run is not None else None
+    return (
+        plan_remote_env is not None
+        and plan_remote_route is not None
+        and "if" not in plan_remote_route
+        and plan_remote_env.get("PR_BASE_REF") == PULL_REQUEST_CACHE_BASE_REF
+        and plan_matrix_env is not None
+        and plan_matrix_env.get("REMOTE_CACHE_ENABLED") == REMOTE_CACHE_ENABLED_EXPRESSION
+        and worker_remote_env is not None
+        and worker_remote_route is not None
+        and "if" not in worker_remote_route
+        and worker_remote_env.get("PR_BASE_REF") == PULL_REQUEST_CACHE_BASE_REF
+        and topology_env is not None
+        and topology_env.get("ACTUAL_REMOTE_CACHE_ENABLED") == REMOTE_CACHE_ENABLED_EXPRESSION
+        and disk_env is not None
+        and disk_route is not None
+        and disk_route.get("if") == PERSISTENT_CACHE_TRUST_IF
+        and disk_env.get("PR_BASE_REF") == PULL_REQUEST_CACHE_BASE_REF
+        and disk_env.get("PR_BASE_SHA") == PULL_REQUEST_CACHE_BASE_SHA
+        and disk_restore is not None
+        and disk_restore.get("if") == PERSISTENT_CACHE_RESTORE_IF
+        and configure_env is not None
+        and configure_env.get("BAZEL_CACHE_ROLE") == PERSISTENT_CACHE_ROLE_EXPRESSION
+        and governed_env is not None
+        and governed_env.get("PR_BASE_SHA") == PULL_REQUEST_SELECTION_BASE_SHA
+        and governed_env.get("REMOTE_CACHE_ENABLED") == REMOTE_CACHE_ENABLED_EXPRESSION
+        and governed_env.get("BAZEL_CACHE_ROLE") == GOVERNED_CACHE_ROLE_EXPRESSION
+        and redaction is not None
+        and redaction.get("id") == "bazel-selection-redact"
+        and redaction.get("if") == "steps.bazel-validation.outcome == 'success'"
+        and cache_measure is not None
+        and cache_measure.get("if") == PERSISTENT_CACHE_MEASURE_IF
+    )
+
+
+def _checkout_python_bytecode_is_disabled(job: dict[str, Any], *, through_step: str) -> bool:
+    steps = job.get("steps")
+    if not isinstance(steps, list):
+        return False
+    boundaries = [
+        index
+        for index, step in enumerate(steps)
+        if isinstance(step, dict) and step.get("name") == through_step
+    ]
+    if len(boundaries) != 1:
+        return False
+    observed = False
+    for step in steps[: boundaries[0] + 1]:
+        if not isinstance(step, dict) or "run" not in step:
+            continue
+        run = step.get("run")
+        if not isinstance(run, str):
+            return False
+        try:
+            command = tuple(
+                shlex.split(run.replace(".#", "mindclade-flake-"), comments=True, posix=True)
+            )
+        except ValueError:
+            return False
+        for index, token in enumerate(command):
+            if token != "python3":
+                continue
+            observed = True
+            if index + 1 >= len(command) or command[index + 1] != "-B":
+                return False
+    return observed
 
 
 def _presubmit_workflow_errors(workflow: dict[str, Any]) -> list[str]:
@@ -543,47 +658,146 @@ def _presubmit_workflow_errors(workflow: dict[str, Any]) -> list[str]:
     jobs = _mapping(workflow.get("jobs"))
     if not _verdict_job_is_unique(jobs, expected_id="bazel", expected_name="bazel / verdict"):
         errors.append(_error("AFFECTED-WORKFLOW-004", "presubmit verdict job is ambiguous"))
-    bazel_job = _mapping(jobs.get("bazel")) if jobs is not None else None
+    plan = _mapping(jobs.get("bazel-worker-plan")) if jobs is not None else None
+    workers = _mapping(jobs.get("bazel-workers")) if jobs is not None else None
+    verdict = _mapping(jobs.get("bazel")) if jobs is not None else None
     if (
-        bazel_job is None
-        or set(bazel_job) != {"name", "runs-on", "steps", "timeout-minutes"}
-        or bazel_job.get("name") != "bazel / verdict"
-        or bazel_job.get("runs-on") != "ubuntu-24.04"
-        or bazel_job.get("timeout-minutes") != 90
+        plan is None
+        or set(plan) != {"name", "outputs", "runs-on", "steps", "timeout-minutes"}
+        or plan.get("name") != "bazel / worker plan"
+        or plan.get("runs-on") != "ubuntu-24.04"
+        or plan.get("timeout-minutes") != 5
+        or plan.get("outputs")
+        != {
+            "workers": "${{ steps.worker-matrix.outputs.workers }}",
+            "remote_cache_enabled": REMOTE_CACHE_ENABLED_EXPRESSION,
+            "shard_count": "${{ steps.worker-matrix.outputs.shard_count }}",
+            "topology_mode": "${{ steps.worker-matrix.outputs.mode }}",
+        }
     ):
-        return [*errors, _error("AFFECTED-WORKFLOW-004", "presubmit Bazel job is invalid")]
-    if not _step_contract_is_exact(bazel_job, PRESUBMIT_BAZEL_STEP_CONTRACT):
-        errors.append(_error("AFFECTED-WORKFLOW-009", "presubmit Bazel steps drifted"))
+        errors.append(_error("AFFECTED-WORKFLOW-004", "presubmit Bazel plan is invalid"))
+    elif not _step_contract_is_exact(plan, PRESUBMIT_PLAN_STEP_CONTRACT):
+        errors.append(_error("AFFECTED-WORKFLOW-009", "presubmit Bazel plan steps drifted"))
+    if plan is not None and not _steps_are_ordered(
+        plan,
+        (
+            "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "Select qualified Bazel remote-cache route for topology",
+            "Select presubmit, fallback, or complete shard workers",
+        ),
+    ):
+        errors.append(_error("AFFECTED-WORKFLOW-004", "presubmit Bazel plan toolchain is invalid"))
+    if plan is not None and not _checkout_python_bytecode_is_disabled(
+        plan,
+        through_step="Select presubmit, fallback, or complete shard workers",
+    ):
+        errors.append(_error("AFFECTED-WORKFLOW-012", "presubmit Python launch is invalid"))
+    if (
+        workers is None
+        or set(workers)
+        != {
+            "if",
+            "name",
+            "needs",
+            "permissions",
+            "runs-on",
+            "steps",
+            "strategy",
+            "timeout-minutes",
+        }
+        or workers.get("name") != "bazel / worker ${{ matrix.worker }}"
+        or workers.get("needs") != ["bazel-worker-plan"]
+        or workers.get("if") != "needs.bazel-worker-plan.result == 'success'"
+        or workers.get("permissions") != {"contents": "read"}
+        or workers.get("runs-on") != "ubuntu-24.04"
+        or workers.get("timeout-minutes") != 90
+        or workers.get("strategy")
+        != {
+            "fail-fast": False,
+            "matrix": {"worker": "${{ fromJSON(needs.bazel-worker-plan.outputs.workers) }}"},
+        }
+    ):
+        return [*errors, _error("AFFECTED-WORKFLOW-004", "presubmit Bazel workers are invalid")]
+    if not _step_contract_is_exact(workers, PRESUBMIT_BAZEL_STEP_CONTRACT):
+        errors.append(_error("AFFECTED-WORKFLOW-009", "presubmit Bazel worker steps drifted"))
+    if plan is None or not _presubmit_cache_routing_is_governed(plan, workers):
+        errors.append(_error("AFFECTED-WORKFLOW-011", "presubmit cache routing is invalid"))
+    if not _checkout_python_bytecode_is_disabled(
+        workers,
+        through_step="Run event-governed Bazel validation",
+    ):
+        errors.append(_error("AFFECTED-WORKFLOW-012", "presubmit Python launch is invalid"))
     if not _checkout_is_complete(
-        bazel_job,
+        workers,
         full_history=True,
         before_step="Run event-governed Bazel validation",
     ):
         errors.append(_error("AFFECTED-WORKFLOW-004", "presubmit checkout is incomplete"))
-    step = _named_step(bazel_job, "Run event-governed Bazel validation")
+    step = _named_step(workers, "Run event-governed Bazel validation")
     if step is None:
         errors.append(_error("AFFECTED-WORKFLOW-005", "governed Bazel step is missing"))
     elif (
-        set(step) != {"env", "name", "run"}
+        set(step) != {"env", "id", "name", "run"}
+        or step.get("id") != "bazel-validation"
         or step.get("env")
         != {
             "BASH_ENV": "",
-            "PR_BASE_SHA": "${{ github.event.pull_request.base.sha }}",
+            "BAZEL_CACHE_MODE": (
+                "${{ steps.bazel-remote-cache.outputs.enabled == 'true' && 'remote' || 'disk' }}"
+            ),
+            "BAZEL_CACHE_ROLE": GOVERNED_CACHE_ROLE_EXPRESSION,
+            "REMOTE_CACHE_ENABLED": REMOTE_CACHE_ENABLED_EXPRESSION,
+            "PR_BASE_SHA": PULL_REQUEST_SELECTION_BASE_SHA,
+            "SHARD_COUNT": "${{ needs.bazel-worker-plan.outputs.shard_count }}",
+            "WORKER": "${{ matrix.worker }}",
         }
-        or _command(step.get("run")) != PRESUBMIT_BAZEL_COMMAND
+        or not isinstance(step.get("run"), str)
+        or any(
+            fragment not in step["run"]
+            for fragment in (
+                "--mode auto",
+                '--ref "${GITHUB_REF}"',
+                '--head "${GITHUB_SHA}"',
+                '--cache-mode "${BAZEL_CACHE_MODE}"',
+                '--cache-role "${BAZEL_CACHE_ROLE}"',
+                '--shard-index "${WORKER}"',
+                '--shard-count "${SHARD_COUNT}"',
+                "BAZEL_MATRIX_FALLBACK_ROUTE_MISMATCH",
+                "BAZEL_MATRIX_SHARD_ROUTE_MISMATCH",
+            )
+        )
+        or "--mode affected" in step["run"]
+        or "--static-only" in step["run"]
     ):
         errors.append(_error("AFFECTED-WORKFLOW-005", "governed Bazel command is invalid"))
     if not _uploads_are_governed(
-        bazel_job,
+        workers,
         {
             "Upload Bazel performance evidence": {
-                "name": "bazel-performance-${{ github.run_id }}-${{ github.run_attempt }}",
+                "name": (
+                    "bazel-performance-${{ github.run_id }}-"
+                    "${{ github.run_attempt }}-${{ matrix.worker }}"
+                ),
                 "path": "${{ runner.temp }}/bazel-evidence/*",
                 "if-no-files-found": "warn",
                 "retention-days": 35,
             },
+            "Upload redacted Bazel worker selection": {
+                "__if__": "steps.bazel-selection-redact.outcome == 'success'",
+                "name": (
+                    "bazel-selection-${{ github.run_id }}-"
+                    "${{ github.run_attempt }}-${{ matrix.worker }}"
+                ),
+                "path": "${{ runner.temp }}/bazel-worker-selection/worker-selection.json",
+                "if-no-files-found": "error",
+                "retention-days": 7,
+            },
             "Upload Bazel latency metric": {
-                "name": "bazel-metrics-${{ github.run_id }}-${{ github.run_attempt }}",
+                "__if__": "always() && matrix.worker == -1",
+                "name": (
+                    "bazel-metrics-${{ github.run_id }}-"
+                    "${{ github.run_attempt }}-${{ matrix.worker }}"
+                ),
                 "path": "${{ runner.temp }}/bazel-evidence/run-metrics.json",
                 "if-no-files-found": "ignore",
                 "retention-days": 35,
@@ -591,6 +805,51 @@ def _presubmit_workflow_errors(workflow: dict[str, Any]) -> list[str]:
         },
     ):
         errors.append(_error("AFFECTED-WORKFLOW-006", "Bazel evidence retention is invalid"))
+    if (
+        verdict is None
+        or set(verdict) != {"if", "name", "needs", "runs-on", "steps", "timeout-minutes"}
+        or verdict.get("name") != "bazel / verdict"
+        or verdict.get("needs") != ["bazel-worker-plan", "bazel-workers"]
+        or verdict.get("if") != "always()"
+        or verdict.get("runs-on") != "ubuntu-24.04"
+        or verdict.get("timeout-minutes") != 5
+    ):
+        errors.append(_error("AFFECTED-WORKFLOW-004", "presubmit Bazel verdict is invalid"))
+    elif not _step_contract_is_exact(verdict, PRESUBMIT_VERDICT_STEP_CONTRACT):
+        errors.append(_error("AFFECTED-WORKFLOW-009", "presubmit Bazel verdict steps drifted"))
+    if verdict is not None and not _checkout_python_bytecode_is_disabled(
+        verdict,
+        through_step="Aggregate the complete Bazel verdict",
+    ):
+        errors.append(_error("AFFECTED-WORKFLOW-012", "presubmit Python launch is invalid"))
+    if verdict is not None:
+        download = _named_step(verdict, "Download redacted Bazel worker selections")
+        aggregate = _named_step(verdict, "Aggregate the complete Bazel verdict")
+        if (
+            download is None
+            or set(download) != {"continue-on-error", "id", "name", "uses", "with"}
+            or download.get("continue-on-error") is not True
+            or download.get("uses") != DOWNLOAD_ARTIFACT_ACTION
+            or download.get("with")
+            != {
+                "pattern": ("bazel-selection-${{ github.run_id }}-${{ github.run_attempt }}-*"),
+                "path": "${{ runner.temp }}/bazel-worker-selections",
+            }
+            or aggregate is None
+            or aggregate.get("env")
+            != {
+                "EXPECTED_WORKERS": "${{ needs.bazel-worker-plan.outputs.workers }}",
+                "PLAN_RESULT": "${{ needs.bazel-worker-plan.result }}",
+                "SHARD_COUNT": "${{ needs.bazel-worker-plan.outputs.shard_count }}",
+                "TOPOLOGY_MODE": "${{ needs.bazel-worker-plan.outputs.topology_mode }}",
+                "WORKERS_RESULT": "${{ needs.bazel-workers.result }}",
+            }
+            or not isinstance(aggregate.get("run"), str)
+            or "bazel_verdict.py verify" not in aggregate["run"]
+            or '--expected-workers "${EXPECTED_WORKERS}"' not in aggregate["run"]
+            or '--selection-root "${RUNNER_TEMP}/bazel-worker-selections"' not in aggregate["run"]
+        ):
+            errors.append(_error("AFFECTED-WORKFLOW-004", "presubmit Bazel evidence is invalid"))
     return errors
 
 
@@ -617,10 +876,10 @@ def _nightly_target_errors(path: Path) -> list[str]:
     except (OSError, UnicodeError, json.JSONDecodeError, RecursionError, ValueError):
         return [_error("AFFECTED-WORKFLOW-007", "nightly target contract is unreadable")]
     if payload != {
-        "schema_version": 1,
+        "schema_version": 2,
         "mode": "full",
-        "analysis_targets": ["//..."],
-        "test_targets": ["//..."],
+        "shard_count": 4,
+        "partition_contract": "ci/bazel/full_graph_shards.toml",
     }:
         return [_error("AFFECTED-WORKFLOW-007", "nightly target contract is not full graph")]
     return []
@@ -648,49 +907,198 @@ def _nightly_workflow_errors(workflow: dict[str, Any]) -> list[str]:
         expected_name="nightly Bazel / verdict",
     ):
         errors.append(_error("AFFECTED-WORKFLOW-004", "nightly verdict job is ambiguous"))
-    job = _mapping(jobs.get("bazel-nightly")) if jobs is not None else None
+    plan = _mapping(jobs.get("bazel-nightly-plan")) if jobs is not None else None
+    workers = _mapping(jobs.get("bazel-nightly-workers")) if jobs is not None else None
+    verdict = _mapping(jobs.get("bazel-nightly")) if jobs is not None else None
     if (
-        job is None
-        or set(job) != {"if", "name", "runs-on", "steps", "timeout-minutes"}
-        or job.get("name") != "nightly Bazel / verdict"
-        or job.get("runs-on") != "ubuntu-24.04"
-        or job.get("timeout-minutes") != 90
+        plan is None
+        or set(plan)
+        != {
+            "if",
+            "name",
+            "outputs",
+            "runs-on",
+            "steps",
+            "timeout-minutes",
+        }
+        or plan.get("name") != "nightly Bazel / worker plan"
+        or plan.get("if") != "github.ref == 'refs/heads/main'"
+        or plan.get("runs-on") != "ubuntu-24.04"
+        or plan.get("timeout-minutes") != 5
+        or plan.get("outputs")
+        != {
+            "workers": "${{ steps.worker-matrix.outputs.workers }}",
+            "remote_cache_enabled": "${{ steps.bazel-remote-cache.outputs.enabled }}",
+            "shard_count": "${{ steps.worker-matrix.outputs.shard_count }}",
+            "topology_mode": "${{ steps.worker-matrix.outputs.mode }}",
+        }
     ):
-        return [*errors, _error("AFFECTED-WORKFLOW-004", "nightly Bazel job is invalid")]
-    if not _step_contract_is_exact(job, NIGHTLY_BAZEL_STEP_CONTRACT):
-        errors.append(_error("AFFECTED-WORKFLOW-009", "nightly Bazel steps drifted"))
-    if job.get("if") != "github.ref == 'refs/heads/main'" or not _checkout_is_complete(
-        job,
+        errors.append(_error("AFFECTED-WORKFLOW-004", "nightly Bazel plan is invalid"))
+    elif not _step_contract_is_exact(plan, NIGHTLY_PLAN_STEP_CONTRACT):
+        errors.append(_error("AFFECTED-WORKFLOW-009", "nightly Bazel plan steps drifted"))
+    if plan is not None and not _steps_are_ordered(
+        plan,
+        (
+            "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1",
+            "Select qualified nightly Bazel remote-cache route for topology",
+            "Select fallback or complete shard workers",
+        ),
+    ):
+        errors.append(_error("AFFECTED-WORKFLOW-004", "nightly Bazel plan toolchain is invalid"))
+    if plan is not None and not _checkout_python_bytecode_is_disabled(
+        plan,
+        through_step="Select fallback or complete shard workers",
+    ):
+        errors.append(_error("AFFECTED-WORKFLOW-012", "nightly Python launch is invalid"))
+    if (
+        workers is None
+        or set(workers)
+        != {
+            "if",
+            "name",
+            "needs",
+            "permissions",
+            "runs-on",
+            "steps",
+            "strategy",
+            "timeout-minutes",
+        }
+        or workers.get("name") != "nightly Bazel / worker ${{ matrix.worker }}"
+        or workers.get("needs") != ["bazel-nightly-plan"]
+        or workers.get("if") != "needs.bazel-nightly-plan.result == 'success'"
+        or workers.get("permissions") != {"actions": "read", "contents": "read"}
+        or workers.get("runs-on") != "ubuntu-24.04"
+        or workers.get("timeout-minutes") != 90
+        or workers.get("strategy")
+        != {
+            "fail-fast": False,
+            "matrix": {"worker": "${{ fromJSON(needs.bazel-nightly-plan.outputs.workers) }}"},
+        }
+    ):
+        return [*errors, _error("AFFECTED-WORKFLOW-004", "nightly Bazel workers are invalid")]
+    if not _step_contract_is_exact(workers, NIGHTLY_BAZEL_STEP_CONTRACT):
+        errors.append(_error("AFFECTED-WORKFLOW-009", "nightly Bazel worker steps drifted"))
+    if not _checkout_python_bytecode_is_disabled(
+        workers,
+        through_step="Analyze and test the selected repository-graph workload",
+    ):
+        errors.append(_error("AFFECTED-WORKFLOW-012", "nightly Python launch is invalid"))
+    if not _checkout_is_complete(
+        workers,
         full_history=False,
-        before_step="Analyze and test the complete configured graph",
+        before_step="Analyze and test the selected repository-graph workload",
     ):
         errors.append(_error("AFFECTED-WORKFLOW-004", "nightly Bazel job can be bypassed"))
-    step = _named_step(job, "Analyze and test the complete configured graph")
+    step = _named_step(workers, "Analyze and test the selected repository-graph workload")
     if (
         step is None
         or set(step) != {"env", "name", "run"}
-        or step.get("env") != {"BASH_ENV": ""}
-        or _command(step.get("run")) != NIGHTLY_BAZEL_COMMAND
+        or step.get("env")
+        != {
+            "BASH_ENV": "",
+            "BAZEL_CACHE_MODE": (
+                "${{ steps.bazel-remote-cache.outputs.enabled == 'true' && 'remote' || 'disk' }}"
+            ),
+            "BAZEL_CACHE_ROLE": (
+                "${{ steps.bazel-remote-cache.outputs.enabled == 'true' "
+                "&& steps.bazel-remote-cache.outputs.role "
+                "|| steps.bazel-cache-trust.outputs.role }}"
+            ),
+            "REMOTE_CACHE_ENABLED": "${{ steps.bazel-remote-cache.outputs.enabled }}",
+            "SHARD_COUNT": "${{ needs.bazel-nightly-plan.outputs.shard_count }}",
+            "WORKER": "${{ matrix.worker }}",
+        }
+        or not isinstance(step.get("run"), str)
+        or any(
+            fragment not in step["run"]
+            for fragment in (
+                '--ref "${GITHUB_REF}"',
+                '--head "${GITHUB_SHA}"',
+                '--cache-mode "${BAZEL_CACHE_MODE}"',
+                '--cache-role "${BAZEL_CACHE_ROLE}"',
+                '--shard-index "${WORKER}"',
+                '--shard-count "${SHARD_COUNT}"',
+                "BAZEL_MATRIX_FALLBACK_ROUTE_MISMATCH",
+                "BAZEL_MATRIX_SHARD_ROUTE_MISMATCH",
+            )
+        )
     ):
         errors.append(_error("AFFECTED-WORKFLOW-005", "nightly Bazel command is invalid"))
     if not _uploads_are_governed(
-        job,
+        workers,
         {
             "Upload nightly Bazel evidence": {
-                "name": "bazel-nightly-${{ github.run_id }}-${{ github.run_attempt }}",
+                "name": (
+                    "bazel-nightly-${{ github.run_id }}-"
+                    "${{ github.run_attempt }}-${{ matrix.worker }}"
+                ),
                 "path": "${{ runner.temp }}/bazel-evidence/*",
                 "if-no-files-found": "warn",
                 "retention-days": 35,
-            }
+            },
+            "Upload redacted nightly Bazel worker selection": {
+                "name": (
+                    "bazel-selection-${{ github.run_id }}-"
+                    "${{ github.run_attempt }}-${{ matrix.worker }}"
+                ),
+                "path": "${{ runner.temp }}/bazel-worker-selection/worker-selection.json",
+                "if-no-files-found": "error",
+                "retention-days": 7,
+            },
         },
     ):
         errors.append(_error("AFFECTED-WORKFLOW-006", "nightly evidence retention is invalid"))
+    if (
+        verdict is None
+        or set(verdict) != {"if", "name", "needs", "runs-on", "steps", "timeout-minutes"}
+        or verdict.get("name") != "nightly Bazel / verdict"
+        or verdict.get("needs") != ["bazel-nightly-plan", "bazel-nightly-workers"]
+        or verdict.get("if") != "always() && github.ref == 'refs/heads/main'"
+        or verdict.get("runs-on") != "ubuntu-24.04"
+        or verdict.get("timeout-minutes") != 5
+    ):
+        errors.append(_error("AFFECTED-WORKFLOW-004", "nightly Bazel verdict is invalid"))
+    elif not _step_contract_is_exact(verdict, NIGHTLY_VERDICT_STEP_CONTRACT):
+        errors.append(_error("AFFECTED-WORKFLOW-009", "nightly Bazel verdict steps drifted"))
+    if verdict is not None and not _checkout_python_bytecode_is_disabled(
+        verdict,
+        through_step="Aggregate the complete nightly Bazel verdict",
+    ):
+        errors.append(_error("AFFECTED-WORKFLOW-012", "nightly Python launch is invalid"))
+    if verdict is not None:
+        download = _named_step(verdict, "Download redacted nightly Bazel worker selections")
+        aggregate = _named_step(verdict, "Aggregate the complete nightly Bazel verdict")
+        if (
+            download is None
+            or set(download) != {"continue-on-error", "id", "name", "uses", "with"}
+            or download.get("continue-on-error") is not True
+            or download.get("uses") != DOWNLOAD_ARTIFACT_ACTION
+            or download.get("with")
+            != {
+                "pattern": ("bazel-selection-${{ github.run_id }}-${{ github.run_attempt }}-*"),
+                "path": "${{ runner.temp }}/bazel-worker-selections",
+            }
+            or aggregate is None
+            or aggregate.get("env")
+            != {
+                "EXPECTED_WORKERS": "${{ needs.bazel-nightly-plan.outputs.workers }}",
+                "PLAN_RESULT": "${{ needs.bazel-nightly-plan.result }}",
+                "SHARD_COUNT": "${{ needs.bazel-nightly-plan.outputs.shard_count }}",
+                "TOPOLOGY_MODE": "${{ needs.bazel-nightly-plan.outputs.topology_mode }}",
+                "WORKERS_RESULT": "${{ needs.bazel-nightly-workers.result }}",
+            }
+            or not isinstance(aggregate.get("run"), str)
+            or "bazel_verdict.py verify" not in aggregate["run"]
+            or '--expected-workers "${EXPECTED_WORKERS}"' not in aggregate["run"]
+            or '--selection-root "${RUNNER_TEMP}/bazel-worker-selections"' not in aggregate["run"]
+        ):
+            errors.append(_error("AFFECTED-WORKFLOW-004", "nightly Bazel evidence is invalid"))
     return errors
 
 
 def _selection_policy_errors() -> list[str]:
     cases = (
-        ("pull_request", "refs/pull/1/merge", "0" * 40, "affected"),
+        ("pull_request", "refs/pull/1/merge", "0" * 40, "full"),
         ("merge_group", "refs/heads/gh-readonly-queue/main/pr-1", None, "full"),
         ("push", "refs/heads/main", None, "full"),
         ("schedule", "refs/heads/main", None, "full"),
@@ -727,9 +1135,26 @@ def _selection_policy_errors() -> list[str]:
 
 def _presubmit_orchestration_errors() -> list[str]:
     cases = (
-        ("pull_request", "refs/pull/1/merge", "0" * 40, "affected"),
-        ("merge_group", "refs/heads/gh-readonly-queue/main/pr-1", "", "full"),
-        ("push", "refs/heads/main", "", "full"),
+        ("pull_request", "refs/pull/1/merge", "0" * 40, "full", "disk", "reader"),
+        ("pull_request", "refs/pull/1/merge", "0" * 40, "full", "remote", "reader"),
+        (
+            "merge_group",
+            "refs/heads/gh-readonly-queue/main/pr-1",
+            "",
+            "full",
+            "disk",
+            "reader",
+        ),
+        (
+            "merge_group",
+            "refs/heads/gh-readonly-queue/main/pr-1",
+            "",
+            "full",
+            "remote",
+            "writer",
+        ),
+        ("push", "refs/heads/main", "", "full", "disk", "writer"),
+        ("push", "refs/heads/main", "", "full", "remote", "writer"),
     )
     evidence = Path("/tmp/mindclade-affected-orchestration")
     runner_temp = Path("/tmp/mindclade-affected-runner")
@@ -737,7 +1162,7 @@ def _presubmit_orchestration_errors() -> list[str]:
     started_epoch = 123
     head = "1" * 40
     try:
-        for event, ref, base_sha, expected_mode in cases:
+        for event, ref, base_sha, expected_mode, cache_mode, cache_role in cases:
             changes = (
                 (affected.Change(status="M", path="pkg/source.py"),)
                 if expected_mode == "affected"
@@ -751,9 +1176,8 @@ def _presubmit_orchestration_errors() -> list[str]:
                 test_targets=(),
             )
             resolver = mock.Mock(return_value=expected_mode)
-            clean_checkout = mock.Mock()
-            runtime_contract = mock.sentinel.runtime_contract
-            bazelrc_contract = mock.Mock(return_value=runtime_contract)
+            bazelrc_authority = object()
+            clean_checkout = mock.Mock(return_value=bazelrc_authority)
             started_loader = mock.Mock(return_value=started_epoch)
             revision = mock.Mock(return_value=canonical_base)
             changed = mock.Mock(return_value=changes)
@@ -779,6 +1203,10 @@ def _presubmit_orchestration_errors() -> list[str]:
                 str(started_file),
                 "--runner-temp",
                 str(runner_temp),
+                "--cache-mode",
+                cache_mode,
+                "--cache-role",
+                cache_role,
             ]
             with (
                 mock.patch.object(sys, "argv", argv),
@@ -791,11 +1219,6 @@ def _presubmit_orchestration_errors() -> list[str]:
                     presubmit_pipeline.affected,
                     "assert_clean_checkout",
                     clean_checkout,
-                ),
-                mock.patch.object(
-                    presubmit_pipeline.affected,
-                    "assert_bazelrc_contract",
-                    bazelrc_contract,
                 ),
                 mock.patch.object(
                     presubmit_pipeline.affected,
@@ -821,8 +1244,13 @@ def _presubmit_orchestration_errors() -> list[str]:
             if status != 0:
                 raise AssertionError("status")
             resolver.assert_called_once_with("auto", event=event, ref=ref, base_sha=base_sha)
-            clean_checkout.assert_called_once_with(head)
-            bazelrc_contract.assert_called_once_with(event, runner_temp)
+            clean_checkout.assert_called_once_with(
+                head,
+                event=event,
+                runner_temp=runner_temp,
+                cache_mode=cache_mode,
+                cache_role=cache_role,
+            )
             started_loader.assert_called_once_with(started_file, runner_temp=runner_temp)
             if expected_mode == "affected":
                 revision.assert_called_once_with(base_sha)
@@ -839,8 +1267,8 @@ def _presubmit_orchestration_errors() -> list[str]:
             executor.assert_called_once_with(
                 selection,
                 evidence,
+                bazelrc_authority=bazelrc_authority,
                 job_started_epoch=started_epoch,
-                runtime_contract=runtime_contract,
             )
             failure_writer.assert_not_called()
 
@@ -893,20 +1321,24 @@ def _nightly_orchestration_errors() -> list[str]:
     head = "1" * 40
     contract = nightly_pipeline.NightlyContract(
         mode="full",
-        analysis_targets=("//...",),
-        test_targets=("//...",),
+        shard_count=4,
+        partition_contract="ci/bazel/full_graph_shards.toml",
     )
+    bazelrc_authority = mock.Mock()
     try:
-        for event in ("schedule", "workflow_dispatch"):
+        for event, cache_mode, cache_role in (
+            ("schedule", "disk", "writer"),
+            ("schedule", "remote", "writer"),
+            ("workflow_dispatch", "disk", "writer"),
+        ):
             selection = mock.Mock(
                 analysis_targets=("//...",),
                 test_targets=("//...",),
             )
             loader = mock.Mock(return_value=contract)
             resolver = mock.Mock(return_value="full")
-            clean_checkout = mock.Mock()
-            runtime_contract = mock.sentinel.runtime_contract
-            bazelrc_contract = mock.Mock(return_value=runtime_contract)
+            bazelrc_authority = object()
+            clean_checkout = mock.Mock(return_value=bazelrc_authority)
             started_loader = mock.Mock(return_value=started_epoch)
             selector = mock.Mock(return_value=selection)
             executor = mock.Mock(return_value=0)
@@ -925,6 +1357,10 @@ def _nightly_orchestration_errors() -> list[str]:
                 str(started_file),
                 "--runner-temp",
                 str(runner_temp),
+                "--cache-mode",
+                cache_mode,
+                "--cache-role",
+                cache_role,
             ]
             with (
                 mock.patch.object(sys, "argv", argv),
@@ -938,11 +1374,6 @@ def _nightly_orchestration_errors() -> list[str]:
                     nightly_pipeline.affected,
                     "assert_clean_checkout",
                     clean_checkout,
-                ),
-                mock.patch.object(
-                    nightly_pipeline.affected,
-                    "assert_bazelrc_contract",
-                    bazelrc_contract,
                 ),
                 mock.patch.object(
                     nightly_pipeline.affected,
@@ -968,15 +1399,20 @@ def _nightly_orchestration_errors() -> list[str]:
             resolver.assert_called_once_with(
                 "full", event=event, ref="refs/heads/main", base_sha=None
             )
-            clean_checkout.assert_called_once_with(head)
-            bazelrc_contract.assert_called_once_with(event, runner_temp)
+            clean_checkout.assert_called_once_with(
+                head,
+                event=event,
+                runner_temp=runner_temp,
+                cache_mode=cache_mode,
+                cache_role=cache_role,
+            )
             started_loader.assert_called_once_with(started_file, runner_temp=runner_temp)
             selector.assert_called_once_with([], mode="full", event=event)
             executor.assert_called_once_with(
                 selection,
                 evidence,
+                bazelrc_authority=bazelrc_authority,
                 job_started_epoch=started_epoch,
-                runtime_contract=runtime_contract,
             )
             failure_writer.assert_not_called()
     except Exception:
@@ -996,7 +1432,6 @@ def check(root: Path) -> list[str]:
     except (OSError, UnicodeError, SyntaxError):
         return [_error("AFFECTED-CODE-001", "affected-selection source is unreadable")]
     for symbol in (
-        "BazelRuntimeContract",
         "Change",
         "Selection",
         "SelectionError",

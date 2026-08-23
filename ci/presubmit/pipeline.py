@@ -18,7 +18,7 @@ REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from ci.common import affected  # noqa: E402
+from ci.common import affected, full_graph_shards  # noqa: E402
 
 
 def run(command: list[str]) -> int:
@@ -38,6 +38,15 @@ def main() -> int:
     parser.add_argument("--evidence-dir", type=Path)
     parser.add_argument("--job-started-at-file", type=Path)
     parser.add_argument("--runner-temp", type=Path)
+    parser.add_argument("--cache-mode", choices=("disk", "remote"))
+    parser.add_argument("--cache-role", choices=("reader", "writer"))
+    parser.add_argument("--shard-index", type=int)
+    parser.add_argument("--shard-count", type=int)
+    parser.add_argument(
+        "--shard-contract",
+        type=Path,
+        default=full_graph_shards.DEFAULT_CONTRACT,
+    )
     args = parser.parse_args()
 
     if not args.bazel_only and run(
@@ -46,12 +55,15 @@ def main() -> int:
         return 1
     if args.static_only:
         return 0
+    shard_arguments = (args.shard_index is not None, args.shard_count is not None)
+    if any(shard_arguments) and not all(shard_arguments):
+        parser.error("full-graph sharding requires both --shard-index and --shard-count")
 
     evidence_dir = args.evidence_dir or Path(tempfile.mkdtemp(prefix="mindclade-bazel-"))
     base_sha: str | None = None
     resolved_mode = args.mode
     job_started_epoch: int | None = None
-    runtime_contract: affected.BazelRuntimeContract | None = None
+    bazelrc_authority: affected.BazelrcAuthority | None = None
     try:
         resolved_mode = affected.resolve_selection_mode(
             args.mode,
@@ -59,7 +71,15 @@ def main() -> int:
             ref=args.ref,
             base_sha=args.base,
         )
+        if all(shard_arguments) and (resolved_mode != "full" or args.event == "pull_request"):
+            raise affected.SelectionError(
+                "AFFECTED-SELECT-010", "selection mode conflicts with workflow policy"
+            )
         if args.event != "local":
+            if args.cache_mode is None or args.cache_role is None:
+                raise affected.SelectionError(
+                    "AFFECTED-SELECT-020", "Bazel runtime contract is invalid"
+                )
             if not args.head:
                 raise affected.SelectionError(
                     "AFFECTED-SELECT-019", "checkout integrity validation failed"
@@ -72,8 +92,13 @@ def main() -> int:
                 raise affected.SelectionError(
                     "AFFECTED-SELECT-014", "job-start timestamp is invalid"
                 )
-            affected.assert_clean_checkout(args.head)
-            runtime_contract = affected.assert_bazelrc_contract(args.event, args.runner_temp)
+            bazelrc_authority = affected.assert_clean_checkout(
+                args.head,
+                event=args.event,
+                runner_temp=args.runner_temp,
+                cache_mode=args.cache_mode,
+                cache_role=args.cache_role,
+            )
             job_started_epoch = affected.load_job_started_epoch(
                 args.job_started_at_file,
                 runner_temp=args.runner_temp,
@@ -105,21 +130,46 @@ def main() -> int:
             else:
                 print("Skipping full Rust qualification: no Rust/runtime/toolchain inputs changed")
 
-        selection = affected.select(
-            changes,
-            mode=resolved_mode,
-            base_sha=base_sha,
-            event=args.event,
-        )
+        if args.shard_index is not None and args.shard_count is not None:
+            try:
+                contract = full_graph_shards.load_contract(args.shard_contract)
+                if args.shard_count != contract.shard_count:
+                    raise full_graph_shards.ShardContractError(
+                        "runtime shard count does not match the retained contract"
+                    )
+                graph = full_graph_shards.plan_from_bazel(contract)
+                selection = full_graph_shards.selection_for_shard(
+                    graph,
+                    args.shard_index,
+                    event=args.event,
+                    head_sha=affected.git_revision("HEAD"),
+                )
+            except full_graph_shards.ShardContractError as error:
+                raise affected.SelectionError(
+                    "AFFECTED-SELECT-023", "full-graph shard contract is invalid"
+                ) from error
+        else:
+            selection = affected.select(
+                changes,
+                mode=resolved_mode,
+                base_sha=base_sha,
+                event=args.event,
+            )
         print(
             f"Bazel selection: mode={selection.mode} reason={selection.reason} "
             f"analysis={len(selection.analysis_targets)} tests={len(selection.test_targets)}"
         )
+        if bazelrc_authority is None:
+            return affected.execute_selection(
+                selection,
+                evidence_dir,
+                job_started_epoch=job_started_epoch,
+            )
         return affected.execute_selection(
             selection,
             evidence_dir,
+            bazelrc_authority=bazelrc_authority,
             job_started_epoch=job_started_epoch,
-            runtime_contract=runtime_contract,
         )
     except affected.SelectionError as error:
         print(f"affected Bazel selection failed: {error}", file=sys.stderr)

@@ -24,15 +24,72 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  bazel-nightly:
-    name: nightly Bazel / verdict
+  bazel-nightly-plan:
+    name: nightly Bazel / worker plan
     # Scheduled runs use the default branch. Manual qualification is deliberately main-only so a
     # branch-selected workflow cannot publish into the trusted default-branch cache scope.
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 5
+    outputs:
+      workers: ${{ steps.worker-matrix.outputs.workers }}
+      remote_cache_enabled: ${{ steps.bazel-remote-cache.outputs.enabled }}
+      shard_count: ${{ steps.worker-matrix.outputs.shard_count }}
+      topology_mode: ${{ steps.worker-matrix.outputs.mode }}
     steps:
-      - name: Record nightly verdict start
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
+        with:
+          python-version: "3.14.7"
+
+      - name: Select qualified nightly Bazel remote-cache route for topology
+        id: bazel-remote-cache
+        env:
+          BAZEL_REMOTE_CACHE_STATE: ${{ vars.BAZEL_REMOTE_CACHE_STATE }}
+          CI_PROJECT_ID: ${{ vars.CI_PROJECT_ID }}
+          REF_PROTECTED: ${{ github.ref_protected }}
+        run: |
+          set -euo pipefail
+          python3 -B -I ci/common/bazel_remote_cache.py select \
+            --contract ci/bazel_cache/activation.json \
+            --repository-state "${BAZEL_REMOTE_CACHE_STATE}" \
+            --workflow nightly \
+            --event "${GITHUB_EVENT_NAME}" \
+            --ref "${GITHUB_REF}" \
+            --ref-protected "${REF_PROTECTED}" \
+            --project-id "${CI_PROJECT_ID}" \
+            --github-output "${GITHUB_OUTPUT}"
+
+      - name: Select fallback or complete shard workers
+        id: worker-matrix
+        env:
+          REMOTE_CACHE_ENABLED: ${{ steps.bazel-remote-cache.outputs.enabled }}
+        run: >-
+          python3 -B -I ci/common/bazel_worker_matrix.py
+          --lane nightly
+          --event "${GITHUB_EVENT_NAME}"
+          --remote-cache-enabled "${REMOTE_CACHE_ENABLED}"
+          --github-output "${GITHUB_OUTPUT}"
+
+  bazel-nightly-workers:
+    name: nightly Bazel / worker ${{ matrix.worker }}
+    needs: [bazel-nightly-plan]
+    if: needs.bazel-nightly-plan.result == 'success'
+    strategy:
+      fail-fast: false
+      matrix:
+        worker: ${{ fromJSON(needs.bazel-nightly-plan.outputs.workers) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    # Scheduled cache WIF remains unreachable until the source activation record is qualified.
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Record nightly Bazel worker start
         run: date +%s > "${RUNNER_TEMP}/bazel-job-started"
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -55,8 +112,38 @@ jobs:
             experimental-features = nix-command flakes
             accept-flake-config = false
 
+      - name: Select qualified nightly Bazel remote-cache route
+        id: bazel-remote-cache
+        env:
+          BAZEL_REMOTE_CACHE_STATE: ${{ vars.BAZEL_REMOTE_CACHE_STATE }}
+          CI_PROJECT_ID: ${{ vars.CI_PROJECT_ID }}
+          REF_PROTECTED: ${{ github.ref_protected }}
+        run: |
+          set -euo pipefail
+          python3 -B ci/common/bazel_remote_cache.py select \
+            --contract ci/bazel_cache/activation.json \
+            --repository-state "${BAZEL_REMOTE_CACHE_STATE}" \
+            --workflow nightly \
+            --event "${GITHUB_EVENT_NAME}" \
+            --ref "${GITHUB_REF}" \
+            --ref-protected "${REF_PROTECTED}" \
+            --project-id "${CI_PROJECT_ID}" \
+            --github-output "${GITHUB_OUTPUT}"
+
+      - name: Verify worker topology still matches cache qualification
+        env:
+          ACTUAL_REMOTE_CACHE_ENABLED: ${{ steps.bazel-remote-cache.outputs.enabled }}
+          EXPECTED_REMOTE_CACHE_ENABLED: ${{ needs.bazel-nightly-plan.outputs.remote_cache_enabled }}
+        run: |
+          set -euo pipefail
+          if [[ "${ACTUAL_REMOTE_CACHE_ENABLED}" != "${EXPECTED_REMOTE_CACHE_ENABLED}" ]]; then
+            echo "BAZEL_MATRIX_CACHE_STATE_DRIFT: worker cache qualification changed after planning" >&2
+            exit 2
+          fi
+
       - name: Select trusted nightly Bazel cache revision
         id: bazel-cache-trust
+        if: steps.bazel-remote-cache.outputs.enabled != 'true'
         env:
           CACHE_FINGERPRINT: ${{ hashFiles('.bazelversion', 'MODULE.bazel', 'MODULE.bazel.lock', 'REPO.bazel', 'flake.lock', 'tools/build/nix/toolchain-manifest.json') }}
           REF_PROTECTED: ${{ github.ref_protected }}
@@ -64,7 +151,7 @@ jobs:
           RUNNER_ARCH: ${{ runner.arch }}
         run: |
           set -euo pipefail
-          python3 ci/common/bazel_disk_cache.py select-trust \
+          python3 -B ci/common/bazel_disk_cache.py select-trust \
             --workflow nightly \
             --event "${GITHUB_EVENT_NAME}" \
             --ref "${GITHUB_REF}" \
@@ -77,6 +164,7 @@ jobs:
 
       - name: Restore trusted nightly Bazel persistent action cache
         id: bazel-disk-cache
+        if: steps.bazel-remote-cache.outputs.enabled != 'true'
         continue-on-error: true
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
@@ -86,12 +174,13 @@ jobs:
             ${{ steps.bazel-cache-trust.outputs.restore-prefix }}
 
       - name: Configure bounded nightly Bazel persistent action cache
+        if: steps.bazel-remote-cache.outputs.enabled != 'true'
         env:
           BAZEL_CACHE_ROLE: ${{ steps.bazel-cache-trust.outputs.role }}
           BAZEL_CACHE_RESTORE_OUTCOME: ${{ steps.bazel-disk-cache.outcome }}
         run: |
           set -euo pipefail
-          python3 ci/common/bazel_disk_cache.py configure \
+          python3 -B ci/common/bazel_disk_cache.py configure \
             --cache-dir "${RUNNER_TEMP}/mindclade-bazel-disk-cache" \
             --workspace "${GITHUB_WORKSPACE}" \
             --bazelrc "${GITHUB_WORKSPACE}/user.bazelrc" \
@@ -99,34 +188,151 @@ jobs:
             --github-env "${GITHUB_ENV}" \
             --restore-outcome "${BAZEL_CACHE_RESTORE_OUTCOME}"
 
+      - name: Build qualified nightly Bazel GCS cache gateway
+        id: bazel-remote-cache-binary
+        if: steps.bazel-remote-cache.outputs.enabled == 'true'
+        run: |
+          set -euo pipefail
+          target='//tools/build/bazel/cache_gateway/cmd:cache_gateway'
+          nix develop .#ci-bazel --command tools/dev/bazelw build "${target}" --config=ci
+          binary="$({
+            nix develop .#ci-bazel --command tools/dev/bazelw cquery \
+              "${target}" --config=ci --output=files
+          })"
+          [[ -n "${binary}" && "${binary}" != *$'\n'* && -x "${binary}" ]]
+          printf 'path=%s\n' "$(realpath "${binary}")" >> "${GITHUB_OUTPUT}"
+
+      - name: Authenticate scheduled Bazel cache writer route
+        id: bazel-cache-writer-auth
+        if: >-
+          steps.bazel-remote-cache.outputs.enabled == 'true' &&
+          steps.bazel-remote-cache.outputs.role == 'writer'
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3.0.0
+        with:
+          cleanup_credentials: true
+          create_credentials_file: true
+          export_environment_variables: false
+          project_id: ${{ vars.CI_PROJECT_ID }}
+          service_account: ${{ vars.SA_BAZEL_CACHE_WRITER }}
+          workload_identity_provider: ${{ vars.WIF_PROVIDER_BAZEL_CACHE }}
+
+      - name: Start scheduled loopback Bazel GCS cache gateway
+        id: bazel-remote-cache-start
+        if: steps.bazel-remote-cache.outputs.enabled == 'true'
+        env:
+          CACHE_BINARY: ${{ steps.bazel-remote-cache-binary.outputs.path }}
+          CACHE_BUCKET: ${{ steps.bazel-remote-cache.outputs.bucket }}
+          CACHE_CREDENTIALS_FILE: ${{ steps.bazel-cache-writer-auth.outputs.credentials_file_path }}
+          CACHE_ROLE: ${{ steps.bazel-remote-cache.outputs.role }}
+          CI_PROJECT_ID: ${{ vars.CI_PROJECT_ID }}
+          SA_BAZEL_CACHE_WRITER: ${{ vars.SA_BAZEL_CACHE_WRITER }}
+          WIF_PROVIDER_BAZEL_CACHE: ${{ vars.WIF_PROVIDER_BAZEL_CACHE }}
+        run: |
+          set -euo pipefail
+          python3 -B ci/common/bazel_remote_cache.py start \
+            --binary "${CACHE_BINARY}" \
+            --workspace "${GITHUB_WORKSPACE}" \
+            --bazelrc "${GITHUB_WORKSPACE}/user.bazelrc" \
+            --runtime-dir "${RUNNER_TEMP}/mindclade-bazel-remote-cache" \
+            --github-env "${GITHUB_ENV}" \
+            --bucket "${CACHE_BUCKET}" \
+            --role "${CACHE_ROLE}" \
+            --project-id "${CI_PROJECT_ID}" \
+            --provider "${WIF_PROVIDER_BAZEL_CACHE}" \
+            --service-account "${SA_BAZEL_CACHE_WRITER}" \
+            --credentials-file "${CACHE_CREDENTIALS_FILE}"
+
       - name: Validate complete loading, formatting, and layer policy
+        if: matrix.worker == -2 || matrix.worker == 0
         run: |
           nix develop .#ci-bazel --command buildifier --mode=check -r .
           nix develop .#ci-bazel --command tools/dev/bazelw query \
             '//...' --config=ci --output=label > /dev/null
-          nix develop .#ci-bazel --command python3 tools/analysis/check_bazel_layers.py
+          nix develop .#ci-bazel --command python3 -B tools/analysis/check_bazel_layers.py
 
       - name: Validate and resolve the registered C/C++ toolchain
+        if: matrix.worker == -2 || matrix.worker == 0
         run: |
-          nix develop .#ci-bazel --command python3 tools/analysis/validate_cc_toolchain_bundle.py
+          nix develop .#ci-bazel --command python3 -B tools/analysis/validate_cc_toolchain_bundle.py
           nix develop .#ci-bazel --command tools/dev/bazelw test \
             //tools/build/bazel/toolchains/cc:smoke_test --config=ci
-          nix develop .#ci-bazel --command python3 tools/analysis/verify_cc_toolchain_selection.py
+          nix develop .#ci-bazel --command python3 -B tools/analysis/verify_cc_toolchain_selection.py
 
-      - name: Analyze and test the complete configured graph
+      # Keep the exact nightly checkout proof independent of ignored caches produced by trusted
+      # setup and analysis steps. The exclusions are the only generated workspace paths accepted
+      # by the selector's fail-closed integrity contract.
+      - name: Remove ignored checkout byproducts
+        env:
+          WORKSPACE_NAME: ${{ github.event.repository.name }}
+        run: |
+          set -euo pipefail
+          git clean -ffdX \
+            -e '!user.bazelrc' \
+            -e '!bazel-bin' \
+            -e '!bazel-out' \
+            -e '!bazel-testlogs' \
+            -e "!bazel-${WORKSPACE_NAME}"
+
+      - name: Analyze and test the selected repository-graph workload
         env:
           BASH_ENV: ""
-        run: >-
-          /nix/var/nix/profiles/default/bin/nix develop .#ci-bazel
-          --command python3 -I ci/nightly/pipeline.py
-          --event "${GITHUB_EVENT_NAME}"
-          --ref "${GITHUB_REF}"
-          --head "${GITHUB_SHA}"
-          --evidence-dir "${RUNNER_TEMP}/bazel-evidence"
-          --job-started-at-file "${RUNNER_TEMP}/bazel-job-started"
-          --runner-temp "${RUNNER_TEMP}"
+          BAZEL_CACHE_MODE: ${{ steps.bazel-remote-cache.outputs.enabled == 'true' && 'remote' || 'disk' }}
+          BAZEL_CACHE_ROLE: ${{ steps.bazel-remote-cache.outputs.enabled == 'true' && steps.bazel-remote-cache.outputs.role || steps.bazel-cache-trust.outputs.role }}
+          REMOTE_CACHE_ENABLED: ${{ steps.bazel-remote-cache.outputs.enabled }}
+          SHARD_COUNT: ${{ needs.bazel-nightly-plan.outputs.shard_count }}
+          WORKER: ${{ matrix.worker }}
+        run: |
+          set -euo pipefail
+          shard_args=()
+          if [[ "${WORKER}" == "-2" ]]; then
+            if [[ "${REMOTE_CACHE_ENABLED}" != "false" ]]; then
+              echo "BAZEL_MATRIX_FALLBACK_ROUTE_MISMATCH: nightly fallback route is invalid" >&2
+              exit 2
+            fi
+          elif [[ "${WORKER}" =~ ^[0-9]+$ ]]; then
+            if [[ "${REMOTE_CACHE_ENABLED}" != "true" || \
+                  "${WORKER}" -ge "${SHARD_COUNT}" ]]; then
+              echo "BAZEL_MATRIX_SHARD_ROUTE_MISMATCH: nightly shard route is invalid" >&2
+              exit 2
+            fi
+            shard_args=(--shard-index "${WORKER}" --shard-count "${SHARD_COUNT}")
+          else
+            echo "BAZEL_MATRIX_UNKNOWN_WORKER: worker index is outside the reviewed topology" >&2
+            exit 2
+          fi
+          /nix/var/nix/profiles/default/bin/nix develop .#ci-bazel \
+            --command python3 -B -I ci/nightly/pipeline.py \
+            "${shard_args[@]}" \
+            --event "${GITHUB_EVENT_NAME}" \
+            --ref "${GITHUB_REF}" \
+            --head "${GITHUB_SHA}" \
+            --evidence-dir "${RUNNER_TEMP}/bazel-evidence" \
+            --job-started-at-file "${RUNNER_TEMP}/bazel-job-started" \
+            --runner-temp "${RUNNER_TEMP}" \
+            --cache-mode "${BAZEL_CACHE_MODE}" \
+            --cache-role "${BAZEL_CACHE_ROLE}"
+
+      - name: Redact completed nightly Bazel worker selection
+        if: always()
+        env:
+          SHARD_COUNT: ${{ needs.bazel-nightly-plan.outputs.shard_count }}
+          TOPOLOGY_MODE: ${{ needs.bazel-nightly-plan.outputs.topology_mode }}
+          WORKER: ${{ matrix.worker }}
+        run: |
+          set -euo pipefail
+          /nix/var/nix/profiles/default/bin/nix develop .#ci-bazel \
+            --command python3 -B -I ci/common/bazel_verdict.py redact-selection \
+            --source "${RUNNER_TEMP}/bazel-evidence/selection.json" \
+            --output "${RUNNER_TEMP}/bazel-worker-selection/worker-selection.json" \
+            --runner-temp "${RUNNER_TEMP}" \
+            --worker "${WORKER}" \
+            --topology-mode "${TOPOLOGY_MODE}" \
+            --event "${GITHUB_EVENT_NAME}" \
+            --head-sha "${GITHUB_SHA}" \
+            --shard-count "${SHARD_COUNT}"
 
       - name: Qualify the rolling affected-presubmit latency SLO
+        if: matrix.worker == -2 || matrix.worker == 0
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -150,7 +356,7 @@ jobs:
             gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" \
               --jq '.artifacts[] | select(.expired == false) | select(.name | startswith("bazel-metrics-")) | [.id, .workflow_run.id] | @tsv'
           )
-          python3 ci/nightly/qualify_latency.py \
+          python3 -B ci/nightly/qualify_latency.py \
             --metrics-root "${metrics}" \
             --json-output "${RUNNER_TEMP}/bazel-evidence/latency-slo.json" \
             --markdown-output "${RUNNER_TEMP}/bazel-evidence/latency-slo.md"
@@ -158,11 +364,11 @@ jobs:
 
       - name: Measure bounded nightly Bazel persistent action cache
         id: bazel-cache-size
-        if: always()
+        if: always() && steps.bazel-remote-cache.outputs.enabled != 'true'
         continue-on-error: true
         run: |
           set -euo pipefail
-          nix develop .#ci-bazel --command python3 ci/common/bazel_disk_cache.py measure \
+          nix develop .#ci-bazel --command python3 -B ci/common/bazel_disk_cache.py measure \
             --cache-dir "${RUNNER_TEMP}/mindclade-bazel-disk-cache" \
             --workspace "${GITHUB_WORKSPACE}" \
             --bazel-wrapper "${GITHUB_WORKSPACE}/tools/dev/bazelw" \
@@ -173,6 +379,7 @@ jobs:
         id: bazel-cache-save
         if: >-
           success() &&
+          steps.bazel-remote-cache.outputs.enabled != 'true' &&
           github.ref == 'refs/heads/main' &&
           github.ref_protected == true &&
           (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
@@ -186,7 +393,7 @@ jobs:
           key: ${{ steps.bazel-cache-trust.outputs.primary-key }}
 
       - name: Record nightly Bazel persistent action cache metrics
-        if: always()
+        if: always() && steps.bazel-remote-cache.outputs.enabled != 'true'
         env:
           CACHE_ROLE: ${{ steps.bazel-cache-trust.outputs.role }}
           CACHE_REVISION: ${{ steps.bazel-cache-trust.outputs.revision }}
@@ -201,7 +408,7 @@ jobs:
           CACHE_SAVE_OUTCOME: ${{ steps.bazel-cache-save.outcome }}
         run: |
           set -euo pipefail
-          python3 ci/common/bazel_disk_cache.py record-metrics \
+          python3 -B ci/common/bazel_disk_cache.py record-metrics \
             --evidence-dir "${RUNNER_TEMP}/bazel-evidence" \
             --summary "${GITHUB_STEP_SUMMARY}" \
             --role "${CACHE_ROLE}" \
@@ -216,11 +423,79 @@ jobs:
             --restore-outcome "${CACHE_RESTORE_OUTCOME}" \
             --measure-outcome "${CACHE_MEASURE_OUTCOME}"
 
+      - name: Record nightly Bazel GCS remote-cache metrics and stop gateway
+        if: >-
+          always() &&
+          steps.bazel-remote-cache.outputs.enabled == 'true' &&
+          steps.bazel-remote-cache-start.outcome == 'success'
+        env:
+          CACHE_ROLE: ${{ steps.bazel-remote-cache.outputs.role }}
+        run: |
+          set -euo pipefail
+          python3 -B ci/common/bazel_remote_cache.py record-stop \
+            --runtime-dir "${RUNNER_TEMP}/mindclade-bazel-remote-cache" \
+            --evidence-dir "${RUNNER_TEMP}/bazel-evidence" \
+            --summary "${GITHUB_STEP_SUMMARY}" \
+            --role "${CACHE_ROLE}"
+
       - name: Upload nightly Bazel evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
-          name: bazel-nightly-${{ github.run_id }}-${{ github.run_attempt }}
+          name: bazel-nightly-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.worker }}
           path: ${{ runner.temp }}/bazel-evidence/*
           if-no-files-found: warn
           retention-days: 35
+
+      - name: Upload redacted nightly Bazel worker selection
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: bazel-selection-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.worker }}
+          path: ${{ runner.temp }}/bazel-worker-selection/worker-selection.json
+          if-no-files-found: error
+          retention-days: 7
+
+  bazel-nightly:
+    name: nightly Bazel / verdict
+    needs: [bazel-nightly-plan, bazel-nightly-workers]
+    if: always() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
+        with:
+          python-version: "3.14.7"
+
+      - name: Download redacted nightly Bazel worker selections
+        id: worker-selections
+        continue-on-error: true
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0  # v5.0.0
+        with:
+          pattern: bazel-selection-${{ github.run_id }}-${{ github.run_attempt }}-*
+          path: ${{ runner.temp }}/bazel-worker-selections
+
+      - name: Aggregate the complete nightly Bazel verdict
+        env:
+          EXPECTED_WORKERS: ${{ needs.bazel-nightly-plan.outputs.workers }}
+          PLAN_RESULT: ${{ needs.bazel-nightly-plan.result }}
+          SHARD_COUNT: ${{ needs.bazel-nightly-plan.outputs.shard_count }}
+          TOPOLOGY_MODE: ${{ needs.bazel-nightly-plan.outputs.topology_mode }}
+          WORKERS_RESULT: ${{ needs.bazel-nightly-workers.result }}
+        run: |
+          set -euo pipefail
+          python3 -B ci/common/bazel_verdict.py verify \
+            --lane nightly \
+            --event "${GITHUB_EVENT_NAME}" \
+            --head-sha "${GITHUB_SHA}" \
+            --plan-result "${PLAN_RESULT}" \
+            --workers-result "${WORKERS_RESULT}" \
+            --topology-mode "${TOPOLOGY_MODE}" \
+            --expected-workers "${EXPECTED_WORKERS}" \
+            --shard-count "${SHARD_COUNT}" \
+            --selection-root "${RUNNER_TEMP}/bazel-worker-selections" \
+            --artifact-prefix "bazel-selection-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-"

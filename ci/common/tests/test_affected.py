@@ -161,7 +161,7 @@ def test_global_input_contract_rejects_removed_review_boundary(
 
 @pytest.mark.parametrize(
     "boundary,entry",
-    [("", "services"), ("tools", "analysis")],
+    [("", "CLAUDE.md"), ("", "services"), ("tools", "analysis")],
 )
 def test_global_input_contract_rejects_removed_review_boundary_anchor(
     tmp_path: Path, boundary: str, entry: str
@@ -279,7 +279,7 @@ def test_affected_selection_uses_bazel_rdeps_and_tests(tmp_path: Path) -> None:
     )
     assert len(expressions) == 2
     assert all('rdeps(//..., set("//pkg:*"))' in expression for expression in expressions)
-    assert all('attr("tags", "[\\\\[ ]manual[,\\\\]]"' in expression for expression in expressions)
+    assert all('attr("tags", "manual"' in expression for expression in expressions)
 
 
 def test_build_file_change_seeds_owning_package(tmp_path: Path) -> None:
@@ -351,21 +351,28 @@ def test_git_changed_is_rename_aware_and_validates_base(
     ) -> subprocess.CompletedProcess[bytes]:
         assert root == tmp_path
         command = tuple(args)
-        if command == ("rev-parse", "--verify", "base^{commit}"):
+        if command == ("rev-parse", "--verify", "--end-of-options", "base^{commit}"):
             return subprocess.CompletedProcess(args, 0, f"{base}\n".encode(), b"")
-        if command == ("rev-parse", "--verify", "HEAD^{commit}"):
+        if command == ("rev-parse", "--verify", "--end-of-options", "HEAD^{commit}"):
             return subprocess.CompletedProcess(args, 0, f"{head}\n".encode(), b"")
         if command == ("merge-base", "--is-ancestor", base, head):
             return subprocess.CompletedProcess(args, 0, b"", b"")
         if command == (
             "diff",
+            "--no-ext-diff",
+            "--no-textconv",
             "--name-status",
             "-z",
             "--find-renames",
             f"{base}...{head}",
         ):
             return subprocess.CompletedProcess(args, 0, b"R100\0original.txt\0renamed.txt\0", b"")
-        if command == ("rev-parse", "--verify", "does-not-exist^{commit}"):
+        if command == (
+            "rev-parse",
+            "--verify",
+            "--end-of-options",
+            "does-not-exist^{commit}",
+        ):
             return subprocess.CompletedProcess(args, 128, b"", b"unknown revision")
         raise AssertionError(f"unexpected git command: {command}")
 
@@ -408,10 +415,6 @@ def test_evidence_phases_do_not_inherit_bazelisk_token(
     evidence.mkdir()
     commands: list[list[str]] = []
     environments: list[dict[str, str]] = []
-    runtime_contract = affected.BazelRuntimeContract(
-        disk_cache=tmp_path / "runner-cache",
-        remote_upload_local_results=False,
-    )
 
     def fake_run(command, **kwargs):
         if command[0] == str(root / "tools/dev/bazelw"):
@@ -427,7 +430,6 @@ def test_evidence_phases_do_not_inherit_bazelisk_token(
             phase,
             ("//pkg:library",),
             evidence_dir=evidence,
-            runtime_contract=runtime_contract,
             root=root,
         )
         assert result["status"] == "passed"
@@ -436,12 +438,17 @@ def test_evidence_phases_do_not_inherit_bazelisk_token(
     assert all("BAZELISK_GITHUB_TOKEN" not in environment for environment in environments)
     assert [command[2] for command in commands] == ["build", "test"]
     assert all(command[1] == "--nohome_rc" for command in commands)
+    for command in commands:
+        config_index = command.index("--config=ci")
+        assert command[config_index + 1] == "--skip_incompatible_explicit_targets"
+        assert command[config_index + 2].startswith("--target_pattern_file=")
     assert all(
-        command[command.index("--config=ci") + 1 : command.index("--config=ci") + 3]
-        == [
-            f"--disk_cache={runtime_contract.disk_cache}",
-            "--remote_upload_local_results=false",
-        ]
+        not any(
+            argument.startswith(
+                ("--disk_cache=", "--remote_cache=", "--remote_upload_local_results=")
+            )
+            for argument in command
+        )
         for command in commands
     )
     assert all(
@@ -458,7 +465,7 @@ def test_unsafe_changed_path_is_rejected(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     "event,ref,base,expected",
     [
-        ("pull_request", "refs/pull/1/merge", "0" * 40, "affected"),
+        ("pull_request", "refs/pull/1/merge", "0" * 40, "full"),
         ("merge_group", "refs/heads/gh-readonly-queue/main/pr-1", None, "full"),
         ("push", "refs/heads/main", None, "full"),
         ("schedule", "refs/heads/main", None, "full"),
@@ -474,7 +481,7 @@ def test_protected_events_have_one_selection_mode(
 @pytest.mark.parametrize(
     "event,ref,base,alternate",
     [
-        ("pull_request", "refs/pull/1/merge", "0" * 40, "full"),
+        ("pull_request", "refs/pull/1/merge", "0" * 40, "affected"),
         ("merge_group", "refs/heads/gh-readonly-queue/main/pr-1", None, "affected"),
         ("push", "refs/heads/main", None, "affected"),
         ("schedule", "refs/heads/main", None, "affected"),
@@ -486,6 +493,28 @@ def test_protected_events_reject_alternate_selection_modes(
 ) -> None:
     with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-010\]"):
         affected.resolve_selection_mode(alternate, event=event, ref=ref, base_sha=base)
+
+
+def test_pull_request_affected_mode_requires_explicit_activation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(affected, "GRAPH_NATIVE_AFFECTED_ACTIVE", True)
+    assert (
+        affected.resolve_selection_mode(
+            "auto",
+            event="pull_request",
+            ref="refs/pull/1/merge",
+            base_sha="0" * 40,
+        )
+        == "affected"
+    )
+    with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-010\]"):
+        affected.resolve_selection_mode(
+            "full",
+            event="pull_request",
+            ref="refs/pull/1/merge",
+            base_sha="0" * 40,
+        )
 
 
 def test_protected_event_rejects_wrong_ref_and_local_affected_requires_base() -> None:
@@ -530,8 +559,16 @@ def test_checkout_integrity_rejects_dirty_or_wrong_head(
         return subprocess.CompletedProcess(args, 0, b" M secret.py\0", b"")
 
     monkeypatch.setattr(affected, "run_git", fake_run_git)
+    monkeypatch.setattr(affected, "assert_bazelrc_contract", lambda *args, **kwargs: None)
     with pytest.raises(affected.SelectionError) as captured:
-        affected.assert_clean_checkout("expected", root=tmp_path)
+        affected.assert_clean_checkout(
+            "expected",
+            event="pull_request",
+            runner_temp=tmp_path,
+            cache_mode="disk",
+            cache_role="reader",
+            root=tmp_path,
+        )
     assert captured.value.code == "AFFECTED-SELECT-019"
     assert "secret" not in str(captured.value)
 
@@ -546,29 +583,60 @@ def _initialized_git_repo(path: Path) -> tuple[Path, str]:
         result = affected.run_git(command, root=path)
         assert result.returncode == 0
     (path / "tracked.txt").write_text("trusted\n", encoding="utf-8")
-    assert affected.run_git(["add", "tracked.txt"], root=path).returncode == 0
+    (path / ".bazelrc").write_text("try-import %workspace%/user.bazelrc\n", encoding="utf-8")
+    (path / ".gitignore").write_text(
+        "user.bazelrc\nbazel-*\n*.auto.tfvars\n.venv/\n", encoding="utf-8"
+    )
+    assert (
+        affected.run_git(["add", "tracked.txt", ".bazelrc", ".gitignore"], root=path).returncode
+        == 0
+    )
     assert affected.run_git(["commit", "-m", "fixture"], root=path).returncode == 0
     return path, affected.git_revision("HEAD", root=path)
 
 
+def _disk_checkout_arguments(root: Path, *, event: str = "pull_request") -> dict[str, object]:
+    runner_temp = root.parent / f"{root.name}-runner-temp"
+    runner_temp.mkdir(exist_ok=True)
+    cache = runner_temp / "mindclade-bazel-disk-cache"
+    cache.mkdir(exist_ok=True)
+    role = affected.CACHE_ROLE_BY_ROUTE[("disk", event)]
+    lines = (
+        affected.BAZELRC_HEADER,
+        f"build --disk_cache={cache}",
+        f"build --remote_upload_local_results={'true' if role == 'writer' else 'false'}",
+        *affected.DISK_BAZELRC_FIXED_LINES,
+    )
+    (root / "user.bazelrc").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (root / "user.bazelrc").chmod(0o600)
+    return {
+        "event": event,
+        "runner_temp": runner_temp,
+        "cache_mode": "disk",
+        "cache_role": role,
+        "root": root,
+    }
+
+
 def test_checkout_integrity_compares_head_index_and_worktree(tmp_path: Path) -> None:
     root, head = _initialized_git_repo(tmp_path / "repo")
-    affected.assert_clean_checkout(head, root=root)
+    arguments = _disk_checkout_arguments(root)
+    affected.assert_clean_checkout(head, **arguments)
 
     (root / "tracked.txt").write_text("worktree drift\n", encoding="utf-8")
     with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-019\]"):
-        affected.assert_clean_checkout(head, root=root)
+        affected.assert_clean_checkout(head, **arguments)
 
     assert affected.run_git(["checkout", "--", "tracked.txt"], root=root).returncode == 0
     (root / "tracked.txt").write_text("index drift\n", encoding="utf-8")
     assert affected.run_git(["add", "tracked.txt"], root=root).returncode == 0
     with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-019\]"):
-        affected.assert_clean_checkout(head, root=root)
+        affected.assert_clean_checkout(head, **arguments)
 
     assert affected.run_git(["reset", "--hard", "HEAD"], root=root).returncode == 0
     (root / "untracked.txt").write_text("untracked\n", encoding="utf-8")
     with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-019\]"):
-        affected.assert_clean_checkout(head, root=root)
+        affected.assert_clean_checkout(head, **arguments)
 
 
 @pytest.mark.parametrize("metadata_kind", ["gitfile", "symlink"])
@@ -576,6 +644,7 @@ def test_checkout_integrity_rejects_redirected_git_metadata(
     tmp_path: Path, metadata_kind: str
 ) -> None:
     root, head = _initialized_git_repo(tmp_path / "repo")
+    arguments = _disk_checkout_arguments(root)
     metadata = root / ".git"
     external = tmp_path / "external-git"
     metadata.rename(external)
@@ -584,29 +653,101 @@ def test_checkout_integrity_rejects_redirected_git_metadata(
     else:
         metadata.symlink_to(external, target_is_directory=True)
     with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-019\]"):
-        affected.assert_clean_checkout(head, root=root)
+        affected.assert_clean_checkout(head, **arguments)
 
 
 def test_checkout_integrity_rejects_symlinked_worktree_root(tmp_path: Path) -> None:
     root, head = _initialized_git_repo(tmp_path / "repo")
+    arguments = _disk_checkout_arguments(root)
     alias = tmp_path / "repo-alias"
     alias.symlink_to(root, target_is_directory=True)
     with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-019\]"):
-        affected.assert_clean_checkout(head, root=alias)
+        affected.assert_clean_checkout(head, **{**arguments, "root": alias})
+
+
+def _create_canonical_bazel_symlinks(root: Path, output_root: Path) -> None:
+    execroot = output_root / "_bazel_ci" / ("a" * 32) / "execroot" / "_main"
+    configuration = execroot / "bazel-out" / "linux-fastbuild"
+    (configuration / "bin").mkdir(parents=True)
+    (configuration / "testlogs").mkdir()
+    for name, target in {
+        f"bazel-{root.name}": execroot,
+        "bazel-out": execroot / "bazel-out",
+        "bazel-bin": configuration / "bin",
+        "bazel-testlogs": configuration / "testlogs",
+    }.items():
+        (root / name).symlink_to(target)
+
+
+def test_checkout_integrity_allows_only_canonical_generated_bazel_state(
+    tmp_path: Path,
+) -> None:
+    root, head = _initialized_git_repo(tmp_path / "repo")
+    arguments = _disk_checkout_arguments(root)
+    _create_canonical_bazel_symlinks(root, tmp_path / "output")
+    affected.assert_clean_checkout(head, **arguments)
+
+
+@pytest.mark.parametrize(
+    "relative",
+    ["secret.auto.tfvars", ".venv/secret.py", ".ignored/secret.txt"],
+)
+def test_checkout_integrity_rejects_every_other_ignored_file(tmp_path: Path, relative: str) -> None:
+    root, head = _initialized_git_repo(tmp_path / "repo")
+    if relative.startswith(".ignored/"):
+        with (root / ".gitignore").open("a", encoding="utf-8") as stream:
+            stream.write(".ignored/\n")
+        assert affected.run_git(["add", ".gitignore"], root=root).returncode == 0
+        assert affected.run_git(["commit", "-m", "ignore fixture"], root=root).returncode == 0
+        head = affected.git_revision("HEAD", root=root)
+    candidate = root / relative
+    candidate.parent.mkdir(parents=True, exist_ok=True)
+    candidate.write_text("secret\n", encoding="utf-8")
+    with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-019\]"):
+        affected.assert_clean_checkout(head, **_disk_checkout_arguments(root))
+
+
+@pytest.mark.parametrize("relative", ["empty-untracked", ".venv"])
+def test_checkout_integrity_rejects_empty_untracked_directory(
+    tmp_path: Path, relative: str
+) -> None:
+    root, head = _initialized_git_repo(tmp_path / "repo")
+    (root / relative).mkdir()
+    with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-019\]"):
+        affected.assert_clean_checkout(head, **_disk_checkout_arguments(root))
+
+
+def test_checkout_integrity_rejects_tracked_user_bazelrc(tmp_path: Path) -> None:
+    root, _head = _initialized_git_repo(tmp_path / "repo")
+    arguments = _disk_checkout_arguments(root)
+    assert affected.run_git(["add", "--force", "user.bazelrc"], root=root).returncode == 0
+    assert affected.run_git(["commit", "-m", "track generated rc"], root=root).returncode == 0
+    head = affected.git_revision("HEAD", root=root)
+    with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-019\]"):
+        affected.assert_clean_checkout(head, **arguments)
+
+
+def test_checkout_integrity_rejects_unsafe_bazel_output_symlink(tmp_path: Path) -> None:
+    root, head = _initialized_git_repo(tmp_path / "repo")
+    (root / "bazel-out").symlink_to(tmp_path)
+    with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-019\]"):
+        affected.assert_clean_checkout(head, **_disk_checkout_arguments(root))
 
 
 @pytest.mark.parametrize("flag", ["--assume-unchanged", "--skip-worktree"])
 def test_checkout_integrity_rejects_hidden_index_flags(tmp_path: Path, flag: str) -> None:
     root, head = _initialized_git_repo(tmp_path / "repo")
+    arguments = _disk_checkout_arguments(root)
     assert affected.run_git(["update-index", flag, "tracked.txt"], root=root).returncode == 0
     with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-019\]"):
-        affected.assert_clean_checkout(head, root=root)
+        affected.assert_clean_checkout(head, **arguments)
 
 
 def test_git_metadata_ignores_inherited_repository_overrides(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     root, head = _initialized_git_repo(tmp_path / "repo")
+    arguments = _disk_checkout_arguments(root)
     for name, value in {
         "GIT_CONFIG_COUNT": "1",
         "GIT_CONFIG_KEY_0": "core.bare",
@@ -616,7 +757,116 @@ def test_git_metadata_ignores_inherited_repository_overrides(
         "GIT_WORK_TREE": str(tmp_path / "spoofed-worktree"),
     }.items():
         monkeypatch.setenv(name, value)
-    affected.assert_clean_checkout(head, root=root)
+    affected.assert_clean_checkout(head, **arguments)
+
+
+def test_git_metadata_binds_the_validated_worktree(
+    tmp_path: Path,
+) -> None:
+    root, head = _initialized_git_repo(tmp_path / "repo")
+    arguments = _disk_checkout_arguments(root)
+    decoy = tmp_path / "decoy"
+    shutil.copytree(root, decoy, ignore=shutil.ignore_patterns(".git"))
+    assert affected.run_git(["config", "core.worktree", str(decoy)], root=root).returncode == 0
+
+    (root / "tracked.txt").write_text("untrusted worktree drift\n", encoding="utf-8")
+    with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-019\]"):
+        affected.assert_clean_checkout(head, **arguments)
+
+
+def test_git_context_supports_a_valid_linked_worktree(tmp_path: Path) -> None:
+    root, head = _initialized_git_repo(tmp_path / "repo")
+    linked = tmp_path / "linked"
+    assert (
+        affected.run_git(
+            ["worktree", "add", "-b", "linked-fixture", str(linked), head],
+            root=root,
+        ).returncode
+        == 0
+    )
+    workspace, git_dir = affected._canonical_git_context(linked)
+    assert workspace == linked
+    assert git_dir.is_dir()
+    assert affected.git_revision("HEAD", root=linked) == head
+
+
+def test_governed_checkout_rejects_an_otherwise_valid_linked_worktree(tmp_path: Path) -> None:
+    root, head = _initialized_git_repo(tmp_path / "repo")
+    linked = tmp_path / "linked"
+    assert (
+        affected.run_git(
+            ["worktree", "add", "-b", "linked-fixture", str(linked), head],
+            root=root,
+        ).returncode
+        == 0
+    )
+    arguments = _disk_checkout_arguments(linked)
+
+    with pytest.raises(affected.SelectionError) as captured:
+        affected.assert_clean_checkout(head, **arguments)
+    assert captured.value.code == "AFFECTED-SELECT-019"
+    assert str(linked) not in str(captured.value)
+
+
+def test_git_context_rejects_symlinked_linked_worktree_registry(tmp_path: Path) -> None:
+    root, head = _initialized_git_repo(tmp_path / "repo")
+    linked = tmp_path / "linked"
+    assert (
+        affected.run_git(
+            ["worktree", "add", "-b", "linked-fixture", str(linked), head],
+            root=root,
+        ).returncode
+        == 0
+    )
+    dot_git = linked / ".git"
+    git_dir = Path(dot_git.read_text(encoding="utf-8").strip().removeprefix("gitdir: "))
+    alias = tmp_path / "gitdir-alias"
+    alias.symlink_to(git_dir, target_is_directory=True)
+    dot_git.write_text(f"gitdir: {alias}\n", encoding="utf-8")
+
+    with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-003\]"):
+        affected._canonical_git_context(linked)
+
+
+def test_git_context_rejects_forged_reciprocal_metadata_pair(tmp_path: Path) -> None:
+    root, _head = _initialized_git_repo(tmp_path / "repo")
+    common_dir = tmp_path / "forged" / ".git"
+    git_dir = common_dir / "registrations" / "linked"
+    git_dir.mkdir(parents=True)
+    dot_git = root / ".git"
+    shutil.rmtree(dot_git)
+    dot_git.write_text(f"gitdir: {git_dir}\n", encoding="utf-8")
+    (git_dir / "gitdir").write_text(f"{dot_git}\n", encoding="utf-8")
+    (git_dir / "commondir").write_text("../..\n", encoding="utf-8")
+
+    with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-003\]"):
+        affected._canonical_git_context(root)
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        b"",
+        b"a" * 40,
+        b"A" * 40 + b"\n",
+        b"g" * 40 + b"\n",
+        b"a" * 39 + b"\n",
+        b"a" * 41 + b"\n",
+        b"a" * 40 + b"\n" + b"b" * 40 + b"\n",
+    ],
+)
+def test_git_revision_rejects_noncanonical_output(
+    payload: bytes, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        affected,
+        "run_git",
+        lambda *args, **kwargs: subprocess.CompletedProcess(args, 0, payload, b"secret-stderr"),
+    )
+    with pytest.raises(affected.SelectionError) as captured:
+        affected.git_revision("HEAD")
+    assert captured.value.code == "AFFECTED-SELECT-003"
+    assert "secret" not in str(captured.value)
 
 
 @pytest.mark.parametrize("value", [None, "git", "/tmp/missing-mindclade-git"])
@@ -649,36 +899,55 @@ def test_trusted_git_launcher_rejects_mutable_binary(
 
 
 @pytest.mark.parametrize(
-    "event,upload",
+    "cache_mode,event,role",
     [
-        ("pull_request", "false"),
-        ("merge_group", "false"),
-        ("push", "true"),
-        ("schedule", "true"),
-        ("workflow_dispatch", "true"),
+        ("disk", "pull_request", "reader"),
+        ("disk", "merge_group", "reader"),
+        ("disk", "push", "writer"),
+        ("disk", "schedule", "writer"),
+        ("disk", "workflow_dispatch", "writer"),
+        ("remote", "pull_request", "reader"),
+        ("remote", "merge_group", "writer"),
+        ("remote", "push", "writer"),
+        ("remote", "schedule", "writer"),
     ],
 )
-def test_bazelrc_runtime_contract_is_exact(tmp_path: Path, event: str, upload: str) -> None:
+def test_bazelrc_runtime_contract_is_exact(
+    tmp_path: Path, cache_mode: str, event: str, role: str
+) -> None:
     root = _workspace(tmp_path / "repo")
+    (root / ".bazelrc").write_text(
+        "build:ci --keep_going\ntry-import %workspace%/user.bazelrc\n",
+        encoding="utf-8",
+    )
     runner_temp = tmp_path / "runner-temp"
     runner_temp.mkdir()
     cache = runner_temp / "mindclade-bazel-disk-cache"
     cache.mkdir()
+    cache_line = (
+        f"build --disk_cache={cache}"
+        if cache_mode == "disk"
+        else f"build --remote_cache={affected.REMOTE_CACHE_ENDPOINT}"
+    )
+    fixed_lines = (
+        affected.DISK_BAZELRC_FIXED_LINES
+        if cache_mode == "disk"
+        else affected.REMOTE_BAZELRC_FIXED_LINES
+    )
     lines = (
-        affected.BAZELRC_FIXED_LINES[0],
-        f"build --disk_cache={cache}",
-        f"build --remote_upload_local_results={upload}",
-        *affected.BAZELRC_FIXED_LINES[1:],
+        affected.BAZELRC_HEADER,
+        cache_line,
+        f"build --remote_upload_local_results={'true' if role == 'writer' else 'false'}",
+        *fixed_lines,
     )
     (root / "user.bazelrc").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    runtime_contract = affected.assert_bazelrc_contract(event, runner_temp, root=root)
-    assert runtime_contract == affected.BazelRuntimeContract(
-        disk_cache=cache,
-        remote_upload_local_results=upload == "true",
-    )
-    assert runtime_contract.command_options()[:2] == (
-        f"--disk_cache={cache}",
-        f"--remote_upload_local_results={upload}",
+    (root / "user.bazelrc").chmod(0o600)
+    affected.assert_bazelrc_contract(
+        event,
+        runner_temp,
+        cache_mode=cache_mode,
+        cache_role=role,
+        root=root,
     )
 
     (root / "user.bazelrc").write_text(
@@ -686,16 +955,161 @@ def test_bazelrc_runtime_contract_is_exact(tmp_path: Path, event: str, upload: s
         encoding="utf-8",
     )
     with pytest.raises(affected.SelectionError) as captured:
-        affected.assert_bazelrc_contract(event, runner_temp, root=root)
+        affected.assert_bazelrc_contract(
+            event,
+            runner_temp,
+            cache_mode=cache_mode,
+            cache_role=role,
+            root=root,
+        )
     assert captured.value.code == "AFFECTED-SELECT-020"
     assert "secret-option" not in str(captured.value)
 
-    other_cache = tmp_path / "other-cache"
-    other_cache.mkdir()
-    wrong_lines = (lines[0], f"build --disk_cache={other_cache}", *lines[2:])
+    wrong_lines = (lines[0], "build --remote_cache=http://127.0.0.1:9999", *lines[2:])
     (root / "user.bazelrc").write_text("\n".join(wrong_lines) + "\n", encoding="utf-8")
     with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-020\]"):
-        affected.assert_bazelrc_contract(event, runner_temp, root=root)
+        affected.assert_bazelrc_contract(
+            event,
+            runner_temp,
+            cache_mode=cache_mode,
+            cache_role=role,
+            root=root,
+        )
+
+
+def test_remote_manual_dispatch_is_never_authorized(tmp_path: Path) -> None:
+    root = _workspace(tmp_path / "repo")
+    (root / ".bazelrc").write_text("try-import %workspace%/user.bazelrc\n", encoding="utf-8")
+    runner_temp = tmp_path / "runner-temp"
+    runner_temp.mkdir()
+    lines = (
+        affected.BAZELRC_HEADER,
+        f"build --remote_cache={affected.REMOTE_CACHE_ENDPOINT}",
+        "build --remote_upload_local_results=true",
+        *affected.REMOTE_BAZELRC_FIXED_LINES,
+    )
+    (root / "user.bazelrc").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (root / "user.bazelrc").chmod(0o600)
+    with pytest.raises(affected.SelectionError, match=r"\[AFFECTED-SELECT-020\]"):
+        affected.assert_bazelrc_contract(
+            "workflow_dispatch",
+            runner_temp,
+            cache_mode="remote",
+            cache_role="writer",
+            root=root,
+        )
+
+
+@pytest.mark.parametrize(
+    "workspace_configuration",
+    [
+        "build --remote_cache=https://untrusted.invalid\ntry-import %workspace%/user.bazelrc\n",
+        "build --disk_cache=/tmp/untrusted-cache\ntry-import %workspace%/user.bazelrc\n",
+        "try-import %workspace%/user.bazelrc\nbuild --nobuild\n",
+        "try-import %workspace%/other.bazelrc\ntry-import %workspace%/user.bazelrc\n",
+    ],
+)
+def test_bazelrc_runtime_contract_rejects_tracked_authority_drift(
+    tmp_path: Path, workspace_configuration: str
+) -> None:
+    root = _workspace(tmp_path / "repo")
+    runner_temp = tmp_path / "runner-temp"
+    runner_temp.mkdir()
+    cache = runner_temp / "mindclade-bazel-disk-cache"
+    cache.mkdir()
+    (root / ".bazelrc").write_text(workspace_configuration, encoding="utf-8")
+    lines = (
+        affected.BAZELRC_HEADER,
+        f"build --disk_cache={cache}",
+        "build --remote_upload_local_results=false",
+        *affected.DISK_BAZELRC_FIXED_LINES,
+    )
+    (root / "user.bazelrc").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (root / "user.bazelrc").chmod(0o600)
+
+    with pytest.raises(affected.SelectionError) as captured:
+        affected.assert_bazelrc_contract(
+            "pull_request",
+            runner_temp,
+            cache_mode="disk",
+            cache_role="reader",
+            root=root,
+        )
+    assert captured.value.code == "AFFECTED-SELECT-020"
+    assert "untrusted" not in str(captured.value)
+
+
+@pytest.mark.parametrize("relative", [".bazelrc", "user.bazelrc"])
+def test_bazel_execution_rejects_bazelrc_mutation_after_checkout_validation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    relative: str,
+) -> None:
+    root, head = _initialized_git_repo(tmp_path / "repo")
+    arguments = _disk_checkout_arguments(root)
+    authority = affected.assert_clean_checkout(head, **arguments)
+    evidence = tmp_path / "evidence"
+    evidence.mkdir()
+    candidate = root / relative
+    candidate.write_text(candidate.read_text(encoding="utf-8") + "# mutated\n", encoding="utf-8")
+    if relative == "user.bazelrc":
+        candidate.chmod(0o600)
+    launched = False
+
+    def fake_run(*_args, **_kwargs):
+        nonlocal launched
+        launched = True
+        return subprocess.CompletedProcess([], 0)
+
+    monkeypatch.setattr(affected.subprocess, "run", fake_run)
+    with pytest.raises(affected.SelectionError) as captured:
+        affected._run_phase(
+            "analysis",
+            ("//pkg:library",),
+            evidence_dir=evidence,
+            bazelrc_authority=authority,
+            root=root,
+        )
+    assert captured.value.code == "AFFECTED-SELECT-020"
+    assert not launched
+
+
+@pytest.mark.parametrize("replacement", ["deleted", "symlink"])
+def test_bazel_execution_redacts_bazelrc_replacement_after_validation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    replacement: str,
+) -> None:
+    root, head = _initialized_git_repo(tmp_path / "repo")
+    arguments = _disk_checkout_arguments(root)
+    authority = affected.assert_clean_checkout(head, **arguments)
+    evidence = tmp_path / "evidence"
+    evidence.mkdir()
+    candidate = root / "user.bazelrc"
+    candidate.unlink()
+    if replacement == "symlink":
+        secret = tmp_path / "secret-bazelrc"
+        secret.write_text("secret runtime configuration\n", encoding="utf-8")
+        candidate.symlink_to(secret)
+    launched = False
+
+    def fake_run(*_args, **_kwargs):
+        nonlocal launched
+        launched = True
+        return subprocess.CompletedProcess([], 0)
+
+    monkeypatch.setattr(affected.subprocess, "run", fake_run)
+    with pytest.raises(affected.SelectionError) as captured:
+        affected._run_phase(
+            "analysis",
+            ("//pkg:library",),
+            evidence_dir=evidence,
+            bazelrc_authority=authority,
+            root=root,
+        )
+    assert captured.value.code == "AFFECTED-SELECT-020"
+    assert "secret" not in str(captured.value)
+    assert not launched
 
 
 def test_job_started_epoch_is_exact_positive_integer_seconds(tmp_path: Path) -> None:
@@ -785,17 +1199,8 @@ def test_execution_oserror_is_redacted_and_evidenced(
             OSError("secret-launcher-path secret-stdout secret-stderr")
         ),
     )
-    runtime_contract = affected.BazelRuntimeContract(
-        disk_cache=tmp_path / "cache",
-        remote_upload_local_results=True,
-    )
     with pytest.raises(affected.SelectionError) as captured:
-        affected.execute_selection(
-            selection,
-            evidence,
-            runtime_contract=runtime_contract,
-            root=root,
-        )
+        affected.execute_selection(selection, evidence, root=root)
     assert captured.value.code == "AFFECTED-SELECT-021"
     assert "secret" not in str(captured.value)
 
@@ -813,23 +1218,6 @@ def test_execution_oserror_is_redacted_and_evidenced(
         "message": "Bazel execution failed",
     }
     assert "secret" not in json.dumps(payload)
-
-
-def test_protected_execution_requires_runtime_contract(tmp_path: Path) -> None:
-    selection = affected.Selection(
-        mode="full",
-        reason="explicit_full",
-        changes=(),
-        seeds=("//...",),
-        analysis_targets=("//...",),
-        test_targets=("//...",),
-        base_sha=None,
-        head_sha="1" * 40,
-        event="push",
-    )
-    with pytest.raises(affected.SelectionError) as captured:
-        affected.execute_selection(selection, tmp_path / "evidence", root=tmp_path)
-    assert captured.value.code == "AFFECTED-SELECT-020"
 
 
 def test_bazel_query_unicode_failure_is_redacted(

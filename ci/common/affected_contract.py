@@ -86,6 +86,7 @@ REQUIRED_REVIEW_BOUNDARY_ENTRIES = {
             "AGENTS.md",
             "BUILD.bazel",
             "CHANGELOG.md",
+            "CLAUDE.md",
             "CODE_OF_CONDUCT.md",
             "CONTRIBUTING.md",
             "Cargo.lock",
