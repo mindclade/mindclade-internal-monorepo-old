@@ -1056,6 +1056,7 @@ dependencies = [
 name = "mindclade-artifact-proxy"
 version = "0.0.0"
 dependencies = [
+ "axum",
  "bytes",
  "mindclade_artifact_cas",
  "mindclade_bytes_io",
@@ -1069,6 +1070,7 @@ dependencies = [
  "mindclade_telemetry",
  "mindclade_worker_protocol",
  "tokio",
+ "tower",
 ]
 
 [[package]]
@@ -1086,6 +1088,7 @@ dependencies = [
 name = "mindclade-node-agent"
 version = "0.0.0"
 dependencies = [
+ "axum",
  "bytes",
  "mindclade_artifact_cas",
  "mindclade_bytes_io",
@@ -1104,6 +1107,7 @@ dependencies = [
  "mindclade_worker_protocol",
  "mindclade_worker_runtime",
  "tokio",
+ "tower",
 ]
 
 [[package]]
