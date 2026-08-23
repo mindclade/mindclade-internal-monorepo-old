@@ -29,7 +29,10 @@ go_library(
 
 go_test(
     name = "pagination_test",
-    srcs = ["pagination_test.go"],
+    srcs = [
+        "domain_test.go",
+        "pagination_test.go",
+    ],
     embed = [":pagination"],
     deps = [
         "//libs/go/clock",
