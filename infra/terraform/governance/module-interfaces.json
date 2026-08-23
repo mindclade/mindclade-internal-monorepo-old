@@ -380,15 +380,28 @@
           "type": "string",
           "validation_fingerprints": []
         },
+        "remote_upstream_egress_approved": {
+          "default": false,
+          "ephemeral": false,
+          "nullable": true,
+          "required": false,
+          "sensitive": false,
+          "type": "bool",
+          "validation_fingerprints": []
+        },
         "repositories": {
           "default": null,
           "ephemeral": false,
           "nullable": true,
           "required": true,
           "sensitive": false,
-          "type": "map(object({ format = string description = string docker_config = optional(object({ immutable_tags = optional(bool, true) })) cleanup_policies = optional(map(object({ action = string condition_state = optional(string) older_than = optional(string) most_recent_versions = optional(number) })), {}) }))",
+          "type": "map(object({ format = string description = string mode = optional(string, \"STANDARD_REPOSITORY\") docker_config = optional(object({ immutable_tags = optional(bool, true) })) remote_repository_config = optional(object({ description = optional(string) public_upstream = string upstream_path = optional(string) })) cleanup_policies = optional(map(object({ action = string condition_state = optional(string) older_than = optional(string) most_recent_versions = optional(number) })), {}) }))",
           "validation_fingerprints": [
-            "sha256:d620606fc541f512e1ff232604a1ac9afbc48fd9c73b5fb3b2574c255d448183"
+            "sha256:3375d796d1ddb26e292b4d85947c0b4406296fe98a8874a795c02d300e1f58a5",
+            "sha256:46a55f61959e90614a6b3b1462eb9bf2028a9b8a8573da8fc879d784f1e8e15c",
+            "sha256:94a51cb9e4767f60817ec11319f8bcf0b074b7c143a63a084538c8abe6d45324",
+            "sha256:aad67d4020109544b75c8005b0b25d520053e135abd03bd23982170bcc0e315d",
+            "sha256:f30c1853ceb454ce729d209ef18b4e25d85cb22868b6b8a3064dc8d931d49b5a"
           ]
         }
       },
@@ -398,6 +411,11 @@
       "module_calls": {},
       "moved": [],
       "outputs": {
+        "remote_upstreams": {
+          "ephemeral": false,
+          "sensitive": false,
+          "value_fingerprint": "sha256:0f1bf0acdab57801298641d530fcfa8fc105b60a7099c69c63837a4a3a00dcfb"
+        },
         "repositories": {
           "ephemeral": false,
           "sensitive": false,
