@@ -38,7 +38,9 @@ go_test(
     deps = [
         "//libs/go/config",
         "//libs/go/coordination/workqueue",
+        "//libs/go/coordination/workqueue/memory",
         "//libs/go/faults",
+        "//libs/go/requestmeta",
         "//services/control_plane/internal/bootstrap",
         "//services/control_plane/internal/config",
         "@com_github_lib_pq//:pq",

@@ -25,6 +25,28 @@ go_test(
     ],
 )
 
+# The binding that makes the generated Go bindings load-bearing instead of merely
+# linkable. `generated_go_test` above proves the ten packages compile and register
+# descriptors; it compares them to nothing. This target compares one hand-written
+# production taxonomy — libs/go/faults — against the descriptor protoc built from
+# errors.proto, so a drift between them fails a build rather than a peer.
+#
+# It depends on a `//libs/...` target, which the layer matrix permits: layers.bzl
+# places both `//protocols/...` and `//libs/...` in `foundation`, and
+# foundation -> foundation is an allowed direction. The dependency only runs in
+# this direction; libs/go/faults still imports nothing but the standard library,
+# which is what keeps it at Layer 0 in libs/go/LAYERS.md.
+go_test(
+    name = "faults_conformance_test",
+    srcs = ["faults_conformance_test.go"],
+    deps = [
+        "//libs/go/faults",
+        "//protocols/proto/mindclade/common/v1:common_go_proto",
+        "@org_golang_google_protobuf//proto",
+        "@org_golang_google_protobuf//reflect/protoreflect",
+    ],
+)
+
 # The Python half of the same conformance claim. protoc emits one module per `.proto`
 # rather than one package per proto package, so this target has to name every
 # `py_proto_library` in the repository: the test asserts the generated Python surface is

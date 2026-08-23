@@ -8,6 +8,8 @@
 pub mod batch;
 pub mod delivery;
 pub mod envelope;
+pub mod event_codec;
+pub mod event_sink;
 pub mod journal;
 pub mod spool;
 
@@ -16,6 +18,8 @@ pub mod spool;
 // public type in this crate (Envelope, SpoolConfig, TelemetrySpool) is already named from the
 // root and batch::DeliveryBatch is the odd one out.
 pub use batch::DeliveryBatch;
+pub use event_codec::{EVENT_PAYLOAD_SCHEMA, EVENT_TYPE, decode_event, encode_event};
+pub use event_sink::SpoolSink;
 use mindclade_atomic_fs::{AtomicFileStore, RelativePath};
 use mindclade_bytes_io::ByteSize;
 use mindclade_faults::{Code, Fault, FaultResult};

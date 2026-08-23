@@ -1418,6 +1418,7 @@ dependencies = [
  "mindclade_identifiers",
  "mindclade_record_io",
  "mindclade_runtime_core",
+ "mindclade_telemetry",
 ]
 
 [[package]]
