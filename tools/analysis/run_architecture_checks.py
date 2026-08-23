@@ -31,6 +31,7 @@ import check_dependency_layers
 import check_enforced_decisions
 import check_foundation_consumption
 import check_foundation_hardening
+import check_go_command_composition
 import check_go_layers
 import check_go_modules
 import check_go_test_signal
@@ -107,6 +108,7 @@ CHECKS = [
     ("dependency layers", check_dependency_layers.check),
     ("foundation consumption", check_foundation_consumption.check),
     ("control-plane commands", check_control_plane_commands.check),
+    ("Go command composition", check_go_command_composition.check),
     ("Go layers and paved roads", _go_layers),
     ("Go modules", check_go_modules.check),
     ("Go test signals", check_go_test_signal.check),
