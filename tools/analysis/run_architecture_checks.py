@@ -45,24 +45,24 @@ def _go_layers(root: Path) -> list[str]:
     return [violation.render(root) for violation in check_go_layers.check(root)]
 
 
-_BLUEPRINT_MANIFEST = "docs/blueprint/production-monorepo-paths.txt"
+# Missing paths are measured separately by the materialization ratchet. Every other invariant
+# exported by the checker gates by default, so adding an invariant cannot silently fail open.
+_BLUEPRINT_UNGATED = frozenset({"missing_paths"})
 
-# The three defects the blueprint manifest can carry that are wrong TODAY, whatever fraction of
-# the target state has been built, paired with how to say so.
-_BLUEPRINT_DEFECTS = (
-    ("duplicate_paths", "is listed more than once in the blueprint manifest"),
-    ("unsafe_paths", "is absolute or escapes the repository root"),
-    ("unexpected_empty_paths", "is materialized but unexpectedly empty"),
-)
+_BLUEPRINT_DEFECT_MESSAGES = {
+    "duplicate_paths": "is listed more than once in the blueprint manifest",
+    "noncanonical_paths": "does not use the canonical POSIX repository-relative spelling",
+    "unexpected_empty_paths": "is materialized but unexpectedly empty",
+    "unsafe_paths": "is absolute or escapes the repository root or contains a symbolic link",
+}
 
 
 def _blueprint_scaffold(root: Path) -> list[str]:
     """Adapt the blueprint scaffold checker, which reports a structured result.
 
-    Gates on the three defects above and DELIBERATELY NOT on `missing_paths`, even though the
-    checker's own CLI exits non-zero for those too. The manifest describes the repository's
-    TARGET state, so unmaterialized paths measure progress, not correctness, and a presubmit
-    that is red for work nobody on the pull request can do is one people learn to route around.
+    Gates every invariant the checker reports except `missing_paths`, even though the checker's
+    own CLI exits non-zero for missing paths too. The manifest describes the repository's target
+    state, so unmaterialized paths measure progress rather than immediate correctness.
 
     The count is already gated, as a ratchet, by tests/integration/test_blueprint_scaffold.py
     against its MATERIALIZATION_BASELINE. That constant is not shared with this module, on
@@ -74,17 +74,22 @@ def _blueprint_scaffold(root: Path) -> list[str]:
       * two baselines drift. The first change to lower only one of them leaves the other quietly
         permitting the regression it was written to catch.
 
-    So: one owner per assertion. The ratchet owns the count, this owns the invariants.
+    The subtraction from the checker's exported keys is deliberate: a newly added invariant is
+    gated by default rather than silently omitted from a duplicated allowlist. The ratchet owns
+    the count; this check owns the remaining invariants.
     """
-    manifest = root / _BLUEPRINT_MANIFEST
-    if not manifest.is_file():
-        return [f"blueprint manifest is missing: {_BLUEPRINT_MANIFEST}"]
-    result = check_blueprint_scaffold.check(root, manifest)
-    return [
-        f"{path} {defect}"
-        for key, defect in _BLUEPRINT_DEFECTS
+    relpath = check_blueprint_scaffold.MANIFEST_RELPATH
+    result = check_blueprint_scaffold.check(root, root / relpath)
+    if not check_blueprint_scaffold.has_failures(result, include_missing=False):
+        return []
+    errors = list(cast("list[str]", result["manifest_errors"]))
+    errors.extend(
+        f"{path} {_BLUEPRINT_DEFECT_MESSAGES.get(key, 'violates a blueprint manifest invariant')}"
+        for key in check_blueprint_scaffold.DEFECT_KEYS
+        if key not in _BLUEPRINT_UNGATED
         for path in cast("list[str]", result[key])
-    ]
+    )
+    return errors
 
 
 CHECKS = [
