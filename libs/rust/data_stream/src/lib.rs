@@ -285,7 +285,11 @@ impl Prefetcher {
                             sleeper.as_ref(),
                             None,
                             retry_seed,
-                            |_| store.get(&shard.path, maximum_shard_bytes),
+                            |_| {
+                                store
+                                    .get(&shard.path, maximum_shard_bytes)
+                                    .map_err(|fault| bounded_retry_delay(fault, retry_policy))
+                            },
                         )?;
                         shard.digest.verify(&bytes)?;
                         let actual_size = u64::try_from(bytes.len()).map_err(|_| {
@@ -501,6 +505,7 @@ async fn fetch_shard_async(
                     });
                 }
                 Err(fault) => {
+                    let fault = bounded_retry_delay(fault, retry_policy);
                     if attempt == retry_policy.max_attempts
                         || !fault.retry_hint().is_retryable()
                     {
@@ -526,6 +531,36 @@ async fn fetch_shard_async(
     }
     .await;
     (index, result)
+}
+
+/// Confine a provider-supplied retry hint to the caller's configured backoff
+/// window.
+///
+/// `RetryHint::After` is chosen by whoever produced the fault. For a network
+/// object store that is a remote `Retry-After`, which is untrusted input, and
+/// both retry loops in this crate previously slept for it verbatim: the
+/// `RetryHint::After` arm bypasses `Policy::delay`, which is the only place the
+/// backoff is confined to `[initial_delay, maximum_delay]`. Above the ceiling a
+/// peer decides how long a node stalls while the stalled shard keeps its slot in
+/// the in-order reorder buffer and blocks every later shard behind it, so the
+/// loop is bounded in attempts but not in total duration. Below the floor a peer
+/// gets every remaining attempt back-to-back with no backoff at all, which is
+/// the opposite failure against a provider that is already struggling. Honour
+/// the hint only inside the window the caller configured.
+fn bounded_retry_delay(fault: Fault, policy: Policy) -> Fault {
+    let RetryHint::After(value) = fault.retry_hint() else {
+        return fault;
+    };
+    // `Ord::clamp` panics when its bounds are inverted. `Policy::validate`
+    // forbids that, but this helper must not be the thing that panics if it is
+    // ever reached with an unvalidated policy.
+    let floor = policy.initial_delay.min(policy.maximum_delay);
+    let bounded = value.max(floor).min(policy.maximum_delay);
+    if bounded == value {
+        fault
+    } else {
+        fault.with_retry_hint(RetryHint::After(bounded))
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
