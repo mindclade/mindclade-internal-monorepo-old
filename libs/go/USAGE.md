@@ -235,6 +235,12 @@ List APIs use signed keyset cursors, never unbounded offset scans. Bind the
 cursor to tenant/workspace, resource kind, normalized filter digest, sort order,
 last key, schema version, expiration, and signing key ID.
 
+Sign it under an explicit `signing.Domain`. The control-plane key also signs
+execution tickets, admission grants, route snapshots, revocation snapshots, and
+evidence claims, so without a purpose in the signed bytes a cursor signature is
+valid wherever that key is trusted. `pagination.NewCodec` takes the domain as a
+required parameter for that reason; pass `pagination.CursorDomain`.
+
 Mutable resources carry a monotonically increasing `resourceversion.Version`.
 Map it consistently:
 

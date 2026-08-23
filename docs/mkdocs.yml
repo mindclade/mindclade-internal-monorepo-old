@@ -90,6 +90,8 @@ nav:
       - ADR-0023 Resolved config/dependency budgets: design/adr-0023-resolved-config-and-dependency-budgets.md
       - ADR-0024 Dependency layering over counts: design/adr-0024-dependency-layering-over-counts.md
       - ADR-0025 Training-service composition: design/adr-0025-training-service-composition-layer.md
+      - ADR-0026 Workload identity vs placement: design/adr-0026-workload-envelope-identity-and-placement.md
+      - ADR-0027 Kernel-enforced syscall confinement: design/adr-0027-kernel-enforced-syscall-confinement.md
   - Runbooks:
       - AI gateway provider edge: runbooks/ai-gateway-provider-edge.md
       - Control-plane outage: runbooks/control-plane-outage.md
@@ -120,6 +122,7 @@ nav:
       - Runtime model worker: runbooks/runtime-model-worker.md
       - Runtime serving core: runbooks/runtime-serving-core.md
       - CI Bazel validation: runbooks/ci-bazel-validation.md
+      - ARC self-hosted runners: runbooks/arc-runners.md
       - Developer workstation: runbooks/workstation.md
       - Control artifacts: runbooks/control-artifacts.md
       - Control evidence: runbooks/control-evidence.md

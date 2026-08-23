@@ -14,6 +14,7 @@ go_library(
     srcs = [
         "algorithm.go",
         "doc.go",
+        "domain.go",
         "ed25519.go",
         "errors.go",
         "faults.go",
@@ -32,7 +33,10 @@ go_library(
 
 go_test(
     name = "signing_test",
-    srcs = ["signing_test.go"],
+    srcs = [
+        "domain_test.go",
+        "signing_test.go",
+    ],
     embed = [":signing"],
     deps = ["//libs/go/clock"],
 )
