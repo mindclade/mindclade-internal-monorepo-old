@@ -158,6 +158,33 @@ func (graph Graph) Unblocked(completed string, states map[string]StageState) []s
 	return ready
 }
 
+// CompletionScope returns every stage whose durable state Unblocked reads after
+// one stage completes: the stage itself, its children, and those children's
+// other parents.
+//
+// It exists so a caller can fetch exactly what the decision needs instead of the
+// whole run. The set is bounded by the graph's shape rather than its size, which
+// is what keeps completing one stage of a wide fan-out from costing a full scan.
+func (graph Graph) CompletionScope(completed string) []string {
+	children := graph.children[completed]
+	scope := make(map[string]bool, len(children)*2+1)
+	scope[completed] = true
+	for _, child := range children {
+		scope[child] = true
+		for _, parent := range graph.parents[child] {
+			scope[parent] = true
+		}
+	}
+	ids := make([]string, 0, len(scope))
+	for id := range scope {
+		ids = append(ids, id)
+	}
+	// Sorted so a repository sees a stable key order, which keeps a SQL
+	// implementation's query plan and lock order deterministic.
+	sort.Strings(ids)
+	return ids
+}
+
 func (graph Graph) satisfied(id string, states map[string]StageState) bool {
 	for _, parent := range graph.parents[id] {
 		if states[parent] != StageSucceeded {

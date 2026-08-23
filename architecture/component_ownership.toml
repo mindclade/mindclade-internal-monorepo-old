@@ -133,12 +133,6 @@ language = "go"
 security_review = true
 runbook = "docs/runbooks/control-lineage.md"
 
-[component."control.orchestration"]
-owner = "platform-control"
-criticality = "tier-2"
-language = "go"
-security_review = true
-
 [component."preprocessing.core"]
 owner = "biology-ml"
 criticality = "tier-2"

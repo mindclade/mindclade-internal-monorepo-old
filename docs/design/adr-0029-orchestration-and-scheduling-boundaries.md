@@ -23,13 +23,15 @@ vocabularies and conflicting object writes in production.
 **Attempt state vocabulary.** Go mirrors the Rust transition table in
 `libs/rust/worker_runtime/src/machine.rs` and the `WorkerState` enum in
 `protocols/proto/mindclade/runtime/v1/worker_status.proto` rather than inventing a second
-vocabulary for the same lifecycle. Stage state is a separate vocabulary derived from `RunState`,
-adding exactly one state: `blocked`. The addition is principled rather than convenient — a run
-has nothing upstream of it, whereas a stage can be waiting on a dependency, and that distinction
-has no representation in the run vocabulary.
+vocabulary for the same lifecycle. Stage state is a separate vocabulary derived from the
+`RunState` enum in `protocols/proto/mindclade/orchestration/v1/run.proto` — the protocol, which
+is where that vocabulary is actually defined today; `control/runs` is still a reserved boundary
+and declares no Go type. Stage state adds exactly one state to it: `blocked`. The addition is
+principled rather than convenient — a run has nothing upstream of it, whereas a stage can be
+waiting on a dependency, and that distinction has no representation in the run vocabulary.
 
-**orchestration ↔ runs.** `control/runs` owns run and job identity, the client-visible
-`RunState`, and cancellation *intent*. `control/orchestration` owns workflow, stage, and attempt
+**orchestration ↔ runs.** `control/runs`, when it is materialized, owns run and job identity, the
+client-visible `RunState`, and cancellation *intent*. `control/orchestration` owns workflow, stage, and attempt
 state, cancellation *propagation*, leases, and the executor. Orchestration treats RunID and JobID
 as opaque canonical identifiers; it does not reinterpret, re-derive, or re-issue them.
 
@@ -44,8 +46,8 @@ shared adapter ownership.
 
 - Worker lifecycle has one vocabulary across Rust, the protocol, and Go; a state added in one
   place is a protocol change rather than a local Go enum drift.
-- Stage state remains legible to anyone who already knows `RunState`, with a single documented
-  addition to learn.
+- Stage state remains legible to anyone who already knows the protocol's `RunState`, with a
+  single documented addition to learn.
 - Cancellation has one authoritative intent holder and one propagator, so a cancelled run cannot
   be resurrected by a stage-level decision.
 - Orchestration and scheduling can be released, stalled, and recovered independently, because

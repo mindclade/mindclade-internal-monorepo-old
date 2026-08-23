@@ -182,3 +182,47 @@ func (graph Graph) workflowStages() []StageSpec {
 	}
 	return stages
 }
+
+// The scope must be bounded by graph shape, not run size. A wide run whose
+// completion still fetched every stage would make each completion O(stages),
+// which is the cost this function exists to avoid.
+func TestCompletionScopeIsBoundedByGraphShape(t *testing.T) {
+	root := testID(t, "stage")
+	stages := []StageSpec{testStage(t, root, "fetch")}
+	// One root with a hundred independent siblings that share no edges with it.
+	for index := range 100 {
+		stages = append(stages, testStage(t, testID(t, "stage"), "sibling"+formatAttempt(uint32(index))))
+	}
+	child := testID(t, "stage")
+	stages = append(stages, testStage(t, child, "join", root))
+
+	graph, err := NewGraph(Workflow{Stages: stages})
+	if err != nil {
+		t.Fatalf("build graph: %v", err)
+	}
+	scope := graph.CompletionScope(root)
+	// root + its one child; the child has no other parents.
+	if len(scope) != 2 {
+		t.Fatalf("scope = %d stages, want 2 regardless of the 100 unrelated siblings", len(scope))
+	}
+	if graph.Len() != 102 {
+		t.Fatalf("graph = %d stages, want 102", graph.Len())
+	}
+}
+
+// The scope must include a child's OTHER parents, or Unblocked would read a
+// missing state as blocked and release a join whose second parent never ran.
+func TestCompletionScopeIncludesSiblingParents(t *testing.T) {
+	graph, ids := diamond(t)
+	scope := graph.CompletionScope(ids[1])
+	found := map[string]bool{}
+	for _, id := range scope {
+		found[id] = true
+	}
+	if !found[ids[2]] {
+		t.Fatal("completing one parent must fetch the join's other parent")
+	}
+	if !found[ids[3]] {
+		t.Fatal("completing a parent must fetch the join itself")
+	}
+}
