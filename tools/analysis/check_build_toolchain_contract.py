@@ -482,17 +482,25 @@ def check(root: Path):
     errors.extend(pytest_init_contract(root))
     errors.extend(python_platform_lock_contract(root))
     for p in root.rglob("*"):
+        relative = p.relative_to(root)
         if (
             not p.is_file()
             or p.resolve() == Path(__file__).resolve()
-            or p.relative_to(root).as_posix() in CONTRACT_IMPLEMENTATIONS
+            or relative.as_posix() in CONTRACT_IMPLEMENTATIONS
             # Build and tool output, not source. The list previously stopped at node_modules,
             # which was complete when only JS had a vendor directory. It now misses .venv in
             # particular: `uv sync` writes one, so running this check after the Python lane
             # scanned pip invocations inside site-packages and reported ruff's own __main__.py
             # as a forbidden host package-manager call.
+            #
+            # Matched against the path relative to root, for the reason spelled out below the
+            # list. Matching absolute parts also tested the repository's own location, so a
+            # checkout that itself lived under a directory named .claude -- which is exactly
+            # where agent worktrees are created -- excluded every file in the tree and this
+            # whole-tree scan silently inspected nothing at all. A gate that reports no
+            # findings because it saw no files is worse than one that fails loudly.
             or any(
-                x in p.parts
+                x in relative.parts
                 for x in (
                     ".git",
                     "node_modules",
@@ -512,21 +520,21 @@ def check(root: Path):
             # Relative to the repository, not absolute: `root.rglob` yields absolute paths, so
             # p.parts[0] is "/" and this never matched. The convenience symlinks Bazel writes
             # (bazel-out, bazel-bin, bazel-<workspace>) only ever sit at the root.
-            or p.relative_to(root).parts[0].startswith("bazel-")
+            or relative.parts[0].startswith("bazel-")
         ):
             continue
         if p.name == "Dockerfile" or p.name.startswith("Dockerfile."):
             text = p.read_text(errors="replace")
             if "MINDCLADE_DEV_ONLY=1" not in text:
                 errors.append(
-                    f"{p.relative_to(root)}: production Dockerfiles are forbidden; Bazel OCI owns images"
+                    f"{relative}: production Dockerfiles are forbidden; Bazel OCI owns images"
                 )
         if p.suffix in SCAN or p.name in {"BUILD", "BUILD.bazel"}:
             text = p.read_text(errors="replace")
             for rx in FORBIDDEN:
                 if rx.search(text):
                     errors.append(
-                        f"{p.relative_to(root)}: forbidden host/package-manager pattern: {rx.pattern}"
+                        f"{relative}: forbidden host/package-manager pattern: {rx.pattern}"
                     )
     return sorted(set(errors))
 
