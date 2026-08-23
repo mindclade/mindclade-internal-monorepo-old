@@ -12,6 +12,7 @@ go_library(
     srcs = ["scheduler.go"],
     importpath = "go.mindclade.dev/services/control_plane/internal/providers/scheduler",
     deps = [
+        "//control/scheduling",
         "//libs/go/config",
         "//libs/go/coordination/leadership",
         "//libs/go/coordination/workqueue",
@@ -40,6 +41,7 @@ go_test(
     srcs = ["scheduler_test.go"],
     embed = [":scheduler"],
     deps = [
+        "//control/scheduling",
         "//libs/go/config",
         "//libs/go/faults",
         "//services/control_plane/internal/bootstrap",

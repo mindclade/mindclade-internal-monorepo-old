@@ -24,6 +24,7 @@ import (
 	"go.mindclade.dev/services/control_plane/internal/providers/durable"
 	registrystore "go.mindclade.dev/services/control_plane/internal/store/postgres"
 	admissionstore "go.mindclade.dev/services/control_plane/internal/store/postgres/admission"
+	orchestrationstore "go.mindclade.dev/services/control_plane/internal/store/postgres/orchestration"
 )
 
 // Migration versions are owned by the role that owns the schema, because one
@@ -54,6 +55,10 @@ const (
 	migrationEvidenceVerifications
 	migrationEligibilityDecisions
 	migrationEligibilityRevocations
+	migrationOrchestrationWorkflows
+	migrationOrchestrationStages
+	migrationOrchestrationAttempts
+	migrationOrchestrationCancellations
 )
 
 // newMigrationManifest orders the schemas the shared adapters declare for the
@@ -114,6 +119,15 @@ func newMigrationManifest() (*migrate.Manifest, error) {
 	if err != nil {
 		return nil, err
 	}
+	orchestrationDDL, err := orchestrationstore.DDL(
+		orchestrationstore.DefaultWorkflowTable,
+		orchestrationstore.DefaultStageTable,
+		orchestrationstore.DefaultAttemptTable,
+		orchestrationstore.DefaultCancellationTable,
+	)
+	if err != nil {
+		return nil, err
+	}
 	admissionDDL, err := admissionstore.DDL(
 		admissionstore.DefaultEntitlementTable,
 		admissionstore.DefaultBudgetTable,
@@ -155,6 +169,10 @@ func newMigrationManifest() (*migrate.Manifest, error) {
 		migrate.Migration{Version: migrationEvidenceVerifications, Name: "evidence_verifications", Up: evidenceDDL[1]},
 		migrate.Migration{Version: migrationEligibilityDecisions, Name: "eligibility_decisions", Up: evidenceDDL[2]},
 		migrate.Migration{Version: migrationEligibilityRevocations, Name: "eligibility_revocations", Up: evidenceDDL[3]},
+		migrate.Migration{Version: migrationOrchestrationWorkflows, Name: "orchestration_workflows", Up: orchestrationDDL[0]},
+		migrate.Migration{Version: migrationOrchestrationStages, Name: "orchestration_stages", Up: orchestrationDDL[1]},
+		migrate.Migration{Version: migrationOrchestrationAttempts, Name: "orchestration_attempts", Up: orchestrationDDL[2]},
+		migrate.Migration{Version: migrationOrchestrationCancellations, Name: "orchestration_cancellations", Up: orchestrationDDL[3]},
 	)
 	if err != nil {
 		return nil, err
