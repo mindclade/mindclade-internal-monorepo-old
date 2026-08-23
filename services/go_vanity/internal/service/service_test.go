@@ -90,6 +90,22 @@ func TestApplicationAndMetricsSurfacesAreSeparate(t *testing.T) {
 	}
 }
 
+func TestStatusWriterCapturesImplicitOKBeforeLateHeader(t *testing.T) {
+	response := httptest.NewRecorder()
+	tracked := &statusWriter{ResponseWriter: response, status: http.StatusOK}
+	if _, err := tracked.Write([]byte("ok")); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	tracked.WriteHeader(http.StatusTeapot)
+
+	if tracked.status != http.StatusOK {
+		t.Errorf("tracked status = %d, want %d", tracked.status, http.StatusOK)
+	}
+	if response.Code != http.StatusOK {
+		t.Errorf("response status = %d, want %d", response.Code, http.StatusOK)
+	}
+}
+
 func TestServeCancelsAndDrainsBothListeners(t *testing.T) {
 	runtime := newTestRuntime(t)
 	appListener := listenLocal(t)

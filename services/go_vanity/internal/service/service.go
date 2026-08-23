@@ -229,6 +229,14 @@ type statusWriter struct {
 	wroteHeader bool
 }
 
+func (writer *statusWriter) Write(body []byte) (int, error) {
+	if !writer.wroteHeader {
+		writer.wroteHeader = true
+		writer.status = http.StatusOK
+	}
+	return writer.ResponseWriter.Write(body)
+}
+
 func (writer *statusWriter) WriteHeader(status int) {
 	if writer.wroteHeader {
 		return
