@@ -567,7 +567,7 @@ def _verify(
         falsifier.inject(tree)
     except FixtureError as exc:
         return [f"{label}: fixture could not inject its defect: {exc}"]
-    except Exception as exc:  # noqa: BLE001 - reported, never swallowed
+    except Exception as exc:  # Reported, never swallowed.
         # A broken fixture body must surface as a meta-gate failure naming the fixture, not as a
         # traceback out of the whole suite. The partial edit is still reverted by the caller,
         # because every write is journalled before it happens.
