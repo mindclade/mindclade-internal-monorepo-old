@@ -151,7 +151,7 @@ def has_header(text: str, prefix: str) -> bool:
     return (
         got == want
         and separator_index < len(lines)
-        and lines[separator_index].rstrip("\r") in {"", prefix}
+        and lines[separator_index].rstrip("\r") in {"", prefix, "---"}
     )
 
 

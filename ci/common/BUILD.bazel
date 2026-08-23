@@ -51,6 +51,12 @@ py_library(
 )
 
 py_library(
+    name = "ci_health_lib",
+    srcs = ["ci_health.py"],
+    imports = ["../.."],
+)
+
+py_library(
     name = "full_graph_shards",
     srcs = ["full_graph_shards.py"],
     data = ["//ci/bazel:full_graph_shards.toml"],
@@ -93,6 +99,13 @@ py_binary(
     imports = ["../.."],
     visibility = ["//visibility:public"],
     deps = [":full_graph_shards"],
+)
+
+py_binary(
+    name = "ci_health",
+    srcs = ["ci_health.py"],
+    imports = ["../.."],
+    visibility = ["//visibility:public"],
 )
 
 py_binary(
@@ -159,6 +172,13 @@ pytest_test(
         ":affected",
         ":full_graph_shards",
     ],
+)
+
+pytest_test(
+    name = "ci_health_test",
+    srcs = ["tests/test_ci_health.py"],
+    imports = ["../.."],
+    deps = [":ci_health_lib"],
 )
 
 pytest_test(
