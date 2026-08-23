@@ -155,9 +155,47 @@ impl TelemetrySpool {
                 "telemetry spool size limits are invalid",
             ));
         }
-        let next_sequence = read_counter(&root.join("sequence"))?.unwrap_or(1);
+        let published_sequence = read_counter(&root.join("sequence"))?.unwrap_or(1);
         let acknowledged = read_counter(&root.join("ack"))?.unwrap_or(0);
         let segment = discover_segment(&root)?;
+        // The sequence counter is published *after* the record frame it
+        // describes is durable, so a crash inside that window leaves the
+        // counter one behind the spool contents — or absent entirely, if the
+        // crash preceded the first publication. Trusting it verbatim re-issues
+        // a sequence that already exists on disk; `DeliveryBatch::new` then
+        // rejects the replay as non-monotonic on every attempt, so nothing is
+        // ever acknowledged, `compact` never reclaims a segment, and the spool
+        // wedges at `maximum_total_bytes` with every subsequent append
+        // rejected for the life of the node. Reconcile the counter against
+        // what is actually durable instead.
+        //
+        // Only the newest segment is scanned, which keeps recovery bounded by
+        // `maximum_segment_bytes` rather than by the whole disk budget.
+        // Appends never move backwards through segment numbers, so sequence
+        // order and segment order agree and the spool's highest sequence lives
+        // in its highest-numbered segment. Compaction preserves that: it
+        // deletes a segment only when the segment's maximum sequence is already
+        // acknowledged, so if it removes the newest segment it has removed
+        // every older one too, and what survives is always a suffix.
+        // `discover_segment` returning 0 with no file on disk means the spool
+        // holds nothing that a counter could collide with, so the published
+        // counter stands on its own.
+        //
+        // A frame torn by a crash mid-write is read as far as it goes rather
+        // than failing: `open` must not be the thing that makes a spool
+        // unopenable. The delivery path stays strict, so such a segment still
+        // has to be dealt with there; recovery only guarantees not to make it
+        // worse, and falls back to the published counter when it cannot read
+        // to the end.
+        let next_sequence =
+            match max_sequence(&segment_path(&root, segment), &config, TornTail::Tolerate)? {
+                Some(highest) => {
+                    published_sequence.max(highest.checked_add(1).ok_or_else(|| {
+                        Fault::new(Code::OutOfRange, "telemetry sequence overflow")
+                    })?)
+                }
+                None => published_sequence,
+            };
         Ok(Self {
             root,
             files,
@@ -340,7 +378,7 @@ impl TelemetrySpool {
             .acknowledged;
         let mut removed = 0_usize;
         for path in segment_files(&self.root)? {
-            let max = max_sequence(&path, &self.config)?;
+            let max = max_sequence(&path, &self.config, TornTail::Reject)?;
             if max.is_some_and(|value| value <= acknowledged) {
                 fs::remove_file(path).map_err(|error| {
                     Fault::internal("failed to compact telemetry segment").with_source(error)
@@ -434,9 +472,34 @@ fn enforce_total_budget(root: &Path, limit: u64, additional: u64) -> FaultResult
     }
 }
 
-fn max_sequence(path: &Path, config: &SpoolConfig) -> FaultResult<Option<u64>> {
-    let file = fs::File::open(path)
-        .map_err(|error| Fault::internal("failed to open telemetry segment").with_source(error))?;
+/// How a segment scan treats a frame it cannot read.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TornTail {
+    /// Open-time recovery. A crash can interrupt `RecordWriter::write` partway
+    /// through a frame, so an unreadable trailing frame is an expected on-disk
+    /// state; failing here would make the spool permanently unopenable. Stop
+    /// at the first unreadable frame and report the sequences that were read.
+    Tolerate,
+    /// Compaction. The scan decides whether a segment may be deleted, so a
+    /// frame that cannot be read must fail loudly rather than let the segment
+    /// look fully acknowledged and be discarded with live events in it.
+    Reject,
+}
+
+/// Highest sequence durably present in `path`, or `None` when the segment does
+/// not exist or holds no readable envelope.
+fn max_sequence(
+    path: &Path,
+    config: &SpoolConfig,
+    torn_tail: TornTail,
+) -> FaultResult<Option<u64>> {
+    let file = match fs::File::open(path) {
+        Ok(file) => file,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => {
+            return Err(Fault::internal("failed to open telemetry segment").with_source(error));
+        }
+    };
     let mut reader = RecordReader::new(
         BufReader::new(file),
         config
@@ -450,8 +513,26 @@ fn max_sequence(path: &Path, config: &SpoolConfig) -> FaultResult<Option<u64>> {
         )
     })?;
     let mut maximum = None;
-    while let Some(record) = reader.read_next()? {
-        let envelope = Envelope::decode(&record.payload, maximum_payload)?;
+    loop {
+        let record = match reader.read_next() {
+            Ok(Some(record)) => record,
+            Ok(None) => break,
+            Err(error) => {
+                if torn_tail == TornTail::Reject {
+                    return Err(error);
+                }
+                break;
+            }
+        };
+        let envelope = match Envelope::decode(&record.payload, maximum_payload) {
+            Ok(envelope) => envelope,
+            Err(error) => {
+                if torn_tail == TornTail::Reject {
+                    return Err(error);
+                }
+                break;
+            }
+        };
         maximum =
             Some(maximum.map_or(envelope.sequence, |value: u64| value.max(envelope.sequence)));
     }
