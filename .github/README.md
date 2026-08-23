@@ -83,11 +83,10 @@ ignored bytecode directories inside the governed checkout.
 
 ## Buildkite retirement status
 
-The `.buildkite/` source remains temporarily for audit and rollback comparison, but bootstrap
-now rejects any enabled Buildkite provider and normal-plane IAM grants it no authority. Its
-checkout verification cannot establish canonical protected-main ancestry for API/custom-refspec
-builds, so it must never be reactivated. Remove the dormant source only after two connected ARC
-releases and the documented rollback drill pass.
+Buildkite source and authority were removed with bootstrap platform contract `2.0.0`. GitHub
+Actions and the reviewed `ci/` lane definitions are the only CI control surface. Historical
+Buildkite material remains available in immutable Git history and must not be restored as a
+rollback mechanism.
 
 ## Release activation status
 

@@ -92,7 +92,6 @@
 
 # The pipeline that gates everything else, and the ownership map itself.
 /.github/                           @mindclade/platform @mindclade/security
-/.buildkite/                        @mindclade/platform @mindclade/security
 
 # Screening and dual-use surfaces. See the note at the top about biosecurity attestation.
 /data/curation/safety_screening.py  @mindclade/security @mindclade/research
