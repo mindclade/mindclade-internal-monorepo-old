@@ -5,9 +5,55 @@
 
 package orchestration
 
-type Workflow struct{ Stages []StageSpec }
+import "go.mindclade.dev/libs/go/identifiers"
+
+// MaximumStageCount bounds one workflow graph. The graph is walked on every
+// reconcile and its digest is recomputed on every compile, so an unbounded
+// stage list is an unbounded amount of work per claimed item.
+const MaximumStageCount = 4096
+
+// Workflow is an immutable acyclic stage graph, mirroring
+// mindclade.orchestration.v1.Workflow.
+//
+// Identity is separate from validity on purpose. Validate checks only the graph,
+// because control/ingestion builds a Workflow from a stage list to reuse that
+// check and has no workflow identity to supply. ValidateIdentity is the
+// additional contract a durable, published workflow must meet, and the compiler
+// is what applies it.
+type Workflow struct {
+	ID               string
+	Name             string
+	Stages           []StageSpec
+	DefinitionDigest identifiers.Digest
+	SchemaVersion    uint32
+}
+
+// ValidateIdentity checks the fields that make a workflow addressable. It is
+// deliberately not called from Validate: tightening Validate would break every
+// caller that legitimately holds only a stage list.
+func (w Workflow) ValidateIdentity() error {
+	if err := validateID(w.ID, "workflow", "workflow_id"); err != nil {
+		return err
+	}
+	if err := validateBoundedName(w.Name, "workflow_name", MaximumOutputNamespaceLength); err != nil {
+		return err
+	}
+	if !w.DefinitionDigest.Valid() {
+		return invalid("workflow_definition_digest_invalid", "workflow definition digest is required", nil)
+	}
+	if w.SchemaVersion == 0 {
+		return invalid("workflow_schema_version_invalid", "workflow schema version is required", nil)
+	}
+	return w.Validate()
+}
 
 func (w Workflow) Validate() error {
+	if len(w.Stages) == 0 {
+		return invalid("workflow_empty", "workflow contains no stages", nil)
+	}
+	if len(w.Stages) > MaximumStageCount {
+		return exhausted("workflow_stage_bound", "workflow exceeds the maximum stage count")
+	}
 	byID := map[string]StageSpec{}
 	for _, s := range w.Stages {
 		if err := s.Validate(); err != nil {

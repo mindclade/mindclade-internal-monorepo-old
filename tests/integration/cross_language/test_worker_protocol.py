@@ -960,3 +960,117 @@ def test_bulk_payloads_travel_by_descriptor_not_by_embedded_bytes(runtime_proto)
                 assert (message, field) in allowed, (
                     f"{message}.{field} embeds bytes in a runtime control message"
                 )
+
+
+# ---------------------------------------------------------------------------------------
+# Attempt state machine: Rust owns the table, Go mirrors it
+# ---------------------------------------------------------------------------------------
+# `libs/rust/worker_runtime/src/machine.rs` is the authoritative transition table and
+# `control/orchestration/state_machine.go` is a hand-written mirror of it. Neither language's
+# own tests can notice the two drifting: Go asserts its table edge by edge against a copy of
+# itself, and Rust does the same. A transition added on one side and not the other produces a
+# control plane that rejects a status its worker legitimately sent, or accepts one it never
+# should have -- and the first symptom is a stuck run in production, not a red build.
+#
+# Both sides are parsed rather than restated here. A test that hard-coded the expected edges
+# would be a third copy to drift.
+
+GO_STATE_MACHINE = ROOT / "control/orchestration/state_machine.go"
+RUST_MACHINE = ROOT / "libs/rust/worker_runtime/src/machine.rs"
+
+# Rust spells the states in CamelCase; Go's AttemptState constants carry lowercase wire values.
+_RUST_TO_WIRE = {
+    "Created": "created",
+    "Starting": "starting",
+    "Ready": "ready",
+    "Leased": "leased",
+    "Running": "running",
+    "Draining": "draining",
+    "Committing": "committing",
+    "Completed": "completed",
+    "Recovering": "recovering",
+    "Cancelling": "cancelling",
+    "Cancelled": "cancelled",
+    "Failed": "failed",
+}
+
+# `(A, B | C)` and `(A | B, C)` both appear in the Rust `matches!` arm, so each side of a tuple
+# is a set and the arm denotes their cartesian product.
+_RUST_ARM = re.compile(r"\(\s*([A-Za-z|\s]+?),\s*([A-Za-z|\s]+?)\s*\)")
+_GO_ROW = re.compile(r"Attempt(\w+):\s*\{([^}]*)\}")
+_GO_TARGET = re.compile(r"Attempt(\w+):\s*true")
+
+
+def _rust_transitions() -> set[tuple[str, str]]:
+    text = RUST_MACHINE.read_text(encoding="utf-8")
+    start = text.index("matches!(")
+    body = text[start : text.index("\n}", start)]
+    # Drop the `use` line's brace list, which would otherwise parse as an arm.
+    body = body[body.index("(from, to)") :]
+    edges: set[tuple[str, str]] = set()
+    for sources, targets in _RUST_ARM.findall(body):
+        froms = [part.strip() for part in sources.split("|") if part.strip()]
+        tos = [part.strip() for part in targets.split("|") if part.strip()]
+        if not all(name in _RUST_TO_WIRE for name in froms + tos):
+            continue
+        for source in froms:
+            for target in tos:
+                edges.add((_RUST_TO_WIRE[source], _RUST_TO_WIRE[target]))
+    return edges
+
+
+def _go_transitions() -> set[tuple[str, str]]:
+    text = GO_STATE_MACHINE.read_text(encoding="utf-8")
+    start = text.index("var attemptTransitions")
+    body = text[start : text.index("\n}", start)]
+    edges: set[tuple[str, str]] = set()
+    for source, targets in _GO_ROW.findall(body):
+        for target in _GO_TARGET.findall(targets):
+            edges.add((source.lower(), target.lower()))
+    return edges
+
+
+def test_rust_attempt_transition_table_is_parseable() -> None:
+    """A parse that silently found nothing would make the comparison below vacuous."""
+    edges = _rust_transitions()
+    assert len(edges) >= 20, f"parsed only {len(edges)} Rust transitions; the parser is broken"
+    assert ("cancelling", "cancelled") in edges
+    assert ("created", "starting") in edges
+
+
+def test_go_attempt_transition_table_is_parseable() -> None:
+    edges = _go_transitions()
+    assert len(edges) >= 20, f"parsed only {len(edges)} Go transitions; the parser is broken"
+    assert ("cancelling", "cancelled") in edges
+
+
+def test_attempt_transition_tables_agree_across_languages() -> None:
+    """The Go mirror and the Rust original must denote the same edge set.
+
+    A Go-only edge lets the control plane advance an attempt the worker will never report
+    reaching. A Rust-only edge makes the control plane reject a legitimate status, stalling the
+    stage until an operator intervenes.
+    """
+    rust = _rust_transitions()
+    go = _go_transitions()
+    assert go - rust == set(), f"Go permits transitions Rust does not: {sorted(go - rust)}"
+    assert rust - go == set(), f"Rust permits transitions Go does not: {sorted(rust - go)}"
+
+
+def test_attempt_states_match_the_worker_state_enum() -> None:
+    """Both tables must range over exactly the protocol's WorkerState values."""
+    declared = proto_enums(RUNTIME_V1).get("WorkerState", [])
+    wire = {
+        value.removeprefix("WORKER_STATE_").lower()
+        for value in declared
+        if value != "WORKER_STATE_UNSPECIFIED"
+    }
+    assert wire, "WorkerState enum was not found in the runtime protocol"
+    reachable = {state for edge in _rust_transitions() for state in edge}
+    assert reachable <= wire, (
+        f"the transition table names states the protocol does not: {sorted(reachable - wire)}"
+    )
+    assert set(_RUST_TO_WIRE.values()) == wire, (
+        "the Rust-to-wire state mapping in this test has drifted from the protocol enum: "
+        f"{sorted(set(_RUST_TO_WIRE.values()) ^ wire)}"
+    )

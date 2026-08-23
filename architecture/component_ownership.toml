@@ -53,6 +53,22 @@ slo = "docs/slo/control-admission.md"
 runbook = "docs/runbooks/control-admission.md"
 security_review = true
 
+[component."control.orchestration"]
+owner = "platform-control"
+criticality = "tier-1"
+language = "go"
+slo = "docs/slo/control-orchestration.md"
+runbook = "docs/runbooks/control-orchestration.md"
+security_review = true
+
+[component."control.scheduling"]
+owner = "platform-control"
+criticality = "tier-1"
+language = "go"
+slo = "docs/slo/control-scheduling.md"
+runbook = "docs/runbooks/control-scheduling.md"
+security_review = true
+
 [component."control.reference_databases"]
 owner = "data-platform"
 criticality = "tier-1"
@@ -116,12 +132,6 @@ criticality = "tier-2"
 language = "go"
 security_review = true
 runbook = "docs/runbooks/control-lineage.md"
-
-[component."control.orchestration"]
-owner = "platform-control"
-criticality = "tier-2"
-language = "go"
-security_review = true
 
 [component."preprocessing.core"]
 owner = "biology-ml"

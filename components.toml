@@ -66,6 +66,43 @@ tests = ["control/admission/admission_test.go"]
 slo = "docs/slo/control-admission.md"
 runbook = "docs/runbooks/control-admission.md"
 
+# Advanced from `experimental`, replacing an entry that argued for the lower status on the
+# grounds that ten of fourteen non-test files were scaffold placeholders -- service, executor,
+# state_machine, lease, compiler, repository among them. That premise no longer holds: those
+# ten carry implementations, and the tests below exercise the parts that can actually be wrong
+# rather than asserting that a zero value is zero. The earlier note also flagged that
+# control/ingestion is `implemented` and imports this package, which needed an answer before
+# `production_dependency = false` was enforced; advancing this component IS that answer, and
+# the dated exception in check_production_dependencies.py was deleted with it.
+[[component]]
+name = "control.orchestration"
+path = "control/orchestration"
+status = "implemented"
+owner = "platform-control"
+tests = [
+  "control/orchestration/state_machine_test.go",
+  "control/orchestration/dependency_test.go",
+  "control/orchestration/compiler_test.go",
+  "control/orchestration/attempt_test.go",
+]
+slo = "docs/slo/control-orchestration.md"
+runbook = "docs/runbooks/control-orchestration.md"
+
+[[component]]
+name = "control.scheduling"
+path = "control/scheduling"
+status = "implemented"
+owner = "platform-control"
+tests = [
+  "control/scheduling/placement_test.go",
+  "control/scheduling/fair_share_test.go",
+  "control/scheduling/capacity_test.go",
+  "control/scheduling/admission_test.go",
+  "control/scheduling/pool_test.go",
+]
+slo = "docs/slo/control-scheduling.md"
+runbook = "docs/runbooks/control-scheduling.md"
+
 [[component]]
 name = "control.reference_databases"
 path = "control/registry/reference_databases"
@@ -143,29 +180,6 @@ status = "implemented"
 owner = "platform-control"
 tests = ["control/lineage/lineage_test.go"]
 runbook = "docs/runbooks/control-lineage.md"
-
-# `experimental`, deliberately, and this is the entry most likely to be argued with. Four of
-# its fourteen non-test files are real — the stage, workflow and workload specs and their
-# validation — and ten are scaffold placeholders, including service, executor, state_machine,
-# lease, compiler, repository and all three launcher adapters. That is the same shape as
-# control.routing, which is already recorded experimental, so recording it as `implemented`
-# would make this file's `implemented` mean two different things.
-#
-# `tests` names workflow_test.go only. workload_test.go asserts that a zero value is zero and
-# exercises nothing; listing it would inflate the evidence this entry claims.
-#
-# maturity.toml's `production_dependency = false` IS enforced, by
-# tools/analysis/check_production_dependencies.py, and control/ingestion — `implemented` — does
-# import this package. That edge is a live violation carrying a dated, ADR-backed exception in
-# PRODUCTION_DEPENDENCY_EXCEPTIONS, expiring 2026-11-14, not a status edited until the check
-# passes. The imported surface is the implemented half (StageSpec, StageKind, StageAttempt,
-# Workflow, WorkloadEnvelope); the exception expires whether or not this entry advances.
-[[component]]
-name = "control.orchestration"
-path = "control/orchestration"
-status = "experimental"
-owner = "platform-control"
-tests = ["control/orchestration/workflow_test.go"]
 
 [[component]]
 name = "preprocessing.core"

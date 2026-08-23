@@ -6,6 +6,50 @@ All notable changes to the repository architecture and released implementation
 surfaces are recorded here. Individual model, dataset, runtime, and service
 releases also carry immutable release manifests and evidence bundles.
 
+## 2026-08-23 — Control orchestration and scheduling
+
+- implemented `control/orchestration` — workflow compilation, the stage dependency graph, the
+  stage and attempt state machines, leases, cancellation propagation, and the executor — in
+  place of the ten `const scaffold_*` files that had held the boundary, and advanced the
+  component from `experimental` to `implemented` on the tests that replaced them rather than by
+  editing the status;
+- implemented `control/scheduling` — quota admission, fair-share priority, placement, topology,
+  pools, reservations, and preemption — and declared it in `components.toml` for the first time,
+  because a reserved boundary is neither pass nor fail to the maturity gate, which is worse than
+  a bad status since nothing can report on it;
+- paired both with tier-1 entries in `architecture/component_ownership.toml`, an SLO, and a
+  runbook, and recorded the correctness invariants that are not tradable for availability: no
+  commit under a stale fencing token, no attempt beyond the declared budget, quota conserved
+  across admission/reservation/release, and no accelerator reservation held while an upstream
+  preprocessing stage is still pending;
+- implemented the Kubernetes, Slurm, and local launchers behind one `Launcher` contract and
+  added `control/orchestration/launchertest`, a single conformance suite all three run, because
+  three adapters each testing its own happy path is how duplicate delivery, a late cancellation,
+  and a superseded fence come to mean three different things across three providers;
+- pinned the Go and Rust attempt transition tables against each other and against the
+  `WorkerState` enum in the runtime protocol; each language had been asserting its table against
+  a copy of itself, so a transition added on one side and not the other built clean in both, and
+  the first symptom would have been a stuck run — a control plane rejecting a status its worker
+  legitimately sent, or advancing an attempt the worker will never report reaching;
+- recorded ADR-0026 for the three boundaries this work had to decide: the attempt-state
+  vocabulary, what `control/runs` owns against what `control/orchestration` owns, and
+  single-writer ownership of the Kueue and JobSet objects the blueprint had listed under both
+  packages, which is the split-brain shape fencing exists to prevent everywhere else; and
+- retired two stale waivers — the `cursortest` and `workqueuetest` entries in
+  `libs/go/UNCONSUMED.toml`, cleared by having the memory adapters run those conformance suites
+  as the waiver text itself asked, and the dated `control/ingestion -> control/orchestration`
+  exception in `tools/analysis/check_production_dependencies.py`, whose own text named this
+  component advancing on its own evidence as one of its two honest resolutions and ruled out
+  editing a status until the check passed.
+
+Evidence is offline and single-host: `go test -race` over both packages and the three launcher
+adapters, plus the cross-language transition test. The Kubernetes launcher ran against the
+`controller-runtime` fake client and the Slurm launcher against an in-memory controller fake;
+`control/scheduling/adapters/jobset` and `control/scheduling/adapters/kueue` carry no test files
+yet, and `[no test files]` is not a pass. No connected CI run, real Kubernetes or Slurm cluster,
+Kueue or JobSet admission path, PostgreSQL-backed repository, or GPU measurement backs either
+component. Both are `implemented`, which is neither `qualified` nor `production`.
+
 ## 2026-08-23 — Private developer workstation module
 
 - added the reusable `workstation` module: one `x86_64-linux` instance with no external
