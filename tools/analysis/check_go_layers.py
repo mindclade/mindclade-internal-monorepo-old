@@ -52,8 +52,15 @@ def layer_for(relative_package: str) -> int | None:
     top = parts[0]
     if top in {"clock", "faults", "identifiers"}:
         return 0
-    if top == "internal":
-        return 1
+    # `internal/rpcfaults` exists only to serve the Connect and gRPC adapters — its own doc
+    # comment says so, and connectx, grpcx, and httpx are its only importers. LAYERS.md has
+    # always placed it at Layer 4; this classifier said Layer 1, which quietly licensed the one
+    # direction LAYERS.md forbids ("Lower layers never import Layer 4"): a Layer 1 contract or a
+    # Layer 2 mechanism could have imported transport fault translation with no violation. The
+    # blanket `internal` rule is gone with it, so a future `internal/<other>` package is
+    # unclassified and fails closed below rather than inheriting a layer it never earned.
+    if parts[:2] == ("internal", "rpcfaults"):
+        return 4
     if top in {"audit", "idempotency"} and len(parts) > 1:
         return 3
     if top == "messaging":
@@ -100,10 +107,54 @@ def package_for_file(root: Path, path: Path) -> str | None:
 
 
 def target_lib_package(import_path: str) -> str | None:
+    """Return the libs/go package an import names, or None if it names something else.
+
+    None here means "not a libs/go package at all" — the standard library, a third-party
+    module, or another repository tree. Those are correctly ignored by the layer rules.
+    It never means "a libs/go package I could not classify"; that is `layer_for`'s None,
+    and the two must not be conflated.
+    """
     prefix = "go.mindclade.dev/libs/go/"
     if not import_path.startswith(prefix):
         return None
     return import_path[len(prefix) :]
+
+
+def go_packages(root: Path) -> list[str]:
+    """Return every libs/go package path that holds Go source, tests included."""
+    packages: set[str] = set()
+    for path in (root / "libs/go").rglob("*.go"):
+        package = package_for_file(root, path)
+        if package is not None:
+            packages.add(package)
+    return sorted(packages)
+
+
+def unclassified_package_violations(root: Path) -> list[Violation]:
+    """Fail closed on any libs/go package `layer_for` cannot place.
+
+    `layer_for` recognizes a fixed set of package names and returns None for everything
+    else, and the import rule below can only compare two known layers. Skipping the
+    comparison on an unknown layer meant a newly admitted `libs/go/<name>` package had
+    every one of its intra-libs/go edges validated by nothing — the gate stopped applying
+    to precisely the newest, least-reviewed code, and printed "Go architecture check
+    passed" while doing it. Nothing in the output separated "checked and clean" from
+    "never checked". Classification is therefore mandatory: an unplaceable package is an
+    error naming the package, not a silent pass.
+    """
+    violations: list[Violation] = []
+    base = root / "libs/go"
+    for package in go_packages(root):
+        if layer_for(package) is not None:
+            continue
+        violations.append(
+            Violation(
+                base if package == "." else base / package,
+                "libs/go package has no layer in check_go_layers.layer_for; classify it "
+                "there and in libs/go/LAYERS.md before its imports can be checked",
+            )
+        )
+    return violations
 
 
 def import_violations(root: Path, files: Iterable[Path]) -> list[Violation]:
@@ -143,11 +194,24 @@ def import_violations(root: Path, files: Iterable[Path]) -> list[Violation]:
                     )
                 continue
             target_layer = layer_for(target_package)
-            if (
-                source_layer is not None
-                and target_layer is not None
-                and target_layer > source_layer
-            ):
+            if source_layer is None or target_layer is None:
+                # Both sides are real libs/go packages here: `package_for_file` already
+                # excluded files outside libs/go, and `target_lib_package` already excluded
+                # standard-library and third-party imports. So an unknown layer is never
+                # "nothing to check" — it is an edge this gate cannot evaluate, and the
+                # previous `continue` reported it identically to a clean edge.
+                # `unclassified_package_violations` names the package; this names each edge
+                # that went unvalidated because of it, so the blast radius is visible.
+                unplaceable = source_package if source_layer is None else target_package
+                violations.append(
+                    Violation(
+                        path,
+                        f"import {import_path} cannot be layer-checked: libs/go package "
+                        f"{unplaceable} has no layer in check_go_layers.layer_for",
+                    )
+                )
+                continue
+            if target_layer > source_layer:
                 violations.append(
                     Violation(
                         path,
@@ -233,6 +297,7 @@ def check(root: Path) -> list[Violation]:
     go_files = list((root / "libs/go").rglob("*.go"))
     return sorted(
         import_violations(root, go_files)
+        + unclassified_package_violations(root)
         + paved_road_violations(root)
         + generic_package_violations(root),
         key=lambda value: (value.path.as_posix(), value.line, value.message),
