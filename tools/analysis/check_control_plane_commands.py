@@ -190,9 +190,7 @@ def check(root: Path) -> list[str]:
         # file in the same package is the same binary, and the lifecycle rules
         # are about the binary.
         package_sources = sorted(
-            path
-            for path in directory.glob("*.go")
-            if not path.name.endswith("_test.go")
+            path for path in directory.glob("*.go") if not path.name.endswith("_test.go")
         )
         imports: set[str] = set()
         for path in package_sources:
