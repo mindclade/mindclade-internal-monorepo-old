@@ -18,6 +18,7 @@ package orchestrationpostgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -508,6 +509,20 @@ const livePlacementQueue = "test/placement"
 // only a producer that actually writes to the database can be atomic with it.
 func (live *liveOrchestrationStore) withPlacement(t *testing.T) string {
 	t.Helper()
+	table, producer := live.placementProducer(t)
+	live.bindPlacement(t, producer)
+	return table
+}
+
+// placementProducer creates the queue table and builds the durable producer
+// over it without binding anything.
+//
+// It is separate from withPlacement so a test can hold the real producer and
+// decide what happens after it succeeds. Proving the append joined the
+// transaction needs exactly that: an append that writes its row and a mutation
+// that then fails.
+func (live *liveOrchestrationStore) placementProducer(t *testing.T) (string, orchestration.Enqueuer) {
+	t.Helper()
 	table := live.schema + ".placement_queue"
 	ddl, err := workqueuepostgres.DDL(table)
 	if err != nil {
@@ -520,7 +535,7 @@ func (live *liveOrchestrationStore) withPlacement(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	producer := orchestration.EnqueuerFunc(func(ctx context.Context, work orchestration.WorkItem) error {
+	return table, orchestration.EnqueuerFunc(func(ctx context.Context, work orchestration.WorkItem) error {
 		payload, encodeErr := orchestration.EncodeWorkItem(work)
 		if encodeErr != nil {
 			return encodeErr
@@ -532,6 +547,11 @@ func (live *liveOrchestrationStore) withPlacement(t *testing.T) string {
 		}
 		return queue.Enqueue(ctx, item)
 	})
+}
+
+// bindPlacement rebuilds the store over the same schema with this producer.
+func (live *liveOrchestrationStore) bindPlacement(t *testing.T, producer orchestration.Enqueuer) {
+	t.Helper()
 	store, err := New(live.db, live.recorder, live.messages,
 		WithClock(clock.RealClock{}),
 		WithTables(live.workflowTable, live.stageTable, live.attemptTable, live.cancellationTable),
@@ -540,7 +560,6 @@ func (live *liveOrchestrationStore) withPlacement(t *testing.T) string {
 		t.Fatal(err)
 	}
 	live.store = store
-	return table
 }
 
 // The claim this task makes: promoting a stage and placing its work are one
@@ -604,22 +623,54 @@ func TestLivePostgresPromotionPlacesWorkInTheSameTransaction(t *testing.T) {
 		}
 	})
 
-	t.Run("a rejected placement rolls back the transition", func(t *testing.T) {
+	// The append succeeds and the mutation fails after it. That ordering is the
+	// whole test: an item that was really written and is gone again can only
+	// have been removed by the rollback of the transaction it was written on.
+	//
+	// This subtest used to install CHECK (false) on the queue table instead,
+	// which makes the insert fail on ANY connection -- so it passed identically
+	// whether or not the append had joined the transaction, and it did pass:
+	// with enqueuePlacement mutated onto the ambient context it stayed green
+	// while the fake-driver test failed. It proved that a rejected placement
+	// fails the promotion, which is worth having, but not the atomicity its
+	// name claimed.
+	t.Run("an appended placement does not survive a failed transaction", func(t *testing.T) {
 		live := newLiveOrchestrationStore(t)
-		queueTable := live.withPlacement(t)
+		queueTable, producer := live.placementProducer(t)
+		aborted := errors.New("promotion aborted after its placement was appended")
+		appends := 0
+		live.bindPlacement(t, orchestration.EnqueuerFunc(
+			func(ctx context.Context, work orchestration.WorkItem) error {
+				if err := producer.EnqueueStage(ctx, work); err != nil {
+					return err
+				}
+				appends++
+				return aborted
+			}))
 		ctx := context.Background()
 		stored, _, err := live.store.PutStage(ctx, liveStage(t))
 		if err != nil {
 			t.Fatalf("PutStage: %v", err)
 		}
 		outboxBefore := live.count(t, live.outboxTable)
-		if _, err := live.db.ExecContext(ctx,
-			"ALTER TABLE "+queueTable+" ADD CONSTRAINT reject_all_placements CHECK (false)"); err != nil {
-			t.Fatalf("install placement failure: %v", err)
+
+		_, _, err = live.store.TransitionStage(ctx,
+			stored.RunID, stored.StageID, orchestration.StageQueued, stored.Version, time.Now())
+		if err == nil {
+			t.Fatal("a promotion whose mutation failed must surface as an error")
 		}
-		if _, _, err := live.store.TransitionStage(ctx,
-			stored.RunID, stored.StageID, orchestration.StageQueued, stored.Version, time.Now()); err == nil {
-			t.Fatal("a promotion must fail when its placement is rejected")
+		if !errors.Is(err, aborted) {
+			t.Fatalf("err = %v, want the producer's failure preserved", err)
+		}
+		// A plain error carries no retryable fault policy, so the store's retry
+		// executor stops after one attempt. Exactly one append ran, and it
+		// inserted a row -- without that, the count below would be zero for the
+		// uninteresting reason.
+		if appends != 1 {
+			t.Fatalf("appended %d times, want exactly 1", appends)
+		}
+		if got := live.count(t, queueTable); got != 0 {
+			t.Fatalf("work items = %d, want 0; an appended item that outlived the rollback was never in the transaction", got)
 		}
 		current, err := live.store.GetStage(ctx, stored.RunID, stored.StageID)
 		if err != nil {
@@ -630,9 +681,6 @@ func TestLivePostgresPromotionPlacesWorkInTheSameTransaction(t *testing.T) {
 		}
 		if current.Version.String() != stored.Version.String() {
 			t.Fatal("a rolled-back promotion must not advance the resource version")
-		}
-		if got := live.count(t, queueTable); got != 0 {
-			t.Fatalf("work items = %d, want 0", got)
 		}
 		if got := live.count(t, live.outboxTable); got != outboxBefore {
 			t.Fatalf("outbox messages = %d, want %d; the stage event must roll back too", got, outboxBefore)

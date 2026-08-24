@@ -568,6 +568,9 @@ func ledgerRecheckedInsideTheWrite(t *testing.T, factory Factory) {
 		"Reserve of a placement that does not fit the recorded quota")
 	if _, err := rig.repository.Get(ctx, candidate.ID); err == nil {
 		t.Fatalf("a refused reservation %q was recorded anyway", candidate.ID)
+	} else {
+		requireFault(t, err, faults.CodeNotFound, "reservation_not_found",
+			"Get of a candidate refused for capacity")
 	}
 	if reserved := rig.reserved(batch, start); !reserved.IsZero() {
 		t.Fatalf("a refused reservation charged %v to the ledger", reserved)
@@ -686,6 +689,9 @@ func snapshotStaleness(t *testing.T, factory Factory) {
 	requireFault(t, err, faults.CodeConflict, "fleet_snapshot_stale", "Reserve against a superseded fleet view")
 	if _, err := rig.repository.Get(ctx, candidate.ID); err == nil {
 		t.Fatalf("a stale decision recorded reservation %q anyway", candidate.ID)
+	} else {
+		requireFault(t, err, faults.CodeNotFound, "reservation_not_found",
+			"Get of a candidate refused as stale")
 	}
 
 	// A fresh read of the same fleet lands.
@@ -1194,8 +1200,12 @@ func argumentValidation(t *testing.T, factory Factory) {
 	// A cancelled context ends every call, and this is the one assertion in the
 	// suite that checks the code without the reason. The reference adapter
 	// returns context.Canceled unwrapped while a durable store wraps it with
-	// the operation it abandoned; neither has a domain decision to name, and
-	// there is nothing for a caller to switch on. The code is the contract.
+	// the operation it abandoned and a reason of its own. Not because the
+	// domain package has no vocabulary for a context fault -- MemoryRepository
+	// names context_nil one branch earlier -- but because no caller can use
+	// one: the caller handed this error is the caller that cancelled the
+	// context, and nothing branches on the reason of a call it abandoned
+	// itself. The code is the contract; the reason is operator metadata.
 	done, cancel := context.WithCancel(context.Background())
 	cancel()
 	if _, err := rig.repository.Snapshot(done, at); !faults.IsCode(err, faults.CodeCanceled) {

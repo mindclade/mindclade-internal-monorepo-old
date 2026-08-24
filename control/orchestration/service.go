@@ -225,6 +225,16 @@ func (service Service) CompleteStage(ctx context.Context, workflowID, runID, sta
 //
 // The intent is durable before anything stops, so a control plane that crashes
 // mid-cancellation resumes cancelling rather than forgetting that it was asked.
+//
+// The stage fetch is scoped to what the cancellation can actually reach, which
+// is what the origin already decides. A run-scoped stop (client, operator,
+// deadline) walks the graph and needs every stage. An attempt-scoped one --
+// claim loss, preemption -- touches exactly the one stage it names and is the
+// origin that arrives per lost lease, so listing a run bounded at 4096 stages to
+// cancel one of them made a node preemption cost O(stages) per attempt it took
+// down. Propagate's attempt-scoped arm reads only states[intent.StageID], so the
+// narrower map is the whole map it consults; see the note on Propagate before
+// widening what either arm reads.
 func (service Service) Cancel(ctx context.Context, workflowID string, intent CancellationIntent) ([]StageRecord, bool, error) {
 	if err := service.validate(ctx); err != nil {
 		return nil, false, err
@@ -237,7 +247,7 @@ func (service Service) Cancel(ctx context.Context, workflowID string, intent Can
 	if err != nil {
 		return nil, false, err
 	}
-	records, err := service.Repository.ListStages(ctx, stored.RunID)
+	records, err := service.cancellationScope(ctx, stored)
 	if err != nil {
 		return nil, false, err
 	}
@@ -271,6 +281,25 @@ func (service Service) Cancel(ctx context.Context, workflowID string, intent Can
 		}
 	}
 	return cancelling, replayed, nil
+}
+
+// cancellationScope fetches exactly the stages this cancellation can reach.
+//
+// The scope is read off the recorded intent rather than the request, because
+// RecordCancellation is the point the origin becomes durable: a replayed
+// delivery re-derives its scope from the stored record and therefore fetches
+// the same set the first delivery did.
+//
+// A stage the fetch does not return is absent from the state map, and an absent
+// stage is not a terminal one -- Propagate names it, and CancelStage then
+// refuses the empty state as stage_state_invalid. That is the same answer
+// ListStages gives for a run whose stage row is missing, which is why narrowing
+// the fetch changes cost and not behaviour.
+func (service Service) cancellationScope(ctx context.Context, stored CancellationIntent) ([]StageRecord, error) {
+	if stored.Origin.scopesRun() {
+		return service.Repository.ListStages(ctx, stored.RunID)
+	}
+	return service.Repository.GetStages(ctx, stored.RunID, []string{stored.StageID})
 }
 
 // ReconcileAttempt applies one launcher observation to durable attempt state.

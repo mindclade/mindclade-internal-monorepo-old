@@ -142,6 +142,16 @@ func CancelAttempt(record AttemptRecord, fence uint64, now time.Time) (AttemptRe
 // Only non-terminal stages are named. A run-scoped cancellation reaches all of
 // them; an attempt-scoped one reaches exactly the stage it names, which is what
 // keeps a preempted node from tearing down the rest of the graph.
+//
+// The two arms read `states` differently, and the difference is load-bearing.
+// The attempt-scoped arm indexes exactly one key, states[intent.StageID], so a
+// caller may hand it a map holding only that stage -- Service.Cancel does, so a
+// lost lease does not cost a full run listing. The run-scoped arm ranges the
+// whole graph and treats a missing key as the zero StageState, which is not
+// terminal and is therefore named. Do not teach the attempt-scoped arm to read
+// another stage without widening the fetch behind it: against a truncated map
+// every unlisted stage reads as non-terminal, and cancelling one attempt would
+// come back claiming the whole run.
 func Propagate(graph Graph, intent CancellationIntent, states map[string]StageState) ([]string, error) {
 	if err := intent.Validate(); err != nil {
 		return nil, err

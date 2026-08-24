@@ -50,14 +50,17 @@
 // than truncated, because a silently short stage list would read as a workflow
 // with missing stages.
 //
-// # The stage version seal is restated here on purpose
+// # The stage version seal is called, never restated
 //
 // TransitionStage must produce the version the reference adapter would produce,
 // or a record written by one adapter could not be transitioned by the other.
-// The digest that seals a StageRecord is computed by an unexported function in
-// control/orchestration, so stageDigest below restates it. That coupling is
-// pinned by TestTransitionStageMatchesMemoryRepositorySeal, which drives the
-// same transition through both adapters and compares the resulting versions --
-// a drift in either definition fails that test rather than silently forking the
-// durable format.
+// This package once carried its own copy of that digest, because the rule lived
+// in an unexported function; control/orchestration.SealStage is exported for
+// exactly this reason, so stages.go calls it and the copy is gone. A second
+// definition of a durable format is a fork waiting to happen, and a copy that
+// only its own test consults cannot notice the fork it was written to catch.
+// TestStageDigestMatchesTheMemoryAdapter is what keeps the agreement honest: it
+// drives the same transitions through orchestration.MemoryRepository and
+// through this store and compares the sealed versions, so a change that moved
+// only one adapter fails a test rather than silently forking the format.
 package orchestrationpostgres

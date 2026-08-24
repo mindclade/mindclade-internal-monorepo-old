@@ -237,26 +237,68 @@ func TestGetStagesBindsEveryIdentifier(t *testing.T) {
 	}
 }
 
-// The version digest is shared with the memory adapter. If the two ever compute
-// it differently, a record written by one and read by the other fails its own
-// seal check, so the definitions are pinned against each other here.
+// The sealed version is shared with the memory adapter. A record written by one
+// adapter and transitioned by the other has to pass its own seal check, so the
+// two must mint the same version for the same transition.
+//
+// It has to be the SAME transition through BOTH adapters. This test used to
+// re-derive the digest of the memory adapter's own output with a copy of the
+// rule that lived in this package, which pinned that copy against itself: the
+// store was never driven at all, so the assertion held no matter what
+// TransitionStage did. The copy is gone (stages.go calls
+// orchestration.SealStage), and this drives both adapters step for step.
+//
+// Two steps, not one. Attempts is part of the sealed preimage and only a
+// promotion into preparing advances it, so a one-step test would agree on a
+// field neither adapter had moved.
 func TestStageDigestMatchesTheMemoryAdapter(t *testing.T) {
-	repository := orchestration.NewMemoryRepository(0)
+	ctx := context.Background()
+	memory := orchestration.NewMemoryRepository(0)
+	store, state := newHarness(t)
 	record := newStageRecord(t)
-	if _, _, err := repository.PutStage(context.Background(), record); err != nil {
-		t.Fatalf("memory PutStage: %v", err)
+	if _, replayed, err := memory.PutStage(ctx, record); err != nil || replayed {
+		t.Fatalf("memory PutStage: err=%v replayed=%v", err, replayed)
 	}
-	stored, err := repository.GetStage(context.Background(), record.RunID, record.StageID)
-	if err != nil {
-		t.Fatalf("memory GetStage: %v", err)
+
+	current := record
+	for _, step := range []struct {
+		to orchestration.StageState
+		at time.Time
+	}{
+		{to: orchestration.StageQueued, at: testStart.Add(time.Second)},
+		{to: orchestration.StagePreparing, at: testStart.Add(2 * time.Second)},
+	} {
+		reference, replayed, err := memory.TransitionStage(ctx,
+			current.RunID, current.StageID, step.to, current.Version, step.at)
+		if err != nil || replayed {
+			t.Fatalf("memory TransitionStage to %s: err=%v replayed=%v", step.to, err, replayed)
+		}
+		// The fake driver answers the locking read with whatever it was last
+		// given, so the store starts each step from the same record the memory
+		// adapter did rather than from a row it wrote itself.
+		serveStage(t, state, current)
+		durable, replayed, err := store.TransitionStage(ctx,
+			current.RunID, current.StageID, step.to, current.Version, step.at)
+		if err != nil || replayed {
+			t.Fatalf("store TransitionStage to %s: err=%v replayed=%v", step.to, err, replayed)
+		}
+		if durable.Version.String() != reference.Version.String() {
+			t.Fatalf("transition to %s sealed %q durably and %q in the reference adapter; "+
+				"the two have forked the stage version",
+				step.to, durable.Version, reference.Version)
+		}
+		if durable.Attempts != reference.Attempts || durable.State != reference.State ||
+			!durable.UpdatedAt.Equal(reference.UpdatedAt) {
+			t.Fatalf("transition to %s produced %+v durably and %+v in the reference adapter",
+				step.to, durable, reference)
+		}
+		current = reference
 	}
-	transitioned, _, err := repository.TransitionStage(context.Background(),
-		record.RunID, record.StageID, orchestration.StageQueued, stored.Version, testStart.Add(time.Second))
-	if err != nil {
-		t.Fatalf("memory TransitionStage: %v", err)
-	}
-	if !transitioned.Version.Digest().Equal(stageDigest(transitioned)) {
-		t.Fatal("this package computes a different stage digest than control/orchestration")
+	// A promotion into preparing charges an attempt. If it did not, the loop
+	// above would have compared two records that differ in no sealed field the
+	// first step had not already covered.
+	if current.Attempts != 1 {
+		t.Fatalf("attempts = %d after preparing, want 1", current.Attempts)
 	}
 }
 

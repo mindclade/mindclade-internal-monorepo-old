@@ -21,7 +21,7 @@
 // SERIALIZABLE transaction, installs it on the context, and lets the audit
 // recorder and the outbox store join it through storage/sql/transaction.
 //
-// # Five places this store is not the orchestration adapter
+// # Six places this store is not the orchestration adapter
 //
 // 1. Snapshot and Held are writes. Both re-seal expired holds before they read
 // the ledger, because the domain's rule is that "an expired hold never appears
@@ -64,4 +64,17 @@
 // the cluster holding capacity this ledger cannot see. Reads are still bounded:
 // no query below can return an unbounded row count, and a list that overflows
 // its bound is refused rather than truncated.
+//
+// 6. There is a lazy expiry sweep at all, and it is bounded. Orchestration has
+// no deadline that releases a record, so it has no counterpart; here every
+// mutation re-seals lapsed holds first, capped at MaximumExpirySweep = 64
+// (ledger.go argues the number), while scheduling.MemoryRepository sweeps every
+// lapsed hold it finds. Inside one batch the two agree. Past it they disagree on
+// one field: Snapshot's Reserved still charges the unswept rows, so this store
+// over-reports occupancy. That is the safe direction -- it refuses an admission
+// rather than over-committing one -- but it is observable, and schedulingtest
+// says so where it declines to assert on it. Coming back from an outage longer
+// than the hold TTL, a caller can see repeated fleet_snapshot_stale until the
+// backlog drains: each mutation sweeps a batch, and each batch moves the
+// fingerprint under a decision taken against the previous view.
 package schedulingpostgres

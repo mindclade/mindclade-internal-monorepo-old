@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"go.mindclade.dev/libs/go/faults"
+	"go.mindclade.dev/libs/go/idempotency"
 )
 
 var promotionStart = time.Date(2026, time.August, 23, 6, 0, 0, 0, time.UTC)
@@ -264,6 +265,120 @@ func TestAdmitReadyPlacesEachPromotedStageOnce(t *testing.T) {
 	}
 	if len(enqueuer.items) != 1 {
 		t.Fatalf("enqueued %d items after a re-reconcile, want 1", len(enqueuer.items))
+	}
+}
+
+// scopedRepository records which stage read a Service call made.
+//
+// A read that is too wide costs latency rather than correctness, so nothing
+// else in the suite would notice it: the answers are identical either way. The
+// call is the only observable, so the call is what this records.
+type scopedRepository struct {
+	*MemoryRepository
+	listed  int
+	fetched [][]string
+}
+
+func (repository *scopedRepository) ListStages(ctx context.Context, runID string) ([]StageRecord, error) {
+	repository.listed++
+	return repository.MemoryRepository.ListStages(ctx, runID)
+}
+
+func (repository *scopedRepository) GetStages(ctx context.Context, runID string, stageIDs []string) ([]StageRecord, error) {
+	repository.fetched = append(repository.fetched, append([]string(nil), stageIDs...))
+	return repository.MemoryRepository.GetStages(ctx, runID, stageIDs)
+}
+
+// cancellationFor builds a valid intent. A run-scoped origin may not name a
+// stage and an attempt-scoped one must, so the stage argument decides both.
+func cancellationFor(t *testing.T, runID, stageID string, origin CancellationOrigin) CancellationIntent {
+	t.Helper()
+	return CancellationIntent{
+		RunID:   runID,
+		StageID: stageID,
+		Origin:  origin,
+		Reason:  "conformance cancellation",
+		Idempotency: idempotency.Identity{
+			Scope: idempotency.MustParseScope("control-plane/orchestration/cancel"),
+			Key:   idempotency.MustParseKey("cancel-" + string(origin) + "-" + runID),
+		},
+		RequestedAt: promotionStart,
+	}
+}
+
+// A preempted node cancels one attempt, not a run. Reading the whole run to do
+// it made a preemption cost O(stages) against a graph bounded at 4096, on the
+// path that runs once per lost lease -- and Propagate's attempt-scoped arm only
+// ever reads the one stage the intent names, so the wide read bought nothing.
+//
+// The run-scoped half is asserted in the same test on purpose: the narrow read
+// is only correct because the origin decides it, and a split that narrowed both
+// arms would cancel one stage of a run an operator asked to stop.
+func TestCancelReadsOnlyTheStagesItsOriginCanReach(t *testing.T) {
+	repository := &scopedRepository{MemoryRepository: NewMemoryRepository(0)}
+	service := Service{Repository: repository}
+	ctx := context.Background()
+
+	first, second, third := testID(t, "stage"), testID(t, "stage"), testID(t, "stage")
+	compiled, err := Compile(CompileRequest{Name: "pipeline", Stages: []StageSpec{
+		testStage(t, first, "fetch"),
+		testStage(t, second, "msa"),
+		testStage(t, third, "fold"),
+	}}, testWorkflowID(t))
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	if _, _, err := repository.PutWorkflow(ctx, compiled, promotionStart); err != nil {
+		t.Fatalf("PutWorkflow: %v", err)
+	}
+	runID, jobID := testID(t, "run"), testID(t, "job")
+	if _, err := service.StartRun(ctx, compiled.Workflow.ID, runID, jobID); err != nil {
+		t.Fatalf("StartRun: %v", err)
+	}
+
+	cancelling, replayed, err := service.Cancel(ctx, compiled.Workflow.ID,
+		cancellationFor(t, runID, second, OriginPreemption))
+	if err != nil || replayed {
+		t.Fatalf("attempt-scoped Cancel: err=%v replayed=%v", err, replayed)
+	}
+	if repository.listed != 0 {
+		t.Fatalf("an attempt-scoped cancellation listed the run %d times, want 0", repository.listed)
+	}
+	if len(repository.fetched) != 1 || len(repository.fetched[0]) != 1 || repository.fetched[0][0] != second {
+		t.Fatalf("fetched %v, want exactly the named stage [%s]", repository.fetched, second)
+	}
+	// The narrow read must not have narrowed the outcome.
+	if len(cancelling) != 1 || cancelling[0].StageID != second {
+		t.Fatalf("cancelled %+v, want only the named stage", cancelling)
+	}
+	if cancelling[0].State != StageCancelling {
+		t.Fatalf("state = %s, want cancelling", cancelling[0].State)
+	}
+	for _, untouched := range []string{first, third} {
+		record, err := repository.GetStage(ctx, runID, untouched)
+		if err != nil {
+			t.Fatalf("GetStage %s: %v", untouched, err)
+		}
+		if record.State != StageBlocked {
+			t.Fatalf("stage %s = %s after an attempt-scoped cancellation, want blocked", untouched, record.State)
+		}
+	}
+
+	// An operator stop reaches the graph, so it still reads the graph.
+	stopped, replayed, err := service.Cancel(ctx, compiled.Workflow.ID,
+		cancellationFor(t, runID, "", OriginOperator))
+	if err != nil || replayed {
+		t.Fatalf("run-scoped Cancel: err=%v replayed=%v", err, replayed)
+	}
+	if repository.listed != 1 {
+		t.Fatalf("a run-scoped cancellation listed the run %d times, want 1", repository.listed)
+	}
+	if len(repository.fetched) != 1 {
+		t.Fatalf("a run-scoped cancellation made %d scoped fetches, want none of its own", len(repository.fetched)-1)
+	}
+	// The stage already cancelling is unchanged, so only the other two move.
+	if len(stopped) != 2 {
+		t.Fatalf("run-scoped cancellation moved %d stages, want 2", len(stopped))
 	}
 }
 
