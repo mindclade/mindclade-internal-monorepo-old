@@ -7,6 +7,24 @@
 # registry locations, attestors, or service accounts.
 schemaVersion: 2
 targets:
+  # One component, one image. The control plane deploys as ten images, but
+  # release_request.py refuses any `images` map that is not exactly {primary}
+  # ("exactly primary until workflow v5"), so the remaining nine wait on that
+  # interface rather than being forced into a shape the contract rejects.
+  control-plane-registry:
+    releaseKind: application
+    application: platform-control-plane-registry
+    rolloutClass: stateless
+    images:
+      primary:
+        repository: releases/control-plane-registry
+        buildTarget: //services/control_plane:registry_image
+        pushTarget: //services/control_plane:registry_push
+    artifacts: []
+    qualificationMode: test
+    qualificationTargets:
+      - //control/registry/models:models_test
+      - //services/control_plane/internal/providers/registry:registry_test
   go-vanity:
     releaseKind: application
     application: platform-go-vanity

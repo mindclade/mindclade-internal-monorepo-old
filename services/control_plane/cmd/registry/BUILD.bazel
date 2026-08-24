@@ -38,3 +38,26 @@ go_library(
         "@com_github_lib_pq//:pq",
     ],
 )
+
+# Cross-compiled sibling of `:registry`, and the only input to the release image.
+#
+# `:registry` above is configured for the host, so on a developer Mac it produces a darwin
+# binary that a linux/amd64 image cannot execute. Fixing the platform here rather than on the
+# oci_image keeps the image's contents independent of the machine that builds it, which is the
+# property a release needs: identical bytes from a laptop and from a Linux runner.
+#
+# pure = "on" removes the cgo dependency so the binary runs on distroless static, which ships
+# no libc. `-s -w` drop the symbol and DWARF tables; nothing in the release path debugs this
+# binary in place, and the crash path is the structured log, not a core dump.
+go_binary(
+    name = "registry_linux_amd64",
+    embed = [":registry_lib"],
+    gc_linkopts = [
+        "-s",
+        "-w",
+    ],
+    goarch = "amd64",
+    goos = "linux",
+    pure = "on",
+    visibility = ["//services/control_plane:__pkg__"],
+)

@@ -488,7 +488,7 @@ tests = [
 [[component]]
 name = "control.model_registry"
 path = "control/registry/models"
-status = "qualified"
+status = "production"
 owner = "platform-control"
 tests = [
   "control/registry/models/service_test.go",
@@ -498,6 +498,9 @@ tests = [
 qualification = "docs/qualification/go/control-plane-registry.md"
 slo = "docs/slo/control-model-registry.md"
 runbook = "docs/runbooks/control-model-registry.md"
+# Names the closed catalog entry in ci/release/targets.yaml. The component is the domain
+# authority; control-plane-registry is the image that ships it.
+release_target = "control-plane-registry"
 
 [[component]]
 name = "infra.terraform.modules"

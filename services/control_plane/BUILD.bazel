@@ -3,6 +3,9 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 #
 
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+
 package(default_visibility = ["//visibility:private"])
 
 filegroup(
@@ -12,5 +15,60 @@ filegroup(
         "PRODUCTION_READINESS.md",
         "README.md",
     ],
+    visibility = ["//visibility:public"],
+)
+
+# Release image for the `control.model_registry` component.
+#
+# The control plane deploys as TEN images (api, controller, registry, scheduler, operator,
+# admin, maintenance, event-dispatcher, event-projector, ingestion-controller), each its own
+# Deployment in infra/kubernetes/services/control-plane/deployment.yaml. Only the registry is
+# built here, deliberately: ci/release/release_request.py rejects a catalog target whose
+# `images` map holds anything but `primary` -- "exactly primary until workflow v5" -- so one
+# component to one image is the only shape the release contract can express today. The other
+# nine follow this pattern once the v5 interface can carry the complete map; naming these
+# targets `registry_*` rather than `image`/`push` leaves room for them.
+#
+# Everything downstream keys off the image DIGEST, never a tag: the Deployment pins
+# control-plane-registry@sha256:... and Binary Authorization attests a digest.
+pkg_tar(
+    name = "registry_layer",
+    files = {
+        "//services/control_plane/cmd/registry:registry_linux_amd64": "/usr/local/bin/registry",
+    },
+    mode = "0555",
+)
+
+oci_image(
+    name = "registry_image",
+    # The platform-specific repository, not the `@distroless_static` alias: that alias is a
+    # select() over the target platform, so building on a Mac asks distroless for a darwin
+    # image it does not publish. Naming amd64 directly makes the image independent of the host.
+    base = "@distroless_static_linux_amd64",
+    entrypoint = ["/usr/local/bin/registry"],
+    # Documentation only -- Kubernetes takes the port from the manifest. Kept because the image
+    # and the manifest disagreeing is a silent readiness failure, and this is where a reader
+    # looks. 8080 matches the `http` containerPort on the control-plane-registry Deployment.
+    exposed_ports = ["8080/tcp"],
+    tars = [":registry_layer"],
+    # uid:gid, not a name: distroless has no /etc/passwd to resolve `nonroot` against, and 65532
+    # is what the Deployment's runAsUser sets.
+    user = "65532:65532",
+    visibility = ["//visibility:public"],
+)
+
+oci_load(
+    name = "registry_load",
+    image = ":registry_image",
+    repo_tags = ["control-plane-registry:local"],
+)
+
+# `repository` is a PLACEHOLDER overridden at run time. This estate has one registry per
+# environment by design -- promotion is a digest copy between registries, not a moved tag --
+# so baking one environment's address here would make promoting to another a code change.
+oci_push(
+    name = "registry_push",
+    image = ":registry_image",
+    repository = "localhost/mindclade/control-plane-registry",
     visibility = ["//visibility:public"],
 )
