@@ -1,11 +1,11 @@
 # Terraform production readiness
 
 **Current decision:** Not ready for production apply.  
-**Implementation status:** All 46 reusable modules are materialized. The prior whole-tree
+**Implementation status:** All 47 reusable modules are materialized. The prior whole-tree
 qualification baseline covered 43 modules plus the now-retired `dns_hub` deployable root;
 the Certificate Manager module and retired-root fixture pass scoped contracts,
 provider-schema validation, mock tests, and generated-interface governance. The
-`workstation` module is newer than every retained run: it is in the regenerated 46-module
+`workstation` module is newer than every retained run: it is in the regenerated 47-module
 interface manifest and ships a 21-run mock suite, but no qualification output recorded
 here covers it. A fresh whole-tree qualification run is required before release.
 Environment topology and live evidence remain external and unknown.
@@ -15,7 +15,8 @@ Environment topology and live evidence remain external and unknown.
 
 | Gate | Status | Required evidence |
 |---|---|---|
-| Stable module contracts and owners | PASS | Generated interfaces for 46 modules, versioned migration evidence, component ownership, and Platform/Security review routing; `dns_hub` is retained only as a non-deployable DNS module test fixture |
+| Stable module contracts and owners | PASS | Generated interfaces for 47 modules, versioned migration evidence, component ownership, and Platform/Security review routing; `dns_hub` is retained only as a non-deployable DNS module test fixture |
+| Signed immutable module publication | BLOCKED | Source now requires protected-main dispatch, post-approval main reauthorization, exact-tag qualification at each mutation boundary, a source-pinned SSH signer fingerprint with fresh evidence, exactly one active Security-team approval distinct from dispatcher and signer, owner-enforced immutable releases with evidence no older than seven days, active exact Release creation and no-bypass tag-protection rules, exact manifest/checksum/attestation asset digests, and immutable release read-back. A separately scoped read-only App proves governance while `GITHUB_TOKEN` is confined to release mutation. The authority contract remains blocked, the App/environment are not asserted live, and the connected repository reported immutable releases disabled on 2026-08-23 |
 | Formatting and static repository checks | PASS | Terraform formatting, diff check, Actionlint, strict YAML lint, Nix flake evaluation/toolchain evidence, documentation build, and the repository static presubmit pass |
 | Backendless init/validate/mock tests | PARTIAL | The 2026-08-20 baseline passed 47/47 configurations and 261/261 mock runs across 44 suites; current scoped Certificate Manager and DNS module tests pass, but the post-retirement whole-tree gate has not been rerun and the 21-run `workstation` suite has no retained result at all |
 | Provider-connected non-production plan | MISSING | Saved plan, plan JSON, provider versions, project/region, and expiration |
@@ -42,21 +43,21 @@ evidence its mock suite could supply.
 ## Local validation evidence
 
 The counts below are the 2026-08-20 pre-retirement repository baseline. They are retained
-as dated evidence and are not a claim about the current 46-module tree. The DNS and
+as dated evidence and are not a claim about the current 47-module tree. The DNS and
 certificate change has separate scoped validation; the later `workstation` module has
 none. A new whole-tree run must replace this baseline before release.
 
 One gate has been rerun against the current tree. On 2026-08-23,
-`infra/terraform/governance/check.sh` passed 46 units and 374 changes from 0.1.1, of which
+`infra/terraform/governance/check.sh` passed 47 units and 374 changes from 0.1.1, of which
 132 are breaking and all are recorded in the planned v0.4.0 migration record. That single
-result is why the contracts gate above reads 46 rather than the baseline's 44; no other
+result is why the contracts gate above reads 47 rather than the baseline's 44; no other
 line below has been rerun.
 
 The 2026-08-20 repository gate used Terraform 1.15.8 on `darwin_arm64` and
 checksum-verified Google providers. All 44 deployable-unit locks select reviewed version
 7.45.0; canonical three-platform fixtures qualify both the declared minimum 7.41.0 and
 reviewed 7.45.0. The two modules added since — `certificate_manager` and `workstation` —
-carry locks on that same reviewed 7.45.0, so the current tree holds 46 module locks on a
+carry locks on that same reviewed 7.45.0, so the current tree holds 47 module locks on a
 single selection. That is a lock-file fact read off the tree, not a rerun of this gate,
 and it is recorded here only so a reader does not mistake the 44 above for the current
 count. Initialization used `-backend=false`; no credentials, remote state,
