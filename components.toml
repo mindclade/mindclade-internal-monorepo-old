@@ -1038,155 +1038,64 @@ tests = [
 ]
 release_target = "go-vanity"
 
-# `services/control_plane` is NOT declared here, and that is a blocker being reported rather
-# than an omission. Its evidence supports `implemented` — 45 packages, 13,732 production
-# lines, 24 packages with executing tests (bootstrap 58.8%, config 77.8%, providers/api 62.3%,
-# store/postgres/admission 40.8%, and so on), and go_library/go_test targets throughout — and
-# its owner is unambiguous: OWNERS.toml claims `services/control_plane/**` for platform-control
-# explicitly. The tier is unambiguous too: it composes control.runtime_authority,
-# control.admission, control.artifacts, control.ingestion, control.model_registry and
-# control.release_evidence, every one of which is tier-1, so the deployable that hosts them
-# cannot honestly be recorded below tier-1.
+# `services/control_plane` is declared below, closing the last of the three services/ holes.
+# The blocker recorded here previously was a missing SLO: check_component_ownership.py requires
+# BOTH an `slo` and a `runbook` for any tier-0/tier-1 component at `implemented` or above,
+# `docs/runbooks/control-plane-outage.md` existed and no SLO page did. `docs/slo/control-plane.md`
+# is that page. It sets no objective -- the objectives are platform-control's and
+# PRODUCTION_READINESS.md lists "operational SLO approval" as outstanding -- but it is a real
+# document: the shared lease contract, the eighteen *_not_configured fail-closed seams, and the
+# enforced bounds, each cited to file and line.
 #
-# That is exactly what blocks it. check_component_ownership.py requires BOTH an `slo` and a
-# `runbook` for any tier-0/tier-1 component at `implemented` or above.
-# `docs/runbooks/control-plane-outage.md` exists; `docs/slo/` has nineteen pages and none of
-# them is the control plane's. The two ways to make the declaration land today are to write
-# that SLO — owned by platform-control, and outside this change's lane — or to record the
-# component as tier-2, which would be choosing a criticality to clear a gate rather than to
-# describe the service. `_GO_DECLARATION_GOVERNED_ROOTS` therefore governs
-# `services/go_vanity` and `services/studio` and not `services/control_plane`; when the SLO
-# exists, replacing those two roots with plain `services` is the change that proves it.
+# tier-1 rather than tier-2 for the reason recorded before: it composes control.runtime_authority,
+# control.admission, control.artifacts, control.ingestion, control.model_registry and
+# control.release_evidence, every one of them tier-1. Recording it tier-2 would have been choosing
+# a criticality to clear a gate.
+#
+# `implemented`, not `qualified`: go_library/go_test targets throughout and no qualification
+# evidence document for the deployable. The registry ROLE is qualified against live PostgreSQL
+# (docs/qualification/go/control-plane-registry.md), but PRODUCTION_READINESS.md holds the other
+# ten roles fail-closed on unconfigured domain seams, so the deployable does not inherit that.
+#
+# The granularity is the DEPLOYABLE, per the note above these services/ entries. An earlier
+# revision of this change declared the eleven cmd/<role> mains separately; because
+# check_production_dependencies.py resolves by longest path prefix that governed only eleven
+# 9-line main packages and left the 35 packages behind them undeclared, which is the hole this
+# entry exists to close.
+#
+# `_GO_DECLARATION_GOVERNED_ROOTS` now reads plain `services`, as the note it replaced said it
+# would once this landed.
 
 [[component]]
-name = "services.control_plane.registry"
-path = "services/control_plane/cmd/registry"
-status = "qualified"
-owner = "platform-control"
-tests = [
-  "services/control_plane/internal/providers/registry/domain_test.go",
-  "services/control_plane/internal/providers/registry/handler_test.go",
-  "services/control_plane/internal/providers/registry/providers_test.go",
-]
-qualification = "docs/qualification/go/control-plane-registry.md"
-slo = "docs/slo/control-model-registry.md"
-runbook = "docs/runbooks/control-model-registry.md"
-
-[[component]]
-name = "services.control_plane.api"
-path = "services/control_plane/cmd/api"
+name = "services.control_plane"
+path = "services/control_plane"
 status = "implemented"
 owner = "platform-control"
-tests = [
-  "services/control_plane/internal/providers/api/admission_test.go",
-  "services/control_plane/internal/providers/api/api_test.go",
-  "services/control_plane/internal/providers/api/eligibility_test.go",
-  "services/control_plane/internal/providers/api/policies_test.go",
-  "services/control_plane/internal/providers/api/serving_policy_test.go",
-]
-slo = "docs/slo/control-admission.md"
-runbook = "docs/runbooks/control-admission.md"
-
-[[component]]
-name = "services.control_plane.maintenance"
-path = "services/control_plane/cmd/maintenance"
-status = "implemented"
-owner = "platform-control"
-tests = [
-  "services/control_plane/internal/providers/maintenance/maintenance_test.go",
-  "services/control_plane/internal/providers/maintenance/metrics_test.go",
-]
 slo = "docs/slo/control-plane.md"
 runbook = "docs/runbooks/control-plane-outage.md"
-
-[[component]]
-name = "services.control_plane.admin"
-path = "services/control_plane/cmd/admin"
-status = "experimental"
-owner = "platform-control"
 tests = [
-  "services/control_plane/internal/providers/api/admission_test.go",
-  "services/control_plane/internal/providers/api/api_test.go",
-  "services/control_plane/internal/providers/api/eligibility_test.go",
-  "services/control_plane/internal/providers/api/policies_test.go",
-  "services/control_plane/internal/providers/api/serving_policy_test.go",
+  "services/control_plane/internal/bootstrap",
+  "services/control_plane/internal/config",
+  "services/control_plane/internal/foundation",
+  "services/control_plane/internal/foundation/orchestration",
+  "services/control_plane/internal/foundation/persistence",
+  "services/control_plane/internal/providers",
+  "services/control_plane/internal/providers/admissionmetrics",
+  "services/control_plane/internal/providers/api",
+  "services/control_plane/internal/providers/apikeys",
+  "services/control_plane/internal/providers/cluster",
+  "services/control_plane/internal/providers/controller",
+  "services/control_plane/internal/providers/dispatcher",
+  "services/control_plane/internal/providers/iapauth",
+  "services/control_plane/internal/providers/ingestion",
+  "services/control_plane/internal/providers/maintenance",
+  "services/control_plane/internal/providers/projector",
+  "services/control_plane/internal/providers/registry",
+  "services/control_plane/internal/providers/scheduler",
+  "services/control_plane/internal/providers/webhook",
+  "services/control_plane/internal/store/postgres",
+  "services/control_plane/internal/store/postgres/admission",
+  "services/control_plane/internal/store/postgres/orchestration",
+  "services/control_plane/internal/transport",
+  "services/control_plane/tests",
 ]
-slo = "docs/slo/control-admission.md"
-runbook = "docs/runbooks/control-admission.md"
-
-[[component]]
-name = "services.control_plane.scheduler"
-path = "services/control_plane/cmd/scheduler"
-status = "experimental"
-owner = "platform-control"
-tests = [
-  "services/control_plane/internal/providers/scheduler/scheduler_test.go",
-]
-slo = "docs/slo/control-scheduling.md"
-runbook = "docs/runbooks/control-scheduling.md"
-
-[[component]]
-name = "services.control_plane.controller"
-path = "services/control_plane/cmd/controller"
-status = "experimental"
-owner = "platform-control"
-tests = [
-  "services/control_plane/internal/providers/controller/controller_test.go",
-]
-slo = "docs/slo/control-orchestration.md"
-runbook = "docs/runbooks/control-orchestration.md"
-
-[[component]]
-name = "services.control_plane.operator"
-path = "services/control_plane/cmd/operator"
-status = "experimental"
-owner = "platform-control"
-tests = [
-  "services/control_plane/internal/providers/controller/controller_test.go",
-]
-slo = "docs/slo/control-orchestration.md"
-runbook = "docs/runbooks/control-orchestration.md"
-
-[[component]]
-name = "services.control_plane.event_projector"
-path = "services/control_plane/cmd/event_projector"
-status = "experimental"
-owner = "platform-control"
-tests = [
-  "services/control_plane/internal/providers/projector/projector_test.go",
-]
-slo = "docs/slo/control-orchestration.md"
-runbook = "docs/runbooks/control-orchestration.md"
-
-[[component]]
-name = "services.control_plane.event_dispatcher"
-path = "services/control_plane/cmd/event_dispatcher"
-status = "experimental"
-owner = "platform-control"
-tests = [
-  "services/control_plane/internal/providers/dispatcher/dispatcher_test.go",
-]
-slo = "docs/slo/control-orchestration.md"
-runbook = "docs/runbooks/control-orchestration.md"
-
-[[component]]
-name = "services.control_plane.webhook_dispatcher"
-path = "services/control_plane/cmd/webhook_dispatcher"
-status = "experimental"
-owner = "platform-control"
-tests = [
-  "services/control_plane/internal/providers/webhook/webhook_test.go",
-]
-slo = "docs/slo/control-orchestration.md"
-runbook = "docs/runbooks/control-orchestration.md"
-
-[[component]]
-name = "services.control_plane.ingestion_controller"
-path = "services/control_plane/cmd/ingestion_controller"
-status = "experimental"
-owner = "platform-control"
-tests = [
-  "services/control_plane/internal/providers/ingestion/ingestion_test.go",
-]
-slo = "docs/slo/control-ingestion.md"
-runbook = "docs/runbooks/control-ingestion.md"

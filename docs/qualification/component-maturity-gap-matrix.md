@@ -1,9 +1,9 @@
 # Component maturity gap matrix
 
 **Review date:** 2026-08-23
-**Scope:** all 95 components declared in `components.toml`, against the six rules
+**Scope:** all 96 components declared in `components.toml`, against the six rules
 `maturity.toml` enumerates for `production`.
-**Decision:** no component advances. 0 of 95 satisfy `production`; the 29 that mechanically
+**Decision:** no component advances. 0 of 96 satisfy `production`; the 29 that mechanically
 satisfy `qualified` are rejected on document review, not on paperwork.
 
 ## Reproducing this
@@ -149,7 +149,7 @@ by file rather than counted, that surface is three deployables:
 
 | Deployable | Packages | Production Go (raw / non-blank) | Test files | Bazel | Declared as | Coverage where tests execute |
 |---|---|---|---|---|---|---|
-| `services/control_plane` | 45 | 13,732 / 11,006 | 43 | `go_library` + `go_test` throughout | **not declared — blocked** | 24 packages execute tests (`bootstrap` 58.8%, `config` 77.8%, `foundation/orchestration` 85.7%, `providers/api` 62.3%, `providers/apikeys` 84.4%, `store/postgres/admission` 40.8%); the 11 `cmd/*` mains are 9 lines each and 21 packages report 0.0% |
+| `services/control_plane` | 46 | 15,490 non-test | 43 | `go_library` + `go_test` throughout | `services.control_plane`, `implemented`, tier-1 | 24 packages execute tests (`bootstrap` 58.8%, `config` 77.8%, `foundation/orchestration` 85.7%, `providers/api` 62.3%, `providers/apikeys` 84.4%, `store/postgres/admission` 40.8%); the 11 `cmd/*` mains are 9 lines each and 21 packages report 0.0% |
 | `services/studio` | 10 | 3,466 / 1,979 | 15 | `go_library` + `go_test` in all 10 | `services.studio`, `implemented`, tier-2 | `authz` 96.7%, `session` 94.2%, `iap` 87.4%, `stream` 77.3%, `metrics` 69.8%, `server` 51.0%, `httpx` 50.6%, `handoff` 35.6%, `cmd/studio` 18.8%; **`runlog` 0.0%** |
 | `services/go_vanity` | 3 | 523 / 355 | 3 | `go_library`/`go_binary`/`go_test`, plus `oci_image`/`oci_push` | `services.go_vanity`, `implemented`, tier-2 | `vanity` 93.0%, `service` 91.3%, `cmd/go_vanity` 12.0% |
 
