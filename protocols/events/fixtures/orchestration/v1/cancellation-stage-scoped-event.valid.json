@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "run_id": "run_019c0000000070008000000000000002",
+  "stage_id": "stage_019c0000000070008000000000000004",
+  "origin": "claim_loss",
+  "reason": "the work queue reported a replacement claim for this attempt",
+  "idempotency_scope": "org_019c0000000070008000000000000006/control-plane/stages.cancel",
+  "idempotency_key": "0a4d9e21-6c73-4f58-b0ae-91d3f27c4e60",
+  "requested_at": "2026-08-23T09:03:58.25Z"
+}

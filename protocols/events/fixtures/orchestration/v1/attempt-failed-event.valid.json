@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "run_id": "run_019c0000000070008000000000000002",
+  "job_id": "job_019c0000000070008000000000000003",
+  "stage_id": "stage_019c0000000070008000000000000004",
+  "attempt": 2,
+  "state": "failed",
+  "fencing_token": 7,
+  "execution_ticket_id": "ticket_019c0000000070008000000000000005",
+  "execution_class": "gpu-a100-80gb",
+  "sequence": 14,
+  "failure_code": "deadline_exceeded",
+  "failure_reason": "stage_deadline_elapsed",
+  "updated_at": "2026-08-23T09:04:00Z",
+  "resource_version": "rv1:11:sha256:5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e"
+}

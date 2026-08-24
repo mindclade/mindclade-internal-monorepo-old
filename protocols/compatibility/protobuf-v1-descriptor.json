@@ -2651,6 +2651,7 @@
         }
       },
       "files": [
+        "mindclade/orchestration/v1/orchestration_events.proto",
         "mindclade/orchestration/v1/run.proto",
         "mindclade/orchestration/v1/service.proto",
         "mindclade/orchestration/v1/stage.proto",
@@ -2658,6 +2659,124 @@
         "mindclade/orchestration/v1/workload.proto"
       ],
       "messages": {
+        "mindclade.orchestration.v1.AttemptStateEvent": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "schema_version",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "run_id",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "job_id",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "stage_id",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "attempt",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "state",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "fencing_token",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "execution_ticket_id",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "execution_class",
+              "number": 9,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "sequence",
+              "number": 10,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT64"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "failure_code",
+              "number": 11,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "failure_reason",
+              "number": 12,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "updated_at",
+              "number": 13,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "google.protobuf.Timestamp"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "resource_version",
+              "number": 14,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
         "mindclade.orchestration.v1.CancelRunRequest": {
           "fields": [
             {
@@ -2697,6 +2816,76 @@
               "oneof": null,
               "proto3_optional": false,
               "type": "mindclade.orchestration.v1.Run"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.orchestration.v1.CancellationRequestedEvent": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "schema_version",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "run_id",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "stage_id",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "origin",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "reason",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "idempotency_scope",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "idempotency_key",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "requested_at",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "google.protobuf.Timestamp"
             }
           ],
           "reserved_names": [],
@@ -3144,6 +3333,76 @@
           "reserved_names": [],
           "reserved_ranges": []
         },
+        "mindclade.orchestration.v1.StageStateEvent": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "schema_version",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "run_id",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "job_id",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "stage_id",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "state",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "attempts",
+              "number": 6,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "updated_at",
+              "number": 7,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "google.protobuf.Timestamp"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "resource_version",
+              "number": 8,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
         "mindclade.orchestration.v1.Workflow": {
           "fields": [
             {
@@ -3182,6 +3441,60 @@
               "label": "LABEL_OPTIONAL",
               "name": "schema_version",
               "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            }
+          ],
+          "reserved_names": [],
+          "reserved_ranges": []
+        },
+        "mindclade.orchestration.v1.WorkflowPublishedEvent": {
+          "fields": [
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "schema_version",
+              "number": 1,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "workflow_id",
+              "number": 2,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "name",
+              "number": 3,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "definition_digest",
+              "number": 4,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_STRING"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "workflow_schema_version",
+              "number": 5,
+              "oneof": null,
+              "proto3_optional": false,
+              "type": "TYPE_UINT32"
+            },
+            {
+              "label": "LABEL_OPTIONAL",
+              "name": "stage_count",
+              "number": 6,
               "oneof": null,
               "proto3_optional": false,
               "type": "TYPE_UINT32"

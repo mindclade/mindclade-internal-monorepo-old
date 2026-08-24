@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "workflow_id": "workflow_019c0000000070008000000000000001",
+  "name": "nightly-genome-ingest",
+  "definition_digest": "sha256:9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f",
+  "workflow_schema_version": 1,
+  "stage_count": 3
+}

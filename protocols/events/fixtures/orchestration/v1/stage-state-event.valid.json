@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "run_id": "run_019c0000000070008000000000000002",
+  "job_id": "job_019c0000000070008000000000000003",
+  "stage_id": "stage_019c0000000070008000000000000004",
+  "state": "running",
+  "attempts": 1,
+  "updated_at": "2026-08-23T09:00:30.000000001Z",
+  "resource_version": "rv1:4:sha256:3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c"
+}

@@ -1,0 +1,130 @@
+// Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+// Mindclade Proprietary and Confidential.
+// SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+//
+
+syntax = "proto3";
+
+package mindclade.orchestration.v1;
+
+option go_package = "go.mindclade.dev/protocols/gen/go/mindclade/orchestration/v1;orchestrationv1";
+
+import "google/protobuf/timestamp.proto";
+
+// The typed payloads of the four orchestration outbox topics.
+//
+// Until these existed the orchestration store emitted `application/json` bodies
+// that no contract described: the shapes lived only in the unexported structs of
+// services/control_plane/internal/store/postgres/orchestration/events.go, so a
+// renamed field was invisible to every gate in the repository and a consumer
+// found out by reading `null`. These messages ARE those structs, field for
+// field, and protocols/mappings/event_proto.yaml projects them into
+// protocols/events/generated/orchestration/v1/orchestration-events.schema.json
+// so the emitted document is checked against a reviewed shape.
+//
+// Two modelling rules follow from that "these describe the bytes on the wire"
+// framing, and neither is a matter of taste:
+//
+//  1. Identifiers, digests, and resource versions are plain `string`, not
+//     mindclade.common.v1.ResourceId / ContentDigest / ResourceVersion. Those
+//     are messages, so proto3 JSON writes them as `{"value": "..."}` while
+//     encoding/json writes the Go string bare. Reusing them here would describe
+//     a document the store does not emit. The grammar each string must satisfy
+//     is a `pattern` in the projection policy instead.
+//  2. Stage state, attempt state, and cancellation origin are `string` rather
+//     than enums. proto3 JSON writes an enum as its declared NAME
+//     ("STAGE_STATE_RUNNING"); the store writes the domain's own lowercase word
+//     ("running"), because control/orchestration's StageState is a string type
+//     whose constants are those words. An enum here would project to a schema
+//     that rejects every event the store has ever emitted, and the generator
+//     forbids refining an enum projection back into the right shape.
+//
+// The topic name carries the version (control.orchestration.stage.v1), so a
+// consumer that cannot read v2 keeps reading v1 rather than mis-parsing it.
+// `schema_version` repeats that inside the body for a reader that has already
+// lost the topic — a spooled file, an audit export.
+
+// WorkflowPublishedEvent announces a compiled workflow, not its plan.
+//
+// A plan carries up to MaximumStageCount (4096) stage specs with their inputs
+// and budgets. Publishing that on every workflow publication would put a
+// megabyte-scale body in the outbox for a fact the consumer can already resolve
+// by id, so the digest stands in for the plan: it is the plan's identity, and a
+// consumer that needs the stages calls GetWorkflow.
+message WorkflowPublishedEvent {
+  uint32 schema_version = 1;
+  string workflow_id = 2;
+  string name = 3;
+  string definition_digest = 4;
+  uint32 workflow_schema_version = 5;
+  uint32 stage_count = 6;
+}
+
+// StageStateEvent reports one stage transition.
+//
+// `attempts` is the number of attempts opened so far, including any that ended
+// without reporting; it only ever increases, and it is the counter the stage
+// budget is measured against. `resource_version` is the version that seals the
+// record the transition produced, so a consumer can drop a replayed message
+// without re-reading the stage.
+message StageStateEvent {
+  uint32 schema_version = 1;
+  string run_id = 2;
+  string job_id = 3;
+  string stage_id = 4;
+  string state = 5;
+  uint32 attempts = 6;
+  google.protobuf.Timestamp updated_at = 7;
+  string resource_version = 8;
+}
+
+// AttemptStateEvent reports one attempt transition.
+//
+// `sequence` is the highest worker status sequence applied to the record, which
+// is what lets a consumer discard a status that arrived late or twice. It is 0
+// on an attempt that has not yet reported, so it is bounded from 0 rather than
+// from 1 the way `fencing_token` is.
+//
+// `failure_code` and `failure_reason` are absent unless the attempt carries a
+// failure: the store tags them `omitempty`, and a zero coordination.Failure
+// renders both as the empty string. Their vocabulary belongs to libs/go/faults
+// and libs/go/coordination rather than to orchestration, which is why the
+// policy bounds their grammar and length but does not pin their members the way
+// it pins `state` and `origin`.
+message AttemptStateEvent {
+  uint32 schema_version = 1;
+  string run_id = 2;
+  string job_id = 3;
+  string stage_id = 4;
+  uint32 attempt = 5;
+  string state = 6;
+  uint64 fencing_token = 7;
+  string execution_ticket_id = 8;
+  string execution_class = 9;
+  uint64 sequence = 10;
+  string failure_code = 11;
+  string failure_reason = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  string resource_version = 14;
+}
+
+// CancellationRequestedEvent records an accepted cancellation intent.
+//
+// `stage_id` is present only for an attempt-scoped origin. A run-scoped origin
+// cancels the whole graph, so naming one stage would describe two different
+// operations with one record, and control/orchestration refuses that pair.
+//
+// The idempotency identity travels with the event because it is the primary key
+// the intent was stored under: a consumer that observes the same cancellation
+// twice can tell a replayed delivery from a second, genuinely distinct request.
+// This message carries no `resource_version`; an intent is an immutable fact.
+message CancellationRequestedEvent {
+  uint32 schema_version = 1;
+  string run_id = 2;
+  string stage_id = 3;
+  string origin = 4;
+  string reason = 5;
+  string idempotency_scope = 6;
+  string idempotency_key = 7;
+  google.protobuf.Timestamp requested_at = 8;
+}

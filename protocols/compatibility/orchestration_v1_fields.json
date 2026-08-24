@@ -1,4 +1,76 @@
 {
+  "mindclade.orchestration.v1.AttemptStateEvent": {
+    "1": {
+      "label": "singular",
+      "name": "schema_version",
+      "type": "uint32"
+    },
+    "10": {
+      "label": "singular",
+      "name": "sequence",
+      "type": "uint64"
+    },
+    "11": {
+      "label": "singular",
+      "name": "failure_code",
+      "type": "string"
+    },
+    "12": {
+      "label": "singular",
+      "name": "failure_reason",
+      "type": "string"
+    },
+    "13": {
+      "label": "singular",
+      "name": "updated_at",
+      "type": "google.protobuf.Timestamp"
+    },
+    "14": {
+      "label": "singular",
+      "name": "resource_version",
+      "type": "string"
+    },
+    "2": {
+      "label": "singular",
+      "name": "run_id",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "job_id",
+      "type": "string"
+    },
+    "4": {
+      "label": "singular",
+      "name": "stage_id",
+      "type": "string"
+    },
+    "5": {
+      "label": "singular",
+      "name": "attempt",
+      "type": "uint32"
+    },
+    "6": {
+      "label": "singular",
+      "name": "state",
+      "type": "string"
+    },
+    "7": {
+      "label": "singular",
+      "name": "fencing_token",
+      "type": "uint64"
+    },
+    "8": {
+      "label": "singular",
+      "name": "execution_ticket_id",
+      "type": "string"
+    },
+    "9": {
+      "label": "singular",
+      "name": "execution_class",
+      "type": "string"
+    }
+  },
   "mindclade.orchestration.v1.CancelRunRequest": {
     "1": {
       "label": "singular",
@@ -21,6 +93,48 @@
       "label": "singular",
       "name": "run",
       "type": "Run"
+    }
+  },
+  "mindclade.orchestration.v1.CancellationRequestedEvent": {
+    "1": {
+      "label": "singular",
+      "name": "schema_version",
+      "type": "uint32"
+    },
+    "2": {
+      "label": "singular",
+      "name": "run_id",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "stage_id",
+      "type": "string"
+    },
+    "4": {
+      "label": "singular",
+      "name": "origin",
+      "type": "string"
+    },
+    "5": {
+      "label": "singular",
+      "name": "reason",
+      "type": "string"
+    },
+    "6": {
+      "label": "singular",
+      "name": "idempotency_scope",
+      "type": "string"
+    },
+    "7": {
+      "label": "singular",
+      "name": "idempotency_key",
+      "type": "string"
+    },
+    "8": {
+      "label": "singular",
+      "name": "requested_at",
+      "type": "google.protobuf.Timestamp"
     }
   },
   "mindclade.orchestration.v1.CreateRunRequest": {
@@ -263,6 +377,48 @@
       "type": "uint64"
     }
   },
+  "mindclade.orchestration.v1.StageStateEvent": {
+    "1": {
+      "label": "singular",
+      "name": "schema_version",
+      "type": "uint32"
+    },
+    "2": {
+      "label": "singular",
+      "name": "run_id",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "job_id",
+      "type": "string"
+    },
+    "4": {
+      "label": "singular",
+      "name": "stage_id",
+      "type": "string"
+    },
+    "5": {
+      "label": "singular",
+      "name": "state",
+      "type": "string"
+    },
+    "6": {
+      "label": "singular",
+      "name": "attempts",
+      "type": "uint32"
+    },
+    "7": {
+      "label": "singular",
+      "name": "updated_at",
+      "type": "google.protobuf.Timestamp"
+    },
+    "8": {
+      "label": "singular",
+      "name": "resource_version",
+      "type": "string"
+    }
+  },
   "mindclade.orchestration.v1.Workflow": {
     "1": {
       "label": "singular",
@@ -287,6 +443,38 @@
     "5": {
       "label": "singular",
       "name": "schema_version",
+      "type": "uint32"
+    }
+  },
+  "mindclade.orchestration.v1.WorkflowPublishedEvent": {
+    "1": {
+      "label": "singular",
+      "name": "schema_version",
+      "type": "uint32"
+    },
+    "2": {
+      "label": "singular",
+      "name": "workflow_id",
+      "type": "string"
+    },
+    "3": {
+      "label": "singular",
+      "name": "name",
+      "type": "string"
+    },
+    "4": {
+      "label": "singular",
+      "name": "definition_digest",
+      "type": "string"
+    },
+    "5": {
+      "label": "singular",
+      "name": "workflow_schema_version",
+      "type": "uint32"
+    },
+    "6": {
+      "label": "singular",
+      "name": "stage_count",
       "type": "uint32"
     }
   },
