@@ -1,9 +1,9 @@
 # Component maturity gap matrix
 
 **Review date:** 2026-08-23
-**Scope:** all 106 components declared in `components.toml`, against the six rules
+**Scope:** all 97 components declared in `components.toml`, against the six rules
 `maturity.toml` enumerates for `production`.
-**Decision:** no component is production-ready. 0 of 106 satisfy `production`; the 30 that mechanically
+**Decision:** no component advances. 0 of 97 satisfy `production`; the 32 that mechanically
 satisfy `qualified` are rejected on document review, not on paperwork.
 
 ## Reproducing this
@@ -153,12 +153,60 @@ API and maintenance are `implemented`, and the other eight roles remain `experim
 statuses reuse owning provider/foundation tests and do not imply every shared internal package
 is qualified.
 
-The remaining structural gap is explicit: `_GO_DECLARATION_GOVERNED_ROOTS` still governs only
-`control`, `libs`, `services/go_vanity`, and `services/studio`. The command records live under
-`services/control_plane/cmd/*`, while their shared implementation lives under `internal/`.
-Before the entire `services` root can be claimed governed, a path-ownership rule must associate
-each internal package with every shipping role that consumes it. The eight experimental roles
-also require their named connected readiness evidence before advancement.
+`_GO_DECLARATION_GOVERNED_ROOTS` now reads `("control", "libs", "services")`. Every Go package
+under `services/` is governed, so the structural gap this matrix previously recorded — eleven
+`cmd/*` mains declared while the 35 packages behind them stayed undeclared — is closed. The
+declaration is at the deployable, which is the granularity `components.toml` records for
+`services/studio` and `services/go_vanity` and the one `check_production_dependencies.py`
+resolves by longest path prefix.
+
+| Deployable | Packages | Production Go (raw / non-blank) | Test files | Bazel | Declared as | Coverage where tests execute |
+|---|---|---|---|---|---|---|
+| `services/control_plane` | 46 | 15,490 non-test | 43 | `go_library` + `go_test` throughout | `services.control_plane`, `implemented`, tier-1 | 24 packages execute tests (`bootstrap` 58.8%, `config` 77.8%, `foundation/orchestration` 85.7%, `providers/api` 62.3%, `providers/apikeys` 84.4%, `store/postgres/admission` 40.8%); the 11 `cmd/*` mains are 9 lines each and 21 packages report 0.0% |
+| `services/studio` | 10 | 3,466 / 1,979 | 15 | `go_library` + `go_test` in all 10 | `services.studio`, `implemented`, tier-2 | `authz` 96.7%, `session` 94.2%, `iap` 87.4%, `stream` 77.3%, `metrics` 69.8%, `server` 51.0%, `httpx` 50.6%, `handoff` 35.6%, `cmd/studio` 18.8%; **`runlog` 0.0%** |
+| `services/go_vanity` | 3 | 523 / 355 | 3 | `go_library`/`go_binary`/`go_test`, plus `oci_image`/`oci_push` | `services.go_vanity`, `implemented`, tier-2 | `vanity` 93.0%, `service` 91.3%, `cmd/go_vanity` 12.0% |
+
+Two scaffold placeholders sit inside `services/control_plane` and are correctly excluded:
+reserved space is not a component. The Rust and Python services under `services/` were already
+declared and are not part of this count.
+
+**Granularity is the deployable, not the package.** Go's `internal/` is a compiler-enforced
+boundary, so `services/studio/internal/session` has no consumers outside its own deployable for
+a status to gate. Declaring 58 components would publish 58 statuses describing two shipping
+decisions. `check_component_maturity.py` matches declarations by path prefix precisely so an
+owner can declare at the granularity they ship at.
+
+**Two declarations, at the status the evidence supports.** Both are `implemented` — tests and a
+building Bazel target, which is what `maturity.toml` requires — and neither is `qualified`,
+because neither has a qualification document. `services.studio`'s `tests` list omits
+`internal/runlog/runlog_test.go`: it is entirely gated on `STUDIO_TEST_DATABASE_URL` and reports
+0.0% statement coverage without it, so listing it would claim evidence CI does not produce.
+`internal/handoff` is listed because `contention_test.go` beside the DSN-gated `handoff_test.go`
+runs with no database at all. Both are tier-2, matching the record's existing line for browser
+surfaces (`apps.console` and `apps.admin`, the TypeScript clients studio serves, are tier-2) and
+for a credential-free static responder.
+
+**`services/control_plane` cannot be declared here, and that is the result rather than an
+omission.** Its evidence supports `implemented` and its owner is unambiguous — OWNERS.toml
+claims `services/control_plane/**` for platform-control explicitly. Its tier is unambiguous too:
+it composes `control.runtime_authority`, `control.admission`, `control.artifacts`,
+`control.ingestion`, `control.model_registry` and `control.release_evidence`, every one tier-1,
+so the deployable hosting them cannot honestly sit below tier-1. That is exactly what blocks it.
+`check_component_ownership.py` requires **both** an `slo` and a `runbook` for any tier-0/tier-1
+component at `implemented` or above. `docs/runbooks/control-plane-outage.md` exists; `docs/slo/`
+has nineteen pages and none of them is the control plane's. The two ways to land the declaration
+are to write that SLO — platform-control's to write — or to record the component tier-2, which
+would be choosing a criticality to clear a gate rather than to describe the service.
+
+**The gate is widened only as far as it reaches zero.**
+`_GO_DECLARATION_GOVERNED_ROOTS` in `check_component_maturity.py` now reads
+`("control", "libs", "services/go_vanity", "services/studio")`. The entries are path prefixes,
+not top-level directories, so a root can be narrower than a directory. This is an allowlist of
+what *is* governed, not a denylist of paths waved through a check that claims to cover them: no
+path is exempted by name anywhere inside a governed root, and nothing here asserts
+`services/control_plane` is fine. When the control-plane SLO exists, those two entries collapse
+to a single `services`, and the test that pins the gap
+(`test_services_control_plane_is_a_measured_gap_not_an_assumed_one`) is deleted with them.
 
 ## What would change the answer
 
