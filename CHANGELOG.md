@@ -6,6 +6,24 @@ All notable changes to the repository architecture and released implementation
 surfaces are recorded here. Individual model, dataset, runtime, and service
 releases also carry immutable release manifests and evidence bundles.
 
+## 2026-08-23 — Terraform module release publication source
+
+- replaced tag-push publication with a protected-main manual dispatch that consumes an existing
+  signed annotated tag and has no tag creation, movement, deletion, or repair path;
+- added a fail-closed source authority for an exact SSH signing-key fingerprint, signed tagger
+  identity, expiring signer evidence, and independent immutable-release evidence;
+- qualified the tag's exact peeled source before building and attesting a schema-2 module manifest,
+  then attached the manifest, checksum, and attestation to a draft before immutable publication;
+- reauthorized current `main`, the exact tag, fresh owner-enforced immutability evidence, and all
+  three asset digests after the environment wait and again at the draft publication boundary;
+- added an independently scoped release-governance reader that binds the exact protected
+  environment, one active Security approval distinct from dispatcher and signer, owner-enforced
+  immutable releases, and the exact active creation/protection rules into the attested manifest;
+- kept v0.4.0 planned and the authority blocked until the signer, immutable-releases setting,
+  protected Security-reviewed environment, independent Release tag signing, and current whole-tree
+  qualification are proven; and
+- corrected the readiness inventory to the generated 47-module interface manifest.
+
 ## 2026-08-23 — Control orchestration and scheduling
 
 - implemented `control/orchestration` — workflow compilation, the stage dependency graph, the

@@ -1,0 +1,452 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# The Release-team operator creates and pushes the signed annotated tag. This protected-main
+# workflow consumes that immutable identity; it never creates, moves, deletes, or repairs a tag.
+name: Terraform module release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing signed annotated vMAJOR.MINOR.PATCH tag.
+        required: true
+        type: string
+      signer-evidence-digest:
+        description: SHA-256 digest of the approved signer qualification evidence.
+        required: true
+        type: string
+      immutable-releases-evidence-digest:
+        description: SHA-256 digest proving immutable releases are owner-enforced.
+        required: true
+        type: string
+      change-reference:
+        description: Exact Mindclade pull request or issue authorizing publication.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-module-release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  authorize:
+    name: Authorize protected-main module publication
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Enforce the immutable dispatch boundary
+        env:
+          ACTUAL_EVENT: ${{ github.event_name }}
+          ACTUAL_REF: ${{ github.ref }}
+          ACTUAL_REF_PROTECTED: ${{ github.ref_protected }}
+          ACTUAL_REPOSITORY: ${{ github.repository }}
+          ACTUAL_WORKFLOW_REF: ${{ github.workflow_ref }}
+          CHANGE_REFERENCE: ${{ inputs.change-reference }}
+          IMMUTABILITY_EVIDENCE: ${{ inputs.immutable-releases-evidence-digest }}
+          SIGNER_EVIDENCE: ${{ inputs.signer-evidence-digest }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          test "${ACTUAL_REPOSITORY}" = mindclade/mindclade-internal-monorepo
+          test "${ACTUAL_EVENT}" = workflow_dispatch
+          test "${ACTUAL_REF}" = refs/heads/main
+          test "${ACTUAL_REF_PROTECTED}" = true
+          test "${ACTUAL_WORKFLOW_REF}" = \
+            mindclade/mindclade-internal-monorepo/.github/workflows/terraform-module-release.yml@refs/heads/main
+          [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "${SIGNER_EVIDENCE}" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "${IMMUTABILITY_EVIDENCE}" =~ ^sha256:[0-9a-f]{64}$ ]]
+          test "${SIGNER_EVIDENCE}" != "sha256:$(printf '0%.0s' {1..64})"
+          test "${IMMUTABILITY_EVIDENCE}" != "sha256:$(printf '0%.0s' {1..64})"
+          [[ "${CHANGE_REFERENCE}" =~ \
+            ^https://github\.com/mindclade/[A-Za-z0-9_.-]+/(pull|issues)/[1-9][0-9]*$ ]]
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Bind checkout to the current protected main head
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          current_main="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          test "${current_main}" = "${EXPECTED_SHA}"
+          git update-ref refs/remotes/origin/main "${current_main}"
+          test "$(git rev-parse --verify 'HEAD^{commit}')" = "${EXPECTED_SHA}"
+          test "$(git rev-parse --verify 'origin/main^{commit}')" = "${EXPECTED_SHA}"
+          git diff --quiet --no-ext-diff
+          git diff --cached --quiet --no-ext-diff
+
+  publish:
+    needs: authorize
+    name: Qualify and publish immutable Terraform modules
+    environment: terraform-module-release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      artifact-metadata: write
+      attestations: write
+      contents: write
+      id-token: write
+    steps:
+      - name: Mint initial read-only release-governance token
+        id: initial-governance-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2.2.1
+        with:
+          app-id: ${{ vars.RELEASE_GOVERNANCE_READER_APP_ID }}
+          private-key: ${{ secrets.RELEASE_GOVERNANCE_READER_APP_PRIVATE_KEY }}
+          owner: mindclade
+          repositories: mindclade-internal-monorepo
+          permission-actions: read
+          permission-administration: read
+          permission-contents: read
+          permission-members: read
+          permission-metadata: read
+
+      - name: Checkout trusted publisher source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          path: publisher-source
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Checkout exact tagged module source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          path: release-source
+          persist-credentials: false
+          ref: ${{ inputs.tag }}
+
+      - name: Reauthorize current main after environment approval
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ steps.initial-governance-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          current_main="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          test "${current_main}" = "${EXPECTED_SHA}"
+          git -C publisher-source update-ref refs/remotes/origin/main "${current_main}"
+          test "$(git -C publisher-source rev-parse --verify 'HEAD^{commit}')" = "${EXPECTED_SHA}"
+          test "$(git -C publisher-source rev-parse --verify 'origin/main^{commit}')" = \
+            "${EXPECTED_SHA}"
+          git -C publisher-source diff --quiet --no-ext-diff
+          git -C publisher-source diff --cached --quiet --no-ext-diff
+
+      - name: Resolve immutable release source
+        id: source
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          source_sha="$(git -C release-source rev-parse --verify 'HEAD^{commit}')"
+          test "$(git -C release-source cat-file -t "refs/tags/${TAG}")" = tag
+          test "$(git -C release-source rev-parse --verify "${TAG}^{commit}")" = "${source_sha}"
+          git -C publisher-source merge-base --is-ancestor "${source_sha}" origin/main
+          git -C release-source diff --quiet --no-ext-diff
+          git -C release-source diff --cached --quiet --no-ext-diff
+          printf 'sha=%s\n' "${source_sha}" >> "${GITHUB_OUTPUT}"
+
+      - name: Require released source and qualified authority contracts
+        id: authority
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          python3 -B publisher-source/ci/terraform/module_release.py validate-source \
+            --source-root release-source \
+            --tag "${TAG}" \
+            --source-sha "${SOURCE_SHA}"
+          signer="$(jq -er '
+            select(.qualification == "qualified")
+            | .signer.github_login
+            | select(type == "string")
+          ' release-source/infra/terraform/governance/module-release-authority.json)"
+          [[ "${signer}" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,37}[A-Za-z0-9])?$ ]]
+          printf 'signer=%s\n' "${signer}" >> "${GITHUB_OUTPUT}"
+
+      - name: Verify independent connected release governance after approval
+        env:
+          DISPATCHER: ${{ github.actor }}
+          EXPECTED_RELEASE_TEAM_ID: ${{ vars.RELEASE_TEAM_ID }}
+          GH_TOKEN: ${{ steps.initial-governance-token.outputs.token }}
+          QUALIFIED_RELEASE_SIGNER: ${{ steps.authority.outputs.signer }}
+        run: |
+          set -euo pipefail
+          python3 -B publisher-source/ci/terraform/release_governance.py \
+            --repository "${GITHUB_REPOSITORY}" \
+            --release-team-id "${EXPECTED_RELEASE_TEAM_ID}" \
+            --run-id "${GITHUB_RUN_ID}" \
+            --source-sha "${GITHUB_SHA}" \
+            --dispatcher "${DISPATCHER}" \
+            --release-signer "${QUALIFIED_RELEASE_SIGNER}" \
+            --output terraform-module-release-governance.json
+
+      - name: Verify exact signer identity and connected evidence
+        env:
+          GH_TOKEN: ${{ steps.initial-governance-token.outputs.token }}
+          IMMUTABILITY_EVIDENCE: ${{ inputs.immutable-releases-evidence-digest }}
+          SIGNER_EVIDENCE: ${{ inputs.signer-evidence-digest }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+          TAG: ${{ inputs.tag }}
+        run: >-
+          python3 -B publisher-source/ci/terraform/module_release.py verify-connected
+          --source-root release-source
+          --repository "${GITHUB_REPOSITORY}"
+          --tag "${TAG}"
+          --source-sha "${SOURCE_SHA}"
+          --signer-evidence-digest "${SIGNER_EVIDENCE}"
+          --immutable-releases-evidence-digest "${IMMUTABILITY_EVIDENCE}"
+          --output terraform-module-tag-evidence.json
+
+      - name: Install the pinned qualification toolchain entry point
+        uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342  # v31.11.0
+
+      - name: Qualify exact Terraform module source
+        working-directory: release-source
+        run: |
+          set -euo pipefail
+          nix develop .#ci-terraform --command ci/terraform/check.sh all
+          git diff --quiet --no-ext-diff
+          git diff --cached --quiet --no-ext-diff
+          test "$(git -C ../publisher-source rev-parse --verify 'HEAD^{commit}')" = "${GITHUB_SHA}"
+          git -C ../publisher-source diff --quiet --no-ext-diff
+          git -C ../publisher-source diff --cached --quiet --no-ext-diff
+
+      - name: Build deterministic module release manifest and checksum
+        env:
+          CHANGE_REFERENCE: ${{ inputs.change-reference }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          python3 -B publisher-source/ci/terraform/module_release.py manifest \
+            --source-root release-source \
+            --tag "${TAG}" \
+            --source-sha "${SOURCE_SHA}" \
+            --publisher-source-sha "${GITHUB_SHA}" \
+            --change-reference "${CHANGE_REFERENCE}" \
+            --governance-evidence terraform-module-release-governance.json \
+            --tag-evidence terraform-module-tag-evidence.json \
+            --output terraform-module-release.json
+          sha256sum terraform-module-release.json > terraform-module-release.json.sha256
+          sha256sum --check terraform-module-release.json.sha256
+
+      - name: Attest module release manifest
+        id: attest
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32  # v4.1.0
+        with:
+          subject-path: terraform-module-release.json
+
+      - name: Prepare immutable release assets and notes
+        env:
+          ATTESTATION_BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+          CHANGE_REFERENCE: ${{ inputs.change-reference }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          test -s "${ATTESTATION_BUNDLE}"
+          cp "${ATTESTATION_BUNDLE}" terraform-module-release.attestation.jsonl
+          signer="$(jq -r .signer.github_login terraform-module-tag-evidence.json)"
+          cat > terraform-module-release-notes.md <<EOF
+          Terraform module contract ${TAG}.
+
+          Source revision: ${SOURCE_SHA}
+          Qualified signer: ${signer}
+          Protected change: ${CHANGE_REFERENCE}
+
+          Publication does not authorize a Terraform plan or apply. Consumers must retain their
+          own saved-plan, policy, cost, approval, rollback, and connected qualification evidence.
+          EOF
+
+      - name: Refresh read-only governance token before publication
+        id: publication-governance-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349  # v2.2.1
+        with:
+          app-id: ${{ vars.RELEASE_GOVERNANCE_READER_APP_ID }}
+          private-key: ${{ secrets.RELEASE_GOVERNANCE_READER_APP_PRIVATE_KEY }}
+          owner: mindclade
+          repositories: mindclade-internal-monorepo
+          permission-actions: read
+          permission-administration: read
+          permission-contents: read
+          permission-members: read
+          permission-metadata: read
+
+      - name: Create, verify, and publish immutable GitHub Release
+        env:
+          DISPATCHER: ${{ github.actor }}
+          EXPECTED_RELEASE_TEAM_ID: ${{ vars.RELEASE_TEAM_ID }}
+          GH_TOKEN: ${{ github.token }}
+          GOVERNANCE_TOKEN: ${{ steps.publication-governance-token.outputs.token }}
+          IMMUTABILITY_EVIDENCE: ${{ inputs.immutable-releases-evidence-digest }}
+          QUALIFIED_RELEASE_SIGNER: ${{ steps.authority.outputs.signer }}
+          SIGNER_EVIDENCE: ${{ inputs.signer-evidence-digest }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+
+          assert_current_authorities() {
+            current_main="$(GH_TOKEN="${GOVERNANCE_TOKEN}" gh api \
+              "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+            test "${current_main}" = "${GITHUB_SHA}"
+            git -C publisher-source update-ref refs/remotes/origin/main "${current_main}"
+            test "$(git -C publisher-source rev-parse --verify 'HEAD^{commit}')" = \
+              "${GITHUB_SHA}"
+            test "$(git -C publisher-source rev-parse --verify 'origin/main^{commit}')" = \
+              "${GITHUB_SHA}"
+            test "$(git -C release-source rev-parse --verify 'HEAD^{commit}')" = \
+              "${SOURCE_SHA}"
+            git -C publisher-source diff --quiet --no-ext-diff
+            git -C publisher-source diff --cached --quiet --no-ext-diff
+            git -C release-source diff --quiet --no-ext-diff
+            git -C release-source diff --cached --quiet --no-ext-diff
+            GH_TOKEN="${GOVERNANCE_TOKEN}" python3 -B \
+              publisher-source/ci/terraform/module_release.py verify-connected \
+              --source-root release-source \
+              --repository "${GITHUB_REPOSITORY}" \
+              --tag "${TAG}" \
+              --source-sha "${SOURCE_SHA}" \
+              --signer-evidence-digest "${SIGNER_EVIDENCE}" \
+              --immutable-releases-evidence-digest "${IMMUTABILITY_EVIDENCE}" \
+              --output terraform-module-tag-evidence-current.json
+            cmp terraform-module-tag-evidence.json terraform-module-tag-evidence-current.json
+            rm terraform-module-tag-evidence-current.json
+            GH_TOKEN="${GOVERNANCE_TOKEN}" python3 -B \
+              publisher-source/ci/terraform/release_governance.py \
+              --repository "${GITHUB_REPOSITORY}" \
+              --release-team-id "${EXPECTED_RELEASE_TEAM_ID}" \
+              --run-id "${GITHUB_RUN_ID}" \
+              --source-sha "${GITHUB_SHA}" \
+              --dispatcher "${DISPATCHER}" \
+              --release-signer "${QUALIFIED_RELEASE_SIGNER}" \
+              --output terraform-module-release-governance-current.json
+            cmp terraform-module-release-governance.json \
+              terraform-module-release-governance-current.json
+            rm terraform-module-release-governance-current.json
+          }
+
+          manifest_digest="sha256:$(sha256sum terraform-module-release.json | cut -d' ' -f1)"
+          checksum_digest="sha256:$(sha256sum terraform-module-release.json.sha256 | cut -d' ' -f1)"
+          attestation_digest="sha256:$(sha256sum terraform-module-release.attestation.jsonl | cut -d' ' -f1)"
+
+          assert_current_authorities
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "release ${TAG} already exists; immutable releases are never replaced" >&2
+            exit 1
+          fi
+          gh release create "${TAG}" \
+            terraform-module-release.json \
+            terraform-module-release.json.sha256 \
+            terraform-module-release.attestation.jsonl \
+            --draft \
+            --latest=false \
+            --notes-file terraform-module-release-notes.md \
+            --title "Terraform modules ${TAG}" \
+            --verify-tag
+          gh attestation verify terraform-module-release.json \
+            --repo "${GITHUB_REPOSITORY}"
+          gh release view "${TAG}" \
+            --json assets,body,databaseId,isDraft,isPrerelease,name,tagName \
+            > terraform-module-release-draft.json
+          jq -e \
+            --arg tag "${TAG}" \
+            --arg title "Terraform modules ${TAG}" \
+            --arg manifest "${manifest_digest}" \
+            --arg checksum "${checksum_digest}" \
+            --arg attestation "${attestation_digest}" \
+            --rawfile notes terraform-module-release-notes.md '
+            .tagName == $tag
+            and .name == $title
+            and .body == $notes
+            and .isDraft == true
+            and .isPrerelease == false
+            and ([.assets[] | {name: .name, digest: .digest}] | sort_by(.name)) == [
+              {"name": "terraform-module-release.attestation.jsonl", "digest": $attestation},
+              {"name": "terraform-module-release.json", "digest": $manifest},
+              {"name": "terraform-module-release.json.sha256", "digest": $checksum}
+            ]
+          ' terraform-module-release-draft.json >/dev/null
+          release_id="$(jq -er '.databaseId | select(type == "number")' \
+            terraform-module-release-draft.json)"
+          assert_current_authorities
+          gh api "repos/${GITHUB_REPOSITORY}/releases/${release_id}" \
+            > terraform-module-release-draft-ready.json
+          jq -e \
+            --argjson release_id "${release_id}" \
+            --arg tag "${TAG}" \
+            --arg title "Terraform modules ${TAG}" \
+            --arg manifest "${manifest_digest}" \
+            --arg checksum "${checksum_digest}" \
+            --arg attestation "${attestation_digest}" \
+            --rawfile notes terraform-module-release-notes.md '
+            .id == $release_id
+            and .tag_name == $tag
+            and .name == $title
+            and .body == $notes
+            and .draft == true
+            and .prerelease == false
+            and ([.assets[] | {name: .name, digest: .digest}] | sort_by(.name)) == [
+              {"name": "terraform-module-release.attestation.jsonl", "digest": $attestation},
+              {"name": "terraform-module-release.json", "digest": $manifest},
+              {"name": "terraform-module-release.json.sha256", "digest": $checksum}
+            ]
+          ' terraform-module-release-draft-ready.json >/dev/null
+          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/releases/${release_id}" \
+            -F draft=false \
+            -f make_latest=false \
+            > terraform-module-release-published.json
+          jq -e \
+            --argjson release_id "${release_id}" \
+            --arg tag "${TAG}" \
+            --arg title "Terraform modules ${TAG}" \
+            --arg manifest "${manifest_digest}" \
+            --arg checksum "${checksum_digest}" \
+            --arg attestation "${attestation_digest}" \
+            --rawfile notes terraform-module-release-notes.md '
+            .id == $release_id
+            and .tag_name == $tag
+            and .name == $title
+            and .body == $notes
+            and .draft == false
+            and .prerelease == false
+            and .immutable == true
+            and ([.assets[] | {name: .name, digest: .digest}] | sort_by(.name)) == [
+              {"name": "terraform-module-release.attestation.jsonl", "digest": $attestation},
+              {"name": "terraform-module-release.json", "digest": $manifest},
+              {"name": "terraform-module-release.json.sha256", "digest": $checksum}
+            ]
+          ' terraform-module-release-published.json >/dev/null
+
+      - name: Retain exact module release evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          if-no-files-found: error
+          name: terraform-modules-${{ inputs.tag }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            terraform-module-release.json
+            terraform-module-release.json.sha256
+            terraform-module-release.attestation.jsonl
+            terraform-module-release-governance.json
+            terraform-module-tag-evidence.json
+            terraform-module-release-published.json
+          retention-days: 90

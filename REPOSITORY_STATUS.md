@@ -14,17 +14,18 @@ Go now carries a `components.toml` entry, enforced by
 could hold production code and simply not appear in the record, and an
 undeclared path inherits no status — so the model's central prohibition,
 that production may not depend on `planned`/`scaffolded`/`experimental`, had
-nothing to attach to. `services/` is **not** yet inside that invariant:
-`services/control_plane`, `services/studio`, and `services/go_vanity` hold
-roughly 17.5k lines of undeclared production Go across 59 packages. Directories
-whose Go is only `const scaffold_<name>` placeholders stay undeclared by design;
-reserved space is not a component.
+nothing to attach to. Deployable records now cover `services/studio`,
+`services/go_vanity`, and all eleven `services/control_plane/cmd/*` roles. The
+shared `services/control_plane/internal` packages are attributed through those
+role tests but remain outside the governed-root invariant; closing that path
+ownership gap is explicit maturity work. Directories whose Go is only
+`const scaffold_<name>` placeholders stay undeclared by design.
 
 ## Current gate status (2026-08-23)
 
 The complete static presubmit passes. `ci/presubmit/pipeline.py --static-only`
-runs the 23 checkers in the `CHECKS` list of
-`tools/analysis/run_architecture_checks.py`, and all 23 report `PASS` —
+runs the 29 checkers in the `CHECKS` list of
+`tools/analysis/run_architecture_checks.py`, and all 29 report `PASS` —
 including the dependency-budget gate that previously blocked this lane.
 Documentation, root policy, proprietary header, and dependency-license gates
 also pass.
@@ -40,13 +41,13 @@ provider, GPU, deployment, or production-promotion evidence.
 
 ### Component census
 
-`components.toml` declares 93 components:
+`components.toml` declares 107 components:
 
 ```text
-implemented   83
-experimental   4   control.routing, preprocessing.core, apps.console, apps.admin
+implemented   91
+experimental   9   preprocessing.core and eight control-plane roles
 scaffolded     4   models, training, evaluation, kernels
-qualified      2   libs.go, control.model_registry
+qualified      3   libs.go, control.model_registry, services.control_plane.registry
 production     0
 ```
 
@@ -66,8 +67,10 @@ bounded by that fact.
   and the three launcher adapters — now carry implementations, and a shared
   `launchertest` conformance suite is run by all three launchers. `implemented`
   is not `qualified`; neither component has connected-provider or cluster
-  evidence. `control/routing` remains `experimental` and appears in this tree
-  for the domain shape it establishes rather than as implemented capability;
+  evidence. `control/routing` is now `implemented`: signed canonical snapshots
+  are isolated from caller mutation, failed publication retains an exact retryable
+  snapshot, and package tests cover these invariants. A durable repository and
+  connected publisher remain explicit qualification work;
 - Go architecture, dependency, root-module, and library-admission enforcement;
 - runnable Go control-plane, event-dispatcher, and ingestion integrations;
 - the user-supplied Rust foundation adopted as the literal starting point and
@@ -77,6 +80,8 @@ bounded by that fact.
   are among the seven crates **removed** in the 2026-08 consolidation, not
   renamed facades — see `libs/rust/MIGRATION_2026_08.md`.)
 - deterministic Python resolved-configuration implementation;
+- an independently locked MLflow metadata-mirror image whose exact dependency finding is enforced
+  as a publication blocker rather than accepted as an exception;
 - scientific preprocessing contracts, durable DAG/cache/provenance boundaries,
   and model-independent MSA/template/ligand/feature stage structure;
 - canonical runtime/artifact/reference/evidence protocols and cross-language

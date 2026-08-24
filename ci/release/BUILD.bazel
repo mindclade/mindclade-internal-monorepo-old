@@ -7,6 +7,12 @@ load("@rules_python//python:defs.bzl", "py_test")
 
 package(default_visibility = ["//visibility:private"])
 
+filegroup(
+    name = "release_catalog",
+    srcs = ["targets.yaml"],
+    visibility = ["//services/mlflow:__pkg__"],
+)
+
 py_test(
     name = "release_request_test",
     srcs = [

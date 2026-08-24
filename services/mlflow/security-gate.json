@@ -1,0 +1,32 @@
+{
+  "approvedException": false,
+  "artifact": "//services/mlflow:image",
+  "findings": [
+    {
+      "aliases": [
+        "CVE-2026-69247",
+        "GHSA-g6cj-pr64-35w5"
+      ],
+      "fixVersions": [
+        "50.0.0"
+      ],
+      "id": "PYSEC-2026-3552",
+      "package": "cryptography",
+      "version": "49.0.0"
+    }
+  ],
+  "lock": {
+    "path": "services/mlflow/requirements.lock.txt",
+    "sha256": "90b9f96046f52de722dc8794ebe98a3e0117abb28a00519dc29f5ffb79e44634"
+  },
+  "remediationDeadline": "2026-09-06",
+  "reviewedAt": "2026-08-23",
+  "schemaVersion": 1,
+  "status": "blocked",
+  "unblockRequires": [
+    "qualify an upstream MLflow release compatible with cryptography>=50",
+    "regenerate and independently audit the hash-locked dependency graph",
+    "rebuild and rebind the Linux runtime image lock",
+    "change this gate to clean before adding MLflow to the closed release catalog"
+  ]
+}

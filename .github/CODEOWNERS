@@ -99,3 +99,4 @@
 /evaluation/biological_risk/        @mindclade/security @mindclade/research
 /serving/safety/                    @mindclade/security @mindclade/research
 /services/ai_gateway_proxy/        @mindclade/platform @mindclade/security
+/services/mlflow/                  @mindclade/platform @mindclade/security

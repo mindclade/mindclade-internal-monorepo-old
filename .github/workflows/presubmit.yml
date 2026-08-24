@@ -300,7 +300,7 @@ jobs:
         run: nix develop .#ci-lint --command mkdocs build -f docs/mkdocs.yml --strict
 
       - name: Validate canonical repository home policy
-        uses: mindclade/.github/actions/validate-repository-home@8467615f12868d4b78718b8ddf7f05797c44a507
+        uses: mindclade/.github/actions/validate-repository-home@df3c860aea8dec19a87feb97de251a05a7d2f7a1  # repository-home@2
 
       # The monorepo validator deliberately enforces additional architecture and documentation
       # contracts. It is not a byte mirror of the estate action and remains the offline authority

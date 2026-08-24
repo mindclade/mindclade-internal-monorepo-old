@@ -1,6 +1,6 @@
 # Preprocessing / Pipeline
 
-- **Status:** Target-state scaffold; no production capability is claimed by this file.
+- **Status:** Implemented provider-independent planning and resume core; not production-qualified.
 - **Primary implementation ownership:** Python scientific semantics with Rust-supervised external tools
 
 ## Purpose
@@ -18,18 +18,21 @@ This package must not become a `common`, `shared`, `helpers`, or `utils` dumping
 ground. It may depend only in the direction documented by
 `docs/architecture/dependency-rules.md` and the accepted ADRs.
 
-## Materialization requirements
+## Implemented boundary
 
-Before this scaffold boundary is treated as implemented, add:
+The package validates bounded job prefixes, canonical configuration/reference digests, and a
+deterministic stage DAG. Resume accepts only dependency-closed completion sets whose recorded
+descriptor digest exactly matches the current plan, preventing stale configuration or reference
+work from being reused under a stable stage id.
 
-- a named owner and reviewed stable contract;
-- implementation with bounded resources, cancellation, and deterministic or
-  explicitly statistical behavior;
-- package-local tests plus required integration/numerical/security evidence;
-- a Bazel target using the pinned Nix toolchain environment;
-- explicit inputs, outputs, compatibility, failure, retry, and rollback rules;
-- documentation of limits and non-responsibilities;
-- `PRODUCTION_READINESS.md` evidence for deployment-facing code.
+## Remaining qualification boundary
+
+Production use still requires:
+
+- a durable completion repository with fencing/lease semantics;
+- output artifact existence and integrity verification against the artifact provider;
+- cancellation, retry, and concurrent-resumer integration tests;
+- connected performance, failure-injection, and rollback evidence for the selected executor.
 
 See the architecture chapter for this domain and `SCAFFOLD_STATUS.md` for the
 artifact-wide implementation status.

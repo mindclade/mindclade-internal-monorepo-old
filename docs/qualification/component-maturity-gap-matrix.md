@@ -1,9 +1,9 @@
 # Component maturity gap matrix
 
 **Review date:** 2026-08-23
-**Scope:** all 95 components declared in `components.toml`, against the six rules
+**Scope:** all 106 components declared in `components.toml`, against the six rules
 `maturity.toml` enumerates for `production`.
-**Decision:** no component advances. 0 of 95 satisfy `production`; the 29 that mechanically
+**Decision:** no component is production-ready. 0 of 106 satisfy `production`; the 30 that mechanically
 satisfy `qualified` are rejected on document review, not on paperwork.
 
 ## Reproducing this
@@ -25,22 +25,22 @@ An unreferenced document does not satisfy a rule; `~` is a lead, not a pass.
 
 | Gate | Met | Unreferenced evidence |
 |---|---|---|
-| `requires_tests` | 91 / 95 | 0 |
-| `requires_build_target` | 95 / 95 | 0 |
-| `requires_qualification` | 29 / 95 | 0 |
-| `requires_slo` | 22 / 95 | 0 |
-| `requires_runbook` | 26 / 95 | 0 |
-| `requires_release_target` | 11 / 95 | 2 |
+| `requires_tests` | 102 / 106 | 0 |
+| `requires_build_target` | 106 / 106 | 0 |
+| `requires_qualification` | 30 / 106 | 0 |
+| `requires_slo` | 33 / 106 | 0 |
+| `requires_runbook` | 37 / 106 | 0 |
+| `requires_release_target` | 11 / 106 | 2 |
 
-Blocker sets, which partition all 95 components:
+Blocker sets, which partition all 106 components:
 
 | Components | Missing |
 |---|---|
 | 44 | qualification, SLO, runbook, release target |
-| 15 | qualification, release target |
+| 25 | qualification, release target |
 | 10 | SLO, runbook |
 | 10 | SLO, runbook, release target |
-| 7 | release target |
+| 8 | release target |
 | 4 | tests, qualification, SLO, runbook, release target (the four `scaffolded` umbrellas) |
 | 2 | qualification, SLO, release target |
 | 2 | SLO, release target |
@@ -48,7 +48,7 @@ Blocker sets, which partition all 95 components:
 
 ## Why every component is blocked
 
-**`release_target` is unmet by 84 of 95 and remains a binding constraint.** Eleven components
+**`release_target` is unmet by 95 of 106 and remains a binding constraint.** Eleven components
 declare a catalog entry: `services.go_vanity` names `go-vanity`, and the ten protobuf components
 name `protobuf-contracts`. `ci/release/targets.yaml` is the closed catalog a release request
 selects from; it also contains `weights-fixture`, whose Bazel packages give two more components
@@ -60,14 +60,14 @@ states that production activation additionally requires the reviewed `.github` v
 runner-group policy, capability-specific WIF, connected ARC canary evidence, and a ready GitOps
 receiver. None of that is in this repository.
 
-**SLO and runbook evidence is wired where an owner has made the claim.** `docs/slo/` holds 21
+**SLO and runbook evidence is wired where an owner has made the claim.** `docs/slo/` holds 22
 documents and `docs/runbooks/` holds 38. `components.toml` and
-`architecture/component_ownership.toml` agree on the 22 SLO references and 26 runbook
+`architecture/component_ownership.toml` agree on the 33 SLO references and 37 runbook
 references the maturity matrix counts; `check_component_maturity.py` fails when mirrored fields
 disagree. Components without a referenced document continue to fail the corresponding gate.
 
-**Qualification references are counted, not read.** 29 components carry a `qualification` path
-and all 29 resolve. Reading them is a different result:
+**Qualification references are counted, not read.** 30 components carry a `qualification` path
+and all 30 resolve. Reading them is a different result:
 
 | Reference | Components | What it says |
 |---|---|---|
@@ -82,17 +82,18 @@ and all 29 resolve. Reading them is a different result:
 | `apps/*/PRODUCTION_READINESS.md` | 2 | Unchecked boxes for drain, tenant isolation, SLOs, provenance |
 | `libs/rust/README.md`, `libs/ts/README.md`, `sdk/typescript/README.md` | 3 | Package catalogs and consumer docs. Not qualification records. |
 | `docs/qualification/control-artifacts.md` | 1 | A repository-local contract and test inventory; connected production qualification remains explicitly out of scope. |
-| `docs/qualification/go/control-plane-registry.md` | 1 | "**Qualified:** 2026-08-20" with a connected PostgreSQL evidence list. Real. |
+| `docs/qualification/go/control-plane-registry.md` | 2 | "**Qualified:** 2026-08-20" with a connected PostgreSQL evidence list. Real. |
 
-One of the 29 records connected qualification evidence, and it already backs the `qualified`
-status of `control.model_registry`. The remaining 28 either state that qualification is pending
-or are not qualification documents. Promoting on those would convert a document that says "not
+Two of the 30 component references share connected registry evidence, backing the `qualified`
+statuses of `control.model_registry` and `services.control_plane.registry`. The remaining 28
+either state that qualification is pending or are not qualification documents. Advancing those
+further on document presence alone would convert a document that says "not
 qualified" into a status that says "qualified", which is the exact inversion the maturity model
 exists to prevent.
 
 ## The SLO documents are not self-certifying either
 
-Counting `docs/slo/` pages would overstate readiness a second way. Five of the twenty-one —
+Counting `docs/slo/` pages would overstate readiness a second way. Five of the twenty-two —
 `artifact-control.md`, `artifact-proxy.md`, `node-agent.md`, `runtime-gateway.md`,
 `runtime-host.md` — assert that "bounded admission, cancellation and shutdown budgets are
 release-qualified" and name a 99.9% availability objective. Nothing has been released, none of
@@ -102,19 +103,23 @@ asserting that a budget is release-qualified is not evidence that it is. The mat
 referenced SLO as mechanically present, not as connected qualification evidence; the production
 decision above therefore remains blocked even where the SLO gate is met.
 
-## Statuses not advanced, and why
+## Status dispositions, and why
 
-- **29 components mechanically satisfy `qualified`** (tests + qualification + build target):
+- **30 components mechanically satisfy `qualified`** (tests + qualification + build target):
   `apps.admin`, `apps.console`, `ci.cpu_nightly`, `ci.presubmit`, `control.artifacts`, `control.model_registry`,
   `data`, `infra.security_contracts`, `infra.terraform.modules`, `libs.go`, `libs.rust`,
   `libs.typescript`, the five `models.*` leaves, the ten `protocols.protobuf.*` packages,
-  `runtime.ai_gateway_proxy`, and `sdk.typescript`. None advance beyond where they already are:
+  `runtime.ai_gateway_proxy`, `sdk.typescript`, and `services.control_plane.registry`. None
+  advance beyond where they already are:
   their qualification references are the pending statements and READMEs in the table above, and
-  `control.model_registry` is the one backed by the connected registry record.
+  `control.model_registry` and `services.control_plane.registry` share the connected registry
+  record.
 - **`services.studio` and `services.go_vanity` are recorded `implemented`, not higher.** Neither
   carries a qualification document, so neither reaches `qualified`; see the section below.
-- **`control.routing` stays `experimental`.** It has an SLO and a runbook in the ownership
-  registry and no qualification evidence at all.
+- **`control.routing` advances only to `implemented`.** Its package tests now cover immutable
+  signed snapshots and exact retry after publication failure. It has an SLO and a runbook but no
+  durable repository, connected publisher, or qualification evidence, so it cannot advance to
+  `qualified`.
 - **The four `scaffolded` umbrellas** — `models`, `training`, `evaluation`, `kernels` — declare no
   tests, which is correct for reserved space.
 
@@ -136,64 +141,24 @@ The rule binds every status that does not carry the flag — `implemented`, `qua
 `production` and `deprecated` — not only `production`, so it was never vacuous.
 
 One adjacent edge stays outside the join and is recorded here rather than silently omitted:
-`services/control_plane/tests/api_test.go` imports `control/routing`, which is `experimental`.
+`services/control_plane/tests/api_test.go` imports `control/routing`, which is `implemented`.
 That is test code, not a linked production edge, and `services/control_plane` is still
 undeclared, so it is not a production-track source the sweep can anchor on either way.
 
-## Undeclared surface under `services/`
+## Service-role declaration boundary
 
-`services/` held **17,721 lines of non-scaffold production Go across 58 packages** with no
-`components.toml` entry — the largest remaining instance of the hole a declaration gate exists
-to close, since every rule in `maturity.toml` is a rule about a *declared* component. Classified
-by file rather than counted, that surface is three deployables:
+`services/studio` and `services/go_vanity` remain deployable-level `implemented` components.
+The control plane now records all eleven separately shipped commands: registry is `qualified`,
+API and maintenance are `implemented`, and the other eight roles remain `experimental`. Those
+statuses reuse owning provider/foundation tests and do not imply every shared internal package
+is qualified.
 
-| Deployable | Packages | Production Go (raw / non-blank) | Test files | Bazel | Declared as | Coverage where tests execute |
-|---|---|---|---|---|---|---|
-| `services/control_plane` | 45 | 13,732 / 11,006 | 43 | `go_library` + `go_test` throughout | **not declared — blocked** | 24 packages execute tests (`bootstrap` 58.8%, `config` 77.8%, `foundation/orchestration` 85.7%, `providers/api` 62.3%, `providers/apikeys` 84.4%, `store/postgres/admission` 40.8%); the 11 `cmd/*` mains are 9 lines each and 21 packages report 0.0% |
-| `services/studio` | 10 | 3,466 / 1,979 | 15 | `go_library` + `go_test` in all 10 | `services.studio`, `implemented`, tier-2 | `authz` 96.7%, `session` 94.2%, `iap` 87.4%, `stream` 77.3%, `metrics` 69.8%, `server` 51.0%, `httpx` 50.6%, `handoff` 35.6%, `cmd/studio` 18.8%; **`runlog` 0.0%** |
-| `services/go_vanity` | 3 | 523 / 355 | 3 | `go_library`/`go_binary`/`go_test`, plus `oci_image`/`oci_push` | `services.go_vanity`, `implemented`, tier-2 | `vanity` 93.0%, `service` 91.3%, `cmd/go_vanity` 12.0% |
-
-Two scaffold placeholders sit inside `services/control_plane` and are correctly excluded:
-reserved space is not a component. The Rust and Python services under `services/` were already
-declared and are not part of this count.
-
-**Granularity is the deployable, not the package.** Go's `internal/` is a compiler-enforced
-boundary, so `services/studio/internal/session` has no consumers outside its own deployable for
-a status to gate. Declaring 58 components would publish 58 statuses describing two shipping
-decisions. `check_component_maturity.py` matches declarations by path prefix precisely so an
-owner can declare at the granularity they ship at.
-
-**Two declarations, at the status the evidence supports.** Both are `implemented` — tests and a
-building Bazel target, which is what `maturity.toml` requires — and neither is `qualified`,
-because neither has a qualification document. `services.studio`'s `tests` list omits
-`internal/runlog/runlog_test.go`: it is entirely gated on `STUDIO_TEST_DATABASE_URL` and reports
-0.0% statement coverage without it, so listing it would claim evidence CI does not produce.
-`internal/handoff` is listed because `contention_test.go` beside the DSN-gated `handoff_test.go`
-runs with no database at all. Both are tier-2, matching the record's existing line for browser
-surfaces (`apps.console` and `apps.admin`, the TypeScript clients studio serves, are tier-2) and
-for a credential-free static responder.
-
-**`services/control_plane` cannot be declared here, and that is the result rather than an
-omission.** Its evidence supports `implemented` and its owner is unambiguous — OWNERS.toml
-claims `services/control_plane/**` for platform-control explicitly. Its tier is unambiguous too:
-it composes `control.runtime_authority`, `control.admission`, `control.artifacts`,
-`control.ingestion`, `control.model_registry` and `control.release_evidence`, every one tier-1,
-so the deployable hosting them cannot honestly sit below tier-1. That is exactly what blocks it.
-`check_component_ownership.py` requires **both** an `slo` and a `runbook` for any tier-0/tier-1
-component at `implemented` or above. `docs/runbooks/control-plane-outage.md` exists; `docs/slo/`
-has nineteen pages and none of them is the control plane's. The two ways to land the declaration
-are to write that SLO — platform-control's to write — or to record the component tier-2, which
-would be choosing a criticality to clear a gate rather than to describe the service.
-
-**The gate is widened only as far as it reaches zero.**
-`_GO_DECLARATION_GOVERNED_ROOTS` in `check_component_maturity.py` now reads
-`("control", "libs", "services/go_vanity", "services/studio")`. The entries are path prefixes,
-not top-level directories, so a root can be narrower than a directory. This is an allowlist of
-what *is* governed, not a denylist of paths waved through a check that claims to cover them: no
-path is exempted by name anywhere inside a governed root, and nothing here asserts
-`services/control_plane` is fine. When the control-plane SLO exists, those two entries collapse
-to a single `services`, and the test that pins the gap
-(`test_services_control_plane_is_a_measured_gap_not_an_assumed_one`) is deleted with them.
+The remaining structural gap is explicit: `_GO_DECLARATION_GOVERNED_ROOTS` still governs only
+`control`, `libs`, `services/go_vanity`, and `services/studio`. The command records live under
+`services/control_plane/cmd/*`, while their shared implementation lives under `internal/`.
+Before the entire `services` root can be claimed governed, a path-ownership rule must associate
+each internal package with every shipping role that consumes it. The eight experimental roles
+also require their named connected readiness evidence before advancement.
 
 ## What would change the answer
 

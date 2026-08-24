@@ -1,0 +1,12 @@
+{
+  "immutable_releases": {
+    "evidence": null,
+    "enforced_by_owner": null,
+    "qualification": "blocked"
+  },
+  "qualification": "blocked",
+  "release_tag": "v0.4.0",
+  "schema_version": 1,
+  "signer": null,
+  "signer_qualification": null
+}

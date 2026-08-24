@@ -17,6 +17,7 @@
 | `presubmit.yml` | The PR gate: architecture invariants, Go, Rust, Python, actionlint/yamllint, Terraform, affected Bazel configured analysis/tests with fail-closed full fallback and mandatory Gazelle qualification, pnpm workspace integrity |
 | `nightly.yml` | Daily/manual CPU qualification of the complete configured Bazel graph and all non-manual tests |
 | `release.yml` | Image build, sign, and attest. The filename is load-bearing — bootstrap binds the attestor identity to this exact path |
+| `terraform-module-release.yml` | Protected-main, Security-approved exact-tag qualification and immutable Terraform module GitHub Release publication after independently qualified Release tag signing; consumes but never creates or moves the operator's signed tag |
 | `security.yml` | CodeQL and the security lane. Holds the only `security-events: write` in the repository |
 | `license-headers.yml` | The four-line header every source file carries |
 
@@ -95,6 +96,18 @@ request under `ci/release/requests/`. It calls the immutable `.github` v4 ARC ca
 independent qualifier, protected deployment signer, and review-only GitOps promoter. The source
 remains inactive until `.github` v4 is published, the exact runner group and GitHub Apps exist,
 the six WIF capabilities are applied and negatively tested, and the connected canary passes.
+
+`terraform-module-release.yml` is a separate module-source authority. It is dispatched only from
+the current protected `main`, qualifies an existing SSH-signed annotated tag, binds the exact
+source-managed signer fingerprint and expiring owner-enforced evidence, and publishes a manifest,
+checksum, and attestation through the monorepo-only `terraform-module-release` environment. It
+reauthorizes current `main`, the tag, evidence, and exact asset digests after the approval wait and
+at the draft publication boundary. A separately installed, read-only release-governance App proves
+the exact Security approval and active membership, owner-enforced immutability, protected
+environment, Release-team creation bypass, and no-bypass tag immutability before either mutation;
+the contents-write token cannot attest those controls. The v0.4.0 source contract, signer
+authority, App installation/secret, immutable-releases setting, and environment are still blocked;
+no merged workflow or local pass creates a tag or release.
 
 ## Dependency updates
 
