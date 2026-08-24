@@ -208,6 +208,18 @@ slo = "docs/slo/ai-gateway-provider-edge.md"
 runbook = "docs/runbooks/ai-gateway-provider-edge.md"
 
 [[component]]
+name = "services.mlflow"
+path = "services/mlflow"
+status = "implemented"
+owner = "security-platform"
+tests = [
+    "services/mlflow/test_validate_dependency_gate.py",
+    "services/mlflow/validate_image_test.py",
+]
+qualification = "infra/kubernetes/platform/mlflow/PRODUCTION_READINESS.md"
+runbook = "infra/kubernetes/platform/mlflow/RUNBOOK.md"
+
+[[component]]
 name = "runtime.host"
 path = "services/runtime_host"
 status = "implemented"

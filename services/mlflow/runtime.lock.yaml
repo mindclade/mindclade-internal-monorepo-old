@@ -10,6 +10,8 @@ metadata:
 spec:
   target: //services/mlflow:image
   platform: linux/amd64
+  publicationState: blocked-security-findings
+  securityGate: services/mlflow/security-gate.json
   repositorySuffix: /mlflow-server
   imageDigest: sha256:d9ce2ca6c031e4587287fb555d14c7e6ee1ef2665e3a159e1188a73d8f42f113
   mlflow:

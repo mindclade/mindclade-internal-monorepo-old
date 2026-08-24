@@ -7,7 +7,7 @@ connected-provider qualification, and production promotion.
 
 The root repository-home/common-document gate, top-level link hierarchy,
 first-party proprietary header scan, and Cargo dependency-license scan pass.
-The static presubmit passes **all 23** architecture and implementation gates in
+The static presubmit passes **all 29** architecture and implementation gates in
 the `CHECKS` list of `tools/analysis/run_architecture_checks.py`, and
 `ci/presubmit/pipeline.py --static-only` exits 0.
 
@@ -16,12 +16,12 @@ An earlier revision of this section said the lane blocked on an unapproved
 dependency. That import still exists in `internal/providers/api`, but it now
 sits inside the declared budget:
 `tools/analysis/check_dependency_budgets.py` reports `dependency budget check
-passed`. The gate count also grew from 20 to 23.
+passed`. The gate count has grown from 20 through 23 and 25 to the current 29.
 
 These results are repository-only evidence. They do not replace connected
 provider, GPU, deployment, or production-promotion evidence, and no component in
-`components.toml` holds `production` status — the census is 79 `implemented`,
-4 `experimental`, 4 `scaffolded`, 2 `qualified`, 0 `production` across 89
+`components.toml` holds `production` status — the census is 91 `implemented`,
+9 `experimental`, 4 `scaffolded`, 3 `qualified`, 0 `production` across 107
 components.
 
 Affected Bazel selection and the CPU nightly lane are implemented with
@@ -41,16 +41,16 @@ latency objective require connected observation.
 - Modular control-plane bootstrap/config/foundation/transport seams.
 - Representative Go durable-policy/domain contracts under `control/`.
 - Runnable control-plane API, event-dispatcher, and ingestion-coordinator vertical slices.
-- Bzlmod lock closure, full Bazel configured analysis, dependency-layer graph,
-  and the complete non-manual Bazel test graph in the pinned local macOS/Nix environment.
+- Bzlmod lock closure, full Bazel configured analysis, and the dependency-layer graph. The current
+  439-target non-manual Bazel test graph has not completed as one passing run in this evidence set;
+  active GitHub execution is connected CI evidence and is reported separately.
 - Complete target-state path materialization, accepted decision register, Go module cookbook, security documentation, and operating runbooks.
 - Markdown relative-link validation across the tree, and structured parsing of
-  the repository's tracked data files (190 JSON, 192 TOML, 321 YAML/YML, and 696
-  Markdown files are tracked). One caveat: `tools/dev/validate_repository.py`
-  passes its 23 architecture gates and its Markdown-link check, but its
+  the repository's tracked data files. One caveat: `tools/dev/validate_repository.py`
+  passes its 29 architecture gates and its Markdown-link check, but its
   structured-file scan currently reports 8 YAML parse failures on the
   `infra/kubernetes/platform/mlflow` Helm chart templates, which are Go-template
-  sources rather than plain YAML. That scan is not one of the 23 static gates,
+  sources rather than plain YAML. That scan is not one of the 29 static gates,
   and the failures are pre-existing rather than introduced by this record.
 
 The exact local Go package set is stored in
