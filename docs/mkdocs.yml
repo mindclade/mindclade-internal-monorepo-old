@@ -170,7 +170,9 @@ nav:
       - Foundation freeze: qualification/foundation-freeze.md
       - Go qualification: qualification/go/README.md
       - AI Gateway admission: qualification/go/ai-gateway-admission.md
+      - Control-plane orchestration: qualification/go/control-orchestration.md
       - Control-plane registry: qualification/go/control-plane-registry.md
+      - Control-plane scheduling: qualification/go/control-scheduling.md
       - Reference training platform: qualification/reference-training-platform.md
       - Terraform module v0.4.0 preflight: qualification/terraform-module-v0.4.0.md
       - TypeScript applications: qualification/typescript-applications.md

@@ -27,6 +27,15 @@ REQUIRED = {
     "control_plane_lease_loss",
     "control_plane_duplicate_event",
     "control_plane_retry_exhaustion",
+    # Added with the orchestration/scheduling durability work. Listed here, and not only in
+    # the TOML, for the same reason every other control-plane scenario is: a scenario that
+    # exists only in the matrix file can be deleted from it and this tool still reports
+    # "failure-injection matrix passed". The qualification documents in docs/qualification/go
+    # cite these four by name, so the claim and the requirement have to move together.
+    "control_plane_placement_rollback",
+    "control_plane_scheduling_projection_drift",
+    "control_plane_scheduling_stale_snapshot",
+    "control_plane_scheduling_expiry_backlog",
 }
 
 
