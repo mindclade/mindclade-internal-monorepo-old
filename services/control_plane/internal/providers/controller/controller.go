@@ -292,10 +292,13 @@ func (factory *Factory) Create(ctx context.Context, profile bootstrap.Profile) (
 		return bootstrap.Runtime{}, err
 	}
 	// One elector, one handler, two things that may only run under the lease.
-	// gateLeaderWork is what makes that expressible; see its doc for why the
-	// two must fail as a unit.
+	// leadership.GateComponents is what makes that expressible; see its doc for
+	// why the two must fail as a unit. It is the same gate as
+	// leadership.GateComponent, generalised to N components -- this role used
+	// to carry its own copy of that loop, which is exactly how the two would
+	// have drifted the moment the stage reconciler needs a fence.
 	stageComponentName := "worker/" + stageWorker
-	leaderHandler, gated, err := gateLeaderWork(leaderWorkGroup,
+	leaderHandler, gated, err := leadership.GateComponents(leaderWorkGroup,
 		managerRuntime.Component(orchestration.ManagerComponent),
 		stageRunner.Component(stageComponentName),
 	)

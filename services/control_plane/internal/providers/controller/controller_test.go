@@ -14,10 +14,8 @@ import (
 	_ "github.com/lib/pq"
 
 	foundationconfig "go.mindclade.dev/libs/go/config"
-	"go.mindclade.dev/libs/go/coordination/leadership"
 	"go.mindclade.dev/libs/go/coordination/workqueue"
 	"go.mindclade.dev/libs/go/faults"
-	"go.mindclade.dev/libs/go/servicekit"
 	"go.mindclade.dev/services/control_plane/internal/bootstrap"
 	"go.mindclade.dev/services/control_plane/internal/foundation/orchestration"
 	"go.mindclade.dev/services/control_plane/internal/foundation/tasks"
@@ -323,90 +321,10 @@ func TestControllerAndOperatorDrainSeparateStageQueues(t *testing.T) {
 	}
 }
 
-// gateLeaderWork is what makes one elector own two run loops. Each component
-// must come back unable to start on its own, and the handler must start both.
-func TestGateLeaderWorkRunsEveryComponentAndStripsItsRunLoop(t *testing.T) {
-	started := make(chan string, 2)
-	component := func(name string) servicekit.Component {
-		return servicekit.Component{Name: name, Run: func(ctx context.Context) error {
-			started <- name
-			return nil
-		}}
-	}
-	handler, gated, err := gateLeaderWork("test-leader", component("first"), component("second"))
-	if err != nil {
-		t.Fatalf("gateLeaderWork: %v", err)
-	}
-	if len(gated) != 2 {
-		t.Fatalf("gated %d components, want two", len(gated))
-	}
-	for _, value := range gated {
-		if value.Run != nil {
-			t.Fatalf("component %q kept an independent run loop", value.Name)
-		}
-	}
-	// Both components return nil while leadership is still held, which the
-	// handler reports as leader work that stopped: a leader loop that finishes
-	// on its own has stopped doing the thing the lease serializes, and calling
-	// that graceful completion would leave the process holding a lease and
-	// reconciling nothing.
-	if err := handler(context.Background(), leadership.Session{}); !faults.IsReason(err, "leader_work_stopped") {
-		t.Fatalf("leader handler = %q, want leader_work_stopped", faults.ReasonOf(err))
-	}
-	close(started)
-	names := map[string]bool{}
-	for name := range started {
-		names[name] = true
-	}
-	if !names["first"] || !names["second"] {
-		t.Fatalf("leader handler started %v, want both components", names)
-	}
-}
-
-// The group fails as a unit. A manager that stopped while the stage worker kept
-// reconciling would be reconciling against a cache nothing refreshes, and the
-// honest answer is to surrender the lease rather than half-run the role.
-func TestGateLeaderWorkFailsAsAUnit(t *testing.T) {
-	failure := faults.New(faults.CodeUnavailable, "manager stopped", faults.WithReason("manager_stopped"))
-	cancelled := make(chan struct{})
-	handler, _, err := gateLeaderWork("test-leader",
-		servicekit.Component{Name: "failing", Run: func(context.Context) error { return failure }},
-		servicekit.Component{Name: "waiting", Run: func(ctx context.Context) error {
-			<-ctx.Done()
-			close(cancelled)
-			return ctx.Err()
-		}},
-	)
-	if err != nil {
-		t.Fatalf("gateLeaderWork: %v", err)
-	}
-	if err := handler(context.Background(), leadership.Session{}); !faults.IsReason(err, "manager_stopped") {
-		t.Fatalf("leader handler = %q, want the failing component's reason", faults.ReasonOf(err))
-	}
-	select {
-	case <-cancelled:
-	default:
-		t.Fatal("the surviving component was not cancelled with the group")
-	}
-}
-
-func TestGateLeaderWorkRefusesAComponentItCannotGate(t *testing.T) {
-	runnable := servicekit.Component{Name: "runnable", Run: func(context.Context) error { return nil }}
-	if _, _, err := gateLeaderWork("", runnable); !faults.IsReason(err, "invalid_leader_work_group") {
-		t.Fatalf("unnamed group = %q, want invalid_leader_work_group", faults.ReasonOf(err))
-	}
-	if _, _, err := gateLeaderWork("test-leader"); !faults.IsReason(err, "invalid_leader_work_group") {
-		t.Fatalf("empty group = %q, want invalid_leader_work_group", faults.ReasonOf(err))
-	}
-	if _, _, err := gateLeaderWork("test-leader", servicekit.Component{Name: "no-run"}); !faults.IsReason(err, "invalid_leader_managed_component") {
-		t.Fatalf("component with no run = %q, want invalid_leader_managed_component", faults.ReasonOf(err))
-	}
-}
-
 // The manager and the stage worker must reach their aggregates under their own
-// names. Both are servicekit.Component, so before gateLeaderWork keyed its
-// result by name, swapping its two arguments compiled and registered the
-// manager as the stage worker -- and every other test here still passed,
+// names. Both are servicekit.Component, so before leadership.GateComponents
+// keyed its result by name, swapping its two arguments compiled and registered
+// the manager as the stage worker -- and every other test here still passed,
 // because both components are stripped of Run either way.
 func TestControllerRegistersEachGatedComponentUnderItsOwnName(t *testing.T) {
 	profile, err := bootstrap.ProfileFor(bootstrap.RoleController)
@@ -442,36 +360,5 @@ func TestControllerRegistersEachGatedComponentUnderItsOwnName(t *testing.T) {
 	}
 	if !sawManager || !sawWorker {
 		t.Fatalf("manager aggregate seen=%v, worker aggregate seen=%v", sawManager, sawWorker)
-	}
-}
-
-// The unit-level half of the same property: the gate hands components back
-// under their own names rather than in the order they were passed.
-func TestGateLeaderWorkKeysComponentsByName(t *testing.T) {
-	component := func(name string) servicekit.Component {
-		return servicekit.Component{Name: name, Run: func(context.Context) error { return nil }}
-	}
-	_, gated, err := gateLeaderWork("test-leader", component("first"), component("second"))
-	if err != nil {
-		t.Fatalf("gateLeaderWork: %v", err)
-	}
-	for _, name := range []string{"first", "second"} {
-		value, found := gated[name]
-		if !found {
-			t.Fatalf("component %q is missing from the gated set", name)
-		}
-		if value.Name != name {
-			t.Fatalf("key %q holds component %q", name, value.Name)
-		}
-	}
-}
-
-// Two components under one name would have collided at the first leadership
-// acquisition, inside servicekit.TaskGroup.Add, where the failure is a lost
-// lease rather than a refused composition.
-func TestGateLeaderWorkRefusesADuplicateComponentName(t *testing.T) {
-	component := servicekit.Component{Name: "twice", Run: func(context.Context) error { return nil }}
-	if _, _, err := gateLeaderWork("test-leader", component, component); !faults.IsReason(err, "duplicate_leader_managed_component") {
-		t.Fatalf("duplicate name = %q, want duplicate_leader_managed_component", faults.ReasonOf(err))
 	}
 }

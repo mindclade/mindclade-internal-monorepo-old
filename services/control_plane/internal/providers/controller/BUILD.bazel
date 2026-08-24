@@ -50,10 +50,8 @@ go_test(
     embed = [":controller"],
     deps = [
         "//libs/go/config",
-        "//libs/go/coordination/leadership",
         "//libs/go/coordination/workqueue",
         "//libs/go/faults",
-        "//libs/go/servicekit",
         "//services/control_plane/internal/bootstrap",
         "//services/control_plane/internal/foundation/orchestration",
         "//services/control_plane/internal/foundation/tasks",
