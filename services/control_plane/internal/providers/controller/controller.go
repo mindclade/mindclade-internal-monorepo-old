@@ -20,6 +20,7 @@ import (
 
 	foundationconfig "go.mindclade.dev/libs/go/config"
 	"go.mindclade.dev/libs/go/coordination/leadership"
+	"go.mindclade.dev/libs/go/coordination/workqueue"
 	"go.mindclade.dev/libs/go/faults"
 	"go.mindclade.dev/libs/go/kubernetes/controller"
 	"go.mindclade.dev/libs/go/kubernetes/events"
@@ -63,39 +64,100 @@ const (
 	operatorEventSource   = "mindclade-control-plane-operator"
 )
 
+// The stage queue each role drains. The two roles are separate singletons under
+// separate leases, so they must not share a queue: one queue drained by both
+// would let the operator claim an item the controller's reconciler was meant to
+// handle, and a claim is exclusive -- the controller would never see it again.
+// The queue name therefore joins the lease key and the event source in the
+// short list of things these two otherwise identical compositions differ by.
+const (
+	controllerStageQueue = "control-plane/controller-stages"
+	operatorStageQueue   = "control-plane/operator-stages"
+)
+
+// Stage worker tuning. Concurrency is bounded because each reconcile issues
+// cluster writes, and the lease is renewed well inside its duration so a slow
+// heartbeat does not surrender an in-flight item. The numbers match the
+// scheduler's placement worker deliberately: both drain the same store and do a
+// bounded amount of cluster work per item, and two unexplained sets of numbers
+// for the same shape is how one of them silently stops being reviewed.
+const (
+	stageWorker            = "stage-reconciler"
+	stagePollInterval      = 500 * time.Millisecond
+	stageLeaseDuration     = 60 * time.Second
+	stageHeartbeatInterval = 15 * time.Second
+	stageBatchSize         = 16
+	stageConcurrency       = 4
+	stageFailureDelay      = 5 * time.Second
+	// leaderWorkGroup names the task group the gated components run in. It
+	// appears in task telemetry, so it names the role's leader work rather than
+	// any one component inside it.
+	leaderWorkGroup = "control-plane-leader"
+)
+
 // Factory assembles a reconciling process: the durable PostgreSQL mechanisms
 // it shares with every other role, the singleton elector that makes it safe to
-// run more than one replica, and the controller-runtime manager whose cache
-// and reconcilers it owns for the life of the process.
+// run more than one replica, the controller-runtime manager whose cache and
+// reconcilers it owns for the life of the process, and the leased stage worker
+// that carries orchestration work items into that reconciler.
 //
 // The controller and operator roles have identical capability profiles, so
 // they are the same composition rather than two copies of it. They differ only
-// in the lease they claim and the source they report events under, which is
-// exactly what keeps them separate singletons that an operator can tell apart.
+// in the lease they claim, the source they report events under, and the stage
+// queue they drain -- exactly what keeps them separate singletons that an
+// operator can tell apart.
 type Factory struct {
 	sources     []foundationconfig.Source
 	role        bootstrap.Role
 	leaseKey    string
 	eventSource string
+	stageQueue  string
+	stage       workqueue.Handler
 }
 
 // NewControllerFactory returns the controller provider factory. With no
 // sources the process reads its configuration from the explicit environment
 // mapping; tests pass a MapSource instead.
 func NewControllerFactory(sources ...foundationconfig.Source) *Factory {
-	return newFactory(bootstrap.RoleController, controllerLeaseKey, controllerEventSource, sources)
+	return newFactory(bootstrap.RoleController, controllerLeaseKey, controllerEventSource, controllerStageQueue, sources)
 }
 
 // NewOperatorFactory returns the operator provider factory.
 func NewOperatorFactory(sources ...foundationconfig.Source) *Factory {
-	return newFactory(bootstrap.RoleOperator, operatorLeaseKey, operatorEventSource, sources)
+	return newFactory(bootstrap.RoleOperator, operatorLeaseKey, operatorEventSource, operatorStageQueue, sources)
 }
 
-func newFactory(role bootstrap.Role, leaseKey, eventSource string, sources []foundationconfig.Source) *Factory {
+// WithStageReconciler injects the domain handler that turns a claimed stage
+// work item into a reconcile. It is the seam between this composition root and
+// orchestration policy: the root owns the queue, the lease, the fencing, and
+// the worker lifecycle, and the domain owns what a work item means.
+//
+// The expected shape is orchestration.Handler(handler, observers...), which
+// already adapts an orchestration.StageHandler to workqueue.HandlerFunc,
+// decodes the orchestration.WorkItem payload, and expresses the retry
+// disposition as the fault policy this worker reads. This is a work-queue seam,
+// not a controller-runtime reconciler: reconcilers are registered on the
+// manager, and an item claimed from a durable queue is a different arrival.
+//
+// Left unset, the worker fails every item closed rather than acknowledging work
+// it cannot perform. A dropped stage that reports success is a run that never
+// finishes and never fails.
+func (factory *Factory) WithStageReconciler(handler workqueue.Handler) *Factory {
+	if factory == nil {
+		return nil
+	}
+	factory.stage = handler
+	return factory
+}
+
+func newFactory(role bootstrap.Role, leaseKey, eventSource, stageQueue string, sources []foundationconfig.Source) *Factory {
 	if len(sources) == 0 {
 		sources = []foundationconfig.Source{config.EnvironmentSource()}
 	}
-	return &Factory{sources: sources, role: role, leaseKey: leaseKey, eventSource: eventSource}
+	return &Factory{
+		sources: sources, role: role, leaseKey: leaseKey,
+		eventSource: eventSource, stageQueue: stageQueue,
+	}
 }
 
 // Create resolves configuration and constructs every provider the controller
@@ -206,12 +268,40 @@ func (factory *Factory) Create(ctx context.Context, profile bootstrap.Profile) (
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}
-	leaderHandler, managerComponent, err := leadership.GateComponent(
-		managerRuntime.Component(orchestration.ManagerComponent),
+	stageHandler := factory.stage
+	if stageHandler == nil {
+		stageHandler = workqueue.HandlerFunc(refuseStageReconcile)
+	}
+	stageRunner, err := workqueue.NewWorker(
+		queue,
+		stageHandler,
+		workqueue.WorkerConfig{
+			Owner:             owner,
+			Queues:            []string{factory.stageQueue},
+			PollInterval:      stagePollInterval,
+			LeaseDuration:     stageLeaseDuration,
+			HeartbeatInterval: stageHeartbeatInterval,
+			BatchSize:         stageBatchSize,
+			Concurrency:       stageConcurrency,
+			FailureDelay:      stageFailureDelay,
+		},
+		workqueue.WithClock(shared.Clock),
+		workqueue.WithRetry(shared.Retry),
 	)
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}
+	// One elector, one handler, two things that may only run under the lease.
+	// gateLeaderWork is what makes that expressible; see its doc for why the
+	// two must fail as a unit.
+	leaderHandler, gated, err := gateLeaderWork(leaderWorkGroup,
+		managerRuntime.Component(orchestration.ManagerComponent),
+		stageRunner.Component("worker/"+stageWorker),
+	)
+	if err != nil {
+		return bootstrap.Runtime{}, err
+	}
+	managerComponent, stageComponent := gated[0], gated[1]
 	elector, err := leadership.New(
 		leases,
 		leadership.Config{
@@ -285,7 +375,8 @@ func (factory *Factory) Create(ctx context.Context, profile bootstrap.Profile) (
 				Leader: elector,
 			},
 			tasks.Mechanisms{
-				Queue: queue,
+				Queue:   queue,
+				Workers: map[string]servicekit.Component{stageWorker: stageComponent},
 			},
 			// The manager's cached client is the one reconcilers read through.
 			// The direct client the cluster provider builds stays unused here:
