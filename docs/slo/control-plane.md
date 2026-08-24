@@ -9,16 +9,19 @@ are "independent promotion units, not hidden registry dependencies." Ten of the 
 fail-closed.
 
 This document therefore covers only what is genuinely shared across roles: the leadership and
-lease contract, the fail-closed composition seams, and the bounds every role inherits. Domain
+lease contract and the fail-closed composition seams. The bounds table below is per-role, not
+inherited: the egress values are `webhook_dispatcher`'s, the `dispatcher*` values
+`event_dispatcher`'s, and the `expiration*`/`housekeeping*`/`maintenance*` values `maintenance`'s.
+Domain
 objectives belong to the `control.*` component documents, which are listed per role below.
 
 ## Role inventory
 
 | Role | Domain SLO document | Remaining gate (per `PRODUCTION_READINESS.md`) |
 | --- | --- | --- |
-| `registry` | `docs/slo/control-model-registry.md` | none — wired to production PostgreSQL and qualified against live PostgreSQL |
+| `registry` | `docs/slo/control-model-registry.md` | wired to production PostgreSQL and qualified against live PostgreSQL, but promotion still requires the release run's SBOM, provenance, signature and rollback artifacts, and release promotion is itself held fail-closed in the production factory — no active release-policy digest/epoch or typed evidence resolver is injected (`PRODUCTION_READINESS.md:56-68`) |
 | `api` | `docs/slo/control-admission.md` | protected-CI, multi-process/multi-replica, failure-injection and restore evidence; enforcing Gateway proxy; operational SLO approval |
-| `admin` | `docs/slo/control-admission.md` | policy administration not mounted |
+| `admin` | `docs/slo/control-admission.md` | shares the `api` row's gates, and policy administration — `admin`'s own function — is among the items listed as remaining |
 | `maintenance` | this document | protected connected execution, multi-replica lease failover, long-running backlog/retention behaviour, operational SLO approval |
 | `scheduler` | `docs/slo/control-scheduling.md` | placement handler is not configured |
 | `controller`, `operator` | `docs/slo/control-orchestration.md` | domain reconcilers are not registered |
@@ -32,20 +35,22 @@ against work the process refuses to perform by design.
 
 ## Shared leadership and lease contract
 
-Four singleton roles — `scheduler`, `ingestion_controller`, `controller`/`operator`, and
-`event_projector` — run identical leadership parameters. This uniformity is the one cross-role
+Five singleton roles — `scheduler`, `ingestion_controller`, `controller`/`operator`,
+`event_projector`, and `maintenance` — run identical leadership parameters; the maintenance
+block even says so in source: "Leadership timings match the other singleton roles." This uniformity is the one cross-role
 availability property that can be stated without a per-domain decision.
 
 | Parameter | Value | Source |
 | --- | --- | --- |
-| `leaseTTL` | 15 s | `internal/providers/scheduler/scheduler.go:49` and peers |
-| `leaseRenewInterval` | 5 s | `scheduler.go:50`, `ingestion.go:52`, `controller.go:51`, `projector.go:49` |
-| `leaseAcquireInterval` | 2 s | `scheduler.go:51`, `ingestion.go:53`, `controller.go:52`, `projector.go:50` |
-| `leaseReleaseTimeout` | 5 s | `scheduler.go:52`, `ingestion.go:54`, `controller.go:53`, `projector.go:51` |
-| `leaderReadinessRequired` | `true` | `scheduler.go:53` and peers |
+| `leaseTTL` | 15 s | `scheduler.go:49`, `ingestion.go:51`, `controller.go:50`, `projector.go:48`, `maintenance.go:44` |
+| `leaseRenewInterval` | 5 s | `scheduler.go:50`, `ingestion.go:52`, `controller.go:51`, `projector.go:49`, `maintenance.go:45` |
+| `leaseAcquireInterval` | 2 s | `scheduler.go:51`, `ingestion.go:53`, `controller.go:52`, `projector.go:50`, `maintenance.go:46` |
+| `leaseReleaseTimeout` | 5 s | `scheduler.go:52`, `ingestion.go:54`, `controller.go:53`, `projector.go:51`, `maintenance.go:47` |
+| `leaderReadinessRequired` | `true` | `scheduler.go:53` and the four peers above |
 
 Lease keys are distinct per role (`control-plane/scheduler`, `control-plane/ingestion-coordinator`,
-`control-plane/controller`, `control-plane/operator`, `control-plane/event-projector`), so a role
+`control-plane/controller`, `control-plane/operator`, `control-plane/event-projector`,
+`control-plane/maintenance`), so a role
 losing leadership cannot displace another.
 
 `internal/bootstrap/promotion_test.go` requires every command to enter through `bootstrap.Main`,
@@ -58,7 +63,8 @@ Eighteen distinct `*_not_configured` fault codes keep unwired seams from reporti
 work — among them `placement_handler_not_configured`, `projection_source_not_configured`,
 `delivery_handler_not_configured`, `staging_handler_not_configured`, and
 `pubsub_provider_not_configured`. `bootstrap.UnconfiguredFactory`
-(`internal/bootstrap/bootstrap.go:72-82`) fails rather than starting.
+(`internal/bootstrap/bootstrap.go:76-87`) fails rather than starting, and does so with
+`faults.NoRetry()` — the property that makes the seam fail closed rather than spin.
 
 **These seams are why most roles have no objective, and they must not be counted as availability
 failures if one is later set.** A role returning `placement_handler_not_configured` is behaving
@@ -103,20 +109,37 @@ Treat those six values as a security boundary, not a tuning surface.
 
 ## Instrumentation reality
 
-Metrics appear in 12 files and telemetry in 16, but the emitted families are concentrated almost
-entirely in admission:
+The tree has exactly **two** Prometheus collectors, and neither belongs to the seven roles that
+have no objective.
+
+`internal/providers/admissionmetrics/metrics.go:99-111` — the admission role, two families:
 
 - `mindclade_control_admission_decisions_total`
-- `mindclade_control_admission_oldest_expired_reservation_age_seconds`
-- `mindclade_control_admission_last_successful_sweep_timestamp_seconds`
-- `mindclade_control_admission_snapshot_last_success_timestamp_seconds`
-- `decision_duration_seconds`
+- `mindclade_control_admission_decision_duration_seconds`
 
-**The other roles are effectively uninstrumented.** Only two files across the tree expose a
-health or readiness surface. Any objective for `scheduler`, `controller`, `operator`,
-`event_projector`, `event_dispatcher`, `webhook_dispatcher`, or `ingestion_controller` would have
-no indicator to measure it with, so instrumentation is a prerequisite for those objectives rather
-than a follow-up to them.
+`internal/providers/maintenance/metrics.go:372-384` — the **maintenance** role, seven families.
+They carry the `mindclade_control_admission_` prefix because they describe admission *data*, not
+because admission emits them:
+
+- `..._expiration_backlog`
+- `..._oldest_expired_reservation_age_seconds`
+- `..._last_successful_sweep_timestamp_seconds`
+- `..._consecutive_backlogged_sweeps`
+- `..._event_drift`
+- `..._snapshot_success`
+- `..._snapshot_last_success_timestamp_seconds`
+
+Maintenance also stands up its own bounded metrics HTTP server (`metrics.go:28-35`), so it has a
+scrape surface as well as indicators. **It is the best-instrumented role in the tree** — which
+matters, because this document is its SLO.
+
+Health and readiness surfaces exist in exactly two files:
+`internal/providers/registry/serving.go` and `internal/providers/api/serving.go`.
+
+**The remaining roles emit nothing.** `scheduler`, `controller`, `operator`, `event_projector`,
+`event_dispatcher`, `webhook_dispatcher` and `ingestion_controller` have no collector, no health
+surface, and therefore no indicator an objective could be measured against. Instrumentation is a
+prerequisite for their objectives, not a follow-up to them.
 
 ## Unratified candidates
 
@@ -130,7 +153,7 @@ than a follow-up to them.
 | Leadership failover completes within | 20 s | `leaseTTL` 15 s + `leaseAcquireInterval` 2 s, plus margin (`scheduler.go:49,51`) |
 | Lease release does not exceed | 5 s | `leaseReleaseTimeout` (`scheduler.go:52`) |
 | Webhook delivery attempt bounded at | 20 s | `egressTimeout` (`webhook.go:59`) |
-| Outbox drain visible within | 30 s | `dispatcherClaimDuration` (`dispatcher.go:29`) |
+| Abandoned outbox claim becomes reclaimable within | 30 s | `dispatcherClaimDuration` (`dispatcher.go:29`) — this bounds stall recovery, **not** drain latency, which is governed by the 250 ms poll and the 64-item batch |
 | Maintenance metric staleness alarm at | 60 s | `maintenanceStaleAfter` (`metrics.go:39`) |
 | Terminal record retention | 7 d | `expirationTerminalRetention` (`housekeeping.go:38`) |
 
@@ -160,4 +183,6 @@ This document cannot be completed without the following, none of which is deriva
 4. Which roles require instrumentation before promotion, and in what order.
 5. Ratification, amendment, or rejection of each unratified candidate above.
 
-Until items 1–3 are answered, no role in this document may advance past `implemented`.
+Until items 1–3 are answered, `services.control_plane` may not advance past `implemented`.
+The `registry` role is qualified in its own right (`docs/qualification/go/control-plane-registry.md`),
+but the deployable does not inherit that while ten of its eleven roles are held fail-closed.

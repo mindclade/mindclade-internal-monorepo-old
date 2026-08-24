@@ -74,14 +74,12 @@ _PRODUCTION_RULES = (
 #
 # `services/control_plane` is NOT here, and the distinction matters. This is an allowlist of
 # what is governed, not a denylist of paths exempted from a check that claims to cover them —
-# nothing below asserts control_plane is fine, and no path anywhere is skipped by name inside
-# a governed root. Its 45 packages and 13,732 production lines are undeclared because
-# `check_component_ownership.py` requires an SLO and a runbook for any tier-0/tier-1 component
-# at `implemented` or above; `docs/runbooks/control-plane-outage.md` exists and no SLO page
-# does. Recording it tier-2 would clear that gate by mis-describing the deployable that hosts
-# six tier-1 control domains. When `docs/slo/` gains the control plane, these two entries
-# collapse to a single "services" and this comment goes with them.
-_GO_DECLARATION_GOVERNED_ROOTS = ("control", "libs", "services/go_vanity", "services/studio")
+# no path anywhere is skipped by name inside a governed root. `services` was previously split
+# into `services/go_vanity` and `services/studio` because `services/control_plane` had no SLO
+# page and check_component_ownership.py requires one for any tier-0/tier-1 component at
+# `implemented` or above. `docs/slo/control-plane.md` now exists and the deployable is declared,
+# so the two entries collapse to plain `services` exactly as that note said they would.
+_GO_DECLARATION_GOVERNED_ROOTS = ("control", "libs", "services")
 
 # A scaffold placeholder as this tree writes them: a licence header, a package clause, and one
 # `const scaffold_<file> = "<path>"`. Reserved space is not a component, so a directory holding
