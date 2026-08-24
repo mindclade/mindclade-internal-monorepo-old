@@ -107,6 +107,19 @@ its queue against a fail-closed default that refuses with `stage_reconciler_not_
 Neither role carries production work yet, and a higher status would claim a readiness the tree
 does not support.
 
+Stated plainly, because it is the same disclosure `control-scheduling.md` makes about
+`control-plane/placement` and it applies to two more queues here: **nothing in the tree writes to
+`control-plane/controller-stages` or to `control-plane/operator-stages`**. The two names are
+introduced by `services/control_plane/internal/providers/controller/controller.go`, one per role,
+and the only production enqueue path in the repository — a promotion appending through
+`orchestrationstore.WithEnqueuer` — is composed solely by the scheduler role and targets
+`control-plane/placement`. So the net production behaviour of the controller, the operator, and
+the scheduler alike is a leader-gated worker claiming an empty queue every 500 ms for as long as
+the process holds its lease, and any item that did somehow arrive on a stage queue would be
+retried to its attempt bound and dead-lettered on `stage_reconciler_not_configured`. That is the
+intended fail-closed shape, not a defect — but it is not a running pipeline, and this document
+would be misread as describing one if it did not say so.
+
 Per `AGENTS.md`, the following are **reported as not run** rather than claimed: connected-CI
 provider suites on the digest-pinned image, a live cluster with JobSet or Kueue CRDs (the
 `control/orchestration/adapters/kubernetes` launcher is exercised only against fakes), GPU
