@@ -1117,7 +1117,7 @@ runbook = "docs/runbooks/control-admission.md"
 [[component]]
 name = "services.control_plane.scheduler"
 path = "services/control_plane/cmd/scheduler"
-status = "implemented"
+status = "experimental"
 owner = "platform-control"
 tests = [
   "services/control_plane/internal/providers/scheduler/placement_test.go",

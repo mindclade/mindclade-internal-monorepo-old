@@ -402,3 +402,76 @@ func TestGateLeaderWorkRefusesAComponentItCannotGate(t *testing.T) {
 		t.Fatalf("component with no run = %q, want invalid_leader_managed_component", faults.ReasonOf(err))
 	}
 }
+
+// The manager and the stage worker must reach their aggregates under their own
+// names. Both are servicekit.Component, so before gateLeaderWork keyed its
+// result by name, swapping its two arguments compiled and registered the
+// manager as the stage worker -- and every other test here still passed,
+// because both components are stripped of Run either way.
+func TestControllerRegistersEachGatedComponentUnderItsOwnName(t *testing.T) {
+	profile, err := bootstrap.ProfileFor(bootstrap.RoleController)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime, err := NewControllerFactory(controllerSettings(t)).Create(context.Background(), profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sawManager, sawWorker bool
+	for _, dependency := range runtime.Dependencies {
+		switch aggregate := dependency.(type) {
+		case orchestration.Cluster:
+			if aggregate.Manager == nil {
+				t.Fatal("the cluster aggregate carries no manager component")
+			}
+			if aggregate.Manager.Name != orchestration.ManagerComponent {
+				t.Fatalf("manager registered as %q, want %q",
+					aggregate.Manager.Name, orchestration.ManagerComponent)
+			}
+			sawManager = true
+		case tasks.Mechanisms:
+			worker, found := aggregate.Workers[stageWorker]
+			if !found {
+				t.Fatal("stage worker component was not composed")
+			}
+			if worker.Name != "worker/"+stageWorker {
+				t.Fatalf("stage worker registered as %q, want %q", worker.Name, "worker/"+stageWorker)
+			}
+			sawWorker = true
+		}
+	}
+	if !sawManager || !sawWorker {
+		t.Fatalf("manager aggregate seen=%v, worker aggregate seen=%v", sawManager, sawWorker)
+	}
+}
+
+// The unit-level half of the same property: the gate hands components back
+// under their own names rather than in the order they were passed.
+func TestGateLeaderWorkKeysComponentsByName(t *testing.T) {
+	component := func(name string) servicekit.Component {
+		return servicekit.Component{Name: name, Run: func(context.Context) error { return nil }}
+	}
+	_, gated, err := gateLeaderWork("test-leader", component("first"), component("second"))
+	if err != nil {
+		t.Fatalf("gateLeaderWork: %v", err)
+	}
+	for _, name := range []string{"first", "second"} {
+		value, found := gated[name]
+		if !found {
+			t.Fatalf("component %q is missing from the gated set", name)
+		}
+		if value.Name != name {
+			t.Fatalf("key %q holds component %q", name, value.Name)
+		}
+	}
+}
+
+// Two components under one name would have collided at the first leadership
+// acquisition, inside servicekit.TaskGroup.Add, where the failure is a lost
+// lease rather than a refused composition.
+func TestGateLeaderWorkRefusesADuplicateComponentName(t *testing.T) {
+	component := servicekit.Component{Name: "twice", Run: func(context.Context) error { return nil }}
+	if _, _, err := gateLeaderWork("test-leader", component, component); !faults.IsReason(err, "duplicate_leader_managed_component") {
+		t.Fatalf("duplicate name = %q, want duplicate_leader_managed_component", faults.ReasonOf(err))
+	}
+}

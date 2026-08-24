@@ -294,14 +294,18 @@ func (factory *Factory) Create(ctx context.Context, profile bootstrap.Profile) (
 	// One elector, one handler, two things that may only run under the lease.
 	// gateLeaderWork is what makes that expressible; see its doc for why the
 	// two must fail as a unit.
+	stageComponentName := "worker/" + stageWorker
 	leaderHandler, gated, err := gateLeaderWork(leaderWorkGroup,
 		managerRuntime.Component(orchestration.ManagerComponent),
-		stageRunner.Component("worker/"+stageWorker),
+		stageRunner.Component(stageComponentName),
 	)
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}
-	managerComponent, stageComponent := gated[0], gated[1]
+	// Read back by name, not by position. Both are servicekit.Component, so
+	// indexing the result positionally let a swap of the two arguments above
+	// compile and register the manager under the stage worker's key.
+	managerComponent, stageComponent := gated[orchestration.ManagerComponent], gated[stageComponentName]
 	elector, err := leadership.New(
 		leases,
 		leadership.Config{
