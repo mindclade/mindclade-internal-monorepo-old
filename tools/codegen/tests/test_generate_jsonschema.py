@@ -58,6 +58,32 @@ ORCHESTRATION_STORE_EVENTS = (
 )
 ORCHESTRATION_FIXTURES = ROOT / "protocols/events/fixtures/orchestration/v1"
 
+# The three closed vocabularies the orchestration payloads carry, and the Go constant block that
+# decides each one. (message, JSON field) -> (Go file, Go named string type).
+#
+# The schema pins these as closed alternations — `^(blocked|queued|...)$` — which is what makes a
+# consumer able to switch on them exhaustively. Nothing tied those alternations to the constants
+# the producer actually emits, so adding one constant to a block shipped events the published
+# schema rejects, and no test in the repository failed. The values live in the Go blocks; the
+# policy in protocols/mappings/event_proto.yaml restates them; this reads both and requires them
+# to be the same set.
+ORCHESTRATION_STATE_MACHINE = ROOT / "control/orchestration/state_machine.go"
+ORCHESTRATION_CANCELLATION = ROOT / "control/orchestration/cancellation.go"
+ORCHESTRATION_CLOSED_VOCABULARIES = {
+    ("mindclade.orchestration.v1.AttemptStateEvent", "state"): (
+        ORCHESTRATION_STATE_MACHINE,
+        "AttemptState",
+    ),
+    ("mindclade.orchestration.v1.StageStateEvent", "state"): (
+        ORCHESTRATION_STATE_MACHINE,
+        "StageState",
+    ),
+    ("mindclade.orchestration.v1.CancellationRequestedEvent", "origin"): (
+        ORCHESTRATION_CANCELLATION,
+        "CancellationOrigin",
+    ),
+}
+
 # fixture file -> the Go struct in ORCHESTRATION_STORE_EVENTS whose marshalled form it records.
 # Two structs appear twice on purpose: each has `omitempty` fields, so one fixture alone would
 # only ever pin one of the two documents the store can write.
@@ -367,6 +393,67 @@ def test_orchestration_union_accepts_what_the_orchestration_store_emits() -> Non
         assert seen[name] == optional, (
             f"{name}: fixtures never exercise omitempty key(s) {sorted(optional - seen[name])}, "
             "so the schema is unproven for the document the store writes when they are set"
+        )
+
+
+def _go_constant_values(source: Path, go_type: str) -> frozenset[str]:
+    """The string values of every `Name GoType = "value"` constant declared in one Go file.
+
+    Read rather than restated, for the same reason `_emitted_payload_keys` reads the store's
+    struct tags: a restatement of a vocabulary is the thing that goes stale, and a vocabulary
+    that has gone stale is a producer emitting a value its own published schema refuses.
+    """
+    text = source.read_text(encoding="utf-8")
+    values = frozenset(re.findall(rf'^\t\w+\s+{go_type}\s*=\s*"([^"]+)"$', text, re.MULTILINE))
+    assert values, f"{source.name} declares no {go_type} constants"
+    return values
+
+
+def _closed_alternation(pattern: str) -> frozenset[str]:
+    """The literal branches of an anchored closed alternation, or an assertion failure."""
+    match = re.fullmatch(r"\^\(([^()]+)\)\$", pattern)
+    assert match, f"{pattern!r} is not an anchored closed alternation"
+    branches = match.group(1).split("|")
+    for branch in branches:
+        assert re.fullmatch(r"[a-z0-9_]+", branch), (
+            f"branch {branch!r} is not a literal, so this is not a value set"
+        )
+    assert len(set(branches)) == len(branches), f"{pattern!r} repeats a branch"
+    return frozenset(branches)
+
+
+def test_closed_event_vocabularies_match_their_go_constant_blocks() -> None:
+    """Each closed alternation in the shipped schema is exactly its producer's constant block.
+
+    This is the one gate standing between a one-line Go change and a runtime break in a consumer.
+    `AttemptState = "queued"` added to control/orchestration/state_machine.go compiles, passes
+    every Go test, passes the schema drift and derivation tests here — and produces an event that
+    the published `^(created|starting|...)$` refuses, at the consumer, after the write committed.
+
+    It reads the generated tree rather than protocols/mappings/event_proto.yaml because the
+    generated tree is what ships; the drift test already binds the two, so a policy edited without
+    regenerating fails there instead, and one regenerated without touching Go fails here.
+    """
+    schema = json.loads(
+        (GENERATED / "orchestration/v1/orchestration-events.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    for (message, field), (source, go_type) in sorted(ORCHESTRATION_CLOSED_VOCABULARIES.items()):
+        constrained = schema["$defs"][message]["properties"][field]
+        published = _closed_alternation(constrained["pattern"])
+        declared = _go_constant_values(source, go_type)
+        assert published == declared, (
+            f"{message}.{field} accepts {sorted(published)} but {source.name} declares "
+            f"{go_type} = {sorted(declared)}; the schema and its producer disagree, so "
+            f"{sorted(declared - published) or sorted(published - declared)} is the value that "
+            "breaks a consumer"
+        )
+        # A value the pattern admits and maxLength refuses is unreachable, which makes the
+        # alternation a lie about what the producer may emit.
+        assert constrained["maxLength"] >= max(len(value) for value in declared), (
+            f"{message}.{field} caps length at {constrained['maxLength']}, below the longest "
+            f"{go_type} constant"
         )
 
 
