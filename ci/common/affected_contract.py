@@ -53,7 +53,6 @@ REQUIRED_EXACT_PATH_ANCHORS = frozenset(
 )
 REQUIRED_PREFIX_ANCHORS = frozenset(
     {
-        ".buildkite/",
         ".github/",
         "architecture/",
         "ci/",
@@ -72,7 +71,6 @@ REQUIRED_REVIEW_BOUNDARY_ENTRIES = {
             ".bazelrc",
             ".bazelversion",
             ".buildifier.json",
-            ".buildkite",
             ".dockerignore",
             ".editorconfig",
             ".envrc",

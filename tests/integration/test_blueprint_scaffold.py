@@ -39,8 +39,8 @@ import pytest
 # drops without this constant following it — otherwise the number drifts upward in spirit,
 # silently permitting regressions that earlier work had already ruled out.
 #
-# What remains is mostly a `.buildkite/` pipeline tree (23 paths), plus root dotfiles
-# (.bazelrc, .bazelversion, .editorconfig, .gitattributes and friends), the .github issue and PR
+# What remains is mostly root dotfiles (.bazelrc, .bazelversion, .editorconfig, .gitattributes and
+# friends), the .github issue and PR
 # templates, the gpu/nightly/release workflows, and two infra/kubernetes base manifests. Note the
 # blueprint also reserves .github/dependabot.yml, which contradicts the estate's later decision to
 # disable Dependabot in favour of Renovate — so reaching 0 requires reconciling the manifest, not
@@ -111,7 +111,6 @@ import pytest
 #                                 storage/lease. A Layer-1 storage/ contract root may not, and
 #                                 check_go_layers.py enforces that -- so the manifest was
 #                                 naming a location the layering forbids.
-#   .buildkite/** (23)            the repository runs GitHub Actions; lane logic lives in ci/.
 #   .../store/postgres/*.go (3)   the three stubs described in the raise above.
 #   tests/pytest.ini (1)          left unmaterialized deliberately, per the opening comment.
 #   workflows/{gpu,nightly} (2)   waiting on self-hosted runners, per presubmit.yml.

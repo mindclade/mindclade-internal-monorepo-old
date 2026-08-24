@@ -67,7 +67,6 @@
     "uv.lock"
   ],
   "prefixes": [
-    ".buildkite/",
     ".github/",
     "architecture/",
     "ci/",
@@ -84,7 +83,6 @@
       ".bazelrc",
       ".bazelversion",
       ".buildifier.json",
-      ".buildkite",
       ".dockerignore",
       ".editorconfig",
       ".envrc",

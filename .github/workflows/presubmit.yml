@@ -293,9 +293,6 @@ jobs:
             --against-config \
             '{"version":"v2","modules":[{"path":"protocols/proto"}]}'
 
-      - name: Buildkite credential helper shellcheck
-        run: nix develop .#ci-lint --command shellcheck .buildkite/scripts/wif-preflight.sh
-
       - name: Strict documentation build
         run: nix develop .#ci-lint --command mkdocs build -f docs/mkdocs.yml --strict
 
@@ -1056,13 +1053,6 @@ jobs:
           tools/dev/bazelw test --config=ci
           //infra/kubernetes:validate //infra/gitops:validate
           --test_output=errors
-
-      - name: Fail-closed Buildkite WIF source contract
-        run: |
-          nix develop .#ci-infra --command python3 -B .buildkite/scripts/validate_wif_contract.py
-          nix develop .#ci-infra --command python3 -B -m unittest discover \
-            -s .buildkite/tests -p 'test_*.py'
-
 
   # ---------------------------------------------------------------------------------------
   # TypeScript / pnpm
