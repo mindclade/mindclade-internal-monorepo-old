@@ -62,12 +62,23 @@ type liveOrchestrationStore struct {
 	cancellationTable string
 }
 
-func newLiveOrchestrationStore(t *testing.T) liveOrchestrationStore {
+// requireLivePostgresDSN is the opt-in gate, separated from store construction
+// so a test that builds a store per subtest can still take the gate on the
+// parent. Without that separation the parent reports PASS while every subtest
+// skipped, and `go test` exits 0 having asserted nothing -- which is exactly
+// how the failure-injection matrix reported green with no database.
+func requireLivePostgresDSN(t *testing.T) string {
 	t.Helper()
 	dsn := strings.TrimSpace(os.Getenv(livePostgresEnvironment))
 	if dsn == "" {
 		t.Skipf("%s is not set; live PostgreSQL qualification is opt-in", livePostgresEnvironment)
 	}
+	return dsn
+}
+
+func newLiveOrchestrationStore(t *testing.T) liveOrchestrationStore {
+	t.Helper()
+	dsn := requireLivePostgresDSN(t)
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		t.Fatal(err)
@@ -567,6 +578,12 @@ func (live *liveOrchestrationStore) bindPlacement(t *testing.T, producer orchest
 // drained a permanently empty queue; now a promotion fills it, and it does so
 // inside the transaction that carries the transition.
 func TestLivePostgresPromotionPlacesWorkInTheSameTransaction(t *testing.T) {
+	// Taken on the parent, before any case runs: both subtests need a store of
+	// their own, so without this the skip would land inside them and the parent
+	// would report PASS on nothing. conformance_test.go in the scheduling
+	// package takes its gate the same way.
+	requireLivePostgresDSN(t)
+
 	t.Run("commit", func(t *testing.T) {
 		live := newLiveOrchestrationStore(t)
 		queueTable := live.withPlacement(t)
