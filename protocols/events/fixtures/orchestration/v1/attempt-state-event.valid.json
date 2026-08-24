@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "run_id": "run_019c0000000070008000000000000002",
+  "job_id": "job_019c0000000070008000000000000003",
+  "stage_id": "stage_019c0000000070008000000000000004",
+  "attempt": 2,
+  "state": "running",
+  "fencing_token": 7,
+  "execution_ticket_id": "ticket_019c0000000070008000000000000005",
+  "execution_class": "gpu-a100-80gb",
+  "sequence": 12,
+  "updated_at": "2026-08-23T09:00:30.5Z",
+  "resource_version": "rv1:9:sha256:d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1"
+}

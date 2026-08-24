@@ -21,6 +21,37 @@
 # bound for each unbounded projection — `maxLength` for string and bytes, `maxItems` for
 # repeated, and both `minimum` and `maximum` for 64-bit integers, which JSON numbers cannot
 # represent past 2^53-1. An unbounded wire field is a parser with no limit.
+#
+# `payload_messages` is what widens a domain union from "accepts nothing" to a closed list of
+# payload shapes. orchestration/v1 is the first domain to declare one. Its four messages mirror
+# the structs that services/control_plane/internal/store/postgres/orchestration/events.go
+# marshals with encoding/json, so every bound here is copied from the Go validator that decides
+# what the store will emit, not invented:
+#
+#   identifier patterns    identifiers.ParseID plus the kind control/orchestration requires of
+#                          the field (`run`, `job`, `stage`, `workflow`, `ticket`); the payload
+#                          is 32 lowercase hexadecimal UUIDv7 characters.
+#   resource_version       resourceversion.Version.String() — "rv1:<generation>:sha256:<64 hex>",
+#                          generation a non-zero uint64 with no leading zero.
+#   state / origin         the closed lowercase vocabularies of control/orchestration's
+#                          StageState, AttemptState, and CancellationOrigin. They are patterns
+#                          rather than proto enums because proto3 JSON writes an enum as its
+#                          declared NAME and the store writes the domain word; see the header of
+#                          protocols/proto/mindclade/orchestration/v1/orchestration_events.proto.
+#   name / execution_class MaximumOutputNamespaceLength and MaximumResourceClassLength (128).
+#   reason                 MaximumReasonLength (1024).
+#   failure_code/_reason   coordination.MaximumFailureReasonLength (128) and the canonicalReason
+#                          grammar. Members are deliberately NOT pinned: that taxonomy belongs to
+#                          libs/go/faults, and pinning it here would make an orchestration schema
+#                          the gate on a fault-code addition.
+#   idempotency_scope/key  idempotency.MaximumScopeLength (256) / MaximumKeyLength (200) and
+#                          their minimums (3 / 8). Scope must start with a lowercase letter and
+#                          may not repeat or end on one of `._:/-`; a key is printable ASCII.
+#   stage_count            orchestration.MaximumStageCount (4096), and at least one stage, which
+#                          Workflow.Validate requires of anything publishable.
+#
+# `attempts`, `attempt` beyond its non-zero minimum, and both timestamps carry no refinement:
+# uint32 and google.protobuf.Timestamp are already bounded by their projections.
 {
   "schema_version": 1,
   "descriptor_surface": "protocols/compatibility/protobuf-v1-descriptor.json",
@@ -57,6 +88,112 @@
         "schema": {"maxLength": 256, "minLength": 1},
         "tenant_id": {"maxLength": 39, "pattern": "^tenant_[0-9a-f]{32}$"},
         "workspace_id": {"maxLength": 256}
+      }
+    },
+    "mindclade.orchestration.v1.AttemptStateEvent": {
+      "title": "Mindclade orchestration attempt state event",
+      "required": [
+        "schema_version",
+        "run_id",
+        "job_id",
+        "stage_id",
+        "attempt",
+        "state",
+        "fencing_token",
+        "execution_ticket_id",
+        "execution_class",
+        "sequence",
+        "updated_at",
+        "resource_version"
+      ],
+      "fields": {
+        "attempt": {"minimum": 1},
+        "execution_class": {"maxLength": 128, "minLength": 1},
+        "execution_ticket_id": {"maxLength": 39, "pattern": "^ticket_[0-9a-f]{32}$"},
+        "failure_code": {"maxLength": 128, "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"},
+        "failure_reason": {"maxLength": 128, "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"},
+        "fencing_token": {"maximum": 9007199254740991, "minimum": 1},
+        "job_id": {"maxLength": 36, "pattern": "^job_[0-9a-f]{32}$"},
+        "resource_version": {"maxLength": 96, "pattern": "^rv1:[1-9][0-9]{0,19}:sha256:[0-9a-f]{64}$"},
+        "run_id": {"maxLength": 36, "pattern": "^run_[0-9a-f]{32}$"},
+        "schema_version": {"minimum": 1},
+        "sequence": {"maximum": 9007199254740991, "minimum": 0},
+        "stage_id": {"maxLength": 38, "pattern": "^stage_[0-9a-f]{32}$"},
+        "state": {
+          "maxLength": 10,
+          "pattern": "^(created|starting|ready|leased|running|draining|committing|completed|recovering|cancelling|cancelled|failed)$"
+        }
+      }
+    },
+    "mindclade.orchestration.v1.CancellationRequestedEvent": {
+      "title": "Mindclade orchestration cancellation request event",
+      "required": [
+        "schema_version",
+        "run_id",
+        "origin",
+        "reason",
+        "idempotency_scope",
+        "idempotency_key",
+        "requested_at"
+      ],
+      "fields": {
+        "idempotency_key": {"maxLength": 200, "minLength": 8, "pattern": "^[!-~]+$"},
+        "idempotency_scope": {
+          "maxLength": 256,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$"
+        },
+        "origin": {
+          "maxLength": 10,
+          "pattern": "^(client|operator|claim_loss|deadline|preemption)$"
+        },
+        "reason": {"maxLength": 1024, "minLength": 1},
+        "run_id": {"maxLength": 36, "pattern": "^run_[0-9a-f]{32}$"},
+        "schema_version": {"minimum": 1},
+        "stage_id": {"maxLength": 38, "pattern": "^stage_[0-9a-f]{32}$"}
+      }
+    },
+    "mindclade.orchestration.v1.StageStateEvent": {
+      "title": "Mindclade orchestration stage state event",
+      "required": [
+        "schema_version",
+        "run_id",
+        "job_id",
+        "stage_id",
+        "state",
+        "attempts",
+        "updated_at",
+        "resource_version"
+      ],
+      "fields": {
+        "job_id": {"maxLength": 36, "pattern": "^job_[0-9a-f]{32}$"},
+        "resource_version": {"maxLength": 96, "pattern": "^rv1:[1-9][0-9]{0,19}:sha256:[0-9a-f]{64}$"},
+        "run_id": {"maxLength": 36, "pattern": "^run_[0-9a-f]{32}$"},
+        "schema_version": {"minimum": 1},
+        "stage_id": {"maxLength": 38, "pattern": "^stage_[0-9a-f]{32}$"},
+        "state": {
+          "maxLength": 10,
+          "pattern": "^(blocked|queued|preparing|running|succeeded|failed|cancelling|cancelled)$"
+        }
+      }
+    },
+    "mindclade.orchestration.v1.WorkflowPublishedEvent": {
+      "title": "Mindclade orchestration workflow publication event",
+      "required": [
+        "schema_version",
+        "workflow_id",
+        "name",
+        "definition_digest",
+        "workflow_schema_version",
+        "stage_count"
+      ],
+      "fields": {
+        "definition_digest": {"maxLength": 71, "pattern": "^sha256:[0-9a-f]{64}$"},
+        "name": {"maxLength": 128, "minLength": 1},
+        "schema_version": {"minimum": 1},
+        "stage_count": {"maximum": 4096, "minimum": 1},
+        "workflow_id": {"maxLength": 41, "pattern": "^workflow_[0-9a-f]{32}$"},
+        "workflow_schema_version": {"minimum": 1}
       }
     }
   },
@@ -128,7 +265,12 @@
     {
       "kind": "payload_union",
       "path": "orchestration/v1/orchestration-events.schema.json",
-      "payload_messages": [],
+      "payload_messages": [
+        "mindclade.orchestration.v1.WorkflowPublishedEvent",
+        "mindclade.orchestration.v1.StageStateEvent",
+        "mindclade.orchestration.v1.AttemptStateEvent",
+        "mindclade.orchestration.v1.CancellationRequestedEvent"
+      ],
       "title": "Mindclade orchestration v1 domain event payloads"
     },
     {

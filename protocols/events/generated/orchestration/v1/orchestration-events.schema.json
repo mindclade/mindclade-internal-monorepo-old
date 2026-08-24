@@ -1,7 +1,272 @@
 {
+  "$defs": {
+    "mindclade.orchestration.v1.AttemptStateEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "attempt": {
+          "maximum": 4294967295,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "execution_class": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "execution_ticket_id": {
+          "maxLength": 39,
+          "pattern": "^ticket_[0-9a-f]{32}$",
+          "type": "string"
+        },
+        "failure_code": {
+          "maxLength": 128,
+          "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$",
+          "type": "string"
+        },
+        "failure_reason": {
+          "maxLength": 128,
+          "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+          "type": "string"
+        },
+        "fencing_token": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "job_id": {
+          "maxLength": 36,
+          "pattern": "^job_[0-9a-f]{32}$",
+          "type": "string"
+        },
+        "resource_version": {
+          "maxLength": 96,
+          "pattern": "^rv1:[1-9][0-9]{0,19}:sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "run_id": {
+          "maxLength": 36,
+          "pattern": "^run_[0-9a-f]{32}$",
+          "type": "string"
+        },
+        "schema_version": {
+          "maximum": 4294967295,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "sequence": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "stage_id": {
+          "maxLength": 38,
+          "pattern": "^stage_[0-9a-f]{32}$",
+          "type": "string"
+        },
+        "state": {
+          "maxLength": 10,
+          "pattern": "^(created|starting|ready|leased|running|draining|committing|completed|recovering|cancelling|cancelled|failed)$",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "maxLength": 64,
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "run_id",
+        "job_id",
+        "stage_id",
+        "attempt",
+        "state",
+        "fencing_token",
+        "execution_ticket_id",
+        "execution_class",
+        "sequence",
+        "updated_at",
+        "resource_version"
+      ],
+      "title": "Mindclade orchestration attempt state event",
+      "type": "object"
+    },
+    "mindclade.orchestration.v1.CancellationRequestedEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "idempotency_key": {
+          "maxLength": 200,
+          "minLength": 8,
+          "pattern": "^[!-~]+$",
+          "type": "string"
+        },
+        "idempotency_scope": {
+          "maxLength": 256,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9]*(?:[._:/-][a-z0-9]+)*$",
+          "type": "string"
+        },
+        "origin": {
+          "maxLength": 10,
+          "pattern": "^(client|operator|claim_loss|deadline|preemption)$",
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "type": "string"
+        },
+        "requested_at": {
+          "format": "date-time",
+          "maxLength": 64,
+          "type": "string"
+        },
+        "run_id": {
+          "maxLength": 36,
+          "pattern": "^run_[0-9a-f]{32}$",
+          "type": "string"
+        },
+        "schema_version": {
+          "maximum": 4294967295,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "stage_id": {
+          "maxLength": 38,
+          "pattern": "^stage_[0-9a-f]{32}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "run_id",
+        "origin",
+        "reason",
+        "idempotency_scope",
+        "idempotency_key",
+        "requested_at"
+      ],
+      "title": "Mindclade orchestration cancellation request event",
+      "type": "object"
+    },
+    "mindclade.orchestration.v1.StageStateEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "attempts": {
+          "maximum": 4294967295,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "job_id": {
+          "maxLength": 36,
+          "pattern": "^job_[0-9a-f]{32}$",
+          "type": "string"
+        },
+        "resource_version": {
+          "maxLength": 96,
+          "pattern": "^rv1:[1-9][0-9]{0,19}:sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "run_id": {
+          "maxLength": 36,
+          "pattern": "^run_[0-9a-f]{32}$",
+          "type": "string"
+        },
+        "schema_version": {
+          "maximum": 4294967295,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "stage_id": {
+          "maxLength": 38,
+          "pattern": "^stage_[0-9a-f]{32}$",
+          "type": "string"
+        },
+        "state": {
+          "maxLength": 10,
+          "pattern": "^(blocked|queued|preparing|running|succeeded|failed|cancelling|cancelled)$",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "maxLength": 64,
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "run_id",
+        "job_id",
+        "stage_id",
+        "state",
+        "attempts",
+        "updated_at",
+        "resource_version"
+      ],
+      "title": "Mindclade orchestration stage state event",
+      "type": "object"
+    },
+    "mindclade.orchestration.v1.WorkflowPublishedEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "definition_digest": {
+          "maxLength": 71,
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "schema_version": {
+          "maximum": 4294967295,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "stage_count": {
+          "maximum": 4096,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "workflow_id": {
+          "maxLength": 41,
+          "pattern": "^workflow_[0-9a-f]{32}$",
+          "type": "string"
+        },
+        "workflow_schema_version": {
+          "maximum": 4294967295,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_version",
+        "workflow_id",
+        "name",
+        "definition_digest",
+        "workflow_schema_version",
+        "stage_count"
+      ],
+      "title": "Mindclade orchestration workflow publication event",
+      "type": "object"
+    }
+  },
   "$id": "https://schemas.mindclade.dev/events/orchestration/v1/orchestration-events.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "description": "No protobuf payload message is declared for this domain in protocols/mappings/event_proto.yaml, so this schema accepts no document. Declare the domain's event payload messages there to widen it; do not edit this file.",
-  "not": {},
+  "anyOf": [
+    {
+      "$ref": "#/$defs/mindclade.orchestration.v1.WorkflowPublishedEvent"
+    },
+    {
+      "$ref": "#/$defs/mindclade.orchestration.v1.StageStateEvent"
+    },
+    {
+      "$ref": "#/$defs/mindclade.orchestration.v1.AttemptStateEvent"
+    },
+    {
+      "$ref": "#/$defs/mindclade.orchestration.v1.CancellationRequestedEvent"
+    }
+  ],
   "title": "Mindclade orchestration v1 domain event payloads"
 }

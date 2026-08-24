@@ -12,11 +12,13 @@ go_library(
     srcs = [
         "controller.go",
         "manager.go",
+        "stage.go",
     ],
     importpath = "go.mindclade.dev/services/control_plane/internal/providers/controller",
     deps = [
         "//libs/go/config",
         "//libs/go/coordination/leadership",
+        "//libs/go/coordination/workqueue",
         "//libs/go/faults",
         "//libs/go/kubernetes/controller",
         "//libs/go/kubernetes/events",
@@ -48,9 +50,11 @@ go_test(
     embed = [":controller"],
     deps = [
         "//libs/go/config",
+        "//libs/go/coordination/workqueue",
         "//libs/go/faults",
         "//services/control_plane/internal/bootstrap",
         "//services/control_plane/internal/foundation/orchestration",
+        "//services/control_plane/internal/foundation/tasks",
         "@com_github_lib_pq//:pq",
     ],
 )

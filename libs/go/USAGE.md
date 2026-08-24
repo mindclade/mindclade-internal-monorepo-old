@@ -221,6 +221,15 @@ stage. Set `ExitOnLeadershipLoss` for single-use loops. Never register the
 original component as well: that starts the work on standby replicas and makes
 the lease a readiness signal rather than an authority boundary.
 
+An elector takes exactly one handler, so a role with several components that
+may only run under the lease uses `leadership.GateComponents` -- the same gate,
+generalised to N. It strips each `Run` the way `GateComponent` does, refuses a
+duplicate component name, returns the gated components keyed by name rather
+than by argument order, and runs the group as a unit: when one member stops the
+rest are cancelled and the lease is surrendered. Do not write a service-local
+version of that loop; a second gate drifts from this one the moment either
+grows a fence.
+
 ## Strict configuration
 
 Define a finite field schema, layer explicit sources, reject unknown keys,

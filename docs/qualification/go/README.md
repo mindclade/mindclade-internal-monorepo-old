@@ -7,6 +7,10 @@ This directory captures the qualification evidence shipped with the scaffold.
 - `control-plane-api-race.txt` records the race-enabled API integration test.
 - `ai-gateway-admission.md` records the connected PostgreSQL admission and
   maintenance qualification.
+- `control-orchestration.md` and `control-scheduling.md` record the connected
+  PostgreSQL evidence for the two durable control-plane domains. Both state the
+  server they were produced against and what is still owed before either could
+  be called `qualified`; neither advances a status.
 - `api-profile.json`, `scheduler-profile.json`, and
   `ingestion-controller-profile.json` are executable capability manifests
   emitted by the standardized control-plane bootstrap.

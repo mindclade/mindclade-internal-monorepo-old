@@ -13,6 +13,8 @@ import (
 
 	_ "github.com/lib/pq"
 
+	"go.mindclade.dev/control/orchestration"
+	"go.mindclade.dev/control/scheduling"
 	foundationconfig "go.mindclade.dev/libs/go/config"
 	"go.mindclade.dev/libs/go/faults"
 	"go.mindclade.dev/services/control_plane/internal/bootstrap"
@@ -176,5 +178,73 @@ func TestSchedulerRefusesMemoryBrokerOutsideDevelopment(t *testing.T) {
 				t.Fatalf("reason=%s", reason)
 			}
 		})
+	}
+}
+
+// auxiliaryNames lists the auxiliary components a runtime composed, in order.
+func auxiliaryNames(runtime bootstrap.Runtime) []string {
+	names := make([]string, 0, len(runtime.Components.Auxiliary))
+	for _, component := range runtime.Components.Auxiliary {
+		names = append(names, component.Component.Name)
+	}
+	return names
+}
+
+func contains(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
+// The scheduling schema probe is not optional. This role's only job is to drain
+// the placement queue into the scheduling store, and a store whose tables are
+// absent fails every item it claims. Without the probe the process would report
+// ready and dead-letter the queue.
+func TestSchedulerProbesTheSchedulingSchema(t *testing.T) {
+	profile, err := bootstrap.ProfileFor(bootstrap.RoleScheduler)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime, err := NewSchedulerFactory(schedulerSettings(t)).Create(context.Background(), profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if names := auxiliaryNames(runtime); !contains(names, "scheduling-schema") {
+		t.Fatalf("auxiliary components %v carry no scheduling schema probe", names)
+	}
+}
+
+// The promotion path is composed only when the role has been given the facts to
+// translate a promoted stage with. Composing it unconditionally would mean
+// either a producer that refuses every promotion -- turning a promotable stage
+// into an un-promotable one -- or one that invents the tenant it charges the
+// fleet ledger against. See WithPlacementFacts.
+func TestSchedulerComposesThePromotionPathOnlyWithPlacementFacts(t *testing.T) {
+	profile, err := bootstrap.ProfileFor(bootstrap.RoleScheduler)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unbound, err := NewSchedulerFactory(schedulerSettings(t)).Create(context.Background(), profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if names := auxiliaryNames(unbound); contains(names, "orchestration-schema") {
+		t.Fatalf("auxiliary components %v composed a promotion path with no facts source", names)
+	}
+
+	bound, err := NewSchedulerFactory(schedulerSettings(t)).
+		WithPlacementFacts(PlacementFactsFunc(
+			func(context.Context, orchestration.WorkItem) (scheduling.AdmissionRequest, error) {
+				return scheduling.AdmissionRequest{}, nil
+			})).
+		Create(context.Background(), profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if names := auxiliaryNames(bound); !contains(names, "orchestration-schema") {
+		t.Fatalf("auxiliary components %v composed no promotion path despite a facts source", names)
 	}
 }

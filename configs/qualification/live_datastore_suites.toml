@@ -64,13 +64,45 @@ rejected; concurrent pressure never overspends capacity and replays exactly one 
 id = "control_plane_orchestration"
 directory = "services/control_plane/internal/store/postgres/orchestration"
 requires_environment = ["MINDCLADE_TEST_POSTGRES_DSN"]
-minimum_tests = 17
+# Raised from 17. The placement producer added six top-level tests to this package -- the
+# promotion that appends its work item inside the transition's own transaction, and the
+# rollback that takes the appended item with it. Twenty-three is what the package runs today
+# with the DSN set; the floor is raised rather than left stale so those six cannot be deleted
+# back out without the gate saying so.
+minimum_tests = 23
 proves = """
 Orchestration domain, audit, and outbox writes commit atomically; a stage's projected state
 remains tied to its stored document by a live CHECK constraint; published workflows are
 immutable; racing reconcilers produce one durable transition; stale versions and attempt
-generations lose; and cancellation replay and stage lookup preserve their idempotency and
-materialization contracts.
+generations lose; a promotion places its stage inside the same transaction that moves it, so a
+promotion that fails leaves no work item behind and a replayed one places nothing twice; and
+cancellation replay and stage lookup preserve their idempotency and materialization contracts.
+"""
+
+# The scheduling store is the second half of the same durability boundary and is declared
+# separately because it is a separate package with a separate schema: four tables, a singleton
+# fence/epoch ledger row, and a fleet fingerprint that has to agree with the in-memory adapter
+# or a decision taken against one cannot be committed to the other.
+#
+# `minimum_tests` is 30 because that is what the package runs with the DSN set: fifteen against
+# a scripted driver, fourteen live-only, and the conformance entry point that drives the
+# twenty-three shared cases in control/scheduling/schedulingtest. Counting the conformance
+# entry point as one top-level test is what the gate observes, not a claim that it is one case.
+[[suite]]
+id = "control_plane_scheduling"
+directory = "services/control_plane/internal/store/postgres/scheduling"
+requires_environment = ["MINDCLADE_TEST_POSTGRES_DSN"]
+minimum_tests = 30
+proves = """
+Reservation, audit, and outbox writes commit or roll back together; every projected column is
+held to the sealed document by a live CHECK constraint, and dropping that constraint by name
+from pg_constraint lets the identical drift land, so the constraint is doing the refusing;
+concurrent admissions against one fleet snapshot admit exactly one winner and the losers are
+refused for a moved fleet rather than over-committing the ledger; the fleet fingerprint this
+store computes from committed rows equals the one the in-memory adapter computes from the same
+fleet; the bounded expiry sweep drains a backlog across successive mutations without wedging;
+and reservations, the ledger epoch, and the fence survive a new store opened over the same
+tables.
 """
 
 [[suite]]

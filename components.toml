@@ -74,6 +74,15 @@ runbook = "docs/runbooks/control-admission.md"
 # control/ingestion is `implemented` and imports this package, which needed an answer before
 # `production_dependency = false` was enforced; advancing this component IS that answer, and
 # the dated exception in check_production_dependencies.py was deleted with it.
+# `status` stays `implemented` while `qualification` is added, and the two are not in
+# tension: maturity.toml requires qualification evidence at `qualified` and above, it does not
+# forbid it below. The document records what a live PostgreSQL run observed; the status records
+# a claim, and the claim is still short of two things the document names -- a protected
+# pull-request run and a merge-group run on the digest-pinned postgres:17-alpine image. Every
+# observed outcome in it came from a developer workstation running PostgreSQL 18.4, which is
+# not that image. control.admission is `implemented` on the same reasoning with 4,078 lines and
+# its own qualification document behind it; advancing here and not there would be choosing a
+# status to reflect how recent the work is.
 [[component]]
 name = "control.orchestration"
 path = "control/orchestration"
@@ -84,10 +93,17 @@ tests = [
   "control/orchestration/dependency_test.go",
   "control/orchestration/compiler_test.go",
   "control/orchestration/attempt_test.go",
+  "control/orchestration/repository_test.go",
 ]
+qualification = "docs/qualification/go/control-orchestration.md"
 slo = "docs/slo/control-orchestration.md"
 runbook = "docs/runbooks/control-orchestration.md"
 
+# `status` stays `implemented`; see the note on control.orchestration above for why the
+# qualification document does not advance it. `conformance_test.go` is listed because it is the
+# entry point that holds the in-memory and PostgreSQL repositories to one 23-case suite -- the
+# evidence that a caller can be handed either adapter is that test, not the two adapters'
+# separate suites.
 [[component]]
 name = "control.scheduling"
 path = "control/scheduling"
@@ -99,7 +115,9 @@ tests = [
   "control/scheduling/capacity_test.go",
   "control/scheduling/admission_test.go",
   "control/scheduling/pool_test.go",
+  "control/scheduling/conformance_test.go",
 ]
+qualification = "docs/qualification/go/control-scheduling.md"
 slo = "docs/slo/control-scheduling.md"
 runbook = "docs/runbooks/control-scheduling.md"
 
@@ -1119,6 +1137,7 @@ path = "services/control_plane/cmd/scheduler"
 status = "experimental"
 owner = "platform-control"
 tests = [
+  "services/control_plane/internal/providers/scheduler/placement_test.go",
   "services/control_plane/internal/providers/scheduler/scheduler_test.go",
 ]
 slo = "docs/slo/control-scheduling.md"

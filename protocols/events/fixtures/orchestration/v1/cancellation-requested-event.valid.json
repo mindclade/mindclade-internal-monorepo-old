@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "run_id": "run_019c0000000070008000000000000002",
+  "origin": "operator",
+  "reason": "operator halted the run during a capacity incident",
+  "idempotency_scope": "org_019c0000000070008000000000000006/control-plane/runs.cancel",
+  "idempotency_key": "b7c1f0a4-9d2e-4b6a-8f31-2c5d7e9a0b13",
+  "requested_at": "2026-08-23T09:00:29Z"
+}

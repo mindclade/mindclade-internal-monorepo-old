@@ -39,6 +39,8 @@ import (
 	"go.mindclade.dev/services/control_plane/internal/providers/broker"
 	"go.mindclade.dev/services/control_plane/internal/providers/cluster"
 	"go.mindclade.dev/services/control_plane/internal/providers/durable"
+	orchestrationstore "go.mindclade.dev/services/control_plane/internal/store/postgres/orchestration"
+	schedulingstore "go.mindclade.dev/services/control_plane/internal/store/postgres/scheduling"
 )
 
 // Leadership timings. The renew interval is well inside the TTL so a single
@@ -78,21 +80,41 @@ const (
 type SchedulerFactory struct {
 	sources   []foundationconfig.Source
 	placement workqueue.Handler
+	facts     PlacementFacts
 }
 
-// WithPlacementHandler injects the domain handler that turns a claimed work
-// item into a placement. It is the seam between this composition root and
-// scheduling policy: the root owns the queue, the lease, the fencing, and the
-// worker lifecycle, and the domain owns what a work item means.
-//
-// Left unset, the worker fails every item closed rather than acknowledging
-// work it cannot perform. A dropped placement that reports success is worse
-// than one that retries.
+// WithPlacementHandler replaces the standard scheduling.Service placement
+// handler. The domain contract is fixed: the item is drained from
+// scheduling.PlacementQueue and its payload is a scheduling.PlacementCommand,
+// so a replacement must implement that exact contract. This seam exists for
+// qualification and extensions; the production default is fully configured and
+// never reports synthetic success.
 func (factory *SchedulerFactory) WithPlacementHandler(handler workqueue.Handler) *SchedulerFactory {
 	if factory == nil {
 		return nil
 	}
 	factory.placement = handler
+	return factory
+}
+
+// WithPlacementFacts binds the source of the fleet admission facts a promoted
+// stage does not carry, and with it the placement producer.
+//
+// There is no default, and deliberately no fail-closed one either. A producer
+// that refused every promotion would make a promoted stage un-promotable rather
+// than unplaced, and a producer bound to a facts source that invented a tenant
+// would charge the fleet ledger against a workspace nobody named. Both are
+// worse than composing no producer: without one, the orchestration repository
+// still records stage state, which is exactly what its own WithEnqueuer doc
+// calls a legitimate composition. The role therefore builds the promotion path
+// only when it has been given the facts to translate with, and says so here
+// rather than hiding it behind a stub. See PlacementFacts for why the four
+// identity fields cannot supply them.
+func (factory *SchedulerFactory) WithPlacementFacts(facts PlacementFacts) *SchedulerFactory {
+	if factory == nil {
+		return nil
+	}
+	factory.facts = facts
 	return factory
 }
 
@@ -172,9 +194,37 @@ func (factory *SchedulerFactory) Create(ctx context.Context, profile bootstrap.P
 		return bootstrap.Runtime{}, err
 	}
 
+	// The durable scheduling repository. Its audit recorder and outbox store
+	// are this role's PostgreSQL adapters, so a reservation, its audit record
+	// and its outbox message share one SERIALIZABLE transaction.
+	//
+	// shared.Retry is deliberately NOT passed. The store sizes its own
+	// serialization budget from this role's contention shape -- every mutation
+	// takes the singleton ledger row first, so under SERIALIZABLE a concurrent
+	// writer is aborted rather than delayed -- and that argument is written out
+	// in schedulingstore's config.go against placementConcurrency below.
+	// Handing it the shared executor would silently replace a re-argued budget
+	// with the generic one.
+	placements, err := schedulingstore.New(stores.DB, recorder, stores.Outbox,
+		schedulingstore.WithClock(shared.Clock),
+		schedulingstore.WithGenerator(shared.IDs),
+	)
+	if err != nil {
+		return bootstrap.Runtime{}, err
+	}
+
+	// Constructed before the handler that reads it and handed to the gate
+	// below, so the worker's view of the epoch is the elector's own rather than
+	// a number copied at wiring time. See fencedPlacement.
+	view := &leadership.SessionView{}
 	handler := factory.placement
 	if handler == nil {
-		handler = workqueue.HandlerFunc(refusePlacement)
+		handler = fencedPlacement(scheduling.Service{
+			Repository: placements,
+			Clock:      shared.Clock,
+			// Fence is supplied per call. Setting it here would pin the epoch
+			// this process was constructed in.
+		}, view)
 	}
 	worker, err := workqueue.NewWorker(
 		queue,
@@ -195,11 +245,36 @@ func (factory *SchedulerFactory) Create(ctx context.Context, profile bootstrap.P
 	if err != nil {
 		return bootstrap.Runtime{}, err
 	}
-	leaderHandler, workerComponent, err := leadership.GateComponent(
-		worker.Component("worker/" + placementWorker),
+	leaderHandler, workerComponent, err := leadership.GateComponentWithSession(
+		worker.Component("worker/"+placementWorker), view,
 	)
 	if err != nil {
 		return bootstrap.Runtime{}, err
+	}
+
+	// The promotion path. It exists only when the role has been given a facts
+	// source, because a producer with nothing to translate from is worse than
+	// no producer at all -- see WithPlacementFacts.
+	schemas := []bootstrap.StagedComponent{
+		{Stage: servicekit.StageInfrastructure, Component: placements.Component("scheduling-schema")},
+	}
+	if !foundation.IsNil(factory.facts) {
+		producer, producerErr := newPlacementProducer(queue, factory.facts)
+		if producerErr != nil {
+			return bootstrap.Runtime{}, producerErr
+		}
+		promotions, promotionErr := orchestrationstore.New(stores.DB, recorder, stores.Outbox,
+			orchestrationstore.WithClock(shared.Clock),
+			orchestrationstore.WithGenerator(shared.IDs),
+			orchestrationstore.WithRetry(shared.Retry),
+			orchestrationstore.WithEnqueuer(producer),
+		)
+		if promotionErr != nil {
+			return bootstrap.Runtime{}, promotionErr
+		}
+		schemas = append(schemas, bootstrap.StagedComponent{
+			Stage: servicekit.StageInfrastructure, Component: promotions.Component("orchestration-schema"),
+		})
 	}
 
 	elector, err := leadership.New(
@@ -301,33 +376,21 @@ func (factory *SchedulerFactory) Create(ctx context.Context, profile bootstrap.P
 			},
 		},
 		Components: bootstrap.Components{
-			Auxiliary: []bootstrap.StagedComponent{
-				{Stage: servicekit.StageInfrastructure, Component: brokerLifecycle},
+			// The schema probes come first: a scheduler whose scheduling tables
+			// are missing cannot place anything, and without a probe it would
+			// report ready and dead-letter every item it claimed.
+			Auxiliary: append(schemas,
+				bootstrap.StagedComponent{Stage: servicekit.StageInfrastructure, Component: brokerLifecycle},
 				// CapabilityKubernetes owns no component of its own and this
 				// role runs no manager, so this probe is the only thing that
 				// answers for API-server reachability. Without it a scheduler
 				// whose cluster is unreachable reports ready and places
 				// nothing.
-				{Stage: servicekit.StageInfrastructure, Component: kubernetes.Component("kubernetes")},
-				{Stage: servicekit.StageInfrastructure, Component: eventStream},
-			},
+				bootstrap.StagedComponent{Stage: servicekit.StageInfrastructure, Component: kubernetes.Component("kubernetes")},
+				bootstrap.StagedComponent{Stage: servicekit.StageInfrastructure, Component: eventStream},
+			),
 		},
 	}, nil
-}
-
-// refusePlacement is the default placement handler. Scheduling policy is
-// domain code and is not assembled in a composition root, so until a handler
-// is injected the worker fails items closed: the queue retries them and
-// eventually dead-letters them, which leaves the work visible. Acknowledging
-// an item this process cannot place would lose it silently.
-func refusePlacement(context.Context, workqueue.Item) (workqueue.Result, error) {
-	return workqueue.Result{}, faults.New(
-		faults.CodeNotImplemented,
-		"scheduler placement policy is not configured",
-		faults.WithReason("placement_handler_not_configured"),
-		faults.WithOperation("controlplane.scheduler.refusePlacement"),
-		faults.WithRetryPolicy(faults.NoRetry()),
-	)
 }
 
 // leaseOwner identifies this process instance to the lease store. The hostname

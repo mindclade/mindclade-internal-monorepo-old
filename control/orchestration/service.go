@@ -98,12 +98,14 @@ func (service Service) StartRun(ctx context.Context, workflowID, runID, jobID st
 	now := service.now()
 	records := make([]StageRecord, 0, compiled.Graph.Len())
 	for _, stageID := range compiled.Graph.Order() {
-		record := StageRecord{
-			RunID:     runID,
-			JobID:     jobID,
-			StageID:   stageID,
-			State:     StageBlocked,
-			UpdatedAt: now,
+		// NewStage rather than a struct literal: a literal carries no sealed
+		// version, and PutStage validates the seal, so every StartRun refused
+		// its own stages with stage_version_invalid. Nothing reached AdmitReady
+		// to notice, because until the placement seam existed nothing drove
+		// this path end to end.
+		record, err := NewStage(runID, jobID, stageID, now)
+		if err != nil {
+			return nil, err
 		}
 		stored, _, err := service.Repository.PutStage(ctx, record)
 		if err != nil {
@@ -116,10 +118,14 @@ func (service Service) StartRun(ctx context.Context, workflowID, runID, jobID st
 
 // AdmitReady promotes every stage whose dependencies have all succeeded.
 //
-// It returns the stages it moved, which is what the caller enqueues. Reporting
-// the moved set rather than the ready set matters under concurrency: a stage
-// another reconciler already promoted comes back as replayed and is excluded, so
-// two reconcilers cannot enqueue the same stage twice.
+// It returns the stages it moved. The caller does NOT enqueue them: a promotion
+// appends its placement item inside the repository's transaction (see Enqueuer),
+// because an enqueue this service issued after TransitionStage returned would be
+// lost by a crash in between. Reporting the moved set rather than the ready set
+// still matters under concurrency -- a stage another reconciler already promoted
+// comes back as replayed and is excluded, so two reconcilers cannot place the
+// same stage twice -- but the set is now a report of what happened rather than a
+// work list.
 func (service Service) AdmitReady(ctx context.Context, workflowID, runID string) ([]StageRecord, error) {
 	if err := service.validate(ctx); err != nil {
 		return nil, err
@@ -159,6 +165,10 @@ func (service Service) AdmitReady(ctx context.Context, workflowID, runID string)
 // Only success releases dependents. A failed stage leaves its children blocked
 // because the outputs they consume do not exist; clearing them is what
 // cancelling the run is for.
+//
+// The stages it returns were promoted to queued, so each one has already placed
+// its own work item inside the repository's transaction. As with AdmitReady, the
+// caller reports on them rather than enqueueing them.
 func (service Service) CompleteStage(ctx context.Context, workflowID, runID, stageID string, outcome StageState) ([]StageRecord, error) {
 	if err := service.validate(ctx); err != nil {
 		return nil, err
@@ -215,6 +225,16 @@ func (service Service) CompleteStage(ctx context.Context, workflowID, runID, sta
 //
 // The intent is durable before anything stops, so a control plane that crashes
 // mid-cancellation resumes cancelling rather than forgetting that it was asked.
+//
+// The stage fetch is scoped to what the cancellation can actually reach, which
+// is what the origin already decides. A run-scoped stop (client, operator,
+// deadline) walks the graph and needs every stage. An attempt-scoped one --
+// claim loss, preemption -- touches exactly the one stage it names and is the
+// origin that arrives per lost lease, so listing a run bounded at 4096 stages to
+// cancel one of them made a node preemption cost O(stages) per attempt it took
+// down. Propagate's attempt-scoped arm reads only states[intent.StageID], so the
+// narrower map is the whole map it consults; see the note on Propagate before
+// widening what either arm reads.
 func (service Service) Cancel(ctx context.Context, workflowID string, intent CancellationIntent) ([]StageRecord, bool, error) {
 	if err := service.validate(ctx); err != nil {
 		return nil, false, err
@@ -227,7 +247,7 @@ func (service Service) Cancel(ctx context.Context, workflowID string, intent Can
 	if err != nil {
 		return nil, false, err
 	}
-	records, err := service.Repository.ListStages(ctx, stored.RunID)
+	records, err := service.cancellationScope(ctx, stored)
 	if err != nil {
 		return nil, false, err
 	}
@@ -261,6 +281,25 @@ func (service Service) Cancel(ctx context.Context, workflowID string, intent Can
 		}
 	}
 	return cancelling, replayed, nil
+}
+
+// cancellationScope fetches exactly the stages this cancellation can reach.
+//
+// The scope is read off the recorded intent rather than the request, because
+// RecordCancellation is the point the origin becomes durable: a replayed
+// delivery re-derives its scope from the stored record and therefore fetches
+// the same set the first delivery did.
+//
+// A stage the fetch does not return is absent from the state map, and an absent
+// stage is not a terminal one -- Propagate names it, and CancelStage then
+// refuses the empty state as stage_state_invalid. That is the same answer
+// ListStages gives for a run whose stage row is missing, which is why narrowing
+// the fetch changes cost and not behaviour.
+func (service Service) cancellationScope(ctx context.Context, stored CancellationIntent) ([]StageRecord, error) {
+	if stored.Origin.scopesRun() {
+		return service.Repository.ListStages(ctx, stored.RunID)
+	}
+	return service.Repository.GetStages(ctx, stored.RunID, []string{stored.StageID})
 }
 
 // ReconcileAttempt applies one launcher observation to durable attempt state.

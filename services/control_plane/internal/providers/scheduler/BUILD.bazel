@@ -9,14 +9,19 @@ package(default_visibility = ["//services/control_plane:__subpackages__"])
 
 go_library(
     name = "scheduler",
-    srcs = ["scheduler.go"],
+    srcs = [
+        "placement.go",
+        "scheduler.go",
+    ],
     importpath = "go.mindclade.dev/services/control_plane/internal/providers/scheduler",
     deps = [
+        "//control/orchestration",
         "//control/scheduling",
         "//libs/go/config",
         "//libs/go/coordination/leadership",
         "//libs/go/coordination/workqueue",
         "//libs/go/faults",
+        "//libs/go/requestmeta",
         "//libs/go/servicekit",
         "//libs/go/storage/lease",
         "//services/control_plane/internal/bootstrap",
@@ -32,18 +37,31 @@ go_library(
         "//services/control_plane/internal/providers/broker",
         "//services/control_plane/internal/providers/cluster",
         "//services/control_plane/internal/providers/durable",
+        "//services/control_plane/internal/store/postgres/orchestration",
+        "//services/control_plane/internal/store/postgres/scheduling",
         "@io_k8s_sigs_controller_runtime//pkg/client",
     ],
 )
 
 go_test(
     name = "scheduler_test",
-    srcs = ["scheduler_test.go"],
+    srcs = [
+        "placement_test.go",
+        "scheduler_test.go",
+    ],
     embed = [":scheduler"],
     deps = [
+        "//control/orchestration",
         "//control/scheduling",
         "//libs/go/config",
+        "//libs/go/coordination/leadership",
+        "//libs/go/coordination/workqueue",
+        "//libs/go/coordination/workqueue/memory",
         "//libs/go/faults",
+        "//libs/go/identifiers",
+        "//libs/go/requestmeta",
+        "//libs/go/servicekit",
+        "//libs/go/storage/lease",
         "//services/control_plane/internal/bootstrap",
         "//services/control_plane/internal/foundation/tasks",
         "@com_github_lib_pq//:pq",

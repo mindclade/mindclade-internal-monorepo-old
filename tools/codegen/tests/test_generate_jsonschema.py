@@ -38,6 +38,7 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -47,6 +48,53 @@ import pytest
 ROOT = Path(__file__).resolve().parents[3]
 GENERATED = ROOT / "protocols/events/generated"
 ENVELOPE_MESSAGE = "mindclade.events.v1.EventEnvelope"
+
+# The producer of the orchestration domain's event payloads, and the fixtures recording what it
+# writes. Named here rather than inside the one test that reads them because both halves of the
+# claim below — "the schema accepts these documents" and "these documents are what the store
+# emits" — have to point at the same two places.
+ORCHESTRATION_STORE_EVENTS = (
+    ROOT / "services/control_plane/internal/store/postgres/orchestration/events.go"
+)
+ORCHESTRATION_FIXTURES = ROOT / "protocols/events/fixtures/orchestration/v1"
+
+# The three closed vocabularies the orchestration payloads carry, and the Go constant block that
+# decides each one. (message, JSON field) -> (Go file, Go named string type).
+#
+# The schema pins these as closed alternations — `^(blocked|queued|...)$` — which is what makes a
+# consumer able to switch on them exhaustively. Nothing tied those alternations to the constants
+# the producer actually emits, so adding one constant to a block shipped events the published
+# schema rejects, and no test in the repository failed. The values live in the Go blocks; the
+# policy in protocols/mappings/event_proto.yaml restates them; this reads both and requires them
+# to be the same set.
+ORCHESTRATION_STATE_MACHINE = ROOT / "control/orchestration/state_machine.go"
+ORCHESTRATION_CANCELLATION = ROOT / "control/orchestration/cancellation.go"
+ORCHESTRATION_CLOSED_VOCABULARIES = {
+    ("mindclade.orchestration.v1.AttemptStateEvent", "state"): (
+        ORCHESTRATION_STATE_MACHINE,
+        "AttemptState",
+    ),
+    ("mindclade.orchestration.v1.StageStateEvent", "state"): (
+        ORCHESTRATION_STATE_MACHINE,
+        "StageState",
+    ),
+    ("mindclade.orchestration.v1.CancellationRequestedEvent", "origin"): (
+        ORCHESTRATION_CANCELLATION,
+        "CancellationOrigin",
+    ),
+}
+
+# fixture file -> the Go struct in ORCHESTRATION_STORE_EVENTS whose marshalled form it records.
+# Two structs appear twice on purpose: each has `omitempty` fields, so one fixture alone would
+# only ever pin one of the two documents the store can write.
+ORCHESTRATION_FIXTURE_SOURCES = {
+    "attempt-failed-event.valid.json": "attemptEvent",
+    "attempt-state-event.valid.json": "attemptEvent",
+    "cancellation-requested-event.valid.json": "cancellationEvent",
+    "cancellation-stage-scoped-event.valid.json": "cancellationEvent",
+    "stage-state-event.valid.json": "stageEvent",
+    "workflow-published-event.valid.json": "workflowEvent",
+}
 
 
 def _generator():
@@ -232,15 +280,181 @@ def test_every_generated_schema_is_a_distinct_document() -> None:
     assert len(set(identifiers)) == len(identifiers)
 
 
-def test_undeclared_domain_payloads_accept_nothing() -> None:
-    """`{}` accepted every document, including one whose every field was wrong."""
+def _payload_unions() -> dict[Path, list[str]]:
+    """Every payload-union projection, as {generated schema path: declared message names}.
 
-    paths = sorted(GENERATED.rglob("*-events.schema.json"))
-    assert paths, "the blueprint reserves a domain payload schema per event domain"
-    for path in paths:
+    Read from the policy a reviewer edits, not from the generated files, so the assertions below
+    compare the tree to a declaration rather than to itself. The set equality is what stops a
+    union schema being deleted, or a projection being added without a file appearing.
+    """
+    policy = _policy()
+    output_root = (ROOT / str(policy["output_root"])).resolve()
+    unions = {
+        (output_root / str(projection["path"])).resolve(): list(projection["payload_messages"])
+        for projection in policy["projections"]
+        if projection.get("kind") == "payload_union"
+    }
+    assert unions, f"{GENERATOR.POLICY_RELPATH} declares no payload_union projection"
+    assert set(unions) == {path.resolve() for path in GENERATED.rglob("*-events.schema.json")}
+    return unions
+
+
+def test_domain_payload_union_accepts_exactly_its_declared_messages() -> None:
+    """An undeclared domain accepts nothing; a declared one accepts exactly what it declares.
+
+    This assertion read `schema["not"] == {}` for EVERY union until orchestration/v1 declared
+    payloads. It was only ever stricter than its own name — "undeclared" — because all eight
+    `payload_messages` lists had been empty since the file was created, so "every union" and
+    "every undeclared union" named the same set. Emptiness is now read from the policy instead
+    of assumed of every domain.
+
+    The ratchet on the seven still-undeclared domains is unchanged and still bites: `{}` — what
+    these files used to hold — accepts every document, including one whose every field is
+    wrong, so a domain with nothing declared must accept nothing. What is new is the positive
+    half: a declared union must be exactly one `$ref` per declared name, in the declared order,
+    with a definition behind each. Neither half can pass by accident of the other.
+    """
+    for path, names in sorted(_payload_unions().items()):
         schema = json.loads(path.read_text(encoding="utf-8"))
-        assert schema["not"] == {}, path
-        assert GENERATOR.POLICY_RELPATH in schema["description"], path
+        if names:
+            assert "not" not in schema, path
+            assert schema["anyOf"] == [{"$ref": f"#/$defs/{name}"} for name in names], path
+            assert set(schema["$defs"]) >= set(names), path
+        else:
+            assert "anyOf" not in schema, path
+            assert schema["not"] == {}, path
+            assert GENERATOR.POLICY_RELPATH in schema["description"], path
+
+
+def _emitted_payload_keys() -> dict[str, tuple[frozenset[str], frozenset[str]]]:
+    """{Go struct name: (always-emitted JSON keys, omitempty keys)} read from the store.
+
+    Parsed from the `json:` struct tags rather than restated here, because a restatement is the
+    thing that goes stale. Reaching across into a Go file from a codegen test is deliberate and
+    is the point: a schema derived from a .proto can be internally consistent and still describe
+    a document no producer writes, and the store's struct tags are the only place the emitted
+    key set is actually decided.
+    """
+    text = ORCHESTRATION_STORE_EVENTS.read_text(encoding="utf-8")
+    emitted: dict[str, tuple[frozenset[str], frozenset[str]]] = {}
+    for name in sorted(set(ORCHESTRATION_FIXTURE_SOURCES.values())):
+        match = re.search(rf"\ntype {name} struct \{{(.*?)\n\}}", text, re.DOTALL)
+        assert match, f"{name} is no longer declared in {ORCHESTRATION_STORE_EVENTS}"
+        tags = re.findall(r'json:"([^"]+)"', match.group(1))
+        assert tags, f"{name} declares no JSON tags"
+        emitted[name] = (
+            frozenset(tag for tag in tags if ",omitempty" not in tag),
+            frozenset(tag.split(",")[0] for tag in tags if ",omitempty" in tag),
+        )
+    return emitted
+
+
+def test_orchestration_union_accepts_what_the_orchestration_store_emits() -> None:
+    """The first declared union, checked against the bytes its producer actually writes.
+
+    Two plausible modellings would have passed every other assertion in this module and still
+    described documents nobody emits: `mindclade.common.v1.ResourceId` for the identifiers,
+    which proto3 JSON writes as `{"value": "..."}` rather than as a bare string, and proto
+    enums for the states, which it writes as `STAGE_STATE_RUNNING` rather than as the domain's
+    own `running`. Only a fixture taken from the producer catches either.
+
+    Both `omitempty` branches are covered: an attempt with and without a failure, and a
+    run-scoped cancellation (which names no stage) alongside an attempt-scoped one (which must).
+    """
+    from configs.contract_validation import validate
+
+    schema = json.loads(
+        (GENERATED / "orchestration/v1/orchestration-events.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    emitted = _emitted_payload_keys()
+    fixtures = sorted(ORCHESTRATION_FIXTURES.glob("*.valid.json"))
+    assert {path.name for path in fixtures} == set(ORCHESTRATION_FIXTURE_SOURCES), (
+        "every orchestration fixture must name the store struct it records"
+    )
+    seen: dict[str, set[str]] = {name: set() for name in emitted}
+    for path in fixtures:
+        document = json.loads(path.read_text(encoding="utf-8"))
+        always, optional = emitted[ORCHESTRATION_FIXTURE_SOURCES[path.name]]
+        keys = set(document)
+        assert always <= keys, f"{path.name}: missing emitted key(s) {sorted(always - keys)}"
+        assert keys <= always | optional, (
+            f"{path.name}: key(s) {sorted(keys - always - optional)} are not emitted by "
+            f"{ORCHESTRATION_STORE_EVENTS.name}"
+        )
+        seen[ORCHESTRATION_FIXTURE_SOURCES[path.name]] |= keys & optional
+        errors = validate(document, schema)
+        assert not errors, f"{path.name}: {[(item.path, item.message) for item in errors]}"
+        # anyOf over open objects would accept whatever any one branch tolerated, so prove the
+        # branches are closed: an unreviewed field must match no branch at all.
+        assert validate({**document, "unreviewed_field": "forbidden"}, schema), path.name
+    for name, (_, optional) in emitted.items():
+        assert seen[name] == optional, (
+            f"{name}: fixtures never exercise omitempty key(s) {sorted(optional - seen[name])}, "
+            "so the schema is unproven for the document the store writes when they are set"
+        )
+
+
+def _go_constant_values(source: Path, go_type: str) -> frozenset[str]:
+    """The string values of every `Name GoType = "value"` constant declared in one Go file.
+
+    Read rather than restated, for the same reason `_emitted_payload_keys` reads the store's
+    struct tags: a restatement of a vocabulary is the thing that goes stale, and a vocabulary
+    that has gone stale is a producer emitting a value its own published schema refuses.
+    """
+    text = source.read_text(encoding="utf-8")
+    values = frozenset(re.findall(rf'^\t\w+\s+{go_type}\s*=\s*"([^"]+)"$', text, re.MULTILINE))
+    assert values, f"{source.name} declares no {go_type} constants"
+    return values
+
+
+def _closed_alternation(pattern: str) -> frozenset[str]:
+    """The literal branches of an anchored closed alternation, or an assertion failure."""
+    match = re.fullmatch(r"\^\(([^()]+)\)\$", pattern)
+    assert match, f"{pattern!r} is not an anchored closed alternation"
+    branches = match.group(1).split("|")
+    for branch in branches:
+        assert re.fullmatch(r"[a-z0-9_]+", branch), (
+            f"branch {branch!r} is not a literal, so this is not a value set"
+        )
+    assert len(set(branches)) == len(branches), f"{pattern!r} repeats a branch"
+    return frozenset(branches)
+
+
+def test_closed_event_vocabularies_match_their_go_constant_blocks() -> None:
+    """Each closed alternation in the shipped schema is exactly its producer's constant block.
+
+    This is the one gate standing between a one-line Go change and a runtime break in a consumer.
+    `AttemptState = "queued"` added to control/orchestration/state_machine.go compiles, passes
+    every Go test, passes the schema drift and derivation tests here — and produces an event that
+    the published `^(created|starting|...)$` refuses, at the consumer, after the write committed.
+
+    It reads the generated tree rather than protocols/mappings/event_proto.yaml because the
+    generated tree is what ships; the drift test already binds the two, so a policy edited without
+    regenerating fails there instead, and one regenerated without touching Go fails here.
+    """
+    schema = json.loads(
+        (GENERATED / "orchestration/v1/orchestration-events.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    for (message, field), (source, go_type) in sorted(ORCHESTRATION_CLOSED_VOCABULARIES.items()):
+        constrained = schema["$defs"][message]["properties"][field]
+        published = _closed_alternation(constrained["pattern"])
+        declared = _go_constant_values(source, go_type)
+        assert published == declared, (
+            f"{message}.{field} accepts {sorted(published)} but {source.name} declares "
+            f"{go_type} = {sorted(declared)}; the schema and its producer disagree, so "
+            f"{sorted(declared - published) or sorted(published - declared)} is the value that "
+            "breaks a consumer"
+        )
+        # A value the pattern admits and maxLength refuses is unreachable, which makes the
+        # alternation a lie about what the producer may emit.
+        assert constrained["maxLength"] >= max(len(value) for value in declared), (
+            f"{message}.{field} caps length at {constrained['maxLength']}, below the longest "
+            f"{go_type} constant"
+        )
 
 
 def test_bytes_and_wide_integers_stay_inside_what_json_can_carry() -> None:

@@ -13,6 +13,7 @@ go_library(
         "doc.go",
         "elector.go",
         "errors.go",
+        "gate.go",
     ],
     importpath = "go.mindclade.dev/libs/go/coordination/leadership",
     deps = [
@@ -26,9 +27,13 @@ go_library(
 
 go_test(
     name = "leadership_test",
-    srcs = ["elector_test.go"],
+    srcs = [
+        "elector_test.go",
+        "gate_test.go",
+    ],
     embed = [":leadership"],
     deps = [
+        "//libs/go/faults",
         "//libs/go/servicekit",
         "//libs/go/storage/lease",
         "//libs/go/storage/lease/memory",

@@ -75,6 +75,18 @@ func NewMemoryRepository(maxReservations int) *MemoryRepository {
 	}
 }
 
+// checkContext ends a call whose caller has already abandoned it.
+//
+// ctx.Err() goes back unwrapped, so this adapter carries no reason string here
+// while the PostgreSQL store's validate reports scheduling_context_done. That
+// is the one reason-string divergence schedulingtest deliberately does not
+// assert on, and it is argued at that assertion. The argument is not that the
+// domain package has no vocabulary for a context fault -- the branch below
+// names context_nil, so plainly it does. It is that no caller can use one: the
+// caller handed this error is the caller that cancelled the context, and
+// nothing branches on the reason of a call it abandoned itself. Wrapping here
+// would mint a domain decision nobody took; making the store match would cost
+// the operation metadata an operator reads off a cancelled mutation.
 func checkContext(ctx context.Context) error {
 	if ctx == nil {
 		return invalid("context_nil", "context is required", nil)

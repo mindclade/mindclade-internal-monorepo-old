@@ -14,9 +14,11 @@ import (
 	_ "github.com/lib/pq"
 
 	foundationconfig "go.mindclade.dev/libs/go/config"
+	"go.mindclade.dev/libs/go/coordination/workqueue"
 	"go.mindclade.dev/libs/go/faults"
 	"go.mindclade.dev/services/control_plane/internal/bootstrap"
 	"go.mindclade.dev/services/control_plane/internal/foundation/orchestration"
+	"go.mindclade.dev/services/control_plane/internal/foundation/tasks"
 )
 
 // A kubeconfig pointing at an address nothing listens on. Construction must
@@ -259,5 +261,104 @@ func TestControllerFactoryRefusesTheOperatorProfile(t *testing.T) {
 				t.Fatalf("reason=%s", reason)
 			}
 		})
+	}
+}
+
+// The stage seam's default. It is fail-closed on purpose: stage reconciliation
+// is domain code and a composition root does not author it, so an unwired role
+// must fail its items rather than acknowledge work it cannot do.
+func TestStageReconcilerRefusesWorkUntilItIsConfigured(t *testing.T) {
+	_, err := refuseStageReconcile(context.Background(), workqueue.Item{})
+	if !faults.IsCode(err, faults.CodeNotImplemented) || !faults.IsReason(err, "stage_reconciler_not_configured") {
+		t.Fatalf("default stage handler = %s/%q, want not_implemented/stage_reconciler_not_configured",
+			faults.CodeOf(err), faults.ReasonOf(err))
+	}
+	if faults.IsRetryable(err) {
+		t.Fatal("an unconfigured stage reconciler asked the queue to retry a permanent refusal")
+	}
+}
+
+// The stage worker is leader-gated exactly like the manager. A standby that
+// could start it would claim durable items the leader is reconciling, which is
+// the split brain the singleton lease exists to prevent.
+func TestControllerStageWorkerHasNoStandbyRunLoop(t *testing.T) {
+	profile, err := bootstrap.ProfileFor(bootstrap.RoleController)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime, err := NewControllerFactory(controllerSettings(t)).Create(context.Background(), profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, dependency := range runtime.Dependencies {
+		mechanisms, ok := dependency.(tasks.Mechanisms)
+		if !ok {
+			continue
+		}
+		worker, found := mechanisms.Workers[stageWorker]
+		if !found {
+			t.Fatal("stage worker component was not composed")
+		}
+		if worker.Run != nil {
+			t.Fatal("stage worker can run independently of leadership")
+		}
+		return
+	}
+	t.Fatal("workqueue mechanisms were not composed")
+}
+
+// The controller and the operator are separate singletons under separate
+// leases. A shared stage queue would let either claim the other's work, and a
+// claim is exclusive: the intended reconciler would never see the item again.
+func TestControllerAndOperatorDrainSeparateStageQueues(t *testing.T) {
+	controller := NewControllerFactory(controllerSettings(t))
+	operator := NewOperatorFactory(controllerSettings(t))
+	if controller.stageQueue == "" || operator.stageQueue == "" {
+		t.Fatal("a reconciling role composed no stage queue")
+	}
+	if controller.stageQueue == operator.stageQueue {
+		t.Fatalf("both roles drain %q", controller.stageQueue)
+	}
+}
+
+// The manager and the stage worker must reach their aggregates under their own
+// names. Both are servicekit.Component, so before leadership.GateComponents
+// keyed its result by name, swapping its two arguments compiled and registered
+// the manager as the stage worker -- and every other test here still passed,
+// because both components are stripped of Run either way.
+func TestControllerRegistersEachGatedComponentUnderItsOwnName(t *testing.T) {
+	profile, err := bootstrap.ProfileFor(bootstrap.RoleController)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime, err := NewControllerFactory(controllerSettings(t)).Create(context.Background(), profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sawManager, sawWorker bool
+	for _, dependency := range runtime.Dependencies {
+		switch aggregate := dependency.(type) {
+		case orchestration.Cluster:
+			if aggregate.Manager == nil {
+				t.Fatal("the cluster aggregate carries no manager component")
+			}
+			if aggregate.Manager.Name != orchestration.ManagerComponent {
+				t.Fatalf("manager registered as %q, want %q",
+					aggregate.Manager.Name, orchestration.ManagerComponent)
+			}
+			sawManager = true
+		case tasks.Mechanisms:
+			worker, found := aggregate.Workers[stageWorker]
+			if !found {
+				t.Fatal("stage worker component was not composed")
+			}
+			if worker.Name != "worker/"+stageWorker {
+				t.Fatalf("stage worker registered as %q, want %q", worker.Name, "worker/"+stageWorker)
+			}
+			sawWorker = true
+		}
+	}
+	if !sawManager || !sawWorker {
+		t.Fatalf("manager aggregate seen=%v, worker aggregate seen=%v", sawManager, sawWorker)
 	}
 }

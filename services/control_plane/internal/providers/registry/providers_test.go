@@ -124,8 +124,8 @@ func TestMigrationManifestPreservesReleasedBytesWhenAppending(t *testing.T) {
 	// moves this line by construction; the assertion that matters is the one
 	// below, that every version 1..N appears exactly once and in order, because
 	// a gap or a reorder is what makes a runner skip a schema or replay one.
-	if len(migrations) != int(migrationOrchestrationCancellations) {
-		t.Fatalf("migration count = %d, want %d", len(migrations), migrationOrchestrationCancellations)
+	if len(migrations) != int(migrationSchedulingLedger) {
+		t.Fatalf("migration count = %d, want %d", len(migrations), migrationSchedulingLedger)
 	}
 	for index, migration := range migrations {
 		if migration.Version != uint64(index+1) {

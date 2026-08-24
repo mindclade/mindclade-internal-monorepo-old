@@ -53,6 +53,7 @@ go_test(
     embed = [":scheduling"],
     deps = [
         "//control/orchestration",
+        "//control/scheduling/schedulingtest",
         "//libs/go/clock",
         "//libs/go/faults",
         "//libs/go/identifiers",

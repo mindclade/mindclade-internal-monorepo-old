@@ -11,12 +11,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"strconv"
-	"strings"
 
 	"go.mindclade.dev/control/orchestration"
 	"go.mindclade.dev/libs/go/faults"
-	"go.mindclade.dev/libs/go/identifiers"
 	"go.mindclade.dev/libs/go/retry"
 	"go.mindclade.dev/libs/go/storage/sql/transaction"
 )
@@ -155,29 +152,4 @@ func sqlUint(ctx context.Context, value uint64, label, operation string) (int64,
 			"orchestration_"+label+"_out_of_range", label+" is outside PostgreSQL bounds", operation)
 	}
 	return int64(value), nil
-}
-
-// canonicalJoin and stageDigest restate control/orchestration's stage seal.
-//
-// TransitionStage has to mint the same resourceversion.Version the reference
-// adapter would mint, because a record written by one adapter is read and
-// transitioned by the other. The domain computes that digest in an unexported
-// function, so the definition is repeated here rather than approximated. The
-// unit separator cannot appear in any validated field, so no two distinct field
-// lists collide on one preimage.
-//
-// TestTransitionStageMatchesMemoryRepositorySeal drives the same transition
-// through orchestration.MemoryRepository and this store and compares versions,
-// so a change to either definition fails a test instead of forking the format.
-func canonicalJoin(values ...string) string { return strings.Join(values, "\x1f") }
-
-func stageDigest(record orchestration.StageRecord) identifiers.Digest {
-	return identifiers.SHA256String(canonicalJoin(
-		record.RunID,
-		record.JobID,
-		record.StageID,
-		string(record.State),
-		strconv.FormatUint(uint64(record.Attempts), 10),
-		strconv.FormatInt(record.UpdatedAt.UnixNano(), 10),
-	))
 }

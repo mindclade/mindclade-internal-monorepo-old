@@ -80,3 +80,40 @@ name = "control_plane_retry_exhaustion"
 invariant = "bounded_retries_surface_an_exhausted_fault"
 owner = "control-plane"
 command = ["tools/qualification/go/failure_injection.sh", "retry_exhaustion"]
+
+# The five scenarios above cover the registry boundary: a provider that disappears, a
+# transaction that aborts, a lease that is lost, a redelivered event, a retry budget that runs
+# out. The four below cover what the orchestration and scheduling durability work added, and
+# they inject failures into a *composition* rather than into one provider.
+#
+# All four are live-PostgreSQL tests. They are declared with owner `control-plane` so the
+# presubmit step that already runs `--owner control-plane` picks them up, and that step is the
+# one job in the tree where MINDCLADE_TEST_POSTGRES_DSN is set -- without it these tests skip,
+# and `go test` reports a package whose tests all skipped as `ok`. That is the same defect
+# ci/presubmit/live_datastore_gate.py exists to close, and it closes it for these packages too:
+# both are declared in configs/qualification/live_datastore_suites.toml, so a skip in either is
+# already an error in the same job, before this matrix runs.
+
+[[scenario]]
+name = "control_plane_placement_rollback"
+invariant = "an_appended_placement_does_not_survive_a_failed_promotion"
+owner = "control-plane"
+command = ["tools/qualification/go/failure_injection.sh", "placement_rollback"]
+
+[[scenario]]
+name = "control_plane_scheduling_projection_drift"
+invariant = "projected_columns_cannot_drift_from_the_sealed_document"
+owner = "control-plane"
+command = ["tools/qualification/go/failure_injection.sh", "scheduling_projection_drift"]
+
+[[scenario]]
+name = "control_plane_scheduling_stale_snapshot"
+invariant = "a_decision_taken_against_a_moved_fleet_cannot_commit"
+owner = "control-plane"
+command = ["tools/qualification/go/failure_injection.sh", "scheduling_stale_snapshot"]
+
+[[scenario]]
+name = "control_plane_scheduling_expiry_backlog"
+invariant = "an_expiry_backlog_drains_across_bounded_sweeps_without_wedging"
+owner = "control-plane"
+command = ["tools/qualification/go/failure_injection.sh", "scheduling_expiry_backlog"]
