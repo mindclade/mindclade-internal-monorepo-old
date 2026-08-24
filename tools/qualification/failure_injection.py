@@ -94,7 +94,13 @@ def main() -> int:
                 )
                 return 1
             print(f"failure-injection: {scenario['name']} -> {' '.join(command)}")
-            subprocess.run(command, cwd=ROOT, check=True)
+            # Reported, not raised. A runner now refuses to count a scenario that skipped as
+            # passed, so a developer without a live database reaches this path routinely, and a
+            # CalledProcessError traceback buries the runner's own explanation of why under a
+            # Python stack that explains nothing.
+            if subprocess.run(command, cwd=ROOT, check=False).returncode != 0:
+                print(f"failure-injection scenario failed: {scenario['name']}")
+                return 1
     print(f"failure-injection matrix passed ({len(scenarios)} scenarios)")
     return 0
 
