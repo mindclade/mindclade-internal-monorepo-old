@@ -21,16 +21,21 @@ technique ``test_wire_compatibility.py`` uses: this module runs in the Python
 lane, which has no Go and no Rust toolchain, and a test that skips wherever a
 toolchain is missing is not a test.
 
-One live divergence, tracked below rather than asserted away. Rust's parser
-(``libs/rust/content_digest/src/digest.rs``) decodes ``b'A'..=b'F'`` as well as
-``b'a'..=b'f'``, so ``sha256:AAAA…`` is admitted by the Rust data plane and
-rejected by ``libs/go/identifiers.ParseDigest`` and
+All three implementations now agree. Rust's parser previously decoded
+``b'A'..=b'F'`` as well as ``b'a'..=b'f'``, so ``sha256:AAAA…`` was admitted by
+the Rust data plane and rejected by ``libs/go/identifiers.ParseDigest`` and
 ``libs/python/identifiers.Digest.parse`` — one content address with two
-spellings across a language boundary. The fix is deleting one arm of that
-``nibble`` match, in a crate this change does not own, so
-``test_rust_rejects_uppercase_hexadecimal`` records it as a strict xfail:
-red CI is not shipped, and the day ``content_digest`` is tightened the xpass
-fails the suite and forces this marker out. It is a tracker, not an exemption.
+spellings across a language boundary, and the same bytes reaching two different
+cache keys depending on which plane parsed them. That arm is gone, and
+``test_rust_rejects_uppercase_hexadecimal`` is an ordinary assertion rather than
+the strict xfail that tracked it. The tracker did its job: it xpassed, which
+failed the suite, which forced the marker out.
+
+Because this module can only inspect Rust source text, the behaviour it stands
+in for is asserted directly in that crate —
+``uppercase_hexadecimal_is_refused_as_non_canonical`` in
+``libs/rust/content_digest/tests/integration.rs`` — so a refactor that moves the
+decoder cannot quietly reintroduce the divergence.
 """
 
 from __future__ import annotations
@@ -148,15 +153,6 @@ def test_rust_agrees_on_prefix_and_length() -> None:
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "libs/rust/content_digest decodes b'A'..=b'F', so Rust admits an uppercase "
-        "digest that Go and Python reject. Fixing it means deleting one arm of that "
-        "crate's `nibble` match. When that lands this xpasses, which fails the suite "
-        "under strict=True and forces this marker out."
-    ),
-)
 def test_rust_rejects_uppercase_hexadecimal() -> None:
     uppercase = re.search(r"b'A'\.\.=b'F'", _collapsed(RUST_DIGEST))
     assert uppercase is None, "Rust still decodes uppercase hexadecimal digests"

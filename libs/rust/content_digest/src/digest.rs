@@ -112,14 +112,10 @@ impl FromStr for Digest {
         let mut bytes = [0_u8; 32];
         for (index, pair) in encoded.as_bytes().chunks_exact(2).enumerate() {
             let Some(high) = nibble(pair[0]) else {
-                return Err(ParseDigestError(
-                    "digest contains a non-hexadecimal character",
-                ));
+                return Err(rejected(pair[0]));
             };
             let Some(low) = nibble(pair[1]) else {
-                return Err(ParseDigestError(
-                    "digest contains a non-hexadecimal character",
-                ));
+                return Err(rejected(pair[1]));
             };
             bytes[index] = (high << 4) | low;
         }
@@ -131,7 +127,22 @@ fn nibble(value: u8) -> Option<u8> {
     match value {
         b'0'..=b'9' => Some(value - b'0'),
         b'a'..=b'f' => Some(value - b'a' + 10),
-        b'A'..=b'F' => Some(value - b'A' + 10),
         _ => None,
     }
+}
+
+/// Explains a byte this decoder refused.
+///
+/// Uppercase is valid hexadecimal, so reporting it as "non-hexadecimal" would send a reader
+/// looking for the wrong defect. It is refused because it is not the canonical spelling: this
+/// decoder used to accept it while `libs/go/identifiers.ParseDigest` and
+/// `libs/python/identifiers.Digest.parse` both rejected it, which gave one content address two
+/// spellings across a language boundary -- the same value hashing to two different cache keys
+/// depending on which plane parsed it. The wording tracks Go's, so a reader who greps the
+/// message finds both implementations.
+fn rejected(value: u8) -> ParseDigestError {
+    if value.is_ascii_hexdigit() && value.is_ascii_uppercase() {
+        return ParseDigestError("digest hexadecimal value must be lowercase");
+    }
+    ParseDigestError("digest contains a non-hexadecimal character")
 }
